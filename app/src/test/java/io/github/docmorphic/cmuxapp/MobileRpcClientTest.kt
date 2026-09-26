@@ -7,11 +7,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.ServerSocket
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class MobileRpcClientTest {
     @Test fun sendsAuthenticatedFramedRequestAndMatchesResponseById() = runBlocking {
         ServerSocket(0).use { server ->
             val observed = AtomicReference<JSONObject>()
+            val responseObserved = CountDownLatch(1)
+            val finishPeer = CountDownLatch(1)
             val peer = Thread {
                 server.accept().use { socket ->
                     val input = socket.getInputStream()
@@ -24,6 +28,9 @@ class MobileRpcClientTest {
                         .put("ok", true)
                         .put("result", JSONObject().put("workspaces", org.json.JSONArray()))
                     socket.getOutputStream().write(MobileFrameCodec.encode(response.toString().toByteArray()))
+                    socket.getOutputStream().flush()
+                    responseObserved.countDown()
+                    finishPeer.await(5, TimeUnit.SECONDS)
                 }
             }
             peer.start()
@@ -31,10 +38,14 @@ class MobileRpcClientTest {
             try {
                 client.connect()
                 assertEquals(0, client.workspaces().getJSONArray("workspaces").length())
-                peer.join(3_000)
+                assertTrue(responseObserved.await(3, TimeUnit.SECONDS))
                 assertEquals("mobile.workspace.list", observed.get().getString("method"))
                 assertEquals("test-token", observed.get().getJSONObject("auth").getString("stack_access_token"))
-            } finally { client.close() }
+            } finally {
+                finishPeer.countDown()
+                peer.join(3_000)
+                client.close()
+            }
         }
     }
 

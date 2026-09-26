@@ -32,8 +32,10 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 private val nativePage = Color(0xFF0B0C0E)
@@ -44,9 +46,10 @@ private val nativeMuted = Color(0xFF9B9FA8)
 private data class NativeWorkspace(
     val id: String, val title: String, val terminals: List<NativeTerminal>,
     val directory: String?, val hasUnread: Boolean, val lastActivityAt: Double?,
-    val windowId: String?, val isPinned: Boolean
+    val windowId: String?, val isPinned: Boolean, val browsers: List<NativeBrowser>
 )
 private data class NativeTerminal(val id: String, val title: String)
+private data class NativeBrowser(val id: String, val title: String)
 private data class NativeNotification(
     val id: String, val workspaceId: String, val surfaceId: String?,
     val title: String, val body: String, val isRead: Boolean
@@ -85,6 +88,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
     var search by remember { mutableStateOf("") }
     var selectedWorkspace by remember { mutableStateOf<NativeWorkspace?>(null) }
     var selectedTerminal by remember { mutableStateOf<NativeTerminal?>(null) }
+    var selectedBrowser by remember { mutableStateOf<NativeBrowser?>(null) }
     var input by remember { mutableStateOf("") }
     var grid by remember { mutableStateOf(RenderGrid()) }
     var gridRevision by remember { mutableIntStateOf(0) }
@@ -184,11 +188,16 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                 }
             }
         }
+        var streamId: String? = null
         try {
-            active.subscribe(listOf("terminal.render_grid", "workspace.list.changed"))
+            streamId = active.subscribe(listOf("terminal.render_grid", "workspace.list.changed"))
+                .optString("stream_id").takeIf { it.isNotBlank() }
             applyFrame(active.replay(workspace.id, terminal.id, terminalColumns, terminalRows))
         } catch (failure: Throwable) { error = failure.message ?: "Terminal replay failed" }
-        try { eventJob.join() } finally { eventJob.cancel() }
+        try { eventJob.join() } finally {
+            eventJob.cancel()
+            streamId?.let { id -> withContext(NonCancellable) { runCatching { active.unsubscribe(id) } } }
+        }
     }
 
     DisposableEffect(client) {
@@ -196,6 +205,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
         onDispose { active?.close() }
     }
     BackHandler(enabled = selectedTerminal != null) { selectedTerminal = null; selectedWorkspace = null }
+    BackHandler(enabled = selectedBrowser != null) { selectedBrowser = null; selectedWorkspace = null }
     BackHandler(enabled = showSettings && selectedTerminal == null) { showSettings = false }
 
     Column(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding()) {
@@ -335,6 +345,17 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                     }) { Text("Send") }
                 }
             }
+            selectedBrowser != null -> {
+                val active = client
+                val browser = selectedBrowser!!
+                if (active != null) NativeBrowserView(
+                    client = active, panelId = browser.id, title = browser.title,
+                    viewportWidth = configuration.screenWidthDp.coerceAtLeast(240),
+                    viewportHeight = (configuration.screenHeightDp - 180).coerceAtLeast(240),
+                    viewportScale = context.resources.displayMetrics.density.toDouble(),
+                    onBack = { selectedBrowser = null; selectedWorkspace = null }
+                )
+            }
             else -> {
                 Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically) {
@@ -407,6 +428,13 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                                     }
                                 }
                             )
+                            workspace.browsers.forEach { browser ->
+                                Text("▣  ${browser.title.ifBlank { "Browser" }}",
+                                    Modifier.fillMaxWidth().clickable {
+                                        selectedWorkspace = workspace; selectedBrowser = browser
+                                    }.padding(start = 80.dp, top = 4.dp, bottom = 12.dp),
+                                    color = nativeAccent, fontSize = 12.sp)
+                            }
                             HorizontalDivider(color = Color(0xFF292C31))
                         }
                         if (workspaces.isEmpty()) item { Text("No workspaces yet.", Modifier.padding(24.dp), color = nativeMuted) }
@@ -452,11 +480,20 @@ private fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
             val id = workspace.optString("id")
             if (id.isBlank()) continue
             val terminals = mutableListOf<NativeTerminal>()
+            val browsers = mutableListOf<NativeBrowser>()
             val items = workspace.optJSONArray("terminals")
             if (items != null) for (terminalIndex in 0 until items.length()) {
                 val terminal = items.optJSONObject(terminalIndex) ?: continue
                 val terminalId = terminal.optString("id")
                 if (terminalId.isNotBlank()) terminals += NativeTerminal(terminalId, terminal.optString("title"))
+            }
+            val surfaces = workspace.optJSONArray("surfaces")
+            if (surfaces != null) for (surfaceIndex in 0 until surfaces.length()) {
+                val surface = surfaces.optJSONObject(surfaceIndex) ?: continue
+                if (surface.optString("kind") == "browser") {
+                    val surfaceId = surface.optString("surface_id")
+                    if (surfaceId.isNotBlank()) browsers += NativeBrowser(surfaceId, surface.optString("title"))
+                }
             }
             add(NativeWorkspace(
                 id, workspace.optString("title", "Workspace"), terminals,
@@ -464,7 +501,7 @@ private fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 workspace.optBoolean("has_unread"),
                 workspace.optDouble("last_activity_at").takeIf { it > 0 },
                 workspace.optString("window_id").takeIf { it.isNotBlank() && it != "null" },
-                workspace.optBoolean("is_pinned")
+                workspace.optBoolean("is_pinned"), browsers
             ))
         }
     }

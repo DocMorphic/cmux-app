@@ -135,6 +135,37 @@ class MobileRpcClient(
         if (!windowId.isNullOrBlank()) params.put("window_id", windowId)
         return request("workspace.close", params)
     }
+    suspend fun browserPanels(workspaceId: String): JSONObject = request(
+        "mobile.browser.list", JSONObject().put("workspace_id", workspaceId)
+    )
+    suspend fun startBrowserStream(panelId: String, width: Int, height: Int, scale: Double): JSONObject = request(
+        "mobile.browser.stream.start", JSONObject().put("panel_id", panelId)
+            .put("viewport_width", width).put("viewport_height", height).put("viewport_scale", scale)
+    )
+    suspend fun stopBrowserStream(panelId: String): JSONObject = request(
+        "mobile.browser.stream.stop", JSONObject().put("panel_id", panelId)
+    )
+    suspend fun acknowledgeBrowserFrame(panelId: String, sequence: Long): JSONObject = request(
+        "mobile.browser.frame.ack", JSONObject().put("panel_id", panelId).put("seq", sequence)
+    )
+    suspend fun browserCommand(panelId: String, command: String, url: String? = null): JSONObject {
+        require(command in setOf("navigate", "back", "forward", "reload"))
+        val params = JSONObject().put("panel_id", panelId)
+        if (command == "navigate") params.put("url", url ?: error("Enter an address"))
+        return request("mobile.browser.$command", params)
+    }
+    suspend fun browserClick(panelId: String, x: Double, y: Double): JSONObject = request(
+        "mobile.browser.input.pointer", JSONObject().put("panel_id", panelId)
+            .put("kind", "click").put("x", x).put("y", y)
+            .put("click_count", 1).put("button", "left")
+    )
+    suspend fun browserScroll(panelId: String, dy: Double, x: Double, y: Double, phase: String): JSONObject = request(
+        "mobile.browser.input.scroll", JSONObject().put("panel_id", panelId)
+            .put("dx", 0).put("dy", dy).put("x", x).put("y", y).put("phase", phase)
+    )
+    suspend fun browserText(panelId: String, text: String): JSONObject = request(
+        "mobile.browser.input.text", JSONObject().put("panel_id", panelId).put("text", text)
+    )
     suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int): JSONObject =
         request("mobile.terminal.replay", JSONObject()
             .put("workspace_id", workspaceId)
@@ -157,6 +188,10 @@ class MobileRpcClient(
         request("mobile.events.subscribe", JSONObject()
             .put("stream_id", streamId)
             .put("topics", org.json.JSONArray(topics)))
+
+    suspend fun unsubscribe(streamId: String): JSONObject = request(
+        "mobile.events.unsubscribe", JSONObject().put("stream_id", streamId)
+    )
 
     private fun readLoop(active: Socket) {
         val decoder = MobileFrameDecoder()

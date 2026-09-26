@@ -22,7 +22,7 @@ UI resemblance alone does not count.
 | Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid drawing coded; VT fallback, scrollback, and full fidelity missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Text and a few keys | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
 | Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed and read sync coded; background delivery missing | Feed, unread counts, actions, deep links, Android background delivery, read sync |
-| Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | Missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
+| Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text RPC path coded; dialogs, downloads, and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimarySearchCoordinator` | Workspace text filter | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Missing | View changed files and diffs from the active workspace |
 | Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Missing | Create and navigate tasks; handle agent prompts and attachments |
