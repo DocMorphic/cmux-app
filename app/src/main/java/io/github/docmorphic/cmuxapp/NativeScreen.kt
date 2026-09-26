@@ -3,12 +3,14 @@ package io.github.docmorphic.cmuxapp
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.horizontalScroll
@@ -23,7 +25,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
@@ -84,6 +89,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
             GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).enableAutoZoom().build())
     }
     val scope = rememberCoroutineScope()
+    val terminalFocusRequester = remember { FocusRequester() }
     var signedIn by remember { mutableStateOf(account.isSignedIn()) }
     var code by remember { mutableStateOf(store.load()?.optString("pairing_code").orEmpty()) }
     var pairingText by remember { mutableStateOf("") }
@@ -425,7 +431,27 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                     }
                 }
                 RenderGridView(currentGrid,
-                    Modifier.fillMaxWidth().weight(1f).pointerInput(terminal.id) {
+                    Modifier.fillMaxWidth().weight(1f)
+                        .focusRequester(terminalFocusRequester)
+                        .onPreviewKeyEvent { event ->
+                            val keyEvent = event.nativeKeyEvent
+                            if (keyEvent.action != AndroidKeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                            val workspaceId = selectedWorkspace?.id ?: return@onPreviewKeyEvent false
+                            val active = client ?: return@onPreviewKeyEvent false
+                            val key = hardwareTerminalKey(keyEvent) ?: return@onPreviewKeyEvent false
+                            val sequence = TerminalKeyEncoding.encode(key,
+                                control = keyEvent.isCtrlPressed,
+                                alt = keyEvent.isAltPressed,
+                                shift = keyEvent.isShiftPressed,
+                                applicationCursorKeys = currentGrid.applicationCursorKeys)
+                            scrollOffset = 0
+                            scope.launch { runCatching { active.input(workspaceId, terminal.id, sequence) }
+                                .onFailure { error = it.message } }
+                            true
+                        }
+                        .focusable()
+                        .clickable { terminalFocusRequester.requestFocus() }
+                        .pointerInput(terminal.id) {
                         var dragPixels = 0f
                         detectVerticalDragGestures(
                             onDragStart = { dragPixels = 0f },
@@ -468,7 +494,8 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                                     "CtrlD" -> TerminalKeyEncoding.encode("d", control = true)
                                     "CtrlZ" -> TerminalKeyEncoding.encode("z", control = true)
                                     "CtrlL" -> TerminalKeyEncoding.encode("l", control = true)
-                                    else -> TerminalKeyEncoding.encode(key, controlArmed, altArmed, shiftArmed)
+                                    else -> TerminalKeyEncoding.encode(key, controlArmed, altArmed,
+                                        shiftArmed, currentGrid.applicationCursorKeys)
                                 }
                                 controlArmed = false; altArmed = false; shiftArmed = false
                                 scrollOffset = 0
@@ -481,7 +508,8 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                         val workspaceId = selectedWorkspace?.id ?: return@TextButton
                         val active = client ?: return@TextButton
                         if (pasted.isNotEmpty()) scope.launch {
-                            runCatching { active.input(workspaceId, terminal.id, pasted) }
+                            runCatching { active.input(workspaceId, terminal.id,
+                                TerminalKeyEncoding.paste(pasted, currentGrid.bracketedPaste)) }
                                 .onFailure { error = it.message }
                         }
                     }) { Text("Paste", color = nativeMuted) }
@@ -868,5 +896,31 @@ private fun parseNotifications(value: JSONObject): List<NativeNotification> {
                 item.optString("title").take(512), item.optString("body").take(4096), item.optBoolean("is_read")
             ))
         }
+    }
+}
+
+private fun hardwareTerminalKey(event: AndroidKeyEvent): String? = when (event.keyCode) {
+    AndroidKeyEvent.KEYCODE_ESCAPE -> "Esc"
+    AndroidKeyEvent.KEYCODE_TAB -> "Tab"
+    AndroidKeyEvent.KEYCODE_ENTER, AndroidKeyEvent.KEYCODE_NUMPAD_ENTER -> "Enter"
+    AndroidKeyEvent.KEYCODE_DEL -> "Backspace"
+    AndroidKeyEvent.KEYCODE_FORWARD_DEL -> "Delete"
+    AndroidKeyEvent.KEYCODE_DPAD_UP -> "Up"
+    AndroidKeyEvent.KEYCODE_DPAD_DOWN -> "Down"
+    AndroidKeyEvent.KEYCODE_DPAD_LEFT -> "Left"
+    AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> "Right"
+    AndroidKeyEvent.KEYCODE_MOVE_HOME -> "Home"
+    AndroidKeyEvent.KEYCODE_MOVE_END -> "End"
+    AndroidKeyEvent.KEYCODE_PAGE_UP -> "PageUp"
+    AndroidKeyEvent.KEYCODE_PAGE_DOWN -> "PageDown"
+    in AndroidKeyEvent.KEYCODE_A..AndroidKeyEvent.KEYCODE_Z ->
+        ('a' + event.keyCode - AndroidKeyEvent.KEYCODE_A).toString()
+    else -> {
+        val modifiers = event.metaState and
+            (AndroidKeyEvent.META_SHIFT_ON or AndroidKeyEvent.META_SHIFT_LEFT_ON or
+                AndroidKeyEvent.META_SHIFT_RIGHT_ON)
+        event.getUnicodeChar(modifiers).takeIf { it in 32..0x10ffff }
+            ?.let { String(Character.toChars(it)) }
+            ?.takeIf { it.length == 1 }
     }
 }

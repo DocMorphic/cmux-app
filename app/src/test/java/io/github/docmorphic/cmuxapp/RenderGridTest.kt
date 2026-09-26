@@ -76,4 +76,23 @@ class RenderGridTest {
         }""")))
         assertEquals(1, grid.cursor!!.column)
     }
+
+    @Test fun fullModesControlInputButPartialModesDoNotEraseThem() {
+        val grid = RenderGrid()
+        assertTrue(grid.apply(JSONObject("""{
+          "format":"cmux.render-grid.v1","surface_id":"s","render_epoch":"e",
+          "render_revision":1,"columns":4,"rows":1,"full":true,
+          "modes":[{"code":1,"ansi":false,"on":true},
+                   {"code":2004,"ansi":false,"on":true}],"row_spans":[]
+        }""")))
+        assertTrue(grid.applicationCursorKeys)
+        assertTrue(grid.bracketedPaste)
+        assertTrue(grid.apply(JSONObject("""{
+          "format":"cmux.render-grid.v1","surface_id":"s","render_epoch":"e",
+          "render_revision":2,"delta_base_render_revision":1,"columns":4,"rows":1,
+          "full":false,"modes":[{"code":7,"ansi":false,"on":true}],"row_spans":[]
+        }""")))
+        assertTrue(grid.applicationCursorKeys)
+        assertTrue(grid.bracketedPaste)
+    }
 }

@@ -33,6 +33,10 @@ class RenderGrid {
         private set
     var activeScreen: String = "primary"
         private set
+    var applicationCursorKeys: Boolean = false
+        private set
+    var bracketedPaste: Boolean = false
+        private set
     val lines: List<List<Span>> get() = content.map { it.toList() }
     val scrollbackLines: List<List<Span>> get() = history.map { it.toList() }
     private var content = mutableListOf<MutableList<Span>>()
@@ -135,6 +139,20 @@ class RenderGrid {
             }
         }
         if (frame.has("active_screen")) activeScreen = frame.optString("active_screen", "primary")
+        if (full) {
+            val modes = frame.optJSONArray("modes")
+            fun decMode(code: Int): Boolean {
+                if (modes == null) return false
+                for (index in 0 until modes.length()) {
+                    val mode = modes.optJSONObject(index) ?: continue
+                    if (!mode.optBoolean("ansi") && mode.optInt("code") == code)
+                        return mode.optBoolean("on")
+                }
+                return false
+            }
+            applicationCursorKeys = decMode(1)
+            bracketedPaste = decMode(2004)
+        }
         surfaceId = nextSurface
         columns = nextColumns
         rows = nextRows
