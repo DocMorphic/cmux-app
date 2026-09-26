@@ -42,6 +42,30 @@ The official app is a **companion**, not a terminal process running locally on t
 
 ## Sources
 
+### Composer contract checked against the pinned source (2026-09-27)
+
+`MobileShellComposite.sendRemoteTerminalPaste` sends `terminal.paste` with
+`workspace_id`, `surface_id`, `client_id`, literal `text`, and `submit_key`.
+The Mac's `TerminalController.v2MobileTerminalPaste` accepts `return` for
+submission and `none` for insertion. It chooses the agent-specific submit key
+on the Mac, including Ctrl+Enter for a multiline Claude prompt. Sending the
+same composed block through `terminal.input` can split newlines into separate
+submissions; Android now uses the dedicated paste method.
+
+The iOS composer captures the target and text before awaits, prevents
+overlapping sends, keeps failed drafts, and reconciles an acknowledgement with
+the original terminal's draft. Android now follows those behaviors, additionally
+scoping stored drafts by pairing and workspace. Drafts are encrypted with
+Android Keystore. Pending delivery is saved before transmission; restored
+pending drafts show an unconfirmed-delivery notice and are never auto-sent.
+
+References at `4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0`:
+
+- `Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite.swift`
+- `Sources/TerminalController.swift`, `v2MobileTerminalPaste`
+
+### Website and repository links
+
 - [cmux site](https://cmux.com/)
 - [official iOS page](https://cmux.com/ios)
 - [official iOS guide](https://cmux.com/docs/ios)

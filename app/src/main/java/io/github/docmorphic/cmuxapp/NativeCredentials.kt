@@ -20,8 +20,8 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** Android Keystore-backed storage for the official cmux pairing and account session. */
-class NativeCredentialStore(context: Context) {
-    private val preferences = context.getSharedPreferences("native_cmux", Context.MODE_PRIVATE)
+class NativeCredentialStore(context: Context, storageName: String = "native_cmux") {
+    private val preferences = context.getSharedPreferences(storageName, Context.MODE_PRIVATE)
 
     data class PairedMac(val code: String, val deviceId: String, val name: String)
 
@@ -59,7 +59,9 @@ class NativeCredentialStore(context: Context) {
         if (state.optString("pairing_code") == code) state.put("pairing_code", next.optJSONObject(0)?.optString("code").orEmpty())
     }
 
-    fun load(): JSONObject? {
+    fun load(): JSONObject? = synchronized(storageLock) { readState() }
+
+    private fun readState(): JSONObject? {
         val encoded = preferences.getString("state", null) ?: return null
         return try {
             val bytes = Base64.decode(encoded, Base64.NO_WRAP)
@@ -73,7 +75,7 @@ class NativeCredentialStore(context: Context) {
         }
     }
 
-    fun update(transform: (JSONObject) -> Unit) {
+    fun update(transform: (JSONObject) -> Unit): Unit = synchronized(storageLock) {
         val value = load() ?: JSONObject()
         transform(value)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -82,7 +84,13 @@ class NativeCredentialStore(context: Context) {
         check(preferences.edit().putString("state", encoded).commit()) { "Could not save account" }
     }
 
-    fun clear() = preferences.edit().remove("state").apply()
+    fun clear(): Unit = synchronized(storageLock) { preferences.edit().remove("state").apply() }
+
+    companion object {
+        // Account refresh, the background service, and draft saves share the
+        // Keystore key. Serialize read-modify-write and initial key creation.
+        private val storageLock = Any()
+    }
 
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }

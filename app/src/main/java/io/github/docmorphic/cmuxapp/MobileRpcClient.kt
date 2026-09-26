@@ -238,6 +238,13 @@ class MobileRpcClient(
             .put("client_id", clientId)
             .put("text", text))
 
+    /** cmux's literal multiline paste, optionally followed by a Return key event. */
+    suspend fun paste(workspaceId: String, surfaceId: String, text: String, submit: Boolean): JSONObject =
+        request("terminal.paste", JSONObject()
+            .put("workspace_id", workspaceId).put("surface_id", surfaceId)
+            .put("client_id", clientId).put("text", text)
+            .put("submit_key", if (submit) "return" else "none"))
+
     private val clientId = UUID.randomUUID().toString()
 
     suspend fun subscribe(topics: List<String>, streamId: String = UUID.randomUUID().toString()): JSONObject =

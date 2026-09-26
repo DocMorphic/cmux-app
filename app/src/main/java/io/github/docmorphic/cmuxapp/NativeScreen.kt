@@ -147,7 +147,14 @@ fun NativeScreen(
     var selectedBrowser by remember { mutableStateOf<NativeBrowser?>(null) }
     var selectedChangesWorkspace by remember { mutableStateOf<NativeWorkspace?>(null) }
     var handledIncomingWorkspace by remember(incomingWorkspaceId) { mutableStateOf(false) }
-    var input by remember { mutableStateOf("") }
+    val draftRepository = remember(context) { TerminalDraftRepository.get(context) }
+    val drafts = draftRepository.drafts
+    val draftStates by drafts.state.collectAsState()
+    val draftSaveError by draftRepository.saveError.collectAsState()
+    val draftTarget = selectedWorkspace?.let { workspace -> selectedTerminal?.let { terminal ->
+        TerminalDrafts.Target(code, workspace.id, terminal.id)
+    } }
+    val terminalDraft = draftStates[draftTarget] ?: TerminalDrafts.Draft()
     var grid by remember { mutableStateOf(RenderGrid()) }
     var gridRevision by remember { mutableIntStateOf(0) }
     var replayGeneration by remember { mutableIntStateOf(0) }
@@ -162,6 +169,27 @@ fun NativeScreen(
             .onSuccess { backgroundNotifications = true; error = null }
             .onFailure { error = it.message }
         else error = "Allow notifications to receive cmux updates in the background"
+    }
+
+    LaunchedEffect(signedIn) { if (!signedIn) drafts.clear() }
+
+    fun sendComposer(submit: Boolean) {
+        val target = draftTarget ?: return
+        val active = client ?: return
+        val send = drafts.begin(target) ?: return
+        scope.launch {
+            try {
+                draftRepository.persistNow()
+                check(client === active && signedIn && code == target.pairing) { "Connection changed" }
+                active.paste(target.workspace, target.surface, send.text, submit)
+                drafts.finish(send)
+                draftRepository.persistNow()
+                if (selectedTerminal?.id == target.surface) scrollOffset = 0
+            } catch (failure: Exception) {
+                drafts.finish(send, TerminalDrafts.DELIVERY_UNCONFIRMED)
+                if (failure is CancellationException) throw failure
+            }
+        }
     }
 
     fun applyListing(value: JSONObject) {
@@ -472,6 +500,7 @@ fun NativeScreen(
                 TextButton(onClick = {
                     NativeNotificationService.setEnabled(context, false)
                     backgroundNotifications = false
+                    drafts.clear()
                     account.signOut(); signedIn = false; client?.close(); client = null
                 },
                     modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
@@ -677,43 +706,34 @@ fun NativeScreen(
                         val workspaceId = selectedWorkspace?.id ?: return@TextButton
                         val active = client ?: return@TextButton
                         if (pasted.isNotEmpty()) scope.launch {
-                            runCatching { active.input(workspaceId, terminal.id,
-                                TerminalKeyEncoding.paste(pasted, currentGrid.bracketedPaste)) }
+                            runCatching { active.paste(workspaceId, terminal.id, pasted, submit = false) }
                                 .onFailure { error = it.message }
                         }
                     }) { Text("Paste", color = nativeMuted) }
                 }
-                Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(input, { input = it }, Modifier.weight(1f), singleLine = true,
-                        placeholder = { Text("Terminal input") },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = {
-                            val value = input
-                            val workspaceId = selectedWorkspace?.id
-                            val active = client
-                            if (workspaceId != null && active != null) scope.launch {
-                                runCatching { active.input(workspaceId, terminal.id, "$value\r") }
-                                    .onSuccess { if (input == value) input = ""; scrollOffset = 0 }
-                                    .onFailure { error = it.message }
-                            }
-                        }))
-                    TextButton(onClick = {
-                        val value = input
-                        if (value.isEmpty()) return@TextButton
-                        val workspaceId = selectedWorkspace?.id ?: return@TextButton
-                        val active = client ?: return@TextButton
-                        scope.launch { runCatching { active.input(workspaceId, terminal.id, value) }
-                            .onSuccess { if (input == value) input = ""; scrollOffset = 0 }
-                            .onFailure { error = it.message } }
-                    }) { Text("Type") }
-                    TextButton(onClick = {
-                        val value = input
-                        val workspaceId = selectedWorkspace?.id ?: return@TextButton
-                        val active = client ?: return@TextButton
-                        scope.launch { runCatching { active.input(workspaceId, terminal.id, "$value\r") }
-                            .onSuccess { if (input == value) input = ""; scrollOffset = 0 }
-                            .onFailure { error = it.message } }
-                    }) { Text("Send") }
+                key(draftTarget) {
+                    Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
+                            Modifier.weight(1f).onPreviewKeyEvent { event ->
+                                val key = event.nativeKeyEvent
+                                if (key.action == AndroidKeyEvent.ACTION_DOWN &&
+                                    key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {
+                                    sendComposer(submit = true); true
+                                } else false
+                            }, minLines = 1, maxLines = 5,
+                            placeholder = { Text("Message or command") },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
+                            keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
+                        val canSend = client != null && terminalDraft.text.isNotEmpty() && terminalDraft.operation == null
+                        TextButton(onClick = { sendComposer(submit = false) }, enabled = canSend) { Text("Insert") }
+                        TextButton(onClick = { sendComposer(submit = true) }, enabled = canSend) {
+                            Text(if (terminalDraft.operation == null) "Send" else "Sending…")
+                        }
+                    }
+                }
+                (terminalDraft.error ?: draftSaveError)?.let { message ->
+                    Text(message, Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(12.dp),
+                        color = Color(0xFFFFAAAA), fontSize = 12.sp)
                 }
             }
             selectedBrowser != null -> {

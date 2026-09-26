@@ -2,14 +2,16 @@
 
 The instrumented `NativeFlowTest` runs the production Compose screens and framed
 RPC client against an emulator-local TCP peer. It covers workspace filtering,
-terminal navigation, keyboard viewport resizing, input delivery, and viewport
-cleanup. The peer uses synthetic data and never connects to a real cmux account.
+terminal navigation, keyboard viewport resizing, paste/submit delivery, and
+viewport cleanup. A second flow checks multiline drafts, separate terminal
+drafts, encrypted persistence before sending, rejection and explicit retry,
+and insertion without submission. The peer uses synthetic data and never connects to a real cmux account.
 This check does not prove account sign-in, Tailscale routing, or compatibility
 with the live Mac; those remain in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
 
 Debug builds use the `io.github.docmorphic.cmuxapp.debug` package. Their encrypted
 credentials and preferences are separate from the release app. The test clears
-only debug credentials when it finishes.
+only debug credentials and drafts when it finishes.
 
 With a running Android emulator and JDK 17:
 
@@ -26,7 +28,7 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (1 test)`; the `adb` exit code alone
+Check the instrumentation output for `OK (2 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 

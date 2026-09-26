@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -21,6 +23,9 @@ import java.io.File
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** Runs the real Compose flow and framed RPC client against a local test peer. */
 class NativeFlowTest {
@@ -33,6 +38,8 @@ class NativeFlowTest {
             compose.activity.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
         peer = NativeFixturePeer()
+        NativeCredentialStore(context, "native_terminal_drafts").clear()
+        TerminalDraftRepository.get(context).drafts.clear()
         NativeCredentialStore(context).update {
             it.put("refresh_token", "emulator-fixture-only")
             it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465")
@@ -43,6 +50,8 @@ class NativeFlowTest {
         compose.activity.finish()
         peer.close()
         NativeCredentialStore(context).clear()
+        NativeCredentialStore(context, "native_terminal_drafts").clear()
+        TerminalDraftRepository.get(context).drafts.clear()
     }
 
     @Test fun workspaceFilterTerminalInputAndKeyboardResize() {
@@ -85,10 +94,12 @@ class NativeFlowTest {
         }
         compose.onNodeWithText("The coroutine scope left the composition").assertDoesNotExist()
         compose.onNodeWithText("Send").performClick()
-        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.input" } }
-        val input = peer.requests.filter { it.optString("method") == "terminal.input" }
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
+        val input = peer.requests.filter { it.optString("method") == "terminal.paste" }
         assertEquals(1, input.size)
-        assertEquals("printf cmux\r", input.single().getJSONObject("params").getString("text"))
+        assertEquals("printf cmux", input.single().getJSONObject("params").getString("text"))
+        assertEquals("return", input.single().getJSONObject("params").getString("submit_key"))
+        assertTrue(peer.requests.none { it.optString("method") == "terminal.input" })
         compose.onNodeWithText("‹  2").performClick()
         compose.waitUntil(10_000) {
             peer.requests.any {
@@ -97,6 +108,85 @@ class NativeFlowTest {
             }
         }
         assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
+    @Test fun multilineDraftSurvivesNavigationAndRejectedSend() {
+        compose.setContent {
+            CmuxTheme {
+                Surface(Modifier.fillMaxSize()) {
+                    NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                        MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                            .also { it.connect() }
+                    })
+                }
+            }
+        }
+        compose.waitUntil(15_000) {
+            compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        val message = "Review these changes\nKeep the existing API"
+        compose.onNode(hasSetTextAction()).performTextInput(message)
+        compose.onNodeWithText("‹  2").performClick()
+        compose.onNodeWithText("Read project").performClick()
+        assertDraft("")
+        compose.onNode(hasSetTextAction()).performTextInput("Separate draft")
+        compose.onNodeWithText("‹  2").performClick()
+        compose.onNodeWithText("Claude Code task").performClick()
+        assertDraft(message)
+        peer.rejectNextPaste.set(true)
+        val releasePaste = CountDownLatch(1)
+        peer.releaseNextPaste = releasePaste
+        compose.onNodeWithText("Send").performClick()
+        try {
+            compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
+            compose.onNodeWithText("Sending…").assertIsNotEnabled()
+            val pending = TerminalDrafts(NativeCredentialStore(context, "native_terminal_drafts")
+                .load()?.optJSONArray("drafts"))
+            assertTrue(pending.state.value.values.any { it.text == message && it.error != null })
+        } finally { releasePaste.countDown() }
+        compose.waitUntil(10_000) {
+            TerminalDraftRepository.get(context).drafts.state.value.values.any {
+                it.text == message && it.error == TerminalDrafts.DELIVERY_UNCONFIRMED
+            }
+        }
+        compose.onNodeWithText(TerminalDrafts.DELIVERY_UNCONFIRMED).assertIsDisplayed()
+        assertDraft(message)
+        assertEquals(1, peer.requests.count { it.optString("method") == "terminal.paste" })
+        screenshot("composer-rejected-send")
+        compose.onNodeWithText("Send").performClick()
+        compose.waitUntil(10_000) {
+            peer.requests.count { it.optString("method") == "terminal.paste" } == 2 &&
+                TerminalDraftRepository.get(context).drafts.state.value.values.none { it.text == message }
+        }
+        assertDraft("")
+        val requests = peer.requests.filter { it.optString("method") == "terminal.paste" }
+        requests.forEach { request ->
+            assertEquals(message, request.getJSONObject("params").getString("text"))
+            assertEquals("return", request.getJSONObject("params").getString("submit_key"))
+            assertEquals("workspace-1", request.getJSONObject("params").getString("workspace_id"))
+            assertEquals("terminal-1", request.getJSONObject("params").getString("surface_id"))
+        }
+        compose.onNodeWithText("‹  2").performClick()
+        compose.onNodeWithText("Read project").performClick()
+        assertDraft("Separate draft")
+        compose.waitUntil(10_000) {
+            val saved = NativeCredentialStore(context, "native_terminal_drafts").load()?.optJSONArray("drafts")
+            TerminalDrafts(saved).state.value.values.any { it.text == "Separate draft" }
+        }
+        assertEquals("emulator-fixture-only", NativeCredentialStore(context).load()?.optString("refresh_token"))
+        compose.onNodeWithText("Insert").performClick()
+        compose.waitUntil(10_000) { peer.requests.count { it.optString("method") == "terminal.paste" } == 3 }
+        val inserted = peer.requests.last { it.optString("method") == "terminal.paste" }.getJSONObject("params")
+        assertEquals("none", inserted.getString("submit_key"))
+        assertEquals("Separate draft", inserted.getString("text"))
+        assertEquals("terminal-2", inserted.getString("surface_id"))
+    }
+
+    private fun assertDraft(text: String) {
+        compose.onNode(hasSetTextAction()).assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString(text)))
     }
 
     private fun waitForTerminalText() {
@@ -119,6 +209,8 @@ private class NativeFixturePeer : AutoCloseable {
     val port get() = server.localPort
     val requests = CopyOnWriteArrayList<JSONObject>()
     val failures = CopyOnWriteArrayList<String>()
+    val rejectNextPaste = AtomicBoolean(false)
+    @Volatile var releaseNextPaste: CountDownLatch? = null
     private val sockets = CopyOnWriteArrayList<Socket>()
     @Volatile private var closed = false
     private var revision = 0
@@ -144,9 +236,18 @@ private class NativeFixturePeer : AutoCloseable {
                     for (frame in decoder.feed(buffer.copyOf(count))) {
                         val request = JSONObject(String(frame, Charsets.UTF_8))
                         requests += request
+                        if (request.optString("method") == "terminal.paste") {
+                            releaseNextPaste?.let { latch ->
+                                check(latch.await(10, TimeUnit.SECONDS)) { "Paste test acknowledgement was not released" }
+                                releaseNextPaste = null
+                            }
+                        }
                         val result = response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
-                        val envelope = JSONObject().put("id", request.getString("id"))
-                            .put("ok", true).put("result", result)
+                        val rejected = request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)
+                        val envelope = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
+                        if (rejected) envelope.put("error", JSONObject().put("code", "surface_unavailable")
+                            .put("message", "Fixture terminal temporarily unavailable"))
+                        else envelope.put("result", result)
                         socket.getOutputStream().write(MobileFrameCodec.encode(envelope.toString().toByteArray()))
                         socket.getOutputStream().flush()
                     }
@@ -180,7 +281,7 @@ private class NativeFixturePeer : AutoCloseable {
                     .put("text", value).put("cell_width", value.length).put("style_id", 0))
             }
             JSONObject().put("render_grid", JSONObject().put("format", "cmux.render-grid.v1")
-                .put("surface_id", "terminal-1").put("columns", columns).put("rows", rows)
+                .put("surface_id", params.getString("surface_id")).put("columns", columns).put("rows", rows)
                 .put("render_epoch", "fixture").put("render_revision", ++revision).put("full", true)
                 .put("row_spans", spans).put("styles", JSONArray())
                 .put("cursor", JSONObject().put("row", 4.coerceAtMost(rows - 1)).put("column", 0)
