@@ -32,6 +32,14 @@ The official app is a **companion**, not a terminal process running locally on t
 - Upstream cmux is [GPL-3.0-or-later](https://github.com/manaflow-ai/cmux/blob/main/LICENSE). Keep attribution and source availability when porting code.
 - The product needs a Mac running cmux plus an Android phone on the same Tailscale network for end-to-end validation.
 
+## Local Mac verification (2026-09-26)
+
+- Installed cmux is `0.64.25 (106)` and its sidebar shows a signed-in account.
+- Tailscale is running on the Mac; an Android peer is online in the same tailnet.
+- The `Open Mobile Pairing` command exists in cmux's command palette.
+- Mobile Pairing currently says **Enable iOS pairing** is off. Settings → Mobile says enabling it also starts Iroh networking; same-account devices can connect automatically, while the QR is for Tailscale pairing.
+- The ordinary `cmux` CLI refuses its control socket when launched outside a cmux terminal. A custom Mac helper based on the CLI would have to run inside cmux or use a separately supported API.
+
 ## Sources
 
 - [cmux site](https://cmux.com/)
