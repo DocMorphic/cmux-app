@@ -48,6 +48,9 @@ fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier) {
                             paint.typeface = Typeface.create(Typeface.MONOSPACE,
                                 (if (style.bold) Typeface.BOLD else Typeface.NORMAL) or
                                     (if (style.italic) Typeface.ITALIC else Typeface.NORMAL))
+                            paint.textScaleX = 1f
+                            val measuredWidth = paint.measureText(span.text)
+                            if (measuredWidth > 0f) paint.textScaleX = span.width * cellWidth / measuredWidth
                             native.drawText(span.text, x, y + baselineOffset, paint)
                             if (style.underline) {
                                 native.drawRect(x, y + cellHeight - 2f, x + span.width * cellWidth, y + cellHeight, paint)

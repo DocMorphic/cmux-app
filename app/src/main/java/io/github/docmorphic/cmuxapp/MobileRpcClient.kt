@@ -99,6 +99,11 @@ class MobileRpcClient(
 
     suspend fun hostStatus(): JSONObject = request("mobile.host.status")
     suspend fun workspaces(): JSONObject = request("mobile.workspace.list")
+    suspend fun notifications(): JSONObject = request("notification.feed.list")
+    suspend fun markNotificationRead(id: String): JSONObject = request(
+        "notification.feed.mark_read",
+        JSONObject().put("notification_ids", org.json.JSONArray().put(id))
+    )
     suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int): JSONObject =
         request("mobile.terminal.replay", JSONObject()
             .put("workspace_id", workspaceId)

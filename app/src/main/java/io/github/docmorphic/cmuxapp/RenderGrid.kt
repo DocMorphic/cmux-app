@@ -43,6 +43,7 @@ class RenderGrid {
         val nextRevision = frame.optLong("render_revision", 0)
         val nextEpoch = frame.optString("render_epoch")
         val full = frame.optBoolean("full", true)
+        if (nextSurface == surfaceId && nextEpoch == epoch && nextRevision < revision) return true
         if (!full) {
             if (nextSurface != surfaceId || nextEpoch != epoch ||
                 nextColumns != columns || nextRows != rows ||
@@ -82,6 +83,9 @@ class RenderGrid {
             val width = item.optInt("cell_width", text.codePointCount(0, text.length))
             if (row !in content.indices || column !in 0 until nextColumns ||
                 width < 1 || column + width > nextColumns) continue
+            content[row].removeAll { existing ->
+                existing.column < column + width && column < existing.column + existing.width
+            }
             content[row].add(Span(column, width, text, styles[item.optInt("style_id")] ?: defaultStyle))
         }
         for (line in content) line.sortBy { it.column }

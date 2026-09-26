@@ -14,21 +14,21 @@ UI resemblance alone does not count.
 
 | Area | iOS source / contract | Android status | Acceptance check |
 | --- | --- | --- | --- |
-| Account | `MobileAuthComposition`, `MobileRootAuthGate` | Missing | Sign in with the Mac's cmux account; restore session after restart; sign out |
+| Account | `MobileAuthComposition`, `MobileRootAuthGate` | OTP sign-in and encrypted token refresh coded; unverified on phone | Sign in with the Mac's cmux account; restore session after restart; sign out |
 | Computers | `MobilePairedMac`, `MacComputerListSection` | Missing | Discover, choose, forget, and reconnect multiple Macs |
-| Pairing | `CmxPairingQRCode`, `CmxAttachTicketCompactCoder` | Helper link only; QR scanner in progress | Scan official Mac QR, validate version/identity, authorize exact route, revoke |
-| Transport | `CmxNetworkByteTransport`, `MobileCoreRPCSession` | Polling HTTP helper | Persistent framed RPC over authorized Tailscale; Iroh route; reconnect without duplicate input |
-| Workspaces | `MobileSyncWorkspaceListResponse`, `DeviceTreeView` | Basic list | Live hierarchy, add/rename/close/reorder/group, status and selection |
-| Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Plain text snapshot | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
+| Pairing | `CmxPairingQRCode`, `CmxAttachTicketCompactCoder` | QR scan and current v2 Tailscale code path coded; unverified on phone; v3 Iroh parse only | Scan official Mac QR, validate version/identity, authorize exact route, revoke |
+| Transport | `CmxNetworkByteTransport`, `MobileCoreRPCSession` | Persistent framed RPC coded for TCP; unverified on phone; reconnection and Iroh missing | Persistent framed RPC over authorized Tailscale; Iroh route; reconnect without duplicate input |
+| Workspaces | `MobileSyncWorkspaceListResponse`, `DeviceTreeView` | Native list coded; grouping and mutations missing | Live hierarchy, add/rename/close/reorder/group, status and selection |
+| Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid drawing coded; VT fallback, scrollback, and full fidelity missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Text and a few keys | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
-| Notifications | `NotificationFeedView`, `CmuxAppDelegate` | In-app feed in progress | Feed, unread counts, actions, deep links, Android background delivery, read sync |
+| Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed and read sync coded; background delivery missing | Feed, unread counts, actions, deep links, Android background delivery, read sync |
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | Missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimarySearchCoordinator` | Workspace text filter | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Missing | View changed files and diffs from the active workspace |
 | Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Missing | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Disconnect only | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
-| Delivery | iOS release checks | Debug APK only | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
+| Delivery | iOS release checks | Stable signing and CI verified on foundation build; current native build and Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
 ## Work order
 

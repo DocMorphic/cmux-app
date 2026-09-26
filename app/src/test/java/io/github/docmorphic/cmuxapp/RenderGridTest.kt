@@ -21,7 +21,7 @@ class RenderGridTest {
         }""")))
         assertEquals("first", grid.lines[0].single().text)
         assertEquals("changed", grid.lines[1].single().text)
-        assertEquals(2, grid.revision)
+        assertEquals(2L, grid.revision)
     }
 
     @Test fun missingDeltaRequestsReplay() {

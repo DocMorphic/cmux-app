@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -38,10 +39,17 @@ private val nativeMuted = Color(0xFF9B9FA8)
 
 private data class NativeWorkspace(val id: String, val title: String, val terminals: List<NativeTerminal>)
 private data class NativeTerminal(val id: String, val title: String)
+private data class NativeNotification(
+    val id: String, val workspaceId: String, val surfaceId: String?,
+    val title: String, val body: String, val isRead: Boolean
+)
 
 @Composable
 fun NativeScreen(onUseHelper: () -> Unit) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val terminalColumns = (configuration.screenWidthDp / 8).coerceIn(24, 120)
+    val terminalRows = ((configuration.screenHeightDp - 210) / 16).coerceIn(10, 60)
     val store = remember(context) { NativeCredentialStore(context.applicationContext) }
     val account = remember(store) { NativeAccount(store) }
     val scanner = remember(context) {
@@ -61,6 +69,8 @@ fun NativeScreen(onUseHelper: () -> Unit) {
     var client by remember { mutableStateOf<MobileRpcClient?>(null) }
     var hostName by remember { mutableStateOf("cmux") }
     var workspaces by remember { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
+    var notifications by remember { mutableStateOf<List<NativeNotification>>(emptyList()) }
+    var notificationTab by remember { mutableStateOf(false) }
     var selectedWorkspace by remember { mutableStateOf<NativeWorkspace?>(null) }
     var selectedTerminal by remember { mutableStateOf<NativeTerminal?>(null) }
     var input by remember { mutableStateOf("") }
@@ -75,7 +85,7 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                 val active = client ?: return@launch
                 val workspace = selectedWorkspace ?: return@launch
                 val terminal = selectedTerminal ?: return@launch
-                runCatching { active.replay(workspace.id, terminal.id, 80, 24) }
+                runCatching { active.replay(workspace.id, terminal.id, terminalColumns, terminalRows) }
                     .onSuccess { grid.apply(it.optJSONObject("render_grid") ?: it); gridRevision++ }
                     .onFailure { error = it.message }
             }
@@ -106,6 +116,7 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                 hostName = status.optString("mac_display_name").ifBlank { "cmux" }
                 val listing = active.workspaces()
                 workspaces = parseWorkspaces(listing)
+                runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
                 client = active
                 store.update { it.put("pairing_code", code) }
                 error = null
@@ -120,11 +131,13 @@ fun NativeScreen(onUseHelper: () -> Unit) {
         while (true) {
             runCatching { active.workspaces() }.onSuccess { workspaces = parseWorkspaces(it); error = null }
                 .onFailure { error = it.message }
+            runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
+                .onFailure { if (notificationTab) error = it.message }
             delay(5_000)
         }
     }
 
-    LaunchedEffect(client, selectedWorkspace, selectedTerminal) {
+    LaunchedEffect(client, selectedWorkspace, selectedTerminal, terminalColumns, terminalRows) {
         val active = client ?: return@LaunchedEffect
         val workspace = selectedWorkspace ?: return@LaunchedEffect
         val terminal = selectedTerminal ?: return@LaunchedEffect
@@ -139,7 +152,7 @@ fun NativeScreen(onUseHelper: () -> Unit) {
         }
         try {
             active.subscribe(listOf("terminal.render_grid", "workspace.list.changed"))
-            applyFrame(active.replay(workspace.id, terminal.id, 80, 24))
+            applyFrame(active.replay(workspace.id, terminal.id, terminalColumns, terminalRows))
         } catch (failure: Throwable) { error = failure.message ?: "Terminal replay failed" }
         try { eventJob.join() } finally { eventJob.cancel() }
     }
@@ -244,23 +257,57 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                         TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
                     }
                 }
-                LazyColumn(Modifier.weight(1f)) {
-                    items(workspaces, key = { it.id }) { workspace ->
-                        Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)) {
-                            Text(workspace.title, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-                            workspace.terminals.forEach { terminal ->
-                                Text(terminal.title.ifBlank { "Terminal" },
-                                    Modifier.fillMaxWidth().clickable {
-                                        selectedWorkspace = workspace; selectedTerminal = terminal
-                                    }.padding(vertical = 12.dp), color = nativeAccent)
+                if (notificationTab) {
+                    LazyColumn(Modifier.weight(1f)) {
+                        items(notifications, key = { it.id }) { notification ->
+                            Column(Modifier.fillMaxWidth().clickable {
+                                val active = client
+                                if (active != null) scope.launch {
+                                    runCatching { active.markNotificationRead(notification.id) }
+                                        .onSuccess { notifications = parseNotifications(active.notifications()) }
+                                        .onFailure { error = it.message }
+                                }
+                                val workspace = workspaces.firstOrNull { it.id == notification.workspaceId }
+                                val terminal = workspace?.terminals?.firstOrNull { it.id == notification.surfaceId }
+                                    ?: workspace?.terminals?.firstOrNull()
+                                if (workspace != null && terminal != null) {
+                                    selectedWorkspace = workspace; selectedTerminal = terminal
+                                }
+                            }.padding(horizontal = 18.dp, vertical = 14.dp)) {
+                                Text(notification.title, fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.SemiBold)
+                                if (notification.body.isNotBlank()) Text(notification.body, color = nativeMuted, maxLines = 3)
                             }
+                            HorizontalDivider(color = Color(0xFF292C31))
                         }
-                        HorizontalDivider(color = Color(0xFF292C31))
+                        if (notifications.isEmpty()) item { Text("No notifications yet.", Modifier.padding(24.dp), color = nativeMuted) }
                     }
-                    if (workspaces.isEmpty()) item { Text("No workspaces yet.", Modifier.padding(24.dp), color = nativeMuted) }
+                } else {
+                    LazyColumn(Modifier.weight(1f)) {
+                        items(workspaces, key = { it.id }) { workspace ->
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)) {
+                                Text(workspace.title, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                                workspace.terminals.forEach { terminal ->
+                                    Text(terminal.title.ifBlank { "Terminal" },
+                                        Modifier.fillMaxWidth().clickable {
+                                            selectedWorkspace = workspace; selectedTerminal = terminal
+                                        }.padding(vertical = 12.dp), color = nativeAccent)
+                                }
+                            }
+                            HorizontalDivider(color = Color(0xFF292C31))
+                        }
+                        if (workspaces.isEmpty()) item { Text("No workspaces yet.", Modifier.padding(24.dp), color = nativeMuted) }
+                    }
                 }
-                TextButton(onClick = { account.signOut(); signedIn = false; client?.close(); client = null }) {
-                    Text("Sign out", color = nativeMuted)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    TextButton(onClick = { notificationTab = false }) { Text("Workspaces", color = if (notificationTab) nativeMuted else nativeAccent) }
+                    TextButton(onClick = { notificationTab = true }) {
+                        val unread = notifications.count { !it.isRead }
+                        Text(if (unread > 0) "Notifications ($unread)" else "Notifications",
+                            color = if (notificationTab) nativeAccent else nativeMuted)
+                    }
+                    TextButton(onClick = { account.signOut(); signedIn = false; client?.close(); client = null }) {
+                        Text("Sign out", color = nativeMuted)
+                    }
                 }
             }
         }
@@ -292,6 +339,22 @@ private fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 if (terminalId.isNotBlank()) terminals += NativeTerminal(terminalId, terminal.optString("title"))
             }
             add(NativeWorkspace(id, workspace.optString("title", "Workspace"), terminals))
+        }
+    }
+}
+
+private fun parseNotifications(value: JSONObject): List<NativeNotification> {
+    val array = value.optJSONArray("notifications") ?: return emptyList()
+    return buildList {
+        for (index in 0 until minOf(array.length(), 500)) {
+            val item = array.optJSONObject(index) ?: continue
+            val id = item.optString("id")
+            if (id.isBlank()) continue
+            add(NativeNotification(
+                id, item.optString("workspace_id"),
+                item.optString("surface_id").takeIf { it.isNotBlank() && it != "null" },
+                item.optString("title").take(512), item.optString("body").take(4096), item.optBoolean("is_read")
+            ))
         }
     }
 }
