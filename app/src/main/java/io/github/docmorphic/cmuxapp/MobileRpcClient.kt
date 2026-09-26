@@ -117,6 +117,7 @@ class MobileRpcClient(
         "notification.feed.mark_read",
         JSONObject().put("notification_ids", org.json.JSONArray().put(id))
     )
+    suspend fun markAllNotificationsRead(): JSONObject = request("notification.feed.mark_all_read")
     suspend fun workspaceAction(
         workspaceId: String,
         windowId: String?,

@@ -58,6 +58,10 @@ fun NativeBrowserView(
         val collector = launch {
             client.events.collect { event ->
                 if (event.payload.optString("panel_id") != panelId) return@collect
+                if (event.topic == "browser.closed") {
+                    onBack()
+                    return@collect
+                }
                 if (event.topic == "browser.dialog") {
                     dialog = event.payload
                     dialogText = event.payload.optJSONObject("text_field")?.optString("initial").orEmpty()
@@ -78,7 +82,8 @@ fun NativeBrowserView(
         }
         var streamId: String? = null
         try {
-            streamId = client.subscribe(listOf("browser.frame", "browser.state", "browser.dialog", "browser.dialog.resolved"))
+            streamId = client.subscribe(listOf("browser.frame", "browser.state", "browser.closed",
+                "browser.dialog", "browser.dialog.resolved"))
                 .optString("stream_id").takeIf { it.isNotBlank() }
             val descriptor = client.startBrowserStream(panelId, viewportWidth, viewportHeight, viewportScale)
             address = descriptor.optString("url")

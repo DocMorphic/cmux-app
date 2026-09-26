@@ -482,6 +482,15 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                         }))
                     TextButton(onClick = {
                         val value = input
+                        if (value.isEmpty()) return@TextButton
+                        val workspaceId = selectedWorkspace?.id ?: return@TextButton
+                        val active = client ?: return@TextButton
+                        scope.launch { runCatching { active.input(workspaceId, terminal.id, value) }
+                            .onSuccess { if (input == value) input = ""; scrollOffset = 0 }
+                            .onFailure { error = it.message } }
+                    }) { Text("Type") }
+                    TextButton(onClick = {
+                        val value = input
                         val workspaceId = selectedWorkspace?.id ?: return@TextButton
                         val active = client ?: return@TextButton
                         scope.launch { runCatching { active.input(workspaceId, terminal.id, "$value\r") }
@@ -510,23 +519,34 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                     TextButton(onClick = { notificationTab = !notificationTab }) {
                         Text(if (notificationTab) "▤" else "☷", color = nativeMuted, fontSize = 21.sp)
                     }
-                    TextButton(onClick = {
-                        val active = client ?: return@TextButton
-                        scope.launch { runCatching { active.request("workspace.create") }
-                            .onSuccess { response ->
-                                applyListing(response); notificationTab = false; error = null
-                                val created = workspaces.firstOrNull {
-                                    it.id == response.optString("created_workspace_id")
+                    if (notificationTab) {
+                        TextButton(onClick = {
+                            val active = client ?: return@TextButton
+                            scope.launch { runCatching { active.markAllNotificationsRead(); active.notifications() }
+                                .onSuccess { notifications = parseNotifications(it); error = null }
+                                .onFailure { error = it.message } }
+                        }, enabled = notifications.any { !it.isRead }) {
+                            Text("Read all", color = nativeAccent, fontSize = 13.sp)
+                        }
+                    } else {
+                        TextButton(onClick = {
+                            val active = client ?: return@TextButton
+                            scope.launch { runCatching { active.request("workspace.create") }
+                                .onSuccess { response ->
+                                    applyListing(response); notificationTab = false; error = null
+                                    val created = workspaces.firstOrNull {
+                                        it.id == response.optString("created_workspace_id")
+                                    }
+                                    if (created != null) {
+                                        selectedWorkspace = created
+                                        selectedTerminal = created.terminals.firstOrNull {
+                                            it.id == response.optString("created_terminal_id")
+                                        } ?: created.terminals.firstOrNull()
+                                    }
                                 }
-                                if (created != null) {
-                                    selectedWorkspace = created
-                                    selectedTerminal = created.terminals.firstOrNull {
-                                        it.id == response.optString("created_terminal_id")
-                                    } ?: created.terminals.firstOrNull()
-                                }
-                            }
-                            .onFailure { error = it.message } }
-                    }) { Text("+", color = nativeAccent, fontSize = 25.sp) }
+                                .onFailure { error = it.message } }
+                        }) { Text("+", color = nativeAccent, fontSize = 25.sp) }
+                    }
                 }
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (client == null && !busy) {
