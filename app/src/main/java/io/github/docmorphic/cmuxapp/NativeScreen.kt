@@ -1,6 +1,11 @@
 package io.github.docmorphic.cmuxapp
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import java.text.DateFormat
 import java.util.Date
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -65,7 +71,7 @@ private data class NativeNotification(
 )
 
 @Composable
-fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
+fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incomingWorkspaceId: String? = null) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val configuration = LocalConfiguration.current
@@ -92,6 +98,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
     var hostName by remember { mutableStateOf("cmux") }
     var pairedMacs by remember { mutableStateOf(store.pairedMacs()) }
     var showSettings by remember { mutableStateOf(false) }
+    var backgroundNotifications by remember { mutableStateOf(NativeNotificationService.isEnabled(context)) }
     var workspaces by remember { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
     var groups by remember { mutableStateOf<List<NativeGroup>>(emptyList()) }
     var locallyExpandedGroups by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -101,6 +108,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
     var selectedWorkspace by remember { mutableStateOf<NativeWorkspace?>(null) }
     var selectedTerminal by remember { mutableStateOf<NativeTerminal?>(null) }
     var selectedBrowser by remember { mutableStateOf<NativeBrowser?>(null) }
+    var handledIncomingWorkspace by remember(incomingWorkspaceId) { mutableStateOf(false) }
     var input by remember { mutableStateOf("") }
     var grid by remember { mutableStateOf(RenderGrid()) }
     var gridRevision by remember { mutableIntStateOf(0) }
@@ -108,6 +116,13 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
     var controlArmed by remember { mutableStateOf(false) }
     var altArmed by remember { mutableStateOf(false) }
     var shiftArmed by remember { mutableStateOf(false) }
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) runCatching { NativeNotificationService.setEnabled(context, true) }
+            .onSuccess { backgroundNotifications = true; error = null }
+            .onFailure { error = it.message }
+        else error = "Allow notifications to receive cmux updates in the background"
+    }
 
     fun applyListing(value: JSONObject) {
         workspaces = parseWorkspaces(value)
@@ -116,6 +131,18 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
 
     LaunchedEffect(incomingCode) {
         if (incomingCode != null && PairingCodeParser.parse(incomingCode).isSuccess) code = incomingCode
+    }
+    LaunchedEffect(incomingWorkspaceId, workspaces, client) {
+        val target = incomingWorkspaceId ?: return@LaunchedEffect
+        if (client == null || handledIncomingWorkspace) return@LaunchedEffect
+        val workspace = workspaces.firstOrNull { it.id == target } ?: return@LaunchedEffect
+        workspace.terminals.firstOrNull()?.let { terminal ->
+            selectedWorkspace = workspace; selectedTerminal = terminal; notificationTab = false
+            handledIncomingWorkspace = true
+        } ?: workspace.browsers.firstOrNull()?.let { browser ->
+            selectedWorkspace = workspace; selectedBrowser = browser; notificationTab = false
+            handledIncomingWorkspace = true
+        }
     }
 
     fun applyFrame(value: JSONObject) {
@@ -284,8 +311,33 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                     showSettings = false
                 }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Forget current Mac", color = Color(0xFFFF9999)) }
                 Spacer(Modifier.height(24.dp))
-                TextButton(onClick = { account.signOut(); signedIn = false; client?.close(); client = null },
+                TextButton(onClick = {
+                    NativeNotificationService.setEnabled(context, false)
+                    backgroundNotifications = false
+                    account.signOut(); signedIn = false; client?.close(); client = null
+                },
                     modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
+                Text("NOTIFICATIONS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+                    color = nativeMuted, fontSize = 11.sp)
+                Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Background notifications")
+                        Text("Keep a connection to your Mac for agent alerts", color = nativeMuted, fontSize = 12.sp)
+                    }
+                    Switch(backgroundNotifications, onCheckedChange = { enabled ->
+                        if (enabled) {
+                            if (Build.VERSION.SDK_INT >= 33 &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+                                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            else runCatching { NativeNotificationService.setEnabled(context, true) }
+                                .onSuccess { backgroundNotifications = true; error = null }
+                                .onFailure { error = it.message }
+                        } else runCatching { NativeNotificationService.setEnabled(context, false) }
+                            .onSuccess { backgroundNotifications = false; error = null }
+                            .onFailure { error = it.message }
+                    }, enabled = signedIn && code.isNotBlank())
+                }
                 TextButton(onClick = onUseHelper, modifier = Modifier.padding(horizontal = 14.dp)) {
                     Text("Use existing helper connection", color = nativeMuted)
                 }

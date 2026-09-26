@@ -14,10 +14,15 @@ import androidx.compose.runtime.*
 
 class MainActivity : ComponentActivity() {
     private var incomingPairing by mutableStateOf<String?>(null)
+    private var incomingWorkspace by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         incomingPairing = intent?.dataString?.takeIf { PairingCodeParser.parse(it).isSuccess }
+        incomingWorkspace = intent?.getStringExtra("notification_workspace_id")
+        if (NativeNotificationService.isEnabled(this)) {
+            runCatching { startForegroundService(Intent(this, NativeNotificationService::class.java)) }
+        }
         setContent {
             MaterialTheme(
                 colorScheme = darkColorScheme(
@@ -31,7 +36,8 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var nativeMode by remember { mutableStateOf(true) }
                     LaunchedEffect(incomingPairing) { if (incomingPairing != null) nativeMode = true }
-                    if (nativeMode) NativeScreen(onUseHelper = { nativeMode = false }, incomingCode = incomingPairing)
+                    if (nativeMode) NativeScreen(onUseHelper = { nativeMode = false },
+                        incomingCode = incomingPairing, incomingWorkspaceId = incomingWorkspace)
                     else BridgeScreen(onUseNative = { nativeMode = true })
                 }
             }
@@ -42,5 +48,6 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         incomingPairing = intent.dataString?.takeIf { PairingCodeParser.parse(it).isSuccess }
+        incomingWorkspace = intent.getStringExtra("notification_workspace_id")
     }
 }
