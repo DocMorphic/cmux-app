@@ -144,6 +144,13 @@ class MobileRpcClient(
     suspend fun createBrowser(workspaceId: String): JSONObject = request(
         "mobile.browser.create", JSONObject().put("workspace_id", workspaceId)
     )
+    suspend fun changedFiles(workspaceId: String): JSONObject = request(
+        "mobile.workspace.changes.files", JSONObject().put("workspace_id", workspaceId)
+    )
+    suspend fun fileDiff(workspaceId: String, path: String, maxLines: Int): JSONObject = request(
+        "mobile.workspace.changes.file_diff", JSONObject().put("workspace_id", workspaceId)
+            .put("path", path).put("max_lines", maxLines.coerceIn(100, 10_000))
+    )
     suspend fun browserPanels(workspaceId: String): JSONObject = request(
         "mobile.browser.list", JSONObject().put("workspace_id", workspaceId)
     )

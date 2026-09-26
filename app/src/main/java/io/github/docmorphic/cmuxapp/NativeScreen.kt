@@ -108,6 +108,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     var selectedWorkspace by remember { mutableStateOf<NativeWorkspace?>(null) }
     var selectedTerminal by remember { mutableStateOf<NativeTerminal?>(null) }
     var selectedBrowser by remember { mutableStateOf<NativeBrowser?>(null) }
+    var selectedChangesWorkspace by remember { mutableStateOf<NativeWorkspace?>(null) }
     var handledIncomingWorkspace by remember(incomingWorkspaceId) { mutableStateOf(false) }
     var input by remember { mutableStateOf("") }
     var grid by remember { mutableStateOf(RenderGrid()) }
@@ -510,6 +511,12 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                     onBack = { selectedBrowser = null; selectedWorkspace = null }
                 )
             }
+            selectedChangesWorkspace != null -> {
+                val active = client
+                val workspace = selectedChangesWorkspace!!
+                if (active != null) NativeChangesView(active, workspace.id, workspace.title,
+                    onBack = { selectedChangesWorkspace = null })
+            }
             else -> {
                 Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically) {
@@ -630,6 +637,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                                     if (active != null) scope.launch {
                                         runCatching {
                                             when (action) {
+                                                "changes" -> selectedChangesWorkspace = workspace
                                                 "terminal.create" -> {
                                                     val listing = active.createTerminal(workspace.id)
                                                     applyListing(listing)
@@ -787,6 +795,9 @@ private fun NativeWorkspaceRow(
         Box {
             TextButton(onClick = { expanded = true }) { Text("⋯", color = nativeMuted, fontSize = 20.sp) }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                DropdownMenuItem(text = { Text("View changes") }, onClick = {
+                    expanded = false; onAction("changes", null)
+                })
                 DropdownMenuItem(text = { Text("New terminal") }, onClick = {
                     expanded = false; onAction("terminal.create", null)
                 })
