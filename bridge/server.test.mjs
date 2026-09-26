@@ -34,6 +34,33 @@ test('returns tree and screen from scoped CLI calls', async () => {
   assert.deepEqual(calls[1], ['read-screen', '--surface', id, '--scrollback', '--lines', '80']);
 });
 
+test('lists and marks notifications with bounded identifiers', async () => {
+  const calls = [];
+  const id = '123e4567-e89b-12d3-a456-426614174000';
+  const base = await start(async (args) => {
+    calls.push(args);
+    return args[1] === 'list-notifications' ? '[{"id":"123e4567-e89b-12d3-a456-426614174000","title":"Needs input"}]' : '';
+  });
+  const headers = { Authorization: 'Bearer test-token' };
+  const response = await fetch(`${base}/v1/notifications`, { headers });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json())[0].title, 'Needs input');
+  assert.deepEqual(calls[0], ['--json', 'list-notifications']);
+  const read = await fetch(`${base}/v1/notifications/read`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id })
+  });
+  assert.equal(read.status, 200);
+  assert.deepEqual(calls[1], ['mark-notification-read', '--id', id]);
+  const rejected = await fetch(`${base}/v1/notifications/read`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: '--all' })
+  });
+  assert.equal(rejected.status, 400);
+});
+
 test('validates input and never passes shell text through a shell', async () => {
   const calls = [];
   const id = '123e4567-e89b-12d3-a456-426614174000';

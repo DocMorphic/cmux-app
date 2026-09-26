@@ -79,6 +79,18 @@ export function createBridge({ token, runCmux }) {
         send(response, 200, JSON.parse(output));
         return;
       }
+      if (url.pathname === '/v1/notifications' && request.method === 'GET') {
+        const output = await runCmux(['--json', 'list-notifications']);
+        send(response, 200, JSON.parse(output));
+        return;
+      }
+      if (url.pathname === '/v1/notifications/read' && request.method === 'POST') {
+        const body = await readJsonBody(request);
+        const id = validateSurfaceId(body.id);
+        await runCmux(['mark-notification-read', '--id', id]);
+        send(response, 200, { marked: true });
+        return;
+      }
       if (url.pathname === '/v1/screen' && request.method === 'GET') {
         const surface = validateSurfaceId(url.searchParams.get('surface'));
         const lines = Number(url.searchParams.get('lines') ?? '120');

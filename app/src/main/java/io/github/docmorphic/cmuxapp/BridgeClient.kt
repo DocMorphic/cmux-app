@@ -40,8 +40,43 @@ data class BridgePairing(val host: String, val port: Int, val token: String) {
 
 data class BridgeTerminal(val id: String, val title: String)
 data class BridgeWorkspace(val id: String, val title: String, val terminals: List<BridgeTerminal>)
+data class BridgeNotification(
+    val id: String,
+    val workspaceId: String,
+    val surfaceId: String?,
+    val title: String,
+    val subtitle: String,
+    val body: String,
+    val isRead: Boolean,
+    val createdAt: String?
+)
 
 class BridgeClient(private val pairing: BridgePairing) {
+    suspend fun notifications(): List<BridgeNotification> = withContext(Dispatchers.IO) {
+        val result = mutableListOf<BridgeNotification>()
+        val array = org.json.JSONArray(request("GET", "/v1/notifications"))
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val id = item.optString("id")
+            if (id.isBlank()) continue
+            result += BridgeNotification(
+                id = id,
+                workspaceId = item.optString("workspace_id"),
+                surfaceId = item.optString("surface_id").takeIf { it.isNotBlank() && it != "null" },
+                title = item.optString("title"),
+                subtitle = item.optString("subtitle"),
+                body = item.optString("body"),
+                isRead = item.optBoolean("is_read"),
+                createdAt = item.optString("created_at").takeIf { it.isNotBlank() && it != "null" }
+            )
+        }
+        result
+    }
+
+    suspend fun markNotificationRead(id: String) = withContext(Dispatchers.IO) {
+        request("POST", "/v1/notifications/read", JSONObject().put("id", id).toString())
+    }
+
     suspend fun workspaces(): List<BridgeWorkspace> = withContext(Dispatchers.IO) {
         val root = JSONObject(request("GET", "/v1/tree"))
         val result = mutableListOf<BridgeWorkspace>()
