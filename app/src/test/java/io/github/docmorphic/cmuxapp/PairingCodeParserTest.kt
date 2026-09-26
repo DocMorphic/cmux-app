@@ -12,6 +12,12 @@ class PairingCodeParserTest {
         assertEquals(PairingCode.Route("mac.tailnet.ts.net", 58465), parsed.routes.single())
     }
 
+    @Test fun acceptsCurrentBundleSpecificReleaseScheme() {
+        val parsed = PairingCodeParser.parse("cmux-ios-com.cmux.app://attach?v=2&ub=user123&pc=1&r=100.99.4.3:58465")
+            .getOrThrow() as PairingCode.Tailscale
+        assertEquals("100.99.4.3", parsed.routes.single().host)
+    }
+
     @Test fun acceptsIrohIdentity() {
         val parsed = PairingCodeParser.parse("cmux-ios://attach?v=3&i=endpoint123&d=mac123")
             .getOrThrow() as PairingCode.Iroh

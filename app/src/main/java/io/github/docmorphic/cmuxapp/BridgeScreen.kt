@@ -146,6 +146,7 @@ fun BridgeScreen(onUseNative: () -> Unit = {}) {
                     selectedSurface = null
                     error = null
                 },
+                onUseNative = onUseNative,
                 onOpen = { workspace, terminal ->
                     selectedWorkspace = workspace.id
                     selectedSurface = terminal.id
@@ -275,6 +276,7 @@ private fun WorkspaceView(
     error: String?,
     onRefresh: () -> Unit,
     onDisconnect: () -> Unit,
+    onUseNative: () -> Unit,
     onOpen: (BridgeWorkspace, BridgeTerminal) -> Unit,
     onOpenNotification: (BridgeNotification) -> Unit
 ) {
@@ -335,6 +337,7 @@ private fun WorkspaceView(
                     val unread = notifications.count { !it.isRead }
                     Text(if (unread > 0) "Notifications ($unread)" else "Notifications", color = if (notificationTab) blue else muted)
                 }
+                TextButton(onClick = onUseNative) { Text("Direct cmux", color = blue, fontSize = 12.sp) }
                 TextButton(onClick = onDisconnect) { Text("Disconnect", color = muted, fontSize = 12.sp) }
             }
         }

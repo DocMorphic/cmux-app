@@ -89,6 +89,10 @@ fun NativeScreen(onUseHelper: () -> Unit) {
         try {
             val pairing = PairingCodeParser.parse(code).getOrThrow()
             require(pairing is PairingCode.Tailscale) { "This cmux pairing code uses a transport this build cannot connect to yet" }
+            pairing.stackUserId?.let { expected ->
+                val actual = account.userId()
+                require(actual == expected) { "This Mac is signed in to a different cmux account" }
+            }
             var connected: MobileRpcClient? = null
             var lastError: Throwable? = null
             for (route in pairing.routes) {
@@ -237,7 +241,7 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                 if (client == null && !busy) {
                     Column(Modifier.padding(horizontal = 18.dp)) {
                         Button(onClick = { retry++ }) { Text("Retry connection") }
-                        TextButton(onClick = { store.update { it.remove("pairing_code") }; code = "" }) { Text("Pair a different Mac") }
+                        TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
                     }
                 }
                 LazyColumn(Modifier.weight(1f)) {

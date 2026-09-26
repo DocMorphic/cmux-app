@@ -15,7 +15,7 @@ object PairingCodeParser {
     fun parse(input: String): Result<PairingCode> = runCatching {
         require(input.length <= MAX_CODE_LENGTH) { "Pairing code is too long" }
         val uri = URI(input.trim())
-        require(uri.scheme == "cmux-ios" && uri.host == "attach") {
+        require(isCmuxScheme(uri.scheme) && uri.host == "attach") {
             "Expected a cmux attach QR code"
         }
         val parameters = uri.rawQuery.orEmpty().split('&').filter { it.isNotEmpty() }.map { item ->
@@ -23,6 +23,9 @@ object PairingCodeParser {
             require(parts.size == 2) { "Malformed pairing code" }
             parts[0] to java.net.URLDecoder.decode(parts[1], "UTF-8")
         }
+        require(parameters.none { (key, _) ->
+            listOf("token", "secret", "auth", "password", "bearer", "credential", "jwt").any { key.contains(it, ignoreCase = true) }
+        }) { "Pairing codes cannot contain credentials" }
         fun single(key: String): String? = parameters.singleOrNull { it.first == key }?.second
         when (single("v")) {
             "2" -> {
@@ -38,6 +41,12 @@ object PairingCodeParser {
             else -> error("This pairing code version is not supported yet")
         }
     }
+
+    private fun isCmuxScheme(value: String?): Boolean = value in setOf(
+        "cmux-ios", "cmux-ios-dev", "cmux-ios-com.cmux.app",
+        "cmux-ios-dev.cmux.app.beta", "cmux-ios-dev.cmux.app.internal",
+        "cmux-ios-dev.cmux.app.demo", "cmux-ios-dev.cmux.ios"
+    ) || value?.startsWith("cmux-ios-dev.cmux.ios.") == true
 
     private fun parseRoute(value: String): PairingCode.Route {
         val routeUri = URI("tcp://$value")

@@ -94,15 +94,36 @@ class NativeAccount(private val store: NativeCredentialStore) {
             store.update { it.put("access_token", newToken) }
             newToken
         } catch (error: InvalidRefreshToken) {
-            store.update { it.remove("access_token").remove("refresh_token") }
+            store.update { it.put("access_token", "").put("refresh_token", "") }
             null
         }
     }
 
     fun isSignedIn(): Boolean = store.load()?.optString("refresh_token")?.isNotBlank() == true
 
+    suspend fun userId(): String? = withContext(Dispatchers.IO) {
+        val token = accessToken() ?: return@withContext null
+        val connection = URL("https://api.stack-auth.com/api/v1/users/me").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 20_000
+            connection.setRequestProperty("x-stack-project-id", PROJECT_ID)
+            connection.setRequestProperty("x-stack-publishable-client-key", PUBLISHABLE_KEY)
+            connection.setRequestProperty("x-stack-client-version", "swift@1.0.0")
+            connection.setRequestProperty("x-stack-access-type", "client")
+            connection.setRequestProperty("x-stack-access-token", token)
+            connection.setRequestProperty("x-stack-override-error-status", "true")
+            connection.setRequestProperty("x-stack-random-nonce", UUID.randomUUID().toString())
+            val status = connection.getHeaderField("x-stack-actual-status")?.toIntOrNull() ?: connection.responseCode
+            check(status in 200..299) { "Could not verify your cmux account" }
+            JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                .optString("id").takeIf { it.isNotBlank() }
+        } finally { connection.disconnect() }
+    }
+
     fun signOut() {
-        store.update { it.remove("access_token").remove("refresh_token") }
+        store.update { it.put("access_token", "").put("refresh_token", "") }
     }
 
     private fun expiresSoon(token: String): Boolean = runCatching {
