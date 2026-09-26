@@ -25,7 +25,7 @@ UI resemblance alone does not count.
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimarySearchCoordinator` | Workspace text filter | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
-| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Missing | Create and navigate tasks; handle agent prompts and attachments |
+| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Built-in Claude/Codex/OpenCode/Shell templates and new-workspace task RPC coded; model/effort, attachments, task recovery, chat UI, and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account and saved-computer controls coded; notification, display, diagnostics missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Stable signing and CI verified on foundation build; current native build and Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |

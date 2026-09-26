@@ -98,6 +98,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     var hostName by remember { mutableStateOf("cmux") }
     var pairedMacs by remember { mutableStateOf(store.pairedMacs()) }
     var showSettings by remember { mutableStateOf(false) }
+    var showTaskComposer by remember { mutableStateOf(false) }
     var backgroundNotifications by remember { mutableStateOf(NativeNotificationService.isEnabled(context)) }
     var workspaces by remember { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
     var groups by remember { mutableStateOf<List<NativeGroup>>(emptyList()) }
@@ -343,6 +344,24 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                     Text("Use existing helper connection", color = nativeMuted)
                 }
             }
+            showTaskComposer -> {
+                val active = client
+                if (active != null) NativeTaskComposerView(active,
+                    directories = workspaces.mapNotNull { it.directory },
+                    onCreated = { response ->
+                        applyListing(response)
+                        val created = workspaces.firstOrNull {
+                            it.id == response.optString("created_workspace_id")
+                        }
+                        showTaskComposer = false
+                        if (created != null) {
+                            selectedWorkspace = created
+                            selectedTerminal = created.terminals.firstOrNull {
+                                it.id == response.optString("created_terminal_id")
+                            } ?: created.terminals.firstOrNull()
+                        }
+                    }, onBack = { showTaskComposer = false })
+            }
             code.isBlank() -> {
                 NativeHeader("Pair your Mac")
                 Column(Modifier.padding(24.dp)) {
@@ -536,6 +555,9 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                             Text("Read all", color = nativeAccent, fontSize = 13.sp)
                         }
                     } else {
+                        TextButton(onClick = { if (client != null) showTaskComposer = true }) {
+                            Text("Task", color = nativeAccent, fontSize = 13.sp)
+                        }
                         TextButton(onClick = {
                             val active = client ?: return@TextButton
                             scope.launch { runCatching { active.request("workspace.create") }
