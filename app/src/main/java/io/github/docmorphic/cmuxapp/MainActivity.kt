@@ -11,7 +11,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
 
 class MainActivity : ComponentActivity() {
     private var incomingPairing by mutableStateOf<String?>(null)
@@ -30,11 +29,7 @@ class MainActivity : ComponentActivity() {
                 )
             ) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    val context = LocalContext.current
-                    var nativeMode by remember {
-                        mutableStateOf(incomingPairing != null ||
-                            NativeCredentialStore(context.applicationContext).load()?.optString("pairing_code")?.isNotBlank() == true)
-                    }
+                    var nativeMode by remember { mutableStateOf(true) }
                     LaunchedEffect(incomingPairing) { if (incomingPairing != null) nativeMode = true }
                     if (nativeMode) NativeScreen(onUseHelper = { nativeMode = false }, incomingCode = incomingPairing)
                     else BridgeScreen(onUseNative = { nativeMode = true })

@@ -2,7 +2,7 @@
 
 An **unofficial Android companion project** for [cmux](https://cmux.com). The release goal is feature parity with the official iOS companion on a Pixel 6a.
 
-The app currently has two connection paths. The previously tested [Mac helper](bridge/README.md) shows live workspaces, terminal text, and notifications over Tailscale. A newer direct cmux path adds same-account sign-in, official QR parsing, framed mobile RPC, workspace and notification feeds, and a styled render-grid terminal. The direct path is under build and physical-device validation; it is not yet a parity release. The [parity tracker](docs/PARITY.md) records every feature and its acceptance check.
+The app opens on the direct cmux connection path: same-account sign-in, official QR parsing, framed mobile RPC, workspace and notification feeds, browser streams, and a styled terminal with scrollback. The previously tested [Mac helper](bridge/README.md) remains available in the app. The direct path is under build and physical-device validation; it is not yet a parity release. The [parity tracker](docs/PARITY.md) records every feature and its acceptance check.
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 

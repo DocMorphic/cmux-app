@@ -49,8 +49,14 @@ private val nativeMuted = Color(0xFF9B9FA8)
 private data class NativeWorkspace(
     val id: String, val title: String, val terminals: List<NativeTerminal>,
     val directory: String?, val hasUnread: Boolean, val lastActivityAt: Double?,
-    val windowId: String?, val isPinned: Boolean, val browsers: List<NativeBrowser>
+    val windowId: String?, val isPinned: Boolean, val browsers: List<NativeBrowser>,
+    val groupId: String?, val preview: String?, val color: String?
 )
+private data class NativeGroup(val id: String, val name: String, val isCollapsed: Boolean)
+private sealed interface WorkspaceListEntry {
+    data class Header(val group: NativeGroup) : WorkspaceListEntry
+    data class Workspace(val workspace: NativeWorkspace) : WorkspaceListEntry
+}
 private data class NativeTerminal(val id: String, val title: String)
 private data class NativeBrowser(val id: String, val title: String)
 private data class NativeNotification(
@@ -87,6 +93,8 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
     var pairedMacs by remember { mutableStateOf(store.pairedMacs()) }
     var showSettings by remember { mutableStateOf(false) }
     var workspaces by remember { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
+    var groups by remember { mutableStateOf<List<NativeGroup>>(emptyList()) }
+    var locallyExpandedGroups by remember { mutableStateOf<Set<String>>(emptySet()) }
     var notifications by remember { mutableStateOf<List<NativeNotification>>(emptyList()) }
     var notificationTab by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
@@ -100,6 +108,11 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
     var controlArmed by remember { mutableStateOf(false) }
     var altArmed by remember { mutableStateOf(false) }
     var shiftArmed by remember { mutableStateOf(false) }
+
+    fun applyListing(value: JSONObject) {
+        workspaces = parseWorkspaces(value)
+        if (value.has("groups")) groups = parseGroups(value)
+    }
 
     LaunchedEffect(incomingCode) {
         if (incomingCode != null && PairingCodeParser.parse(incomingCode).isSuccess) code = incomingCode
@@ -146,7 +159,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                 val status = active.hostStatus()
                 hostName = status.optString("mac_display_name").ifBlank { "cmux" }
                 val listing = active.workspaces()
-                workspaces = parseWorkspaces(listing)
+                applyListing(listing)
                 runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
                 client = active
                 store.rememberMac(code, status.optString("mac_device_id"), hostName)
@@ -178,7 +191,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
         val active = client ?: return@LaunchedEffect
         if (selectedTerminal != null) return@LaunchedEffect
         while (true) {
-            runCatching { active.workspaces() }.onSuccess { workspaces = parseWorkspaces(it); error = null }
+            runCatching { active.workspaces() }.onSuccess { applyListing(it); error = null }
                 .onFailure { error = it.message }
             runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
                 .onFailure { if (notificationTab) error = it.message }
@@ -448,7 +461,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                     TextButton(onClick = {
                         val active = client ?: return@TextButton
                         scope.launch { runCatching { active.request("workspace.create") }
-                            .onSuccess { workspaces = parseWorkspaces(it); notificationTab = false; error = null }
+                            .onSuccess { applyListing(it); notificationTab = false; error = null }
                             .onFailure { error = it.message } }
                     }) { Text("+", color = nativeAccent, fontSize = 25.sp) }
                 }
@@ -484,16 +497,49 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                         if (notifications.isEmpty()) item { Text("No notifications yet.", Modifier.padding(24.dp), color = nativeMuted) }
                     }
                 } else {
+                    val matching = workspaces.filter { it.title.contains(search, true) ||
+                        it.directory?.contains(search, true) == true ||
+                        it.preview?.contains(search, true) == true ||
+                        it.terminals.any { terminal -> terminal.title.contains(search, true) }
+                    }
+                    val entries = buildList<WorkspaceListEntry> {
+                        if (groups.isEmpty()) matching.forEach { add(WorkspaceListEntry.Workspace(it)) }
+                        else {
+                            matching.filter { it.groupId == null || groups.none { group -> group.id == it.groupId } }
+                                .forEach { add(WorkspaceListEntry.Workspace(it)) }
+                            groups.forEach { group ->
+                                val members = matching.filter { it.groupId == group.id }
+                                if (members.isNotEmpty() || search.isBlank()) add(WorkspaceListEntry.Header(group))
+                                if (search.isNotBlank() || (group.isCollapsed == (group.id in locallyExpandedGroups)))
+                                    members.forEach { add(WorkspaceListEntry.Workspace(it)) }
+                            }
+                        }
+                    }
                     LazyColumn(Modifier.weight(1f)) {
-                        items(workspaces.filter { it.title.contains(search, true) ||
-                            it.directory?.contains(search, true) == true ||
-                            it.terminals.any { terminal -> terminal.title.contains(search, true) }
-                        }, key = { it.id }) { workspace ->
+                        items(entries, key = {
+                            when (it) {
+                                is WorkspaceListEntry.Header -> "group:${it.group.id}"
+                                is WorkspaceListEntry.Workspace -> "workspace:${it.workspace.id}"
+                            }
+                        }) { entry ->
+                            if (entry is WorkspaceListEntry.Header) {
+                                val group = entry.group
+                                Text("${if (group.isCollapsed == (group.id in locallyExpandedGroups)) "⌄" else "›"}  ${group.name}",
+                                    Modifier.fillMaxWidth().clickable {
+                                        locallyExpandedGroups = if (group.id in locallyExpandedGroups)
+                                            locallyExpandedGroups - group.id else locallyExpandedGroups + group.id
+                                    }.padding(horizontal = 22.dp, vertical = 12.dp),
+                                    color = nativeMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                return@items
+                            }
+                            val workspace = (entry as WorkspaceListEntry.Workspace).workspace
                             NativeWorkspaceRow(
                                 workspace = workspace,
                                 onOpen = {
                                     workspace.terminals.firstOrNull()?.let { terminal ->
                                         selectedWorkspace = workspace; selectedTerminal = terminal
+                                    } ?: workspace.browsers.firstOrNull()?.let { browser ->
+                                        selectedWorkspace = workspace; selectedBrowser = browser
                                     }
                                 },
                                 onAction = { action, title ->
@@ -503,7 +549,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                                             if (action == "close") active.closeWorkspace(workspace.id, workspace.windowId)
                                             else active.workspaceAction(workspace.id, workspace.windowId, action, title)
                                             active.workspaces()
-                                        }.onSuccess { workspaces = parseWorkspaces(it); error = null }
+                                        }.onSuccess { applyListing(it); error = null }
                                             .onFailure { error = it.message }
                                     }
                                 }
@@ -517,7 +563,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                             }
                             HorizontalDivider(color = Color(0xFF292C31))
                         }
-                        if (workspaces.isEmpty()) item { Text("No workspaces yet.", Modifier.padding(24.dp), color = nativeMuted) }
+                        if (entries.isEmpty()) item { Text("No workspaces found.", Modifier.padding(24.dp), color = nativeMuted) }
                     }
                 }
                 if (!notificationTab) {
@@ -581,8 +627,22 @@ private fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 workspace.optBoolean("has_unread"),
                 workspace.optDouble("last_activity_at").takeIf { it > 0 },
                 workspace.optString("window_id").takeIf { it.isNotBlank() && it != "null" },
-                workspace.optBoolean("is_pinned"), browsers
+                workspace.optBoolean("is_pinned"), browsers,
+                workspace.optString("group_id").takeIf { it.isNotBlank() && it != "null" },
+                workspace.optString("preview").takeIf { it.isNotBlank() && it != "null" },
+                workspace.optString("custom_color").takeIf { it.startsWith('#') }
             ))
+        }
+    }
+}
+
+private fun parseGroups(value: JSONObject): List<NativeGroup> {
+    val array = value.optJSONArray("groups") ?: return emptyList()
+    return buildList {
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val id = item.optString("id")
+            if (id.isNotBlank()) add(NativeGroup(id, item.optString("name", "Group"), item.optBoolean("is_collapsed")))
         }
     }
 }
@@ -597,17 +657,19 @@ private fun NativeWorkspaceRow(
     var rename by remember { mutableStateOf(false) }
     var confirmClose by remember { mutableStateOf(false) }
     var title by remember(workspace.id) { mutableStateOf(workspace.title) }
-    Row(Modifier.fillMaxWidth().clickable(enabled = workspace.terminals.isNotEmpty(), onClick = onOpen)
+    Row(Modifier.fillMaxWidth().clickable(enabled = workspace.terminals.isNotEmpty() || workspace.browsers.isNotEmpty(), onClick = onOpen)
         .padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
         if (workspace.hasUnread) Text("●", color = nativeAccent, fontSize = 9.sp, modifier = Modifier.width(10.dp))
         else Spacer(Modifier.width(10.dp))
         val colors = listOf(Color(0xFFFFB52E), Color(0xFF58CFA2), Color(0xFF83B9FF), Color(0xFFFF8E80))
-        Box(Modifier.size(37.dp).background(colors[(workspace.id.hashCode() and Int.MAX_VALUE) % colors.size], CircleShape),
+        val accent = runCatching { android.graphics.Color.parseColor(workspace.color) }
+            .getOrNull()?.let { Color(it) } ?: colors[(workspace.id.hashCode() and Int.MAX_VALUE) % colors.size]
+        Box(Modifier.size(37.dp).background(accent, CircleShape),
             contentAlignment = Alignment.Center) { Text("›", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
             Text(workspace.title.ifBlank { "Workspace" }, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-            Text(workspace.directory ?: workspace.terminals.firstOrNull()?.title.orEmpty(),
+            Text(workspace.preview ?: workspace.directory ?: workspace.terminals.firstOrNull()?.title.orEmpty(),
                 color = nativeMuted, fontSize = 11.sp, maxLines = 1)
         }
         workspace.lastActivityAt?.let { seconds ->
