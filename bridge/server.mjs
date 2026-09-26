@@ -75,7 +75,7 @@ export function createBridge({ token, runCmux }) {
         return;
       }
       if (url.pathname === '/v1/tree' && request.method === 'GET') {
-        const output = await runCmux(['--json', 'tree', '--all']);
+        const output = await runCmux(['--json', '--id-format', 'uuids', 'tree', '--all']);
         send(response, 200, JSON.parse(output));
         return;
       }
@@ -133,7 +133,7 @@ async function main() {
   }
   const port = Number(process.env.CMUX_APP_BRIDGE_PORT || '58466');
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid bridge port');
-  await runInstalledCmux(['--json', 'tree', '--all']);
+  await runInstalledCmux(['--json', '--id-format', 'uuids', 'tree', '--all']);
   const server = createBridge({ token, runCmux: runInstalledCmux });
   await new Promise((resolve, reject) => {
     server.once('error', reject);

@@ -6,12 +6,13 @@ Install an APK on an Android phone, pair it with a Mac running cmux, browse work
 
 ## Milestones
 
-### 0. Project foundation — started
+### 0. Project foundation — in progress
 
 - [x] Create Android Studio project and Git repository.
 - [x] Record official iOS behavior and protocol boundaries.
 - [x] Add offline workspace/terminal UI preview.
 - [x] Add bounded v2/v3 pairing QR recognition with tests.
+- [x] Build preview APK in CI.
 - [ ] Build and install preview APK on an Android device.
 
 ### 1. Protocol contract
@@ -53,4 +54,4 @@ Install an APK on an Android phone, pair it with a Mac running cmux, browse work
 
 ## Immediate inputs for live testing
 
-The first end-to-end implementation needs a Mac with cmux installed and signed in, its version, access to Mobile Connect, and an Android phone or emulator on a reachable private network. Official Android auth/client registration details or maintainer guidance may be needed for the production mobile protocol. None of those are needed for the current preview project.
+The Mac is running cmux `0.64.25 (106)`, signed in, and connected to Tailscale. An Android peer is online in the same tailnet. The `feature/local-mac-bridge` branch now has an opt-in Mac helper and Android screen; CI builds it, but its CLI integration and physical-phone connection still need live testing. Official Android auth/client registration details or maintainer guidance may be needed for the production mobile protocol.

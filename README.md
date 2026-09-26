@@ -16,7 +16,7 @@ Install Android Studio with Android SDK 36 and JDK 17 or newer, then open this d
 ./gradlew :app:assembleDebug
 ```
 
-The APK will be at `app/build/outputs/apk/debug/app-debug.apk`. It is a preview APK, not a connected cmux client.
+The APK will be at `app/build/outputs/apk/debug/app-debug.apk`. On the `feature/local-mac-bridge` branch it includes a manual Tailscale connection to the experimental helper. The `main` branch remains an offline preview.
 
 ## Project choices
 

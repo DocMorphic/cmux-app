@@ -29,6 +29,7 @@ test('returns tree and screen from scoped CLI calls', async () => {
   });
   const headers = { Authorization: 'Bearer test-token' };
   assert.deepEqual(await (await fetch(`${base}/v1/tree`, { headers })).json(), { windows: [] });
+  assert.deepEqual(calls[0], ['--json', '--id-format', 'uuids', 'tree', '--all']);
   assert.equal((await (await fetch(`${base}/v1/screen?surface=${id}&lines=80`, { headers })).json()).text, 'terminal text');
   assert.deepEqual(calls[1], ['read-screen', '--surface', id, '--scrollback', '--lines', '80']);
 });
