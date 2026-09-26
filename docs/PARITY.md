@@ -27,14 +27,26 @@ UI resemblance alone does not count.
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
 | Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Built-in Claude/Codex/OpenCode/Shell templates and new-workspace task RPC coded; model/effort, attachments, task recovery, chat UI, and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
-| Device behavior | iOS lifecycle, accessibility, background push | Missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
-| Delivery | iOS release checks | Stable signing and CI verified on foundation build; current native build and Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
+| Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
+| Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
+
+## Automated evidence (2026-09-27)
+
+21 JVM tests pass. A Compose instrumentation flow passes on an Android 17
+(API 37) ARM64 emulator using the Pixel 6a display profile. It checks unread
+filtering, terminal output appearing, keyboard-driven viewport reduction,
+exactly one input request, and viewport cleanup on return to workspaces.
+Screenshots were inspected with and without the keyboard. This caught and
+fixed terminal background overdraw, skipped render updates, and a false
+cancellation error during resize. It uses a local RPC fixture; live Mac auth,
+pairing, real terminal applications, and the physical Pixel remain unverified.
+See [ANDROID_TESTING.md](ANDROID_TESTING.md) for reproduction.
 
 ## Work order
 
 1. Make pairing usable and durable: encrypted credential storage, QR scanner,
    state restoration, and connection recovery. The helper remains an interim
-   transport while native cmux account auth is implemented.
+   transport while the native cmux account and pairing path is validated.
 2. Port the official pairing/ticket/frame/RPC contracts and replace the helper
    with the Mac's mobile endpoint. Verify against a pinned cmux build.
 3. Render the terminal stream with a real terminal engine and implement the full

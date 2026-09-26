@@ -24,15 +24,7 @@ class MainActivity : ComponentActivity() {
             runCatching { startForegroundService(Intent(this, NativeNotificationService::class.java)) }
         }
         setContent {
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = Color(0xFF76B9FF),
-                    background = Color(0xFF0B0C0E),
-                    surface = Color(0xFF0B0C0E),
-                    onBackground = Color(0xFFF4F5F7),
-                    onSurface = Color(0xFFF4F5F7)
-                )
-            ) {
+            CmuxTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var nativeMode by remember { mutableStateOf(true) }
                     LaunchedEffect(incomingPairing) { if (incomingPairing != null) nativeMode = true }
@@ -50,4 +42,15 @@ class MainActivity : ComponentActivity() {
         incomingPairing = intent.dataString?.takeIf { PairingCodeParser.parse(it).isSuccess }
         incomingWorkspace = intent.getStringExtra("notification_workspace_id")
     }
+}
+
+@Composable
+fun CmuxTheme(content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = darkColorScheme(
+        primary = Color(0xFF76B9FF),
+        background = Color(0xFF0B0C0E),
+        surface = Color(0xFF0B0C0E),
+        onBackground = Color(0xFFF4F5F7),
+        onSurface = Color(0xFFF4F5F7)
+    ), content = content)
 }

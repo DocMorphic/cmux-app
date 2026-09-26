@@ -41,7 +41,7 @@ jobs:
         env:
           CMUX_APP_RELEASE_KEYSTORE: ${{ runner.temp }}/cmux-app-release.p12
           CMUX_APP_RELEASE_PASSWORD: ${{ secrets.CMUX_APP_RELEASE_PASSWORD }}
-        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --stacktrace
       - name: Verify release signature
         run: |
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk

@@ -1,0 +1,39 @@
+package io.github.docmorphic.cmuxapp
+
+import android.content.Context
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/** Connection boundary shared by the UI and its on-device contract tests. */
+fun interface NativeConnector {
+    suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount): MobileRpcClient
+}
+
+class TailscaleConnector(private val context: Context) : NativeConnector {
+    override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount): MobileRpcClient {
+        pairing.stackUserId?.let { expected ->
+            require(account.userId() == expected) { "This Mac is signed in to a different cmux account" }
+        }
+        var lastError: Throwable? = null
+        for (route in pairing.routes) {
+            val target = try { withContext(Dispatchers.IO) { TailscaleRoute.resolve(context, route) } }
+                catch (failure: Exception) {
+                    if (failure is CancellationException) throw failure
+                    lastError = failure
+                    continue
+                }
+            val candidate = MobileRpcClient(target.route, account::accessToken,
+                socketFactory = target.socketFactory)
+            try {
+                candidate.connect()
+                return candidate
+            } catch (failure: Exception) {
+                candidate.close()
+                if (failure is CancellationException) throw failure
+                lastError = failure
+            }
+        }
+        throw lastError ?: IllegalStateException("No Tailscale route is reachable")
+    }
+}

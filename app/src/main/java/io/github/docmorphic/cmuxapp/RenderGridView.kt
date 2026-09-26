@@ -13,16 +13,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import kotlinx.coroutines.delay
 import kotlin.math.min
 
 /** Draws cmux's styled cell grid at fixed cell coordinates, preserving TUI layout. */
 @Composable
 fun RenderGridView(
-    grid: RenderGrid, cells: TerminalCellMetrics,
+    grid: RenderGrid, cells: TerminalCellMetrics, revision: Int,
     modifier: Modifier = Modifier, scrollOffset: Int = 0
 ) {
     val fallback = Color(0xFF111316)
@@ -30,8 +34,17 @@ fun RenderGridView(
     LaunchedEffect(grid) {
         while (true) { delay(600); blinkVisible = !blinkVisible }
     }
+    val visibleLines = remember(grid, revision, scrollOffset) {
+        val allLines = grid.scrollbackLines + grid.lines
+        val firstLine = (allLines.size - grid.rows - scrollOffset).coerceAtLeast(0)
+        allLines.drop(firstLine).take(grid.rows)
+    }
     Box(modifier.background(fallback)) {
-        Canvas(Modifier.fillMaxSize()) {
+        Canvas(Modifier.fillMaxSize().clipToBounds().semantics {
+            text = AnnotatedString(visibleLines.joinToString("\n") { spans ->
+                spans.joinToString("") { if (it.style.invisible) "" else it.text }
+            }.trimEnd())
+        }) {
             if (grid.columns == 0 || grid.rows == 0) return@Canvas
             val cellWidth = min(cells.widthPx, size.width / grid.columns)
             val cellHeight = min(cells.heightPx, size.height / grid.rows)
@@ -39,6 +52,7 @@ fun RenderGridView(
             val originY = ((size.height - cellHeight * grid.rows) / 2f).coerceAtLeast(0f)
             val background = parseColor(grid.background, android.graphics.Color.rgb(17, 19, 22))
             val foreground = parseColor(grid.foreground, android.graphics.Color.rgb(224, 229, 235))
+            drawRect(Color(background))
             drawIntoCanvas { canvas ->
                 val native = canvas.nativeCanvas
                 val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -46,11 +60,8 @@ fun RenderGridView(
                     textSize = cells.fontSizePx *
                         min(cellWidth / cells.widthPx, cellHeight / cells.heightPx)
                 }
-                native.drawColor(background)
                 val baselineOffset = (cellHeight - (paint.fontMetrics.descent + paint.fontMetrics.ascent)) / 2f
-                val allLines = grid.scrollbackLines + grid.lines
-                val firstLine = (allLines.size - grid.rows - scrollOffset).coerceAtLeast(0)
-                allLines.drop(firstLine).take(grid.rows).forEachIndexed { row, spans ->
+                visibleLines.forEachIndexed { row, spans ->
                     for (span in spans) {
                         val x = originX + span.column * cellWidth
                         val y = originY + row * cellHeight

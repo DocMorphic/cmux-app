@@ -80,8 +80,12 @@ private data class NativeNotification(
 )
 
 @Composable
-fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incomingWorkspaceId: String? = null) {
+fun NativeScreen(
+    onUseHelper: () -> Unit, incomingCode: String? = null, incomingWorkspaceId: String? = null,
+    connector: NativeConnector? = null
+) {
     val context = LocalContext.current
+    val connection = remember(context, connector) { connector ?: TailscaleConnector(context.applicationContext) }
     val clipboard = LocalClipboardManager.current
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -106,10 +110,6 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     var viewportRequestGeneration by remember { mutableLongStateOf(0L) }
     val store = remember(context) { NativeCredentialStore(context.applicationContext) }
     val account = remember(store) { NativeAccount(store) }
-    val scanner = remember(context) {
-        GmsBarcodeScanning.getClient(context,
-            GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).enableAutoZoom().build())
-    }
     val scope = rememberCoroutineScope()
     val terminalFocusRequester = remember { FocusRequester() }
     var signedIn by remember { mutableStateOf(account.isSignedIn()) }
@@ -249,21 +249,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
         try {
             val pairing = PairingCodeParser.parse(code).getOrThrow()
             require(pairing is PairingCode.Tailscale) { "This cmux pairing code uses a transport this build cannot connect to yet" }
-            pairing.stackUserId?.let { expected ->
-                val actual = account.userId()
-                require(actual == expected) { "This Mac is signed in to a different cmux account" }
-            }
-            var connected: MobileRpcClient? = null
-            var lastError: Throwable? = null
-            for (route in pairing.routes) {
-                val target = try { TailscaleRoute.resolve(context, route) }
-                    catch (failure: Throwable) { lastError = failure; continue }
-                val candidate = MobileRpcClient(target.route, account::accessToken,
-                    socketFactory = target.socketFactory)
-                try { candidate.connect(); connected = candidate; break }
-                catch (failure: Throwable) { lastError = failure; candidate.close() }
-            }
-            val active = connected ?: throw lastError ?: IllegalStateException("No Tailscale route is reachable")
+            val active = connection.connect(pairing, account)
             try {
                 val status = active.hostStatus()
                 hostName = status.optString("mac_display_name").ifBlank { "cmux" }
@@ -355,7 +341,10 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                 val columns = response.optInt("columns")
                 val rows = response.optInt("rows")
                 if (columns > 0 && rows > 0) effectiveTerminalViewport = TerminalViewport(columns, rows)
-            }.onFailure { error = it.message ?: "Terminal resize failed" }
+            }.onFailure {
+                if (it is CancellationException) throw it
+                error = it.message ?: "Terminal resize failed"
+            }
             val size = effectiveTerminalViewport ?: requestedViewport
             val snapshot = active.replay(workspace.id, terminal.id, size.columns, size.rows)
             if (generation == replayGeneration) applyFrame(snapshot)
@@ -366,7 +355,10 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
         finally { if (generation == replayGeneration) replayPending = false }
         try { eventJob.join() } finally {
             eventJob.cancel()
-            if (viewportAttempted) withContext(NonCancellable) {
+            // A replacement effect may already have reported a newer viewport
+            // for this surface. Its report must not be cleared by old cleanup.
+            if (viewportAttempted && (generation == replayGeneration ||
+                selectedTerminal?.id != terminal.id || client !== active)) withContext(NonCancellable) {
                 runCatching {
                     active.clearViewport(workspace.id, terminal.id, ++viewportRequestGeneration)
                 }
@@ -552,10 +544,15 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                     Text("Open cmux Mobile Pairing on your Mac and scan its QR code.", color = nativeMuted)
                     Spacer(Modifier.height(20.dp))
                     Button(onClick = {
-                        scanner.startScan().addOnSuccessListener { barcode ->
+                        runCatching {
+                            GmsBarcodeScanning.getClient(context,
+                                GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                                    .enableAutoZoom().build()).startScan()
+                        }.onSuccess { scan -> scan.addOnSuccessListener { barcode ->
                             val scanned = barcode.rawValue.orEmpty()
                             proposePairing(scanned)
-                        }.addOnFailureListener { error = it.message }
+                        }.addOnFailureListener { error = it.message } }
+                            .onFailure { error = it.message ?: "Could not open the QR scanner" }
                     }, modifier = Modifier.fillMaxWidth()) { Text("Scan cmux QR code") }
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(pairingText, { pairingText = it }, Modifier.fillMaxWidth(), label = { Text("Or paste pairing code") })
@@ -593,7 +590,6 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                     }
                 }
                 val currentGrid = grid
-                @Suppress("UNUSED_VARIABLE") val observedRevision = gridRevision
                 if (scrollOffset > 0) {
                     Row(Modifier.fillMaxWidth().background(nativePanel).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically) {
@@ -602,7 +598,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                         TextButton(onClick = { scrollOffset = 0 }) { Text("Latest") }
                     }
                 }
-                RenderGridView(currentGrid, terminalCells,
+                RenderGridView(currentGrid, terminalCells, gridRevision,
                     Modifier.fillMaxWidth().weight(1f)
                         .onSizeChanged { terminalViewportPixels = it }
                         .focusRequester(terminalFocusRequester)
