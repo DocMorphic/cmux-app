@@ -26,3 +26,7 @@ The bridge verifies that Tailscale supplied the exact private address, binds onl
 The helper uses HTTP because Tailscale encrypts the network path. The Android client accepts helper URLs only for Tailscale IPv4 addresses and never follows redirects. Do not expose the helper through a public port or reverse proxy.
 
 This prototype polls plain terminal text once per second. It does not yet match the official iOS app's grid rendering, full-screen TUI support, background notifications, or automatic reconnect. Its network binding is **off by default**.
+
+## Verification status
+
+On cmux `0.64.25 (106)`, the loopback listener returned the real workspace tree with UUIDs, read a terminal screen, sent a test command and Enter to an inactive terminal, and read the resulting marker. The listener was stopped after the test. A physical Android phone connection over Tailscale remains to be tested.

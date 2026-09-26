@@ -54,4 +54,4 @@ Install an APK on an Android phone, pair it with a Mac running cmux, browse work
 
 ## Immediate inputs for live testing
 
-The Mac is running cmux `0.64.25 (106)`, signed in, and connected to Tailscale. An Android peer is online in the same tailnet. The `feature/local-mac-bridge` branch now has an opt-in Mac helper and Android screen; CI builds it, but its CLI integration and physical-phone connection still need live testing. Official Android auth/client registration details or maintainer guidance may be needed for the production mobile protocol.
+The Mac is running cmux `0.64.25 (106)`, signed in, and connected to Tailscale. An Android peer is online in the same tailnet. The `feature/local-mac-bridge` branch now has an opt-in Mac helper and Android screen. CI builds it, and the helper has passed a loopback integration check against the real cmux CLI for tree, screen, text, and key input. A physical-phone connection still needs testing. Official Android auth/client registration details or maintainer guidance may be needed for the production mobile protocol.
