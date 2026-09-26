@@ -91,7 +91,7 @@ export function createBridge({ token, runCmux }) {
         const body = await readJsonBody(request);
         const surface = validateSurfaceId(body.surface);
         if (typeof body.text !== 'string' || body.text.length < 1 || body.text.length > 4096 || body.text.includes('\0')) throw new Error('Invalid input text');
-        await runCmux(['send', '--surface', surface, '--', body.text]);
+        await runCmux(['rpc', 'surface.send_text', JSON.stringify({ surface_id: surface, text: body.text })]);
         send(response, 200, { sent: true });
         return;
       }
@@ -99,7 +99,7 @@ export function createBridge({ token, runCmux }) {
         const body = await readJsonBody(request);
         const surface = validateSurfaceId(body.surface);
         const key = validateKey(body.key);
-        await runCmux(['send-key', '--surface', surface, '--', key]);
+        await runCmux(['rpc', 'surface.send_key', JSON.stringify({ surface_id: surface, key })]);
         send(response, 200, { sent: true });
         return;
       }

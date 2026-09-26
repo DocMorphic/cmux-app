@@ -39,9 +39,10 @@ test('validates input and never passes shell text through a shell', async () => 
   const id = '123e4567-e89b-12d3-a456-426614174000';
   const base = await start(async (args) => { calls.push(args); return ''; });
   const headers = { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' };
-  assert.equal((await fetch(`${base}/v1/input`, { method: 'POST', headers, body: JSON.stringify({ surface: id, text: 'echo hello; whoami' }) })).status, 200);
-  assert.deepEqual(calls[0], ['send', '--surface', id, '--', 'echo hello; whoami']);
+  assert.equal((await fetch(`${base}/v1/input`, { method: 'POST', headers, body: JSON.stringify({ surface: id, text: 'echo hello; whoami\\n' }) })).status, 200);
+  assert.deepEqual(calls[0], ['rpc', 'surface.send_text', JSON.stringify({ surface_id: id, text: 'echo hello; whoami\\n' })]);
   assert.equal((await fetch(`${base}/v1/key`, { method: 'POST', headers, body: JSON.stringify({ surface: id, key: 'ctrl+c' }) })).status, 200);
+  assert.deepEqual(calls[1], ['rpc', 'surface.send_key', JSON.stringify({ surface_id: id, key: 'ctrl+c' })]);
   assert.equal((await fetch(`${base}/v1/key`, { method: 'POST', headers, body: JSON.stringify({ surface: id, key: 'rm -rf' }) })).status, 400);
   assert.throws(() => validateSurfaceId('surface:1'));
 });
