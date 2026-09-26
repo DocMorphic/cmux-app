@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -18,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -92,6 +94,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
     var input by remember { mutableStateOf("") }
     var grid by remember { mutableStateOf(RenderGrid()) }
     var gridRevision by remember { mutableIntStateOf(0) }
+    var scrollOffset by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(incomingCode) {
         if (incomingCode != null && PairingCodeParser.parse(incomingCode).isSuccess) code = incomingCode
@@ -183,6 +186,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
         val workspace = selectedWorkspace ?: return@LaunchedEffect
         val terminal = selectedTerminal ?: return@LaunchedEffect
         grid = RenderGrid(); gridRevision++
+        scrollOffset = 0
         val eventJob = launch {
             active.events.collect { event ->
                 if (event.topic == "terminal.render_grid") {
@@ -322,7 +326,32 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                 }
                 val currentGrid = grid
                 @Suppress("UNUSED_VARIABLE") val observedRevision = gridRevision
-                RenderGridView(currentGrid, Modifier.fillMaxWidth().weight(1f))
+                if (scrollOffset > 0) {
+                    Row(Modifier.fillMaxWidth().background(nativePanel).padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Scrollback · $scrollOffset rows", Modifier.weight(1f),
+                            color = nativeMuted, fontSize = 12.sp)
+                        TextButton(onClick = { scrollOffset = 0 }) { Text("Latest") }
+                    }
+                }
+                RenderGridView(currentGrid,
+                    Modifier.fillMaxWidth().weight(1f).pointerInput(terminal.id) {
+                        var dragPixels = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { dragPixels = 0f },
+                            onVerticalDrag = { change, amount ->
+                                dragPixels += amount
+                                val rowPixels = size.height.toFloat() / currentGrid.rows.coerceAtLeast(1)
+                                val steps = (dragPixels / rowPixels).toInt()
+                                if (steps != 0) {
+                                    scrollOffset = (scrollOffset + steps)
+                                        .coerceIn(0, currentGrid.scrollbackLines.size)
+                                    dragPixels -= steps * rowPixels
+                                }
+                                change.consume()
+                            }
+                        )
+                    }, scrollOffset = scrollOffset.coerceAtMost(currentGrid.scrollbackLines.size))
                 Row(Modifier.horizontalScroll(rememberScrollState()).background(nativePanel)) {
                     listOf("Esc" to "\u001b", "Tab" to "\t", "Ctrl+C" to "\u0003", "↑" to "\u001b[A", "↓" to "\u001b[B", "←" to "\u001b[D", "→" to "\u001b[C")
                         .forEach { (label, sequence) ->

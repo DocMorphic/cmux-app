@@ -31,7 +31,10 @@ class RenderGrid {
     var activeScreen: String = "primary"
         private set
     val lines: List<List<Span>> get() = content.map { it.toList() }
+    val scrollbackLines: List<List<Span>> get() = history.map { it.toList() }
     private var content = mutableListOf<MutableList<Span>>()
+    private val history = mutableListOf<MutableList<Span>>()
+    private var historyRows: Long? = null
 
     /** Returns false when an out-of-order delta requires a full replay. */
     fun apply(frame: JSONObject): Boolean {
@@ -47,14 +50,32 @@ class RenderGrid {
         if (!full) {
             if (nextSurface != surfaceId || nextEpoch != epoch ||
                 nextColumns != columns || nextRows != rows ||
-                (frame.has("delta_base_render_revision") && frame.optLong("delta_base_render_revision") != revision)) return false
+                (frame.has("delta_base_render_revision") && frame.optLong("delta_base_render_revision") != revision) ||
+                (frame.has("delta_base_history_rows") && historyRows != null &&
+                    frame.optLong("delta_base_history_rows") != historyRows)) return false
         }
         if (nextSurface == surfaceId && nextEpoch == epoch && nextRevision <= revision && !full) return true
         if (full || content.size != nextRows) {
+            val preserveHistory = full && nextSurface == surfaceId && nextEpoch == epoch &&
+                frame.optString("anchor") == "screen" && frame.optInt("scrollback_rows") == 0 &&
+                frame.optString("active_screen", "primary") == "primary"
+            if (!preserveHistory) history.clear()
             content = MutableList(nextRows) { mutableListOf() }
         } else {
-            val scrolled = frame.optInt("scrolled_rows").coerceIn(0, nextRows)
-            repeat(scrolled) { content.removeAt(0); content.add(mutableListOf()) }
+            val scrolled = frame.optInt("scrolled_rows").coerceIn(0, 10_000)
+            if (activeScreen == "primary") {
+                val carried = frame.optInt("scrollback_rows").coerceIn(0, scrolled)
+                val carriedSpans = frame.optJSONArray("scrollback_spans")
+                val carriedStyles = if (carriedSpans != null) stylesFor(frame) else emptyMap()
+                repeat(scrolled) { index ->
+                    val removed = content.removeAt(0)
+                    history.add(removed)
+                    content.add(mutableListOf())
+                    if (index < carried && carriedSpans != null)
+                        history[history.lastIndex] = parseLine(carriedSpans, index, carriedStyles, nextColumns)
+                }
+                trimHistory()
+            } else repeat(scrolled) { content.removeAt(0); content.add(mutableListOf()) }
             val cleared = frame.optJSONArray("cleared_rows")
             if (cleared != null) for (i in 0 until cleared.length()) {
                 val row = cleared.optInt(i, -1)
@@ -74,7 +95,18 @@ class RenderGrid {
             )
         }
         val defaultStyle = Style(null, null, false, false, false, false, false)
+        if (full && frame.optInt("scrollback_rows") > 0 &&
+            frame.optString("active_screen", "primary") != "alternate") {
+            val count = frame.optInt("scrollback_rows").coerceIn(0, 10_000)
+            val scrollback = frame.optJSONArray("scrollback_spans")
+            if (scrollback != null) repeat(count) { history.add(parseLine(scrollback, it, styles, nextColumns)) }
+            trimHistory()
+        }
         val spans = frame.optJSONArray("row_spans")
+        if (!full && spans != null) for (i in 0 until spans.length()) {
+            val row = spans.optJSONObject(i)?.optInt("row", -1) ?: -1
+            if (row in content.indices) content[row].clear()
+        }
         if (spans != null) for (i in 0 until spans.length()) {
             val item = spans.optJSONObject(i) ?: continue
             val row = item.optInt("row", -1)
@@ -100,6 +132,42 @@ class RenderGrid {
         rows = nextRows
         revision = nextRevision
         epoch = nextEpoch
+        historyRows = if (frame.has("history_rows")) frame.optLong("history_rows") else null
         return true
+    }
+
+    private fun trimHistory() {
+        if (history.size > 10_000) history.subList(0, history.size - 10_000).clear()
+    }
+
+    private fun stylesFor(frame: JSONObject): Map<Int, Style> {
+        val result = mutableMapOf<Int, Style>()
+        val array = frame.optJSONArray("styles") ?: return result
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            result[item.optInt("id")] = Style(
+                item.optString("foreground").takeIf { it.startsWith('#') },
+                item.optString("background").takeIf { it.startsWith('#') },
+                item.optBoolean("bold"), item.optBoolean("italic"), item.optBoolean("underline"),
+                item.optBoolean("inverse"), item.optBoolean("invisible")
+            )
+        }
+        return result
+    }
+
+    private fun parseLine(array: org.json.JSONArray, row: Int, styles: Map<Int, Style>, columns: Int): MutableList<Span> {
+        val result = mutableListOf<Span>()
+        val fallback = Style(null, null, false, false, false, false, false)
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            if (item.optInt("row", -1) != row) continue
+            val column = item.optInt("column", -1)
+            val value = item.optString("text")
+            val width = item.optInt("cell_width", value.codePointCount(0, value.length))
+            if (column in 0 until columns && width > 0 && column + width <= columns)
+                result.add(Span(column, width, value, styles[item.optInt("style_id")] ?: fallback))
+        }
+        result.sortBy { it.column }
+        return result
     }
 }

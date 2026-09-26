@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 
 /** Draws cmux's styled cell grid at fixed cell coordinates, preserving TUI layout. */
 @Composable
-fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier) {
+fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier, scrollOffset: Int = 0) {
     val fallback = Color(0xFF111316)
     Box(modifier.background(fallback)) {
         Canvas(Modifier.fillMaxSize()) {
@@ -31,7 +31,9 @@ fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier) {
                 }
                 native.drawColor(background)
                 val baselineOffset = (cellHeight - (paint.fontMetrics.descent + paint.fontMetrics.ascent)) / 2f
-                grid.lines.forEachIndexed { row, spans ->
+                val allLines = grid.scrollbackLines + grid.lines
+                val firstLine = (allLines.size - grid.rows - scrollOffset).coerceAtLeast(0)
+                allLines.drop(firstLine).take(grid.rows).forEachIndexed { row, spans ->
                     for (span in spans) {
                         val x = span.column * cellWidth
                         val y = row * cellHeight
@@ -58,7 +60,8 @@ fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier) {
                         }
                     }
                 }
-                grid.cursor?.takeIf { it.visible && it.row in 0 until grid.rows && it.column in 0 until grid.columns }?.let { cursor ->
+                grid.cursor?.takeIf { scrollOffset == 0 && it.visible &&
+                    it.row in 0 until grid.rows && it.column in 0 until grid.columns }?.let { cursor ->
                     paint.color = foreground
                     paint.alpha = 160
                     val x = cursor.column * cellWidth

@@ -32,4 +32,28 @@ class RenderGridTest {
           "full":false,"row_spans":[]
         }""")))
     }
+
+    @Test fun screenAnchoredScrollRetainsHistoryAndRejectsMissingHistoryBase() {
+        val grid = RenderGrid()
+        assertTrue(grid.apply(JSONObject("""{
+          "format":"cmux.render-grid.v1","surface_id":"s","render_epoch":"e",
+          "render_revision":1,"columns":8,"rows":2,"full":true,"anchor":"screen",
+          "history_rows":4,"row_spans":[{"row":0,"column":0,"text":"old"},
+                       {"row":1,"column":0,"text":"bottom"}]
+        }""")))
+        assertTrue(grid.apply(JSONObject("""{
+          "format":"cmux.render-grid.v1","surface_id":"s","render_epoch":"e",
+          "render_revision":2,"delta_base_render_revision":1,"delta_base_history_rows":4,
+          "history_rows":5,"columns":8,"rows":2,"full":false,"anchor":"screen",
+          "scrolled_rows":1,"row_spans":[{"row":1,"column":0,"text":"new"}]
+        }""")))
+        assertEquals("old", grid.scrollbackLines.last().single().text)
+        assertEquals("bottom", grid.lines[0].single().text)
+        assertEquals("new", grid.lines[1].single().text)
+        assertFalse(grid.apply(JSONObject("""{
+          "format":"cmux.render-grid.v1","surface_id":"s","render_epoch":"e",
+          "render_revision":3,"delta_base_render_revision":2,"delta_base_history_rows":4,
+          "columns":8,"rows":2,"full":false,"row_spans":[]
+        }""")))
+    }
 }
