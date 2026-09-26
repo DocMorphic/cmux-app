@@ -14,6 +14,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -80,8 +81,14 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val configuration = LocalConfiguration.current
-    val terminalColumns = (configuration.screenWidthDp / 8).coerceIn(24, 120)
-    val terminalRows = ((configuration.screenHeightDp - 210) / 16).coerceIn(10, 60)
+    val displayPreferences = remember(context) {
+        context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE)
+    }
+    var terminalScale by remember(displayPreferences) {
+        mutableFloatStateOf(displayPreferences.getFloat("terminal_scale", 1f).coerceIn(0.75f, 1.5f))
+    }
+    val terminalColumns = (configuration.screenWidthDp / (8f * terminalScale)).toInt().coerceIn(24, 120)
+    val terminalRows = ((configuration.screenHeightDp - 210) / (16f * terminalScale)).toInt().coerceIn(10, 60)
     val store = remember(context) { NativeCredentialStore(context.applicationContext) }
     val account = remember(store) { NativeAccount(store) }
     val scanner = remember(context) {
@@ -404,6 +411,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                 }
             }
             showSettings -> {
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { showSettings = false }) { Text("‹  Back") }
                     Text("Settings", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
@@ -455,8 +463,28 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                             .onFailure { error = it.message }
                     }, enabled = signedIn && code.isNotBlank())
                 }
+                Text("DISPLAY", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+                    color = nativeMuted, fontSize = 11.sp)
+                Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("Terminal text size", Modifier.weight(1f))
+                    TextButton(onClick = {
+                        terminalScale = (terminalScale - 0.125f).coerceAtLeast(0.75f)
+                        displayPreferences.edit().putFloat("terminal_scale", terminalScale).apply()
+                    }, enabled = terminalScale > 0.75f) { Text("A−") }
+                    Text("${(terminalScale * 100).toInt()}%", color = nativeMuted, fontSize = 12.sp)
+                    TextButton(onClick = {
+                        terminalScale = (terminalScale + 0.125f).coerceAtMost(1.5f)
+                        displayPreferences.edit().putFloat("terminal_scale", terminalScale).apply()
+                    }, enabled = terminalScale < 1.5f) { Text("A+") }
+                }
+                Text("CONNECTION", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+                    color = nativeMuted, fontSize = 11.sp)
+                Text("$hostName · ${if (client != null) "Connected" else "Disconnected"}",
+                    Modifier.padding(horizontal = 22.dp), color = nativeMuted, fontSize = 13.sp)
                 TextButton(onClick = onUseHelper, modifier = Modifier.padding(horizontal = 14.dp)) {
                     Text("Use existing helper connection", color = nativeMuted)
+                }
                 }
             }
             showTaskComposer -> {
