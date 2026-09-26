@@ -875,7 +875,8 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                                 .forEach { add(WorkspaceListEntry.Workspace(it)) }
                             groups.forEach { group ->
                                 val members = matching.filter { it.groupId == group.id }
-                                if (members.isNotEmpty() || search.isBlank()) add(WorkspaceListEntry.Header(group))
+                                if (members.isNotEmpty() || (search.isBlank() && !unreadWorkspacesOnly))
+                                    add(WorkspaceListEntry.Header(group))
                                 if (search.isNotBlank() || (group.isCollapsed == (group.id in locallyExpandedGroups)))
                                     members.forEach { add(WorkspaceListEntry.Workspace(it)) }
                             }
@@ -968,7 +969,10 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                             }
                             HorizontalDivider(color = Color(0xFF292C31))
                         }
-                        if (entries.isEmpty()) item { Text("No workspaces found.", Modifier.padding(24.dp), color = nativeMuted) }
+                        if (entries.isEmpty()) item {
+                            Text(if (unreadWorkspacesOnly) "No unread workspaces." else "No workspaces found.",
+                                Modifier.padding(24.dp), color = nativeMuted)
+                        }
                     }
                 }
                 OutlinedTextField(search, { search = it },
