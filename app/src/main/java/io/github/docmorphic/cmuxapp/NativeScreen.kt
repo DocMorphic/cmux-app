@@ -124,6 +124,8 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     var input by remember { mutableStateOf("") }
     var grid by remember { mutableStateOf(RenderGrid()) }
     var gridRevision by remember { mutableIntStateOf(0) }
+    var replayGeneration by remember { mutableIntStateOf(0) }
+    var replayPending by remember { mutableStateOf(false) }
     var scrollOffset by remember { mutableIntStateOf(0) }
     var controlArmed by remember { mutableStateOf(false) }
     var altArmed by remember { mutableStateOf(false) }
@@ -183,14 +185,32 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     fun applyFrame(value: JSONObject) {
         val frame = value.optJSONObject("render_grid") ?: value
         if (frame.optString("format") == "cmux.render-grid.v1") {
-            if (grid.apply(frame)) gridRevision++
-            else scope.launch {
-                val active = client ?: return@launch
-                val workspace = selectedWorkspace ?: return@launch
-                val terminal = selectedTerminal ?: return@launch
-                runCatching { active.replay(workspace.id, terminal.id, terminalColumns, terminalRows) }
-                    .onSuccess { grid.apply(it.optJSONObject("render_grid") ?: it); gridRevision++ }
-                    .onFailure { error = it.message }
+            val accepted = runCatching { grid.apply(frame) }
+                .getOrElse { error = it.message; false }
+            if (accepted) gridRevision++
+            else if (!replayPending) {
+                val active = client ?: return
+                val workspaceId = selectedWorkspace?.id ?: return
+                val terminalId = selectedTerminal?.id ?: return
+                val generation = replayGeneration
+                replayPending = true
+                scope.launch {
+                    try {
+                        val replacement = active.replay(workspaceId, terminalId,
+                            terminalColumns, terminalRows)
+                        if (generation == replayGeneration &&
+                            selectedWorkspace?.id == workspaceId && selectedTerminal?.id == terminalId) {
+                            grid.apply(replacement.optJSONObject("render_grid") ?: replacement)
+                            gridRevision++
+                            error = null
+                        }
+                    } catch (failure: Throwable) {
+                        if (failure is CancellationException) throw failure
+                        if (generation == replayGeneration) error = failure.message
+                    } finally {
+                        if (generation == replayGeneration) replayPending = false
+                    }
+                }
             }
         }
     }
@@ -281,6 +301,8 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
         val active = client ?: return@LaunchedEffect
         val workspace = selectedWorkspace ?: return@LaunchedEffect
         val terminal = selectedTerminal ?: return@LaunchedEffect
+        val generation = ++replayGeneration
+        replayPending = true
         grid = RenderGrid(); gridRevision++
         scrollOffset = 0
         val eventJob = launch {
@@ -295,8 +317,10 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
         try {
             streamId = active.subscribe(listOf("terminal.render_grid", "workspace.list.changed"))
                 .optString("stream_id").takeIf { it.isNotBlank() }
-            applyFrame(active.replay(workspace.id, terminal.id, terminalColumns, terminalRows))
+            val snapshot = active.replay(workspace.id, terminal.id, terminalColumns, terminalRows)
+            if (generation == replayGeneration) applyFrame(snapshot)
         } catch (failure: Throwable) { error = failure.message ?: "Terminal replay failed" }
+        finally { if (generation == replayGeneration) replayPending = false }
         try { eventJob.join() } finally {
             eventJob.cancel()
             streamId?.let { id -> withContext(NonCancellable) { runCatching { active.unsubscribe(id) } } }
@@ -815,13 +839,11 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                                                         it.id == panelId
                                                     } ?: NativeBrowser(panelId, created.optString("title"))
                                                 }
-                                                action.startsWith("move:") -> {
-                                                    active.moveWorkspace(workspace.id, workspace.windowId,
-                                                        action.removePrefix("move:").takeIf { it.isNotBlank() })
-                                                    applyListing(active.workspaces())
-                                                }
                                                 else -> {
-                                                    if (action == "close") active.closeWorkspace(workspace.id, workspace.windowId)
+                                                    if (action.startsWith("move:")) active.moveWorkspace(
+                                                        workspace.id, workspace.windowId,
+                                                        action.removePrefix("move:").takeIf { it.isNotBlank() })
+                                                    else if (action == "close") active.closeWorkspace(workspace.id, workspace.windowId)
                                                     else active.workspaceAction(workspace.id, workspace.windowId, action, title)
                                                     applyListing(active.workspaces())
                                                 }
