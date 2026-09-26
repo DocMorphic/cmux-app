@@ -41,7 +41,7 @@ private val muted = Color(0xFF969AA3)
 private val blue = Color(0xFF76B9FF)
 
 @Composable
-fun BridgeScreen() {
+fun BridgeScreen(onUseNative: () -> Unit = {}) {
     val context = LocalContext.current
     val pairingStore = remember(context) { BridgePairingStore(context.applicationContext) }
     var pairingText by remember { mutableStateOf("") }
@@ -123,6 +123,7 @@ fun BridgeScreen() {
                         }
                         .addOnFailureListener { error = it.message ?: "Could not scan QR code" }
                 },
+                onUseNative = onUseNative,
                 error = error
             )
             selectedSurface == null -> WorkspaceView(
@@ -211,6 +212,7 @@ private fun PairView(
     onPairingChange: (String) -> Unit,
     onConnect: () -> Unit,
     onScan: () -> Unit,
+    onUseNative: () -> Unit,
     error: String?
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalArrangement = Arrangement.Center) {
@@ -248,6 +250,9 @@ private fun PairView(
         Spacer(Modifier.height(8.dp))
         TextButton(onClick = onScan, modifier = Modifier.fillMaxWidth()) {
             Text("Scan QR code", color = blue)
+        }
+        TextButton(onClick = onUseNative, modifier = Modifier.fillMaxWidth()) {
+            Text("Pair directly with cmux", color = blue)
         }
         if (error != null) {
             Spacer(Modifier.height(14.dp))

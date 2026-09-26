@@ -9,6 +9,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,7 +25,14 @@ class MainActivity : ComponentActivity() {
                     onSurface = Color(0xFFF4F5F7)
                 )
             ) {
-                Surface(modifier = Modifier.fillMaxSize()) { BridgeScreen() }
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    val context = LocalContext.current
+                    var nativeMode by remember {
+                        mutableStateOf(NativeCredentialStore(context.applicationContext).load()?.optString("pairing_code")?.isNotBlank() == true)
+                    }
+                    if (nativeMode) NativeScreen(onUseHelper = { nativeMode = false })
+                    else BridgeScreen(onUseNative = { nativeMode = true })
+                }
             }
         }
     }
