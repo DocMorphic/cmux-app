@@ -56,4 +56,24 @@ class RenderGridTest {
           "columns":8,"rows":2,"full":false,"row_spans":[]
         }""")))
     }
+
+    @Test fun deltaWithoutCursorRetainsCursorAndExtendedStyle() {
+        val grid = RenderGrid()
+        assertTrue(grid.apply(JSONObject("""{
+          "format":"cmux.render-grid.v1","surface_id":"s","render_epoch":"e",
+          "render_revision":1,"columns":4,"rows":1,"full":true,
+          "cursor":{"row":0,"column":1,"visible":true,"style":"bar","blinking":true},
+          "styles":[{"id":2,"faint":true,"strikethrough":true,"overline":true,"blink":true}],
+          "row_spans":[{"row":0,"column":0,"style_id":2,"text":"one"}]
+        }""")))
+        assertTrue(grid.lines[0].single().style.faint)
+        assertTrue(grid.lines[0].single().style.strikethrough)
+        assertTrue(grid.cursor!!.blinking)
+        assertTrue(grid.apply(JSONObject("""{
+          "format":"cmux.render-grid.v1","surface_id":"s","render_epoch":"e",
+          "render_revision":2,"delta_base_render_revision":1,"columns":4,"rows":1,
+          "full":false,"row_spans":[]
+        }""")))
+        assertEquals(1, grid.cursor!!.column)
+    }
 }

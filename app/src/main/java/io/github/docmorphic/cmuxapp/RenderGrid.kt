@@ -7,10 +7,13 @@ class RenderGrid {
     data class Style(
         val foreground: String?, val background: String?,
         val bold: Boolean, val italic: Boolean, val underline: Boolean,
-        val inverse: Boolean, val invisible: Boolean
+        val inverse: Boolean, val invisible: Boolean,
+        val faint: Boolean = false, val strikethrough: Boolean = false,
+        val overline: Boolean = false, val blink: Boolean = false
     )
     data class Span(val column: Int, val width: Int, val text: String, val style: Style)
-    data class Cursor(val row: Int, val column: Int, val visible: Boolean, val style: String)
+    data class Cursor(val row: Int, val column: Int, val visible: Boolean,
+        val style: String, val blinking: Boolean = false)
 
     var surfaceId: String = ""
         private set
@@ -91,7 +94,9 @@ class RenderGrid {
                 style.optString("background").takeIf { it.startsWith('#') },
                 style.optBoolean("bold"), style.optBoolean("italic"),
                 style.optBoolean("underline"), style.optBoolean("inverse"),
-                style.optBoolean("invisible")
+                style.optBoolean("invisible"), style.optBoolean("faint"),
+                style.optBoolean("strikethrough"), style.optBoolean("overline"),
+                style.optBoolean("blink")
             )
         }
         val defaultStyle = Style(null, null, false, false, false, false, false)
@@ -123,10 +128,13 @@ class RenderGrid {
         for (line in content) line.sortBy { it.column }
         frame.optString("terminal_background").takeIf { it.startsWith('#') }?.let { background = it }
         frame.optString("terminal_foreground").takeIf { it.startsWith('#') }?.let { foreground = it }
-        frame.optJSONObject("cursor")?.let {
-            cursor = Cursor(it.optInt("row"), it.optInt("column"), it.optBoolean("visible", true), it.optString("style", "block"))
-        } ?: run { cursor = null }
-        activeScreen = frame.optString("active_screen", "primary")
+        if (full || frame.has("cursor")) {
+            cursor = frame.optJSONObject("cursor")?.let {
+                Cursor(it.optInt("row"), it.optInt("column"), it.optBoolean("visible", true),
+                    it.optString("style", "block"), it.optBoolean("blinking"))
+            }
+        }
+        if (frame.has("active_screen")) activeScreen = frame.optString("active_screen", "primary")
         surfaceId = nextSurface
         columns = nextColumns
         rows = nextRows
@@ -149,7 +157,8 @@ class RenderGrid {
                 item.optString("foreground").takeIf { it.startsWith('#') },
                 item.optString("background").takeIf { it.startsWith('#') },
                 item.optBoolean("bold"), item.optBoolean("italic"), item.optBoolean("underline"),
-                item.optBoolean("inverse"), item.optBoolean("invisible")
+                item.optBoolean("inverse"), item.optBoolean("invisible"), item.optBoolean("faint"),
+                item.optBoolean("strikethrough"), item.optBoolean("overline"), item.optBoolean("blink")
             )
         }
         return result

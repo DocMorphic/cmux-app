@@ -7,15 +7,25 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import kotlinx.coroutines.delay
 
 /** Draws cmux's styled cell grid at fixed cell coordinates, preserving TUI layout. */
 @Composable
 fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier, scrollOffset: Int = 0) {
     val fallback = Color(0xFF111316)
+    var blinkVisible by remember(grid) { mutableStateOf(true) }
+    LaunchedEffect(grid) {
+        while (true) { delay(600); blinkVisible = !blinkVisible }
+    }
     Box(modifier.background(fallback)) {
         Canvas(Modifier.fillMaxSize()) {
             if (grid.columns == 0 || grid.rows == 0) return@Canvas
@@ -42,11 +52,13 @@ fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier, scrollOffset
                         var bg = parseColor(style.background, background)
                         if (style.inverse) { val swapped = fg; fg = bg; bg = swapped }
                         if (bg != background) {
+                            paint.alpha = 255
                             paint.color = bg
                             native.drawRect(x, y, x + span.width * cellWidth, y + cellHeight, paint)
                         }
-                        if (!style.invisible) {
+                        if (!style.invisible && (!style.blink || blinkVisible)) {
                             paint.color = fg
+                            paint.alpha = if (style.faint) 150 else 255
                             paint.typeface = Typeface.create(Typeface.MONOSPACE,
                                 (if (style.bold) Typeface.BOLD else Typeface.NORMAL) or
                                     (if (style.italic) Typeface.ITALIC else Typeface.NORMAL))
@@ -57,10 +69,17 @@ fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier, scrollOffset
                             if (style.underline) {
                                 native.drawRect(x, y + cellHeight - 2f, x + span.width * cellWidth, y + cellHeight, paint)
                             }
+                            if (style.strikethrough) {
+                                native.drawRect(x, y + cellHeight * 0.52f, x + span.width * cellWidth,
+                                    y + cellHeight * 0.52f + 2f, paint)
+                            }
+                            if (style.overline) {
+                                native.drawRect(x, y + 1f, x + span.width * cellWidth, y + 3f, paint)
+                            }
                         }
                     }
                 }
-                grid.cursor?.takeIf { scrollOffset == 0 && it.visible &&
+                grid.cursor?.takeIf { scrollOffset == 0 && it.visible && (!it.blinking || blinkVisible) &&
                     it.row in 0 until grid.rows && it.column in 0 until grid.columns }?.let { cursor ->
                     paint.color = foreground
                     paint.alpha = 160
