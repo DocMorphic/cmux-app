@@ -115,6 +115,26 @@ class MobileRpcClient(
         "notification.feed.mark_read",
         JSONObject().put("notification_ids", org.json.JSONArray().put(id))
     )
+    suspend fun workspaceAction(
+        workspaceId: String,
+        windowId: String?,
+        action: String,
+        title: String? = null
+    ): JSONObject {
+        require(action in setOf("rename", "pin", "unpin", "mark_read", "mark_unread"))
+        val params = JSONObject().put("workspace_id", workspaceId)
+            .put("client_id", clientId).put("action", action)
+        if (!windowId.isNullOrBlank()) params.put("window_id", windowId)
+        if (action == "rename") params.put("title", title?.trim()?.takeIf { it.isNotEmpty() }
+            ?: error("Enter a workspace title"))
+        return request("workspace.action", params)
+    }
+
+    suspend fun closeWorkspace(workspaceId: String, windowId: String?): JSONObject {
+        val params = JSONObject().put("workspace_id", workspaceId).put("client_id", clientId)
+        if (!windowId.isNullOrBlank()) params.put("window_id", windowId)
+        return request("workspace.close", params)
+    }
     suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int): JSONObject =
         request("mobile.terminal.replay", JSONObject()
             .put("workspace_id", workspaceId)

@@ -43,7 +43,8 @@ private val nativeMuted = Color(0xFF9B9FA8)
 
 private data class NativeWorkspace(
     val id: String, val title: String, val terminals: List<NativeTerminal>,
-    val directory: String?, val hasUnread: Boolean, val lastActivityAt: Double?
+    val directory: String?, val hasUnread: Boolean, val lastActivityAt: Double?,
+    val windowId: String?, val isPinned: Boolean
 )
 private data class NativeTerminal(val id: String, val title: String)
 private data class NativeNotification(
@@ -387,11 +388,25 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                             it.directory?.contains(search, true) == true ||
                             it.terminals.any { terminal -> terminal.title.contains(search, true) }
                         }, key = { it.id }) { workspace ->
-                            NativeWorkspaceRow(workspace) {
-                                workspace.terminals.firstOrNull()?.let { terminal ->
-                                    selectedWorkspace = workspace; selectedTerminal = terminal
+                            NativeWorkspaceRow(
+                                workspace = workspace,
+                                onOpen = {
+                                    workspace.terminals.firstOrNull()?.let { terminal ->
+                                        selectedWorkspace = workspace; selectedTerminal = terminal
+                                    }
+                                },
+                                onAction = { action, title ->
+                                    val active = client
+                                    if (active != null) scope.launch {
+                                        runCatching {
+                                            if (action == "close") active.closeWorkspace(workspace.id, workspace.windowId)
+                                            else active.workspaceAction(workspace.id, workspace.windowId, action, title)
+                                            active.workspaces()
+                                        }.onSuccess { workspaces = parseWorkspaces(it); error = null }
+                                            .onFailure { error = it.message }
+                                    }
                                 }
-                            }
+                            )
                             HorizontalDivider(color = Color(0xFF292C31))
                         }
                         if (workspaces.isEmpty()) item { Text("No workspaces yet.", Modifier.padding(24.dp), color = nativeMuted) }
@@ -447,14 +462,24 @@ private fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 id, workspace.optString("title", "Workspace"), terminals,
                 workspace.optString("current_directory").takeIf { it.isNotBlank() && it != "null" },
                 workspace.optBoolean("has_unread"),
-                workspace.optDouble("last_activity_at").takeIf { it > 0 }
+                workspace.optDouble("last_activity_at").takeIf { it > 0 },
+                workspace.optString("window_id").takeIf { it.isNotBlank() && it != "null" },
+                workspace.optBoolean("is_pinned")
             ))
         }
     }
 }
 
 @Composable
-private fun NativeWorkspaceRow(workspace: NativeWorkspace, onOpen: () -> Unit) {
+private fun NativeWorkspaceRow(
+    workspace: NativeWorkspace,
+    onOpen: () -> Unit,
+    onAction: (String, String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var rename by remember { mutableStateOf(false) }
+    var confirmClose by remember { mutableStateOf(false) }
+    var title by remember(workspace.id) { mutableStateOf(workspace.title) }
     Row(Modifier.fillMaxWidth().clickable(enabled = workspace.terminals.isNotEmpty(), onClick = onOpen)
         .padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
         if (workspace.hasUnread) Text("●", color = nativeAccent, fontSize = 9.sp, modifier = Modifier.width(10.dp))
@@ -473,8 +498,36 @@ private fun NativeWorkspaceRow(workspace: NativeWorkspace, onOpen: () -> Unit) {
                 color = nativeMuted, fontSize = 10.sp)
         }
         Spacer(Modifier.width(8.dp))
-        Text("›", color = nativeMuted, fontSize = 22.sp)
+        Box {
+            TextButton(onClick = { expanded = true }) { Text("⋯", color = nativeMuted, fontSize = 20.sp) }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                DropdownMenuItem(text = { Text("Rename") }, onClick = { expanded = false; title = workspace.title; rename = true })
+                DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") }, onClick = {
+                    expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null)
+                })
+                DropdownMenuItem(text = { Text(if (workspace.hasUnread) "Mark read" else "Mark unread") }, onClick = {
+                    expanded = false; onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
+                })
+                DropdownMenuItem(text = { Text("Close workspace", color = Color(0xFFFF9999)) }, onClick = {
+                    expanded = false; confirmClose = true
+                })
+            }
+        }
     }
+    if (rename) AlertDialog(
+        onDismissRequest = { rename = false },
+        title = { Text("Rename workspace") },
+        text = { OutlinedTextField(title, { title = it }, singleLine = true) },
+        confirmButton = { TextButton(onClick = { rename = false; onAction("rename", title) }, enabled = title.isNotBlank()) { Text("Save") } },
+        dismissButton = { TextButton(onClick = { rename = false }) { Text("Cancel") } }
+    )
+    if (confirmClose) AlertDialog(
+        onDismissRequest = { confirmClose = false },
+        title = { Text("Close ${workspace.title}?") },
+        text = { Text("Running terminals in this workspace may stop.") },
+        confirmButton = { TextButton(onClick = { confirmClose = false; onAction("close", null) }) { Text("Close", color = Color(0xFFFF9999)) } },
+        dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("Cancel") } }
+    )
 }
 
 private fun parseNotifications(value: JSONObject): List<NativeNotification> {
