@@ -17,10 +17,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import kotlinx.coroutines.delay
+import kotlin.math.min
 
 /** Draws cmux's styled cell grid at fixed cell coordinates, preserving TUI layout. */
 @Composable
-fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier, scrollOffset: Int = 0) {
+fun RenderGridView(
+    grid: RenderGrid, cells: TerminalCellMetrics,
+    modifier: Modifier = Modifier, scrollOffset: Int = 0
+) {
     val fallback = Color(0xFF111316)
     var blinkVisible by remember(grid) { mutableStateOf(true) }
     LaunchedEffect(grid) {
@@ -29,15 +33,18 @@ fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier, scrollOffset
     Box(modifier.background(fallback)) {
         Canvas(Modifier.fillMaxSize()) {
             if (grid.columns == 0 || grid.rows == 0) return@Canvas
-            val cellWidth = size.width / grid.columns
-            val cellHeight = size.height / grid.rows
+            val cellWidth = min(cells.widthPx, size.width / grid.columns)
+            val cellHeight = min(cells.heightPx, size.height / grid.rows)
+            val originX = ((size.width - cellWidth * grid.columns) / 2f).coerceAtLeast(0f)
+            val originY = ((size.height - cellHeight * grid.rows) / 2f).coerceAtLeast(0f)
             val background = parseColor(grid.background, android.graphics.Color.rgb(17, 19, 22))
             val foreground = parseColor(grid.foreground, android.graphics.Color.rgb(224, 229, 235))
             drawIntoCanvas { canvas ->
                 val native = canvas.nativeCanvas
                 val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
-                    textSize = cellHeight * 0.76f
+                    textSize = cells.fontSizePx *
+                        min(cellWidth / cells.widthPx, cellHeight / cells.heightPx)
                 }
                 native.drawColor(background)
                 val baselineOffset = (cellHeight - (paint.fontMetrics.descent + paint.fontMetrics.ascent)) / 2f
@@ -45,8 +52,8 @@ fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier, scrollOffset
                 val firstLine = (allLines.size - grid.rows - scrollOffset).coerceAtLeast(0)
                 allLines.drop(firstLine).take(grid.rows).forEachIndexed { row, spans ->
                     for (span in spans) {
-                        val x = span.column * cellWidth
-                        val y = row * cellHeight
+                        val x = originX + span.column * cellWidth
+                        val y = originY + row * cellHeight
                         val style = span.style
                         var fg = parseColor(style.foreground, foreground)
                         var bg = parseColor(style.background, background)
@@ -83,8 +90,8 @@ fun RenderGridView(grid: RenderGrid, modifier: Modifier = Modifier, scrollOffset
                     it.row in 0 until grid.rows && it.column in 0 until grid.columns }?.let { cursor ->
                     paint.color = foreground
                     paint.alpha = 160
-                    val x = cursor.column * cellWidth
-                    val y = cursor.row * cellHeight
+                    val x = originX + cursor.column * cellWidth
+                    val y = originY + cursor.row * cellHeight
                     when (cursor.style) {
                         "bar" -> native.drawRect(x, y, x + 2f, y + cellHeight, paint)
                         "underline" -> native.drawRect(x, y + cellHeight - 2f, x + cellWidth, y + cellHeight, paint)

@@ -34,9 +34,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -81,14 +84,26 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
     val displayPreferences = remember(context) {
         context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE)
     }
     var terminalScale by remember(displayPreferences) {
         mutableFloatStateOf(displayPreferences.getFloat("terminal_scale", 1f).coerceIn(0.75f, 1.5f))
     }
-    val terminalColumns = (configuration.screenWidthDp / (8f * terminalScale)).toInt().coerceIn(24, 120)
-    val terminalRows = ((configuration.screenHeightDp - 210) / (16f * terminalScale)).toInt().coerceIn(10, 60)
+    val terminalCells = remember(density, terminalScale) {
+        TerminalCellMetrics.fromFontSize(
+            with(density) { 14.sp.toPx() } * terminalScale,
+            with(density) { 2.dp.toPx() }
+        )
+    }
+    var terminalViewportPixels by remember { mutableStateOf(IntSize.Zero) }
+    val terminalViewport = TerminalViewport.fit(
+        terminalViewportPixels.width, terminalViewportPixels.height, terminalCells)
+    val terminalColumns = terminalViewport?.columns ?: 0
+    val terminalRows = terminalViewport?.rows ?: 0
+    var effectiveTerminalViewport by remember { mutableStateOf<TerminalViewport?>(null) }
+    var viewportRequestGeneration by remember { mutableLongStateOf(0L) }
     val store = remember(context) { NativeCredentialStore(context.applicationContext) }
     val account = remember(store) { NativeAccount(store) }
     val scanner = remember(context) {
@@ -203,8 +218,9 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                 replayPending = true
                 scope.launch {
                     try {
+                        val size = effectiveTerminalViewport ?: terminalViewport ?: return@launch
                         val replacement = active.replay(workspaceId, terminalId,
-                            terminalColumns, terminalRows)
+                            size.columns, size.rows)
                         if (generation == replayGeneration &&
                             selectedWorkspace?.id == workspaceId && selectedTerminal?.id == terminalId) {
                             grid.apply(replacement.optJSONObject("render_grid") ?: replacement)
@@ -308,10 +324,12 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
         val active = client ?: return@LaunchedEffect
         val workspace = selectedWorkspace ?: return@LaunchedEffect
         val terminal = selectedTerminal ?: return@LaunchedEffect
+        val requestedViewport = terminalViewport ?: return@LaunchedEffect
         val generation = ++replayGeneration
         replayPending = true
         grid = RenderGrid(); gridRevision++
         scrollOffset = 0
+        effectiveTerminalViewport = null
         val eventJob = launch {
             active.events.collect { event ->
                 if (event.topic == "terminal.render_grid") {
@@ -321,15 +339,34 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
             }
         }
         var streamId: String? = null
+        var viewportAttempted = false
         try {
             streamId = active.subscribe(listOf("terminal.render_grid", "workspace.list.changed"))
                 .optString("stream_id").takeIf { it.isNotBlank() }
-            val snapshot = active.replay(workspace.id, terminal.id, terminalColumns, terminalRows)
+            viewportAttempted = true
+            val viewportGeneration = ++viewportRequestGeneration
+            runCatching {
+                active.reportViewport(workspace.id, terminal.id, requestedViewport, viewportGeneration)
+            }.onSuccess { response ->
+                val columns = response.optInt("columns")
+                val rows = response.optInt("rows")
+                if (columns > 0 && rows > 0) effectiveTerminalViewport = TerminalViewport(columns, rows)
+            }.onFailure { error = it.message ?: "Terminal resize failed" }
+            val size = effectiveTerminalViewport ?: requestedViewport
+            val snapshot = active.replay(workspace.id, terminal.id, size.columns, size.rows)
             if (generation == replayGeneration) applyFrame(snapshot)
-        } catch (failure: Throwable) { error = failure.message ?: "Terminal replay failed" }
+        } catch (failure: Throwable) {
+            if (failure !is CancellationException)
+                error = failure.message ?: "Terminal replay failed"
+        }
         finally { if (generation == replayGeneration) replayPending = false }
         try { eventJob.join() } finally {
             eventJob.cancel()
+            if (viewportAttempted) withContext(NonCancellable) {
+                runCatching {
+                    active.clearViewport(workspace.id, terminal.id, ++viewportRequestGeneration)
+                }
+            }
             streamId?.let { id -> withContext(NonCancellable) { runCatching { active.unsubscribe(id) } } }
         }
     }
@@ -561,8 +598,9 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                         TextButton(onClick = { scrollOffset = 0 }) { Text("Latest") }
                     }
                 }
-                RenderGridView(currentGrid,
+                RenderGridView(currentGrid, terminalCells,
                     Modifier.fillMaxWidth().weight(1f)
+                        .onSizeChanged { terminalViewportPixels = it }
                         .focusRequester(terminalFocusRequester)
                         .onPreviewKeyEvent { event ->
                             val keyEvent = event.nativeKeyEvent

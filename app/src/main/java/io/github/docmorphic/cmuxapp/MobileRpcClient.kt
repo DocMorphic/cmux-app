@@ -217,6 +217,20 @@ class MobileRpcClient(
             .put("viewport_rows", rows)
             .put("anchor", "screen"))
 
+    suspend fun reportViewport(
+        workspaceId: String, surfaceId: String, viewport: TerminalViewport, generation: Long
+    ): JSONObject = request("mobile.terminal.viewport", JSONObject()
+        .put("workspace_id", workspaceId).put("surface_id", surfaceId)
+        .put("client_id", clientId)
+        .put("viewport_columns", viewport.columns).put("viewport_rows", viewport.rows)
+        .put("viewport_generation", generation))
+
+    suspend fun clearViewport(workspaceId: String, surfaceId: String, generation: Long): JSONObject =
+        request("mobile.terminal.viewport", JSONObject()
+            .put("workspace_id", workspaceId).put("surface_id", surfaceId)
+            .put("client_id", clientId).put("clear", true)
+            .put("viewport_generation", generation))
+
     suspend fun input(workspaceId: String, surfaceId: String, text: String): JSONObject =
         request("terminal.input", JSONObject()
             .put("workspace_id", workspaceId)
