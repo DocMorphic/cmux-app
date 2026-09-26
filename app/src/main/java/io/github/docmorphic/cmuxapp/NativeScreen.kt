@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -60,6 +61,7 @@ private data class NativeNotification(
 @Composable
 fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val configuration = LocalConfiguration.current
     val terminalColumns = (configuration.screenWidthDp / 8).coerceIn(24, 120)
     val terminalRows = ((configuration.screenHeightDp - 210) / 16).coerceIn(10, 60)
@@ -95,6 +97,9 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
     var grid by remember { mutableStateOf(RenderGrid()) }
     var gridRevision by remember { mutableIntStateOf(0) }
     var scrollOffset by remember { mutableIntStateOf(0) }
+    var controlArmed by remember { mutableStateOf(false) }
+    var altArmed by remember { mutableStateOf(false) }
+    var shiftArmed by remember { mutableStateOf(false) }
 
     LaunchedEffect(incomingCode) {
         if (incomingCode != null && PairingCodeParser.parse(incomingCode).isSuccess) code = incomingCode
@@ -352,27 +357,70 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
                             }
                         )
                     }, scrollOffset = scrollOffset.coerceAtMost(currentGrid.scrollbackLines.size))
-                Row(Modifier.horizontalScroll(rememberScrollState()).background(nativePanel)) {
-                    listOf("Esc" to "\u001b", "Tab" to "\t", "Ctrl+C" to "\u0003", "↑" to "\u001b[A", "↓" to "\u001b[B", "←" to "\u001b[D", "→" to "\u001b[C")
-                        .forEach { (label, sequence) ->
+                Row(Modifier.horizontalScroll(rememberScrollState()).background(nativePanel),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    listOf("Ctrl" to controlArmed, "Alt" to altArmed, "Shift" to shiftArmed)
+                        .forEach { (label, armed) ->
                             TextButton(onClick = {
-                                scope.launch { runCatching { client?.input(selectedWorkspace!!.id, terminal.id, sequence) }
-                                    .onFailure { error = it.message } }
-                            }) { Text(label) }
+                                when (label) {
+                                    "Ctrl" -> controlArmed = !controlArmed
+                                    "Alt" -> altArmed = !altArmed
+                                    else -> shiftArmed = !shiftArmed
+                                }
+                            }) { Text(label, color = if (armed) nativeAccent else nativeMuted) }
                         }
+                    listOf("Esc" to "Esc", "Tab" to "Tab", "⌫" to "Backspace",
+                        "⌦" to "Delete", "↵" to "Enter", "↑" to "Up", "↓" to "Down",
+                        "←" to "Left", "→" to "Right", "Home" to "Home", "End" to "End",
+                        "Pg↑" to "PageUp", "Pg↓" to "PageDown", "^C" to "CtrlC",
+                        "^D" to "CtrlD", "^Z" to "CtrlZ", "^L" to "CtrlL")
+                        .forEach { (label, key) ->
+                            TextButton(onClick = {
+                                val workspaceId = selectedWorkspace?.id ?: return@TextButton
+                                val active = client ?: return@TextButton
+                                val sequence = when (key) {
+                                    "CtrlC" -> TerminalKeyEncoding.encode("c", control = true)
+                                    "CtrlD" -> TerminalKeyEncoding.encode("d", control = true)
+                                    "CtrlZ" -> TerminalKeyEncoding.encode("z", control = true)
+                                    "CtrlL" -> TerminalKeyEncoding.encode("l", control = true)
+                                    else -> TerminalKeyEncoding.encode(key, controlArmed, altArmed, shiftArmed)
+                                }
+                                controlArmed = false; altArmed = false; shiftArmed = false
+                                scrollOffset = 0
+                                scope.launch { runCatching { active.input(workspaceId, terminal.id, sequence) }
+                                    .onFailure { error = it.message } }
+                            }) { Text(label, color = nativeMuted) }
+                        }
+                    TextButton(onClick = {
+                        val pasted = clipboard.getText()?.text.orEmpty()
+                        val workspaceId = selectedWorkspace?.id ?: return@TextButton
+                        val active = client ?: return@TextButton
+                        if (pasted.isNotEmpty()) scope.launch {
+                            runCatching { active.input(workspaceId, terminal.id, pasted) }
+                                .onFailure { error = it.message }
+                        }
+                    }) { Text("Paste", color = nativeMuted) }
                 }
                 Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(input, { input = it }, Modifier.weight(1f), singleLine = true,
                         placeholder = { Text("Terminal input") },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(onSend = {
-                            val value = input; input = ""
-                            scope.launch { runCatching { client?.input(selectedWorkspace!!.id, terminal.id, "$value\r") }
-                                .onFailure { error = it.message } }
+                            val value = input
+                            val workspaceId = selectedWorkspace?.id
+                            val active = client
+                            if (workspaceId != null && active != null) scope.launch {
+                                runCatching { active.input(workspaceId, terminal.id, "$value\r") }
+                                    .onSuccess { if (input == value) input = ""; scrollOffset = 0 }
+                                    .onFailure { error = it.message }
+                            }
                         }))
                     TextButton(onClick = {
-                        val value = input; input = ""
-                        scope.launch { runCatching { client?.input(selectedWorkspace!!.id, terminal.id, "$value\r") }
+                        val value = input
+                        val workspaceId = selectedWorkspace?.id ?: return@TextButton
+                        val active = client ?: return@TextButton
+                        scope.launch { runCatching { active.input(workspaceId, terminal.id, "$value\r") }
+                            .onSuccess { if (input == value) input = ""; scrollOffset = 0 }
                             .onFailure { error = it.message } }
                     }) { Text("Send") }
                 }
