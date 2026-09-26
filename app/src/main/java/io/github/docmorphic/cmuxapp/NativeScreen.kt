@@ -28,6 +28,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -66,6 +67,7 @@ fun NativeScreen(onUseHelper: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var retry by remember { mutableIntStateOf(0) }
+    var retryDelay by remember { mutableLongStateOf(2_000) }
     var client by remember { mutableStateOf<MobileRpcClient?>(null) }
     var hostName by remember { mutableStateOf("cmux") }
     var workspaces by remember { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
@@ -120,9 +122,26 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                 client = active
                 store.update { it.put("pairing_code", code) }
                 error = null
+                retryDelay = 2_000
             } catch (failure: Throwable) { active.close(); throw failure }
-        } catch (failure: Throwable) { error = failure.message ?: "Could not connect to cmux" }
+        } catch (failure: Throwable) {
+            if (failure is CancellationException) throw failure
+            error = failure.message ?: "Could not connect to cmux"
+            busy = false
+            delay(retryDelay)
+            retryDelay = (retryDelay * 2).coerceAtMost(30_000)
+            retry++
+        }
         busy = false
+    }
+
+    LaunchedEffect(client) {
+        val active = client ?: return@LaunchedEffect
+        active.disconnected.collect { failure ->
+            error = failure.message ?: "cmux disconnected"
+            delay(2_000)
+            retry++
+        }
     }
 
     LaunchedEffect(client, selectedTerminal) {
@@ -253,7 +272,7 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (client == null && !busy) {
                     Column(Modifier.padding(horizontal = 18.dp)) {
-                        Button(onClick = { retry++ }) { Text("Retry connection") }
+                        Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
                         TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
                     }
                 }

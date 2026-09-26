@@ -37,6 +37,8 @@ class MobileRpcClient(
     private val pending = mutableMapOf<String, CompletableDeferred<JSONObject>>()
     private val eventsMutable = MutableSharedFlow<Event>(extraBufferCapacity = 128)
     val events = eventsMutable.asSharedFlow()
+    private val disconnectedMutable = MutableSharedFlow<Throwable>(replay = 1)
+    val disconnected = disconnectedMutable.asSharedFlow()
 
     private var socket: Socket? = null
     private var reader: Job? = null
@@ -146,6 +148,7 @@ class MobileRpcClient(
                 pending.values.forEach { it.completeExceptionally(failure) }
                 pending.clear()
             }
+            if (!closed) disconnectedMutable.tryEmit(failure)
             active.close()
         }
     }
