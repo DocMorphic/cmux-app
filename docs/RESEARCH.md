@@ -72,3 +72,31 @@ References at `4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0`:
 - [cmux GitHub repository](https://github.com/manaflow-ai/cmux)
 - [iOS app directory](https://github.com/manaflow-ai/cmux/tree/main/ios)
 - [shared mobile core](https://github.com/manaflow-ai/cmux/tree/main/Packages/Shared/CMUXMobileCore)
+
+### Terminal attachments (2026-09-27)
+
+At the pinned upstream revision, `MobileShellComposite.submitComposer` sends
+images using `terminal.paste_image` and acknowledges each image separately.
+Files use `mobile.task.attachment.upload` with `task.attachments.v1`, 3 MiB
+chunks, and each attachment UUID as both `operation_id` and `upload_id`.
+The resulting absolute paths are POSIX single-quoted and prepended to the
+captured message. Files remain staged until that message is acknowledged.
+See `MobileShellComposite+ComposerFileAttachments.swift`,
+`MobileShellComposite+TaskAttachments.swift`, and
+`TerminalComposerAttachmentInsertion.swift` in the official source.
+
+Android now follows those contracts, captures the original target, checks
+connection identity between awaited operations, and never automatically replays
+a send. Pending payloads are AES-GCM encrypted in app-owned, backup-excluded
+files; encrypted draft metadata retains their IDs across process death. The
+system document picker grants access only to selected photos/files, following
+[Android's Storage Access Framework](https://developer.android.com/training/data-storage/shared/documents-files).
+
+Images use the upstream 2048-pixel maximum dimension and PNG/JPEG preparation.
+The current Android control transport caps frames at 8 MiB, so encoded image
+bytes are kept below 5 MiB before base64 expansion. This is an implementation
+constraint to revisit with transport parity, not an unavoidable Android limit.
+Per-terminal caps are 10 attachments/32 MiB; global caps are 20/64 MiB, matching
+the upstream terminal composer. A single file is limited to 32 MiB. Task
+composer attachments, rich keyboard image paste, and shared-file intents remain
+separate work.

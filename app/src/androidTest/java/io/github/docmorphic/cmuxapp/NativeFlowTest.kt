@@ -1,6 +1,12 @@
 package io.github.docmorphic.cmuxapp
 
+import android.app.Activity
+import android.app.Instrumentation
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.Uri
 import android.graphics.Bitmap
+import kotlinx.coroutines.runBlocking
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
@@ -184,6 +190,84 @@ class NativeFlowTest {
         assertEquals("terminal-2", inserted.getString("surface_id"))
     }
 
+    @Test fun attachmentPickerStagesEncryptsAndSendsAfterExplicitRetry() {
+        compose.setContent {
+            CmuxTheme {
+                Surface(Modifier.fillMaxSize()) {
+                    NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                        MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                            .also { it.connect() }
+                    })
+                }
+            }
+        }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        val file = File(context.cacheDir, "attachment-fixture.txt").apply { writeText("Private fixture content") }
+        val photo = File(context.cacheDir, "attachment-fixture.png")
+        Bitmap.createBitmap(2400, 1200, Bitmap.Config.ARGB_8888).also { bitmap ->
+            bitmap.eraseColor(android.graphics.Color.BLUE)
+            photo.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+        }
+        val repo = TerminalDraftRepository.get(context)
+        val target = TerminalDrafts.Target("cmux-ios://attach?v=2&r=100.64.0.1:58465", "workspace-1", "terminal-1")
+        fun choose(file: File, menu: String) {
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val monitor = instrumentation.addMonitor(IntentFilter(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE); addDataType("*/*")
+            },
+                Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(Uri.fromFile(file))), true)
+            try {
+                compose.onNodeWithContentDescription("Add attachment").performClick()
+                compose.onNodeWithText(menu).performClick()
+                compose.waitUntil(10_000) { monitor.hits > 0 }
+            } finally { instrumentation.removeMonitor(monitor) }
+        }
+        choose(photo, "Photos")
+        compose.waitUntil(15_000) { repo.drafts.state.value[target]?.attachments?.size == 1 }
+        val image = repo.drafts.state.value[target]!!.attachments.single()
+        val imageBytes = runBlocking { repo.read(image) }
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, bounds)
+        assertEquals(2048, bounds.outWidth)
+        assertEquals(1024, bounds.outHeight)
+        choose(file, "Files")
+        compose.waitUntil(15_000) { repo.drafts.state.value[target]?.attachments?.size == 2 }
+        val attachment = repo.drafts.state.value[target]!!.attachments.last()
+        assertEquals("Private fixture content", runBlocking { String(repo.read(attachment)) })
+        val onDisk = File(context.noBackupFilesDir, "terminal-attachments/${attachment.id}").readBytes()
+        assertTrue(!String(onDisk).contains("Private fixture content"))
+        runBlocking { repo.persistNow() }
+        val restored = TerminalDrafts(NativeCredentialStore(context, "native_terminal_drafts").load()?.getJSONArray("drafts"))
+        assertEquals(listOf(image, attachment), restored.state.value[target]!!.attachments)
+        compose.onNode(hasSetTextAction()).performTextInput("Explain these attachments")
+        screenshot("composer-attachments")
+        peer.rejectNextPaste.set(true)
+        compose.onNodeWithText("Send").performClick()
+        compose.waitUntil(15_000) { repo.drafts.state.value[target]?.error != null }
+        assertEquals(listOf(attachment), repo.drafts.state.value[target]!!.attachments)
+        assertDraft("Explain these attachments")
+        compose.onNodeWithText("Send").performClick()
+        compose.waitUntil(15_000) { repo.drafts.state.value[target] == null }
+        assertDraft("")
+        assertEquals(1, peer.requests.count { it.optString("method") == "terminal.paste_image" })
+        val uploads = peer.requests.filter { it.optString("method") == "mobile.task.attachment.upload" }
+        assertEquals(2, uploads.size)
+        uploads.forEach { request ->
+            val params = request.getJSONObject("params")
+            assertEquals(attachment.id, params.getString("operation_id"))
+            assertEquals(attachment.id, params.getString("upload_id"))
+            assertEquals("Private fixture content", String(java.util.Base64.getDecoder().decode(params.getString("data_b64"))))
+        }
+        val paste = peer.requests.last { it.optString("method") == "terminal.paste" }.getJSONObject("params")
+        assertEquals("'/tmp/cmux fixture.txt' Explain these attachments", paste.getString("text"))
+        runBlocking { repo.persistNow() }
+        assertTrue(!File(context.noBackupFilesDir, "terminal-attachments/${attachment.id}").exists())
+        file.delete(); photo.delete()
+    }
+
     private fun assertDraft(text: String) {
         compose.onNode(hasSetTextAction()).assert(
             SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString(text)))
@@ -258,7 +342,7 @@ private class NativeFixturePeer : AutoCloseable {
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
         "mobile.host.status" -> JSONObject().put("mac_display_name", "Fixture Mac")
-            .put("mac_device_id", "fixture-mac").put("capabilities", JSONArray())
+            .put("mac_device_id", "fixture-mac").put("capabilities", JSONArray().put("task.attachments.v1"))
         "mobile.workspace.list" -> JSONObject("""{
             "groups":[{"id":"complete","name":"Completed group","is_collapsed":false}],
             "workspaces":[
@@ -267,6 +351,7 @@ private class NativeFixturePeer : AutoCloseable {
               {"id":"workspace-2","title":"Read project","group_id":"complete",
                "has_unread":false,"terminals":[{"id":"terminal-2","title":"Shell"}]}
             ]} """)
+        "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/cmux fixture.txt")
         "notification.feed.list" -> JSONObject().put("notifications", JSONArray())
         "mobile.events.subscribe" -> JSONObject().put("stream_id", params.optString("stream_id"))
         "mobile.terminal.viewport" -> JSONObject().put("columns", params.optInt("viewport_columns", 40))

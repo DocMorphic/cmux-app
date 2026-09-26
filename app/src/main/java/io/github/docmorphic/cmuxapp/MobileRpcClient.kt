@@ -245,6 +245,36 @@ class MobileRpcClient(
             .put("client_id", clientId).put("text", text)
             .put("submit_key", if (submit) "return" else "none"))
 
+    suspend fun pasteImage(workspaceId: String, surfaceId: String, bytes: ByteArray, format: String): JSONObject =
+        request("terminal.paste_image", JSONObject()
+            .put("workspace_id", workspaceId).put("surface_id", surfaceId).put("client_id", clientId)
+            .put("image_base64", java.util.Base64.getEncoder().encodeToString(bytes))
+            .put("image_format", format))
+
+    /** Stable attachment IDs make re-upload after an explicit retry idempotent on the Mac. */
+    suspend fun uploadAttachment(attachment: ComposerAttachment, bytes: ByteArray, checkCurrent: () -> Unit): String {
+        require(bytes.size == attachment.size && bytes.size in 1..ComposerAttachment.FILE_LIMIT)
+        var path: String? = null
+        var offset = 0
+        while (offset < bytes.size) {
+            checkCurrent()
+            val end = minOf(offset + 3 * 1024 * 1024, bytes.size)
+            val last = end == bytes.size
+            val result = request("mobile.task.attachment.upload", JSONObject()
+                .put("operation_id", attachment.id).put("upload_id", attachment.id)
+                .put("file_name", attachment.name).put("total_bytes", bytes.size)
+                .put("offset", offset).put("last", last)
+                .put("data_b64", java.util.Base64.getEncoder().encodeToString(bytes.copyOfRange(offset, end))))
+            checkCurrent()
+            if (last) {
+                path = result.optString("path")
+                require(path.startsWith('/') && '\u0000' !in path) { "Invalid attachment path from Mac" }
+            }
+            offset = end
+        }
+        return requireNotNull(path)
+    }
+
     private val clientId = UUID.randomUUID().toString()
 
     suspend fun subscribe(topics: List<String>, streamId: String = UUID.randomUUID().toString()): JSONObject =

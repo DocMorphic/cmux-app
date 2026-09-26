@@ -37,6 +37,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntSize
@@ -173,16 +175,50 @@ fun NativeScreen(
 
     LaunchedEffect(signedIn) { if (!signedIn) drafts.clear() }
 
+    val attachmentFiles = remember(context) { AttachmentFiles(context.applicationContext) }
+    var pickerTarget by remember { mutableStateOf<TerminalDrafts.Target?>(null) }
+    var pickerGeneration by remember { mutableLongStateOf(0) }
+    var pickerImages by remember { mutableStateOf(false) }
+    var preparingAttachments by remember { mutableStateOf(false) }
+    var attachmentMenu by remember { mutableStateOf(false) }
+    val attachmentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        val target = pickerTarget
+        val generation = pickerGeneration
+        val images = pickerImages
+        pickerTarget = null
+        if (target != null && uris.isNotEmpty()) scope.launch {
+            preparingAttachments = true
+            try {
+                require(uris.size <= 10) { "Choose up to 10 attachments" }
+                for (uri in uris) {
+                    val prepared = attachmentFiles.prepare(uri, images)
+                    check(signedIn && code == target.pairing && drafts.generation == generation &&
+                        workspaces.any { it.id == target.workspace && it.terminals.any { terminal -> terminal.id == target.surface } }) {
+                        "The attachment target changed. Choose the attachment again."
+                    }
+                    draftRepository.attach(target, prepared, generation)
+                }
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                error = failure.message ?: "Could not open the attachment"
+            } finally { preparingAttachments = false }
+        }
+    }
+
     fun sendComposer(submit: Boolean) {
         val target = draftTarget ?: return
         val active = client ?: return
+        if (preparingAttachments) return
         val send = drafts.begin(target) ?: return
+        val supportsFiles = ComposerAttachment.FILE_CAPABILITY in hostCapabilities
         scope.launch {
             try {
                 draftRepository.persistNow()
                 check(client === active && signedIn && code == target.pairing) { "Connection changed" }
-                active.paste(target.workspace, target.surface, send.text, submit)
-                drafts.finish(send)
+                val deliveredFiles = deliverTerminalComposer(active, drafts, send, submit, supportsFiles,
+                    read = draftRepository::read, persist = draftRepository::persistNow,
+                    isCurrent = { client === active && signedIn && code == target.pairing })
+                drafts.finish(send, deliveredFiles = deliveredFiles)
                 draftRepository.persistNow()
                 if (selectedTerminal?.id == target.surface) scrollOffset = 0
             } catch (failure: Exception) {
@@ -678,6 +714,9 @@ fun NativeScreen(
                                 }
                             }) { Text(label, color = if (armed) nativeAccent else nativeMuted) }
                         }
+                    TextButton(onClick = { sendComposer(submit = false) },
+                        enabled = client != null && terminalDraft.operation == null && !preparingAttachments &&
+                            (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty())) { Text("Insert", color = nativeMuted) }
                     listOf("Esc" to "Esc", "Tab" to "Tab", "⌫" to "Backspace",
                         "⌦" to "Delete", "↵" to "Enter", "↑" to "Up", "↓" to "Down",
                         "←" to "Left", "→" to "Right", "Home" to "Home", "End" to "End",
@@ -710,9 +749,40 @@ fun NativeScreen(
                                 .onFailure { error = it.message }
                         }
                     }) { Text("Paste", color = nativeMuted) }
+
+                }
+                if (terminalDraft.attachments.isNotEmpty() || preparingAttachments) {
+                    Row(Modifier.fillMaxWidth().background(nativePanel).horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        terminalDraft.attachments.forEach { attachment ->
+                            InputChip(selected = false, onClick = {},
+                                label = { Text(attachment.name, maxLines = 1, modifier = Modifier.widthIn(max = 180.dp)) },
+                                leadingIcon = { AttachmentThumbnail(attachment, draftRepository) },
+                                trailingIcon = {
+                                    TextButton(onClick = { draftTarget?.let { drafts.removeAttachment(it, attachment.id) } },
+                                        modifier = Modifier.semantics { contentDescription = "Remove ${attachment.name}" }) { Text("×") }
+                                }, modifier = Modifier.padding(end = 6.dp))
+                        }
+                        if (preparingAttachments) Text("Preparing…", color = nativeMuted)
+                    }
                 }
                 key(draftTarget) {
                     Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box {
+                            IconButton(onClick = { attachmentMenu = true },
+                                enabled = !preparingAttachments && terminalDraft.operation == null,
+                                modifier = Modifier.semantics { contentDescription = "Add attachment" }) { Text("+", fontSize = 24.sp) }
+                            DropdownMenu(attachmentMenu, onDismissRequest = { attachmentMenu = false }) {
+                                fun pick(images: Boolean) {
+                                    attachmentMenu = false
+                                    pickerTarget = draftTarget; pickerGeneration = drafts.generation; pickerImages = images
+                                    attachmentPicker.launch(arrayOf(if (images) "image/*" else "*/*"))
+                                }
+                                DropdownMenuItem(text = { Text("Photos") }, onClick = { pick(true) })
+                                DropdownMenuItem(text = { Text("Files") }, onClick = { pick(false) },
+                                    enabled = ComposerAttachment.FILE_CAPABILITY in hostCapabilities)
+                            }
+                        }
                         OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
                             Modifier.weight(1f).onPreviewKeyEvent { event ->
                                 val key = event.nativeKeyEvent
@@ -724,8 +794,8 @@ fun NativeScreen(
                             placeholder = { Text("Message or command") },
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
                             keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
-                        val canSend = client != null && terminalDraft.text.isNotEmpty() && terminalDraft.operation == null
-                        TextButton(onClick = { sendComposer(submit = false) }, enabled = canSend) { Text("Insert") }
+                        val canSend = client != null && (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty()) &&
+                            terminalDraft.operation == null && !preparingAttachments
                         TextButton(onClick = { sendComposer(submit = true) }, enabled = canSend) {
                             Text(if (terminalDraft.operation == null) "Send" else "Sending…")
                         }
