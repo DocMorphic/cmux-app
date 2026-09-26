@@ -2,7 +2,7 @@
 
 An **unofficial Android companion project** for [cmux](https://cmux.com). The goal is to attach to terminals running on a Mac, view workspaces and agent notifications, and send terminal input from Android.
 
-The current app is a **research build**. It opens an offline UI preview and validates the current minimal cmux pairing QR formats. It does **not** sign in, pair, connect to a Mac, stream a terminal, or send keystrokes yet. See [the implementation plan](docs/PLAN.md) before treating it as a usable companion.
+The current app is a **research build**. It opens an offline UI preview and validates the current minimal cmux pairing QR formats. An experimental [Mac helper](bridge/README.md) can list workspaces, poll plain terminal text, and send input over Tailscale. It is not yet equivalent to the official iOS app. See [the implementation plan](docs/PLAN.md).
 
 ## What was researched
 
@@ -23,6 +23,7 @@ The APK will be at `app/build/outputs/apk/debug/app-debug.apk`. It is a preview 
 - Kotlin, Jetpack Compose, one Android app module.
 - `io.github.docmorphic.cmuxapp` is a temporary independent app ID.
 - Pairing QR parsing is isolated from future auth and transport code.
+- The optional Mac helper binds loopback by default and is on a separate development branch until live testing is complete.
 - No cmux source is copied into this app. Any future port of cmux implementation must honor its GPL-3.0-or-later license and notices.
 
 This project is not affiliated with Manaflow or the cmux team.

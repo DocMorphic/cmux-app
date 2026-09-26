@@ -59,6 +59,7 @@ private val previewWorkspaces = listOf(
 @Composable
 private fun CmuxCompanionApp() {
     var showPreview by rememberSaveable { mutableStateOf(false) }
+    var showBridge by rememberSaveable { mutableStateOf(false) }
     var selectedWorkspace by rememberSaveable { mutableStateOf(0) }
     var pairingText by rememberSaveable { mutableStateOf("") }
     var pairingError by rememberSaveable { mutableStateOf<String?>(null) }
@@ -71,7 +72,9 @@ private fun CmuxCompanionApp() {
         Text("cmux companion", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text("Unofficial Android project • protocol research build", color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-        if (showPreview) {
+        if (showBridge) {
+            BridgeScreen(onBack = { showBridge = false })
+        } else if (showPreview) {
             Text("Offline UI preview", style = MaterialTheme.typography.titleLarge)
             Text("These are sample workspaces. No Mac connection or terminal input is active yet.")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -135,6 +138,7 @@ private fun CmuxCompanionApp() {
             }
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = { showPreview = true }) { Text("Explore UI preview") }
+            OutlinedButton(onClick = { showBridge = true }) { Text("Connect through Mac helper") }
         }
     }
 }
