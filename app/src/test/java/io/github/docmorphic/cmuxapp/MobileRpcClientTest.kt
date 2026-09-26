@@ -14,6 +14,7 @@ class MobileRpcClientTest {
     @Test fun groupAndMoveMutationsUseOfficialMethodAndScope() = runBlocking {
         ServerSocket(0).use { server ->
             val observed = mutableListOf<JSONObject>()
+            val finishPeer = CountDownLatch(1)
             val peer = Thread {
                 server.accept().use { socket ->
                     repeat(2) {
@@ -27,6 +28,7 @@ class MobileRpcClientTest {
                         socket.getOutputStream().write(MobileFrameCodec.encode(response.toString().toByteArray()))
                         socket.getOutputStream().flush()
                     }
+                    finishPeer.await(5, TimeUnit.SECONDS)
                 }
             }
             peer.start()
@@ -43,7 +45,11 @@ class MobileRpcClientTest {
                 assertEquals("group-1", observed[1].getJSONObject("params").getString("group_id"))
                 assertEquals("window-1", observed[1].getJSONObject("params").getString("window_id"))
                 assertEquals("token", observed[1].getJSONObject("auth").getString("stack_access_token"))
-            } finally { client.close(); peer.join(3_000) }
+            } finally {
+                finishPeer.countDown()
+                client.close()
+                peer.join(3_000)
+            }
         }
     }
 
