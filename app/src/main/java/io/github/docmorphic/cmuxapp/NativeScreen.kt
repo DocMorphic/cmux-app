@@ -52,7 +52,7 @@ private data class NativeNotification(
 )
 
 @Composable
-fun NativeScreen(onUseHelper: () -> Unit) {
+fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val terminalColumns = (configuration.screenWidthDp / 8).coerceIn(24, 120)
@@ -76,6 +76,8 @@ fun NativeScreen(onUseHelper: () -> Unit) {
     var retryDelay by remember { mutableLongStateOf(2_000) }
     var client by remember { mutableStateOf<MobileRpcClient?>(null) }
     var hostName by remember { mutableStateOf("cmux") }
+    var pairedMacs by remember { mutableStateOf(store.pairedMacs()) }
+    var showSettings by remember { mutableStateOf(false) }
     var workspaces by remember { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
     var notifications by remember { mutableStateOf<List<NativeNotification>>(emptyList()) }
     var notificationTab by remember { mutableStateOf(false) }
@@ -85,6 +87,10 @@ fun NativeScreen(onUseHelper: () -> Unit) {
     var input by remember { mutableStateOf("") }
     var grid by remember { mutableStateOf(RenderGrid()) }
     var gridRevision by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(incomingCode) {
+        if (incomingCode != null && PairingCodeParser.parse(incomingCode).isSuccess) code = incomingCode
+    }
 
     fun applyFrame(value: JSONObject) {
         val frame = value.optJSONObject("render_grid") ?: value
@@ -127,7 +133,8 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                 workspaces = parseWorkspaces(listing)
                 runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
                 client = active
-                store.update { it.put("pairing_code", code) }
+                store.rememberMac(code, status.optString("mac_device_id"), hostName)
+                pairedMacs = store.pairedMacs()
                 error = null
                 retryDelay = 2_000
             } catch (failure: Throwable) { active.close(); throw failure }
@@ -188,6 +195,7 @@ fun NativeScreen(onUseHelper: () -> Unit) {
         onDispose { active?.close() }
     }
     BackHandler(enabled = selectedTerminal != null) { selectedTerminal = null; selectedWorkspace = null }
+    BackHandler(enabled = showSettings && selectedTerminal == null) { showSettings = false }
 
     Column(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding()) {
         when {
@@ -215,6 +223,37 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                     TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
                 }
             }
+            showSettings -> {
+                Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { showSettings = false }) { Text("‹  Back") }
+                    Text("Settings", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
+                pairedMacs.forEach { mac ->
+                    Row(Modifier.fillMaxWidth().clickable { code = mac.code; showSettings = false }
+                        .padding(horizontal = 22.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("◉", color = nativeAccent, fontSize = 20.sp)
+                        Spacer(Modifier.width(14.dp))
+                        Text(mac.name.ifBlank { "cmux" }, Modifier.weight(1f))
+                        if (code == mac.code) Text(if (client != null) "Connected" else "Selected", color = nativeAccent, fontSize = 12.sp)
+                    }
+                }
+                TextButton(onClick = {
+                    code = ""; showSettings = false; selectedTerminal = null; selectedWorkspace = null
+                }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Pair another Mac") }
+                if (code.isNotBlank()) TextButton(onClick = {
+                    store.forgetMac(code)
+                    pairedMacs = store.pairedMacs()
+                    code = store.load()?.optString("pairing_code").orEmpty()
+                    showSettings = false
+                }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Forget current Mac", color = Color(0xFFFF9999)) }
+                Spacer(Modifier.height(24.dp))
+                TextButton(onClick = { account.signOut(); signedIn = false; client?.close(); client = null },
+                    modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
+                TextButton(onClick = onUseHelper, modifier = Modifier.padding(horizontal = 14.dp)) {
+                    Text("Use existing helper connection", color = nativeMuted)
+                }
+            }
             code.isBlank() -> {
                 NativeHeader("Pair your Mac")
                 Column(Modifier.padding(24.dp)) {
@@ -238,6 +277,7 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                         )
                     }, enabled = pairingText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Connect") }
                     TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
+                    if (pairedMacs.isNotEmpty()) TextButton(onClick = { showSettings = true }) { Text("Saved computers") }
                 }
             }
             selectedTerminal != null -> {
@@ -297,7 +337,7 @@ fun NativeScreen(onUseHelper: () -> Unit) {
             else -> {
                 Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { error = "Connected to $hostName" }) { Text("◉", color = nativeMuted, fontSize = 23.sp) }
+                    TextButton(onClick = { showSettings = true }) { Text("◉", color = nativeMuted, fontSize = 23.sp) }
                     Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
                         fontSize = 17.sp, modifier = Modifier.weight(1f))
                     TextButton(onClick = { notificationTab = !notificationTab }) {
@@ -370,8 +410,8 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                         Text(if (unread > 0) "Notifications ($unread)" else "Notifications",
                             color = if (notificationTab) nativeAccent else nativeMuted)
                     }
-                    TextButton(onClick = { account.signOut(); signedIn = false; client?.close(); client = null }) {
-                        Text("Sign out", color = nativeMuted)
+                    TextButton(onClick = { showSettings = true }) {
+                        Text("Settings", color = nativeMuted)
                     }
                 }
             }

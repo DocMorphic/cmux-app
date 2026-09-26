@@ -15,8 +15,8 @@ UI resemblance alone does not count.
 | Area | iOS source / contract | Android status | Acceptance check |
 | --- | --- | --- | --- |
 | Account | `MobileAuthComposition`, `MobileRootAuthGate` | OTP sign-in and encrypted token refresh coded; unverified on phone | Sign in with the Mac's cmux account; restore session after restart; sign out |
-| Computers | `MobilePairedMac`, `MacComputerListSection` | Missing | Discover, choose, forget, and reconnect multiple Macs |
-| Pairing | `CmxPairingQRCode`, `CmxAttachTicketCompactCoder` | QR scan and current v2 Tailscale code path coded; unverified on phone; v3 Iroh parse only | Scan official Mac QR, validate version/identity, authorize exact route, revoke |
+| Computers | `MobilePairedMac`, `MacComputerListSection` | Encrypted saved-Mac list, select, forget, and reconnect coded; unverified on phone | Discover, choose, forget, and reconnect multiple Macs |
+| Pairing | `CmxPairingQRCode`, `CmxAttachTicketCompactCoder` | QR scan, deep link, and current v2 Tailscale code path coded; unverified on phone; v3 Iroh parse only | Scan official Mac QR, validate version/identity, authorize exact route, revoke |
 | Transport | `CmxNetworkByteTransport`, `MobileCoreRPCSession` | Persistent framed RPC coded for TCP; unverified on phone; reconnection and Iroh missing | Persistent framed RPC over authorized Tailscale; Iroh route; reconnect without duplicate input |
 | Workspaces | `MobileSyncWorkspaceListResponse`, `DeviceTreeView` | Native list coded; grouping and mutations missing | Live hierarchy, add/rename/close/reorder/group, status and selection |
 | Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid drawing coded; VT fallback, scrollback, and full fidelity missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
@@ -26,7 +26,7 @@ UI resemblance alone does not count.
 | Search | `MobilePrimarySearchCoordinator` | Workspace text filter | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Missing | View changed files and diffs from the active workspace |
 | Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Missing | Create and navigate tasks; handle agent prompts and attachments |
-| Settings | `MobileSettingsView` | Disconnect only | Account, computers, notification, display, network, diagnostics, reset |
+| Settings | `MobileSettingsView` | Account and saved-computer controls coded; notification, display, diagnostics missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Stable signing and CI verified on foundation build; current native build and Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 

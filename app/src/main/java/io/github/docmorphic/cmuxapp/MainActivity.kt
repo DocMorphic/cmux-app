@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,8 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 
 class MainActivity : ComponentActivity() {
+    private var incomingPairing by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        incomingPairing = intent?.dataString?.takeIf { PairingCodeParser.parse(it).isSuccess }
         setContent {
             MaterialTheme(
                 colorScheme = darkColorScheme(
@@ -28,12 +32,20 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val context = LocalContext.current
                     var nativeMode by remember {
-                        mutableStateOf(NativeCredentialStore(context.applicationContext).load()?.optString("pairing_code")?.isNotBlank() == true)
+                        mutableStateOf(incomingPairing != null ||
+                            NativeCredentialStore(context.applicationContext).load()?.optString("pairing_code")?.isNotBlank() == true)
                     }
-                    if (nativeMode) NativeScreen(onUseHelper = { nativeMode = false })
+                    LaunchedEffect(incomingPairing) { if (incomingPairing != null) nativeMode = true }
+                    if (nativeMode) NativeScreen(onUseHelper = { nativeMode = false }, incomingCode = incomingPairing)
                     else BridgeScreen(onUseNative = { nativeMode = true })
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingPairing = intent.dataString?.takeIf { PairingCodeParser.parse(it).isSuccess }
     }
 }

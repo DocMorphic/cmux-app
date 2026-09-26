@@ -23,6 +23,42 @@ import javax.crypto.spec.GCMParameterSpec
 class NativeCredentialStore(context: Context) {
     private val preferences = context.getSharedPreferences("native_cmux", Context.MODE_PRIVATE)
 
+    data class PairedMac(val code: String, val deviceId: String, val name: String)
+
+    fun pairedMacs(): List<PairedMac> {
+        val array = load()?.optJSONArray("pairings") ?: return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                val item = array.optJSONObject(index) ?: continue
+                val code = item.optString("code")
+                if (code.isNotBlank()) add(PairedMac(code, item.optString("device_id"), item.optString("name", "cmux")))
+            }
+        }
+    }
+
+    fun rememberMac(code: String, deviceId: String, name: String) = update { state ->
+        val previous = state.optJSONArray("pairings")
+        val next = org.json.JSONArray()
+        if (previous != null) for (index in 0 until previous.length()) {
+            val item = previous.optJSONObject(index) ?: continue
+            if (item.optString("code") != code &&
+                (deviceId.isBlank() || item.optString("device_id") != deviceId)) next.put(item)
+        }
+        next.put(JSONObject().put("code", code).put("device_id", deviceId).put("name", name))
+        state.put("pairings", next).put("pairing_code", code)
+    }
+
+    fun forgetMac(code: String) = update { state ->
+        val previous = state.optJSONArray("pairings")
+        val next = org.json.JSONArray()
+        if (previous != null) for (index in 0 until previous.length()) {
+            val item = previous.optJSONObject(index) ?: continue
+            if (item.optString("code") != code) next.put(item)
+        }
+        state.put("pairings", next)
+        if (state.optString("pairing_code") == code) state.put("pairing_code", next.optJSONObject(0)?.optString("code").orEmpty())
+    }
+
     fun load(): JSONObject? {
         val encoded = preferences.getString("state", null) ?: return null
         return try {
