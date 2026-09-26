@@ -7,20 +7,34 @@ plugins {
 android {
     namespace = "io.github.docmorphic.cmuxapp"
     compileSdk = 36
+    val releaseKeystorePath = System.getenv("CMUX_APP_RELEASE_KEYSTORE")
+    val releasePassword = System.getenv("CMUX_APP_RELEASE_PASSWORD")
 
     defaultConfig {
         applicationId = "io.github.docmorphic.cmuxapp"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 2
+        versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (!releaseKeystorePath.isNullOrBlank() && !releasePassword.isNullOrBlank()) {
+            create("cmuxAppRelease") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releasePassword
+                keyAlias = "cmux-app"
+                keyPassword = releasePassword
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("cmuxAppRelease")
         }
     }
 

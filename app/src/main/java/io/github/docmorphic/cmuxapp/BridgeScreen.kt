@@ -330,7 +330,7 @@ private fun WorkspaceView(
                     val unread = notifications.count { !it.isRead }
                     Text(if (unread > 0) "Notifications ($unread)" else "Notifications", color = if (notificationTab) blue else muted)
                 }
-                TextButton(onClick = onDisconnect) { Text("⋯", color = muted, fontSize = 19.sp) }
+                TextButton(onClick = onDisconnect) { Text("Disconnect", color = muted, fontSize = 12.sp) }
             }
         }
     }

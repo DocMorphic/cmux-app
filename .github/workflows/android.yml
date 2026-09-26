@@ -1,4 +1,4 @@
-name: Android preview
+name: Android build
 
 on:
   push:
@@ -28,9 +28,27 @@ jobs:
       - name: Install Android SDK
         run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Test and build preview APK
-        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace
+      - name: Prepare stable release key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.CMUX_APP_RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.CMUX_APP_RELEASE_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/cmux-app-release.p12"
+          chmod 600 "$RUNNER_TEMP/cmux-app-release.p12"
+      - name: Test and build Android APKs
+        env:
+          CMUX_APP_RELEASE_KEYSTORE: ${{ runner.temp }}/cmux-app-release.p12
+          CMUX_APP_RELEASE_PASSWORD: ${{ secrets.CMUX_APP_RELEASE_PASSWORD }}
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace
+      - name: Verify release signature
+        run: "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
       - uses: actions/upload-artifact@v4
         with:
           name: cmux-app-preview-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmux-app-stable-signed-apk
+          path: app/build/outputs/apk/release/app-release.apk
