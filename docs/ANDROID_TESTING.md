@@ -9,7 +9,13 @@ and insertion without submission. A third flow intercepts the system document
 picker result with local photo/file fixtures, exercises the real import and
 image preparation, checks encrypted staging/restoration, and verifies image
 acknowledgement plus explicit file retry after a rejected message. It does not
-automate a cloud document provider. The peer uses synthetic data and never connects to a real cmux account.
+automate a cloud document provider. A fourth flow switches between the composer
+and native direct keyboard, verifies keyboard visibility and viewport resizing,
+and drives Android InputConnection composition/commit/delete/key APIs. It checks
+ordered RPC bytes, rejection followed by explicit resume without replaying queued
+input, preserved composer drafts, and invalidation of old input connections.
+It does not drive a real CJK keyboard candidate picker or a live terminal app.
+The peer uses synthetic data and never connects to a real cmux account.
 This check does not prove account sign-in, Tailscale routing, or compatibility
 with the live Mac; those remain in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
 
@@ -32,7 +38,7 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (3 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (4 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 

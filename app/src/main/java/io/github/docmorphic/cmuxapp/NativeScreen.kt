@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -165,6 +166,48 @@ fun NativeScreen(
     var controlArmed by remember { mutableStateOf(false) }
     var altArmed by remember { mutableStateOf(false) }
     var shiftArmed by remember { mutableStateOf(false) }
+    var directTyping by remember(draftTarget) { mutableStateOf(false) }
+    var rawKeyboardView by remember(draftTarget) { mutableStateOf<TerminalKeyboardView?>(null) }
+    LaunchedEffect(directTyping, rawKeyboardView) {
+        if (directTyping) rawKeyboardView?.let { view ->
+            // Let the removed Compose editor finish its IME session before requesting the native editor.
+            withFrameNanos { }
+            view.showKeyboard()
+        }
+    }
+    val hardwareInput = remember(draftTarget) { TerminalHardwareInput() }
+    val inputClient = client
+    val inputTarget = draftTarget
+    val inputQueue = remember(inputClient, inputTarget) {
+        TerminalInputQueue(scope) { entry ->
+            check(inputClient != null && inputTarget != null && client === inputClient &&
+                code == inputTarget.pairing && signedIn) { "Terminal connection changed" }
+            if (entry.paste) inputClient.paste(inputTarget.workspace, inputTarget.surface, entry.text, submit = false)
+            else inputClient.input(inputTarget.workspace, inputTarget.surface, entry.text)
+        }
+    }
+    val inputStatus by inputQueue.status.collectAsState()
+    DisposableEffect(inputQueue) { onDispose { inputQueue.close() } }
+
+    fun queueInput(value: String, paste: Boolean = false): Boolean {
+        val target = draftTarget ?: return false
+        if (client == null || drafts.state.value[target]?.operation != null) return false
+        scrollOffset = 0
+        return inputQueue.offer(value, paste)
+    }
+    fun directText(value: String) {
+        val text = value.replace("\r\n", "\r").replace('\n', '\r')
+        queueInput(TerminalKeyEncoding.text(text, controlArmed, altArmed, shiftArmed))
+        controlArmed = false; altArmed = false; shiftArmed = false
+    }
+    fun directHardware(event: AndroidKeyEvent): Boolean {
+        val sequence = hardwareInput.sequence(event, grid.applicationCursorKeys, controlArmed, altArmed, shiftArmed) ?: return false
+        if (sequence.isNotEmpty()) {
+            queueInput(sequence)
+            controlArmed = false; altArmed = false; shiftArmed = false
+        }
+        return true
+    }
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) runCatching { NativeNotificationService.setEnabled(context, true) }
@@ -213,6 +256,7 @@ fun NativeScreen(
         val supportsFiles = ComposerAttachment.FILE_CAPABILITY in hostCapabilities
         scope.launch {
             try {
+                inputQueue.awaitIdle()
                 draftRepository.persistNow()
                 check(client === active && signedIn && code == target.pairing) { "Connection changed" }
                 val deliveredFiles = deliverTerminalComposer(active, drafts, send, submit, supportsFiles,
@@ -640,7 +684,10 @@ fun NativeScreen(
                             .padding(horizontal = 15.dp, vertical = 7.dp),
                         fontWeight = FontWeight.Medium, fontSize = 13.sp, maxLines = 1)
                     Spacer(Modifier.weight(1f))
-                    Text("▣", color = nativeMuted, fontSize = 20.sp)
+                    TextButton(onClick = {
+                        if (directTyping) rawKeyboardView?.finishComposition()
+                        directTyping = !directTyping
+                    }) { Text(if (directTyping) "Compose" else "Keyboard", color = nativeAccent, fontSize = 12.sp) }
                 }
                 selectedWorkspace?.terminals?.takeIf { it.size > 1 }?.let { terminals ->
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
@@ -667,24 +714,12 @@ fun NativeScreen(
                     Modifier.fillMaxWidth().weight(1f)
                         .onSizeChanged { terminalViewportPixels = it }
                         .focusRequester(terminalFocusRequester)
-                        .onPreviewKeyEvent { event ->
-                            val keyEvent = event.nativeKeyEvent
-                            if (keyEvent.action != AndroidKeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
-                            val workspaceId = selectedWorkspace?.id ?: return@onPreviewKeyEvent false
-                            val active = client ?: return@onPreviewKeyEvent false
-                            val key = hardwareTerminalKey(keyEvent) ?: return@onPreviewKeyEvent false
-                            val sequence = TerminalKeyEncoding.encode(key,
-                                control = keyEvent.isCtrlPressed,
-                                alt = keyEvent.isAltPressed,
-                                shift = keyEvent.isShiftPressed,
-                                applicationCursorKeys = currentGrid.applicationCursorKeys)
-                            scrollOffset = 0
-                            scope.launch { runCatching { active.input(workspaceId, terminal.id, sequence) }
-                                .onFailure { error = it.message } }
-                            true
-                        }
+                        .onPreviewKeyEvent { event -> directHardware(event.nativeKeyEvent) }
                         .focusable()
-                        .clickable { terminalFocusRequester.requestFocus() }
+                        .clickable {
+                            directTyping = true
+                            rawKeyboardView?.showKeyboard()
+                        }
                         .pointerInput(terminal.id) {
                         var dragPixels = 0f
                         detectVerticalDragGestures(
@@ -714,7 +749,7 @@ fun NativeScreen(
                                 }
                             }) { Text(label, color = if (armed) nativeAccent else nativeMuted) }
                         }
-                    TextButton(onClick = { sendComposer(submit = false) },
+                    if (!directTyping) TextButton(onClick = { sendComposer(submit = false) },
                         enabled = client != null && terminalDraft.operation == null && !preparingAttachments &&
                             (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty())) { Text("Insert", color = nativeMuted) }
                     listOf("Esc" to "Esc", "Tab" to "Tab", "⌫" to "Backspace",
@@ -724,8 +759,7 @@ fun NativeScreen(
                         "^D" to "CtrlD", "^Z" to "CtrlZ", "^L" to "CtrlL")
                         .forEach { (label, key) ->
                             TextButton(onClick = {
-                                val workspaceId = selectedWorkspace?.id ?: return@TextButton
-                                val active = client ?: return@TextButton
+                                rawKeyboardView?.finishComposition()
                                 val sequence = when (key) {
                                     "CtrlC" -> TerminalKeyEncoding.encode("c", control = true)
                                     "CtrlD" -> TerminalKeyEncoding.encode("d", control = true)
@@ -736,68 +770,87 @@ fun NativeScreen(
                                 }
                                 controlArmed = false; altArmed = false; shiftArmed = false
                                 scrollOffset = 0
-                                scope.launch { runCatching { active.input(workspaceId, terminal.id, sequence) }
-                                    .onFailure { error = it.message } }
+                                queueInput(sequence)
                             }) { Text(label, color = nativeMuted) }
                         }
                     TextButton(onClick = {
                         val pasted = clipboard.getText()?.text.orEmpty()
-                        val workspaceId = selectedWorkspace?.id ?: return@TextButton
-                        val active = client ?: return@TextButton
-                        if (pasted.isNotEmpty()) scope.launch {
-                            runCatching { active.paste(workspaceId, terminal.id, pasted, submit = false) }
-                                .onFailure { error = it.message }
-                        }
+                        rawKeyboardView?.finishComposition()
+                        if (pasted.isNotEmpty()) queueInput(pasted, paste = true)
                     }) { Text("Paste", color = nativeMuted) }
 
                 }
-                if (terminalDraft.attachments.isNotEmpty() || preparingAttachments) {
-                    Row(Modifier.fillMaxWidth().background(nativePanel).horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        terminalDraft.attachments.forEach { attachment ->
-                            InputChip(selected = false, onClick = {},
-                                label = { Text(attachment.name, maxLines = 1, modifier = Modifier.widthIn(max = 180.dp)) },
-                                leadingIcon = { AttachmentThumbnail(attachment, draftRepository) },
-                                trailingIcon = {
-                                    TextButton(onClick = { draftTarget?.let { drafts.removeAttachment(it, attachment.id) } },
-                                        modifier = Modifier.semantics { contentDescription = "Remove ${attachment.name}" }) { Text("×") }
-                                }, modifier = Modifier.padding(end = 6.dp))
-                        }
-                        if (preparingAttachments) Text("Preparing…", color = nativeMuted)
+                inputStatus.error?.let { message ->
+                    Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text(message, Modifier.weight(1f), color = Color(0xFFFFAAAA), fontSize = 12.sp)
+                        TextButton(onClick = { if (inputQueue.resume()) rawKeyboardView?.showKeyboard() }) { Text("Resume typing") }
                     }
                 }
-                key(draftTarget) {
-                    Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box {
-                            IconButton(onClick = { attachmentMenu = true },
-                                enabled = !preparingAttachments && terminalDraft.operation == null,
-                                modifier = Modifier.semantics { contentDescription = "Add attachment" }) { Text("+", fontSize = 24.sp) }
-                            DropdownMenu(attachmentMenu, onDismissRequest = { attachmentMenu = false }) {
-                                fun pick(images: Boolean) {
-                                    attachmentMenu = false
-                                    pickerTarget = draftTarget; pickerGeneration = drafts.generation; pickerImages = images
-                                    attachmentPicker.launch(arrayOf(if (images) "image/*" else "*/*"))
-                                }
-                                DropdownMenuItem(text = { Text("Photos") }, onClick = { pick(true) })
-                                DropdownMenuItem(text = { Text("Files") }, onClick = { pick(false) },
-                                    enabled = ComposerAttachment.FILE_CAPABILITY in hostCapabilities)
+                if (directTyping) {
+                    key(draftTarget, client) {
+                        AndroidView(factory = { viewContext ->
+                            TerminalKeyboardView(viewContext).also { rawKeyboardView = it }
+                        }, update = { view ->
+                            val enabled = client != null && inputStatus.error == null && terminalDraft.operation == null
+                            val resumed = enabled && !view.isEnabled
+                            view.isEnabled = enabled
+                            if (resumed) view.restartKeyboard()
+                            view.onText = ::directText
+                            view.onKey = ::directHardware
+                            view.onPaste = { queueInput(it, paste = true) }
+                        }, onRelease = { view -> view.dispose(); if (rawKeyboardView === view) rawKeyboardView = null },
+                            modifier = Modifier.fillMaxWidth().height(48.dp).background(nativePanel))
+                    }
+                } else {
+                    if (terminalDraft.attachments.isNotEmpty() || preparingAttachments) {
+                        Row(Modifier.fillMaxWidth().background(nativePanel).horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            terminalDraft.attachments.forEach { attachment ->
+                                InputChip(selected = false, onClick = {},
+                                    label = { Text(attachment.name, maxLines = 1, modifier = Modifier.widthIn(max = 180.dp)) },
+                                    leadingIcon = { AttachmentThumbnail(attachment, draftRepository) },
+                                    trailingIcon = {
+                                        TextButton(onClick = { draftTarget?.let { drafts.removeAttachment(it, attachment.id) } },
+                                            modifier = Modifier.semantics { contentDescription = "Remove ${attachment.name}" }) { Text("×") }
+                                    }, modifier = Modifier.padding(end = 6.dp))
                             }
+                            if (preparingAttachments) Text("Preparing…", color = nativeMuted)
                         }
-                        OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
-                            Modifier.weight(1f).onPreviewKeyEvent { event ->
-                                val key = event.nativeKeyEvent
-                                if (key.action == AndroidKeyEvent.ACTION_DOWN &&
-                                    key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {
-                                    sendComposer(submit = true); true
-                                } else false
-                            }, minLines = 1, maxLines = 5,
-                            placeholder = { Text("Message or command") },
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
-                            keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
-                        val canSend = client != null && (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty()) &&
-                            terminalDraft.operation == null && !preparingAttachments
-                        TextButton(onClick = { sendComposer(submit = true) }, enabled = canSend) {
-                            Text(if (terminalDraft.operation == null) "Send" else "Sending…")
+                    }
+                    key(draftTarget) {
+                        Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box {
+                                IconButton(onClick = { attachmentMenu = true },
+                                    enabled = !preparingAttachments && terminalDraft.operation == null,
+                                    modifier = Modifier.semantics { contentDescription = "Add attachment" }) { Text("+", fontSize = 24.sp) }
+                                DropdownMenu(attachmentMenu, onDismissRequest = { attachmentMenu = false }) {
+                                    fun pick(images: Boolean) {
+                                        attachmentMenu = false
+                                        pickerTarget = draftTarget; pickerGeneration = drafts.generation; pickerImages = images
+                                        attachmentPicker.launch(arrayOf(if (images) "image/*" else "*/*"))
+                                    }
+                                    DropdownMenuItem(text = { Text("Photos") }, onClick = { pick(true) })
+                                    DropdownMenuItem(text = { Text("Files") }, onClick = { pick(false) },
+                                        enabled = ComposerAttachment.FILE_CAPABILITY in hostCapabilities)
+                                }
+                            }
+                            OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
+                                Modifier.weight(1f).onPreviewKeyEvent { event ->
+                                    val key = event.nativeKeyEvent
+                                    if (key.action == AndroidKeyEvent.ACTION_DOWN &&
+                                        key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {
+                                        sendComposer(submit = true); true
+                                    } else false
+                                }, minLines = 1, maxLines = 5,
+                                placeholder = { Text("Message or command") },
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
+                                keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
+                            val canSend = client != null && (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty()) &&
+                                terminalDraft.operation == null && !preparingAttachments
+                            TextButton(onClick = { sendComposer(submit = true) }, enabled = canSend) {
+                                Text(if (terminalDraft.operation == null) "Send" else "Sending…")
+                            }
                         }
                     }
                 }
@@ -1293,31 +1346,5 @@ private fun parseNotifications(value: JSONObject): List<NativeNotification> {
                 item.optString("title").take(512), item.optString("body").take(4096), item.optBoolean("is_read")
             ))
         }
-    }
-}
-
-private fun hardwareTerminalKey(event: AndroidKeyEvent): String? = when (event.keyCode) {
-    AndroidKeyEvent.KEYCODE_ESCAPE -> "Esc"
-    AndroidKeyEvent.KEYCODE_TAB -> "Tab"
-    AndroidKeyEvent.KEYCODE_ENTER, AndroidKeyEvent.KEYCODE_NUMPAD_ENTER -> "Enter"
-    AndroidKeyEvent.KEYCODE_DEL -> "Backspace"
-    AndroidKeyEvent.KEYCODE_FORWARD_DEL -> "Delete"
-    AndroidKeyEvent.KEYCODE_DPAD_UP -> "Up"
-    AndroidKeyEvent.KEYCODE_DPAD_DOWN -> "Down"
-    AndroidKeyEvent.KEYCODE_DPAD_LEFT -> "Left"
-    AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> "Right"
-    AndroidKeyEvent.KEYCODE_MOVE_HOME -> "Home"
-    AndroidKeyEvent.KEYCODE_MOVE_END -> "End"
-    AndroidKeyEvent.KEYCODE_PAGE_UP -> "PageUp"
-    AndroidKeyEvent.KEYCODE_PAGE_DOWN -> "PageDown"
-    in AndroidKeyEvent.KEYCODE_A..AndroidKeyEvent.KEYCODE_Z ->
-        ('a' + event.keyCode - AndroidKeyEvent.KEYCODE_A).toString()
-    else -> {
-        val modifiers = event.metaState and
-            (AndroidKeyEvent.META_SHIFT_ON or AndroidKeyEvent.META_SHIFT_LEFT_ON or
-                AndroidKeyEvent.META_SHIFT_RIGHT_ON)
-        event.getUnicodeChar(modifiers).takeIf { it in 32..0x10ffff }
-            ?.let { String(Character.toChars(it)) }
-            ?.takeIf { it.length == 1 }
     }
 }

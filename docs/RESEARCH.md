@@ -100,3 +100,27 @@ Per-terminal caps are 10 attachments/32 MiB; global caps are 20/64 MiB, matching
 the upstream terminal composer. A single file is limited to 32 MiB. Task
 composer attachments, rich keyboard image paste, and shared-file intents remain
 separate work.
+
+### Direct terminal keyboard (2026-09-27)
+
+The official `TerminalInputTextView` keeps only transient marked text locally,
+commits it once, and uses an empty-buffer deletion anchor for repeated Backspace.
+`TerminalInputTextView+CommittedTextSequences.swift` applies one-shot modifiers
+to committed text. Android now uses a native view with a
+[`BaseInputConnection`](https://developer.android.com/reference/android/view/inputmethod/BaseInputConnection)
+endpoint for the same distinction: composing text stays local; commits, control
+keys, and navigation go through `terminal.input`. An invisible local anchor
+keeps deletion working without copying remote terminal contents into an editor.
+Newline commits become Return, while clipboard paste uses `terminal.paste` with
+`submit_key: none`. A Keyboard/Compose switch preserves the separate composer
+draft. Switching terminals invalidates the old input connection.
+
+Keys and clipboard paste share a bounded, ordered queue. Composer submission
+waits for that queue to drain. A failed acknowledgement or buffer overflow
+pauses input, discards queued bytes, and requires explicit Resume typing; it
+never retries uncertain keystrokes. An RPC timeout leaves the worker available
+for that explicit resume. Cancelling the screen or connection cancels its lane.
+The 64 KiB pending-byte limit is an implementation bound, not an Android limit.
+Physical keyboards with international layouts, rich keyboard image paste,
+live interactive terminal applications, and physical Pixel behavior still
+require additional verification.
