@@ -63,7 +63,7 @@ private data class NativeWorkspace(
     val windowId: String?, val isPinned: Boolean, val browsers: List<NativeBrowser>,
     val groupId: String?, val preview: String?, val color: String?
 )
-private data class NativeGroup(val id: String, val name: String, val isCollapsed: Boolean)
+private data class NativeGroup(val id: String, val name: String, val isCollapsed: Boolean, val isPinned: Boolean)
 private sealed interface WorkspaceListEntry {
     data class Header(val group: NativeGroup) : WorkspaceListEntry
     data class Workspace(val workspace: NativeWorkspace) : WorkspaceListEntry
@@ -103,9 +103,12 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     var retryDelay by remember { mutableLongStateOf(2_000) }
     var client by remember { mutableStateOf<MobileRpcClient?>(null) }
     var hostName by remember { mutableStateOf("cmux") }
+    var hostCapabilities by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pairedMacs by remember { mutableStateOf(store.pairedMacs()) }
     var showSettings by remember { mutableStateOf(false) }
     var showTaskComposer by remember { mutableStateOf(false) }
+    var showCreateGroup by remember { mutableStateOf(false) }
+    var newGroupName by remember { mutableStateOf("") }
     var backgroundNotifications by remember { mutableStateOf(NativeNotificationService.isEnabled(context)) }
     var workspaces by remember { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
     var groups by remember { mutableStateOf<List<NativeGroup>>(emptyList()) }
@@ -134,8 +137,19 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     }
 
     fun applyListing(value: JSONObject) {
-        workspaces = parseWorkspaces(value)
+        val updated = parseWorkspaces(value)
+        workspaces = updated
         if (value.has("groups")) groups = parseGroups(value)
+        selectedWorkspace?.let { previous ->
+            val current = updated.firstOrNull { it.id == previous.id }
+            selectedWorkspace = current
+            selectedTerminal = selectedTerminal?.let { terminal ->
+                current?.terminals?.firstOrNull { it.id == terminal.id }
+            }
+            selectedBrowser = selectedBrowser?.let { browser ->
+                current?.browsers?.firstOrNull { it.id == browser.id }
+            }
+        }
     }
 
     fun proposePairing(value: String) {
@@ -206,6 +220,11 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
             try {
                 val status = active.hostStatus()
                 hostName = status.optString("mac_display_name").ifBlank { "cmux" }
+                hostCapabilities = status.optJSONArray("capabilities")?.let { values ->
+                    (0 until values.length()).mapNotNull { index ->
+                        values.optString(index).takeIf { it.isNotBlank() }
+                    }.toSet()
+                } ?: emptySet()
                 val listing = active.workspaces()
                 applyListing(listing)
                 runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
@@ -235,6 +254,17 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
         }
     }
 
+    LaunchedEffect(client) {
+        val active = client ?: return@LaunchedEffect
+        active.events.collect { event ->
+            if (event.topic == "workspace.list.changed") {
+                runCatching { active.workspaces() }
+                    .onSuccess { applyListing(it) }
+                    .onFailure { error = it.message }
+            }
+        }
+    }
+
     LaunchedEffect(client, selectedTerminal) {
         val active = client ?: return@LaunchedEffect
         if (selectedTerminal != null) return@LaunchedEffect
@@ -247,7 +277,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
         }
     }
 
-    LaunchedEffect(client, selectedWorkspace, selectedTerminal, terminalColumns, terminalRows) {
+    LaunchedEffect(client, selectedWorkspace?.id, selectedTerminal?.id, terminalColumns, terminalRows) {
         val active = client ?: return@LaunchedEffect
         val workspace = selectedWorkspace ?: return@LaunchedEffect
         val terminal = selectedTerminal ?: return@LaunchedEffect
@@ -306,6 +336,22 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
             dismissButton = { TextButton(onClick = { pendingPairingCode = null }) { Text("Cancel") } }
         )
     }
+    if (showCreateGroup) AlertDialog(
+        onDismissRequest = { showCreateGroup = false },
+        title = { Text("New group") },
+        text = { OutlinedTextField(newGroupName, { newGroupName = it },
+            label = { Text("Name (optional)") }, singleLine = true) },
+        confirmButton = { TextButton(onClick = {
+            val active = client
+            showCreateGroup = false
+            if (active != null) scope.launch {
+                runCatching { active.createGroup(newGroupName); active.workspaces() }
+                    .onSuccess { applyListing(it); newGroupName = ""; error = null }
+                    .onFailure { error = it.message }
+            }
+        }) { Text("Create") } },
+        dismissButton = { TextButton(onClick = { showCreateGroup = false }) { Text("Cancel") } }
+    )
 
     Column(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding()) {
         when {
@@ -621,6 +667,11 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                         TextButton(onClick = { if (client != null) showTaskComposer = true }) {
                             Text("Task", color = nativeAccent, fontSize = 13.sp)
                         }
+                        if ("workspace.group_create.v1" in hostCapabilities) {
+                            TextButton(onClick = { if (client != null) showCreateGroup = true }) {
+                                Text("Group", color = nativeAccent, fontSize = 13.sp)
+                            }
+                        }
                         TextButton(onClick = {
                             val active = client ?: return@TextButton
                             scope.launch { runCatching { active.request("workspace.create") }
@@ -648,8 +699,15 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                     }
                 }
                 if (notificationTab) {
+                    val visibleNotifications = notifications.filter { notification ->
+                        search.isBlank() || notification.title.contains(search, true) ||
+                            notification.body.contains(search, true) ||
+                            workspaces.any { workspace ->
+                                workspace.id == notification.workspaceId && workspace.title.contains(search, true)
+                            }
+                    }
                     LazyColumn(Modifier.weight(1f)) {
-                        items(notifications, key = { it.id }) { notification ->
+                        items(visibleNotifications, key = { it.id }) { notification ->
                             Column(Modifier.fillMaxWidth().clickable {
                                 val active = client
                                 if (active != null) scope.launch {
@@ -669,7 +727,10 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                             }
                             HorizontalDivider(color = Color(0xFF292C31))
                         }
-                        if (notifications.isEmpty()) item { Text("No notifications yet.", Modifier.padding(24.dp), color = nativeMuted) }
+                        if (visibleNotifications.isEmpty()) item {
+                            Text(if (search.isBlank()) "No notifications yet." else "No matching notifications.",
+                                Modifier.padding(24.dp), color = nativeMuted)
+                        }
                     }
                 } else {
                     val matching = workspaces.filter { it.title.contains(search, true) ||
@@ -699,17 +760,28 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                         }) { entry ->
                             if (entry is WorkspaceListEntry.Header) {
                                 val group = entry.group
-                                Text("${if (group.isCollapsed == (group.id in locallyExpandedGroups)) "⌄" else "›"}  ${group.name}",
-                                    Modifier.fillMaxWidth().clickable {
+                                NativeGroupHeaderRow(group,
+                                    expanded = group.isCollapsed == (group.id in locallyExpandedGroups),
+                                    canEdit = "workspace.group_actions.v1" in hostCapabilities,
+                                    onToggle = {
                                         locallyExpandedGroups = if (group.id in locallyExpandedGroups)
                                             locallyExpandedGroups - group.id else locallyExpandedGroups + group.id
-                                    }.padding(horizontal = 22.dp, vertical = 12.dp),
-                                    color = nativeMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    },
+                                    onAction = { action, title ->
+                                        val active = client
+                                        if (active != null) scope.launch {
+                                            runCatching { active.groupAction(group.id, action, title); active.workspaces() }
+                                                .onSuccess { applyListing(it); error = null }
+                                                .onFailure { error = it.message }
+                                        }
+                                    })
                                 return@items
                             }
                             val workspace = (entry as WorkspaceListEntry.Workspace).workspace
                             NativeWorkspaceRow(
                                 workspace = workspace,
+                                groups = groups,
+                                canMove = "workspace.move.v1" in hostCapabilities,
                                 onOpen = {
                                     workspace.terminals.firstOrNull()?.let { terminal ->
                                         selectedWorkspace = workspace; selectedTerminal = terminal
@@ -743,6 +815,11 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                                                         it.id == panelId
                                                     } ?: NativeBrowser(panelId, created.optString("title"))
                                                 }
+                                                action.startsWith("move:") -> {
+                                                    active.moveWorkspace(workspace.id, workspace.windowId,
+                                                        action.removePrefix("move:").takeIf { it.isNotBlank() })
+                                                    applyListing(active.workspaces())
+                                                }
                                                 else -> {
                                                     if (action == "close") active.closeWorkspace(workspace.id, workspace.windowId)
                                                     else active.workspaceAction(workspace.id, workspace.windowId, action, title)
@@ -766,12 +843,11 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                         if (entries.isEmpty()) item { Text("No workspaces found.", Modifier.padding(24.dp), color = nativeMuted) }
                     }
                 }
-                if (!notificationTab) {
-                    OutlinedTextField(search, { search = it },
-                        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
-                        placeholder = { Text("⌕  Search", color = nativeMuted) },
-                        singleLine = true, shape = RoundedCornerShape(28.dp))
-                }
+                OutlinedTextField(search, { search = it },
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
+                    placeholder = { Text(if (notificationTab) "⌕  Search notifications" else "⌕  Search workspaces",
+                        color = nativeMuted) },
+                    singleLine = true, shape = RoundedCornerShape(28.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     TextButton(onClick = { notificationTab = false }) { Text("Workspaces", color = if (notificationTab) nativeMuted else nativeAccent) }
                     TextButton(onClick = { notificationTab = true }) {
@@ -842,14 +918,72 @@ private fun parseGroups(value: JSONObject): List<NativeGroup> {
         for (index in 0 until array.length()) {
             val item = array.optJSONObject(index) ?: continue
             val id = item.optString("id")
-            if (id.isNotBlank()) add(NativeGroup(id, item.optString("name", "Group"), item.optBoolean("is_collapsed")))
+            if (id.isNotBlank()) add(NativeGroup(id, item.optString("name", "Group"),
+                item.optBoolean("is_collapsed"), item.optBoolean("is_pinned")))
         }
     }
 }
 
 @Composable
+private fun NativeGroupHeaderRow(
+    group: NativeGroup,
+    expanded: Boolean,
+    canEdit: Boolean,
+    onToggle: () -> Unit,
+    onAction: (String, String?) -> Unit
+) {
+    var menuOpen by remember(group.id) { mutableStateOf(false) }
+    var renaming by remember(group.id) { mutableStateOf(false) }
+    var confirmingUngroup by remember(group.id) { mutableStateOf(false) }
+    var name by remember(group.id) { mutableStateOf(group.name) }
+    Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text("${if (expanded) "⌄" else "›"}  ${group.name}",
+            Modifier.weight(1f).clickable(onClick = onToggle)
+                .padding(horizontal = 4.dp, vertical = 12.dp),
+            color = nativeMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        if (canEdit) Box {
+            TextButton(onClick = { menuOpen = true }) { Text("⋯", color = nativeMuted) }
+            DropdownMenu(menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(text = { Text("Rename group") }, onClick = {
+                    menuOpen = false; name = group.name; renaming = true
+                })
+                DropdownMenuItem(text = { Text(if (group.isPinned) "Unpin group" else "Pin group") },
+                    onClick = {
+                        menuOpen = false
+                        onAction(if (group.isPinned) "unpin" else "pin", null)
+                    })
+                DropdownMenuItem(text = { Text("Ungroup workspaces") }, onClick = {
+                    menuOpen = false; confirmingUngroup = true
+                })
+            }
+        }
+    }
+    if (renaming) AlertDialog(
+        onDismissRequest = { renaming = false },
+        title = { Text("Rename group") },
+        text = { OutlinedTextField(name, { name = it }, singleLine = true) },
+        confirmButton = { TextButton(onClick = {
+            renaming = false; onAction("rename", name)
+        }, enabled = name.isNotBlank()) { Text("Save") } },
+        dismissButton = { TextButton(onClick = { renaming = false }) { Text("Cancel") } }
+    )
+    if (confirmingUngroup) AlertDialog(
+        onDismissRequest = { confirmingUngroup = false },
+        title = { Text("Ungroup ${group.name}?") },
+        text = { Text("The workspaces will stay open.") },
+        confirmButton = { TextButton(onClick = {
+            confirmingUngroup = false; onAction("ungroup", null)
+        }) { Text("Ungroup") } },
+        dismissButton = { TextButton(onClick = { confirmingUngroup = false }) { Text("Cancel") } }
+    )
+}
+
+@Composable
 private fun NativeWorkspaceRow(
     workspace: NativeWorkspace,
+    groups: List<NativeGroup>,
+    canMove: Boolean,
     onOpen: () -> Unit,
     onAction: (String, String?) -> Unit
 ) {
@@ -896,6 +1030,16 @@ private fun NativeWorkspaceRow(
                 DropdownMenuItem(text = { Text(if (workspace.hasUnread) "Mark read" else "Mark unread") }, onClick = {
                     expanded = false; onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
                 })
+                if (canMove) {
+                    groups.filter { it.id != workspace.groupId }.forEach { group ->
+                        DropdownMenuItem(text = { Text("Move to ${group.name}") }, onClick = {
+                            expanded = false; onAction("move:${group.id}", null)
+                        })
+                    }
+                    if (workspace.groupId != null) DropdownMenuItem(text = { Text("Remove from group") }, onClick = {
+                        expanded = false; onAction("move:", null)
+                    })
+                }
                 DropdownMenuItem(text = { Text("Close workspace", color = Color(0xFFFF9999)) }, onClick = {
                     expanded = false; confirmClose = true
                 })

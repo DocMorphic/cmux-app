@@ -138,6 +138,24 @@ class MobileRpcClient(
         if (!windowId.isNullOrBlank()) params.put("window_id", windowId)
         return request("workspace.close", params)
     }
+    suspend fun createGroup(title: String): JSONObject {
+        val params = JSONObject()
+        title.trim().takeIf { it.isNotEmpty() }?.let { params.put("title", it) }
+        return request("workspace.group.create", params)
+    }
+    suspend fun groupAction(groupId: String, action: String, title: String? = null): JSONObject {
+        require(action in setOf("rename", "pin", "unpin", "ungroup"))
+        val params = JSONObject().put("group_id", groupId).put("action", action)
+        if (action == "rename") params.put("title", title?.trim()?.takeIf { it.isNotEmpty() }
+            ?: error("Enter a group title"))
+        return request("workspace.group.action", params)
+    }
+    suspend fun moveWorkspace(workspaceId: String, windowId: String?, groupId: String?): JSONObject {
+        val params = JSONObject().put("workspace_id", workspaceId).put("client_id", clientId)
+        if (!windowId.isNullOrBlank()) params.put("window_id", windowId)
+        if (!groupId.isNullOrBlank()) params.put("group_id", groupId)
+        return request("workspace.move", params)
+    }
     suspend fun createTerminal(workspaceId: String): JSONObject = request(
         "terminal.create", JSONObject().put("workspace_id", workspaceId)
     )
