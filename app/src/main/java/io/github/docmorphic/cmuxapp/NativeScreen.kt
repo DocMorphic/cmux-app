@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.DateFormat
+import java.util.Date
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
@@ -38,7 +41,10 @@ private val nativePanel = Color(0xFF191B1F)
 private val nativeAccent = Color(0xFF76B9FF)
 private val nativeMuted = Color(0xFF9B9FA8)
 
-private data class NativeWorkspace(val id: String, val title: String, val terminals: List<NativeTerminal>)
+private data class NativeWorkspace(
+    val id: String, val title: String, val terminals: List<NativeTerminal>,
+    val directory: String?, val hasUnread: Boolean, val lastActivityAt: Double?
+)
 private data class NativeTerminal(val id: String, val title: String)
 private data class NativeNotification(
     val id: String, val workspaceId: String, val surfaceId: String?,
@@ -73,6 +79,7 @@ fun NativeScreen(onUseHelper: () -> Unit) {
     var workspaces by remember { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
     var notifications by remember { mutableStateOf<List<NativeNotification>>(emptyList()) }
     var notificationTab by remember { mutableStateOf(false) }
+    var search by remember { mutableStateOf("") }
     var selectedWorkspace by remember { mutableStateOf<NativeWorkspace?>(null) }
     var selectedTerminal by remember { mutableStateOf<NativeTerminal?>(null) }
     var input by remember { mutableStateOf("") }
@@ -235,9 +242,29 @@ fun NativeScreen(onUseHelper: () -> Unit) {
             }
             selectedTerminal != null -> {
                 val terminal = selectedTerminal!!
-                Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { selectedTerminal = null; selectedWorkspace = null }) { Text("‹  Workspaces") }
-                    Text(terminal.title, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { selectedTerminal = null; selectedWorkspace = null }) {
+                        Text("‹  ${workspaces.size}", color = nativeAccent)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text(terminal.title.ifBlank { selectedWorkspace?.title ?: "Terminal" },
+                        Modifier.background(nativePanel, RoundedCornerShape(18.dp))
+                            .padding(horizontal = 15.dp, vertical = 7.dp),
+                        fontWeight = FontWeight.Medium, fontSize = 13.sp, maxLines = 1)
+                    Spacer(Modifier.weight(1f))
+                    Text("▣", color = nativeMuted, fontSize = 20.sp)
+                }
+                selectedWorkspace?.terminals?.takeIf { it.size > 1 }?.let { terminals ->
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        terminals.forEach { item ->
+                            TextButton(onClick = { selectedTerminal = item }) {
+                                Text(item.title.ifBlank { "Terminal" },
+                                    color = if (item.id == terminal.id) nativeAccent else nativeMuted,
+                                    fontSize = 12.sp, maxLines = 1)
+                            }
+                        }
+                    }
                 }
                 val currentGrid = grid
                 @Suppress("UNUSED_VARIABLE") val observedRevision = gridRevision
@@ -268,7 +295,21 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                 }
             }
             else -> {
-                NativeHeader(hostName)
+                Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { error = "Connected to $hostName" }) { Text("◉", color = nativeMuted, fontSize = 23.sp) }
+                    Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { notificationTab = !notificationTab }) {
+                        Text(if (notificationTab) "▤" else "☷", color = nativeMuted, fontSize = 21.sp)
+                    }
+                    TextButton(onClick = {
+                        val active = client ?: return@TextButton
+                        scope.launch { runCatching { active.request("workspace.create") }
+                            .onSuccess { workspaces = parseWorkspaces(it); notificationTab = false; error = null }
+                            .onFailure { error = it.message } }
+                    }) { Text("+", color = nativeAccent, fontSize = 25.sp) }
+                }
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (client == null && !busy) {
                     Column(Modifier.padding(horizontal = 18.dp)) {
@@ -302,20 +343,25 @@ fun NativeScreen(onUseHelper: () -> Unit) {
                     }
                 } else {
                     LazyColumn(Modifier.weight(1f)) {
-                        items(workspaces, key = { it.id }) { workspace ->
-                            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)) {
-                                Text(workspace.title, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-                                workspace.terminals.forEach { terminal ->
-                                    Text(terminal.title.ifBlank { "Terminal" },
-                                        Modifier.fillMaxWidth().clickable {
-                                            selectedWorkspace = workspace; selectedTerminal = terminal
-                                        }.padding(vertical = 12.dp), color = nativeAccent)
+                        items(workspaces.filter { it.title.contains(search, true) ||
+                            it.directory?.contains(search, true) == true ||
+                            it.terminals.any { terminal -> terminal.title.contains(search, true) }
+                        }, key = { it.id }) { workspace ->
+                            NativeWorkspaceRow(workspace) {
+                                workspace.terminals.firstOrNull()?.let { terminal ->
+                                    selectedWorkspace = workspace; selectedTerminal = terminal
                                 }
                             }
                             HorizontalDivider(color = Color(0xFF292C31))
                         }
                         if (workspaces.isEmpty()) item { Text("No workspaces yet.", Modifier.padding(24.dp), color = nativeMuted) }
                     }
+                }
+                if (!notificationTab) {
+                    OutlinedTextField(search, { search = it },
+                        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
+                        placeholder = { Text("⌕  Search", color = nativeMuted) },
+                        singleLine = true, shape = RoundedCornerShape(28.dp))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     TextButton(onClick = { notificationTab = false }) { Text("Workspaces", color = if (notificationTab) nativeMuted else nativeAccent) }
@@ -357,8 +403,37 @@ private fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 val terminalId = terminal.optString("id")
                 if (terminalId.isNotBlank()) terminals += NativeTerminal(terminalId, terminal.optString("title"))
             }
-            add(NativeWorkspace(id, workspace.optString("title", "Workspace"), terminals))
+            add(NativeWorkspace(
+                id, workspace.optString("title", "Workspace"), terminals,
+                workspace.optString("current_directory").takeIf { it.isNotBlank() && it != "null" },
+                workspace.optBoolean("has_unread"),
+                workspace.optDouble("last_activity_at").takeIf { it > 0 }
+            ))
         }
+    }
+}
+
+@Composable
+private fun NativeWorkspaceRow(workspace: NativeWorkspace, onOpen: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(enabled = workspace.terminals.isNotEmpty(), onClick = onOpen)
+        .padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (workspace.hasUnread) Text("●", color = nativeAccent, fontSize = 9.sp, modifier = Modifier.width(10.dp))
+        else Spacer(Modifier.width(10.dp))
+        val colors = listOf(Color(0xFFFFB52E), Color(0xFF58CFA2), Color(0xFF83B9FF), Color(0xFFFF8E80))
+        Box(Modifier.size(37.dp).background(colors[(workspace.id.hashCode() and Int.MAX_VALUE) % colors.size], CircleShape),
+            contentAlignment = Alignment.Center) { Text("›", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold) }
+        Spacer(Modifier.width(13.dp))
+        Column(Modifier.weight(1f)) {
+            Text(workspace.title.ifBlank { "Workspace" }, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(workspace.directory ?: workspace.terminals.firstOrNull()?.title.orEmpty(),
+                color = nativeMuted, fontSize = 11.sp, maxLines = 1)
+        }
+        workspace.lastActivityAt?.let { seconds ->
+            Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date((seconds * 1000).toLong())),
+                color = nativeMuted, fontSize = 10.sp)
+        }
+        Spacer(Modifier.width(8.dp))
+        Text("›", color = nativeMuted, fontSize = 22.sp)
     }
 }
 

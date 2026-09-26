@@ -8,6 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -35,7 +36,10 @@ class MobileRpcClient(
     private val writeMutex = Mutex()
     private val stateLock = Any()
     private val pending = mutableMapOf<String, CompletableDeferred<JSONObject>>()
-    private val eventsMutable = MutableSharedFlow<Event>(extraBufferCapacity = 128)
+    private val eventsMutable = MutableSharedFlow<Event>(
+        extraBufferCapacity = 8,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     val events = eventsMutable.asSharedFlow()
     private val disconnectedMutable = MutableSharedFlow<Throwable>(replay = 1)
     val disconnected = disconnectedMutable.asSharedFlow()
@@ -73,11 +77,16 @@ class MobileRpcClient(
         require(method.isNotBlank())
         val id = UUID.randomUUID().toString()
         val body = JSONObject().put("id", id).put("method", method).put("params", params)
-        if (method != "mobile.host.status") {
-            val token = accessToken()?.trim()
-            require(!token.isNullOrEmpty()) { "Sign in to cmux with the same account as your Mac" }
+        val token = if (method == "mobile.host.status") {
+            runCatching { accessToken()?.trim() }.getOrNull()
+        } else {
+            accessToken()?.trim().also {
+                require(!it.isNullOrEmpty()) { "Sign in to cmux with the same account as your Mac" }
+            }
+        }
+        if (!token.isNullOrEmpty()) {
             val auth = JSONObject().put("stack_access_token", token)
-            if (!attachToken.isNullOrBlank()) auth.put("attach_token", attachToken)
+            if (method != "mobile.host.status" && !attachToken.isNullOrBlank()) auth.put("attach_token", attachToken)
             body.put("auth", auth)
         }
         val answer = CompletableDeferred<JSONObject>()
