@@ -138,6 +138,10 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     var notifications by remember { mutableStateOf<List<NativeNotification>>(emptyList()) }
     var notificationTab by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
+    var unreadWorkspacesOnly by remember { mutableStateOf(false) }
+    var createMenuOpen by remember { mutableStateOf(false) }
+    var workspaceFilterMenuOpen by remember { mutableStateOf(false) }
+    var computerMenuOpen by remember { mutableStateOf(false) }
     var selectedWorkspace by remember { mutableStateOf<NativeWorkspace?>(null) }
     var selectedTerminal by remember { mutableStateOf<NativeTerminal?>(null) }
     var selectedBrowser by remember { mutableStateOf<NativeBrowser?>(null) }
@@ -734,16 +738,28 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                     onBack = { selectedChangesWorkspace = null })
             }
             else -> {
-                Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 16.dp),
+                Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { showSettings = true }) {
                         Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
                     }
+                    if (!notificationTab) Box {
+                        TextButton(onClick = { computerMenuOpen = true }) {
+                            Text("▣", color = nativeMuted, fontSize = 19.sp)
+                        }
+                        DropdownMenu(computerMenuOpen, onDismissRequest = { computerMenuOpen = false }) {
+                            pairedMacs.forEach { mac ->
+                                DropdownMenuItem(text = { Text(mac.name.ifBlank { "cmux" }) }, onClick = {
+                                    computerMenuOpen = false; code = mac.code
+                                }, leadingIcon = { Text(if (code == mac.code) "✓" else " ") })
+                            }
+                            DropdownMenuItem(text = { Text("Pair another Mac") }, onClick = {
+                                computerMenuOpen = false; code = ""
+                            })
+                        }
+                    }
                     Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
                         fontSize = 17.sp, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { notificationTab = !notificationTab }) {
-                        Text(if (notificationTab) "▤" else "☷", color = nativeMuted, fontSize = 21.sp)
-                    }
                     if (notificationTab) {
                         TextButton(onClick = {
                             val active = client ?: return@TextButton
@@ -754,31 +770,54 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                             Text("Read all", color = nativeAccent, fontSize = 13.sp)
                         }
                     } else {
-                        TextButton(onClick = { if (client != null) showTaskComposer = true }) {
-                            Text("Task", color = nativeAccent, fontSize = 13.sp)
-                        }
-                        if ("workspace.group_create.v1" in hostCapabilities) {
-                            TextButton(onClick = { if (client != null) showCreateGroup = true }) {
-                                Text("Group", color = nativeAccent, fontSize = 13.sp)
+                        Box {
+                            TextButton(onClick = { workspaceFilterMenuOpen = true }) {
+                                Text(if (unreadWorkspacesOnly) "◉" else "☷", color = nativeMuted,
+                                    fontSize = 21.sp)
+                            }
+                            DropdownMenu(workspaceFilterMenuOpen,
+                                onDismissRequest = { workspaceFilterMenuOpen = false }) {
+                                DropdownMenuItem(text = { Text("All workspaces") }, onClick = {
+                                    unreadWorkspacesOnly = false; workspaceFilterMenuOpen = false
+                                }, leadingIcon = { Text(if (unreadWorkspacesOnly) " " else "✓") })
+                                DropdownMenuItem(text = { Text("Unread") }, onClick = {
+                                    unreadWorkspacesOnly = true; workspaceFilterMenuOpen = false
+                                }, leadingIcon = { Text(if (unreadWorkspacesOnly) "✓" else " ") })
                             }
                         }
-                        TextButton(onClick = {
-                            val active = client ?: return@TextButton
-                            scope.launch { runCatching { active.request("workspace.create") }
-                                .onSuccess { response ->
-                                    applyListing(response); notificationTab = false; error = null
-                                    val created = workspaces.firstOrNull {
-                                        it.id == response.optString("created_workspace_id")
-                                    }
-                                    if (created != null) {
-                                        selectedWorkspace = created
-                                        selectedTerminal = created.terminals.firstOrNull {
-                                            it.id == response.optString("created_terminal_id")
-                                        } ?: created.terminals.firstOrNull()
-                                    }
+                        Box {
+                            TextButton(onClick = { createMenuOpen = true }, enabled = client != null) {
+                                Text("+", color = nativeAccent, fontSize = 25.sp)
+                            }
+                            DropdownMenu(createMenuOpen, onDismissRequest = { createMenuOpen = false }) {
+                                DropdownMenuItem(text = { Text("New workspace") }, onClick = {
+                                    createMenuOpen = false
+                                    val active = client
+                                    if (active != null) scope.launch { runCatching { active.request("workspace.create") }
+                                        .onSuccess { response ->
+                                            applyListing(response); notificationTab = false; error = null
+                                            val created = workspaces.firstOrNull {
+                                                it.id == response.optString("created_workspace_id")
+                                            }
+                                            if (created != null) {
+                                                selectedWorkspace = created
+                                                selectedTerminal = created.terminals.firstOrNull {
+                                                    it.id == response.optString("created_terminal_id")
+                                                } ?: created.terminals.firstOrNull()
+                                            }
+                                        }
+                                        .onFailure { error = it.message } }
+                                })
+                                DropdownMenuItem(text = { Text("New task") }, onClick = {
+                                    createMenuOpen = false; showTaskComposer = true
+                                })
+                                if ("workspace.group_create.v1" in hostCapabilities) {
+                                    DropdownMenuItem(text = { Text("New group") }, onClick = {
+                                        createMenuOpen = false; showCreateGroup = true
+                                    })
                                 }
-                                .onFailure { error = it.message } }
-                        }) { Text("+", color = nativeAccent, fontSize = 25.sp) }
+                            }
+                        }
                     }
                 }
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -823,10 +862,11 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                         }
                     }
                 } else {
-                    val matching = workspaces.filter { it.title.contains(search, true) ||
+                    val matching = workspaces.filter { (!unreadWorkspacesOnly || it.hasUnread) &&
+                        (it.title.contains(search, true) ||
                         it.directory?.contains(search, true) == true ||
                         it.preview?.contains(search, true) == true ||
-                        it.terminals.any { terminal -> terminal.title.contains(search, true) }
+                        it.terminals.any { terminal -> terminal.title.contains(search, true) })
                     }
                     val entries = buildList<WorkspaceListEntry> {
                         if (groups.isEmpty()) matching.forEach { add(WorkspaceListEntry.Workspace(it)) }
