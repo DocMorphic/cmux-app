@@ -82,6 +82,10 @@ fun NativeBrowserView(
                 .optString("stream_id").takeIf { it.isNotBlank() }
             val descriptor = client.startBrowserStream(panelId, viewportWidth, viewportHeight, viewportScale)
             address = descriptor.optString("url")
+            descriptor.optJSONObject("pending_dialog")?.let {
+                dialog = it
+                dialogText = it.optJSONObject("text_field")?.optString("initial").orEmpty()
+            }
             collector.join()
         } catch (failure: Throwable) {
             error = failure.message ?: "Browser stream disconnected"

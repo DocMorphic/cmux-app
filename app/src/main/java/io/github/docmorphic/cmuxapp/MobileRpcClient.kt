@@ -137,6 +137,12 @@ class MobileRpcClient(
         if (!windowId.isNullOrBlank()) params.put("window_id", windowId)
         return request("workspace.close", params)
     }
+    suspend fun createTerminal(workspaceId: String): JSONObject = request(
+        "terminal.create", JSONObject().put("workspace_id", workspaceId)
+    )
+    suspend fun createBrowser(workspaceId: String): JSONObject = request(
+        "mobile.browser.create", JSONObject().put("workspace_id", workspaceId)
+    )
     suspend fun browserPanels(workspaceId: String): JSONObject = request(
         "mobile.browser.list", JSONObject().put("workspace_id", workspaceId)
     )

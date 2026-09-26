@@ -513,7 +513,18 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                     TextButton(onClick = {
                         val active = client ?: return@TextButton
                         scope.launch { runCatching { active.request("workspace.create") }
-                            .onSuccess { applyListing(it); notificationTab = false; error = null }
+                            .onSuccess { response ->
+                                applyListing(response); notificationTab = false; error = null
+                                val created = workspaces.firstOrNull {
+                                    it.id == response.optString("created_workspace_id")
+                                }
+                                if (created != null) {
+                                    selectedWorkspace = created
+                                    selectedTerminal = created.terminals.firstOrNull {
+                                        it.id == response.optString("created_terminal_id")
+                                    } ?: created.terminals.firstOrNull()
+                                }
+                            }
                             .onFailure { error = it.message } }
                     }) { Text("+", color = nativeAccent, fontSize = 25.sp) }
                 }
@@ -598,10 +609,34 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                                     val active = client
                                     if (active != null) scope.launch {
                                         runCatching {
-                                            if (action == "close") active.closeWorkspace(workspace.id, workspace.windowId)
-                                            else active.workspaceAction(workspace.id, workspace.windowId, action, title)
-                                            active.workspaces()
-                                        }.onSuccess { applyListing(it); error = null }
+                                            when (action) {
+                                                "terminal.create" -> {
+                                                    val listing = active.createTerminal(workspace.id)
+                                                    applyListing(listing)
+                                                    val updated = workspaces.firstOrNull { it.id == workspace.id }
+                                                    selectedWorkspace = updated
+                                                    selectedTerminal = updated?.terminals?.firstOrNull {
+                                                        it.id == listing.optString("created_terminal_id")
+                                                    } ?: updated?.terminals?.lastOrNull()
+                                                }
+                                                "browser.create" -> {
+                                                    val created = active.createBrowser(workspace.id)
+                                                    val panelId = created.optString("panel_id")
+                                                    require(panelId.isNotBlank()) { "Mac did not return a browser panel" }
+                                                    applyListing(active.workspaces())
+                                                    val updated = workspaces.firstOrNull { it.id == workspace.id }
+                                                    selectedWorkspace = updated
+                                                    selectedBrowser = updated?.browsers?.firstOrNull {
+                                                        it.id == panelId
+                                                    } ?: NativeBrowser(panelId, created.optString("title"))
+                                                }
+                                                else -> {
+                                                    if (action == "close") active.closeWorkspace(workspace.id, workspace.windowId)
+                                                    else active.workspaceAction(workspace.id, workspace.windowId, action, title)
+                                                    applyListing(active.workspaces())
+                                                }
+                                            }
+                                        }.onSuccess { error = null }
                                             .onFailure { error = it.message }
                                     }
                                 }
@@ -732,6 +767,12 @@ private fun NativeWorkspaceRow(
         Box {
             TextButton(onClick = { expanded = true }) { Text("⋯", color = nativeMuted, fontSize = 20.sp) }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                DropdownMenuItem(text = { Text("New terminal") }, onClick = {
+                    expanded = false; onAction("terminal.create", null)
+                })
+                DropdownMenuItem(text = { Text("New browser") }, onClick = {
+                    expanded = false; onAction("browser.create", null)
+                })
                 DropdownMenuItem(text = { Text("Rename") }, onClick = { expanded = false; title = workspace.title; rename = true })
                 DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") }, onClick = {
                     expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null)
