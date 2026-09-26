@@ -126,7 +126,10 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null) {
             var connected: MobileRpcClient? = null
             var lastError: Throwable? = null
             for (route in pairing.routes) {
-                val candidate = MobileRpcClient(route, account::accessToken)
+                val target = try { TailscaleRoute.resolve(context, route) }
+                    catch (failure: Throwable) { lastError = failure; continue }
+                val candidate = MobileRpcClient(target.route, account::accessToken,
+                    socketFactory = target.socketFactory)
                 try { candidate.connect(); connected = candidate; break }
                 catch (failure: Throwable) { lastError = failure; candidate.close() }
             }

@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -50,18 +51,34 @@ fun NativeBrowserView(
     var address by remember(panelId) { mutableStateOf("") }
     var textInput by remember(panelId) { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var dialog by remember(panelId) { mutableStateOf<JSONObject?>(null) }
+    var dialogText by remember(panelId) { mutableStateOf("") }
 
     LaunchedEffect(client, panelId, viewportWidth, viewportHeight, viewportScale) {
         val collector = launch {
             client.events.collect { event ->
-                if (event.topic != "browser.frame" || event.payload.optString("panel_id") != panelId) return@collect
+                if (event.payload.optString("panel_id") != panelId) return@collect
+                if (event.topic == "browser.dialog") {
+                    dialog = event.payload
+                    dialogText = event.payload.optJSONObject("text_field")?.optString("initial").orEmpty()
+                    return@collect
+                }
+                if (event.topic == "browser.dialog.resolved") {
+                    if (dialog?.optString("dialog_id") == event.payload.optString("dialog_id")) dialog = null
+                    return@collect
+                }
+                if (event.topic == "browser.state") {
+                    event.payload.optString("url").takeIf { it.isNotBlank() }?.let { address = it }
+                    return@collect
+                }
+                if (event.topic != "browser.frame") return@collect
                 val decoded = withContext(Dispatchers.Default) { decodeFrame(event.payload) } ?: return@collect
                 if (decoded.sequence > (frame?.sequence ?: -1)) frame = decoded
             }
         }
         var streamId: String? = null
         try {
-            streamId = client.subscribe(listOf("browser.frame", "browser.state", "browser.dialog"))
+            streamId = client.subscribe(listOf("browser.frame", "browser.state", "browser.dialog", "browser.dialog.resolved"))
                 .optString("stream_id").takeIf { it.isNotBlank() }
             val descriptor = client.startBrowserStream(panelId, viewportWidth, viewportHeight, viewportScale)
             address = descriptor.optString("url")
@@ -79,6 +96,48 @@ fun NativeBrowserView(
         val current = frame ?: return@LaunchedEffect
         runCatching { client.acknowledgeBrowserFrame(panelId, current.sequence) }
             .onFailure { error = it.message }
+    }
+
+    val activeDialog = dialog
+    if (activeDialog != null) {
+        val buttons = activeDialog.optJSONArray("buttons")
+        fun respond(buttonId: String) {
+            val id = activeDialog.optString("dialog_id")
+            val entry = activeDialog.optJSONObject("text_field")
+            val text = if (entry != null) dialogText else null
+            scope.launch { runCatching { client.respondBrowserDialog(panelId, id, buttonId, text) }
+                .onSuccess { dialog = null; dialogText = "" }
+                .onFailure { error = it.message } }
+        }
+        AlertDialog(
+            onDismissRequest = {
+                val cancel = (0 until (buttons?.length() ?: 0)).mapNotNull { buttons?.optJSONObject(it) }
+                    .firstOrNull { it.optString("role") == "cancel" }
+                if (cancel != null) respond(cancel.optString("id"))
+            },
+            title = { Text(activeDialog.optString("title").ifBlank { activeDialog.optString("host", "Browser") }) },
+            text = {
+                Column {
+                    Text(activeDialog.optString("message"))
+                    activeDialog.optJSONObject("text_field")?.let { field ->
+                        OutlinedTextField(dialogText, { dialogText = it },
+                            label = { Text(field.optString("placeholder", "Response")) },
+                            visualTransformation = if (field.optBoolean("secure")) PasswordVisualTransformation()
+                                else androidx.compose.ui.text.input.VisualTransformation.None)
+                    }
+                }
+            },
+            confirmButton = {
+                Row {
+                    if (buttons != null) for (index in 0 until buttons.length()) {
+                        val button = buttons.optJSONObject(index) ?: continue
+                        TextButton(onClick = { respond(button.optString("id")) }) {
+                            Text(button.optString("label"))
+                        }
+                    }
+                }
+            }
+        )
     }
 
     Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))) {

@@ -56,6 +56,14 @@ object PairingCodeParser {
         require(host != "localhost" && host != "127.0.0.1" && host != "::1") {
             "A phone cannot connect to the Mac through a loopback address"
         }
+        require(isTailscaleHost(host)) { "The Mac route must be a Tailscale address" }
         return PairingCode.Route(host, port)
+    }
+
+    private fun isTailscaleHost(host: String): Boolean {
+        if (host.lowercase().endsWith(".ts.net") && host.length > ".ts.net".length) return true
+        val parts = host.split('.').map { it.toIntOrNull() ?: return false }
+        return parts.size == 4 && parts[0] == 100 && parts[1] in 64..127 &&
+            parts.drop(2).all { it in 0..255 }
     }
 }

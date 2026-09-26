@@ -28,5 +28,6 @@ class PairingCodeParserTest {
     @Test fun rejectsLoopbackAndUnknownVersions() {
         assertTrue(PairingCodeParser.parse("cmux-ios://attach?v=2&r=127.0.0.1:58465").isFailure)
         assertTrue(PairingCodeParser.parse("cmux-ios://attach?v=4&i=peer").isFailure)
+        assertTrue(PairingCodeParser.parse("cmux-ios://attach?v=2&r=example.com:58465").isFailure)
     }
 }

@@ -19,6 +19,7 @@ import java.io.EOFException
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.UUID
+import javax.net.SocketFactory
 
 /**
  * The control channel of cmux's mobile RPC protocol. The caller must supply a
@@ -28,7 +29,8 @@ import java.util.UUID
 class MobileRpcClient(
     private val route: PairingCode.Route,
     private val accessToken: suspend () -> String?,
-    private val attachToken: String? = null
+    private val attachToken: String? = null,
+    private val socketFactory: SocketFactory = SocketFactory.getDefault()
 ) : AutoCloseable {
     data class Event(val topic: String, val payload: JSONObject, val streamId: String?)
 
@@ -53,7 +55,7 @@ class MobileRpcClient(
             check(!closed) { "Connection has been closed" }
             if (socket?.isConnected == true && socket?.isClosed == false) return@withContext
         }
-        val candidate = Socket()
+        val candidate = socketFactory.createSocket()
         try {
             candidate.connect(InetSocketAddress(route.host, route.port), 15_000)
             candidate.tcpNoDelay = true
@@ -166,6 +168,14 @@ class MobileRpcClient(
     suspend fun browserText(panelId: String, text: String): JSONObject = request(
         "mobile.browser.input.text", JSONObject().put("panel_id", panelId).put("text", text)
     )
+    suspend fun respondBrowserDialog(
+        panelId: String, dialogId: String, buttonId: String, text: String?
+    ): JSONObject {
+        val params = JSONObject().put("panel_id", panelId).put("dialog_id", dialogId)
+            .put("button_id", buttonId)
+        if (text != null) params.put("text", text)
+        return request("mobile.browser.dialog.respond", params)
+    }
     suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int): JSONObject =
         request("mobile.terminal.replay", JSONObject()
             .put("workspace_id", workspaceId)
