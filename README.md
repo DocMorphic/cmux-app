@@ -4,6 +4,8 @@ An **unofficial Android companion project** for [cmux](https://cmux.com). The go
 
 The current app is a **research build**. It opens an offline UI preview and validates the current minimal cmux pairing QR formats. An experimental [Mac helper](bridge/README.md) can list workspaces, poll plain terminal text, and send input over Tailscale. It is not yet equivalent to the official iOS app. See [the implementation plan](docs/PLAN.md).
 
+For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
+
 ## What was researched
 
 The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux, shows live terminal workspaces, lets users control terminal sessions, and forwards agent notifications. The [iOS guide](https://cmux.com/docs/ios) says the terminal stream is direct over a private network such as Tailscale; cmux's servers handle account and device metadata and, if enabled, push notification delivery. The [public source](https://github.com/manaflow-ai/cmux/tree/main/ios) also shows pairing, attach tickets, multiplexed RPC, workspace lists, terminal rendering, browser surfaces, and more. The detailed source review is in [RESEARCH.md](docs/RESEARCH.md).
