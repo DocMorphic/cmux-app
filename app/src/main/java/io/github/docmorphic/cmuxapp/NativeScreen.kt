@@ -93,6 +93,7 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     var signedIn by remember { mutableStateOf(account.isSignedIn()) }
     var code by remember { mutableStateOf(store.load()?.optString("pairing_code").orEmpty()) }
     var pairingText by remember { mutableStateOf("") }
+    var pendingPairingCode by remember { mutableStateOf<String?>(null) }
     var email by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
     var codeSent by remember { mutableStateOf(false) }
@@ -137,8 +138,20 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
         if (value.has("groups")) groups = parseGroups(value)
     }
 
+    fun proposePairing(value: String) {
+        PairingCodeParser.parse(value).fold(
+            onSuccess = { pairing ->
+                if (pairing is PairingCode.Tailscale) {
+                    pendingPairingCode = value.trim()
+                    error = null
+                } else error = "This code uses Iroh. Ask cmux on your Mac to show its Tailscale QR."
+            },
+            onFailure = { error = it.message }
+        )
+    }
+
     LaunchedEffect(incomingCode) {
-        if (incomingCode != null && PairingCodeParser.parse(incomingCode).isSuccess) code = incomingCode
+        if (incomingCode != null && incomingCode != code) proposePairing(incomingCode)
     }
     LaunchedEffect(incomingWorkspaceId, workspaces, client) {
         val target = incomingWorkspaceId ?: return@LaunchedEffect
@@ -268,6 +281,32 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
     BackHandler(enabled = selectedBrowser != null) { selectedBrowser = null; selectedWorkspace = null }
     BackHandler(enabled = showSettings && selectedTerminal == null) { showSettings = false }
 
+    val proposedCode = pendingPairingCode
+    if (signedIn && proposedCode != null) {
+        val proposed = PairingCodeParser.parse(proposedCode).getOrNull() as? PairingCode.Tailscale
+        if (proposed != null) AlertDialog(
+            onDismissRequest = { pendingPairingCode = null },
+            title = { Text("Connect to this Mac?") },
+            text = {
+                Column {
+                    Text("cmux will send your account session to this Mac over Tailscale.")
+                    Spacer(Modifier.height(10.dp))
+                    proposed.routes.forEach { route ->
+                        Text("${route.host}:${route.port}", color = nativeAccent)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text("Continue only if this address came from your Mac’s pairing QR.",
+                        color = nativeMuted)
+                }
+            },
+            confirmButton = { TextButton(onClick = {
+                code = proposedCode
+                pendingPairingCode = null
+            }) { Text("Connect") } },
+            dismissButton = { TextButton(onClick = { pendingPairingCode = null }) { Text("Cancel") } }
+        )
+    }
+
     Column(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding()) {
         when {
             !signedIn -> {
@@ -376,19 +415,13 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
                     Button(onClick = {
                         scanner.startScan().addOnSuccessListener { barcode ->
                             val scanned = barcode.rawValue.orEmpty()
-                            PairingCodeParser.parse(scanned).fold(
-                                onSuccess = { code = scanned; error = null },
-                                onFailure = { error = it.message }
-                            )
+                            proposePairing(scanned)
                         }.addOnFailureListener { error = it.message }
                     }, modifier = Modifier.fillMaxWidth()) { Text("Scan cmux QR code") }
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(pairingText, { pairingText = it }, Modifier.fillMaxWidth(), label = { Text("Or paste pairing code") })
                     Button(onClick = {
-                        PairingCodeParser.parse(pairingText).fold(
-                            onSuccess = { code = pairingText.trim(); error = null },
-                            onFailure = { error = it.message }
-                        )
+                        proposePairing(pairingText)
                     }, enabled = pairingText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Connect") }
                     TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
                     if (pairedMacs.isNotEmpty()) TextButton(onClick = { showSettings = true }) { Text("Saved computers") }
@@ -567,7 +600,9 @@ fun NativeScreen(onUseHelper: () -> Unit, incomingCode: String? = null, incoming
             else -> {
                 Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { showSettings = true }) { Text("◉", color = nativeMuted, fontSize = 23.sp) }
+                    TextButton(onClick = { showSettings = true }) {
+                        Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
+                    }
                     Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
                         fontSize = 17.sp, modifier = Modifier.weight(1f))
                     TextButton(onClick = { notificationTab = !notificationTab }) {

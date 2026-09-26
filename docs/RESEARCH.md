@@ -1,6 +1,6 @@
 # cmux Android research
 
-Reviewed 2026-09-26 against public cmux source at `manaflow-ai/cmux` commit `e7f1c40bf0d05b6fdaf8c48d2e834897640a3cc5`. This is a source and documentation review; the TestFlight iOS app was not installed or run here.
+Reviewed 2026-09-26 against public cmux source at `manaflow-ai/cmux` commit `4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0`. This is a source and documentation review; the TestFlight iOS app was not installed or run here.
 
 ## What the iOS app does
 
@@ -18,9 +18,9 @@ The official app is a **companion**, not a terminal process running locally on t
 ## Connection model found in source
 
 1. The phone signs in with the same account as the Mac. The [iOS README](https://github.com/manaflow-ai/cmux/blob/main/ios/README.md) names Stack Auth sign-in and QR/manual pairing.
-2. The current [pairing QR codec](https://github.com/manaflow-ai/cmux/blob/main/Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxPairingQRCode.swift) has a v2 Tailscale route form and a v3 Iroh peer identity form. Codes intentionally contain no bearer token. The parser in this project only recognizes those minimal forms; it is not a pairing implementation.
+2. The current [pairing QR codec](https://github.com/manaflow-ai/cmux/blob/main/Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxPairingQRCode.swift) has a v2 Tailscale route form and a v3 Iroh peer identity form. Codes intentionally contain no bearer token. This Android project parses both forms and connects over v2 Tailscale routes. Iroh transport remains to be implemented.
 3. The Mac issues an attach ticket and route. Shared types live in [CMUXMobileCore](https://github.com/manaflow-ai/cmux/tree/main/Packages/Shared/CMUXMobileCore).
-4. The [mobile RPC client](https://github.com/manaflow-ai/cmux/blob/main/Packages/iOS/CmuxMobileRPC/Sources/CmuxMobileRPC/MobileCoreRPCClient.swift) uses a persistent byte transport, sends authorized requests, and subscribes to server events. The [frame codec](https://github.com/manaflow-ai/cmux/blob/main/Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/MobileSyncProtocol.swift) uses a four-byte big-endian length prefix and an 8 MiB default frame cap.
+4. The [mobile RPC client](https://github.com/manaflow-ai/cmux/blob/main/Packages/iOS/CmuxMobileRPC/Sources/CmuxMobileRPC/MobileCoreRPCClient.swift) uses a persistent byte transport, sends authorized requests, and subscribes to server events. The [frame codec](https://github.com/manaflow-ai/cmux/blob/main/Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/MobileSyncProtocol.swift) uses a four-byte big-endian length prefix and an 8 MiB default frame cap. Android implements that framed RPC contract with a VPN-bound socket and Stack account token.
 5. Terminal output and rendering have separate protocol models and fidelity requirements. A plain text terminal is insufficient for full-screen programs, colors, cursor movement, and scrollback.
 
 ## Constraints and decisions
