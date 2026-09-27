@@ -502,19 +502,19 @@ true` with its existing seed/verify, custom-template and completed-recovery mode
 Physical Pixel/Mac verification remains required.
 
 
-## Terminal momentum — next integration batch
+## Terminal momentum
 
-The current source passes 163 JVM checks and assembles debug plus instrumentation
-APKs. `TerminalScrollMotionTest` exercises a frame clock with actual decay; the
+The initial feature commit passed 163 JVM checks; the integration batch now passes
+172. `TerminalScrollMotionTest` exercises a frame clock with actual decay; the
 queue regression verifies that explicit input removes pending wheel delivery.
-`NativeTerminalMomentumTest` contains three compiled, not-yet-run checks for real
-touch-release inertia, the line-path deadline, new-touch/input cancellation and
-surface/mode replacement. Run these with the existing alternate-screen touch,
-viewport-anchored scrolling, raw-VT history and direct-keyboard production flows
-at the next integration milestone. No release APK was published for this commit.
+All three `NativeTerminalMomentumTest` cases now pass for real touch-release
+inertia, the line-path deadline, new-touch/input cancellation and surface/mode
+replacement. Existing alternate-screen touch, viewport-anchored scrolling, raw-VT
+history and direct-keyboard production flows also pass in the integration batch.
+The feature is included in signed build 138.
 
 
-## Task attachments — next integration batch
+## Task attachments
 
 Focused JVM invocation (34 passed):
 
@@ -527,13 +527,12 @@ restoration, retention at the 20-draft limit, ordered retry identity, exact prom
 and environment fields, multi-chunk retry, reconciliation without re-upload,
 capability/connection changes and a new operation after explicit Start Again.
 
-`NativeTaskAttachmentsTest` contains three compiled, pending runtime checks:
-actual document-picker callbacks and image preparation with upload/retry;
-encrypted payload restoration and stale-session fencing after sign-out; preview
-and removal preserving the prompt and another attachment. Run these together with
-`NativeTerminalMomentumTest`, task recovery/draft flows and the existing terminal
-attachment flow at the next integration milestone. No APK is published per feature
-commit. The last published APK remains build 133.
+All four `NativeTaskAttachmentsTest` cases now pass: actual document-picker
+callbacks and image preparation with upload/retry; encrypted payload restoration
+and stale-session fencing after sign-out; preview/external-viewer cleanup/removal;
+and prompt/keyboard-dock layout. They are part of the combined integration batch
+below. No APK is published per feature commit; signed build 138 combines these
+features with terminal momentum and the composer UI.
 
 
 ## Task composer integration milestone
@@ -557,3 +556,27 @@ assertions and two stopped performScrollTo loops are not presented as passing
 runs. The controlled coroutine dispatcher requires an explicit clock advance
 after a scroll action; TaskComposerTestActions uses one bounded action followed
 by visible-button clicking. The final 12-case run is clean.
+
+
+Attachment recovery also passes in two distinct instrumentation processes
+(12465 → 12653; seed 18.928 s, verify 6.029 s). The checks preserve encrypted file
+bytes/identity, custom template, directory/name/group, model/effort and completed
+operation identity. Explicit reconciliation opens the recovered task using its
+original operation ID and sends zero attachment uploads in the verification
+process. This is fixture-Mac evidence, not physical Pixel/Mac acceptance.
+
+
+## Signed integration build 138 (2026-09-28)
+
+[GitHub run 36353416757](https://github.com/DocMorphic/cmux-app/actions/runs/36353416757)
+succeeded at `86678870ba2a0837d5bc559b6a9da5e7b23c510a`. The signed APK includes
+task attachments, the composer canvas/dock and terminal momentum. Package/version,
+unchanged signing certificate, feature classes, absence of instrumentation fixtures,
+license assets and agent-image pixel equality were verified. The release FileProvider
+is non-exported and exposes only its task-preview cache directory with per-URI grants.
+
+The APK served to the phone matches SHA-256
+`93b43169fba7a6d8a4549a7127fa0d16461523068cee4e3bb8a6bb3ce55357df`
+(9052151 bytes). The download was fetched back over HTTP and matched the
+verified artifact. Detailed local receipt: `captures/releases/8667887-verification.json`.
+The full app parity goal and physical Pixel/Mac acceptance remain open.

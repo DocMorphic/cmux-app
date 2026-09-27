@@ -30,7 +30,7 @@ UI resemblance alone does not count.
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
-## Automated evidence (2026-09-27)
+## Automated evidence (2026-09-28)
 
 172 JVM tests pass. The Android suite now contains 70 cases (including four task attachment/layout checks and three momentum gesture checks): twenty-three Compose
 flows, seven task model/submission controls checks, four template checks, five task destination checks, five task draft checks, six completed-task recovery checks, one
@@ -401,7 +401,7 @@ were visually inspected with system bars and the search keyboard visible. The
 full 63-case instrumentation suite was not rerun for this batch.
 
 
-## Unreleased terminal momentum
+## Terminal momentum
 
 Android native spline decay, whole-row fractional carry and the upstream 450 ms
 alternate/legacy momentum limit are implemented. New touches, explicit input,
@@ -409,14 +409,15 @@ Latest, View as Text, geometry/surface/mode replacement and disposal cancel moti
 Confirmed local-primary history stops at its bounds. Typing drops queued scrolls;
 late scroll-response grids cannot replace the display after explicit input.
 
-The current source passes 163 JVM tests and compiles both debug APKs. Four added
+The initial implementation passed 163 JVM tests and compiled both debug APKs;
+the integrated batch now passes 172 JVM tests. Four added
 JVM checks cover carry/reversal, animated delivery and its deadline, cancellation/
-history bounds and dropping queued motion. Three Android gesture checks now pass in the integration batch described below. Build 133
-does not include this change. Pixel/Mac verification and pixel-precise rendering
+history bounds and dropping queued motion. Three Android gesture checks now pass in the integration batch described below.
+Build 138 includes this change. Pixel/Mac verification and pixel-precise rendering
 remain open.
 
 
-## Unreleased task attachments
+## Task attachments
 
 The pinned iOS task-attachment contract is now implemented: 10 attachments,
 8 MiB prepared images, 32 MiB files (including empty files), and 64 MiB total.
@@ -433,8 +434,9 @@ uploads; an explicit new task gets a new operation ID. Shell tasks retain but do
 not upload their draft attachments. Capability and session guards gate delivery.
 
 34 focused JVM checks pass (9 attachment contracts, 9 submission identity checks,
-12 task draft checks and 4 terminal attachment regressions). Four Android checks now pass for picker/import/retry, encrypted restoration/sign-out, preview/external-viewer cleanup/removal, and keyboard-dock layout. Build 133 does not
-include this feature. Rich IME attachment paste and real Mac/Pixel testing remain
+12 task draft checks and 4 terminal attachment regressions). Four Android checks
+now pass for picker/import/retry, encrypted restoration/sign-out, preview/external-
+viewer cleanup/removal, and keyboard-dock layout. Build 138 includes this feature. Rich IME attachment paste and real Mac/Pixel testing remain
 open; clipboard content-URI import does not claim rich IME coverage.
 
 
@@ -476,3 +478,27 @@ Inspected emulator captures: `captures/task-composer/task-composer-keyboard.png`
 and the production-flow `task-composer-canvas.png`. Physical Pixel/Mac acceptance,
 rich IME attachments, offline task editing, agent chat, Iroh, full Ghostty/inline
 image fidelity and other open rows above remain unverified or incomplete.
+
+
+Attachment recovery also passes in two distinct instrumentation processes
+(12465 → 12653; seed 18.928 s, verify 6.029 s). The checks preserve encrypted file
+bytes/identity, custom template, directory/name/group, model/effort and completed
+operation identity. Explicit reconciliation opens the recovered task using its
+original operation ID and sends zero attachment uploads in the verification
+process. This is fixture-Mac evidence, not physical Pixel/Mac acceptance.
+
+
+## Signed integration build 138 (2026-09-28)
+
+[GitHub run 36353416757](https://github.com/DocMorphic/cmux-app/actions/runs/36353416757)
+succeeded at `86678870ba2a0837d5bc559b6a9da5e7b23c510a`. The signed APK includes
+task attachments, the composer canvas/dock and terminal momentum. Package/version,
+unchanged signing certificate, feature classes, absence of instrumentation fixtures,
+license assets and agent-image pixel equality were verified. The release FileProvider
+is non-exported and exposes only its task-preview cache directory with per-URI grants.
+
+The APK served to the phone matches SHA-256
+`93b43169fba7a6d8a4549a7127fa0d16461523068cee4e3bb8a6bb3ce55357df`
+(9052151 bytes). The download was fetched back over HTTP and matched the
+verified artifact. Detailed local receipt: `captures/releases/8667887-verification.json`.
+The full app parity goal and physical Pixel/Mac acceptance remain open.
