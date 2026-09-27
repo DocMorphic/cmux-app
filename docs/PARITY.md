@@ -72,8 +72,7 @@ state, and a task-options tap raced the system IME animation. Waiting for the
 observable state and invoking the dock’s accessible action produced a clean
 2/2 focused rerun, including the production Mac-switch flow. That is 11 distinct
 cases with passing evidence across runs, not a clean full-suite run. Original logs
-and the focused rerun are retained in `captures/browser/`. Signed build 138 remains
-the current download pending release packaging. No physical Pixel is attached to adb.
+and the focused rerun are retained in `captures/browser/`. Signed build 143 now includes this milestone and is the current download. No physical Pixel is attached to adb.
 
 
 181 JVM tests pass. The Android suite now contains 78 cases (including four browser checks, four offline-task checks, four task attachment/layout checks and three momentum gesture checks): twenty-three Compose
@@ -546,3 +545,22 @@ The APK served to the phone matches SHA-256
 (9052151 bytes). The download was fetched back over HTTP and matched the
 verified artifact. Detailed local receipt: `captures/releases/8667887-verification.json`.
 The full app parity goal and physical Pixel/Mac acceptance remain open.
+
+
+## Signed integration build 143 (2026-09-28)
+
+[GitHub run 36356036737](https://github.com/DocMorphic/cmux-app/actions/runs/36356036737)
+succeeded at `636b9ffc93937077f93a13b08cd3818a30f597f3`. It includes offline task
+editing and the browser controls/input/viewport milestone. The package/version,
+stable signing certificate, new browser/offline feature code, absence of test
+fixtures, existing license assets, task FileProvider scope and agent-image pixels
+were verified in the signed artifact.
+
+Served SHA-256: `90e7c08b6247a8b513f8f85c92338ac065968d1023f95ef8fe3d04426c0b739f` (9070804 bytes).
+The file was replaced atomically on the existing tailnet download server, then
+fetched back over HTTP and matched against the verified artifact. The local receipt
+is `captures/releases/636b9ff-verification.json`; runtime evidence and the inspected
+fixture screenshot are in `captures/browser/`.
+
+This is an integration preview. The full iOS parity goal and physical Pixel/Mac
+acceptance are still open.
