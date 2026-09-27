@@ -17,7 +17,8 @@ internal data class TaskDraft(
     val templateId: String? = null, val templateName: String? = null, val templateCommand: String? = null,
     val didEditDirectory: Boolean = false,
     val workspaceName: String = "", val groupId: String? = null,
-    val lastRequestOrigin: String? = null, val completedOrigin: String? = null
+    val lastRequestOrigin: String? = null, val completedOrigin: String? = null,
+    val attachments: List<ComposerAttachment> = emptyList()
 ) {
     val command get() = templateCommand ?: agent.command
     fun selecting(template: TaskTemplate, suggestedDirectory: String): TaskDraft {
@@ -28,7 +29,7 @@ internal data class TaskDraft(
             selection = if (resetModel) TaskModelSelection() else selection,
             defaultModel = if (resetModel) null else defaultModel)
     }
-    val isEmpty get() = prompt.isBlank() && workspaceName.isBlank() && lastRequest == null && completedRequest == null
+    val isEmpty get() = prompt.isBlank() && workspaceName.isBlank() && attachments.isEmpty() && lastRequest == null && completedRequest == null
     val title get() = workspaceName.trim().takeIf { it.isNotEmpty() } ?: prompt.trim().lineSequence().firstOrNull()?.takeIf { it.isNotEmpty() } ?: "Untitled task"
     fun onMac(nextOrigin: String, name: String, suggestedDirectory: String) = copy(origin = nextOrigin, macName = name,
         groupId = if (nextOrigin == origin) groupId else null,
@@ -51,6 +52,7 @@ internal data class TaskDraft(
         .put("did_edit_directory", didEditDirectory)
         .put("workspace_name", workspaceName).put("group_id", groupId)
         .put("last_request_origin", lastRequestOrigin).put("completed_origin", completedOrigin)
+        .put("attachments", JSONArray(attachments.map { it.json() }))
 
     companion object {
         private fun modelJson(model: TaskModel): JSONObject = JSONObject().put("id", model.id)
@@ -78,7 +80,8 @@ internal data class TaskDraft(
                 raw.opt("template_command") as? String, raw.optBoolean("did_edit_directory", true),
                 raw.opt("workspace_name") as? String ?: "", (raw.opt("group_id") as? String)?.also { require(it.isNotBlank()) },
                 (raw.opt("last_request_origin") as? String)?.also { require(it.isNotBlank()) },
-                (raw.opt("completed_origin") as? String)?.also { require(it.isNotBlank()) })
+                (raw.opt("completed_origin") as? String)?.also { require(it.isNotBlank()) },
+                TaskAttachments.read(raw.optJSONArray("attachments")))
         }
     }
 }
@@ -148,8 +151,10 @@ internal class TaskDrafts(saved: JSONObject? = null, private val now: () -> Long
 
     @Synchronized fun clear() { generation++; leases.clear(); mutable.value = emptyMap() }
 
+    // A durable edit must count as newest before applying the 20-draft limit,
+    // including when an old empty editor gets its first attachment.
     @Synchronized fun saved(replacement: TaskDraft? = null): JSONObject = JSONObject().put("version", 1).put("drafts",
-        JSONArray((if (replacement == null) mutable.value else mutable.value + (replacement.id to replacement)).values
+        JSONArray((if (replacement == null) mutable.value else mutable.value + (replacement.id to replacement.copy(updatedAt = timestamp()))).values
             .filterNot { it.isEmpty }.sortedByDescending { it.updatedAt }.take(LIMIT).map { it.json() }))
 
     private fun timestamp(): Long = maxOf(now(), lastTimestamp + 1).also { lastTimestamp = it }

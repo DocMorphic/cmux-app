@@ -967,7 +967,7 @@ fun NativeScreen(
                     NativeNotificationService.setEnabled(context, false)
                     backgroundNotifications = false
                     drafts.clear()
-                    account.signOut(); signedIn = false; client?.close(); client = null
+                    account.signOut(); TaskDraftRepository.clearAttachments(context); signedIn = false; client?.close(); client = null
                 },
                     modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
                 Text("NOTIFICATIONS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
@@ -1049,6 +1049,7 @@ fun NativeScreen(
                     isCurrent = { signedIn && client === active && connectedCode == taskCode && code == taskCode },
                     savedDrafts = repository.drafts, draftId = taskDraftId, macName = taskMac?.name ?: hostName,
                     savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
+                    attachmentRepository = repository, supportsAttachments = ComposerAttachment.FILE_CAPABILITY in hostCapabilities,
                     macs = pairedMacs, workspaceGroups = groups,
                     supportsGroups = "workspace.create_in_group.v1" in hostCapabilities,
                     groupsLoaded = taskGroupsLoaded,

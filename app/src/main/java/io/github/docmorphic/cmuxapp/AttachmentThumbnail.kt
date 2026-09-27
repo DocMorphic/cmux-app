@@ -16,11 +16,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
-fun AttachmentThumbnail(attachment: ComposerAttachment, repository: TerminalDraftRepository) {
+fun AttachmentThumbnail(attachment: ComposerAttachment, repository: TerminalDraftRepository) =
+    AttachmentThumbnail(attachment, read = repository::read)
+
+@Composable
+fun AttachmentThumbnail(attachment: ComposerAttachment, read: suspend (ComposerAttachment) -> ByteArray) {
     val thumbnail = produceState<ImageBitmap?>(null, attachment.id) {
         if (attachment.imageFormat != null) {
             try {
-                val bytes = repository.read(attachment)
+                val bytes = read(attachment)
                 value = withContext(Dispatchers.Default) {
                     BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
                         BitmapFactory.Options().apply { inSampleSize = 8 })?.asImageBitmap()

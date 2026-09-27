@@ -25,7 +25,7 @@ UI resemblance alone does not count.
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
-| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachments, chat UI, full composer styling and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
+| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry coded with focused JVM coverage; attachment runtime checks, chat UI, full composer styling and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
@@ -415,3 +415,27 @@ history bounds and dropping queued motion. Three Android gesture checks have bee
 added and compiled, but are pending the next integration test batch. Build 133
 does not include this change. Pixel/Mac verification and pixel-precise rendering
 remain open.
+
+
+## Unreleased task attachments
+
+The pinned iOS task-attachment contract is now implemented: 10 attachments,
+8 MiB prepared images, 32 MiB files (including empty files), and 64 MiB total.
+Photos, document selection, clipboard file URIs, previews and removal feed the
+account-scoped encrypted task draft. Staged payloads survive repository reload;
+deleting the draft or signing out removes its files. File viewing uses a narrow,
+non-exported FileProvider and a temporary cache export created only on Open.
+
+Uploads use 3 MiB chunks, stable upload IDs and the task submission's operation ID.
+The created workspace receives CMUX_TASK_ATTACHMENTS and the upstream prompt
+suffix. Attachment identity stays in the local retry snapshot and is stripped
+from the workspace.create wire request. Accepted-operation reconciliation skips
+uploads; an explicit new task gets a new operation ID. Shell tasks retain but do
+not upload their draft attachments. Capability and session guards gate delivery.
+
+34 focused JVM checks pass (9 attachment contracts, 9 submission identity checks,
+12 task draft checks and 4 terminal attachment regressions). Three Android checks
+compile for picker/import/retry, encrypted restoration/sign-out and preview/removal;
+their emulator run is pending the next integration milestone. Build 133 does not
+include this feature. Rich IME attachment paste and real Mac/Pixel testing remain
+open; clipboard content-URI import does not claim rich IME coverage.

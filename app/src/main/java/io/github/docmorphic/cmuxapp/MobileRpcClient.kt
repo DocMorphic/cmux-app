@@ -272,16 +272,17 @@ class MobileRpcClient(
             .put("image_format", format))
 
     /** Stable attachment IDs make re-upload after an explicit retry idempotent on the Mac. */
-    suspend fun uploadAttachment(attachment: ComposerAttachment, bytes: ByteArray, checkCurrent: () -> Unit): String {
-        require(bytes.size == attachment.size && bytes.size in 1..ComposerAttachment.FILE_LIMIT)
+    suspend fun uploadAttachment(attachment: ComposerAttachment, bytes: ByteArray, checkCurrent: () -> Unit, operationId: String = attachment.id): String {
+        require(bytes.size == attachment.size && bytes.size in 0..ComposerAttachment.FILE_LIMIT)
+        UUID.fromString(operationId)
         var path: String? = null
         var offset = 0
-        while (offset < bytes.size) {
+        do {
             checkCurrent()
             val end = minOf(offset + 3 * 1024 * 1024, bytes.size)
             val last = end == bytes.size
             val result = request("mobile.task.attachment.upload", JSONObject()
-                .put("operation_id", attachment.id).put("upload_id", attachment.id)
+                .put("operation_id", operationId).put("upload_id", attachment.id)
                 .put("file_name", attachment.name).put("total_bytes", bytes.size)
                 .put("offset", offset).put("last", last)
                 .put("data_b64", java.util.Base64.getEncoder().encodeToString(bytes.copyOfRange(offset, end))))
@@ -291,7 +292,7 @@ class MobileRpcClient(
                 require(path.startsWith('/') && '\u0000' !in path) { "Invalid attachment path from Mac" }
             }
             offset = end
-        }
+        } while (offset < bytes.size)
         return requireNotNull(path)
     }
 

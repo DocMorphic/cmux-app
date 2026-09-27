@@ -60,7 +60,8 @@ internal fun NativeTaskComposerView(
     selectMac: (suspend (TaskDrafts.Editor, String) -> Unit)? = null,
     workspaceGroups: List<NativeGroup> = emptyList(), supportsGroups: Boolean = false, groupsLoaded: Boolean = true,
     directoryWorkspaces: List<NativeWorkspace> = emptyList(), selectedWorkspaceId: String? = null,
-    groupIsCurrent: ((String?) -> Boolean)? = null
+    groupIsCurrent: ((String?) -> Boolean)? = null,
+    attachmentRepository: TaskDraftRepository? = null, supportsAttachments: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
@@ -117,9 +118,10 @@ internal fun NativeTaskComposerView(
     val groupSelection = TaskGroupSelection(draft.groupId, workspaceGroups, supportsGroups, groupsLoaded)
     val latestGroups by rememberUpdatedState(groupSelection)
     val currentGroupCheck by rememberUpdatedState(groupIsCurrent)
-    val canEdit = !busy && !accepted
+    var preparingAttachments by remember(editor) { mutableStateOf(false) }
+    val canEdit = !busy && !accepted && !preparingAttachments
     fun edit(update: (TaskDraft) -> TaskDraft) {
-        if (busy || accepted) return
+        if (busy || accepted || preparingAttachments) return
         collection.editIfCurrent(editor, update) ?: return
         dirty = true
         error = null
@@ -175,11 +177,11 @@ internal fun NativeTaskComposerView(
     val efforts = effortModel?.efforts.orEmpty()
     val selectedEffort = efforts.firstOrNull { it.id == selection.effortId }
     val effectiveRequest = runCatching {
-        TaskCommand.parameters(command, prompt, directory, UUID.randomUUID(), selection.explicit?.id, selectedEffort?.id, draft.workspaceName, draft.groupId)
+        TaskAttachments.snapshot(TaskCommand.parameters(command, prompt, directory, UUID.randomUUID(), selection.explicit?.id, selectedEffort?.id, draft.workspaceName, draft.groupId), draft.attachments)
     }.getOrNull()
     val recoveryApplies = recovery?.appliesTo(origin, effectiveRequest) == true
     fun launchTask(reconcile: Boolean = false, startAgain: Boolean = false) {
-        if (busy || accepted || !supportsTaskCreation || !groupSelection.valid) return
+        if (busy || accepted || preparingAttachments || !supportsTaskCreation || !groupSelection.valid) return
         if (reconcile && !recoveryApplies) return
         if (!reconcile && recoveryApplies && !(startAgain && recoveryReady)) return
         val requestConnectionToken = connectionToken
@@ -210,8 +212,16 @@ internal fun NativeTaskComposerView(
                 check(currentGroupCheck?.invoke(parameters.opt("group_id") as? String) ?: latestGroups.valid) {
                     "The selected group is no longer available. Choose another group or None."
                 }
+                val wire = TaskAttachments.prepareRequest(client, parameters, draft.attachments, supportsAttachments, reconcile,
+                    read = { attachment -> checkNotNull(attachmentRepository) { "Attachment storage is unavailable" }.readAttachment(attachment) },
+                    checkCurrent = {
+                        check(requestIsCurrent()) { "Connection changed during attachment upload" }
+                        check(currentGroupCheck?.invoke(parameters.opt("group_id") as? String) ?: latestGroups.valid) { "The selected group is no longer available." }
+                    })
+                currentCoroutineContext().ensureActive()
+                check(requestIsCurrent()) { "Task session changed before creation" }
                 transmitted = true
-                val response = createTask(parameters)
+                val response = createTask(wire)
                 currentCoroutineContext().ensureActive()
                 check(requestIsCurrent()) { "Connection changed before the task could be opened" }
                 TaskCreationResult.parse(response)
@@ -450,6 +460,13 @@ internal fun NativeTaskComposerView(
         OutlinedTextField(prompt, { text -> edit { it.copy(prompt = text) } }, Modifier.fillMaxWidth().height(190.dp),
             enabled = canEdit, label = { Text(if (plainShell) "Workspace title (optional)" else "Task prompt") },
             minLines = 5)
+        if (attachmentRepository != null) TaskAttachmentControls(attachmentRepository, editor, origin,
+            draft.attachments, canEdit, canAdd = !plainShell && supportsAttachments,
+            isCurrent = { currentContext() && collection.isCurrent(editor) && !busy && !accepted && !plainShell && supportsAttachments },
+            onPreparing = { preparingAttachments = it }, onChanged = { dirty = true; error = null }, onError = { error = it })
+        if (preparingAttachments) Text("Preparing attachments…", color = Color(0xFF9B9FA8))
+        if (!plainShell && draft.attachments.isNotEmpty() && !supportsAttachments)
+            Text("This Mac does not support task attachments. Update cmux or remove the attachments.", color = Color(0xFFFF9999))
         Spacer(Modifier.height(14.dp))
         OutlinedTextField(directory, { text -> edit { it.copy(directory = text, didEditDirectory = true) } }, Modifier.fillMaxWidth(),
             enabled = canEdit, singleLine = true, label = { Text("Directory on Mac") })
@@ -495,7 +512,7 @@ internal fun NativeTaskComposerView(
         if (!groupSelection.valid) Text(if (groupSelection.pending) "Loading the selected Mac’s groups…" else "The selected group is unavailable. Open Task Options to choose another group or None.",
             color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
         Button(onClick = { launchTask() },
-            enabled = canEdit && !recoveryApplies && supportsTaskCreation && groupSelection.valid && (plainShell || prompt.isNotBlank()),
+            enabled = canEdit && !recoveryApplies && supportsTaskCreation && groupSelection.valid && (plainShell || draft.attachments.isEmpty() || supportsAttachments) && (plainShell || prompt.isNotBlank()),
             colors = ButtonDefaults.buttonColors(contentColor = Color(0xFF081421)),
             modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp)) {
             Text(if (accepted) "Task Created" else if (busy) "Creating…" else "Create Task")

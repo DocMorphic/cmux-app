@@ -27,11 +27,11 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /** Staged payloads never depend on a provider grant or the original file after import. */
-class AttachmentFiles(private val context: Context) {
-    private val directory = File(context.noBackupFilesDir, "terminal-attachments").apply { mkdirs() }
+class AttachmentFiles(private val context: Context, taskFiles: Boolean = false) {
+    private val directory = File(context.noBackupFilesDir, if (taskFiles) "task-attachments" else "terminal-attachments").apply { mkdirs() }
     data class Prepared(val attachment: ComposerAttachment, val bytes: ByteArray)
 
-    suspend fun prepare(uri: Uri, image: Boolean): Prepared = withContext(Dispatchers.IO) {
+    suspend fun prepare(uri: Uri, image: Boolean, imageLimit: Int = ComposerAttachment.IMAGE_LIMIT, allowEmpty: Boolean = false): Prepared = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         var name = if (image) "image.png" else "attachment"
         val limit = if (image) 60 * 1024 * 1024 else ComposerAttachment.FILE_LIMIT
@@ -59,8 +59,8 @@ class AttachmentFiles(private val context: Context) {
                     output.write(buffer, 0, read)
                 }
             } } ?: error("Could not open the selected attachment")
-            require(count > 0) { "The selected attachment is empty" }
-            val (bytes, format) = if (image) prepareImage(raw) else raw.readBytes() to null
+            require(allowEmpty || count > 0) { "The selected attachment is empty" }
+            val (bytes, format) = if (image) prepareImage(raw, imageLimit) else raw.readBytes() to null
             coroutineContext.ensureActive()
             Prepared(ComposerAttachment(name = name, size = bytes.size, imageFormat = format), bytes)
         } finally { raw.delete() }
@@ -92,7 +92,7 @@ class AttachmentFiles(private val context: Context) {
         return File(directory, id)
     }
 
-    private fun prepareImage(file: File): Pair<ByteArray, String> {
+    private fun prepareImage(file: File, imageLimit: Int): Pair<ByteArray, String> {
         var bitmap = if (Build.VERSION.SDK_INT >= 28) {
             ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { decoder, info, _ ->
                 val scale = minOf(1.0, 2048.0 / max(info.size.width, info.size.height))
@@ -127,17 +127,17 @@ class AttachmentFiles(private val context: Context) {
                 check(bitmap.compress(format, quality, it)) { "Could not prepare image" }; it.toByteArray()
             }
             val png = encode(Bitmap.CompressFormat.PNG, 100)
-            if (png.size <= ComposerAttachment.IMAGE_LIMIT) return png to "png"
+            if (png.size <= imageLimit) return png to "png"
             for (quality in listOf(80, 60, 40)) {
                 val jpeg = encode(Bitmap.CompressFormat.JPEG, quality)
-                if (jpeg.size <= ComposerAttachment.IMAGE_LIMIT) return jpeg to "jpg"
+                if (jpeg.size <= imageLimit) return jpeg to "jpg"
             }
             for (maxSize in listOf(1536, 1024, 768)) {
                 val scale = minOf(1f, maxSize.toFloat() / max(bitmap.width, bitmap.height))
                 val smaller = Bitmap.createScaledBitmap(bitmap, max(1, (bitmap.width * scale).roundToInt()), max(1, (bitmap.height * scale).roundToInt()), true)
                 if (smaller !== bitmap) { bitmap.recycle(); bitmap = smaller }
                 val jpeg = encode(Bitmap.CompressFormat.JPEG, 50)
-                if (jpeg.size <= ComposerAttachment.IMAGE_LIMIT) return jpeg to "jpg"
+                if (jpeg.size <= imageLimit) return jpeg to "jpg"
             }
             error("Image is too large to send")
         } finally { bitmap.recycle() }

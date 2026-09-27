@@ -512,3 +512,25 @@ touch-release inertia, the line-path deadline, new-touch/input cancellation and
 surface/mode replacement. Run these with the existing alternate-screen touch,
 viewport-anchored scrolling, raw-VT history and direct-keyboard production flows
 at the next integration milestone. No release APK was published for this commit.
+
+
+## Task attachments — next integration batch
+
+Focused JVM invocation (34 passed):
+
+```sh
+./gradlew :app:testDebugUnitTest --tests '*TaskAttachmentsTest' --tests '*TaskDraftsTest' --tests '*ComposerDeliveryTest' --tests '*TaskSubmissionTest' :app:compileDebugAndroidTestKotlin
+```
+
+The nine new JVM checks cover size/count limits, empty files, attachment-only draft
+restoration, retention at the 20-draft limit, ordered retry identity, exact prompt
+and environment fields, multi-chunk retry, reconciliation without re-upload,
+capability/connection changes and a new operation after explicit Start Again.
+
+`NativeTaskAttachmentsTest` contains three compiled, pending runtime checks:
+actual document-picker callbacks and image preparation with upload/retry;
+encrypted payload restoration and stale-session fencing after sign-out; preview
+and removal preserving the prompt and another attachment. Run these together with
+`NativeTerminalMomentumTest`, task recovery/draft flows and the existing terminal
+attachment flow at the next integration milestone. No APK is published per feature
+commit. The last published APK remains build 133.
