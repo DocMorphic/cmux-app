@@ -678,7 +678,7 @@ class NativeFlowTest {
             compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Task prompt").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithContentDescription("Task prompt").performTextInput("Move my unsent task 中")
             compose.chooseTaskDirectory(peer, "/typed/path")
-            compose.onNodeWithContentDescription("Task Options").performClick()
+            compose.openTaskOptions()
             compose.onNodeWithText("Workspace name (optional)").performTextInput("Preserved task name")
             compose.onNodeWithContentDescription("Workspace group").performClick()
             compose.onNode(hasText("First") and hasAnyAncestor(isPopup())).performClick()
@@ -690,7 +690,7 @@ class NativeFlowTest {
             compose.onNodeWithText("Done").performClick()
             compose.waitUntil(15_000) { compose.onAllNodes(hasText("Move my unsent task 中") and hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
             compose.assertTaskDirectory("/typed/path")
-            compose.onNodeWithContentDescription("Task Options").performClick()
+            compose.openTaskOptions()
             compose.onNodeWithContentDescription("Task Mac").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Second Mac"))
             compose.onNodeWithText("Workspace name (optional)").assertTextContains("Preserved task name")
             compose.onNodeWithContentDescription("Workspace group").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "None"))

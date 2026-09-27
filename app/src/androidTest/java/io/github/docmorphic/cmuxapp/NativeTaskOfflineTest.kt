@@ -131,7 +131,9 @@ class NativeTaskOfflineTest {
                 supportsGroups = if (online) true else null, groupsLoaded = online, workspaceGroups = groups)
         } } }
         waitFor(hasContentDescription("Task prompt"))
+        assertEquals("group-one", repository.drafts.state.value.getValue(id).groupId)
         compose.runOnIdle { online = false }
+        waitFor(hasText("Loading the selected Mac’s groups…"))
         compose.onNodeWithContentDescription("Task prompt").assertIsEnabled().performTextInput(" and offline changes")
         compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
         assertEquals("group-one", repository.drafts.state.value.getValue(id).groupId)

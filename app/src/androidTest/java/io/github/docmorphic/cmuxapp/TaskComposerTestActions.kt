@@ -14,7 +14,7 @@ internal fun ComposeTestRule.chooseTaskDirectory(peer: NativeFixturePeer, path: 
         else JSONObject().put("current_path", params.getString("path")).put("entries", JSONArray())
             .put("offset", 0).put("limit", 50).put("total_count", 0)
     }
-    onNodeWithContentDescription("Task Options").performClick()
+    openTaskOptions()
     onNodeWithContentDescription("Browse folders").performClick()
     onNodeWithText("Search folders").performTextInput(path)
     waitUntil(10_000) { onAllNodesWithContentDescription("Use folder: $path").fetchSemanticsNodes().isNotEmpty() }
@@ -23,9 +23,17 @@ internal fun ComposeTestRule.chooseTaskDirectory(peer: NativeFixturePeer, path: 
 }
 
 internal fun ComposeTestRule.assertTaskDirectory(path: String) {
-    onNodeWithContentDescription("Task Options").performClick()
+    openTaskOptions()
     onNodeWithContentDescription("Browse folders").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, path))
     onNodeWithText("Done").performClick()
+}
+
+/** The dock moves during the system IME animation. Invoke its accessible action
+ * and wait for the sheet instead of injecting a tap at a stale screen position. */
+internal fun ComposeTestRule.openTaskOptions() {
+    onNodeWithContentDescription("Task Options").assertIsEnabled()
+        .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
+    waitUntil(10_000) { onAllNodesWithContentDescription("Browse folders").fetchSemanticsNodes().isNotEmpty() }
 }
 
 
