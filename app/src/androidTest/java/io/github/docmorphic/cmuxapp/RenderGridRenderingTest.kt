@@ -68,6 +68,15 @@ class RenderGridRenderingTest {
         val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
         File(directory, "terminal-unicode-rendering.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
+        // During an IME resize the old frame must fit with one scale for both axes.
+        val short = Bitmap.createBitmap(480, 160, Bitmap.Config.ARGB_8888)
+        TerminalGridPainter().draw(Canvas(short), 480f, 160f, grid,
+            TerminalGridPainter.plan(grid.visibleLines()), cells, 0, true)
+        assertEquals(Color.GREEN, short.getPixel(125, 105))
+        assertEquals(Color.BLACK, short.getPixel(165, 105))
+        assertEquals(Color.BLACK, short.getPixel(110, 105))
+        File(directory, "terminal-resize-fitting.png").outputStream().use { short.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        short.recycle()
     }
 
     private fun base() = JSONObject().put("format", "cmux.render-grid.v1").put("surface_id", "fixture")

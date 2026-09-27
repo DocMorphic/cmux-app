@@ -3,7 +3,7 @@ package io.github.docmorphic.cmuxapp
 import org.json.JSONObject
 
 /** A screen-anchored mirror of cmux.render-grid.v1 with producer order checks. */
-class RenderGrid {
+class RenderGrid : TerminalDisplay {
     data class Style(
         val foreground: String?, val background: String?,
         val bold: Boolean, val italic: Boolean, val underline: Boolean,
@@ -19,33 +19,33 @@ class RenderGrid {
 
     var surfaceId: String = ""
         private set
-    var columns: Int = 0
+    override var columns: Int = 0
         private set
-    var rows: Int = 0
+    override var rows: Int = 0
         private set
     var revision: Long = -1
         private set
     var epoch: String = ""
         private set
-    var background: String = "#111316"
+    override var background: String = "#111316"
         private set
-    var foreground: String = "#e0e5eb"
+    override var foreground: String = "#e0e5eb"
         private set
-    var cursorColor: String? = null
+    override var cursorColor: String? = null
         private set
-    var reverseVideo: Boolean = false
+    override var reverseVideo: Boolean = false
         private set
     private var palette: List<String> = emptyList()
-    var cursor: Cursor? = null
+    override var cursor: Cursor? = null
         private set
-    var activeScreen: String = "primary"
+    override var activeScreen: String = "primary"
         private set
-    var applicationCursorKeys: Boolean = false
+    override var applicationCursorKeys: Boolean = false
         private set
-    var bracketedPaste: Boolean = false
+    override var bracketedPaste: Boolean = false
         private set
     val lines: List<List<Span>> get() = content.map { it.toList() }
-    val historyLineCount: Int get() = history.size
+    override val historyLineCount: Int get() = history.size
     val scrollbackLines: List<List<Span>> get() = history.map { it.toList() }
     private var content = mutableListOf<MutableList<Span>>()
     private val history = mutableListOf<MutableList<Span>>()
@@ -53,7 +53,7 @@ class RenderGrid {
     private var rowSpaceRevision: Long? = null
 
     /** Copy only the rows the viewport displays, including its local scroll position. */
-    fun visibleLines(scrollOffset: Int = 0): List<List<Span>> {
+    override fun visibleLines(scrollOffset: Int): List<List<Span>> {
         val offset = if (activeScreen == "alternate") 0 else scrollOffset.coerceIn(0, history.size)
         val first = (history.size + content.size - rows - offset).coerceAtLeast(0)
         return (first until first + rows).map { index ->
@@ -61,9 +61,9 @@ class RenderGrid {
         }
     }
 
-    fun foreground(style: Style): String = resolveColor(style.foregroundSource, style.foregroundPaletteIndex, style.foreground,
+    override fun foreground(style: Style): String = resolveColor(style.foregroundSource, style.foregroundPaletteIndex, style.foreground,
         if (reverseVideo) background else foreground)
-    fun background(style: Style): String = resolveColor(style.backgroundSource, style.backgroundPaletteIndex, style.background,
+    override fun background(style: Style): String = resolveColor(style.backgroundSource, style.backgroundPaletteIndex, style.background,
         if (reverseVideo) foreground else background)
     private fun resolveColor(source: String?, index: Int?, rgb: String?, fallback: String): String = when (source) {
         "default" -> fallback

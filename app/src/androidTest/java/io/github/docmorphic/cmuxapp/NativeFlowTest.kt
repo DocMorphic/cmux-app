@@ -358,6 +358,65 @@ class NativeFlowTest {
         assertTrue(peer.requests.none { it.optJSONObject("params")?.optString("text") == "stale input" })
     }
 
+    @Test fun rawTerminalStreamsSplitBytesSwitchesScreensAndRecoversMissingOutput() {
+        peer.rawTerminal = true
+        peer.rawReplayText = "\u001b[2J\u001b[HRaw VT stream\r\n\u001b[6n"
+        peer.rawReplaySequence = 100
+        compose.setContent {
+            CmuxTheme {
+                Surface(Modifier.fillMaxSize()) {
+                    NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                        MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                            .also { it.connect() }
+                    })
+                }
+            }
+        }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        fun waitText(text: String) = compose.waitUntil(10_000) {
+            compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        waitText("Raw VT stream")
+        val subscribe = peer.requests.last { it.optString("method") == "mobile.events.subscribe" }.getJSONObject("params")
+        assertTrue(subscribe.getJSONArray("topics").toString().contains("terminal.bytes"))
+        assertTrue(!subscribe.has("render_grid_anchor"))
+        assertTrue(subscribe.getString("client_id").isNotBlank())
+        val output = "\u001b[38;2;20;200;100m中 café\u001b[0m".toByteArray()
+        val split = output.indexOf(0xe4.toByte()) + 1
+        peer.pushBytes(output.copyOfRange(0, split), 100)
+        peer.pushBytes(output.copyOfRange(split, output.size), 100L + split)
+        waitText("中 café")
+        peer.pushBytes(output, 100) // A duplicated network chunk must not duplicate text.
+        var sequence = 100L + output.size
+        fun push(text: String) { val bytes = text.toByteArray(); peer.pushBytes(bytes, sequence); sequence += bytes.size }
+        push("\u001b[?1049h\u001b[2J\u001b[HVT full-screen editor\u001b[3;4HINSERT mode\u001b[?1h")
+        waitText("VT full-screen editor")
+        compose.onAllNodesWithText("Raw VT stream", substring = true).assertCountEquals(0)
+        screenshot("terminal-vt-alternate")
+        push("\u001b[?1049l\u001b[?1l")
+        waitText("Raw VT stream")
+        val before = peer.requests.count { it.optString("method") == "mobile.terminal.replay" }
+        peer.rawReplayText = "\u001b[2J\u001b[HRecovered VT output"
+        peer.rawReplaySequence = sequence + 21
+        peer.pushBytes("Z".toByteArray(), sequence + 20) // Force a genuine gap.
+        waitText("Recovered VT output")
+        assertEquals(before + 1, peer.requests.count { it.optString("method") == "mobile.terminal.replay" })
+        assertTrue(peer.requests.none { it.optString("method") == "terminal.input" }) // No parser device-query replies.
+        screenshot("terminal-vt-recovered")
+        sequence = peer.rawReplaySequence
+        push("\u001b[2J\u001b[H" + (0..79).joinToString("\r\n") { "Line $it" })
+        waitText("Line 79")
+        compose.onNodeWithText("Line 79", substring = true).performTouchInput { swipeDown() }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Scrollback ·", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        screenshot("terminal-vt-scrollback")
+        compose.onNodeWithText("Latest").performClick()
+        waitText("Line 79")
+        compose.waitForIdle()
+        assertEquals(before + 1, peer.requests.count { it.optString("method") == "mobile.terminal.replay" })
+        assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
     private fun findTerminalKeyboard(view: View): TerminalKeyboardView? {
         if (view is TerminalKeyboardView) return view
         if (view is ViewGroup) for (index in 0 until view.childCount) {
@@ -398,6 +457,21 @@ private class NativeFixturePeer : AutoCloseable {
     private val sockets = CopyOnWriteArrayList<Socket>()
     @Volatile private var closed = false
     private var revision = 0
+    @Volatile var rawTerminal = false
+    @Volatile var rawReplayText = ""
+    @Volatile var rawReplaySequence = 0L
+    @Volatile private var terminalStreamId: String? = null
+    private val outputLock = Any()
+    private fun send(socket: Socket, envelope: JSONObject) = synchronized(outputLock) {
+        socket.getOutputStream().write(MobileFrameCodec.encode(envelope.toString().toByteArray()))
+        socket.getOutputStream().flush()
+    }
+    fun pushBytes(bytes: ByteArray, sequence: Long) {
+        val event = JSONObject().put("kind", "event").put("topic", "terminal.bytes").put("stream_id", terminalStreamId)
+            .put("payload", JSONObject().put("surface_id", "terminal-1").put("seq", sequence)
+                .put("data_b64", java.util.Base64.getEncoder().encodeToString(bytes)))
+        sockets.filter { !it.isClosed }.forEach { send(it, event) }
+    }
     private val acceptThread = Thread {
         try {
             while (!closed) {
@@ -439,8 +513,7 @@ private class NativeFixturePeer : AutoCloseable {
                         if (rejected) envelope.put("error", JSONObject().put("code", "surface_unavailable")
                             .put("message", "Fixture terminal temporarily unavailable"))
                         else envelope.put("result", result)
-                        socket.getOutputStream().write(MobileFrameCodec.encode(envelope.toString().toByteArray()))
-                        socket.getOutputStream().flush()
+                        send(socket, envelope)
                     }
                 }
             }
@@ -449,7 +522,10 @@ private class NativeFixturePeer : AutoCloseable {
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
         "mobile.host.status" -> JSONObject().put("mac_display_name", "Fixture Mac")
-            .put("mac_device_id", "fixture-mac").put("capabilities", JSONArray().put("task.attachments.v1"))
+            .put("mac_device_id", "fixture-mac").put("capabilities", JSONArray().put("task.attachments.v1").also {
+                if (rawTerminal) it.put("terminal.bytes.v1")
+                else { it.put("terminal.render_grid.v1"); it.put("terminal.render_grid.screen_anchor.v1") }
+            })
         "mobile.workspace.list" -> JSONObject("""{
             "groups":[{"id":"complete","name":"Completed group","is_collapsed":false}],
             "workspaces":[
@@ -460,10 +536,14 @@ private class NativeFixturePeer : AutoCloseable {
             ]} """)
         "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/cmux fixture.txt")
         "notification.feed.list" -> JSONObject().put("notifications", JSONArray())
-        "mobile.events.subscribe" -> JSONObject().put("stream_id", params.optString("stream_id"))
+        "mobile.events.subscribe" -> JSONObject().put("stream_id", params.optString("stream_id").also { terminalStreamId = it })
         "mobile.terminal.viewport" -> JSONObject().put("columns", params.optInt("viewport_columns", 40))
             .put("rows", params.optInt("viewport_rows", 20))
-        "mobile.terminal.replay" -> {
+        "mobile.terminal.replay" -> if (rawTerminal) {
+            JSONObject().put("snapshot_data_b64", java.util.Base64.getEncoder().encodeToString(rawReplayText.toByteArray()))
+                .put("seq", rawReplaySequence).put("columns", params.optInt("viewport_columns", 40))
+                .put("rows", params.optInt("viewport_rows", 20))
+        } else {
             val columns = params.optInt("viewport_columns", 40)
             val rows = params.optInt("viewport_rows", 20)
             val spans = JSONArray()

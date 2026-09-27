@@ -54,6 +54,8 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -131,6 +133,7 @@ fun NativeScreen(
     var hostCapabilities by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pairedMacs by remember { mutableStateOf(store.pairedMacs()) }
     var showSettings by remember { mutableStateOf(false) }
+    var showLicenses by remember { mutableStateOf(false) }
     var showTaskComposer by remember { mutableStateOf(false) }
     var showCreateGroup by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
@@ -158,10 +161,10 @@ fun NativeScreen(
         TerminalDrafts.Target(code, workspace.id, terminal.id)
     } }
     val terminalDraft = draftStates[draftTarget] ?: TerminalDrafts.Draft()
-    var grid by remember { mutableStateOf(RenderGrid()) }
+    var grid by remember { mutableStateOf<TerminalDisplay>(RenderGrid()) }
     var gridRevision by remember { mutableIntStateOf(0) }
     var replayGeneration by remember { mutableIntStateOf(0) }
-    var replayPending by remember { mutableStateOf(false) }
+    var terminalTransport by remember { mutableStateOf(TerminalTransport.resolve(emptySet())) }
     var scrollOffset by remember { mutableIntStateOf(0) }
     var controlArmed by remember { mutableStateOf(false) }
     var altArmed by remember { mutableStateOf(false) }
@@ -316,40 +319,6 @@ fun NativeScreen(
         }
     }
 
-    fun applyFrame(value: JSONObject) {
-        val frame = value.optJSONObject("render_grid") ?: value
-        if (frame.optString("format") == "cmux.render-grid.v1") {
-            val accepted = runCatching { grid.apply(frame) }
-                .getOrElse { error = it.message; false }
-            if (accepted) gridRevision++
-            else if (!replayPending) {
-                val active = client ?: return
-                val workspaceId = selectedWorkspace?.id ?: return
-                val terminalId = selectedTerminal?.id ?: return
-                val generation = replayGeneration
-                replayPending = true
-                scope.launch {
-                    try {
-                        val size = effectiveTerminalViewport ?: terminalViewport ?: return@launch
-                        val replacement = active.replay(workspaceId, terminalId,
-                            size.columns, size.rows)
-                        if (generation == replayGeneration &&
-                            selectedWorkspace?.id == workspaceId && selectedTerminal?.id == terminalId) {
-                            grid.apply(replacement.optJSONObject("render_grid") ?: replacement)
-                            gridRevision++
-                            error = null
-                        }
-                    } catch (failure: Throwable) {
-                        if (failure is CancellationException) throw failure
-                        if (generation == replayGeneration) error = failure.message
-                    } finally {
-                        if (generation == replayGeneration) replayPending = false
-                    }
-                }
-            }
-        }
-    }
-
     LaunchedEffect(signedIn, code, retry) {
         client?.close(); client = null
         if (!signedIn || code.isBlank()) return@LaunchedEffect
@@ -366,6 +335,7 @@ fun NativeScreen(
                         values.optString(index).takeIf { it.isNotBlank() }
                     }.toSet()
                 } ?: emptySet()
+                terminalTransport = TerminalTransport.resolve(hostCapabilities, status.optString("terminal_fidelity"))
                 val listing = active.workspaces()
                 applyListing(listing)
                 runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
@@ -398,7 +368,7 @@ fun NativeScreen(
     LaunchedEffect(client) {
         val active = client ?: return@LaunchedEffect
         active.events.collect { event ->
-            if (event.topic == "workspace.list.changed") {
+            if (event.topic == "workspace.list.changed" || event.topic == "workspace.updated") {
                 runCatching { active.workspaces() }
                     .onSuccess { applyListing(it) }
                     .onFailure { error = it.message }
@@ -424,23 +394,90 @@ fun NativeScreen(
         val terminal = selectedTerminal ?: return@LaunchedEffect
         val requestedViewport = terminalViewport ?: return@LaunchedEffect
         val generation = ++replayGeneration
-        replayPending = true
-        grid = RenderGrid(); gridRevision++
+        val transport = terminalTransport
+        val mirror = TerminalStreamMirror(terminal.id, transport, requestedViewport)
+        grid = mirror.display; gridRevision++
         scrollOffset = 0
         effectiveTerminalViewport = null
-        val eventJob = launch {
+        var replayRunning = false
+        var replayAgain = false
+        var recoveryFailed = false
+        var subscriptionReady = false
+        val subscriptionId = java.util.UUID.randomUUID().toString()
+        fun publish() {
+            grid = mirror.display
+            gridRevision++
+            if (grid.activeScreen == "alternate") scrollOffset = 0
+        }
+        suspend fun replayTerminal() {
+            if (replayRunning || recoveryFailed) return
+            replayRunning = true
+            mirror.beginReplay()
+            try {
+                repeat(3) {
+                    replayAgain = false
+                    val size = effectiveTerminalViewport ?: requestedViewport
+                    val snapshot = active.replay(workspace.id, terminal.id, size.columns, size.rows,
+                        screenAnchor = transport.screenAnchor,
+                        maxScrollbackRows = if (mirror.historyLineCount == 0) 10_000 else 0)
+                    if (generation != replayGeneration || client !== active) return
+                    val result = mirror.replay(snapshot)
+                    publish()
+                    if (result != TerminalStreamMirror.Result.REPLAY && !replayAgain) {
+                        error = null
+                        return
+                    }
+                    mirror.beginReplay()
+                }
+                error("Terminal output could not be synchronized. Reconnect to retry.")
+            } catch (failure: Throwable) {
+                if (failure is CancellationException) throw failure
+                recoveryFailed = true
+                error = failure.message ?: "Terminal replay failed"
+            } finally { replayRunning = false }
+        }
+        fun requestReplay() {
+            mirror.beginReplay()
+            if (replayRunning) replayAgain = true
+            else if (subscriptionReady && !recoveryFailed) launch(start = CoroutineStart.UNDISPATCHED) { replayTerminal() }
+        }
+        val eventJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            var lastDelivery: Long? = null
             active.events.collect { event ->
-                if (event.topic == "terminal.render_grid") {
-                    val frame = event.payload.optJSONObject("render_grid") ?: event.payload
-                    if (frame.optString("surface_id") == terminal.id) applyFrame(event.payload)
+                if (generation != replayGeneration || client !== active) return@collect
+                if (event.deliverySequence > 0) {
+                    if (lastDelivery?.let { event.deliverySequence != it + 1 } == true) requestReplay()
+                    lastDelivery = event.deliverySequence
+                }
+                if (event.streamId != null && event.streamId != subscriptionId) return@collect
+                try {
+                    val result = when (event.topic) {
+                        "terminal.render_grid" -> mirror.grid(event.payload)
+                        "terminal.bytes" -> mirror.bytes(event.payload)
+                        else -> TerminalStreamMirror.Result.IGNORED
+                    }
+                    when (result) {
+                        TerminalStreamMirror.Result.APPLIED -> publish()
+                        TerminalStreamMirror.Result.REPLAY -> requestReplay()
+                        TerminalStreamMirror.Result.IGNORED -> Unit
+                    }
+                } catch (failure: Exception) {
+                    if (failure is CancellationException) throw failure
+                    error = failure.message
+                    requestReplay()
                 }
             }
         }
-        var streamId: String? = null
         var viewportAttempted = false
+        var subscriptionAttempted = false
         try {
-            streamId = active.subscribe(listOf("terminal.render_grid", "workspace.list.changed"))
-                .optString("stream_id").takeIf { it.isNotBlank() }
+            subscriptionAttempted = true
+            // Settle the handshake before cleanup can unsubscribe this unique stream.
+            // Otherwise a late server acknowledgement can recreate an abandoned subscription.
+            withContext(NonCancellable) {
+                active.subscribe(transport.topics, subscriptionId, screenAnchor = transport.screenAnchor)
+            }
+            kotlin.coroutines.coroutineContext.ensureActive()
             viewportAttempted = true
             val viewportGeneration = ++viewportRequestGeneration
             runCatching {
@@ -453,25 +490,20 @@ fun NativeScreen(
                 if (it is CancellationException) throw it
                 error = it.message ?: "Terminal resize failed"
             }
-            val size = effectiveTerminalViewport ?: requestedViewport
-            val snapshot = active.replay(workspace.id, terminal.id, size.columns, size.rows)
-            if (generation == replayGeneration) applyFrame(snapshot)
+            subscriptionReady = true
+            replayTerminal()
+            eventJob.join()
         } catch (failure: Throwable) {
-            if (failure !is CancellationException)
-                error = failure.message ?: "Terminal replay failed"
-        }
-        finally { if (generation == replayGeneration) replayPending = false }
-        try { eventJob.join() } finally {
+            if (failure is CancellationException) throw failure
+            error = failure.message ?: "Terminal subscription failed"
+        } finally {
             eventJob.cancel()
-            // A replacement effect may already have reported a newer viewport
-            // for this surface. Its report must not be cleared by old cleanup.
+            // An old viewport effect must never clear a newer report on the same surface.
             if (viewportAttempted && (generation == replayGeneration ||
                 selectedTerminal?.id != terminal.id || client !== active)) withContext(NonCancellable) {
-                runCatching {
-                    active.clearViewport(workspace.id, terminal.id, ++viewportRequestGeneration)
-                }
+                runCatching { active.clearViewport(workspace.id, terminal.id, ++viewportRequestGeneration) }
             }
-            streamId?.let { id -> withContext(NonCancellable) { runCatching { active.unsubscribe(id) } } }
+            if (subscriptionAttempted) withContext(NonCancellable) { runCatching { active.unsubscribe(subscriptionId) } }
         }
     }
 
@@ -482,6 +514,8 @@ fun NativeScreen(
     BackHandler(enabled = selectedTerminal != null) { selectedTerminal = null; selectedWorkspace = null }
     BackHandler(enabled = selectedBrowser != null) { selectedBrowser = null; selectedWorkspace = null }
     BackHandler(enabled = showSettings && selectedTerminal == null) { showSettings = false }
+
+    if (showLicenses) OpenSourceLicensesDialog { showLicenses = false }
 
     val proposedCode = pendingPairingCode
     if (signedIn && proposedCode != null) {
@@ -549,6 +583,7 @@ fun NativeScreen(
                         }, enabled = !busy && otp.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Sign in") }
                     }
                     TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
+                    TextButton(onClick = { showLicenses = true }) { Text("Open-source licenses") }
                 }
             }
             showSettings -> {
@@ -605,6 +640,7 @@ fun NativeScreen(
                             .onFailure { error = it.message }
                     }, enabled = signedIn && code.isNotBlank())
                 }
+                TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
                 Text("DISPLAY", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                     color = nativeMuted, fontSize = 11.sp)
                 Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp),
@@ -669,6 +705,7 @@ fun NativeScreen(
                         proposePairing(pairingText)
                     }, enabled = pairingText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Connect") }
                     TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
+                    TextButton(onClick = { showLicenses = true }) { Text("Open-source licenses") }
                     if (pairedMacs.isNotEmpty()) TextButton(onClick = { showSettings = true }) { Text("Saved computers") }
                 }
             }
@@ -702,16 +739,9 @@ fun NativeScreen(
                     }
                 }
                 val currentGrid = grid
-                if (scrollOffset > 0) {
-                    Row(Modifier.fillMaxWidth().background(nativePanel).padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text("Scrollback · $scrollOffset rows", Modifier.weight(1f),
-                            color = nativeMuted, fontSize = 12.sp)
-                        TextButton(onClick = { scrollOffset = 0 }) { Text("Latest") }
-                    }
-                }
+                Box(Modifier.fillMaxWidth().weight(1f)) {
                 RenderGridView(currentGrid, terminalCells, gridRevision,
-                    Modifier.fillMaxWidth().weight(1f)
+                    Modifier.fillMaxSize()
                         .onSizeChanged { terminalViewportPixels = it }
                         .focusRequester(terminalFocusRequester)
                         .onPreviewKeyEvent { event -> directHardware(event.nativeKeyEvent) }
@@ -720,7 +750,7 @@ fun NativeScreen(
                             directTyping = true
                             rawKeyboardView?.showKeyboard()
                         }
-                        .pointerInput(terminal.id) {
+                        .pointerInput(terminal.id, currentGrid) {
                         var dragPixels = 0f
                         detectVerticalDragGestures(
                             onDragStart = { dragPixels = 0f },
@@ -737,6 +767,13 @@ fun NativeScreen(
                             }
                         )
                     }, scrollOffset = scrollOffset.coerceAtMost(currentGrid.historyLineCount))
+                if (scrollOffset > 0) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp)
+                    .background(nativePanel, RoundedCornerShape(14.dp)).padding(start = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("Scrollback · $scrollOffset rows", color = nativeMuted, fontSize = 12.sp)
+                    TextButton(onClick = { scrollOffset = 0 }) { Text("Latest") }
+                }
+                }
                 Row(Modifier.horizontalScroll(rememberScrollState()).background(nativePanel),
                     verticalAlignment = Alignment.CenterVertically) {
                     listOf("Ctrl" to controlArmed, "Alt" to altArmed, "Shift" to shiftArmed)
@@ -1132,7 +1169,11 @@ fun NativeScreen(
                 }
             }
         }
-        if (error != null) Text(error.orEmpty(), Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(12.dp), color = Color(0xFFFFAAAA))
+        if (error != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(error.orEmpty(), Modifier.weight(1f).padding(vertical = 12.dp), color = Color(0xFFFFAAAA))
+            if (selectedTerminal != null) TextButton(onClick = { retryDelay = 2_000; retry++ }) { Text("Reconnect") }
+        }
     }
 }
 

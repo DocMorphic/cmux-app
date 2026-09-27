@@ -12,18 +12,21 @@ class TerminalGridPainter {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val faces = (0..3).map { Typeface.create(Typeface.MONOSPACE, it) }
 
-    fun draw(canvas: Canvas, width: Float, height: Float, grid: RenderGrid,
+    fun draw(canvas: Canvas, width: Float, height: Float, grid: TerminalDisplay,
              lines: List<List<PlacedSpan>>, cells: TerminalCellMetrics, scrollOffset: Int, blinkVisible: Boolean) {
         val background = color(if (grid.reverseVideo) grid.foreground else grid.background, Color.rgb(17, 19, 22))
         canvas.drawColor(background)
         if (grid.columns <= 0 || grid.rows <= 0) return
-        val cellWidth = min(cells.widthPx, width / grid.columns)
-        val cellHeight = min(cells.heightPx, height / grid.rows)
+        // A keyboard animation can resize the view before the host's next grid.
+        // Scale both axes together so the transient frame cannot stretch letter spacing.
+        val scale = min(1f, min(width / (grid.columns * cells.widthPx), height / (grid.rows * cells.heightPx)))
+        val cellWidth = cells.widthPx * scale
+        val cellHeight = cells.heightPx * scale
         val originX = ((width - cellWidth * grid.columns) / 2f).coerceAtLeast(0f)
         val originY = ((height - cellHeight * grid.rows) / 2f).coerceAtLeast(0f)
         val foreground = color(if (grid.reverseVideo) grid.background else grid.foreground, Color.rgb(224, 229, 235))
         paint.typeface = faces[0]
-        paint.textSize = cells.fontSizePx * min(cellWidth / cells.widthPx, cellHeight / cells.heightPx)
+        paint.textSize = cells.fontSizePx * scale
         val baselineOffset = (cellHeight - (paint.fontMetrics.descent + paint.fontMetrics.ascent)) / 2f
         lines.forEachIndexed { row, spans ->
             for ((span, glyphs) in spans) {

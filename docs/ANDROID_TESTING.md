@@ -20,6 +20,11 @@ Canvas painter. They cover combining accents, CJK, flags, emoji modifiers/ZWJ,
 ambiguous/narrowed widths, identical pixels for mixed versus separately placed
 clusters, palette backgrounds, invisible text and a wide underline cursor.
 `terminal-unicode-rendering.png` records the actual rendered result.
+A fifth flow selects a raw-byte-only host, sends fragmented UTF-8 and ANSI
+output through framed RPC, checks duplicate suppression and alternate-screen
+restoration, forces a byte-sequence gap and verifies replay recovery, then
+scrolls into local history and back without a viewport change. It also confirms
+that parser device-query responses do not become terminal-input RPCs.
 The peer uses synthetic data and never connects to a real cmux account.
 This check does not prove account sign-in, Tailscale routing, or compatibility
 with the live Mac; those remain in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
@@ -43,7 +48,7 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (6 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (7 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 
@@ -61,3 +66,20 @@ The flow was exercised on an ARM64 Android 17 (API 37) emulator with the Pixel
 services startup failures; the completed run used a recovered, idle emulator.
 Do not count runs with an ANR dialog, process crash, timeout, or `FAILURES!!!`
 as passing. Inspect the saved screenshots as well as the assertions.
+
+
+## Captured Vim regression
+
+The JVM suite includes `terminal/vim-session.json`, captured from a local Vim
+9.1 process attached to a real PTY. It contains opening, inserting text into a
+Unicode document, and exiting. The test feeds it to the production native parser
+in seven-byte pieces and checks edited text, the alternate screen and restoration
+of the primary screen. Recreate the fixture on a Mac with `/usr/bin/vim`:
+
+```sh
+python3 scripts/capture-vim-fixture.py
+```
+
+The script creates and removes its own temporary directory and disables Vim
+configuration, swap and history files. This checks genuine Vim output but does
+not verify live input latency, cmux authentication or a physical Pixel connection.

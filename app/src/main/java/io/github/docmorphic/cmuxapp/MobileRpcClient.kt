@@ -32,7 +32,7 @@ class MobileRpcClient(
     private val attachToken: String? = null,
     private val socketFactory: SocketFactory = SocketFactory.getDefault()
 ) : AutoCloseable {
-    data class Event(val topic: String, val payload: JSONObject, val streamId: String?)
+    data class Event(val topic: String, val payload: JSONObject, val streamId: String?, val deliverySequence: Long = 0)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val writeMutex = Mutex()
@@ -49,6 +49,7 @@ class MobileRpcClient(
     private var socket: Socket? = null
     private var reader: Job? = null
     private var closed = false
+    private var eventDeliverySequence = 0L
 
     suspend fun connect() = withContext(Dispatchers.IO) {
         synchronized(stateLock) {
@@ -208,14 +209,13 @@ class MobileRpcClient(
         if (text != null) params.put("text", text)
         return request("mobile.browser.dialog.respond", params)
     }
-    suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int): JSONObject =
-        request("mobile.terminal.replay", JSONObject()
-            .put("workspace_id", workspaceId)
-            .put("surface_id", surfaceId)
-            .put("client_id", clientId)
-            .put("viewport_columns", columns)
-            .put("viewport_rows", rows)
-            .put("anchor", "screen"))
+    suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int,
+                       screenAnchor: Boolean = true, maxScrollbackRows: Int = 10_000): JSONObject {
+        val params = JSONObject().put("workspace_id", workspaceId).put("surface_id", surfaceId)
+            .put("client_id", clientId).put("viewport_columns", columns).put("viewport_rows", rows)
+        if (screenAnchor) params.put("anchor", "screen").put("max_scrollback_rows", maxScrollbackRows.coerceIn(0, 10_000))
+        return request("mobile.terminal.replay", params)
+    }
 
     suspend fun reportViewport(
         workspaceId: String, surfaceId: String, viewport: TerminalViewport, generation: Long
@@ -277,10 +277,13 @@ class MobileRpcClient(
 
     private val clientId = UUID.randomUUID().toString()
 
-    suspend fun subscribe(topics: List<String>, streamId: String = UUID.randomUUID().toString()): JSONObject =
-        request("mobile.events.subscribe", JSONObject()
-            .put("stream_id", streamId)
-            .put("topics", org.json.JSONArray(topics)))
+    suspend fun subscribe(topics: List<String>, streamId: String = UUID.randomUUID().toString(),
+                          screenAnchor: Boolean = false): JSONObject {
+        val params = JSONObject().put("client_id", clientId).put("stream_id", streamId)
+            .put("topics", org.json.JSONArray(topics))
+        if (screenAnchor && "terminal.render_grid" in topics) params.put("render_grid_anchor", "screen")
+        return request("mobile.events.subscribe", params)
+    }
 
     suspend fun unsubscribe(streamId: String): JSONObject = request(
         "mobile.events.unsubscribe", JSONObject().put("stream_id", streamId)
@@ -316,7 +319,8 @@ class MobileRpcClient(
             if (topic.isNotBlank()) eventsMutable.tryEmit(Event(
                 topic,
                 envelope.optJSONObject("payload") ?: JSONObject(),
-                envelope.optString("stream_id").takeIf { it.isNotBlank() }
+                envelope.optString("stream_id").takeIf { it.isNotBlank() },
+                ++eventDeliverySequence
             ))
             return
         }

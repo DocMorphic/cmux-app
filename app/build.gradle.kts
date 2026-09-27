@@ -49,6 +49,8 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    sourceSets.getByName("main").java.srcDir("../third_party/termux/terminal-emulator/src/main/java")
+
     buildFeatures {
         compose = true
     }

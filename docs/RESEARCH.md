@@ -151,6 +151,63 @@ for drawing; scrolling no longer copies all retained history.
 Style color sources retain default/palette/RGB semantics, following
 `MobileTerminalRenderGridStyle+ColorSource`. The painter resolves theme colors,
 reverse-video defaults, cursor color and wide-cell cursor placement, and hides
-invisible glyphs from accessibility text. Full raw VT rendering, exact Ghostty
-font/cursor semantics, mouse reporting, selection, and live interactive-program
-verification remain outstanding; these changes improve the grid mirror.
+invisible glyphs from accessibility text. At that stage, raw VT parsing was still missing; the implementation below adds
+it. Exact Ghostty font/cursor semantics, mouse reporting, selection, and live
+Mac-to-Pixel interactive-program verification remain outstanding.
+
+
+### Terminal byte fallback and hybrid delivery (2026-09-27)
+
+`TerminalOutputTransportSelection.swift` chooses screen-anchored render grids
+when supported, hybrid grid/byte delivery for hosts with both capabilities but
+no screen anchor, and raw bytes when render grids are unavailable. Android now
+implements that selection and subscribes to the actual `workspace.updated`
+topic. Subscriptions include `client_id` and negotiate `render_grid_anchor:
+"screen"`; anchored cold replay requests hydrate up to 10,000 scrollback rows.
+A replacement subscription settles its handshake before its old stream is
+unsubscribed, and stream IDs are checked before accepting terminal events.
+
+`MobileTerminalBytesEvent.swift` defines `data_b64` and byte-start `seq`.
+`MobileTerminalReplayResponse.swift` prefers a full `render_grid`, then
+`snapshot_data_b64`, then a raw `data_b64` tail, with the end sequence in
+`state_seq` or `seq`. The Android mirror retains parser state across chunks,
+trims overlaps by byte count, rejects malformed/overflowing sequences, and
+requests a fresh baseline on gaps. Pending output is bounded to 2 MiB and 256
+chunks. A local event ordinal also detects dropped events in the shared RPC
+buffer. Recovery is limited to three attempts per episode; a visible Reconnect
+action handles failures. Keystrokes are never automatically replayed.
+
+The VT parser is the native Java engine from
+[Termux](https://github.com/termux/termux-app/tree/8629e632fcb95da272221be327db653fb24befe9/terminal-emulator),
+vendored with its licenses and a documented source pin under `third_party/termux`.
+No Termux shell or JNI process is started. Its screen, colors, modes, cursor and
+history are exposed through the existing Android painter. Parser-generated
+terminal replies and clipboard operations are suppressed because the Mac owns
+the PTY; explicit Android input uses the existing ordered RPC queue. Licenses
+are available inside the app.
+
+Hybrid delivery lets raw bytes own the primary screen and authoritative grids
+own alternate-screen content. A full primary frame restores the byte parser
+when leaving the alternate screen; stale grids cannot replace newer byte
+content. A VT-only replay remains visible until an authoritative alternate
+baseline arrives. Grid snapshots seed the parser with positioned, styled glyphs,
+terminal colors, input modes and bounded history. The scrollback control floats
+over the terminal so its appearance does not resize the Mac's PTY. During
+keyboard transitions, old frames use uniform fitting on both axes until the
+new viewport arrives, avoiding distorted character spacing.
+
+A reproducible local Vim capture is in `scripts/capture-vim-fixture.py` and
+`app/src/test/resources/terminal/vim-session.json`: Vim 9.1 opens a temporary
+Unicode document, inserts text and exits. The parser test consumes those real
+bytes in seven-byte chunks and verifies both screens and the edited text.
+This is a captured PTY regression test, not a live connection to the user's cmux.
+The emulator also exercises the production framed RPC client with streamed
+bytes, an alternate-screen transition, a forced sequence gap and scrollback.
+
+Remaining terminal differences are tracked in PARITY.md. In particular,
+Termux and Ghostty do not implement identical grapheme/graphics/control-sequence
+behavior; VT inline graphics are not painted by this adapter, mouse reporting
+and terminal text selection are still missing, and physical-device latency
+and sustained output need live verification. Legacy hosts without a sequence
+baseline cannot provide lossless overlap recovery. These are explicit
+implementation or host-protocol limits, not claimed Android platform limits.

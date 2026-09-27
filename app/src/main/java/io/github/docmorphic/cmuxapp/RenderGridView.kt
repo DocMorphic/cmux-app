@@ -23,7 +23,7 @@ import kotlinx.coroutines.delay
 /** Draws the authoritative cmux cell positions, including wide and combining graphemes. */
 @Composable
 fun RenderGridView(
-    grid: RenderGrid, cells: TerminalCellMetrics, revision: Int,
+    grid: TerminalDisplay, cells: TerminalCellMetrics, revision: Int,
     modifier: Modifier = Modifier, scrollOffset: Int = 0
 ) {
     var blinkVisible by remember(grid) { mutableStateOf(true) }

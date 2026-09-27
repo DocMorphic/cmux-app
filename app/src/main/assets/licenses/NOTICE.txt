@@ -1,0 +1,16 @@
+cmux-app is an unofficial Android companion distributed under GNU GPL version 3.
+Source: https://github.com/DocMorphic/cmux-app
+This software is provided without warranty; redistribution and modification are permitted under its license.
+
+Termux terminal emulator
+Copyright its respective contributors.
+Source: https://github.com/termux/termux-app
+Pinned revision: 8629e632fcb95da272221be327db653fb24befe9
+License: GNU GPL version 3; includes Android Terminal Emulator code under Apache 2.0.
+Android Terminal Emulator: https://github.com/jackpal/Android-Terminal-Emulator
+Local changes: bracketed-paste mode accessor; monotonic bitmap-GC clock for JVM execution.
+The complete modified Java source and provenance are in third_party/termux in the cmux-app repository.
+
+cmux branding and protocol reference
+https://github.com/manaflow-ai/cmux
+cmux-app is not an official cmux release.
