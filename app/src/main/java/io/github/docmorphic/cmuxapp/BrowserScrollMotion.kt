@@ -7,16 +7,9 @@ import androidx.compose.animation.core.DecayAnimationSpec
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.rememberSplineBasedDecay
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerId
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -104,46 +97,4 @@ internal fun rememberBrowserScrollMotion(queue: BrowserInputQueue): BrowserScrol
         onDispose { queue.onNonScrollInput = null; motion.stop() }
     }
     return motion
-}
-
-/** A new touch cancels momentum before deciding whether it is a tap or drag. */
-@Composable
-internal fun Modifier.browserScrollGestures(motion: BrowserScrollMotion, pageWidth: Double, pageHeight: Double,
-    viewportSize: IntSize, generation: Long, enabled: Boolean): Modifier {
-    val tracker = remember(motion) { VelocityTracker() }
-    var multiTouch by remember(motion) { mutableStateOf(false) }
-    DisposableEffect(motion, pageWidth, pageHeight, viewportSize, generation, enabled) { onDispose { motion.stop() } }
-    return pointerInput(motion, pageWidth, pageHeight, viewportSize, generation, enabled) {
-        awaitPointerEventScope {
-            var primary: PointerId? = null
-            while (true) {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                if (primary == null) event.changes.firstOrNull { it.pressed }?.let {
-                    primary = it.id; multiTouch = false; motion.stop(); tracker.resetTracking()
-                }
-                if (event.changes.count { it.pressed } > 1) { multiTouch = true; motion.stop() }
-                event.changes.firstOrNull { it.id == primary }?.let { change ->
-                    change.historical.forEach { tracker.addPosition(it.uptimeMillis, it.position) }
-                    tracker.addPosition(change.uptimeMillis, change.position)
-                }
-                if (event.changes.none { it.pressed }) primary = null
-            }
-        }
-    }.pointerInput(motion, pageWidth, pageHeight, viewportSize, generation, enabled) {
-        if (!enabled) return@pointerInput
-        fun scale() = Offset((pageWidth / size.width).toFloat(), (pageHeight / size.height).toFloat())
-        fun point(position: Offset) = scale().let { Offset(position.x * it.x, position.y * it.y) }
-        try {
-            detectDragGestures(onDragStart = { if (enabled && !multiTouch) motion.begin(point(it)) },
-                onDragCancel = { motion.stop() }, onDragEnd = {
-                    if (enabled && !multiTouch) motion.end(tracker.calculateVelocity().let { Offset(it.x, it.y) }, scale())
-                }) { change, delta ->
-                if (enabled && !multiTouch) {
-                    val factor = scale()
-                    motion.drag(Offset(delta.x * factor.x, delta.y * factor.y), point(change.position))
-                    change.consume()
-                }
-            }
-        } finally { motion.stop() }
-    }
 }

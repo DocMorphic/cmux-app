@@ -22,13 +22,33 @@ UI resemblance alone does not count.
 | Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid with grapheme cell placement, semantic colors, wide cursor, delta/screen continuity and bounded local scrollback verified with JVM/emulator fixtures; actual viewport reporting/clear coded; native VT fallback, hybrid delivery, byte-gap recovery and screen-anchor negotiation verified with JVM/emulator fixtures and a captured Vim session; iOS-style View as Text with native selection/copy, cell tap, coalesced wheel RPCs and host viewport scroll responses verified with emulator fixtures; Android kinetic scrolling and cancellation verified with gesture fixtures; complete Ghostty fidelity, pixel scrolling/inline graphics, and phone resize QA missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Native multiline paste/submit, encrypted per-Mac/terminal drafts, pending-send guards and acknowledgement reconciliation verified with an emulator fixture; direct IME keyboard, Unicode composition, repeated deletion, ordered input and explicit recovery from rejected delivery verified with an emulator fixture; modifier/navigation/control toolbar and hardware keys coded; photo/file picker, encrypted attachments, image paste and chunked file upload verified with an emulator fixture; rich keyboard paste, complete mode handling, and phone QA missing | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
 | Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; encrypted per-pairing alert identity and exact terminal routes, independent saved-Mac workers, read/forget cleanup and host-identity checks coded; combined saved-Mac feed, day/history grouping, unread filter, pull refresh, read/unread gestures and confirmed bulk read coded; offline snapshots and revision guards tested with loopback peers; event/mutation revision floors, bounded refresh retries and Activity-recreation retention coded; computer picker, scoped unread badge/bulk actions and live-destination filtering before the global cap coded; server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
-| Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, bottom navigation/address/loading controls, direct IME and hardware input, live viewport updates, ordered/coalesced scrolling, frame validation and stale-dialog fencing coded; seven browser-view checks and three browser momentum gesture checks have passing emulator evidence across initial/focused runs, including watchdog/lifecycle recovery and momentum/cancellation; width-fit image geometry, local pinch zoom/pan, repeated-tap click counts, downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
+| Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, bottom navigation/address/loading controls, direct IME and hardware input, live viewport updates, ordered/coalesced scrolling, frame validation and stale-dialog fencing coded; seven browser-view checks and three browser momentum gesture checks have passing emulator evidence across initial/focused runs, including watchdog/lifecycle recovery and momentum/cancellation; width-fit geometry, local pinch zoom/pan and repeated-tap click counts implemented with new runtime checks pending; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
 | Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; chat UI, remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
+
+## Browser image geometry and local lens (2026-09-28)
+
+Matched pinned `BrowserStreamTransform`, `BrowserStreamContentView` and
+`BrowserStreamTapClickCounter`. The page now preserves its aspect ratio, fits the
+view width and centers vertically. Drawing and pointer input share the same
+transform; letterbox taps are ignored. Both scroll axes use the width-fit scale,
+with a page-center fallback when the scroll anchor is outside the image.
+
+A unified recognizer arbitrates immediate taps, remote dragging/momentum, a local
+1–4× pinch lens, and local panning while zoomed. Pinching or local panning does not
+forward wheel/click input to the Mac. Pinching back to 1× clears the local pan and
+restores remote scrolling. Repeated taps use the iOS 450 ms / 28-point chaining
+thresholds and forward rising native click counts without delaying the first tap.
+
+All 201 JVM cases passed, including seven new geometry/letterbox/coordinate/click
+contract checks. Debug/test APKs assembled. Three new Android cases exercise pixel
+geometry, click chaining, zoomed input alignment and zoom limits; their runtime
+results are pending alongside the existing browser/momentum checks. This work is
+not in signed build 143, which remains the current phone download.
 
 ## Browser momentum follow-up (2026-09-28)
 
@@ -58,11 +78,8 @@ failed run and the passing rerun remain in `captures/browser/momentum-runtime-in
 and `momentum-runtime-rerun.log`; `momentum-verification.json` records the tested
 revision. No release APK was built; the current signed download remains build 143. The source audit also identified iOS
 width-fit image geometry, local pinch zoom, panning while zoomed, and immediate
-rising Mac click counts for repeated taps. These remain unimplemented on Android.
-The next browser geometry work must preserve aspect ratio, ignore letterbox taps,
-map input through the same transform as the image, and use one width-fit scale for
-both scroll axes. References: `BrowserStreamTransform` and
-`BrowserStreamTapClickCounter` at the same upstream pin.
+rising Mac click counts for repeated taps. The subsequent geometry/lens section
+above records their implementation and current verification status.
 
 ## Browser recovery follow-up (2026-09-28)
 
@@ -88,8 +105,8 @@ now also pass in the combined recovery/momentum run: unanswered-input recovery w
 old-subscription frame rejection, and background/foreground stream lifecycle.
 Focused local evidence is in `captures/browser/recovery-checks.log` and
 `recovery-unit-tests.xml`; runtime evidence is in `momentum-runtime-initial.log`.
-The current phone download remains build 143. Geometry, local pinch zoom/pan,
-repeated-tap click counts, download behavior and physical Pixel/Mac testing remain open.
+The current phone download remains build 143. Geometry/lens verification is
+recorded above; download behavior and physical Pixel/Mac testing remain open.
 
 ## Browser source audit and implementation (2026-09-28)
 
@@ -136,7 +153,7 @@ cases with passing evidence across runs, not a clean full-suite run. Original lo
 and the focused rerun are retained in `captures/browser/`. Signed build 143 now includes this milestone and is the current download. No physical Pixel is attached to adb.
 
 
-194 JVM tests pass. The Android suite now contains 84 cases (including seven browser checks, four offline-task checks, four task attachment/layout checks, three terminal momentum gesture checks and three browser momentum gesture checks): twenty-three Compose
+201 JVM tests pass. The Android suite now contains 87 cases (including seven browser checks, three new browser lens checks, four offline-task checks, four task attachment/layout checks, three terminal momentum gesture checks and three browser momentum gesture checks): twenty-three Compose
 flows, seven task model/submission controls checks, four template checks, five task destination checks, five task draft checks, six completed-task recovery checks, one
 explicit two-process draft check, two workspace drag checks, four Activity-recreation
 checks, four notification/service checks and two

@@ -39,10 +39,10 @@ internal sealed interface BrowserInput {
         override val method = "mobile.browser.input.key"
         override fun parameters(panel: String) = JSONObject().put("panel_id", panel).put("key", key).put("modifiers", JSONArray(modifiers))
     }
-    data class Click(val x: Double, val y: Double) : BrowserInput {
+    data class Click(val x: Double, val y: Double, val count: Int = 1) : BrowserInput {
         override val method = "mobile.browser.input.pointer"
         override fun parameters(panel: String) = JSONObject().put("panel_id", panel).put("kind", "click")
-            .put("x", x).put("y", y).put("click_count", 1).put("button", "left")
+            .put("x", x).put("y", y).put("click_count", count).put("button", "left")
     }
     data class Scroll(val dx: Double, val dy: Double, val x: Double, val y: Double, val phase: String) : BrowserInput {
         override val method = "mobile.browser.input.scroll"

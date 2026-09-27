@@ -3,9 +3,7 @@ package io.github.docmorphic.cmuxapp
 import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -20,8 +18,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -190,16 +186,8 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
         Box(Modifier.fillMaxWidth().weight(1f).onSizeChanged { measured = it }, contentAlignment = Alignment.Center) {
             val current = frame
             if (current == null) Text(if (ready && page.url in setOf("", "about:blank")) "Search or enter an address below." else "Waiting for browser…", color = Color(0xFF969AA3))
-            else Image(current.image, "Mac browser page", Modifier.fillMaxSize()
-                .pointerInput(queue, current.pageWidth, current.pageHeight, inputEnabled) {
-                    if (inputEnabled) detectTapGestures { point ->
-                        focusManager.clearFocus()
-                        queue.offer(BrowserInput.Click(point.x.toDouble() / size.width * current.pageWidth,
-                            point.y.toDouble() / size.height * current.pageHeight))
-                    }
-                }
-                .browserScrollGestures(scrollMotion, current.pageWidth, current.pageHeight,
-                    measured, streamGeneration, inputEnabled), contentScale = ContentScale.FillBounds)
+            else BrowserPageSurface(current, queue, scrollMotion, streamGeneration, inputEnabled,
+                onTap = { focusManager.clearFocus() })
             key(queue) { BrowserKeyboardProxy(queue, policy.focus && !addressFocused && dialog == null, inputEnabled, keyboardRequest, Modifier.size(1.dp)) }
         }
         if (error != null) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
