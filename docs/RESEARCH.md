@@ -124,3 +124,33 @@ The 64 KiB pending-byte limit is an implementation bound, not an Android limit.
 Physical keyboards with international layouts, rich keyboard image paste,
 live interactive terminal applications, and physical Pixel behavior still
 require additional verification.
+
+
+### Render-grid cell placement and continuity (2026-09-27)
+
+At the pinned upstream revision, `MobileTerminalRenderGridReplay` positions
+width-sensitive grapheme clusters at individual producer columns. Its cell-width
+helper uses wide/emoji widths and reconciles ambiguous or narrowed glyphs with
+the span's authoritative `cell_width`. Android now uses the platform ICU
+[`BreakIterator`](https://developer.android.com/reference/android/icu/text/BreakIterator)
+and [`UCharacter`](https://developer.android.com/reference/android/icu/lang/UCharacter)
+tables to segment combining sequences, emoji modifiers, flags, and ZWJ emoji.
+Each cluster is drawn at its own cell position. Fallback fonts can shrink to fit
+the allocated cells; an entire mixed-width text run is never stretched. Unknown
+width mismatches leave unused cells or clip excess clusters, so this does not
+replace the upstream VT fallback for every terminal width convention.
+
+`MobileTerminalRenderGridVisualSnapshot` requires a new full frame when the
+active screen or geometry changes. `MobileTerminalRenderGridRevisionContinuity`
+drops superseded revisions inside a real producer epoch and requests a replay
+for broken delta bases. Android now follows these checks, also fences changed
+row-space revisions, preserves carried scrollback during burst scrolls, and
+clears incompatible history on resize. Only visible rows are copied and laid out
+for drawing; scrolling no longer copies all retained history.
+
+Style color sources retain default/palette/RGB semantics, following
+`MobileTerminalRenderGridStyle+ColorSource`. The painter resolves theme colors,
+reverse-video defaults, cursor color and wide-cell cursor placement, and hides
+invisible glyphs from accessibility text. Full raw VT rendering, exact Ghostty
+font/cursor semantics, mouse reporting, selection, and live interactive-program
+verification remain outstanding; these changes improve the grid mirror.

@@ -730,13 +730,13 @@ fun NativeScreen(
                                 val steps = (dragPixels / rowPixels).toInt()
                                 if (steps != 0) {
                                     scrollOffset = (scrollOffset + steps)
-                                        .coerceIn(0, currentGrid.scrollbackLines.size)
+                                        .coerceIn(0, currentGrid.historyLineCount)
                                     dragPixels -= steps * rowPixels
                                 }
                                 change.consume()
                             }
                         )
-                    }, scrollOffset = scrollOffset.coerceAtMost(currentGrid.scrollbackLines.size))
+                    }, scrollOffset = scrollOffset.coerceAtMost(currentGrid.historyLineCount))
                 Row(Modifier.horizontalScroll(rememberScrollState()).background(nativePanel),
                     verticalAlignment = Alignment.CenterVertically) {
                     listOf("Ctrl" to controlArmed, "Alt" to altArmed, "Shift" to shiftArmed)

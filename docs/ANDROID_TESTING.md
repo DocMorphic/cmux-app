@@ -15,6 +15,11 @@ and drives Android InputConnection composition/commit/delete/key APIs. It checks
 ordered RPC bytes, rejection followed by explicit resume without replaying queued
 input, preserved composer drafts, and invalidation of old input connections.
 It does not drive a real CJK keyboard candidate picker or a live terminal app.
+Two `RenderGridRenderingTest` checks use the device's ICU tables and production
+Canvas painter. They cover combining accents, CJK, flags, emoji modifiers/ZWJ,
+ambiguous/narrowed widths, identical pixels for mixed versus separately placed
+clusters, palette backgrounds, invisible text and a wide underline cursor.
+`terminal-unicode-rendering.png` records the actual rendered result.
 The peer uses synthetic data and never connects to a real cmux account.
 This check does not prove account sign-in, Tailscale routing, or compatibility
 with the live Mac; those remain in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
@@ -35,10 +40,10 @@ On a Mac with limited RAM, build before starting the emulator:
 ./gradlew --no-daemon --max-workers=1 :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (4 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (6 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 
