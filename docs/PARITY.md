@@ -25,14 +25,32 @@ UI resemblance alone does not count.
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
-| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition, chat UI, remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
+| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption coded (runtime checks pending); chat UI, remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
 ## Automated evidence (2026-09-28)
 
-172 JVM tests pass. The Android suite now contains 70 cases (including four task attachment/layout checks and three momentum gesture checks): twenty-three Compose
+Offline task editing now retains the composer across connection changes, allows
+saved drafts without a pairing, preserves unresolved groups until an authoritative
+handshake, and keeps local folder suggestions available offline. Explicit offline
+submission saves edits without creating an uncertain-operation snapshot or queuing
+work. Drafts opened during the first handshake adopt the verified Mac identity.
+This follows the pinned iOS `TaskComposerSheet` connection warning and editing
+policy. The existing options sheet now remains open when switching Macs.
+
+Verification for this feature: `:app:testDebugUnitTest` and
+`:app:compileDebugAndroidTestKotlin` succeeded with 173 JVM tests, zero failures,
+errors, or skips. Four new Android cases cover offline entry/persistence/reconnect,
+unpaired draft resume, group inventory and local folder selection after disconnect,
+and first-handshake adoption. These cases and the updated Mac-switch UI assertion
+are compiled but **not yet run**; they are queued for the next combined emulator
+integration milestone. No APK was assembled or published for this feature; signed
+build 138 remains the current download. No physical Pixel is attached to adb.
+
+
+173 JVM tests pass. The Android suite now contains 74 cases (including four new offline-task checks awaiting runtime execution, four task attachment/layout checks and three momentum gesture checks): twenty-three Compose
 flows, seven task model/submission controls checks, four template checks, five task destination checks, five task draft checks, six completed-task recovery checks, one
 explicit two-process draft check, two workspace drag checks, four Activity-recreation
 checks, four notification/service checks and two

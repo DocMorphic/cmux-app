@@ -21,11 +21,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 
-internal data class TaskGroupSelection(val id: String?, val groups: List<NativeGroup>, val supported: Boolean, val loaded: Boolean) {
-    val pending get() = id != null && supported && !loaded
-    val missing get() = id != null && (!supported || (loaded && groups.count { it.id == id } != 1))
+internal data class TaskGroupSelection(val id: String?, val groups: List<NativeGroup>, val supported: Boolean?, val loaded: Boolean) {
+    val pending get() = id != null && supported != false && (supported == null || !loaded)
+    val missing get() = id != null && (supported == false || (supported == true && loaded && groups.count { it.id == id } != 1))
     val valid get() = !pending && !missing
-    val visible get() = supported || id != null
+    val visible get() = supported == true || id != null
     val label get() = when { pending -> "Loading groups…"; missing -> "Choose a group"; else -> groups.singleOrNull { it.id == id }?.name ?: "None" }
 }
 
@@ -73,11 +73,12 @@ internal fun TaskOptionsView(draft: TaskDraft, macs: List<NativeCredentialStore.
                             "Workspace group", enabled, menu = true, onClick = { groupMenu = true })
                         DropdownMenu(groupMenu, { groupMenu = false }) {
                             DropdownMenuItem(text = { Text("None") }, onClick = { groupMenu = false; onGroup(null) }, trailingIcon = { if (groups.id == null) Text("✓") })
-                            if (groups.supported && groups.loaded) groups.groups.distinctBy { it.id }.forEach { group ->
+                            if (groups.supported == true && groups.loaded) groups.groups.distinctBy { it.id }.forEach { group ->
                                 DropdownMenuItem(text = { Text(group.name) }, enabled = groups.groups.count { it.id == group.id } == 1,
                                     trailingIcon = { if (groups.id == group.id) Text("✓") }, onClick = { groupMenu = false; onGroup(group.id) })
                             }
-                            if (!groups.supported || groups.groups.isEmpty()) DropdownMenuItem(text = { Text("No workspace groups on this Mac") }, enabled = false, onClick = {})
+                            if (groups.pending) DropdownMenuItem(text = { Text("Waiting for this Mac’s groups") }, enabled = false, onClick = {})
+                            else if (groups.supported == false || groups.groups.isEmpty()) DropdownMenuItem(text = { Text("No workspace groups on this Mac") }, enabled = false, onClick = {})
                         }
                     }
                 }

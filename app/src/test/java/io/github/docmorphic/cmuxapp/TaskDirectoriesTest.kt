@@ -110,6 +110,21 @@ class TaskDirectoriesTest {
         assertTrue(TaskGroupSelection("one", groups + groups, true, true).missing)
     }
 
+    @Test fun disconnectedGroupsStayPendingUntilAnAuthoritativeHandshake() {
+        val cached = listOf(NativeGroup("one", "One", false, false))
+        for (loaded in listOf(false, true)) {
+            val offline = TaskGroupSelection("one", cached, null, loaded)
+            assertTrue(offline.pending)
+            assertFalse(offline.missing)
+            assertFalse(offline.valid)
+            assertTrue(offline.visible)
+        }
+        assertTrue(TaskGroupSelection(null, cached, null, false).valid)
+        assertTrue(TaskGroupSelection("one", cached, true, true).valid)
+        assertTrue(TaskGroupSelection("one", emptyList(), true, true).missing)
+        assertTrue(TaskGroupSelection("one", cached, false, false).missing)
+    }
+
     @Test fun macRetargetPreservesDraftAndPinsRetryRecoveryToOriginalMac() {
         val drafts = TaskDrafts(); val id = UUID.randomUUID().toString()
         val editor = drafts.begin(id, "first", "First", "/first")

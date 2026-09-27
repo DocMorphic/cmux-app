@@ -34,7 +34,7 @@ internal suspend fun MobileRpcClient.taskDirectorySearch(query: String) = TaskDi
 
 /** Each request is tied to this exact composer connection and disappears with the picker. */
 @Composable
-internal fun TaskDirectoryPickerView(client: MobileRpcClient, origin: String, selectedPath: String,
+internal fun TaskDirectoryPickerView(client: MobileRpcClient?, origin: String, selectedPath: String,
     candidates: List<TaskDirectoryCandidate>, isCurrent: () -> Boolean,
     onSelect: (String) -> Unit, onDismiss: () -> Unit) {
     var stackJson by rememberSaveable(origin) { mutableStateOf(JSONArray(TaskDirectoryPaths.ancestry(selectedPath)).toString()) }
@@ -58,7 +58,7 @@ internal fun TaskDirectoryPickerView(client: MobileRpcClient, origin: String, se
         if (request == null) return@LaunchedEffect
         try {
             check(currentGuard()) { "Connection changed" }
-            val page = client.taskDirectoryPage(request.path, request.offset)
+            val page = (client ?: throw java.io.IOException("Mac is not connected")).taskDirectoryPage(request.path, request.offset)
             currentCoroutineContext().ensureActive()
             if (currentGuard()) browse = browse.receive(request, page)
         } catch (failure: Exception) {
@@ -74,7 +74,7 @@ internal fun TaskDirectoryPickerView(client: MobileRpcClient, origin: String, se
         try {
             delay(140)
             check(currentGuard()) { "Connection changed" }
-            val result = client.taskDirectorySearch(query)
+            val result = (client ?: throw java.io.IOException("Mac is not connected")).taskDirectorySearch(query)
             currentCoroutineContext().ensureActive()
             if (currentGuard()) { remote = result; searching = false }
         } catch (failure: Exception) {

@@ -131,6 +131,7 @@ fun NativeScreen(
     var retry by remember { mutableIntStateOf(0) }
     var retryDelay by remember { mutableLongStateOf(2_000) }
     var client by remember { mutableStateOf<MobileRpcClient?>(null) }
+    var connectionReady by remember { mutableStateOf(false) }
     var hostName by remember(code) { mutableStateOf("cmux") }
     var hostCapabilities by remember(code) { mutableStateOf<Set<String>>(emptySet()) }
     var pairedMacs by remember { mutableStateOf(store.pairedMacs()) }
@@ -234,7 +235,7 @@ fun NativeScreen(
         feedSession.taskModels.retainOrigins(pairedMacs.map { it.origin }.toSet())
         if (selectedComputerOrigin.isNotBlank() && selectedComputer == null) selectComputer(null)
     }
-    val canCreateOnCurrentMac = client != null && connectedCode == code &&
+    val canCreateOnCurrentMac = connectionReady && client != null && connectedCode == code &&
         (selectedComputer == null || selectedComputer.code == connectedCode)
     val scopedFeedSources = remember(feedSources, selectedOrigin) {
         feedSources.values.filter { selectedOrigin == null || it.mac.origin == selectedOrigin }
@@ -611,6 +612,7 @@ fun NativeScreen(
     }
 
     LaunchedEffect(signedIn, code, retry) {
+        connectionReady = false
         client?.close(); client = null; connectedCode = null
         if (!signedIn || code.isBlank()) return@LaunchedEffect
         val requestedCode = code
@@ -643,6 +645,7 @@ fun NativeScreen(
                 terminalTransport = TerminalTransport.resolve(capabilities, status.optString("terminal_fidelity"))
                 applyListing(listing); notifications = feed
                 client = active; connectedCode = requestedCode
+                connectionReady = true
                 pairedMacs = store.pairedMacs()
                 connectionError = null
                 retryDelay = 2_000
@@ -661,6 +664,7 @@ fun NativeScreen(
     LaunchedEffect(client) {
         val active = client ?: return@LaunchedEffect
         active.disconnected.collect { failure ->
+            connectionReady = false
             connectionError = nativeConnectionFailure(failure)
             delay(2_000)
             retry++
@@ -1017,8 +1021,6 @@ fun NativeScreen(
                 }
             }
             showTaskComposer -> {
-                val active = client
-                val taskCode = connectedCode
                 val repository = taskDraftRepository
                 val restored = taskDraftEntries[taskDraftId]
                 val restoredMac = restored?.let { draft -> pairedMacs.firstOrNull { it.origin == draft.origin } }
@@ -1026,11 +1028,15 @@ fun NativeScreen(
                     if (restoredMac != null && code != restoredMac.code) selectComputer(restoredMac)
                 }
                 val taskMac = pairedMacs.firstOrNull { it.code == code }
-                val taskOrigin = taskMac?.origin ?: pairingOrigin(code)
-                if (active != null && connectedCode == code && repository != null &&
-                    (restored == null || restored.origin == taskOrigin)) key(taskDraftId, repository.session) {
+                val taskOrigin = restored?.origin ?: taskMac?.origin ?: pairingOrigin(code)
+                val selectedTaskMac = pairedMacs.firstOrNull { it.origin == taskOrigin }
+                val taskCode = selectedTaskMac?.code
+                val taskConnected = connectionReady && taskCode != null && connectedCode == taskCode && code == taskCode
+                val active = client.takeIf { taskConnected }
+                val taskWorkspaces = if (taskMac?.origin == taskOrigin) workspaces else emptyList()
+                if (repository != null) key(taskDraftId, repository.session) {
                 NativeTaskComposerView(active,
-                    directories = preferredTaskDirectories(workspaces, selectedWorkspace?.id),
+                    directories = preferredTaskDirectories(taskWorkspaces, selectedWorkspace?.id),
                     origin = taskOrigin,
                     models = feedSession.taskModels,
                     onCreated = { response ->
@@ -1046,16 +1052,19 @@ fun NativeScreen(
                             it.id == response.optString("created_terminal_id")
                         } ?: created.terminals.firstOrNull()
                     }, onBack = { showTaskComposer = false },
-                    isCurrent = { signedIn && client === active && connectedCode == taskCode && code == taskCode },
-                    savedDrafts = repository.drafts, draftId = taskDraftId, macName = taskMac?.name ?: hostName,
+                    isCurrent = { signedIn && taskDraftRepository === repository },
+                    savedDrafts = repository.drafts, draftId = taskDraftId,
+                    macName = selectedTaskMac?.name ?: restored?.macName ?: "Choose a Mac",
+                    hasSelectedMac = selectedTaskMac != null,
+                    resolvedMacOrigin = taskMac?.origin.takeIf { selectedTaskMac == null && taskOrigin == pairingOrigin(code) },
                     savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
-                    attachmentRepository = repository, supportsAttachments = ComposerAttachment.FILE_CAPABILITY in hostCapabilities,
-                    macs = pairedMacs, workspaceGroups = groups,
-                    supportsGroups = "workspace.create_in_group.v1" in hostCapabilities,
-                    groupsLoaded = taskGroupsLoaded,
-                    groupIsCurrent = { group -> group == null || ("workspace.create_in_group.v1" in hostCapabilities &&
+                    attachmentRepository = repository, supportsAttachments = taskMac?.origin == taskOrigin && ComposerAttachment.FILE_CAPABILITY in hostCapabilities,
+                    macs = pairedMacs, workspaceGroups = if (taskMac?.origin == taskOrigin) groups else emptyList(),
+                    supportsGroups = if (taskConnected) "workspace.create_in_group.v1" in hostCapabilities else null,
+                    groupsLoaded = taskConnected && taskGroupsLoaded,
+                    groupIsCurrent = { group -> group == null || (connectionReady && connectedCode == taskCode && code == taskCode && "workspace.create_in_group.v1" in hostCapabilities &&
                         taskGroupsLoaded && groups.count { it.id == group } == 1) },
-                    directoryWorkspaces = workspaces, selectedWorkspaceId = selectedWorkspace?.id,
+                    directoryWorkspaces = taskWorkspaces, selectedWorkspaceId = selectedWorkspace?.id,
                     selectMac = { editor, nextOrigin ->
                         val target = requireNotNull(pairedMacs.singleOrNull { it.origin == nextOrigin }) { "This Mac is no longer paired" }
                         val snapshot = workspaceSources.firstOrNull { it.mac.origin == nextOrigin && it.availability == NativeFeedAvailability.CONNECTED }
@@ -1069,27 +1078,21 @@ fun NativeScreen(
                     },
                     persistDrafts = repository::persistNow, flushDrafts = repository::flush,
                     onResumeDraft = { draft ->
-                        val target = requireNotNull(pairedMacs.firstOrNull { it.origin == draft.origin }) {
-                            "This draft’s saved pairing is no longer available. Its prompt is still saved."
-                        }
                         taskDraftId = draft.id
-                        selectComputer(target)
+                        pairedMacs.firstOrNull { it.origin == draft.origin }?.let(::selectComputer)
                     }, onNewDraft = { newTaskDraft() },
-                    supportsTaskCreation = "workspace.task_create.v1" in hostCapabilities,
+                    supportsTaskCreation = if (taskConnected) "workspace.task_create.v1" in hostCapabilities else null,
                     refreshWorkspaces = {
-                        val listing = active.workspaces()
-                        check(signedIn && client === active && connectedCode == taskCode && code == taskCode) {
+                        val listing = checkNotNull(active) { "That Mac is not connected" }.workspaces()
+                        check(signedIn && connectionReady && client === active && connectedCode == taskCode && code == taskCode) {
                             "Connection changed while refreshing workspaces"
                         }
                         applyListing(listing)
                     })
                 } else Column(Modifier.fillMaxSize().padding(22.dp)) {
                     TextButton(onClick = { showTaskComposer = false }) { Text("‹  Workspaces") }
-                    Text(taskDraftLoadError ?: if (restored != null && restoredMac == null)
-                        "This draft’s saved pairing is no longer available. Return to Workspaces to open another draft."
-                    else connectionError ?: if (repository == null) "Loading saved drafts…" else "Connecting to the draft’s Mac…")
+                    Text(taskDraftLoadError ?: "Loading saved drafts…")
                     if (taskDraftLoadError != null) TextButton(onClick = { taskDraftLoadAttempt++ }) { Text("Retry") }
-                    else if (connectionError != null) TextButton(onClick = { retry++ }) { Text("Reconnect") }
                 }
             }
             code.isBlank() -> {
@@ -1113,6 +1116,7 @@ fun NativeScreen(
                     Button(onClick = {
                         proposePairing(pairingText)
                     }, enabled = pairingText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Connect") }
+                    TextButton(onClick = { newTaskDraft() }, modifier = Modifier.fillMaxWidth()) { Text("New task") }
                     TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
                     TextButton(onClick = { showLicenses = true }) { Text("Open-source licenses") }
                     if (pairedMacs.isNotEmpty()) TextButton(onClick = { workspaceRoute = null; finishSearch(); showSettings = true }) { Text("Saved computers") }
@@ -1406,11 +1410,11 @@ fun NativeScreen(
                             }
                         }
                         Box {
-                            TextButton(onClick = { createMenuOpen = true }, enabled = canCreateOnCurrentMac) {
+                            TextButton(onClick = { createMenuOpen = true }) {
                                 Text("+", color = nativeAccent, fontSize = 25.sp)
                             }
                             DropdownMenu(createMenuOpen, onDismissRequest = { createMenuOpen = false }) {
-                                DropdownMenuItem(text = { Text("New workspace") }, onClick = {
+                                DropdownMenuItem(text = { Text("New workspace") }, enabled = canCreateOnCurrentMac, onClick = {
                                     createMenuOpen = false
                                     val active = client
                                     if (active != null) scope.launch { runCatching { active.request("workspace.create") }
@@ -1432,7 +1436,7 @@ fun NativeScreen(
                                     createMenuOpen = false; finishSearch(); newTaskDraft()
                                 })
                                 if ("workspace.group_create.v1" in hostCapabilities) {
-                                    DropdownMenuItem(text = { Text("New group") }, onClick = {
+                                    DropdownMenuItem(text = { Text("New group") }, enabled = canCreateOnCurrentMac, onClick = {
                                         createMenuOpen = false; showCreateGroup = true
                                     })
                                 }
@@ -1558,7 +1562,7 @@ fun NativeScreen(
                             }
                     }
                     if (searchState.active == null) NativeTaskComposerButton(
-                        Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 2.dp), enabled = canCreateOnCurrentMac) {
+                        Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 2.dp), enabled = true) {
                         finishSearch(); newTaskDraft()
                     }
                     }

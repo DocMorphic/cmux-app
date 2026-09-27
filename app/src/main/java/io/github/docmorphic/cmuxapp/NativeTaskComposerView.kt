@@ -29,6 +29,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.UUID
@@ -36,14 +37,14 @@ import java.util.UUID
 /** The built-in cmux task templates backed by workspace.create. */
 @Composable
 internal fun NativeTaskComposerView(
-    client: MobileRpcClient,
+    client: MobileRpcClient?,
     directories: List<String>,
     origin: String,
     models: TaskModelRepository,
     onCreated: (JSONObject) -> Unit,
     onBack: () -> Unit,
     catalog: suspend (TaskAgentCommand) -> TaskModelResult = TaskModelCatalog::load,
-    createTask: suspend (JSONObject) -> JSONObject = { client.request("workspace.create", it, timeoutMillis = 30_000) },
+    createTask: suspend (JSONObject) -> JSONObject = { checkNotNull(client) { "That Mac is not connected" }.request("workspace.create", it, timeoutMillis = 30_000) },
     isCurrent: () -> Boolean = { true },
     savedDrafts: TaskDrafts? = null,
     draftId: String? = null,
@@ -52,16 +53,18 @@ internal fun NativeTaskComposerView(
     flushDrafts: () -> Unit = {},
     onResumeDraft: (TaskDraft) -> Unit = {},
     onNewDraft: () -> Unit = {},
-    supportsTaskCreation: Boolean = true,
-    refreshWorkspaces: suspend () -> Unit = { client.workspaces(); Unit },
+    supportsTaskCreation: Boolean? = true,
+    refreshWorkspaces: suspend () -> Unit = { checkNotNull(client) { "That Mac is not connected" }.workspaces(); Unit },
     savedTemplates: TaskTemplates? = null,
     persistTemplateChange: (suspend (TaskTemplateChange) -> Unit)? = null,
     macs: List<NativeCredentialStore.PairedMac> = emptyList(),
     selectMac: (suspend (TaskDrafts.Editor, String) -> Unit)? = null,
-    workspaceGroups: List<NativeGroup> = emptyList(), supportsGroups: Boolean = false, groupsLoaded: Boolean = true,
+    workspaceGroups: List<NativeGroup> = emptyList(), supportsGroups: Boolean? = false, groupsLoaded: Boolean = true,
     directoryWorkspaces: List<NativeWorkspace> = emptyList(), selectedWorkspaceId: String? = null,
     groupIsCurrent: ((String?) -> Boolean)? = null,
-    attachmentRepository: TaskDraftRepository? = null, supportsAttachments: Boolean = false
+    attachmentRepository: TaskDraftRepository? = null, supportsAttachments: Boolean = false,
+    hasSelectedMac: Boolean = true,
+    resolvedMacOrigin: String? = null
 ) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
@@ -120,6 +123,21 @@ internal fun NativeTaskComposerView(
     val currentGroupCheck by rememberUpdatedState(groupIsCurrent)
     var preparingAttachments by remember(editor) { mutableStateOf(false) }
     val canEdit = !busy && !accepted && !preparingAttachments
+    val currentCanEdit by rememberUpdatedState(canEdit)
+    // A draft opened during the very first handshake initially has only the
+    // pairing-code identity. Adopt the verified Mac once that handshake finishes.
+    LaunchedEffect(editor, resolvedMacOrigin) {
+        val resolved = resolvedMacOrigin ?: return@LaunchedEffect
+        val select = selectMac ?: return@LaunchedEffect
+        snapshotFlow { currentCanEdit }.first { it }
+        if (!currentContext() || !collection.isCurrent(editor)) return@LaunchedEffect
+        busy = true
+        try { select(editor, resolved) }
+        catch (failure: Exception) {
+            if (failure is CancellationException) throw failure
+            error = failure.message ?: "Could not select this Mac"
+        } finally { busy = false }
+    }
     fun edit(update: (TaskDraft) -> TaskDraft) {
         if (busy || accepted || preparingAttachments) return
         collection.editIfCurrent(editor, update) ?: return
@@ -181,7 +199,7 @@ internal fun NativeTaskComposerView(
     }.getOrNull()
     val recoveryApplies = recovery?.appliesTo(origin, effectiveRequest) == true
     fun launchTask(reconcile: Boolean = false, startAgain: Boolean = false) {
-        if (busy || accepted || preparingAttachments || !supportsTaskCreation || !groupSelection.valid) return
+        if (busy || accepted || preparingAttachments || supportsTaskCreation == false || !hasSelectedMac || !groupSelection.valid) return
         if (reconcile && !recoveryApplies) return
         if (!reconcile && recoveryApplies && !(startAgain && recoveryReady)) return
         val requestConnectionToken = connectionToken
@@ -197,6 +215,14 @@ internal fun NativeTaskComposerView(
             var transmitted = false
             try {
                 check(requestIsCurrent()) { "Connection changed" }
+                // An explicit offline attempt saves local edits, but has not sent an
+                // operation and must not create an uncertain-submission snapshot.
+                if (client == null) {
+                    persistDrafts()
+                    currentCoroutineContext().ensureActive()
+                    if (requestIsCurrent()) error = "That Mac is not connected. Open cmux on the Mac, then try again."
+                    return@launch
+                }
                 if (!reconcile) {
                     submission.submitted(origin, parameters)
                     collection.edit(editor) { it.copy(lastRequest = parameters.toString(), lastRequestOrigin = origin, completedRequest = null, completedOrigin = null) }
@@ -256,7 +282,7 @@ internal fun NativeTaskComposerView(
         }
     }
     LaunchedEffect(client, modelKey) {
-        if (modelKey == null) return@LaunchedEffect
+        if (modelKey == null || client == null) { loading = false; return@LaunchedEffect }
         loading = true
         try {
             var attempt = 0
@@ -408,7 +434,10 @@ internal fun NativeTaskComposerView(
                     disabledContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent, disabledIndicatorColor = Color.Transparent))
             Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!supportsTaskCreation) Text("Update cmux on this Mac to create tasks.",
+                if (client == null) Text(if (hasSelectedMac) "That Mac is not connected. Open cmux on the Mac to start this task."
+                    else "Pair a Mac to start this task. You can save your draft now.",
+                    color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
+                if (supportsTaskCreation == false) Text("Update cmux on this Mac to create tasks.",
                     color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
                 if (recoveryApplies) {
                     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)
@@ -425,7 +454,7 @@ internal fun NativeTaskComposerView(
                             }
                         }
                         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { launchTask(reconcile = true) }, enabled = canEdit && supportsTaskCreation,
+                            OutlinedButton(onClick = { launchTask(reconcile = true) }, enabled = canEdit && hasSelectedMac && supportsTaskCreation != false,
                                 modifier = Modifier.weight(1f)) { Text(if (recoveryReady) "Refresh Again" else "Refresh Workspaces") }
                             if (recoveryReady) OutlinedButton(onClick = { confirmStartAgain = true }, enabled = canEdit,
                                 modifier = Modifier.weight(1f)) { Text("Start Again") }
@@ -437,7 +466,7 @@ internal fun NativeTaskComposerView(
                     color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
 
                 if (preparingAttachments) Text("Preparing attachments…", color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
-                if (!plainShell && draft.attachments.isNotEmpty() && !supportsAttachments)
+                if (client != null && !plainShell && draft.attachments.isNotEmpty() && !supportsAttachments)
                     Text("This Mac does not support task attachments. Update cmux or remove the attachments.", color = Color(0xFFFF9999))
                 attachmentStrip()
                 Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -514,8 +543,8 @@ internal fun NativeTaskComposerView(
 
                     }
                     TaskComposerCircle(if (accepted) "Task Created" else if (busy) "Creating…" else "Create Task", R.drawable.ic_task_submit,
-                        canEdit && !recoveryApplies && supportsTaskCreation && groupSelection.valid &&
-                            (plainShell || draft.attachments.isEmpty() || supportsAttachments) && (plainShell || prompt.isNotBlank()),
+                        canEdit && !recoveryApplies && hasSelectedMac && supportsTaskCreation != false && groupSelection.valid &&
+                            (client == null || plainShell || draft.attachments.isEmpty() || supportsAttachments) && (plainShell || prompt.isNotBlank()),
                         accent = true, busy = busy, onClick = { launchTask() })
                 }
             }

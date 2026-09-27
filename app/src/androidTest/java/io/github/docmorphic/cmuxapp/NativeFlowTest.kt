@@ -684,6 +684,10 @@ class NativeFlowTest {
             compose.onNode(hasText("First") and hasAnyAncestor(isPopup())).performClick()
             compose.onNodeWithContentDescription("Task Mac").performClick()
             compose.onNodeWithContentDescription("Task Mac: Second Mac").performClick()
+            compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("Task Mac") and
+                SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Second Mac")).fetchSemanticsNodes().isNotEmpty() }
+            // The editor now stays mounted through the connection change, including its options sheet.
+            compose.onNodeWithText("Done").performClick()
             compose.waitUntil(15_000) { compose.onAllNodes(hasText("Move my unsent task 中") and hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
             compose.assertTaskDirectory("/typed/path")
             compose.onNodeWithContentDescription("Task Options").performClick()
