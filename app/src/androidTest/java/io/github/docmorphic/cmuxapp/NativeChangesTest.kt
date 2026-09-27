@@ -4,6 +4,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -36,7 +39,7 @@ class NativeChangesTest {
             if (extra) "+extra line\n" else "").put("truncated", truncated).put("diff_total_lines", 100_000)
     }
     private fun show() {
-        compose.setContent { CmuxTheme { if (visible) NativeChangesView(client, "ws", "Fixture repo", { visible = false }) } }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) { Box(Modifier.fillMaxSize().safeDrawingPadding()) { if (visible) NativeChangesView(client, "ws", "Fixture repo", { visible = false }) } } } }
     }
     private fun waitText(text: String) = compose.waitUntil(10_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
     private fun requests() = peer.requests.filter { it.optString("method") == "mobile.workspace.changes.file_diff" }
@@ -115,7 +118,11 @@ class NativeChangesTest {
         assertEquals(1, peer.requests.count { it.optString("method").endsWith(".file_fetch") })
         val contentRequests = peer.requests.filter { it.optString("method").endsWith(".file_fetch") || it.optString("method").endsWith(".file_stat") }
         assertTrue(contentRequests.all { it.getJSONObject("params").let { p -> p.getString("path") == "App.kt" && p.getString("revision") == "current" && p.getString("workspace_id") == "ws" } })
+        val screenshot = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        compose.activity.openFileOutput("changes-diff-expanded.png", Context.MODE_PRIVATE).use { screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        screenshot.recycle()
         compose.onNodeWithContentDescription("Refresh diff App.kt").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Expand 2 lines above").fetchSemanticsNodes().isNotEmpty() }
         waitText("new App.kt")
         compose.onNodeWithText("first unchanged").assertDoesNotExist()
         compose.onNodeWithContentDescription("Expand 2 lines above").assertExists()

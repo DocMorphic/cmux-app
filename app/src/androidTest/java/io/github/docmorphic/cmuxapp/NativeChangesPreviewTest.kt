@@ -9,6 +9,9 @@ import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -45,7 +48,7 @@ class NativeChangesPreviewTest {
     private fun fingerprint(data: ByteArray, revision: String) = if (revision == "base") "blob:fixture:${data.size}" else "stat:${data.size}:123:4:5:6"
     private fun chunk(data: ByteArray, revision: String) = JSONObject().put("data_b64", Base64.getEncoder().encodeToString(data)).put("offset", 0)
         .put("total_size", data.size).put("eof", true).put("content_fingerprint", fingerprint(data, revision))
-    private fun show() { compose.setContent { CmuxTheme { if (visible) NativeChangesView(client, "ws", "Fixture repo", { visible = false }) } } }
+    private fun show() { compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) { Box(Modifier.fillMaxSize().safeDrawingPadding()) { if (visible) NativeChangesView(client, "ws", "Fixture repo", { visible = false }) } } } } }
     private fun waitText(text: String) = compose.waitUntil(10_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
     private fun waitDescription(text: String) = compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription(text).fetchSemanticsNodes().isNotEmpty() }
     private fun png(color: Int) = ByteArrayOutputStream().use { out ->
@@ -67,6 +70,9 @@ class NativeChangesPreviewTest {
         show(); waitText("image.png")
         compose.onNodeWithContentDescription("Open diff new/image.png").performClick()
         waitDescription("Image preview image.png")
+        val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        compose.activity.openFileOutput("changes-image-preview.png", Context.MODE_PRIVATE).use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        screenshot.recycle()
         compose.onNodeWithText("Before").performClick()
         waitDescription("Before preview old/image.png")
         waitDescription("Image preview image.png")
@@ -82,9 +88,6 @@ class NativeChangesPreviewTest {
             val p = it.getJSONObject("params"); p.getString("revision") == "base" && p.getString("path") == "old/image.png"
         })
         compose.onNodeWithText("After").performClick(); waitDescription("After preview new/image.png"); waitDescription("Image preview image.png")
-        val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-        compose.activity.openFileOutput("changes-image-preview.png", Context.MODE_PRIVATE).use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        screenshot.recycle()
         compose.runOnIdle { visible = false }; compose.waitForIdle()
         compose.waitUntil(10_000) { File(compose.activity.cacheDir, "changes-previews").listFiles().orEmpty().isEmpty() }
         assertArrayEquals(before, compose.activity.contentResolver.openInputStream(uri!!).use { it!!.readBytes() })
@@ -163,4 +166,26 @@ class NativeChangesPreviewTest {
         compose.runOnIdle { visible = false }; compose.waitForIdle()
         compose.waitUntil(10_000) { File(compose.activity.cacheDir, "changes-previews").listFiles().orEmpty().isEmpty() }
     }
+    @Test fun extensionlessImageCopyPreservesImageMimeAndExactBytes() {
+        val data = png(Color.MAGENTA)
+        peer.changesResponse = { method, _ -> when {
+            method.endsWith(".files") -> files("image", "added")
+            method.endsWith(".file_diff") -> diff("image")
+            method.endsWith(".file_stat") -> stat(data, "current", "image/png", "image")
+            else -> chunk(data, "current")
+        } }
+        show(); waitText("image"); compose.onNodeWithContentDescription("Open diff image").performClick()
+        waitDescription("Image preview image")
+        compose.onNodeWithText("File actions").performClick(); compose.onNodeWithText("Copy Image").performClick()
+        var clip: android.content.ClipData? = null
+        compose.waitUntil(10_000) {
+            compose.runOnUiThread { clip = (compose.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip }
+            clip?.getItemAt(0)?.uri != null
+        }
+        assertTrue(clip!!.description.hasMimeType("image/png"))
+        val uri = clip!!.getItemAt(0).uri
+        assertEquals("image/png", compose.activity.contentResolver.getType(uri))
+        assertArrayEquals(data, compose.activity.contentResolver.openInputStream(uri).use { it!!.readBytes() })
+    }
+
 }

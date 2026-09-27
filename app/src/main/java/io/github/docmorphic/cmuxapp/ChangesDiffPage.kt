@@ -50,7 +50,7 @@ internal fun ChangesDiffPage(store: ChangesStore, file: ChangedFile, fontSize: F
     Column(Modifier.fillMaxSize().semantics { contentDescription = "Diff ${file.path}" }) {
         Row(Modifier.fillMaxWidth().padding(start = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(file.path, Modifier.weight(1f), color = changesMuted, fontSize = 11.sp)
-            Text("${fontSize.toInt()} pt", Modifier.semantics { contentDescription = "Diff text size ${fontSize.toInt()}" }, fontSize = 11.sp, color = changesMuted)
+            if (state.document?.binary != true) Text("${fontSize.toInt()} pt", Modifier.semantics { contentDescription = "Diff text size ${fontSize.toInt()}" }, fontSize = 11.sp, color = changesMuted)
             IconButton(onClick = { store.load(file.path, force = true) }, enabled = !state.loading,
                 modifier = Modifier.semantics { contentDescription = "Refresh diff ${file.path}" }) {
                 Icon(painterResource(R.drawable.ic_browser_reload), null, Modifier.size(18.dp))

@@ -99,12 +99,17 @@ private fun ChangesPreviewActions(artifact: ChangesPreviewArtifact?) {
         scope.launch {
             var exported: File? = null
             try {
-                val file = exportChangesPreview(captured, File(context.cacheDir, "task-previews"))
+                val inferred = MimeTypeMap.getSingleton().getMimeTypeFromExtension(captured.file.extension.lowercase())
+                val mime = captured.metadata.mime?.substringBefore(';')?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+                    ?: inferred ?: "application/octet-stream"
+                val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)?.takeIf { it.matches(Regex("[A-Za-z0-9]+")) }
+                // FileProvider derives MIME from the exported name. Preserve the host's type for
+                // extensionless files (and files whose extension disagrees with their content).
+                val name = if (extension != null && inferred != mime) "${captured.file.name}.$extension" else captured.file.name
+                val file = exportChangesPreview(captured, File(context.cacheDir, "task-previews"), name)
                 exported = file
                 ensureActive()
                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file)
-                val mime = captured.metadata.mime?.substringBefore(';')?.trim()?.takeIf { it.isNotEmpty() }
-                    ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "application/octet-stream"
                 when (action) {
                     "Save" -> { pendingSave = file; save.launch(file.name) }
                     "Copy Image" -> {

@@ -64,13 +64,13 @@ internal class ChangesPreviewFiles(root: File, private val transfer: ChangesCont
 }
 
 /** Export a snapshot independent of the preview lifetime; a picker/clipboard may outlive its page. */
-internal suspend fun exportChangesPreview(artifact: ChangesPreviewArtifact, root: File): File = withContext(Dispatchers.IO) {
+internal suspend fun exportChangesPreview(artifact: ChangesPreviewArtifact, root: File, filename: String = artifact.file.name): File = withContext(Dispatchers.IO) {
     root.mkdirs()
     root.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 3_600_000 }?.forEach { it.deleteRecursively() }
     val directory = File(root, UUID.randomUUID().toString())
     check(directory.mkdirs()) { "Could not prepare the file." }
     try {
-        val output = File(directory, artifact.file.name)
+        val output = File(directory, changesPreviewName(filename))
         artifact.file.inputStream().use { input -> output.outputStream().use { target ->
             val buffer = ByteArray(64 * 1024)
             while (true) {
