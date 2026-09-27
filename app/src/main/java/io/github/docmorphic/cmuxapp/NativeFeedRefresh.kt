@@ -1,5 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -39,7 +40,13 @@ internal class NativeFeedRefresh(private val retryDelayMillis: Long = 1_000) {
     private val generation = AtomicLong()
     fun request() { generation.incrementAndGet(); signal.trySend(Unit) }
     fun close() { signal.close() }
-    suspend fun awaitRequest(timeoutMillis: Long) = withTimeoutOrNull(timeoutMillis) { signal.receive() }
+    suspend fun awaitRequest(timeoutMillis: Long) = withTimeoutOrNull(timeoutMillis) {
+        // Session teardown may close the signal before the cancelled monitor resumes.
+        // Closing is normal cancellation, not a failure of its parent/account scope.
+        val result = signal.receiveCatching()
+        if (result.isClosed) throw CancellationException("Feed refresh closed")
+        result.getOrThrow()
+    }
 
     suspend fun run(fetch: suspend () -> Boolean) {
         while (currentCoroutineContext().isActive) {

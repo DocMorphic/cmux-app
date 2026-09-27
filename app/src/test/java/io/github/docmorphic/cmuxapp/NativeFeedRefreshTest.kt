@@ -68,6 +68,25 @@ class NativeFeedRefreshTest {
         } finally { worker.cancelAndJoin(); refresh.close() }
     }
 
+    @Test fun closingWhileWaitingCancelsOnlyTheRefreshWorker() = runBlocking {
+        val refresh = NativeFeedRefresh()
+        val waiting = CompletableDeferred<Unit>()
+        val worker = launch(start = CoroutineStart.UNDISPATCHED) {
+            waiting.complete(Unit)
+            refresh.awaitRequest(30_000)
+            fail("A closed refresh signal must not resume work")
+        }
+        waiting.await()
+        refresh.close()
+        withTimeout(2_000) { worker.join() }
+        assertTrue(worker.isCancelled)
+        assertTrue(currentCoroutineContext().isActive)
+        // The same rule applies when teardown wins before awaitRequest begins.
+        val late = launch { refresh.awaitRequest(30_000) }
+        withTimeout(2_000) { late.join() }
+        assertTrue(late.isCancelled)
+    }
+
     @Test fun cancellingDelayedRetryDoesNotRunAnotherRequest() = runBlocking {
         val refresh = NativeFeedRefresh(500)
         val two = CompletableDeferred<Unit>()

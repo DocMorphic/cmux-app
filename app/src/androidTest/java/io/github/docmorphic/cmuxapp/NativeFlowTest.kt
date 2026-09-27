@@ -355,6 +355,7 @@ class NativeFlowTest {
         val oldConnection = connection
         compose.onNodeWithText("‹  2").performClick()
         compose.onNodeWithText("Read project").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Keyboard").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Keyboard").performClick()
         compose.runOnIdle {
             assertTrue(!oldConnection.commitText("stale input", 1))
@@ -705,6 +706,7 @@ class NativeFlowTest {
     }
 
     private fun assertDraft(text: String) {
+        compose.waitUntil(10_000) { compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
         compose.onNode(hasSetTextAction()).assert(
             SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString(text)))
     }

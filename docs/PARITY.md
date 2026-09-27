@@ -32,7 +32,7 @@ UI resemblance alone does not count.
 
 ## Automated evidence (2026-09-27)
 
-94 JVM tests pass. The Android suite now contains 25 checks: seventeen Compose
+95 JVM tests pass. The Android suite now contains 25 checks: seventeen Compose
 flows, two Activity-recreation checks, four notification/service checks and two
 renderer checks. Earlier checks have passing evidence across suite and focused
 runs. The All Computers workspace flow passes separately; nine navigation,
