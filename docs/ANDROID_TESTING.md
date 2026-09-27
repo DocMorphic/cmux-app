@@ -232,7 +232,8 @@ Search flattens members with their individual counts. Expanded and collapsed
 screenshots were inspected at `captures/emulator/screenshots/workspace-counts-expanded.png`
 and `workspace-counts-collapsed.png`. The full 29-case instrumentation suite was
 not rerun in this batch. These results use a synthetic RPC peer, not the Pixel
-or a real cmux host. Large-font badge layout remains a separate QA item.
+or a real cmux host. The same flow also passed at 150% text size (62.47 seconds) and both screenshots
+were reviewed; other accessibility sizes remain separate QA items.
 
 Recreate the pinned Lucide Android vectors with:
 
@@ -244,3 +245,43 @@ The script fetches only the pinned SVG files and license, records hashes in
 `third_party/lucide/workspace-icons/PROVENANCE.json`, and preserves the complete
 license in the app. Unknown custom SF Symbol names currently use a folder
 fallback; vector shape equivalence is not exact Apple glyph parity.
+
+## Task model and effort checks
+
+Rebuild the provider-command reference from the pinned official checkout:
+
+```sh
+python3 scripts/generate-task-command-parity.py /path/to/cmux
+./gradlew :app:testDebugUnitTest --tests '*TaskModelsTest' --tests '*TaskCommandTest' --tests '*MobileRpcClientTest'
+```
+
+The generator compiles the unmodified `MobileTaskAgentProvider.swift`, records
+its source SHA-256, and compares 695 command rewrites. The JVM suite checks host
+and catalog decoding, default-only host metadata, discovery completion order,
+cache isolation, forgetting/sign-out and stale generations, explicit selections
+across delisting, effort reconciliation, timeouts and cancellation. Framed RPC
+coverage verifies that error codes survive decoding and do not close a usable
+connection; permanent errors stop discovery while transient errors retry.
+
+`NativeTaskModelsTest` uses the real Compose composer and RPC client with a
+local fixture Mac and injected catalog. It covers explicit model/effort command
+parameters, frozen open menus during host replacement, Default without a model
+flag, older hosts using the catalog without invented efforts, and plain Shell.
+The test harness includes the production screen's status/navigation/IME insets.
+No installed agent CLI or native Pixel connection is exercised by these tests.
+
+Task controls validation (2026-09-27): all 121 JVM tests pass. The Android 17
+Pixel-profile emulator passed six focused checks together (`OK (6 tests)`,
+175.423 seconds): the five task controls flows plus primary navigation/search/
+composer entry. The suite now contains 34 instrumentation checks; it was not
+rerun in full. The test catalog is injected, and the Mac is a loopback peer.
+The production catalog URL was separately fetched and returned schema version 1;
+that read-only check does not prove an installed Mac agent or native Pixel pairing.
+
+The timeout check verifies the actual composer coroutine returns from Creating
+to an editable retained prompt after a request timeout, sends no automatic retry,
+and reuses the operation ID only after an explicit unchanged retry. Task controls
+and prompt screenshots were reviewed at `captures/emulator/screenshots/task-model-options.png`
+and `task-model-effort.png`. The harness paints the same dark system-bar background
+as the production screen. Complete task recovery and persisted task drafts remain
+separate work; this check does not prove recovery after app process death.

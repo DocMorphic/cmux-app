@@ -126,18 +126,23 @@ internal class TaskModelRepository {
         }
         data class Result(val host: Boolean, val value: TaskModelResult?)
         val results = Channel<Result>(2)
+        var permanentFailure = false
         val jobs = listOf(launch {
             val result = try { host() } catch (failure: Exception) {
                 if (failure is CancellationException) {
                     currentCoroutineContext().ensureActive()
-                    if (failure !is TimeoutCancellationException) throw failure
+                    if (failure !is TimeoutCancellationException) { results.close(failure); throw failure }
                 }
+                permanentFailure = failure is MobileRpcException && failure.code?.lowercase() in PERMANENT_CODES
                 TaskModelResult(emptyList(), TaskModelSource.FALLBACK, error = TaskModelError.HOST_UNAVAILABLE)
             }
             results.send(Result(true, result))
         }, launch {
             val result = try { catalog() } catch (failure: Exception) {
-                if (failure is CancellationException) throw failure
+                if (failure is CancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    if (failure !is TimeoutCancellationException) { results.close(failure); throw failure }
+                }
                 null
             }
             results.send(Result(false, result))
@@ -168,11 +173,16 @@ internal class TaskModelRepository {
             }
             val failed = hostResult
             if (cache[key]?.usable != true && backend == null && failed != null) publish(failed.copy(models = emptyList(), defaultModel = null))
-            hostResult?.error != TaskModelError.PROVIDER_UNAVAILABLE
+            !permanentFailure && hostResult?.error != TaskModelError.PROVIDER_UNAVAILABLE
         } finally { jobs.forEach { it.cancel() }; results.close() }
     }
 
-    companion object { fun retryDelay(attempt: Int) = minOf(15_000L, 500L * (1L shl attempt.coerceIn(0, 5))) }
+    companion object {
+        private val PERMANENT_CODES = setOf("method_not_found", "unknown_method", "unsupported_method",
+            "capability_disabled", "feature_disabled", "unauthorized", "forbidden", "account_mismatch",
+            "invalid_params", "cancelled")
+        fun retryDelay(attempt: Int) = minOf(15_000L, 500L * (1L shl attempt.coerceIn(0, 5)))
+    }
 }
 
 /** Keeps the concrete model from the presented menu if a catalog replacement delists it. */

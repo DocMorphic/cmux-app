@@ -11,6 +11,37 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class MobileRpcClientTest {
+    @Test fun structuredRpcErrorRetainsCodeAndDoesNotCloseTheConnection() = runBlocking {
+        ServerSocket(0).use { server ->
+            val finish = CountDownLatch(1)
+            val peer = Thread {
+                server.accept().use { socket ->
+                    repeat(2) { index ->
+                        val input = socket.getInputStream()
+                        val size = input.readNBytes(4).fold(0) { n, byte -> (n shl 8) or (byte.toInt() and 0xff) }
+                        val request = JSONObject(String(input.readNBytes(size), Charsets.UTF_8))
+                        val response = JSONObject().put("id", request.getString("id")).put("ok", index == 1)
+                        if (index == 0) response.put("error", JSONObject().put("code", "unsupported_method")
+                            .put("message", "Model discovery unavailable"))
+                        else response.put("result", JSONObject().put("workspaces", org.json.JSONArray()))
+                        socket.getOutputStream().write(MobileFrameCodec.encode(response.toString().toByteArray()))
+                        socket.getOutputStream().flush()
+                    }
+                    finish.await(5, TimeUnit.SECONDS)
+                }
+            }.apply { start() }
+            val client = MobileRpcClient(PairingCode.Route("127.0.0.1", server.localPort), { "test-token" })
+            try {
+                client.connect()
+                val failure = runCatching { client.request("mobile.task.models.list") }.exceptionOrNull()
+                assertTrue(failure is MobileRpcException)
+                assertEquals("unsupported_method", (failure as MobileRpcException).code)
+                assertEquals("Model discovery unavailable", failure.message)
+                assertEquals(0, client.workspaces().getJSONArray("workspaces").length())
+            } finally { finish.countDown(); client.close(); peer.join(3_000) }
+        }
+    }
+
     @Test fun groupAndMoveMutationsUseOfficialMethodAndScope() = runBlocking {
         ServerSocket(0).use { server ->
             val observed = mutableListOf<JSONObject>()

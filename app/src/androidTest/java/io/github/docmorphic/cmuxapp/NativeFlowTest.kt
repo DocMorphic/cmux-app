@@ -1132,6 +1132,9 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var hiddenWorkspaceId: String? = null
     @Volatile var customWorkspaceListing: JSONObject? = null
     private val readNotifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    @Volatile var releaseTaskModels: CountDownLatch? = null
+    @Volatile var taskModelsResponse: JSONObject? = null
+    @Volatile var taskModelErrorCode: String? = null
     @Volatile var rawTerminal = false
     @Volatile var screenAnchor = true
     @Volatile var alternateScreen = false
@@ -1192,11 +1195,18 @@ internal class NativeFixturePeer : AutoCloseable {
                                 releaseNextFeed = null
                             }
                         }
+                        if (request.optString("method") == "mobile.task.models.list") {
+                            releaseTaskModels?.let { latch ->
+                                check(latch.await(30, TimeUnit.SECONDS)) { "Task model response not released" }
+                                releaseTaskModels = null
+                            }
+                        }
                         val result = response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
-                        val rejected = (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
+                        val modelError = taskModelErrorCode.takeIf { request.optString("method") == "mobile.task.models.list" }
+                        val rejected = modelError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
                             (request.optString("method") == "terminal.input" && rejectNextInput.getAndSet(false))
                         val envelope = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
-                        if (rejected) envelope.put("error", JSONObject().put("code", "surface_unavailable")
+                        if (rejected) envelope.put("error", JSONObject().put("code", modelError ?: "surface_unavailable")
                             .put("message", "Fixture terminal temporarily unavailable"))
                         else envelope.put("result", result)
                         send(socket, envelope)
@@ -1207,6 +1217,16 @@ internal class NativeFixturePeer : AutoCloseable {
     }
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
+        "mobile.task.models.list" -> taskModelsResponse?.let { JSONObject(it.toString()) } ?: run {
+            val provider = params.getString("provider")
+            val model = JSONObject().put("id", "$provider-live").put("display_name", "Local $provider")
+                .put("default_effort_id", "high").put("efforts", JSONArray("""[
+                  {"id":"low","display_name":"Low","description":"Faster responses"},
+                  {"id":"high","display_name":"High","description":"More reasoning"}]
+                """))
+            JSONObject().put("source", "discovered").put("models", JSONArray().put(model)).put("default_model", model)
+        }
+        "workspace.create" -> JSONObject().put("created_workspace_id", "task-created")
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
             .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").also {
                 if (rawTerminal) it.put("terminal.bytes.v1")

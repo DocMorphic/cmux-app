@@ -122,6 +122,17 @@ class TaskModelsTest {
         assertEquals(listOf(500L,1000L,2000L,4000L,8000L,15000L,15000L), (0..6).map(TaskModelRepository::retryDelay))
     }
 
+    @Test fun permanentRpcErrorsStopDiscoveryWhileTransientRpcErrorsRetry() = runBlocking {
+        for (code in listOf("method_not_found", "unknown_method", "unsupported_method", "capability_disabled",
+            "feature_disabled", "unauthorized", "forbidden", "account_mismatch", "invalid_params", "cancelled")) {
+            val repo = TaskModelRepository()
+            assertFalse(code, repo.refresh(key, { throw MobileRpcException(code, "Fixture failure") }, { backend }, {}))
+            assertEquals(backend, repo.cached(key))
+        }
+        val repo = TaskModelRepository()
+        assertTrue(repo.refresh(key, { throw MobileRpcException("temporarily_unavailable", "Fixture failure") }, { backend }, {}))
+    }
+
     @Test fun forgottenClearedAndSupersededOwnersCannotReceiveOldResults() = runBlocking {
         for (action in listOf("forget", "clear", "supersede")) {
             val repo = TaskModelRepository(); val gate = CompletableDeferred<TaskModelResult>(); val started = CompletableDeferred<Unit>()
@@ -142,6 +153,22 @@ class TaskModelsTest {
         repo.refresh(key, { host }, { awaitCancellation() }, {})
         assertNull(repo.cached(key.copy(origin="mac-two")))
         assertNull(repo.cached(key.copy(provider=TaskAgentCommand.CLAUDE)))
+    }
+
+    @Test fun loaderCancellationClosesTheRefreshInsteadOfLeavingItWaitingForAMissingEvent() = runBlocking {
+        for (cancelHost in listOf(true, false)) {
+            val repo = TaskModelRepository()
+            val failure = runCatching {
+                withTimeout(1_000) {
+                    repo.refresh(key,
+                        { if (cancelHost) throw CancellationException("Connection replaced") else awaitCancellation() },
+                        { if (!cancelHost) throw CancellationException("Catalog cancelled") else awaitCancellation() }, {})
+                }
+            }.exceptionOrNull()
+            assertTrue(failure is CancellationException)
+            assertFalse(failure is TimeoutCancellationException)
+            assertNull(repo.cached(key))
+        }
     }
 
     @Test fun presentedModelSurvivesDelistingAndEffortReconcilesOnlyAgainstItsModel() {

@@ -21,6 +21,9 @@ import java.net.Socket
 import java.util.UUID
 import javax.net.SocketFactory
 
+/** Retains the protocol's error code so callers can distinguish retryable failures. */
+internal class MobileRpcException(val code: String?, message: String) : IllegalStateException(message)
+
 /**
  * The control channel of cmux's mobile RPC protocol. The caller must supply a
  * route from a scanned cmux pairing code and a current same-account Stack token.
@@ -346,9 +349,10 @@ class MobileRpcClient(
         if (envelope.optBoolean("ok")) {
             waiter.complete(envelope.optJSONObject("result") ?: JSONObject())
         } else {
-            val message = envelope.optJSONObject("error")?.optString("message")
+            val error = envelope.optJSONObject("error")
+            val message = error?.optString("message")
                 .orEmpty().ifBlank { "cmux RPC request failed" }
-            waiter.completeExceptionally(IllegalStateException(message))
+            waiter.completeExceptionally(MobileRpcException(error?.opt("code") as? String, message))
         }
     }
 

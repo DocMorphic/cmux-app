@@ -202,6 +202,7 @@ fun NativeScreen(
         computerMenuOpen = false
     }
     LaunchedEffect(pairedMacs, selectedComputerOrigin) {
+        feedSession.taskModels.retainOrigins(pairedMacs.map { it.origin }.toSet())
         if (selectedComputerOrigin.isNotBlank() && selectedComputer == null) selectComputer(null)
     }
     val canCreateOnCurrentMac = client != null && connectedCode == code &&
@@ -981,6 +982,8 @@ fun NativeScreen(
                 val active = client
                 if (active != null) NativeTaskComposerView(active,
                     directories = workspaces.mapNotNull { it.directory },
+                    origin = pairedMacs.firstOrNull { it.code == connectedCode }?.origin ?: pairingOrigin(connectedCode.orEmpty()),
+                    models = feedSession.taskModels,
                     onCreated = { response ->
                         applyListing(response); refreshFeed()
                         val created = workspaces.firstOrNull {

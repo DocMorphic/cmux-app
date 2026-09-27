@@ -20,9 +20,10 @@ internal class NativeFeedSession(
     }, isAllowed = { mac -> account.isSignedIn() && store.pairedMacs().contains(mac) })
 
     val workspaceMoves = NativeWorkspaceMoves(scope, coordinator)
+    val taskModels = TaskModelRepository()
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     override fun onCleared() { clear(); scope.cancel() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,

@@ -25,15 +25,15 @@ UI resemblance alone does not count.
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
-| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Built-in Claude/Codex/OpenCode/Shell templates and new-workspace task RPC coded; model/effort, attachments, task recovery, chat UI, and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
+| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Built-in Claude/Codex/OpenCode/Shell templates, live model/effort choices, scoped discovery/cache and new-workspace task RPC coded; editable templates, task attachments, recovery, chat UI, full composer styling and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
 ## Automated evidence (2026-09-27)
 
-108 JVM tests pass. The Android suite now contains 29 checks: nineteen Compose
-flows, two workspace drag checks, two Activity-recreation checks, four notification/service checks and two
+121 JVM tests pass. The Android suite now contains 34 checks: nineteen Compose
+flows, five task model controls checks, two workspace drag checks, two Activity-recreation checks, four notification/service checks and two
 renderer checks. Earlier checks have passing evidence across suite and focused
 runs. The All Computers workspace flow passes separately; nine navigation,
 notification, lifecycle and terminal-entry cases passed for the preceding primary
@@ -131,8 +131,9 @@ The focused Android 17 unread flow passes with actual Compose controls and the
 framed loopback RPC client: expanded/collapsed counts, legacy unknown counts,
 read/unread refresh and search flattening. It passed together with three existing
 hierarchy/drag regressions (four tests total, 80.235 seconds). Expanded/collapsed
-screenshots were visually inspected. Large-font badge layout and physical Pixel
-behavior remain unverified.
+screenshots were visually inspected. The same badge flow also passed at 150% system text size (62.47 seconds),
+with expanded and collapsed screenshots reviewed. Other accessibility sizes and
+physical Pixel behavior remain unverified.
 
 Group headers use a folder or a common custom-symbol equivalent, a separate
 collapse chevron, and a pin next to the name. Lucide sources, hashes, ISC/MIT
@@ -217,3 +218,41 @@ remain open.
 
 The current Android build is not a parity release. Keep this table honest as
 implementation and physical-device verification progress.
+
+## Task model and effort contract
+
+Task creation probes `mobile.task.models.list` for the selected provider and
+fetches the cmux `/api/agent-models` catalog concurrently. A cold catalog can
+populate the picker while Mac discovery is pending; nonempty discovered Mac
+results (including default-only metadata) take priority. Cache identity includes
+the exact pairing origin and provider, and account clearing or forgetting a Mac
+fences stale refreshes. Transient failures preserve previously usable data.
+Discovery retries while the composer is open with the iOS 500 ms–15 s capped
+backoff; cancellation, provider unavailability, unsupported/disabled RPCs, authorization
+failures, account mismatch and invalid requests stop it. Structured RPC error
+codes are preserved without closing an otherwise usable connection.
+
+The model menu captures its presented choices so a delayed Mac catalog cannot
+replace an option while the user taps it. A chosen model survives delisting.
+Efforts come only from the selected model or the Mac's Default metadata; a
+Default model choice adds no explicit model argument. Claude `--effort`, Codex
+`-c model_reasoning_effort=`, and OpenCode `--variant` values are quoted with the
+upstream provider algorithm. Prompts remain in `CMUX_TASK_PROMPT`.
+
+The command port is compared with 695 results from the pinned unmodified Swift
+provider implementation, including repeated/existing flags, quoted arguments,
+end-of-options, command boundaries, redirects, Unicode and embedded apostrophes.
+JVM checks cover discovery completion order, default-only host results, stale
+refreshes, forgetting/sign-out, owner cancellation, timeouts, and selected model/
+effort reconciliation. This does not verify the installed agent CLIs on the Mac.
+Task drafts, editable templates, task attachment/recovery flows, full composer
+layout parity and agent chat remain open.
+
+The Android 17 Pixel-profile emulator passes all five task controls flows and the
+existing primary navigation/search/composer-entry flow together (six tests,
+175.423 seconds). The five task flows use the production Compose/RPC path with a
+synthetic Mac and injected catalog. They verify explicit model/effort submission,
+Default, plain Shell, older-host fallback, and prompt/operation-ID retention
+after a timeout followed by explicit retry. The final screenshots were inspected.
+This remains separate from actual
+Mac agent launch, task recovery and physical Pixel acceptance.
