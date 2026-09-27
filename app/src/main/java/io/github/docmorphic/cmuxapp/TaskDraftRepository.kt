@@ -5,6 +5,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -16,12 +17,14 @@ internal class TaskDraftRepository private constructor(
     private val mutex = Mutex()
     private val mutableError = MutableStateFlow<String?>(null)
     val saveError = mutableError.asStateFlow()
-    val drafts = TaskDrafts(checkNotNull(store.load()) { "Sign in to load task drafts" }
-        .also { requireSession(it) }.optJSONObject("task_drafts"))
+    private val saved = checkNotNull(store.load()) { "Sign in to load task drafts" }
+        .also { requireSession(it) }.optJSONObject("task_drafts")
+    val drafts = TaskDrafts(saved)
+    val templates = TaskTemplates(saved?.optJSONObject("templates"))
 
     init {
         scope.launch {
-            drafts.state.collectLatest {
+            combine(drafts.state, templates.state) { a, b -> a to b }.collectLatest {
                 delay(300)
                 try { persistNow() } catch (failure: CancellationException) { throw failure } catch (_: Exception) { }
             }
@@ -31,13 +34,23 @@ internal class TaskDraftRepository private constructor(
     suspend fun persistNow(): Unit = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
-                val saved = drafts.saved()
+                val saved = drafts.saved().put("templates", templates.state.value.json())
                 store.update { state -> requireSession(state); state.put("task_drafts", saved) }
                 mutableError.value = null
             } catch (failure: Exception) {
                 if (failure !is CancellationException) mutableError.value = "Could not save task drafts"
                 throw failure
             }
+        }
+    }
+
+    /** Save before publishing a template edit; failures keep the editor and old selection. */
+    suspend fun updateTemplates(change: TaskTemplateChange): Unit = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val proposed = templates.preview(change)
+            store.update { state -> requireSession(state)
+                state.put("task_drafts", drafts.saved().put("templates", proposed.json())) }
+            templates.apply(change)
         }
     }
 
@@ -48,7 +61,7 @@ internal class TaskDraftRepository private constructor(
             "Account changed while saving task drafts"
         }
     }
-    private fun close() { scope.cancel(); drafts.clear() }
+    private fun close() { scope.cancel(); drafts.clear(); templates.close() }
 
     companion object {
         @Volatile private var instance: TaskDraftRepository? = null

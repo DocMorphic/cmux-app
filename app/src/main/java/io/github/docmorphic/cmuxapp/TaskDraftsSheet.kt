@@ -50,7 +50,7 @@ internal fun TaskDraftsSheet(
                 Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
                     Column(Modifier.weight(1f).clickable(enabled = !busy) { onResume(draft) }.padding(vertical = 14.dp)) {
                         Text(draft.title, maxLines = 2, style = MaterialTheme.typography.titleMedium)
-                        Text(listOf(draft.agent.label, draft.macName, draft.directory).filter { it.isNotBlank() }.joinToString(" · "),
+                        Text(listOf(draft.templateName ?: draft.agent.label, draft.macName, draft.directory).filter { it.isNotBlank() }.joinToString(" · "),
                             maxLines = 1, color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
                         Text(DateUtils.getRelativeTimeSpanString(draft.updatedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString(),
                             color = Color(0xFF9B9FA8), style = MaterialTheme.typography.labelSmall)

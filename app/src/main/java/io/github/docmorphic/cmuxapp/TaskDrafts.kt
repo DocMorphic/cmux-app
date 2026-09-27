@@ -13,13 +13,24 @@ internal data class TaskDraft(
     val prompt: String = "", val directory: String = "",
     val selection: TaskModelSelection = TaskModelSelection(), val defaultModel: TaskModel? = null,
     val lastRequest: String? = null,
-    val completedRequest: String? = null
+    val completedRequest: String? = null,
+    val templateId: String? = null, val templateName: String? = null, val templateCommand: String? = null,
+    val didEditDirectory: Boolean = false
 ) {
+    val command get() = templateCommand ?: agent.command
+    fun selecting(template: TaskTemplate, suggestedDirectory: String): TaskDraft {
+        val resetModel = (templateId ?: TaskTemplate.builtInId(agent)) != template.id ||
+            command?.let(TaskAgentCommand::detect) != TaskAgentCommand.detect(template.command)
+        return copy(agent = template.builtInKind ?: agent, templateId = template.id, templateName = template.name,
+            templateCommand = template.command, directory = if (didEditDirectory) directory else suggestedDirectory,
+            selection = if (resetModel) TaskModelSelection() else selection,
+            defaultModel = if (resetModel) null else defaultModel)
+    }
     val isEmpty get() = prompt.isBlank() && lastRequest == null && completedRequest == null
     val title get() = prompt.trim().lineSequence().firstOrNull()?.takeIf { it.isNotEmpty() } ?: "Untitled task"
     fun restoredModels() = TaskModelResult(listOfNotNull(selection.explicit), TaskModelSource.FALLBACK, defaultModel)
     fun reconcileModels(provider: TaskAgentCommand?, result: TaskModelResult?): TaskDraft {
-        if (agent.command?.let(TaskAgentCommand::detect) != provider) return this
+        if (command?.let(TaskAgentCommand::detect) != provider) return this
         val reconciled = selection.reconcile(result)
         return copy(selection = reconciled.copy(explicit = reconciled.model(result)), defaultModel = result?.defaultModel)
     }
@@ -29,6 +40,8 @@ internal data class TaskDraft(
         .put("model", selection.explicit?.let(::modelJson)).put("effort", selection.effortId)
         .put("default_model", defaultModel?.let(::modelJson)).put("last_request", lastRequest?.let(::JSONObject))
         .put("completed_request", completedRequest?.let(::JSONObject))
+        .put("template_id", templateId).put("template_name", templateName).put("template_command", templateCommand)
+        .put("did_edit_directory", didEditDirectory)
 
     companion object {
         private fun modelJson(model: TaskModel): JSONObject = JSONObject().put("id", model.id)
@@ -51,7 +64,9 @@ internal data class TaskDraft(
             return TaskDraft(id, origin, raw.getString("mac_name"), raw.getLong("updated_at"),
                 TaskCommand.Agent.valueOf(raw.getString("agent")), raw.getString("prompt"), raw.getString("directory"),
                 TaskModelSelection(model(raw.optJSONObject("model")), raw.opt("effort") as? String),
-                model(raw.optJSONObject("default_model")), request?.toString(), completed?.toString())
+                model(raw.optJSONObject("default_model")), request?.toString(), completed?.toString(),
+                (raw.opt("template_id") as? String)?.also { UUID.fromString(it) }, raw.opt("template_name") as? String,
+                raw.opt("template_command") as? String, raw.optBoolean("did_edit_directory", true))
         }
     }
 }

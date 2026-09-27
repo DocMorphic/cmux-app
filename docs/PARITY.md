@@ -25,16 +25,16 @@ UI resemblance alone does not count.
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
-| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Built-in Claude/Codex/OpenCode/Shell templates, live model/effort choices, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; editable templates, task attachments, chat UI, full composer styling and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
+| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachments, chat UI, full composer styling and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
 ## Automated evidence (2026-09-27)
 
-142 JVM tests pass. The Android suite now contains 52 cases: twenty-two Compose
-flows, seven task model/submission controls checks, five task draft checks, six completed-task recovery checks, one
-explicit two-process draft check, two workspace drag checks, three Activity-recreation
+151 JVM tests pass. The Android suite now contains 57 cases: twenty-two Compose
+flows, seven task model/submission controls checks, four template checks, five task draft checks, six completed-task recovery checks, one
+explicit two-process draft check, two workspace drag checks, four Activity-recreation
 checks, four notification/service checks and two
 renderer checks. Earlier checks have passing evidence across suite and focused
 runs. The All Computers workspace flow passes separately; nine navigation,
@@ -247,8 +247,8 @@ end-of-options, command boundaries, redirects, Unicode and embedded apostrophes.
 JVM checks cover discovery completion order, default-only host results, stale
 refreshes, forgetting/sign-out, owner cancellation, timeouts, and selected model/
 effort reconciliation. This does not verify the installed agent CLIs on the Mac.
-Editable templates, task attachment flows, full composer layout parity and agent
-chat remain open. Saved drafts and completed-operation recovery are described below.
+Task attachment flows, full composer layout parity and agent chat remain open.
+Editable templates, saved drafts and completed-operation recovery are described below.
 
 The Android 17 Pixel-profile emulator passes all five task controls flows and the
 existing primary navigation/search/composer-entry flow together (six tests,
@@ -292,7 +292,7 @@ Leaving edited content offers Save Draft, Delete Draft and Keep Editing. Empty
 selection-only drafts are omitted; a submitted untitled Shell keeps its retry
 record. The collection retains the newest 20 nonempty drafts, matching iOS.
 
-Prompt and directory text, built-in agent selection, explicit model metadata,
+Prompt and directory text, template identity/name/raw command, explicit model metadata,
 Default-model effort metadata and the last composed request are encrypted with
 the Android Keystore account store. Autosaves are ordered and conflated, background
 and disposal request a flush, and task creation waits for a durable request/ID
@@ -307,7 +307,7 @@ to its originating provider. A resumed draft selects its saved computer and wait
 for that exact pairing connection before mounting the composer. Task creation
 requires the host's `workspace.task_create.v1` capability.
 
-Remaining task work includes editable templates, attachments, destination group/directory/name controls,
+Remaining task work includes attachments, destination group/directory/name controls,
 offline composer editing, draft rebinding after a pairing code changes, full
 composer styling and agent chat. Saved drafts remain bound to the saved pairing;
 they are not automatically redirected to a different or renewed pairing. Physical
@@ -337,3 +337,33 @@ Cold restoration preserves the anchor and retired identity and requires refresh
 again, matching iOS's restored recovery phase. Older encrypted drafts remain
 readable. Persistence and RPC checks use the same account/editor/origin guards
 as normal task submission. Physical Pixel/Mac verification is still required.
+
+
+## Editable task templates and successful defaults
+
+The Agent menu lists editable shipped Claude, Codex, OpenCode and Shell templates
+and custom templates, with Edit Agents opening the list and add/edit form. Names,
+icons, raw commands and default directories are editable. Built-in identities
+remain protected from deletion even after renaming or changing their commands;
+custom entries can be removed. Provider/model discovery follows the actual command.
+A blank command opens a plain shell. Nonblank scripts retain their exact source,
+and the task prompt is passed through `CMUX_TASK_PROMPT`.
+
+The three upstream agent images are copied unchanged from the pinned iOS source;
+paths and SHA-256 hashes are recorded in `TASK_TEMPLATE_ASSETS.json`. Ten symbol
+choices use the app's attributed Lucide equivalents. Custom emoji retain one ICU
+grapheme. These symbol shapes are Android equivalents rather than Apple glyphs.
+The editor shares the main window's Android keyboard and system-bar insets.
+
+Template edits commit to the encrypted account store before updating the UI.
+Errors retain the form; account changes fence stale writes. Unsaved editor fields
+survive Activity recreation. Successful task creation remembers the template,
+exact paired Mac, and up to 20 recent directories per Mac. A new task selects
+the last successful Mac only while that pairing is still saved. Directory defaults
+prefer the template, then the selected/recent workspace (focused terminal first),
+then the last successful directory, then `~`. Explicitly typed paths survive agent
+changes. Saved drafts retain their own Mac, template and directory. Deleted-template
+restoration falls back to an available template and clears the old submission anchor.
+
+Task attachments, destination browsing, offline composer editing, full composer
+visual parity, agent chat and physical Pixel/Mac acceptance remain separate work.

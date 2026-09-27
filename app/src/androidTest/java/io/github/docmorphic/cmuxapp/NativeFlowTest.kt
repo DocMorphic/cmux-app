@@ -613,6 +613,8 @@ class NativeFlowTest {
             compose.waitUntil(15_000) { compose.onAllNodesWithText("First workspace").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithContentDescription("New Task").performClick()
             compose.waitUntil(10_000) { compose.onAllNodesWithText("Task prompt").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("Agent").performClick()
+            compose.onNodeWithText("Codex", useUnmergedTree = true).performClick()
             compose.onNodeWithText("Task prompt").performTextInput("First Mac saved task")
             compose.onNodeWithText("‹  Workspaces").performClick()
             compose.onNodeWithText("Save Draft").performClick()
@@ -634,6 +636,21 @@ class NativeFlowTest {
             runBlocking { repository.persistNow() }
             assertEquals(listOf("Second Mac saved task"), TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.values.map { it.prompt })
             screenshot("task-draft-restored-mac")
+            assertEquals(TaskTemplate.builtInId(TaskCommand.Agent.CODEX), repository.templates.state.value.lastTemplateId)
+            compose.onNodeWithText("‹  2").performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Computer filter").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("Computer filter").performClick()
+            compose.onNode(hasText("Second Mac") and hasAnyAncestor(isPopup())).performClick()
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Second workspace").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("New Task").performClick()
+            compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("Agent") and
+                SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Codex")).fetchSemanticsNodes().isNotEmpty() }
+            val freshDraft = repository.drafts.state.value.values.single { it.prompt.isEmpty() }
+            assertEquals(store.pairedMacs().first { it.deviceId == "fixture-mac" }.origin, freshDraft.origin)
+            assertEquals(TaskTemplate.builtInId(TaskCommand.Agent.CODEX), freshDraft.templateId)
+            assertTrue(other.requests.none { it.optString("method") == "workspace.create" })
+            screenshot("task-remembered-agent-mac")
         } finally { other.close() }
     }
 

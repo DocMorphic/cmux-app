@@ -59,3 +59,12 @@ Completed-task recovery is derived from TaskComposerCompletedOperationRecovery,
 TaskComposerSheet+CompletedOperationRecovery and TaskComposerSheet+DraftState at
 cmux revision 4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+
+Editable templates, protected shipped identities, editor controls and successful
+task defaults derive from MobileTaskTemplate, MobileTaskTemplateStore,
+TaskTemplateEditorView, TaskTemplateFormView and TaskComposerSheet+Policies at
+cmux revision 4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0.
+Bundled Claude, Codex and OpenCode images are copied unchanged from that revision's
+CmuxMobileShellUI/Resources/AgentIcons; source paths and SHA-256 hashes are recorded
+in docs/TASK_TEMPLATE_ASSETS.json. Brand names and images identify their agents.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.

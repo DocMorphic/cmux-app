@@ -76,6 +76,7 @@ class NativeTaskDraftsTest {
 
     @Test fun saveSwitchResumeAndDeleteKeepIndependentDrafts() {
         show(); state("Effort", "High")
+        compose.onNodeWithContentDescription("Agent").performClick()
         compose.onNodeWithText("Codex", useUnmergedTree = true).performClick()
         compose.waitUntil(10_000) { models.cached(TaskModelRepository.Key("draft-mac", TaskAgentCommand.CODEX))?.source == TaskModelSource.DISCOVERED }
         state("Effort", "High")

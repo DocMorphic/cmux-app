@@ -1,0 +1,20 @@
+{
+  "source_commit": "4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0",
+  "images": [
+    {
+      "source": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/AgentIcons/Claude@3x.png",
+      "target": "app/src/main/res/drawable-nodpi/ic_task_claude.png",
+      "sha256": "aa1f5da98d8dd42e1e0c0732112c49f692fb2f0ad4a245bb9120c79d243a8a69"
+    },
+    {
+      "source": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/AgentIcons/Codex-dark@3x.png",
+      "target": "app/src/main/res/drawable-nodpi/ic_task_codex.png",
+      "sha256": "f32342e311d5c7e08465bb91dc8a1ea0ddb449589b728e778b1dab8053ff5023"
+    },
+    {
+      "source": "Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/Resources/AgentIcons/OpenCode@3x.png",
+      "target": "app/src/main/res/drawable-nodpi/ic_task_opencode.png",
+      "sha256": "8eb171e354cab4d301aecaf7edd92f326b87c75d93b08fdab404c79734ae4f83"
+    }
+  ]
+}

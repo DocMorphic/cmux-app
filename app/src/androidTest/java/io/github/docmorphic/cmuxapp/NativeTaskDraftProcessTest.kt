@@ -29,6 +29,7 @@ class NativeTaskDraftProcessTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val phase = InstrumentationRegistry.getArguments().getString("draftPhase")
         val completedRecovery = InstrumentationRegistry.getArguments().getString("completedRecovery") == "true"
+        val customTemplate = InstrumentationRegistry.getArguments().getString("customTemplate") == "true"
         Assume.assumeTrue("Requires explicit seed/verify process phases", phase == "seed" || phase == "verify")
         val context = instrumentation.targetContext
         val marker = context.getSharedPreferences("task_draft_process_fixture", Context.MODE_PRIVATE)
@@ -40,6 +41,10 @@ class NativeTaskDraftProcessTest {
             marker.edit().clear().commit()
         } else assertNotEquals("Verification must run in a fresh app process", marker.getInt("pid", -1), Process.myPid())
         val repository = runBlocking(Dispatchers.IO) { TaskDraftRepository.get(context, store.taskSession()!!) }
+        if (phase == "seed" && customTemplate) runBlocking {
+            repository.updateTemplates(TaskTemplateChange.Save(TaskTemplate(UUID.randomUUID().toString(), "Custom process Codex",
+                "agent:codex", "codex --full-auto -- \"\$CMUX_TASK_PROMPT\"", "/cold-template"), true))
+        }
         val id = if (phase == "seed") UUID.randomUUID().toString() else marker.getString("id", null)!!
         val peer = NativeFixturePeer()
         val client = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
@@ -53,6 +58,7 @@ class NativeTaskDraftProcessTest {
                 NativeTaskComposerView(client, listOf("/repo"), "process-mac", models,
                     onCreated = { completed = true }, onBack = {}, catalog = { awaitCancellation() },
                     savedDrafts = repository.drafts, draftId = id, macName = "Process Fixture Mac",
+                    savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
                     persistDrafts = repository::persistNow, flushDrafts = repository::flush,
                     createTask = { params ->
                         submitted = JSONObject(params.toString())
@@ -70,7 +76,8 @@ class NativeTaskDraftProcessTest {
             }
             if (phase == "seed") {
                 state("Effort", "High")
-                compose.onNodeWithText("Codex", useUnmergedTree = true).performClick()
+                compose.onNodeWithContentDescription("Agent").performClick()
+                compose.onNodeWithText(if (customTemplate) "Custom process Codex" else "Codex", useUnmergedTree = true).performClick()
                 compose.waitUntil(10_000) { models.cached(TaskModelRepository.Key("process-mac", TaskAgentCommand.CODEX))?.source == TaskModelSource.DISCOVERED }
                 state("Effort", "High")
                 compose.onNodeWithContentDescription("Model").performClick()
@@ -79,6 +86,10 @@ class NativeTaskDraftProcessTest {
                 compose.onNodeWithText("Low").performClick()
                 compose.onNodeWithText("Task prompt").performTextInput("Recover this task 中\nKeep my 'quotes'")
             } else {
+                if (customTemplate) {
+                    state("Agent", "Custom process Codex")
+                    compose.onNodeWithText("Directory on Mac").assertTextContains("/cold-template")
+                }
                 state("Model", "Local codex"); state("Effort", "Low")
                 compose.onNodeWithText("Task prompt").assertTextContains("Recover this task 中\nKeep my 'quotes'")
             }
@@ -102,8 +113,9 @@ class NativeTaskDraftProcessTest {
                 assertEquals(marker.getString("command", null), submitted!!.getString("initial_command"))
                 runBlocking { repository.persistNow() }
                 assertTrue(TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.isEmpty())
+                if (customTemplate) assertEquals("Custom process Codex", repository.templates.state.value.selected().name)
             }
-            instrumentation.sendStatus(0, Bundle().apply { putString("draft_phase", phase); putInt("draft_process_id", Process.myPid()); putBoolean("completed_recovery", completedRecovery) })
+            instrumentation.sendStatus(0, Bundle().apply { putString("draft_phase", phase); putInt("draft_process_id", Process.myPid()); putBoolean("completed_recovery", completedRecovery); putBoolean("custom_template", customTemplate) })
         } finally {
             compose.activity.finish(); client.close(); peer.close(); TaskDraftRepository.clearMemory()
             if (phase == "verify") { store.clear(); marker.edit().clear().commit() }

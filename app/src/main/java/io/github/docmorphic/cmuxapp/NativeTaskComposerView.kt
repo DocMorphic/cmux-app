@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,20 +53,36 @@ internal fun NativeTaskComposerView(
     onResumeDraft: (TaskDraft) -> Unit = {},
     onNewDraft: () -> Unit = {},
     supportsTaskCreation: Boolean = true,
-    refreshWorkspaces: suspend () -> Unit = { client.workspaces(); Unit }
+    refreshWorkspaces: suspend () -> Unit = { client.workspaces(); Unit },
+    savedTemplates: TaskTemplates? = null,
+    persistTemplateChange: (suspend (TaskTemplateChange) -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val collection = savedDrafts ?: remember { TaskDrafts() }
+    val templateStore = savedTemplates ?: remember { TaskTemplates() }
+    val templateState by templateStore.state.collectAsState()
     val activeId = draftId ?: remember { UUID.randomUUID().toString() }
-    val editor = remember(collection, activeId, origin) {
-        collection.begin(activeId, origin, macName, directories.firstOrNull().orEmpty())
+    val editor = remember(collection, activeId, origin, templateStore) {
+        val existing = collection.state.value[activeId]
+        val templates = templateStore.state.value
+        val template = templates.selected(existing?.templateId ?: existing?.let { TaskTemplate.builtInId(it.agent) })
+        val suggested = templates.suggestedDirectory(template, origin, directories.firstOrNull())
+        collection.begin(activeId, origin, macName, suggested).also { editor ->
+            collection.edit(editor) { current ->
+                val missingTemplate = existing?.templateId != null && templates.entries.none { it.id == existing.templateId }
+                current.selecting(template, if (existing != null && !missingTemplate) existing.directory else suggested)
+                    .let { if (missingTemplate) it.copy(lastRequest = null, completedRequest = null) else it }
+            }
+        }
     }
     val entries by collection.state.collectAsState()
     val initialDraft = remember(editor) { checkNotNull(collection.state.value[editor.id]) }
     val draft = entries[editor.id] ?: initialDraft
-    val agent = draft.agent
+    val template = templateState.selected(draft.templateId)
+    val command = draft.command
+    val plainShell = command.isNullOrBlank()
     val prompt = draft.prompt
     val directory = draft.directory
     val selection = draft.selection
@@ -83,6 +100,8 @@ internal fun NativeTaskComposerView(
     var dirty by remember(editor) { mutableStateOf(false) }
     var showDrafts by remember(editor) { mutableStateOf(false) }
     var confirmLeave by remember(editor) { mutableStateOf(false) }
+    var agentMenu by remember(editor) { mutableStateOf(false) }
+    var showTemplates by rememberSaveable(editor.id) { mutableStateOf(false) }
     var confirmStartAgain by remember(editor) { mutableStateOf(false) }
     var recoveryReady by remember(editor, draft.completedRequest) { mutableStateOf(false) }
     val recovery = remember(editor, draft.completedRequest) {
@@ -94,6 +113,9 @@ internal fun NativeTaskComposerView(
         collection.editIfCurrent(editor, update) ?: return
         dirty = true
         error = null
+    }
+    fun selectTemplate(selected: TaskTemplate) {
+        edit { it.selecting(selected, templateStore.state.value.suggestedDirectory(selected, origin, directories.firstOrNull())) }
     }
     fun leave() {
         if (busy) return
@@ -122,7 +144,7 @@ internal fun NativeTaskComposerView(
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer); collection.end(editor); currentFlush() }
     }
-    val provider = agent.command?.let(TaskAgentCommand::detect)
+    val provider = command?.let(TaskAgentCommand::detect)
     val modelKey = provider?.let { TaskModelRepository.Key(origin, it) }
     var modelResult by remember(modelKey) { mutableStateOf(modelKey?.let(models::cached)
         ?: draft.restoredModels().takeIf { it.usable }) }
@@ -133,7 +155,7 @@ internal fun NativeTaskComposerView(
     // operation is recoverable; changing a picker explicitly replaces the snapshot.
     val restoredModels = draft.restoredModels()
     val restoredEffort = selection.effective(restoredModels)?.efforts?.firstOrNull { it.id == selection.effortId }?.id
-    val restoredCommand = agent.command?.let { command ->
+    val restoredCommand = command?.let { command ->
         TaskAgentCommand.detect(command)?.apply(command, selection.explicit?.id, restoredEffort) ?: command
     }
     val holdRecoveryModels = recovery != null && (recovery.parameters().opt("initial_command") as? String) == restoredCommand
@@ -143,7 +165,7 @@ internal fun NativeTaskComposerView(
     val efforts = effortModel?.efforts.orEmpty()
     val selectedEffort = efforts.firstOrNull { it.id == selection.effortId }
     val effectiveRequest = runCatching {
-        TaskCommand.parameters(agent, prompt, directory, UUID.randomUUID(), selection.explicit?.id, selectedEffort?.id)
+        TaskCommand.parameters(command, prompt, directory, UUID.randomUUID(), selection.explicit?.id, selectedEffort?.id)
     }.getOrNull()
     val recoveryApplies = recovery?.appliesTo(origin, effectiveRequest) == true
     fun launchTask(reconcile: Boolean = false, startAgain: Boolean = false) {
@@ -180,6 +202,7 @@ internal fun NativeTaskComposerView(
                 currentCoroutineContext().ensureActive()
                 check(requestIsCurrent()) { "Connection changed before the task could be opened" }
                 TaskCreationResult.parse(response)
+                templateStore.recordSuccess(checkNotNull(draft.templateId), origin, parameters.optString("working_directory").takeIf { it.isNotBlank() })
                 collection.remove(editor)
                 flushDrafts()
                 accepted = true
@@ -229,7 +252,29 @@ internal fun NativeTaskComposerView(
             it.reconcileModels(modelKey?.provider, modelResult)
         }
     }
+    LaunchedEffect(editor, templateState.entries, busy, accepted) {
+        if (!busy && !accepted) collection.editIfCurrent(editor) { current ->
+            val selected = templateState.selected(current.templateId)
+            if (current.templateId == selected.id && current.templateName == selected.name && current.command == selected.command) current
+            else current.selecting(selected, templateState.suggestedDirectory(selected, origin, directories.firstOrNull()))
+        }
+    }
     BackHandler { leave() }
+    if (showTemplates) {
+        TaskTemplatesView(templateState, onDismiss = { showTemplates = false },
+            onChange = { change ->
+                check(collection.isCurrent(editor)) { "Task session changed" }
+                if (persistTemplateChange != null) persistTemplateChange(change) else templateStore.apply(change)
+                currentCoroutineContext().ensureActive()
+                check(collection.isCurrent(editor)) { "Task session changed" }
+            }, onSaved = { saved, adding ->
+                val current = templateStore.state.value.entries.first { it.id == saved.id }
+                if (adding || draft.templateId == saved.id) selectTemplate(current)
+            }, onDeleted = { deleted ->
+                if (draft.templateId == deleted) selectTemplate(templateStore.state.value.entries.first())
+            })
+        return
+    }
     if (confirmStartAgain) AlertDialog(onDismissRequest = { confirmStartAgain = false },
         title = { Text("Start this task again?") },
         text = { Text("Only continue if the task is not present. Starting again may create a duplicate.") },
@@ -285,12 +330,23 @@ internal fun NativeTaskComposerView(
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
         Text("Agent", color = Color(0xFF9B9FA8))
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TaskCommand.Agent.entries.forEach { option ->
-                FilterChip(selected = agent == option, onClick = { edit { it.copy(agent = option, selection = TaskModelSelection(), defaultModel = null) } },
-                    enabled = canEdit, label = { Text(option.label) }, colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF253440), selectedLabelColor = Color(0xFF76B9FF)))
+        Box {
+            OutlinedButton(onClick = { agentMenu = true }, enabled = canEdit,
+                modifier = Modifier.semantics { contentDescription = "Agent"; stateDescription = template.name }) {
+                TaskTemplateIcon(template.icon)
+                Spacer(Modifier.width(8.dp))
+                Text("${template.name} ▾")
+            }
+            DropdownMenu(expanded = agentMenu, onDismissRequest = { agentMenu = false }) {
+                templateState.entries.forEach { option ->
+                    DropdownMenuItem(text = { Text(option.name) }, leadingIcon = { TaskTemplateIcon(option.icon) },
+                        trailingIcon = { if (draft.templateId == option.id) Text("✓") },
+                        onClick = { selectTemplate(option); agentMenu = false })
+                }
+                HorizontalDivider()
+                DropdownMenuItem(text = { Text("Edit Agents") }, onClick = {
+                    agentMenu = false; focus.clearFocus(); keyboard?.hide(); showTemplates = true
+                })
             }
         }
         if (provider != null) {
@@ -335,7 +391,7 @@ internal fun NativeTaskComposerView(
             }
             if (loading && modelResult?.usable != true) Text("Loading models…", style = MaterialTheme.typography.bodySmall)
             val modelError = when (modelResult?.error) {
-                TaskModelError.PROVIDER_UNAVAILABLE -> "${agent.label} unavailable"
+                TaskModelError.PROVIDER_UNAVAILABLE -> "${template.name} unavailable"
                 TaskModelError.QUERY_FAILED -> "Couldn’t load models"
                 TaskModelError.HOST_UNAVAILABLE -> "Mac unavailable".takeUnless { modelResult?.usable == true }
                 null -> null
@@ -344,15 +400,16 @@ internal fun NativeTaskComposerView(
         }
         Spacer(Modifier.height(14.dp))
         OutlinedTextField(prompt, { text -> edit { it.copy(prompt = text) } }, Modifier.fillMaxWidth().height(190.dp),
-            enabled = canEdit, label = { Text(if (agent == TaskCommand.Agent.SHELL) "Workspace title (optional)" else "Task prompt") },
+            enabled = canEdit, label = { Text(if (plainShell) "Workspace title (optional)" else "Task prompt") },
             minLines = 5)
         Spacer(Modifier.height(14.dp))
-        OutlinedTextField(directory, { text -> edit { it.copy(directory = text) } }, Modifier.fillMaxWidth(),
+        OutlinedTextField(directory, { text -> edit { it.copy(directory = text, didEditDirectory = true) } }, Modifier.fillMaxWidth(),
             enabled = canEdit, singleLine = true, label = { Text("Directory on Mac") })
-        if (directories.isNotEmpty()) {
+        val suggestedDirectories = (directories + templateState.recent[origin].orEmpty().map { it.path }).distinct()
+        if (suggestedDirectories.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                directories.distinct().take(8).forEach { option ->
-                    TextButton(onClick = { edit { it.copy(directory = option) } }, enabled = canEdit) {
+                suggestedDirectories.take(20).forEach { option ->
+                    TextButton(onClick = { edit { it.copy(directory = option, didEditDirectory = true) } }, enabled = canEdit) {
                         Text(option.substringAfterLast('/').ifBlank { option }, maxLines = 1)
                     }
                 }
@@ -388,7 +445,7 @@ internal fun NativeTaskComposerView(
         } else if (error != null) Text(error.orEmpty(), color = Color(0xFFFF9999),
             modifier = Modifier.padding(bottom = 12.dp))
         Button(onClick = { launchTask() },
-            enabled = canEdit && !recoveryApplies && supportsTaskCreation && (agent == TaskCommand.Agent.SHELL || prompt.isNotBlank()),
+            enabled = canEdit && !recoveryApplies && supportsTaskCreation && (plainShell || prompt.isNotBlank()),
             colors = ButtonDefaults.buttonColors(contentColor = Color(0xFF081421)),
             modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp)) {
             Text(if (accepted) "Task Created" else if (busy) "Creating…" else "Create Task")

@@ -403,3 +403,48 @@ adb shell am instrument -w -r -e draftPhase verify -e completedRecovery true \
 Final `task-recovery-still-missing.png`, `task-recovery-confirm.png` and
 `task-recovered-terminal.png` were inspected under `captures/emulator/screenshots`.
 These are fixture-Mac/emulator checks. Physical Pixel/Mac acceptance remains open.
+
+
+## Editable task templates and remembered defaults
+
+All 151 JVM tests pass. Nine template checks cover editable protected built-ins,
+custom scripts and exact prompt/environment handling, emoji and JSON restoration,
+per-Mac history limits and Unicode path identity, selected/recent workspace and
+focused-terminal directory preference, typed-directory preservation, actual-command
+provider detection, model reset, plain shells, invalid storage and old-account fences.
+
+Four `NativeTaskTemplatesTest` flows exercise real encrypted storage and Compose
+controls: add a custom script/emoji/default directory and submit exact RPC data;
+rename a protected built-in and delete a custom shell; retain a typed path and
+selection through composer reconstruction; and retain a failed-save form while
+rejecting writes from a signed-out account. The cross-Mac task flow also verifies
+that the next task selects the successful Mac and agent. A real Activity recreation
+check retains the unfinished template form and saves exactly one entry afterward.
+
+The initial 16-case focused run passed (353.771 seconds), including seven existing
+model/submission checks, draft switching and two completed-operation regressions.
+Screenshots exposed a keyboard/window-inset problem in the original separate
+Dialog editor, which was then moved into the main inset-aware window. A subsequent
+run completed the four template checks and cross-Mac flow, but its recreation test
+was interrupted while scrolling to the next input during IME resize; that run is
+not counted as a full pass. The recreation test then passed, but the same
+scroll-before-focus issue interrupted a template case in that mixed run. Both
+form test helpers now request input focus directly instead of scrolling a still
+focused previous input into competing positions during IME resize. The final
+six-case run passed together (`OK (6 tests)`, 86.948 seconds): all four template
+flows, unfinished-form Activity recreation, and remembered Mac/agent selection.
+Template form/list, restored draft and remembered-selection screenshots were
+visually inspected; the header and system/keyboard insets remain visible.
+
+Custom-template completed-task recovery passes in two separate app processes
+(12643 → 12729; seed 13.129 seconds, verify 5.492 seconds). The encrypted template,
+raw command, directory, model/effort and original operation ID survive the restart.
+Normal creation stays disabled until explicit reconciliation, which uses the
+original request and removes the recovered draft after success. Reproduce with
+`NativeTaskDraftProcessTest` and both `-e customTemplate true` and
+`-e completedRecovery true`, running `-e draftPhase seed`, force-stopping only the
+debug package, then running `-e draftPhase verify` without clearing its data.
+
+The Android suite now contains 57 cases; it was not rerun in full for this batch.
+These tests use loopback fixture Macs and an Android 17 Pixel-profile emulator.
+Physical Pixel/Mac validation and installed agent CLI execution remain pending.

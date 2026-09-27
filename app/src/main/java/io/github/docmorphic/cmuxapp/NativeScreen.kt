@@ -160,10 +160,6 @@ fun NativeScreen(
     LaunchedEffect(taskDraftRepository) {
         taskDraftRepository?.saveError?.collect { if (it != null) error = it }
     }
-    fun newTaskDraft() {
-        taskDraftId = java.util.UUID.randomUUID().toString()
-        showTaskComposer = true
-    }
     var showCreateGroup by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     var backgroundNotifications by remember { mutableStateOf(NativeNotificationService.isEnabled(context)) }
@@ -226,6 +222,13 @@ fun NativeScreen(
         if (mac != null) code = mac.code
         workspaceRoute = null
         computerMenuOpen = false
+    }
+    fun newTaskDraft() {
+        taskDraftRepository?.templates?.state?.value?.lastOrigin?.let { origin ->
+            pairedMacs.firstOrNull { it.origin == origin }?.let(::selectComputer)
+        }
+        taskDraftId = java.util.UUID.randomUUID().toString()
+        showTaskComposer = true
     }
     LaunchedEffect(pairedMacs, selectedComputerOrigin) {
         feedSession.taskModels.retainOrigins(pairedMacs.map { it.origin }.toSet())
@@ -1018,7 +1021,7 @@ fun NativeScreen(
                 if (active != null && connectedCode == code && repository != null &&
                     (restored == null || restored.origin == taskOrigin)) key(taskDraftId, repository.session) {
                 NativeTaskComposerView(active,
-                    directories = workspaces.mapNotNull { it.directory },
+                    directories = preferredTaskDirectories(workspaces, selectedWorkspace?.id),
                     origin = taskOrigin,
                     models = feedSession.taskModels,
                     onCreated = { response ->
@@ -1036,6 +1039,7 @@ fun NativeScreen(
                     }, onBack = { showTaskComposer = false },
                     isCurrent = { signedIn && client === active && connectedCode == taskCode && code == taskCode },
                     savedDrafts = repository.drafts, draftId = taskDraftId, macName = taskMac?.name ?: hostName,
+                    savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
                     persistDrafts = repository::persistNow, flushDrafts = repository::flush,
                     onResumeDraft = { draft ->
                         val target = requireNotNull(pairedMacs.firstOrNull { it.origin == draft.origin }) {

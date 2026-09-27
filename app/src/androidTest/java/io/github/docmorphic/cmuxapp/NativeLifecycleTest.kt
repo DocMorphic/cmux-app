@@ -19,6 +19,42 @@ import kotlinx.coroutines.runBlocking
 class NativeLifecycleTest {
     @get:Rule val compose = createEmptyComposeRule(effectContext = StandardTestDispatcher())
 
+    @Test fun unfinishedTemplateFormSurvivesActivityRecreation() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = NativeCredentialStore(context)
+        val peer = NativeFixturePeer()
+        TaskDraftRepository.clearMemory()
+        try {
+            store.clear(); store.update { it.put("refresh_token", "template-lifecycle-fixture") }
+            store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
+            NativeLifecycleTestActivity.connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            }
+            ActivityScenario.launch(NativeLifecycleTestActivity::class.java).use { scenario ->
+                compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithContentDescription("New Task").performClick()
+                compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Agent").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithContentDescription("Agent").performClick()
+                compose.onNodeWithText("Edit Agents").performClick()
+                compose.onNodeWithContentDescription("Add Template").performClick()
+                compose.onNodeWithText("Name").performTextInput("Unsaved rotation template 中")
+                // Text input requests focus and brings the next field into view. Scrolling
+                // first can fight the previous focused field during the IME resize.
+                compose.onNodeWithText("Command").performTextInput("echo \"\$CMUX_TASK_PROMPT\"")
+                compose.onNodeWithText("Default directory").performTextInput("/rotated-template")
+                scenario.recreate()
+                compose.waitUntil(15_000) { compose.onAllNodesWithText("Name").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithText("Name").assertTextContains("Unsaved rotation template 中")
+                compose.onNodeWithText("Command").assertTextContains("echo \"\$CMUX_TASK_PROMPT\"")
+                compose.onNodeWithText("Default directory").assertTextContains("/rotated-template")
+                compose.onNodeWithText("Save").performClick()
+                compose.waitUntil(10_000) { compose.onAllNodesWithText("Task Templates").fetchSemanticsNodes().isNotEmpty() }
+                val repository = TaskDraftRepository.get(context, store.taskSession()!!)
+                assertEquals(1, repository.templates.state.value.entries.count { it.name == "Unsaved rotation template 中" })
+            }
+        } finally { NativeLifecycleTestActivity.connector = null; peer.close(); TaskDraftRepository.clearMemory(); store.clear() }
+    }
+
     @Test fun taskComposerSurvivesBackgroundAndActivityRecreation() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = NativeCredentialStore(context)
