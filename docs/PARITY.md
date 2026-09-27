@@ -2,7 +2,7 @@
 
 Reference: [cmux iOS](https://cmux.com/ios) and
 [`manaflow-ai/cmux`](https://github.com/manaflow-ai/cmux) at
-`4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0` (2026-09-26).
+`4c5272e9153eca2033c9f40ac749f0c3a5bcb291` (2026-09-27), refreshed on 2026-09-28.
 The upstream code changes frequently, so update this pin before a release.
 The iOS implementation lives mainly in `ios/cmuxPackage`,
 `Packages/iOS`, and `Packages/Shared/CMUXMobileCore`.
@@ -22,13 +22,24 @@ UI resemblance alone does not count.
 | Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid with grapheme cell placement, semantic colors, wide cursor, delta/screen continuity and bounded local scrollback verified with JVM/emulator fixtures; actual viewport reporting/clear coded; native VT fallback, hybrid delivery, byte-gap recovery and screen-anchor negotiation verified with JVM/emulator fixtures and a captured Vim session; iOS-style View as Text with native selection/copy, cell tap, coalesced wheel RPCs and host viewport scroll responses verified with emulator fixtures; Android kinetic scrolling and cancellation verified with gesture fixtures; complete Ghostty fidelity, pixel scrolling/inline graphics, and phone resize QA missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Native multiline paste/submit, encrypted per-Mac/terminal drafts, pending-send guards and acknowledgement reconciliation verified with an emulator fixture; direct IME keyboard, Unicode composition, repeated deletion, ordered input and explicit recovery from rejected delivery verified with an emulator fixture; modifier/navigation/control toolbar and hardware keys coded; photo/file picker, encrypted attachments, image paste and chunked file upload verified with an emulator fixture; rich keyboard paste, complete mode handling, and phone QA missing | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
 | Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; encrypted per-pairing alert identity and exact terminal routes, independent saved-Mac workers, read/forget cleanup and host-identity checks coded; combined saved-Mac feed, day/history grouping, unread filter, pull refresh, read/unread gestures and confirmed bulk read coded; offline snapshots and revision guards tested with loopback peers; event/mutation revision floors, bounded refresh retries and Activity-recreation retention coded; computer picker, scoped unread badge/bulk actions and live-destination filtering before the global cap coded; server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
-| Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, bottom navigation/address/loading controls, direct IME and hardware input, live viewport updates, ordered/coalesced scrolling, frame validation and stale-dialog fencing coded; seven browser-view checks and three browser momentum gesture checks have passing emulator evidence across initial/focused runs, including watchdog/lifecycle recovery and momentum/cancellation; width-fit geometry, local pinch zoom/pan and repeated-tap click counts implemented with new runtime checks pending; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
+| Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, bottom navigation/address/loading controls, direct IME and hardware input, live viewport updates, ordered/coalesced scrolling, frame validation and stale-dialog fencing coded; seven browser-view checks and three browser momentum gesture checks have passing emulator evidence across initial/focused runs, including watchdog/lifecycle recovery and momentum/cancellation; width-fit geometry, local pinch zoom/pan and repeated-tap click counts also verified in a clean 13-case browser emulator run; download behavior and phone QA pending | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
 | Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; chat UI, remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
+
+## Upstream refresh (2026-09-28)
+
+Advanced the reference from `4d3385b` to `4c5272e` and inspected the production
+changes in the mobile packages. Browser geometry, gestures, payloads and host RPC
+handlers are unchanged. The browser store now rejects frames from retired decoders;
+Android already fences subscriptions, cancels and joins the old collector before
+replacement, and verifies stale-frame rejection in the runtime recovery case.
+Other changes concern Apple Ghostty runtime/teardown ownership, a one-pixel workspace
+anchor threshold, and Haskell/PureScript chat highlighting. Full Ghostty fidelity,
+workspace phone scrolling and agent chat remain open in the corresponding areas.
 
 ## Browser image geometry and local lens (2026-09-28)
 
@@ -46,9 +57,14 @@ thresholds and forward rising native click counts without delaying the first tap
 
 All 201 JVM cases passed, including seven new geometry/letterbox/coordinate/click
 contract checks. Debug/test APKs assembled. Three new Android cases exercise pixel
-geometry, click chaining, zoomed input alignment and zoom limits; their runtime
-results are pending alongside the existing browser/momentum checks. This work is
-not in signed build 143, which remains the current phone download.
+geometry, click chaining, zoomed input alignment and zoom limits. All 13 browser,
+lens and momentum cases passed together in 80.378 seconds. The generated four-color
+fixture screenshot was inspected: it preserves the 2:1 page aspect ratio and centers
+vertically, with black letterboxing. Pixel assertions and post-pan click coordinates
+also passed. Evidence is in `captures/browser/lens-runtime.log`,
+`lens-verification.json` and `browser-width-fit.png`. This is a focused emulator
+run, not a full 87-case suite or physical Pixel/Mac run. This work is not yet in
+signed build 143, which remains the current phone download.
 
 ## Browser momentum follow-up (2026-09-28)
 
