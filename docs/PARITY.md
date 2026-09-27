@@ -81,7 +81,8 @@ unresolved or ambiguous workspace destinations do not mark a notification read. 
 cover nullable metadata, duplicate IDs and redundant row content. The emulator
 exercises moved-surface RPC scoping and an unavailable destination, and captures
 notification search and its error state. Additional alert checks use two local
-fixture Macs for exact saved-pairing and terminal navigation, repeat opening and
+fixture Macs for exact saved-pairing and terminal navigation, cancellation of a
+superseded initial feed handshake, repeat opening and
 forgotten-Mac rejection. Delivery tests exercise real Android notification and
 PendingIntent identities, Keystore-backed destination restoration, per-Mac read
 cleanup, sibling cmux installation identity, foreground-service lifecycle and

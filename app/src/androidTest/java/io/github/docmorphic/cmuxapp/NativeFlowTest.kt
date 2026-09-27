@@ -640,6 +640,8 @@ class NativeFlowTest {
 
     @Test fun alertSwitchesSavedMacAndExactTerminalThenCanBeOpenedAgain() {
         val other = NativeFixturePeer().apply { deviceId = "second-mac"; gridFirstLine = "Second Mac terminal" }
+        val releaseFirstFeed = CountDownLatch(1)
+        peer.releaseNextFeed = releaseFirstFeed
         try {
             val firstCode = "cmux-ios://attach?v=2&r=100.64.0.1:58465"
             val secondCode = "cmux-ios://attach?v=2&r=100.64.0.2:58465"
@@ -663,8 +665,10 @@ class NativeFlowTest {
                         })
                 } }
             }
-            compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "notification.feed.list" } }
             compose.runOnIdle { incoming.value = route!!.routeId }
+            compose.waitUntil(10_000) { other.requests.any { it.optString("method") == "mobile.host.status" } }
+            releaseFirstFeed.countDown()
             compose.waitUntil(15_000) { handled.get() == 1 && other.requests.any { it.optString("method") == "mobile.terminal.replay" } }
             val replay = other.requests.last { it.optString("method") == "mobile.terminal.replay" }.getJSONObject("params")
             assertEquals("workspace-2", replay.getString("workspace_id"))
@@ -676,7 +680,7 @@ class NativeFlowTest {
             assertEquals(2, other.requests.count { it.optString("method") == "notification.feed.mark_read" })
             assertEquals(secondCode, credentials.load()!!.getString("pairing_code"))
             screenshot("notification-mac-route")
-        } finally { other.close() }
+        } finally { releaseFirstFeed.countDown(); other.close() }
     }
 
     @Test fun forgottenMacNotificationDoesNotUseCurrentMacOrMarkRead() {
@@ -717,6 +721,7 @@ private class NativeFixturePeer : AutoCloseable {
     val rejectNextInput = AtomicBoolean(false)
     @Volatile var releaseNextInput: CountDownLatch? = null
     @Volatile var releaseNextPaste: CountDownLatch? = null
+    @Volatile var releaseNextFeed: CountDownLatch? = null
     private val sockets = CopyOnWriteArrayList<Socket>()
     @Volatile private var closed = false
     private var revision = 0
@@ -775,6 +780,12 @@ private class NativeFixturePeer : AutoCloseable {
                             releaseNextInput?.let { latch ->
                                 check(latch.await(10, TimeUnit.SECONDS)) { "Input acknowledgement was not released" }
                                 releaseNextInput = null
+                            }
+                        }
+                        if (request.optString("method") == "notification.feed.list") {
+                            releaseNextFeed?.let { latch ->
+                                check(latch.await(15, TimeUnit.SECONDS)) { "Feed acknowledgement was not released" }
+                                releaseNextFeed = null
                             }
                         }
                         val result = response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())

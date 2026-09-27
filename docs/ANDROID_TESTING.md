@@ -41,7 +41,8 @@ record these states. JVM tests additionally check late edits after cancellation,
 128-scalar/512-byte input bounds, duplicate/nullable feed fields, ambiguous
 surface ownership, and row headline/preview derivation.
 Two alert-navigation flows switch from one saved fixture Mac to another, verify
-exact workspace/terminal RPC targets, reopen the same route after consumption,
+exact workspace/terminal RPC targets, reject a superseded handshake while its
+initial feed is still pending, reopen the same route after consumption,
 and reject a forgotten computer without sending a read or terminal request.
 Four `NativeNotificationDeliveryTest` checks exercise real Keystore encryption,
 NotificationManager and PendingIntent identity (including colliding string hashes

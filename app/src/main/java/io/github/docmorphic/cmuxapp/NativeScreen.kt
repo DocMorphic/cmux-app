@@ -390,28 +390,35 @@ fun NativeScreen(
     LaunchedEffect(signedIn, code, retry) {
         client?.close(); client = null; connectedCode = null
         if (!signedIn || code.isBlank()) return@LaunchedEffect
+        val requestedCode = code
         busy = true
         try {
-            val pairing = PairingCodeParser.parse(code).getOrThrow()
+            val pairing = PairingCodeParser.parse(requestedCode).getOrThrow()
             require(pairing is PairingCode.Tailscale) { "This cmux pairing code uses a transport this build cannot connect to yet" }
             val active = connection.connect(pairing, account)
             try {
                 val status = active.hostStatus()
-                store.pairedMacs().firstOrNull { it.code == code }?.requireMatchingHost(status)
-                hostName = status.optString("mac_display_name").ifBlank { "cmux" }
-                hostCapabilities = status.optJSONArray("capabilities")?.let { values ->
+                store.pairedMacs().firstOrNull { it.code == requestedCode }?.requireMatchingHost(status)
+                val displayName = status.optString("mac_display_name").ifBlank { "cmux" }
+                val capabilities = status.optJSONArray("capabilities")?.let { values ->
                     (0 until values.length()).mapNotNull { index ->
                         values.optString(index).takeIf { it.isNotBlank() }
                     }.toSet()
                 } ?: emptySet()
-                terminalTransport = TerminalTransport.resolve(hostCapabilities, status.optString("terminal_fidelity"))
                 val listing = active.workspaces()
-                applyListing(listing)
-                runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
-                client = active
-                store.rememberMac(code, status.optString("mac_device_id"), hostName,
+                val feed = try { parseNotifications(active.notifications()) }
+                    catch (failure: Exception) {
+                        if (failure is CancellationException) throw failure
+                        emptyList()
+                    }
+                ensureActive()
+                if (code != requestedCode || !signedIn) throw CancellationException("Connection changed")
+                store.rememberMac(requestedCode, status.optString("mac_device_id"), displayName,
                     status.optString("mac_instance_tag").takeIf { !status.isNull("mac_instance_tag") && it.isNotBlank() })
-                connectedCode = code
+                hostName = displayName; hostCapabilities = capabilities
+                terminalTransport = TerminalTransport.resolve(capabilities, status.optString("terminal_fidelity"))
+                applyListing(listing); notifications = feed
+                client = active; connectedCode = requestedCode
                 pairedMacs = store.pairedMacs()
                 error = null
                 retryDelay = 2_000
