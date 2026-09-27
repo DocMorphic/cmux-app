@@ -967,7 +967,11 @@ class NativeFlowTest {
             compose.onNodeWithText("Mark All Read").performClick()
             compose.waitUntil(10_000) { other.requests.any { it.optString("method") == "notification.feed.mark_all_read" } }
             assertTrue(peer.requests.none { it.optString("method") == "notification.feed.mark_all_read" })
-            compose.onNodeWithContentDescription("Cancel search").performClick()
+            // The confirmation dialog can still be restoring the system IME. Invoke the
+            // accessible action so moving screen coordinates do not tap the keyboard.
+            compose.onNodeWithContentDescription("Cancel search")
+                .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
+            assertSearchFilter("", notifications = true)
             screenshot("notification-computer-scope")
             compose.onNodeWithContentDescription("Computer filter").performClick()
             compose.onNode(hasText("All Computers") and hasAnyAncestor(isPopup())).performClick()
