@@ -63,8 +63,8 @@ fixture screenshot was inspected: it preserves the 2:1 page aspect ratio and cen
 vertically, with black letterboxing. Pixel assertions and post-pan click coordinates
 also passed. Evidence is in `captures/browser/lens-runtime.log`,
 `lens-verification.json` and `browser-width-fit.png`. This is a focused emulator
-run, not a full 87-case suite or physical Pixel/Mac run. This work is not yet in
-signed build 143, which remains the current phone download.
+run, not a full 87-case suite or physical Pixel/Mac run. The current signed phone
+download, build 150, includes this work together with recovery and momentum.
 
 ## Browser momentum follow-up (2026-09-28)
 
@@ -92,7 +92,8 @@ opposite sign to finger motion. Android now sends finger displacement/velocity
 without another negation. Both axes and directions are checked. The original
 failed run and the passing rerun remain in `captures/browser/momentum-runtime-initial.log`
 and `momentum-runtime-rerun.log`; `momentum-verification.json` records the tested
-revision. No release APK was built; the current signed download remains build 143. The source audit also identified iOS
+revision. The feature commits did not trigger release builds; the combined signed
+build 150 now includes them. The source audit also identified iOS
 width-fit image geometry, local pinch zoom, panning while zoomed, and immediate
 rising Mac click counts for repeated taps. The subsequent geometry/lens section
 above records their implementation and current verification status.
@@ -121,8 +122,20 @@ now also pass in the combined recovery/momentum run: unanswered-input recovery w
 old-subscription frame rejection, and background/foreground stream lifecycle.
 Focused local evidence is in `captures/browser/recovery-checks.log` and
 `recovery-unit-tests.xml`; runtime evidence is in `momentum-runtime-initial.log`.
-The current phone download remains build 143. Geometry/lens verification is
+The current phone download is build 150. Geometry/lens verification is
 recorded above; download behavior and physical Pixel/Mac testing remain open.
+
+## Browser download source follow-up (2026-09-28)
+
+At the refreshed pin, `BrowserNavigationDelegate` converts download navigation
+into a `WKDownload` and forwards it to `BrowserDownloadDelegate` in
+`Sources/Panels/BrowserPanel.swift`. That delegate saves a temporary file on the
+Mac, then moves it to the Mac Downloads directory or opens an `NSSavePanel` when
+“ask where to save” is enabled. The inspected mobile browser interface has no
+file-transfer or save-panel RPC. This establishes the host-managed source path;
+it does **not** prove that downloading through Android has passed live acceptance.
+Verify link-triggered downloads and the Mac save preference with a real paired Mac.
+No Android-specific download limitation is asserted.
 
 ## Browser source audit and implementation (2026-09-28)
 
@@ -166,7 +179,7 @@ state, and a task-options tap raced the system IME animation. Waiting for the
 observable state and invoking the dock’s accessible action produced a clean
 2/2 focused rerun, including the production Mac-switch flow. That is 11 distinct
 cases with passing evidence across runs, not a clean full-suite run. Original logs
-and the focused rerun are retained in `captures/browser/`. Signed build 143 now includes this milestone and is the current download. No physical Pixel is attached to adb.
+and the focused rerun are retained in `captures/browser/`. This milestone first shipped in signed build 143; the current download is build 150. No physical Pixel is attached to adb.
 
 
 201 JVM tests pass. The Android suite now contains 87 cases (including seven browser checks, three new browser lens checks, four offline-task checks, four task attachment/layout checks, three terminal momentum gesture checks and three browser momentum gesture checks): twenty-three Compose
@@ -658,3 +671,25 @@ fixture screenshot are in `captures/browser/`.
 
 This is an integration preview. The full iOS parity goal and physical Pixel/Mac
 acceptance are still open.
+
+## Signed integration build 150 (2026-09-28) — current download
+
+[GitHub run 36358173423](https://github.com/DocMorphic/cmux-app/actions/runs/36358173423)
+succeeded at `6aba8c2977f3b47516d03cc77671cfaa8f0bdd22`. This combined milestone
+includes browser stream recovery/lifecycle, native momentum/cancellation, corrected
+wheel direction, aspect-preserving width fit, local pinch/pan and native repeated
+click counts. The feature code passed 201 JVM cases and a clean 13-case Android 17
+browser integration run before packaging. The upstream reference was refreshed to
+`4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
+
+Verified the release package/version, unchanged signing certificate, recovery/
+momentum/lens feature classes, instrumentation-fixture exclusion, license assets,
+agent-image pixel equality and FileProvider scope. The existing tailnet APK server
+was updated atomically and its HTTP response matched the verified artifact.
+
+SHA-256: `a07857531b1a0d1eb7921a63746c36b4fe4c8780c0017c1100070b4c33586b23` (9103572 bytes).
+
+Local receipt: `captures/releases/6aba8c2-verification.json`. Runtime logs, geometry
+unit checks and the inspected generated-image screenshot are in `captures/browser/`.
+This remains an integration preview; full iOS parity and physical Pixel/Mac
+acceptance are not complete.
