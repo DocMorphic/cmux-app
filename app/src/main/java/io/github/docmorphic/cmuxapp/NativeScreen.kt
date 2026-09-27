@@ -1406,7 +1406,7 @@ fun NativeScreen(
                                 val group = entry.group
                                 NativeGroupHeaderRow(group,
                                     expanded = !group.isCollapsed,
-                                    hasUnread = entry.hasUnread,
+                                    unread = entry.unread,
                                     onOpen = group.liveAnchorWorkspaceId?.takeIf { id -> owner.workspaces.any { it.id == id } }?.let { anchor ->
                                         { inAppNotification = null; workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, anchor) }
                                     },
@@ -1509,7 +1509,7 @@ private fun NativeHeader(title: String) {
 private fun NativeGroupHeaderRow(
     group: NativeGroup,
     expanded: Boolean,
-    hasUnread: Boolean,
+    unread: NativeWorkspaceUnread,
     onOpen: (() -> Unit)?,
     canEdit: Boolean,
     onToggle: () -> Unit,
@@ -1521,17 +1521,28 @@ private fun NativeGroupHeaderRow(
     var name by remember(group.id) { mutableStateOf(group.name) }
     Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onToggle, modifier = Modifier.semantics {
+        NativeUnreadGutter(unread, gap = 3.dp)
+        IconButton(onClick = onToggle, modifier = Modifier.size(32.dp).semantics {
             contentDescription = "${if (expanded) "Collapse" else "Expand"} ${group.name}"
-        }) { Text(if (expanded) "⌄" else "›", color = nativeMuted, fontSize = 20.sp) }
-        if (hasUnread) Text("●", color = nativeAccent, fontSize = 9.sp, modifier = Modifier.padding(end = 6.dp))
-        Text(group.name, Modifier.weight(1f).clickable(onClick = onOpen ?: onToggle)
-            .semantics { if (onOpen != null) contentDescription = "Open ${group.name}" }
-            .padding(horizontal = 4.dp, vertical = 12.dp),
-            color = if (hasUnread) Color.White else nativeMuted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        if (group.isPinned) Text("●", color = nativeAccent, fontSize = 8.sp)
+        }) { Icon(painterResource(if (expanded) R.drawable.ic_workspace_chevron_down else R.drawable.ic_workspace_chevron_right),
+            null, Modifier.size(16.dp), tint = nativeMuted) }
+        Row(Modifier.weight(1f).then(if (onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier)
+            .semantics(mergeDescendants = true) {
+                if (onOpen != null) contentDescription = "Open ${group.name}"
+                stateDescription = listOfNotNull("Pinned".takeIf { group.isPinned },
+                    unread.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
+            }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(painterResource(nativeWorkspaceGroupIcon(group.iconSymbol)), null, Modifier.size(15.dp), tint = nativeMuted)
+            Text(group.name, Modifier.weight(1f, fill = false), color = Color.White,
+                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (group.isPinned) Icon(painterResource(R.drawable.ic_workspace_pin_fill), null,
+                Modifier.size(12.dp), tint = nativeMuted)
+        }
         if (canEdit) Box {
-            TextButton(onClick = { menuOpen = true }) { Text("⋯", color = nativeMuted) }
+            TextButton(onClick = { menuOpen = true }, modifier = Modifier.semantics {
+                contentDescription = "Actions for ${group.name}"
+            }) { Text("⋯", color = nativeMuted) }
             DropdownMenu(menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(text = { Text("Rename group") }, onClick = {
                     menuOpen = false; name = group.name; renaming = true
@@ -1581,9 +1592,11 @@ private fun NativeWorkspaceRow(
     var confirmClose by remember { mutableStateOf(false) }
     var title by remember(workspace.id) { mutableStateOf(workspace.title) }
     Row(Modifier.fillMaxWidth().clickable(enabled = workspace.terminals.isNotEmpty() || workspace.browsers.isNotEmpty(), onClick = onOpen)
-        .padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (workspace.hasUnread) Text("●", color = nativeAccent, fontSize = 9.sp, modifier = Modifier.width(10.dp))
-        else Spacer(Modifier.width(10.dp))
+        .semantics {
+            stateDescription = listOfNotNull("Pinned".takeIf { workspace.isPinned },
+                workspace.unreadState.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
+        }.padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+        NativeUnreadGutter(workspace.unreadState)
         val colors = listOf(Color(0xFFFFB52E), Color(0xFF58CFA2), Color(0xFF83B9FF), Color(0xFFFF8E80))
         val accent = runCatching { android.graphics.Color.parseColor(workspace.color) }
             .getOrNull()?.let { Color(it) } ?: colors[(workspace.id.hashCode() and Int.MAX_VALUE) % colors.size]
@@ -1602,7 +1615,9 @@ private fun NativeWorkspaceRow(
         }
         Spacer(Modifier.width(8.dp))
         Box {
-            TextButton(onClick = { expanded = true }) { Text("⋯", color = nativeMuted, fontSize = 20.sp) }
+            TextButton(onClick = { expanded = true }, modifier = Modifier.semantics {
+                contentDescription = "Actions for ${workspace.title.ifBlank { "Workspace" }}"
+            }) { Text("⋯", color = nativeMuted, fontSize = 20.sp) }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 DropdownMenuItem(text = { Text("View changes") }, onClick = {
                     expanded = false; onAction("changes", null)

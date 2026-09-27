@@ -220,3 +220,27 @@ they exposed a touch-scroll conflict fixed by disabling LazyColumn's touch
 scrolling only while a row is held. Programmatic edge scrolling remains active.
 The inspected screenshot is `captures/emulator/screenshots/workspace-hierarchy-reordered.png`.
 These fixture peers do not prove a real cmux Mac or Pixel session.
+
+
+Unread badge validation (2026-09-27): 108 JVM tests pass. Four focused Android 17
+emulator tests passed together (`OK (4 tests)`, 80.235 seconds): unread counts
+and read/unread RPC refresh; hierarchy/anchor/collapse/reordering; held drag
+auto-scroll; and accessible move/disabled actions. The unread flow checks an
+expanded anchor count of 2, collapsed total of 5, legacy unknown count semantics,
+root count of 12, and group totals after the child is marked read and unread.
+Search flattens members with their individual counts. Expanded and collapsed
+screenshots were inspected at `captures/emulator/screenshots/workspace-counts-expanded.png`
+and `workspace-counts-collapsed.png`. The full 29-case instrumentation suite was
+not rerun in this batch. These results use a synthetic RPC peer, not the Pixel
+or a real cmux host. Large-font badge layout remains a separate QA item.
+
+Recreate the pinned Lucide Android vectors with:
+
+```sh
+python3 scripts/import-workspace-icons.py
+```
+
+The script fetches only the pinned SVG files and license, records hashes in
+`third_party/lucide/workspace-icons/PROVENANCE.json`, and preserves the complete
+license in the app. Unknown custom SF Symbol names currently use a folder
+fallback; vector shape equivalence is not exact Apple glyph parity.

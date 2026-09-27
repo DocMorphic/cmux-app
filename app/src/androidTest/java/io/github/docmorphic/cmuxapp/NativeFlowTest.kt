@@ -687,6 +687,65 @@ class NativeFlowTest {
         compose.onAllNodes(movable).assertCountEquals(0)
     }
 
+    @Test fun unreadCountsAggregateOnCollapseAndRefreshAfterReadActions() {
+        peer.notificationFeed = searchNotifications()
+        peer.customWorkspaceListing = JSONObject("""{
+          "groups":[
+            {"id":"counted","name":"Counted group","is_pinned":true,"icon_symbol":"terminal.fill","anchor_workspace_id":"workspace-2"},
+            {"id":"legacy","name":"Legacy group","is_collapsed":true,"anchor_workspace_id":"old-anchor"}
+          ],
+          "workspaces":[
+            {"id":"workspace-1","window_id":"fixture-window","title":"Claude Code task","has_unread":true,"unread_count":12,"terminals":[{"id":"terminal-1"}]},
+            {"id":"workspace-2","window_id":"fixture-window","title":"Read project","group_id":"counted","has_unread":true,"unread_count":2,"terminals":[{"id":"terminal-2"}]},
+            {"id":"child","window_id":"fixture-window","title":"Group child","group_id":"counted","has_unread":true,"unread_count":3,"terminals":[{"id":"terminal-child"}]},
+            {"id":"old-anchor","window_id":"fixture-window","title":"Old anchor","group_id":"legacy","terminals":[{"id":"terminal-old"}]},
+            {"id":"old-child","window_id":"fixture-window","title":"Old child","group_id":"legacy","has_unread":true}
+          ]} """)
+        showSearchFixture()
+        fun headerState(expected: String) {
+            val matcher = hasContentDescription("Open Counted group") and
+                SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, expected)
+            compose.waitUntil(10_000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
+        }
+        fun childState(expected: String) {
+            val matcher = hasText("Group child") and
+                SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, expected)
+            compose.waitUntil(10_000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
+        }
+        headerState("Pinned, 2 unread")
+        childState("3 unread")
+        compose.onNodeWithContentDescription("Open Legacy group").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Unread"))
+        compose.onNodeWithText("Claude Code task").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "12 unread"))
+        screenshot("workspace-counts-expanded")
+        compose.onNodeWithContentDescription("Collapse Counted group").performClick()
+        headerState("Pinned, 5 unread")
+        compose.onNodeWithText("Group child").assertDoesNotExist()
+        screenshot("workspace-counts-collapsed")
+        compose.onNodeWithContentDescription("Expand Counted group").performClick()
+        compose.onNodeWithContentDescription("Actions for Group child").performClick()
+        compose.onNodeWithText("Mark read").performClick()
+        childState("")
+        compose.onNodeWithContentDescription("Collapse Counted group").performClick()
+        headerState("Pinned, 2 unread")
+        compose.onNodeWithContentDescription("Expand Counted group").performClick()
+        compose.onNodeWithContentDescription("Actions for Group child").performClick()
+        compose.onNodeWithText("Mark unread").performClick()
+        childState("1 unread")
+        compose.onNodeWithContentDescription("Collapse Counted group").performClick()
+        headerState("Pinned, 3 unread")
+        val actions = peer.requests.filter { it.optString("method") == "workspace.action" }
+        assertEquals(listOf("mark_read", "mark_unread"), actions.map { it.getJSONObject("params").getString("action") })
+        assertTrue(actions.all { it.getJSONObject("params").getString("workspace_id") == "child" })
+        openSearch()
+        compose.onNode(hasSetTextAction()).performTextInput("Counted")
+        compose.onNodeWithText("Read project").assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "2 unread"))
+        childState("1 unread")
+        compose.onNodeWithContentDescription("Open Counted group").assertDoesNotExist()
+    }
+
     private fun openReadProject() {
         val flat = compose.onAllNodesWithText("Read project").fetchSemanticsNodes().isNotEmpty()
         if (flat) compose.onNodeWithText("Read project").performClick()
@@ -1182,6 +1241,20 @@ internal class NativeFixturePeer : AutoCloseable {
         "workspace.action" -> JSONObject().also {
             if (params.optString("action") == "rename" && params.optString("workspace_id") == "workspace-1")
                 renamedWorkspace = params.getString("title")
+            if (params.optString("action") in setOf("mark_read", "mark_unread")) {
+                customWorkspaceListing?.let { original ->
+                    val listing = JSONObject(original.toString())
+                    val rows = listing.getJSONArray("workspaces")
+                    for (index in 0 until rows.length()) {
+                        val row = rows.getJSONObject(index)
+                        if (row.getString("id") == params.getString("workspace_id")) {
+                            val unread = params.getString("action") == "mark_unread"
+                            row.put("has_unread", unread).put("unread_count", if (unread) 1 else 0)
+                        }
+                    }
+                    customWorkspaceListing = listing
+                }
+            }
         }
         "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/cmux fixture.txt")
         "notification.feed.mark_read", "notification.feed.mark_unread" -> JSONObject().also {
