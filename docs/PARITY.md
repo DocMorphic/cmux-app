@@ -24,7 +24,7 @@ UI resemblance alone does not count.
 | Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; encrypted per-pairing alert identity and exact terminal routes, independent saved-Mac workers, read/forget cleanup and host-identity checks coded; combined saved-Mac feed, day/history grouping, unread filter, pull refresh, read/unread gestures and confirmed bulk read coded; offline snapshots and revision guards tested with loopback peers; event/mutation revision floors, bounded refresh retries and Activity-recreation retention coded; computer picker, scoped unread badge/bulk actions and live-destination filtering before the global cap coded; server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, bottom navigation/address/loading controls, direct IME and hardware input, live viewport updates, ordered/coalesced scrolling, frame validation and stale-dialog fencing coded; seven browser-view checks and three browser momentum gesture checks have passing emulator evidence across initial/focused runs, including watchdog/lifecycle recovery and momentum/cancellation; width-fit geometry, local pinch zoom/pan and repeated-tap click counts also verified in a clean 13-case browser emulator run; download behavior and phone QA pending | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
-| Changes | `CmuxMobileChanges` | Collapsible directory tree, path-stable diff pager, numbered/wrapped hunks, grapheme-safe emphasis, line/hunk copy, persistent pinch font, refresh/retry and progressive 6,000→24,000→96,000-line loading coded; identity-checked hidden-context expansion and chunked content transfer coded; model/request checks passed; Before/After image, PDF, media and file-action previews coded; viewer runtime and phone QA pending; advanced text/Markdown and document-format parity remain open | View changed files and diffs from the active workspace |
+| Changes | `CmuxMobileChanges` | Collapsible directory tree, path-stable diff pager, numbered/wrapped hunks, grapheme-safe emphasis, line/hunk copy, persistent pinch font, refresh/retry and progressive 6,000→24,000→96,000-line loading coded; identity-checked hidden-context expansion and chunked content transfer coded; model/request checks passed; Before/After image, PDF, media and file-action previews coded; ten Changes cases passed in an Android 17 emulator run; phone QA, advanced text/Markdown and document-format parity remain open | View changed files and diffs from the active workspace |
 | Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; chat UI, remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
@@ -48,10 +48,18 @@ Private partial downloads are removed on errors/cancellation. Text is selectable
 numbered; upstream advanced text/Markdown viewing and broader document preview
 formats still need parity work and are not claimed complete.
 
-Verification at feature commit: 240 JVM tests passed, including seven preview policy,
-file lifecycle, export, limit and cancellation cases. Four new Android preview cases
-join five Changes viewer cases for the combined runtime run. This section will be
-updated with observed runtime results and signed APK evidence after that run.
+Verification: 240 JVM tests passed, including seven preview policy, file lifecycle,
+export, limit and cancellation cases. A clean Android 17 emulator run passed all ten
+Changes cases in 103.843 seconds: tree/pager/copy, error recovery, continuation/font
+persistence, context reuse, mismatched revisions, image revision switching/copy,
+extensionless image MIME/bytes, PDF page rendering, and audio playback/cleanup.
+The initial nine-case run had one fixture synchronization failure after refresh;
+its original log is retained alongside the passing run. Test hosts now include the
+same Surface and safe drawing insets as the app. This is a local RPC fixture run,
+not physical Pixel or live Mac acceptance. A subsequent focused two-case image run
+also passed after requiring the blue fixture's rendered screen pixels before capture.
+The expanded-diff and image-preview screenshots were inspected. Local evidence is
+in `captures/changes/`.
 
 ## Hidden-context expansion (2026-09-28)
 
@@ -262,7 +270,7 @@ cases with passing evidence across runs, not a clean full-suite run. Original lo
 and the focused rerun are retained in `captures/browser/`. This milestone first shipped in signed build 143; the current download is build 150. No physical Pixel is attached to adb.
 
 
-240 JVM tests pass. The Android suite now contains 96 cases (including nine pending changes-viewer/preview checks, seven browser checks, three browser lens checks, four offline-task checks, four task attachment/layout checks, three terminal momentum gesture checks and three browser momentum gesture checks): twenty-three Compose
+240 JVM tests pass. The Android suite now contains 97 cases (including ten changes-viewer/preview checks, seven browser checks, three browser lens checks, four offline-task checks, four task attachment/layout checks, three terminal momentum gesture checks and three browser momentum gesture checks): twenty-three Compose
 flows, seven task model/submission controls checks, four template checks, five task destination checks, five task draft checks, six completed-task recovery checks, one
 explicit two-process draft check, two workspace drag checks, four Activity-recreation
 checks, four notification/service checks and two

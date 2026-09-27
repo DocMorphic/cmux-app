@@ -34,7 +34,6 @@ class NativeChangesPreviewTest {
     private lateinit var client: MobileRpcClient
     private var visible by mutableStateOf(true)
     @Before fun setup() {
-        compose.runOnUiThread { (compose.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("", "")) }
         peer = NativeFixturePeer()
         client = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
         runBlocking { client.connect() }
@@ -70,17 +69,26 @@ class NativeChangesPreviewTest {
         show(); waitText("image.png")
         compose.onNodeWithContentDescription("Open diff new/image.png").performClick()
         waitDescription("Image preview image.png")
-        val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-        compose.activity.openFileOutput("changes-image-preview.png", Context.MODE_PRIVATE).use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        screenshot.recycle()
+        val center = compose.onNodeWithContentDescription("Image preview image.png").fetchSemanticsNode().boundsInWindow.center
+        var rendered: Bitmap? = null
+        compose.waitUntil(10_000) {
+            val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            val matched = screenshot.getPixel(center.x.toInt(), center.y.toInt()) == Color.BLUE
+            if (matched) rendered = screenshot else screenshot.recycle()
+            matched
+        }
+        compose.activity.openFileOutput("changes-image-preview.png", Context.MODE_PRIVATE).use { rendered!!.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        rendered!!.recycle()
         compose.onNodeWithText("Before").performClick()
         waitDescription("Before preview old/image.png")
         waitDescription("Image preview image.png")
+        var previousUri: android.net.Uri? = null
+        compose.runOnUiThread { previousUri = (compose.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip?.getItemAt(0)?.uri }
         compose.onNodeWithText("File actions").performClick(); compose.onNodeWithText("Copy Image").performClick()
         var uri: android.net.Uri? = null
         compose.waitUntil(10_000) {
             compose.runOnUiThread { uri = (compose.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip?.getItemAt(0)?.uri }
-            uri != null
+            uri != null && uri != previousUri
         }
         val bitmap = compose.activity.contentResolver.openInputStream(uri!!).use { BitmapFactory.decodeStream(it) }
         assertEquals(Color.RED, bitmap.getPixel(80, 60)); bitmap.recycle()
@@ -176,11 +184,13 @@ class NativeChangesPreviewTest {
         } }
         show(); waitText("image"); compose.onNodeWithContentDescription("Open diff image").performClick()
         waitDescription("Image preview image")
+        var previousUri: android.net.Uri? = null
+        compose.runOnUiThread { previousUri = (compose.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip?.getItemAt(0)?.uri }
         compose.onNodeWithText("File actions").performClick(); compose.onNodeWithText("Copy Image").performClick()
         var clip: android.content.ClipData? = null
         compose.waitUntil(10_000) {
             compose.runOnUiThread { clip = (compose.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip }
-            clip?.getItemAt(0)?.uri != null
+            clip?.getItemAt(0)?.uri != null && clip?.getItemAt(0)?.uri != previousUri
         }
         assertTrue(clip!!.description.hasMimeType("image/png"))
         val uri = clip!!.getItemAt(0).uri
