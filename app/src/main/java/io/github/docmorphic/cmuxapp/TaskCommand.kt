@@ -12,7 +12,8 @@ object TaskCommand {
         SHELL("Shell", null)
     }
 
-    fun parameters(agent: Agent, rawPrompt: String, directory: String?, operationId: UUID): JSONObject {
+    fun parameters(agent: Agent, rawPrompt: String, directory: String?, operationId: UUID,
+        modelId: String? = null, effortId: String? = null): JSONObject {
         val prompt = rawPrompt.trim()
         require(agent == Agent.SHELL || prompt.isNotEmpty()) { "Enter a task prompt" }
         val params = JSONObject().put("operation_id", operationId.toString())
@@ -21,7 +22,7 @@ object TaskCommand {
         }
         directory?.trim()?.takeIf { it.isNotEmpty() }?.let { params.put("working_directory", it) }
         agent.command?.let { command ->
-            params.put("initial_command", command)
+            params.put("initial_command", TaskAgentCommand.detect(command)?.apply(command, modelId, effortId) ?: command)
             params.put("initial_env", JSONObject().put("CMUX_TASK_PROMPT", prompt))
         }
         return params

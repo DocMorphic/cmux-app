@@ -29,3 +29,11 @@ Copyright (c) 2026 Lucide Icons and Contributors; ISC license. Some symbols deri
 from Feather, Copyright (c) 2013-present Cole Bemis; MIT license. Complete notices
 are in third_party/lucide/workspace-icons/LICENSE and the app's Lucide.txt license.
 Changes: converted SVG geometry to Android vectors; filled folder and pin variants.
+
+Task model catalog parsing, refresh priority, selection rules and provider command
+option rewriting are derived from cmux's MobileTaskAgentProvider,
+MobileTaskModelCatalogClient, MobileShellComposite+TaskModels,
+MobileTaskModelRefreshLoop and TaskComposerSheet+ModelSelection at revision
+4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0. Copyright (c) 2024-present Manaflow, Inc.;
+GPL-3.0-or-later. The task command reference generator runs the unmodified Swift
+provider code and records its hash alongside 695 cases.
