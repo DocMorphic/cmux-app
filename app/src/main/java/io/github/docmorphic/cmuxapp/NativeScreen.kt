@@ -79,7 +79,8 @@ private val nativeMuted = Color(0xFF9B9FA8)
 
 @Composable
 fun NativeScreen(
-    onUseHelper: () -> Unit, incomingCode: String? = null, incomingWorkspaceId: String? = null,
+    onUseHelper: () -> Unit, incomingCode: String? = null, incomingNotificationRoute: String? = null,
+    onNotificationHandled: (String) -> Unit = {},
     connector: NativeConnector? = null
 ) {
     val context = LocalContext.current
@@ -154,7 +155,10 @@ fun NativeScreen(
     var selectedTerminal by remember(code) { mutableStateOf<NativeTerminal?>(null) }
     var selectedBrowser by remember(code) { mutableStateOf<NativeBrowser?>(null) }
     var selectedChangesWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
-    var handledIncomingWorkspace by remember(incomingWorkspaceId) { mutableStateOf(false) }
+    var connectedCode by remember { mutableStateOf<String?>(null) }
+    val notificationDelivery = remember(context) { NativeNotificationDelivery(context.applicationContext) }
+    val currentIncomingRoute by rememberUpdatedState(incomingNotificationRoute)
+    val handleNotification by rememberUpdatedState(onNotificationHandled)
     var notificationNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(notificationTab) {
         if (notificationTab) while (true) {
@@ -332,21 +336,59 @@ fun NativeScreen(
     LaunchedEffect(incomingCode) {
         if (incomingCode != null && incomingCode != code) proposePairing(incomingCode)
     }
-    LaunchedEffect(incomingWorkspaceId, workspaces, client) {
-        val target = incomingWorkspaceId ?: return@LaunchedEffect
-        if (client == null || handledIncomingWorkspace) return@LaunchedEffect
-        val workspace = workspaces.firstOrNull { it.id == target } ?: return@LaunchedEffect
-        workspace.terminals.firstOrNull()?.let { terminal ->
-            selectedWorkspace = workspace; selectedTerminal = terminal; notificationTab = false
-            handledIncomingWorkspace = true
-        } ?: workspace.browsers.firstOrNull()?.let { browser ->
-            selectedWorkspace = workspace; selectedBrowser = browser; notificationTab = false
-            handledIncomingWorkspace = true
+    LaunchedEffect(incomingNotificationRoute, signedIn, code, connectedCode, client) {
+        val routeId = incomingNotificationRoute ?: return@LaunchedEffect
+        if (!signedIn) return@LaunchedEffect
+        val route = notificationDelivery.destination(routeId)
+        val mac = store.pairedMacs().singleOrNull { it.origin == route?.origin }
+        if (route == null || mac == null) {
+            error = "This notification's saved Mac is no longer available."
+            handleNotification(routeId)
+            return@LaunchedEffect
         }
+        if (code != mac.code) {
+            store.update { it.put("pairing_code", mac.code) }
+            showSettings = false; selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null
+            code = mac.code
+            return@LaunchedEffect
+        }
+        val active = client ?: return@LaunchedEffect
+        if (connectedCode != mac.code) return@LaunchedEffect
+        fun isCurrent() = currentIncomingRoute == routeId && client === active && code == mac.code &&
+            signedIn && store.pairedMacs().contains(mac)
+        try {
+            val listing = active.workspaces()
+            val feed = parseNotifications(active.notifications())
+            if (!isCurrent()) return@LaunchedEffect
+            val notification = feed.firstOrNull { it.id == route.notificationId } ?: route.notification()
+            val available = parseWorkspaces(listing)
+            val workspace = notification.destination(available)
+            val exactBrowser = workspace?.browsers?.firstOrNull { it.id == notification.surfaceId }
+            val terminal = workspace?.terminals?.firstOrNull { it.id == notification.surfaceId }
+                ?: if (exactBrowser == null) workspace?.terminals?.firstOrNull() else null
+            val browser = exactBrowser ?: if (terminal == null) workspace?.browsers?.firstOrNull() else null
+            check(workspace != null && (terminal != null || browser != null)) {
+                "This notification's workspace is no longer available."
+            }
+            applyListing(listing); notifications = feed
+            finishSearch(); notificationTab = false; showSettings = false; showTaskComposer = false
+            showCreateGroup = false; showLicenses = false; selectedChangesWorkspace = null
+            selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser
+            notificationDelivery.cancel(routeId)
+            // Navigation is committed. A failed read acknowledgment never targets a different session.
+            active.markNotificationRead(notification.id)
+            if (!isCurrent()) return@LaunchedEffect
+            notifications = feed.map { if (it.id == notification.id) it.copy(isRead = true) else it }
+            error = null
+        } catch (failure: Exception) {
+            if (failure is CancellationException) throw failure
+            if (isCurrent()) error = failure.message ?: "Could not open this notification"
+        }
+        if (isCurrent()) handleNotification(routeId)
     }
 
     LaunchedEffect(signedIn, code, retry) {
-        client?.close(); client = null
+        client?.close(); client = null; connectedCode = null
         if (!signedIn || code.isBlank()) return@LaunchedEffect
         busy = true
         try {
@@ -355,6 +397,7 @@ fun NativeScreen(
             val active = connection.connect(pairing, account)
             try {
                 val status = active.hostStatus()
+                store.pairedMacs().firstOrNull { it.code == code }?.requireMatchingHost(status)
                 hostName = status.optString("mac_display_name").ifBlank { "cmux" }
                 hostCapabilities = status.optJSONArray("capabilities")?.let { values ->
                     (0 until values.length()).mapNotNull { index ->
@@ -366,7 +409,9 @@ fun NativeScreen(
                 applyListing(listing)
                 runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
                 client = active
-                store.rememberMac(code, status.optString("mac_device_id"), hostName)
+                store.rememberMac(code, status.optString("mac_device_id"), hostName,
+                    status.optString("mac_instance_tag").takeIf { !status.isNull("mac_instance_tag") && it.isNotBlank() })
+                connectedCode = code
                 pairedMacs = store.pairedMacs()
                 error = null
                 retryDelay = 2_000

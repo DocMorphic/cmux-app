@@ -14,12 +14,13 @@ import androidx.compose.runtime.*
 
 class MainActivity : ComponentActivity() {
     private var incomingPairing by mutableStateOf<String?>(null)
-    private var incomingWorkspace by mutableStateOf<String?>(null)
+    private var incomingNotificationRoute by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         incomingPairing = intent?.dataString?.takeIf { PairingCodeParser.parse(it).isSuccess }
-        incomingWorkspace = intent?.getStringExtra("notification_workspace_id")
+        incomingNotificationRoute = if (savedInstanceState != null) savedInstanceState.getString("notification_route")
+            else NativeNotificationDelivery.routeFromIntent(this, intent)
         if (NativeNotificationService.isEnabled(this)) {
             runCatching { startForegroundService(Intent(this, NativeNotificationService::class.java)) }
         }
@@ -27,20 +28,33 @@ class MainActivity : ComponentActivity() {
             CmuxTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var nativeMode by remember { mutableStateOf(true) }
-                    LaunchedEffect(incomingPairing) { if (incomingPairing != null) nativeMode = true }
+                    LaunchedEffect(incomingPairing, incomingNotificationRoute) {
+                        if (incomingPairing != null || incomingNotificationRoute != null) nativeMode = true
+                    }
                     if (nativeMode) NativeScreen(onUseHelper = { nativeMode = false },
-                        incomingCode = incomingPairing, incomingWorkspaceId = incomingWorkspace)
+                        incomingCode = incomingPairing, incomingNotificationRoute = incomingNotificationRoute,
+                        onNotificationHandled = { route ->
+                            if (incomingNotificationRoute == route) {
+                                incomingNotificationRoute = null
+                                intent?.data = null
+                            }
+                        })
                     else BridgeScreen(onUseNative = { nativeMode = true })
                 }
             }
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("notification_route", incomingNotificationRoute)
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         incomingPairing = intent.dataString?.takeIf { PairingCodeParser.parse(it).isSuccess }
-        incomingWorkspace = intent.getStringExtra("notification_workspace_id")
+        incomingNotificationRoute = NativeNotificationDelivery.routeFromIntent(this, intent)
     }
 }
 

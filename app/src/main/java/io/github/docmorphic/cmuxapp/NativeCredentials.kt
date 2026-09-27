@@ -23,7 +23,17 @@ import javax.crypto.spec.GCMParameterSpec
 class NativeCredentialStore(context: Context, storageName: String = "native_cmux") {
     private val preferences = context.getSharedPreferences(storageName, Context.MODE_PRIVATE)
 
-    data class PairedMac(val code: String, val deviceId: String, val name: String)
+    data class PairedMac(val code: String, val deviceId: String, val name: String, val instanceTag: String? = null) {
+        internal val origin get() = pairingOrigin(code)
+        fun requireMatchingHost(status: JSONObject) {
+            require(deviceId.isBlank() || status.optString("mac_device_id") == deviceId) {
+                "This pairing now reaches a different Mac. Forget it and pair the intended Mac again."
+            }
+            require(instanceTag == null || status.optString("mac_instance_tag") == instanceTag) {
+                "This pairing now reaches a different cmux installation. Pair it again."
+            }
+        }
+    }
 
     fun pairedMacs(): List<PairedMac> {
         val array = load()?.optJSONArray("pairings") ?: return emptyList()
@@ -31,20 +41,22 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
             for (index in 0 until array.length()) {
                 val item = array.optJSONObject(index) ?: continue
                 val code = item.optString("code")
-                if (code.isNotBlank()) add(PairedMac(code, item.optString("device_id"), item.optString("name", "cmux")))
+                if (code.isNotBlank()) add(PairedMac(code, item.optString("device_id"), item.optString("name", "cmux"),
+                    item.optString("instance_tag").takeIf { !item.isNull("instance_tag") && it.isNotBlank() }))
             }
         }
     }
 
-    fun rememberMac(code: String, deviceId: String, name: String) = update { state ->
+    fun rememberMac(code: String, deviceId: String, name: String, instanceTag: String? = null) = update { state ->
         val previous = state.optJSONArray("pairings")
         val next = org.json.JSONArray()
         if (previous != null) for (index in 0 until previous.length()) {
             val item = previous.optJSONObject(index) ?: continue
             if (item.optString("code") != code &&
-                (deviceId.isBlank() || item.optString("device_id") != deviceId)) next.put(item)
+                (deviceId.isBlank() || item.optString("device_id") != deviceId ||
+                    item.optString("instance_tag").takeIf { !item.isNull("instance_tag") && it.isNotBlank() } != instanceTag)) next.put(item)
         }
-        next.put(JSONObject().put("code", code).put("device_id", deviceId).put("name", name))
+        next.put(JSONObject().put("code", code).put("device_id", deviceId).put("name", name).put("instance_tag", instanceTag))
         state.put("pairings", next).put("pairing_code", code)
     }
 

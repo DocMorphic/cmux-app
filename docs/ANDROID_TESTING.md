@@ -40,6 +40,21 @@ are not marked read. `notification-search.png` and `notification-unavailable.png
 record these states. JVM tests additionally check late edits after cancellation,
 128-scalar/512-byte input bounds, duplicate/nullable feed fields, ambiguous
 surface ownership, and row headline/preview derivation.
+Two alert-navigation flows switch from one saved fixture Mac to another, verify
+exact workspace/terminal RPC targets, reopen the same route after consumption,
+and reject a forgotten computer without sending a read or terminal request.
+Four `NativeNotificationDeliveryTest` checks exercise real Keystore encryption,
+NotificationManager and PendingIntent identity (including colliding string hashes
+and identical IDs across Macs), read/forget cleanup, late-feed suppression,
+intent validation, sibling-installation storage, host-identity mismatch rejection,
+and foreground-service start/stop with immediate connection status.
+The persisted destination is a random opaque ID; Android intents contain no
+pairing route, credential, workspace or terminal ID. JVM ledger checks cover
+per-Mac baselines, persistence reconstruction, unacknowledged post retry, bounded
+history/route eviction and retained moved-surface provenance. A socket test
+exercises the actual event-driven feed worker and disconnect handling.
+These do not yet prove delivery during physical-device sleep, boot recovery,
+notification-shade taps through Activity process death, or real tailnet reconnects.
 The peer uses synthetic data and never connects to a real cmux account.
 This check does not prove account sign-in, Tailscale routing, or compatibility
 with the live Mac; those remain in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
@@ -60,10 +75,10 @@ On a Mac with limited RAM, build before starting the emulator:
 ./gradlew --no-daemon --max-workers=1 :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest,io.github.docmorphic.cmuxapp.NativeNotificationDeliveryTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (12 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (18 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 

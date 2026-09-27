@@ -14,6 +14,7 @@ import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
@@ -49,6 +50,7 @@ class NativeFlowTest {
             compose.activity.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
         peer = NativeFixturePeer()
+        NativeCredentialStore(context, "native_notification_state").clear()
         NativeCredentialStore(context, "native_terminal_drafts").clear()
         TerminalDraftRepository.get(context).drafts.clear()
         NativeCredentialStore(context).update {
@@ -61,6 +63,7 @@ class NativeFlowTest {
         compose.activity.finish()
         peer.close()
         NativeCredentialStore(context).clear()
+        NativeCredentialStore(context, "native_notification_state").clear()
         NativeCredentialStore(context, "native_terminal_drafts").clear()
         TerminalDraftRepository.get(context).drafts.clear()
     }
@@ -635,6 +638,67 @@ class NativeFlowTest {
         }
     }
 
+    @Test fun alertSwitchesSavedMacAndExactTerminalThenCanBeOpenedAgain() {
+        val other = NativeFixturePeer().apply { deviceId = "second-mac"; gridFirstLine = "Second Mac terminal" }
+        try {
+            val firstCode = "cmux-ios://attach?v=2&r=100.64.0.1:58465"
+            val secondCode = "cmux-ios://attach?v=2&r=100.64.0.2:58465"
+            val credentials = NativeCredentialStore(context)
+            credentials.rememberMac(secondCode, "second-mac", "Second Mac")
+            credentials.rememberMac(firstCode, "fixture-mac", "Fixture Mac")
+            var route: NotificationDestination? = null
+            NativeCredentialStore(context, "native_notification_state").update {
+                route = NativeNotificationLedger(it).stage(pairingOrigin(secondCode),
+                    NativeNotification("shared-id", "workspace-2", "terminal-2", "Ready", "", false))
+            }
+            val incoming = mutableStateOf<String?>(null)
+            val handled = java.util.concurrent.atomic.AtomicInteger()
+            compose.setContent {
+                CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                    NativeScreen(onUseHelper = {}, incomingNotificationRoute = incoming.value,
+                        onNotificationHandled = { incoming.value = null; handled.incrementAndGet() },
+                        connector = NativeConnector { pairing, _ ->
+                            val target = if (pairing.routes.first().host == "100.64.0.2") other else peer
+                            MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                        })
+                } }
+            }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+            compose.runOnIdle { incoming.value = route!!.routeId }
+            compose.waitUntil(15_000) { handled.get() == 1 && other.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+            val replay = other.requests.last { it.optString("method") == "mobile.terminal.replay" }.getJSONObject("params")
+            assertEquals("workspace-2", replay.getString("workspace_id"))
+            assertEquals("terminal-2", replay.getString("surface_id"))
+            assertEquals(0, peer.requests.count { it.optString("method") == "notification.feed.mark_read" })
+            assertEquals(1, other.requests.count { it.optString("method") == "notification.feed.mark_read" })
+            compose.runOnIdle { incoming.value = route!!.routeId }
+            compose.waitUntil(10_000) { handled.get() == 2 }
+            assertEquals(2, other.requests.count { it.optString("method") == "notification.feed.mark_read" })
+            assertEquals(secondCode, credentials.load()!!.getString("pairing_code"))
+            screenshot("notification-mac-route")
+        } finally { other.close() }
+    }
+
+    @Test fun forgottenMacNotificationDoesNotUseCurrentMacOrMarkRead() {
+        var route: NotificationDestination? = null
+        NativeCredentialStore(context, "native_notification_state").update {
+            route = NativeNotificationLedger(it).stage("forgotten-mac",
+                NativeNotification("n", "workspace-1", "terminal-1", "Ready", "", false))
+        }
+        val consumed = java.util.concurrent.atomic.AtomicBoolean()
+        compose.setContent {
+            CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, incomingNotificationRoute = route!!.routeId,
+                    onNotificationHandled = { consumed.set(true) }, connector = NativeConnector { _, _ ->
+                        MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                    })
+            } }
+        }
+        compose.waitUntil(10_000) { consumed.get() }
+        assertEquals(0, peer.requests.count { it.optString("method") == "notification.feed.mark_read" })
+        assertEquals(0, peer.requests.count { it.optString("method") == "mobile.terminal.replay" })
+    }
+
     private fun screenshot(name: String) {
         compose.waitForIdle()
         val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
@@ -656,6 +720,7 @@ private class NativeFixturePeer : AutoCloseable {
     private val sockets = CopyOnWriteArrayList<Socket>()
     @Volatile private var closed = false
     private var revision = 0
+    @Volatile var deviceId = "fixture-mac"
     @Volatile var notificationFeed = JSONArray()
     private val readNotifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile var rawTerminal = false
@@ -728,7 +793,7 @@ private class NativeFixturePeer : AutoCloseable {
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
         "mobile.host.status" -> JSONObject().put("mac_display_name", "Fixture Mac")
-            .put("mac_device_id", "fixture-mac").put("capabilities", JSONArray().put("task.attachments.v1").also {
+            .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").also {
                 if (rawTerminal) it.put("terminal.bytes.v1")
                 else { it.put("terminal.render_grid.v1"); if (screenAnchor) it.put("terminal.render_grid.screen_anchor.v1") }
             })
