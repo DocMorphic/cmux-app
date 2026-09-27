@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -16,6 +18,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
@@ -48,7 +51,8 @@ internal fun NativeTaskComposerView(
     flushDrafts: () -> Unit = {},
     onResumeDraft: (TaskDraft) -> Unit = {},
     onNewDraft: () -> Unit = {},
-    supportsTaskCreation: Boolean = true
+    supportsTaskCreation: Boolean = true,
+    refreshWorkspaces: suspend () -> Unit = { client.workspaces(); Unit }
 ) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
@@ -73,12 +77,17 @@ internal fun NativeTaskComposerView(
     val currentContext by rememberUpdatedState(isCurrent)
     val createdCallback by rememberUpdatedState(onCreated)
     var busy by remember { mutableStateOf(false) }
-    var error by remember(editor) { mutableStateOf(if (initialDraft.lastRequest != null)
+    var error by remember(editor) { mutableStateOf(if (initialDraft.lastRequest != null && initialDraft.completedRequest == null)
         "Previous task status is unconfirmed. Check your workspace list before retrying." else null) }
     var accepted by remember(editor) { mutableStateOf(false) }
     var dirty by remember(editor) { mutableStateOf(false) }
     var showDrafts by remember(editor) { mutableStateOf(false) }
     var confirmLeave by remember(editor) { mutableStateOf(false) }
+    var confirmStartAgain by remember(editor) { mutableStateOf(false) }
+    var recoveryReady by remember(editor, draft.completedRequest) { mutableStateOf(false) }
+    val recovery = remember(editor, draft.completedRequest) {
+        draft.completedRequest?.let { TaskCompletedRecovery(origin, it) }
+    }
     val canEdit = !busy && !accepted
     fun edit(update: (TaskDraft) -> TaskDraft) {
         if (busy || accepted) return
@@ -120,10 +129,86 @@ internal fun NativeTaskComposerView(
     var modelMenu by remember(modelKey) { mutableStateOf<List<TaskModel>?>(null) }
     var effortMenu by remember(modelKey) { mutableStateOf<List<TaskEffort>?>(null) }
     var loading by remember(modelKey) { mutableStateOf(false) }
-    val selectedModel = selection.model(modelResult)
-    val effortModel = selection.effective(modelResult)
+    // Discovery is not an edit. Keep the submitted metadata while its accepted
+    // operation is recoverable; changing a picker explicitly replaces the snapshot.
+    val restoredModels = draft.restoredModels()
+    val restoredEffort = selection.effective(restoredModels)?.efforts?.firstOrNull { it.id == selection.effortId }?.id
+    val restoredCommand = agent.command?.let { command ->
+        TaskAgentCommand.detect(command)?.apply(command, selection.explicit?.id, restoredEffort) ?: command
+    }
+    val holdRecoveryModels = recovery != null && (recovery.parameters().opt("initial_command") as? String) == restoredCommand
+    val selectionResult = if (holdRecoveryModels) restoredModels else modelResult
+    val selectedModel = selection.model(selectionResult)
+    val effortModel = selection.effective(selectionResult)
     val efforts = effortModel?.efforts.orEmpty()
     val selectedEffort = efforts.firstOrNull { it.id == selection.effortId }
+    val effectiveRequest = runCatching {
+        TaskCommand.parameters(agent, prompt, directory, UUID.randomUUID(), selection.explicit?.id, selectedEffort?.id)
+    }.getOrNull()
+    val recoveryApplies = recovery?.appliesTo(origin, effectiveRequest) == true
+    fun launchTask(reconcile: Boolean = false, startAgain: Boolean = false) {
+        if (busy || accepted || !supportsTaskCreation) return
+        if (reconcile && !recoveryApplies) return
+        if (!reconcile && recoveryApplies && !(startAgain && recoveryReady)) return
+        val requestConnectionToken = connectionToken
+        fun requestIsCurrent() = requestConnectionToken === latestConnectionToken && currentContext() && collection.isCurrent(editor)
+        val parameters = runCatching {
+            check(requestIsCurrent()) { "Connection changed. Reconnect to this Mac before creating the task" }
+            if (reconcile) checkNotNull(recovery).parameters()
+            else submission.resolve(origin, checkNotNull(effectiveRequest) { "Enter a task prompt" })
+        }.getOrElse { error = it.message; return }
+        busy = true; error = null
+        focus.clearFocus(); keyboard?.hide()
+        scope.launch {
+            var transmitted = false
+            try {
+                check(requestIsCurrent()) { "Connection changed" }
+                if (!reconcile) {
+                    submission.submitted(origin, parameters)
+                    collection.edit(editor) { it.copy(lastRequest = parameters.toString(), completedRequest = null) }
+                }
+                persistDrafts()
+                currentCoroutineContext().ensureActive()
+                check(requestIsCurrent()) { "Task session changed before submission" }
+                if (reconcile) {
+                    refreshWorkspaces()
+                    currentCoroutineContext().ensureActive()
+                    check(requestIsCurrent()) { "Connection changed while refreshing workspaces" }
+                }
+                transmitted = true
+                val response = createTask(parameters)
+                currentCoroutineContext().ensureActive()
+                check(requestIsCurrent()) { "Connection changed before the task could be opened" }
+                TaskCreationResult.parse(response)
+                collection.remove(editor)
+                flushDrafts()
+                accepted = true
+                createdCallback(response)
+            } catch (failure: Exception) {
+                if (failure is CancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    if (failure !is TimeoutCancellationException) throw failure
+                }
+                // An old client must never install a recovery gate into a replacement session.
+                if (!requestIsCurrent()) {
+                    if (collection.isCurrent(editor)) error = "Connection changed before the task could be opened."
+                    return@launch
+                }
+                if (transmitted && failure is MobileRpcException && failure.code?.trim()?.lowercase() == "already_completed") {
+                    if (reconcile) recoveryReady = true
+                    else {
+                        val fresh = submission.retire(origin, parameters)
+                        collection.edit(editor) { it.copy(lastRequest = fresh.toString(), completedRequest = parameters.toString()) }
+                    }
+                    try { persistDrafts() }
+                    catch (saveFailure: Exception) {
+                        if (saveFailure is CancellationException) throw saveFailure
+                        error = "Could not save task recovery. Refresh before starting another task."
+                    }
+                } else error = (failure.message ?: "Could not create task") + ". Check your workspace list before retrying."
+            } finally { busy = false }
+        }
+    }
     LaunchedEffect(client, modelKey) {
         if (modelKey == null) return@LaunchedEffect
         loading = true
@@ -139,12 +224,19 @@ internal fun NativeTaskComposerView(
             } while (true)
         } finally { loading = false }
     }
-    LaunchedEffect(editor, modelKey, modelResult, busy, accepted, selection.explicit) {
-        if (!busy && !accepted) collection.editIfCurrent(editor) {
+    LaunchedEffect(editor, modelKey, modelResult, busy, accepted, selection.explicit, holdRecoveryModels) {
+        if (!busy && !accepted && !holdRecoveryModels) collection.editIfCurrent(editor) {
             it.reconcileModels(modelKey?.provider, modelResult)
         }
     }
     BackHandler { leave() }
+    if (confirmStartAgain) AlertDialog(onDismissRequest = { confirmStartAgain = false },
+        title = { Text("Start this task again?") },
+        text = { Text("Only continue if the task is not present. Starting again may create a duplicate.") },
+        confirmButton = { TextButton(enabled = canEdit && recoveryApplies && recoveryReady, onClick = {
+            confirmStartAgain = false; launchTask(startAgain = true)
+        }) { Text("Start Again", color = Color(0xFFFF9999)) } },
+        dismissButton = { TextButton(onClick = { confirmStartAgain = false }) { Text("Cancel") } })
     if (confirmLeave) AlertDialog(onDismissRequest = { if (!busy) confirmLeave = false },
         title = { Text("Save this draft?") },
         text = { Text("Keep this task to continue later, or delete it.") },
@@ -213,7 +305,7 @@ internal fun NativeTaskComposerView(
                     }) { Text("${selectedModel?.name ?: "Default"} ▾") }
                     DropdownMenu(expanded = modelMenu != null, onDismissRequest = { modelMenu = null }) {
                         DropdownMenuItem(text = { Text("Default") }, onClick = {
-                            edit { it.copy(selection = selection.choose(null, modelResult)) }
+                            edit { it.copy(selection = selection.choose(null, modelResult), defaultModel = modelResult?.defaultModel) }
                             modelMenu = null
                         }, leadingIcon = { Text(if (selection.explicit == null) "✓" else " ") })
                         modelMenu.orEmpty().forEach { option ->
@@ -272,51 +364,31 @@ internal fun NativeTaskComposerView(
         }
         if (!supportsTaskCreation) Text("Update cmux on this Mac to create tasks.",
             color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
-        if (error != null) Text(error.orEmpty(), color = Color(0xFFFF9999),
-            modifier = Modifier.padding(bottom = 12.dp))
-        Button(onClick = {
-            if (busy || accepted) return@Button
-            val requestConnectionToken = connectionToken
-            fun requestIsCurrent() = requestConnectionToken === latestConnectionToken && currentContext()
-            val parameters = runCatching {
-                check(supportsTaskCreation) { "Update cmux on this Mac to create tasks" }
-                check(requestIsCurrent()) { "Connection changed. Reconnect to this Mac before creating the task" }
-                submission.resolve(origin, TaskCommand.parameters(agent, prompt, directory, UUID.randomUUID(),
-                    selection.explicit?.id, selectedEffort?.id))
-            }
-                .getOrElse { error = it.message; return@Button }
-            busy = true; error = null
-            scope.launch {
-                runCatching {
-                    check(requestIsCurrent()) { "Connection changed" }
-                    submission.submitted(origin, parameters)
-                    collection.edit(editor) { it.copy(lastRequest = parameters.toString()) }
-                    persistDrafts()
-                    currentCoroutineContext().ensureActive()
-                    check(requestIsCurrent() && collection.isCurrent(editor)) { "Task session changed before submission" }
-                    val response = createTask(parameters)
-                    currentCoroutineContext().ensureActive()
-                    check(requestIsCurrent() && collection.isCurrent(editor)) { "Connection changed before the task could be opened" }
-                    TaskCreationResult.parse(response)
-                    response
+        if (recoveryApplies) {
+            Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }) {
+                Row(Modifier.fillMaxWidth().background(Color(0x19FF9999), RoundedCornerShape(14.dp)).padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(painterResource(R.drawable.ic_task_warning), contentDescription = null,
+                        tint = Color(0xFFFF9999), modifier = Modifier.size(18.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(if (error == null) "Task already accepted" else "Task status unconfirmed", color = Color(0xFFFF9999),
+                            style = MaterialTheme.typography.titleSmall)
+                        Text(error ?: if (recoveryReady) TaskCompletedRecovery.MISSING_MESSAGE else TaskCompletedRecovery.REFRESH_MESSAGE,
+                            color = Color(0xFFFF9999), style = MaterialTheme.typography.bodySmall)
+                    }
                 }
-                    .onSuccess { response ->
-                        collection.remove(editor)
-                        flushDrafts()
-                        accepted = true; busy = false
-                        createdCallback(response)
-                    }
-                    .onFailure {
-                        if (it is CancellationException) {
-                            currentCoroutineContext().ensureActive()
-                            if (it !is TimeoutCancellationException) throw it
-                        }
-                        busy = false
-                        error = (it.message ?: "Could not create task") +
-                            ". Check your workspace list before retrying."
-                    }
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { launchTask(reconcile = true) }, enabled = canEdit && supportsTaskCreation,
+                        modifier = Modifier.weight(1f)) { Text(if (recoveryReady) "Refresh Again" else "Refresh Workspaces") }
+                    if (recoveryReady) OutlinedButton(onClick = { confirmStartAgain = true }, enabled = canEdit,
+                        modifier = Modifier.weight(1f)) { Text("Start Again") }
+                }
             }
-        }, enabled = canEdit && supportsTaskCreation && (agent == TaskCommand.Agent.SHELL || prompt.isNotBlank()),
+        } else if (error != null) Text(error.orEmpty(), color = Color(0xFFFF9999),
+            modifier = Modifier.padding(bottom = 12.dp))
+        Button(onClick = { launchTask() },
+            enabled = canEdit && !recoveryApplies && supportsTaskCreation && (agent == TaskCommand.Agent.SHELL || prompt.isNotBlank()),
             colors = ButtonDefaults.buttonColors(contentColor = Color(0xFF081421)),
             modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp)) {
             Text(if (accepted) "Task Created" else if (busy) "Creating…" else "Create Task")

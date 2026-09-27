@@ -362,3 +362,44 @@ light mode, the final source rebuilt successfully with all 140 JVM tests passing
 The affected save/switch/resume/delete flow passed again (`OK (1 test)`, 30.871
 seconds). Draft list, restored composer, leave dialog and Activity-recreated
 composer screenshots were inspected in `captures/emulator/screenshots`.
+
+## Completed-operation recovery
+
+All 142 JVM tests pass. Seven focused Android 17 emulator checks pass together
+(`OK (7 tests)`, 78.213 seconds): six recovery cases and the production screen's
+refresh/reconcile/terminal navigation flow. The seven existing model/submission
+checks also passed in the initial mixed run. That initial run passed 12 of 13;
+its new production-screen assertion ran before the asynchronous encrypted save
+finished. Waiting for an enabled recovery action fixed the assertion. The final
+seven-case run includes that case, final banner styling and a new delayed-model
+discovery regression. The full 52-case instrumentation suite was not rerun.
+
+Recovery coverage includes exact old-request replay after a workspace refresh,
+success cleanup without deleting another draft, repeated missing responses,
+cancel/confirm Start Again with a fresh identity, effective edits and reversion,
+save/refresh errors, replaced clients and late provider metadata. The real RPC
+fixture verifies normalized `already_completed` errors, authoritative workspace
+and group refresh, navigation to the exact returned terminal, and preservation
+of the refreshed workspace inventory. The original request is retained while
+recovery is active; discovered default effort cannot silently detach the gate.
+
+The process test's completed-recovery mode passed in two separate processes:
+seed PID 12416 (`OK (1 test)`, 12.900 seconds), then force-stop and verify PID
+12493 (`OK (1 test)`, 5.896 seconds). It verifies the encrypted original request
+and retired normal identity survive process death, Create Task stays disabled,
+Start Again is unavailable until reconciliation, and explicit refresh reuses the
+original ID/command before successful cleanup. Run the two phases with:
+
+```sh
+adb shell am instrument -w -r -e draftPhase seed -e completedRecovery true \
+  -e class io.github.docmorphic.cmuxapp.NativeTaskDraftProcessTest \
+  io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am force-stop io.github.docmorphic.cmuxapp.debug
+adb shell am instrument -w -r -e draftPhase verify -e completedRecovery true \
+  -e class io.github.docmorphic.cmuxapp.NativeTaskDraftProcessTest \
+  io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Final `task-recovery-still-missing.png`, `task-recovery-confirm.png` and
+`task-recovered-terminal.png` were inspected under `captures/emulator/screenshots`.
+These are fixture-Mac/emulator checks. Physical Pixel/Mac acceptance remains open.

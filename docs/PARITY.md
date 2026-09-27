@@ -25,15 +25,15 @@ UI resemblance alone does not count.
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
-| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Built-in Claude/Codex/OpenCode/Shell templates, live model/effort choices, scoped discovery/cache, encrypted saved drafts with stable retry IDs and new-workspace task RPC coded; editable templates, task attachments, completed-operation recovery, chat UI, full composer styling and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
+| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Built-in Claude/Codex/OpenCode/Shell templates, live model/effort choices, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; editable templates, task attachments, chat UI, full composer styling and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
 ## Automated evidence (2026-09-27)
 
-140 JVM tests pass. The Android suite now contains 45 cases: twenty-one Compose
-flows, seven task model/submission controls checks, five task draft checks, one
+142 JVM tests pass. The Android suite now contains 52 cases: twenty-two Compose
+flows, seven task model/submission controls checks, five task draft checks, six completed-task recovery checks, one
 explicit two-process draft check, two workspace drag checks, three Activity-recreation
 checks, four notification/service checks and two
 renderer checks. Earlier checks have passing evidence across suite and focused
@@ -247,8 +247,8 @@ end-of-options, command boundaries, redirects, Unicode and embedded apostrophes.
 JVM checks cover discovery completion order, default-only host results, stale
 refreshes, forgetting/sign-out, owner cancellation, timeouts, and selected model/
 effort reconciliation. This does not verify the installed agent CLIs on the Mac.
-Editable templates, task attachment/completed-operation recovery flows, full
-composer layout parity and agent chat remain open. Saved drafts are described below.
+Editable templates, task attachment flows, full composer layout parity and agent
+chat remain open. Saved drafts and completed-operation recovery are described below.
 
 The Android 17 Pixel-profile emulator passes all five task controls flows and the
 existing primary navigation/search/composer-entry flow together (six tests,
@@ -279,8 +279,8 @@ Requests are fenced to their original client and Mac: a late response after
 connection replacement cannot navigate or apply a workspace list to a new session.
 
 The initial submission batch covered a mounted composer session. Durable drafts
-and capability gating are described below. Completed-operation reconciliation and
-physical-Mac agent launch remain required.
+and capability gating are described below. Completed-operation reconciliation is
+covered in the recovery section; physical-Mac agent launch remains required.
 
 
 ## Saved task drafts
@@ -307,9 +307,33 @@ to its originating provider. A resumed draft selects its saved computer and wait
 for that exact pairing connection before mounting the composer. Task creation
 requires the host's `workspace.task_create.v1` capability.
 
-Remaining task work includes completed-operation refresh/start-again recovery,
-editable templates, attachments, destination group/directory/name controls,
+Remaining task work includes editable templates, attachments, destination group/directory/name controls,
 offline composer editing, draft rebinding after a pairing code changes, full
 composer styling and agent chat. Saved drafts remain bound to the saved pairing;
 they are not automatically redirected to a different or renewed pairing. Physical
 Pixel/Mac verification remains required.
+
+
+## Completed-operation task recovery
+
+A normalized `already_completed` creation error preserves an immutable copy of
+the accepted request and immediately retires its normal retry ID. The anchor and
+fresh identity are stored with the encrypted draft. Equivalent requests cannot
+use Create Task. Refresh Workspaces refreshes the full workspace/group listing,
+then explicitly reconciles using the old operation ID and exact original request.
+A successful response follows the existing validated workspace/terminal navigation
+and removes only the recovered draft. No automatic retry is sent.
+
+If reconciliation again returns `already_completed`, Refresh Again remains
+available and Start Again opens the same duplicate-task confirmation as iOS.
+Only confirmation submits the new operation ID. A list-refresh error, disk-save
+error or unrelated RPC error cannot authorize that action. Replacing the client
+or editor prevents a late result from installing recovery or navigating.
+
+Late discovery preserves the submitted model/effort snapshot during recovery.
+Effective edits detach the recovery controls; reverting to equivalent content
+restores them. A genuinely different submitted request clears the old anchor.
+Cold restoration preserves the anchor and retired identity and requires refresh
+again, matching iOS's restored recovery phase. Older encrypted drafts remain
+readable. Persistence and RPC checks use the same account/editor/origin guards
+as normal task submission. Physical Pixel/Mac verification is still required.

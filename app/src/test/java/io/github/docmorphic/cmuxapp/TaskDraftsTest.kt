@@ -6,6 +6,22 @@ import org.junit.Test
 import java.util.UUID
 
 class TaskDraftsTest {
+    @Test fun completedAnchorAndRetiredIdentitySurviveStorageAndOldDraftsStillLoad() {
+        val drafts = TaskDrafts()
+        val editor = begin(drafts)
+        val old = TaskCommand.parameters(TaskCommand.Agent.CLAUDE, "Recover", "/repo", UUID.randomUUID())
+        val fresh = TaskSubmissionIdentity().retire("mac-one", old)
+        drafts.edit(editor) { it.copy(prompt = "Recover", lastRequest = fresh.toString(), completedRequest = old.toString()) }
+        val restored = TaskDrafts(drafts.saved()).state.value.getValue(editor.id)
+        assertEquals(old.getString("operation_id"), JSONObject(restored.completedRequest!!).getString("operation_id"))
+        assertEquals(fresh.getString("operation_id"), JSONObject(restored.lastRequest!!).getString("operation_id"))
+        assertTrue(TaskCompletedRecovery(restored.origin, restored.completedRequest).appliesTo("mac-one", fresh))
+        val oldFormat = restored.json().apply { remove("completed_request") }
+        assertNull(TaskDraft.read(oldFormat).completedRequest)
+        assertThrows(IllegalArgumentException::class.java) { TaskDraft.read(restored.json().put("last_request", old)) }
+        assertThrows(IllegalArgumentException::class.java) { TaskDraft.read(restored.json().apply { remove("last_request") }) }
+    }
+
     private fun begin(drafts: TaskDrafts, origin: String = "mac-one") = drafts.begin(UUID.randomUUID().toString(), origin, "My Mac", "/repo")
     private val model = TaskModel("selected-model", "Selected model", listOf(TaskEffort("low", "Low", "Quick"), TaskEffort("high", "High")), "high")
 

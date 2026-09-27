@@ -28,6 +28,7 @@ class NativeTaskDraftProcessTest {
     @Test fun interruptedTaskRetainsItsRequestAcrossProcessDeath() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val phase = InstrumentationRegistry.getArguments().getString("draftPhase")
+        val completedRecovery = InstrumentationRegistry.getArguments().getString("completedRecovery") == "true"
         Assume.assumeTrue("Requires explicit seed/verify process phases", phase == "seed" || phase == "verify")
         val context = instrumentation.targetContext
         val marker = context.getSharedPreferences("task_draft_process_fixture", Context.MODE_PRIVATE)
@@ -56,8 +57,10 @@ class NativeTaskDraftProcessTest {
                     createTask = { params ->
                         submitted = JSONObject(params.toString())
                         val durable = TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.getValue(id)
-                        assertEquals(params.getString("operation_id"), JSONObject(durable.lastRequest!!).getString("operation_id"))
-                        if (phase == "seed") withTimeout(1) { awaitCancellation() }
+                        val durableRequest = if (completedRecovery && phase == "verify") durable.completedRequest else durable.lastRequest
+                        assertEquals(params.getString("operation_id"), JSONObject(durableRequest!!).getString("operation_id"))
+                        if (phase == "seed" && completedRecovery) throw MobileRpcException("already_completed", "Completed fixture")
+                        else if (phase == "seed") withTimeout(1) { awaitCancellation() }
                         else client.request("workspace.create", params)
                     })
             } } }
@@ -79,9 +82,15 @@ class NativeTaskDraftProcessTest {
                 state("Model", "Local codex"); state("Effort", "Low")
                 compose.onNodeWithText("Task prompt").assertTextContains("Recover this task 中\nKeep my 'quotes'")
             }
-            compose.onNodeWithText("Create Task").performClick()
+            if (phase == "verify" && completedRecovery) {
+                compose.onNodeWithText("Create Task").assertIsNotEnabled()
+                compose.onNodeWithText("Start Again").assertDoesNotExist()
+                val loaded = repository.drafts.state.value.getValue(id)
+                assertNotEquals(JSONObject(loaded.completedRequest!!).getString("operation_id"), JSONObject(loaded.lastRequest!!).getString("operation_id"))
+                compose.onNodeWithText("Refresh Workspaces").performClick()
+            } else compose.onNodeWithText("Create Task").performClick()
             if (phase == "seed") {
-                compose.waitUntil(10_000) { compose.onAllNodesWithText("Check your workspace list before retrying.",
+                compose.waitUntil(10_000) { compose.onAllNodesWithText(if (completedRecovery) "Refresh Workspaces" else "Check your workspace list before retrying.",
                     substring = true).fetchSemanticsNodes().isNotEmpty() }
                 runBlocking { repository.persistNow() }
                 assertTrue(marker.edit().putInt("pid", Process.myPid()).putString("id", id)
@@ -94,7 +103,7 @@ class NativeTaskDraftProcessTest {
                 runBlocking { repository.persistNow() }
                 assertTrue(TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.isEmpty())
             }
-            instrumentation.sendStatus(0, Bundle().apply { putString("draft_phase", phase); putInt("draft_process_id", Process.myPid()) })
+            instrumentation.sendStatus(0, Bundle().apply { putString("draft_phase", phase); putInt("draft_process_id", Process.myPid()); putBoolean("completed_recovery", completedRecovery) })
         } finally {
             compose.activity.finish(); client.close(); peer.close(); TaskDraftRepository.clearMemory()
             if (phase == "verify") { store.clear(); marker.edit().clear().commit() }

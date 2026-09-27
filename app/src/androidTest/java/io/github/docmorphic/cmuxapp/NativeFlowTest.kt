@@ -660,6 +660,44 @@ class NativeFlowTest {
         assertTrue(peer.failures.toString(), peer.failures.isEmpty())
     }
 
+    @Test fun completedTaskRefreshesFullListingAndOpensRecoveredTerminal() {
+        peer.notificationFeed = searchNotifications()
+        peer.nextTaskCreateError.set("already_completed")
+        showSearchFixture()
+        compose.onNodeWithContentDescription("New Task").performClick()
+        compose.onNodeWithText("Task prompt").performTextInput("Recover and open a task")
+        compose.onNodeWithText("Create Task").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodes(hasText("Refresh Workspaces") and isEnabled()).fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodesWithText("Create Task").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Create Task").assertIsNotEnabled()
+        val original = peer.requests.single { it.optString("method") == "workspace.create" }.getJSONObject("params")
+        peer.customWorkspaceListing = JSONObject("""{"groups":[{"id":"complete","name":"Refreshed group",
+            "anchor_workspace_id":"workspace-2"}],"workspaces":[
+            {"id":"workspace-1","title":"Claude Code task","terminals":[{"id":"terminal-1"}]},
+            {"id":"workspace-2","title":"Read project","group_id":"complete","terminals":[{"id":"terminal-2"}]},
+            {"id":"fresh-remote","title":"Fresh remote workspace"}]}""")
+        val requestsBefore = peer.requests.size
+        compose.onNodeWithText("Refresh Workspaces").performClick()
+        compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" &&
+            it.getJSONObject("params").optString("surface_id") == "task-terminal" } }
+        waitForTerminalText()
+        val recoveryRequests = peer.requests.drop(requestsBefore).filter { it.optString("method") in setOf("mobile.workspace.list", "workspace.create") }
+        assertEquals("mobile.workspace.list", recoveryRequests.first().getString("method"))
+        val recovered = peer.requests.last { it.optString("method") == "workspace.create" }.getJSONObject("params")
+        assertEquals(original.getString("operation_id"), recovered.getString("operation_id"))
+        assertTrue(TaskSubmissionIdentity.sameRequest(original, recovered))
+        compose.onNodeWithText("Agent ▾").assertIsDisplayed()
+        screenshot("task-recovered-terminal")
+        compose.onNodeWithText("‹  4").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Fresh remote workspace").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Open Refreshed group").assertIsDisplayed()
+        compose.onNodeWithText("Created task").assertIsDisplayed()
+        assertEquals(2, peer.requests.count { it.optString("method") == "workspace.create" })
+        assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
     @Test fun primaryNavigationSearchCancelSubmitAndComposerEntry() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
@@ -1202,6 +1240,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var releaseTaskModels: CountDownLatch? = null
     @Volatile var taskModelsResponse: JSONObject? = null
     @Volatile var taskModelErrorCode: String? = null
+    val nextTaskCreateError = java.util.concurrent.atomic.AtomicReference<String?>(null)
     @Volatile var rawTerminal = false
     @Volatile var screenAnchor = true
     @Volatile var alternateScreen = false
@@ -1268,12 +1307,13 @@ internal class NativeFixturePeer : AutoCloseable {
                                 releaseTaskModels = null
                             }
                         }
-                        val result = response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
+                        val taskError = if (request.optString("method") == "workspace.create") nextTaskCreateError.getAndSet(null) else null
+                        val result = if (taskError != null) JSONObject() else response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
                         val modelError = taskModelErrorCode.takeIf { request.optString("method") == "mobile.task.models.list" }
-                        val rejected = modelError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
+                        val rejected = taskError != null || modelError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
                             (request.optString("method") == "terminal.input" && rejectNextInput.getAndSet(false))
                         val envelope = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
-                        if (rejected) envelope.put("error", JSONObject().put("code", modelError ?: "surface_unavailable")
+                        if (rejected) envelope.put("error", JSONObject().put("code", taskError ?: modelError ?: "surface_unavailable")
                             .put("message", "Fixture terminal temporarily unavailable"))
                         else envelope.put("result", result)
                         send(socket, envelope)

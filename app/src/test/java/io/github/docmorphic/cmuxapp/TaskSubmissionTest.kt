@@ -62,6 +62,25 @@ class TaskSubmissionTest {
             identity.resolve("mac", parameters("cafe\u0301")).id())
     }
 
+    @Test fun completedRequestRetiresItsIdAndRecoveryKeepsAnImmutableAnchor() {
+        val identity = TaskSubmissionIdentity()
+        val original = identity.resolve("mac", parameters())
+        val recovery = TaskCompletedRecovery("mac", original.toString())
+        val oldId = original.id()
+        val fresh = identity.retire("mac", original)
+        assertNotEquals(oldId, fresh.id())
+        assertEquals(fresh.id(), identity.resolve("mac", parameters()).id())
+        assertEquals(fresh.id(), identity.resolve("mac", parameters("  Fix this \n")).id())
+        original.put("title", "mutated")
+        recovery.parameters().put("title", "also mutated")
+        assertEquals(oldId, recovery.parameters().id())
+        assertTrue(recovery.appliesTo("mac", parameters()))
+        assertFalse(recovery.appliesTo("other Mac", parameters()))
+        assertFalse(recovery.appliesTo("mac", parameters("edited")))
+        assertFalse(recovery.appliesTo("mac", null))
+        assertTrue(recovery.appliesTo("mac", parameters()))
+    }
+
     @Test fun acceptsExactCreatedWorkspaceAndMergesWithoutDroppingOthers() {
         val existing = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"old","title":"Keep me"},
             {"id":"updated","title":"Old title"}]}"""))

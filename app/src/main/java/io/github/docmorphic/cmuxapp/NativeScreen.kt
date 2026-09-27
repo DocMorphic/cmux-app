@@ -1044,7 +1044,14 @@ fun NativeScreen(
                         taskDraftId = draft.id
                         selectComputer(target)
                     }, onNewDraft = { newTaskDraft() },
-                    supportsTaskCreation = "workspace.task_create.v1" in hostCapabilities)
+                    supportsTaskCreation = "workspace.task_create.v1" in hostCapabilities,
+                    refreshWorkspaces = {
+                        val listing = active.workspaces()
+                        check(signedIn && client === active && connectedCode == taskCode && code == taskCode) {
+                            "Connection changed while refreshing workspaces"
+                        }
+                        applyListing(listing)
+                    })
                 } else Column(Modifier.fillMaxSize().padding(22.dp)) {
                     TextButton(onClick = { showTaskComposer = false }) { Text("‹  Workspaces") }
                     Text(taskDraftLoadError ?: if (restored != null && restoredMac == null)

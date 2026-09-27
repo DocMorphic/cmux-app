@@ -30,7 +30,14 @@ internal class TaskSubmissionIdentity {
         divergent = null
     }
 
+    /** A completed host operation must never become the normal retry baseline again. */
+    fun retire(origin: String, parameters: JSONObject): JSONObject =
+        JSONObject(parameters.toString()).put("operation_id", UUID.randomUUID().toString()).also { submitted(origin, it) }
+
     companion object {
+        fun sameRequest(a: JSONObject, b: JSONObject): Boolean = equivalent(
+            JSONObject(a.toString()).apply { remove("operation_id") },
+            JSONObject(b.toString()).apply { remove("operation_id") })
         // Android's org.json does not provide JSON-java's JSONObject.similar.
         private fun equivalent(a: Any?, b: Any?): Boolean = when {
             a is JSONObject && b is JSONObject -> a.length() == b.length() &&
@@ -39,6 +46,19 @@ internal class TaskSubmissionIdentity {
                 (0 until a.length()).all { equivalent(a.opt(it), b.opt(it)) }
             else -> a == b
         }
+    }
+}
+
+/** Immutable recovery anchor; its old ID is used only by explicit reconciliation. */
+internal class TaskCompletedRecovery(val origin: String, request: String) {
+    private val snapshot = JSONObject(request).toString()
+    init { UUID.fromString(parameters().getString("operation_id")) }
+    fun parameters() = JSONObject(snapshot)
+    fun appliesTo(origin: String, request: JSONObject?) = this.origin == origin && request != null &&
+        TaskSubmissionIdentity.sameRequest(parameters(), request)
+    companion object {
+        const val REFRESH_MESSAGE = "The Mac already accepted this task. Refresh workspaces before trying again."
+        const val MISSING_MESSAGE = "The task is still missing. Refresh again or start it as a new task."
     }
 }
 

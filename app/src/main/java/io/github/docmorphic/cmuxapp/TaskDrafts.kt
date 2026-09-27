@@ -12,9 +12,10 @@ internal data class TaskDraft(
     val agent: TaskCommand.Agent = TaskCommand.Agent.CLAUDE,
     val prompt: String = "", val directory: String = "",
     val selection: TaskModelSelection = TaskModelSelection(), val defaultModel: TaskModel? = null,
-    val lastRequest: String? = null
+    val lastRequest: String? = null,
+    val completedRequest: String? = null
 ) {
-    val isEmpty get() = prompt.isBlank() && lastRequest == null
+    val isEmpty get() = prompt.isBlank() && lastRequest == null && completedRequest == null
     val title get() = prompt.trim().lineSequence().firstOrNull()?.takeIf { it.isNotEmpty() } ?: "Untitled task"
     fun restoredModels() = TaskModelResult(listOfNotNull(selection.explicit), TaskModelSource.FALLBACK, defaultModel)
     fun reconcileModels(provider: TaskAgentCommand?, result: TaskModelResult?): TaskDraft {
@@ -27,6 +28,7 @@ internal data class TaskDraft(
         .put("updated_at", updatedAt).put("agent", agent.name).put("prompt", prompt).put("directory", directory)
         .put("model", selection.explicit?.let(::modelJson)).put("effort", selection.effortId)
         .put("default_model", defaultModel?.let(::modelJson)).put("last_request", lastRequest?.let(::JSONObject))
+        .put("completed_request", completedRequest?.let(::JSONObject))
 
     companion object {
         private fun modelJson(model: TaskModel): JSONObject = JSONObject().put("id", model.id)
@@ -40,10 +42,16 @@ internal data class TaskDraft(
             val id = raw.getString("id"); UUID.fromString(id)
             val origin = raw.getString("origin"); require(origin.isNotBlank())
             val request = raw.optJSONObject("last_request")?.also { UUID.fromString(it.getString("operation_id")) }
+            val completed = raw.optJSONObject("completed_request")?.also {
+                UUID.fromString(it.getString("operation_id"))
+                require(request != null && request.getString("operation_id") != it.getString("operation_id")) {
+                    "Completed task needs a retired retry identity"
+                }
+            }
             return TaskDraft(id, origin, raw.getString("mac_name"), raw.getLong("updated_at"),
                 TaskCommand.Agent.valueOf(raw.getString("agent")), raw.getString("prompt"), raw.getString("directory"),
                 TaskModelSelection(model(raw.optJSONObject("model")), raw.opt("effort") as? String),
-                model(raw.optJSONObject("default_model")), request?.toString())
+                model(raw.optJSONObject("default_model")), request?.toString(), completed?.toString())
         }
     }
 }
