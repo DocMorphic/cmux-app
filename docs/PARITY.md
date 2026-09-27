@@ -19,7 +19,7 @@ UI resemblance alone does not count.
 | Pairing | `CmxPairingQRCode`, `CmxAttachTicketCompactCoder` | QR scan, deep link, and current v2 Tailscale code path coded; unverified on phone; v3 Iroh parse only | Scan official Mac QR, validate version/identity, authorize exact route, revoke |
 | Transport | `CmxNetworkByteTransport`, `MobileCoreRPCSession` | Framed RPC, VPN-bound 100.64/10 route resolution, and reconnect coded; unverified on phone; Iroh missing | Persistent framed RPC over authorized Tailscale; Iroh route; reconnect without duplicate input |
 | Workspaces | `MobileSyncWorkspaceListResponse`, `DeviceTreeView` | Native list, sections, previews, colors, compact toolbar, computer picker, unread filter, workspace/terminal/browser creation, rename, pin/read, close, group create/rename/pin/ungroup, and move RPCs coded; full hierarchy, drag reorder, and phone QA missing | Live hierarchy, add/rename/close/reorder/group, status and selection |
-| Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid with grapheme cell placement, semantic colors, wide cursor, delta/screen continuity and bounded local scrollback verified with JVM/emulator fixtures; actual viewport reporting/clear coded; native VT fallback, hybrid delivery, byte-gap recovery and screen-anchor negotiation verified with JVM/emulator fixtures and a captured Vim session; complete Ghostty fidelity, selection/mouse/inline graphics, and phone resize QA missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
+| Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid with grapheme cell placement, semantic colors, wide cursor, delta/screen continuity and bounded local scrollback verified with JVM/emulator fixtures; actual viewport reporting/clear coded; native VT fallback, hybrid delivery, byte-gap recovery and screen-anchor negotiation verified with JVM/emulator fixtures and a captured Vim session; iOS-style View as Text with native selection/copy, cell tap, coalesced wheel RPCs and host viewport scroll responses verified with emulator fixtures; complete Ghostty fidelity, kinetic scrolling/inline graphics, and phone resize QA missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Native multiline paste/submit, encrypted per-Mac/terminal drafts, pending-send guards and acknowledgement reconciliation verified with an emulator fixture; direct IME keyboard, Unicode composition, repeated deletion, ordered input and explicit recovery from rejected delivery verified with an emulator fixture; modifier/navigation/control toolbar and hardware keys coded; photo/file picker, encrypted attachments, image paste and chunked file upload verified with an emulator fixture; rich keyboard paste, complete mode handling, and phone QA missing | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
 | Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed and read sync coded; opt-in foreground connection and Android alerts coded but unverified on phone; server push fallback missing | Feed, unread counts, actions, deep links, Android background delivery, read sync |
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
@@ -32,7 +32,7 @@ UI resemblance alone does not count.
 
 ## Automated evidence (2026-09-27)
 
-50 JVM tests pass. Five Compose flows and two rendering instrumentation checks pass on an Android 17
+54 JVM tests pass. Eight Compose flows and two rendering instrumentation checks pass on an Android 17
 (API 37) ARM64 emulator using the Pixel 6a display profile. It checks unread
 filtering, terminal output appearing, keyboard-driven viewport reduction,
 exactly one paste/submit request, and viewport cleanup on return to workspaces.
@@ -65,6 +65,13 @@ alternate-screen restoration, forced-gap recovery, scrollback/Latest without a
 viewport resize, and suppression of parser-generated input. JVM checks add
 transport selection, hybrid transitions, malformed/overflowing sequences,
 bounded pending output, grid-to-VT seeding and actual captured Vim output.
+The touch/copy flows check an immutable local copy sheet, exact Copy All text,
+Android selection handles and selected-text copying, menu/long-press entry,
+suppression of remote scroll on a screen-anchored primary screen, alternate-screen
+wheel direction, cell coordinates and workspace/surface/client scoping, and a
+viewport-anchored host's returned scroll frame. JVM cases cover shared hit-test
+geometry, slow-response coalescing, prefetch cadence, cancellation, uncertain
+scroll delivery, copy history boundaries and trimming blank screen tails.
 Screenshots were inspected with and without the keyboard. This caught and
 fixed terminal background overdraw, skipped render updates, and a false
 cancellation error during resize. It uses a local RPC fixture; live Mac auth,
@@ -79,7 +86,7 @@ See [ANDROID_TESTING.md](ANDROID_TESTING.md) for reproduction.
 2. Port the official pairing/ticket/frame/RPC contracts and replace the helper
    with the Mac's mobile endpoint. Verify against a pinned cmux build.
 3. Finish terminal rendering and the full input contract, including remaining
-   Ghostty fidelity, selection, mouse reporting and inline graphics. Use vim, htop, Claude Code, and Codex as acceptance cases.
+   Ghostty fidelity, kinetic scrolling, live mouse reporting and inline graphics. Use vim, htop, Claude Code, and Codex as acceptance cases.
 4. Complete workspaces, notifications, browser, search, changes, tasks,
    settings, accessibility, and background behavior.
 5. Run the parity checklist on the Pixel and ship a stable signed APK.

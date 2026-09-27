@@ -209,6 +209,19 @@ class MobileRpcClient(
         if (text != null) params.put("text", text)
         return request("mobile.browser.dialog.respond", params)
     }
+    suspend fun terminalClick(workspaceId: String, surfaceId: String, cell: TerminalGeometry.Cell): JSONObject =
+        request("mobile.terminal.mouse", JSONObject().put("workspace_id", workspaceId)
+            .put("surface_id", surfaceId).put("client_id", clientId)
+            .put("col", cell.column.coerceAtLeast(0)).put("row", cell.row.coerceAtLeast(0)))
+
+    suspend fun terminalScroll(workspaceId: String, surfaceId: String, scroll: TerminalScroll): JSONObject {
+        val params = JSONObject().put("workspace_id", workspaceId).put("surface_id", surfaceId)
+            .put("client_id", clientId).put("delta_lines", scroll.lines)
+            .put("col", scroll.column.coerceAtLeast(0)).put("row", scroll.row.coerceAtLeast(0))
+        scroll.prefetchRows?.let { params.put("max_scrollback_rows", it) }
+        return request("mobile.terminal.scroll", params)
+    }
+
     suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int,
                        screenAnchor: Boolean = true, maxScrollbackRows: Int = 10_000): JSONObject {
         val params = JSONObject().put("workspace_id", workspaceId).put("surface_id", surfaceId)

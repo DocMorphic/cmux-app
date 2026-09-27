@@ -417,6 +417,118 @@ class NativeFlowTest {
         assertTrue(peer.failures.toString(), peer.failures.isEmpty())
     }
 
+    @Test fun terminalTextSheetCopiesImmutableSnapshotAndSupportsNativeSelection() {
+        compose.setContent {
+            CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                })
+            } }
+        }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        val before = peer.requests.count { it.optString("method") == "mobile.terminal.replay" }
+        compose.onNodeWithText("Shell ▾").performClick()
+        compose.onNodeWithText("View as Text").performClick()
+        compose.onNodeWithText("Terminal Text").assertIsDisplayed()
+        compose.onNodeWithText("Copy All").performClick()
+        compose.onNodeWithText("Copied").assertIsDisplayed()
+        compose.runOnUiThread {
+            val text = context.getSystemService(android.content.ClipboardManager::class.java).primaryClip!!
+                .getItemAt(0).text.toString()
+            assertEquals("cmux Android terminal\nColors and grid layout\n$ printf cmux\ncmux", text)
+        }
+        androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withTagValue(
+            org.hamcrest.CoreMatchers.`is`("terminal-text-snapshot" as Any)))
+            .perform(androidx.test.espresso.action.ViewActions.longClick())
+            .check { view, failure ->
+                if (failure != null) throw failure
+                assertTrue((view as android.widget.TextView).isTextSelectable)
+                assertTrue(view.hasSelection())
+            }
+        screenshot("terminal-text-selection")
+        androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withTagValue(
+            org.hamcrest.CoreMatchers.`is`("terminal-text-snapshot" as Any)))
+            .check { view, failure ->
+                if (failure != null) throw failure
+                val textView = view as android.widget.TextView
+                val selected = textView.text.substring(textView.selectionStart, textView.selectionEnd)
+                assertTrue(textView.onTextContextMenuItem(android.R.id.copy))
+                assertEquals(selected, context.getSystemService(android.content.ClipboardManager::class.java)
+                    .primaryClip!!.getItemAt(0).text.toString())
+            }
+        compose.onNodeWithText("Done").performClick()
+        waitForTerminalText()
+        assertEquals(before, peer.requests.count { it.optString("method") == "mobile.terminal.replay" })
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.mouse" || it.optString("method") == "terminal.input" })
+        compose.onNodeWithText("cmux Android terminal", substring = true).performTouchInput { longClick() }
+        compose.onNodeWithText("Terminal Text").assertIsDisplayed()
+        compose.onNodeWithText("Done").performClick()
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.mouse" })
+        // Screen-anchored primary scrolling belongs to the phone, never the Mac.
+        compose.onNodeWithText("cmux Android terminal", substring = true).performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.scroll" })
+    }
+
+    @Test fun terminalTouchForwardsAlternateScrollAndClickWithOfficialScope() {
+        peer.alternateScreen = true
+        peer.gridFirstLine = "Mouse enabled editor"
+        compose.setContent {
+            CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                })
+            } }
+        }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Mouse enabled editor", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        val terminal = compose.onNodeWithText("Mouse enabled editor", substring = true)
+        terminal.performTouchInput { swipeDown() }
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.scroll" } }
+        compose.waitForIdle()
+        val scroll = peer.requests.filter { it.optString("method") == "mobile.terminal.scroll" }
+        assertTrue(scroll.sumOf { it.getJSONObject("params").getDouble("delta_lines") } > 0)
+        assertEquals(600, scroll.first().getJSONObject("params").getInt("max_scrollback_rows"))
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.mouse" })
+        terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(width / 2f, height / 2f)) }
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.mouse" } }
+        val click = peer.requests.single { it.optString("method") == "mobile.terminal.mouse" }.getJSONObject("params")
+        val viewport = peer.requests.first { it.optString("method") == "mobile.terminal.viewport" }.getJSONObject("params")
+        assertEquals(viewport.getInt("viewport_columns") / 2, click.getInt("col"))
+        assertEquals(viewport.getInt("viewport_rows") / 2, click.getInt("row"))
+        val clientId = peer.requests.first { it.optString("method") == "mobile.events.subscribe" }
+            .getJSONObject("params").getString("client_id")
+        (scroll.map { it.getJSONObject("params") } + click).forEach {
+            assertEquals("workspace-1", it.getString("workspace_id"))
+            assertEquals("terminal-1", it.getString("surface_id"))
+            assertEquals(clientId, it.getString("client_id"))
+        }
+        assertTrue(peer.requests.none { it.optString("method") == "terminal.input" })
+        assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
+    @Test fun viewportAnchoredScrollAppliesReturnedHostGrid() {
+        peer.screenAnchor = false
+        compose.setContent {
+            CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                })
+            } }
+        }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.onNodeWithText("cmux Android terminal", substring = true).performTouchInput { swipeDown() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Scrolled host viewport", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodesWithText("Scrollback ·", substring = true).assertCountEquals(0)
+        assertTrue(peer.requests.any { it.optString("method") == "mobile.terminal.scroll" })
+        assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
     private fun findTerminalKeyboard(view: View): TerminalKeyboardView? {
         if (view is TerminalKeyboardView) return view
         if (view is ViewGroup) for (index in 0 until view.childCount) {
@@ -458,6 +570,11 @@ private class NativeFixturePeer : AutoCloseable {
     @Volatile private var closed = false
     private var revision = 0
     @Volatile var rawTerminal = false
+    @Volatile var screenAnchor = true
+    @Volatile var alternateScreen = false
+    @Volatile var gridFirstLine = "cmux Android terminal"
+    private var viewportColumns = 40
+    private var viewportRows = 20
     @Volatile var rawReplayText = ""
     @Volatile var rawReplaySequence = 0L
     @Volatile private var terminalStreamId: String? = null
@@ -524,7 +641,7 @@ private class NativeFixturePeer : AutoCloseable {
         "mobile.host.status" -> JSONObject().put("mac_display_name", "Fixture Mac")
             .put("mac_device_id", "fixture-mac").put("capabilities", JSONArray().put("task.attachments.v1").also {
                 if (rawTerminal) it.put("terminal.bytes.v1")
-                else { it.put("terminal.render_grid.v1"); it.put("terminal.render_grid.screen_anchor.v1") }
+                else { it.put("terminal.render_grid.v1"); if (screenAnchor) it.put("terminal.render_grid.screen_anchor.v1") }
             })
         "mobile.workspace.list" -> JSONObject("""{
             "groups":[{"id":"complete","name":"Completed group","is_collapsed":false}],
@@ -537,8 +654,13 @@ private class NativeFixturePeer : AutoCloseable {
         "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/cmux fixture.txt")
         "notification.feed.list" -> JSONObject().put("notifications", JSONArray())
         "mobile.events.subscribe" -> JSONObject().put("stream_id", params.optString("stream_id").also { terminalStreamId = it })
-        "mobile.terminal.viewport" -> JSONObject().put("columns", params.optInt("viewport_columns", 40))
-            .put("rows", params.optInt("viewport_rows", 20))
+        "mobile.terminal.viewport" -> JSONObject().put("columns", params.optInt("viewport_columns", 40).also { viewportColumns = it })
+            .put("rows", params.optInt("viewport_rows", 20).also { viewportRows = it })
+        "mobile.terminal.scroll" -> if (!rawTerminal && !screenAnchor) {
+            gridFirstLine = "Scrolled host viewport"
+            response("mobile.terminal.replay", JSONObject().put("surface_id", params.getString("surface_id"))
+                .put("viewport_columns", viewportColumns).put("viewport_rows", viewportRows))
+        } else JSONObject()
         "mobile.terminal.replay" -> if (rawTerminal) {
             JSONObject().put("snapshot_data_b64", java.util.Base64.getEncoder().encodeToString(rawReplayText.toByteArray()))
                 .put("seq", rawReplaySequence).put("columns", params.optInt("viewport_columns", 40))
@@ -547,7 +669,7 @@ private class NativeFixturePeer : AutoCloseable {
             val columns = params.optInt("viewport_columns", 40)
             val rows = params.optInt("viewport_rows", 20)
             val spans = JSONArray()
-            listOf("cmux Android terminal", "Colors and grid layout", "$ printf cmux", "cmux").forEachIndexed { row, line ->
+            listOf(gridFirstLine, "Colors and grid layout", "$ printf cmux", "cmux").forEachIndexed { row, line ->
                 val value = line.take(columns)
                 if (row < rows) spans.put(JSONObject().put("row", row).put("column", 0)
                     .put("text", value).put("cell_width", value.length).put("style_id", 0))
@@ -555,6 +677,7 @@ private class NativeFixturePeer : AutoCloseable {
             JSONObject().put("render_grid", JSONObject().put("format", "cmux.render-grid.v1")
                 .put("surface_id", params.getString("surface_id")).put("columns", columns).put("rows", rows)
                 .put("render_epoch", "fixture").put("render_revision", ++revision).put("full", true)
+                .put("active_screen", if (alternateScreen) "alternate" else "primary")
                 .put("row_spans", spans).put("styles", JSONArray())
                 .put("cursor", JSONObject().put("row", 4.coerceAtMost(rows - 1)).put("column", 0)
                     .put("visible", true).put("style", "block")))

@@ -4,7 +4,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
-import kotlin.math.min
 
 /** Android canvas implementation shared by the live view and bitmap rendering checks. */
 class TerminalGridPainter {
@@ -19,11 +18,10 @@ class TerminalGridPainter {
         if (grid.columns <= 0 || grid.rows <= 0) return
         // A keyboard animation can resize the view before the host's next grid.
         // Scale both axes together so the transient frame cannot stretch letter spacing.
-        val scale = min(1f, min(width / (grid.columns * cells.widthPx), height / (grid.rows * cells.heightPx)))
-        val cellWidth = cells.widthPx * scale
-        val cellHeight = cells.heightPx * scale
-        val originX = ((width - cellWidth * grid.columns) / 2f).coerceAtLeast(0f)
-        val originY = ((height - cellHeight * grid.rows) / 2f).coerceAtLeast(0f)
+        val geometry = TerminalGeometry.fit(width, height, grid.columns, grid.rows, cells) ?: return
+        val scale = geometry.scale
+        val cellWidth = geometry.cellWidth; val cellHeight = geometry.cellHeight
+        val originX = geometry.originX; val originY = geometry.originY
         val foreground = color(if (grid.reverseVideo) grid.background else grid.foreground, Color.rgb(224, 229, 235))
         paint.typeface = faces[0]
         paint.textSize = cells.fontSizePx * scale

@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
@@ -38,6 +39,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -161,11 +165,17 @@ fun NativeScreen(
         TerminalDrafts.Target(code, workspace.id, terminal.id)
     } }
     val terminalDraft = draftStates[draftTarget] ?: TerminalDrafts.Draft()
-    var grid by remember { mutableStateOf<TerminalDisplay>(RenderGrid()) }
+    var grid by remember(draftTarget) { mutableStateOf<TerminalDisplay>(RenderGrid()) }
     var gridRevision by remember { mutableIntStateOf(0) }
     var replayGeneration by remember { mutableIntStateOf(0) }
     var terminalTransport by remember { mutableStateOf(TerminalTransport.resolve(emptySet())) }
     var scrollOffset by remember { mutableIntStateOf(0) }
+    var terminalClick by remember { mutableStateOf<((TerminalGeometry.Cell) -> Unit)?>(null) }
+    var terminalScroll by remember { mutableStateOf<((Double, TerminalGeometry.Cell) -> Unit)?>(null) }
+    var textSnapshot by remember(draftTarget, client) { mutableStateOf<TerminalTextSnapshot?>(null) }
+    fun openTerminalText() { textSnapshot = TerminalTextSnapshot.capture(grid) }
+    textSnapshot?.let { TerminalTextSheet(it) { textSnapshot = null } }
+
     var controlArmed by remember { mutableStateOf(false) }
     var altArmed by remember { mutableStateOf(false) }
     var shiftArmed by remember { mutableStateOf(false) }
@@ -468,6 +478,22 @@ fun NativeScreen(
                 }
             }
         }
+        val scrollQueue = TerminalScrollQueue(this, onFailure = { failure ->
+            if (generation == replayGeneration && client === active && selectedWorkspace?.id == workspace.id &&
+                selectedTerminal?.id == terminal.id) error = failure.message ?: "Terminal scroll failed"
+        }) { delivery ->
+            val response = active.terminalScroll(workspace.id, terminal.id, delivery)
+            if (generation == replayGeneration && client === active && selectedWorkspace?.id == workspace.id &&
+                selectedTerminal?.id == terminal.id && response.optJSONObject("render_grid") != null) {
+                when (mirror.grid(response)) {
+                    TerminalStreamMirror.Result.APPLIED -> publish()
+                    TerminalStreamMirror.Result.REPLAY -> requestReplay()
+                    TerminalStreamMirror.Result.IGNORED -> Unit
+                }
+            }
+        }
+        fun isCurrent() = generation == replayGeneration && client === active &&
+            selectedWorkspace?.id == workspace.id && selectedTerminal?.id == terminal.id
         var viewportAttempted = false
         var subscriptionAttempted = false
         try {
@@ -492,11 +518,35 @@ fun NativeScreen(
             }
             subscriptionReady = true
             replayTerminal()
+            if (!recoveryFailed && isCurrent()) {
+                terminalClick = { cell ->
+                    if (isCurrent() && scrollOffset == 0) launch {
+                        try { active.terminalClick(workspace.id, terminal.id, cell) }
+                        catch (failure: Exception) {
+                            if (failure is CancellationException) throw failure
+                            if (isCurrent()) error = failure.message ?: "Terminal click failed"
+                        }
+                    }
+                }
+                terminalScroll = { lines, cell ->
+                    if (isCurrent()) {
+                        val primary = mirror.display.activeScreen == "primary"
+                        // Raw-byte mirrors retain their own history; viewport-anchored grids
+                        // instead receive the Mac's viewport after the scroll RPC.
+                        if (primary && (transport.screenAnchor || transport.mode != TerminalOutputMode.GRID)) {
+                            scrollOffset = (scrollOffset + lines.toInt()).coerceIn(0, mirror.historyLineCount)
+                        }
+                        if (!(transport.screenAnchor && primary)) scrollQueue.offer(lines, cell)
+                    }
+                }
+            }
             eventJob.join()
         } catch (failure: Throwable) {
             if (failure is CancellationException) throw failure
             error = failure.message ?: "Terminal subscription failed"
         } finally {
+            scrollQueue.close()
+            if (generation == replayGeneration) { terminalClick = null; terminalScroll = null }
             eventJob.cancel()
             // An old viewport effect must never clear a newer report on the same surface.
             if (viewportAttempted && (generation == replayGeneration ||
@@ -716,10 +766,18 @@ fun NativeScreen(
                         Text("‹  ${workspaces.size}", color = nativeAccent)
                     }
                     Spacer(Modifier.weight(1f))
-                    Text(terminal.title.ifBlank { selectedWorkspace?.title ?: "Terminal" },
-                        Modifier.background(nativePanel, RoundedCornerShape(18.dp))
-                            .padding(horizontal = 15.dp, vertical = 7.dp),
-                        fontWeight = FontWeight.Medium, fontSize = 13.sp, maxLines = 1)
+                    var terminalMenu by remember(terminal.id) { mutableStateOf(false) }
+                    Box {
+                        Text(terminal.title.ifBlank { selectedWorkspace?.title ?: "Terminal" } + " ▾",
+                            Modifier.clickable { terminalMenu = true }.background(nativePanel, RoundedCornerShape(18.dp))
+                                .padding(horizontal = 15.dp, vertical = 7.dp),
+                            fontWeight = FontWeight.Medium, fontSize = 13.sp, maxLines = 1)
+                        DropdownMenu(expanded = terminalMenu, onDismissRequest = { terminalMenu = false }) {
+                            DropdownMenuItem(text = { Text("View as Text") }, onClick = {
+                                terminalMenu = false; openTerminalText()
+                            })
+                        }
+                    }
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = {
                         if (directTyping) rawKeyboardView?.finishComposition()
@@ -746,22 +804,34 @@ fun NativeScreen(
                         .focusRequester(terminalFocusRequester)
                         .onPreviewKeyEvent { event -> directHardware(event.nativeKeyEvent) }
                         .focusable()
-                        .clickable {
-                            directTyping = true
-                            rawKeyboardView?.showKeyboard()
+                        .semantics(mergeDescendants = true) {
+                            onClick("Open keyboard") { directTyping = true; rawKeyboardView?.showKeyboard(); true }
+                            customActions = listOf(CustomAccessibilityAction("View as Text") { openTerminalText(); true })
                         }
-                        .pointerInput(terminal.id, currentGrid) {
+                        .pointerInput(terminal.id, currentGrid, terminalCells) {
+                            detectTapGestures(onTap = { point ->
+                                TerminalGeometry.fit(size.width.toFloat(), size.height.toFloat(),
+                                    currentGrid.columns, currentGrid.rows, terminalCells)?.let { geometry ->
+                                    terminalClick?.invoke(geometry.cell(point.x, point.y))
+                                }
+                                directTyping = true
+                                rawKeyboardView?.showKeyboard()
+                            }, onLongPress = { openTerminalText() })
+                        }
+                        .pointerInput(terminal.id, currentGrid, terminalCells) {
                         var dragPixels = 0f
                         detectVerticalDragGestures(
                             onDragStart = { dragPixels = 0f },
                             onVerticalDrag = { change, amount ->
-                                dragPixels += amount
-                                val rowPixels = size.height.toFloat() / currentGrid.rows.coerceAtLeast(1)
-                                val steps = (dragPixels / rowPixels).toInt()
-                                if (steps != 0) {
-                                    scrollOffset = (scrollOffset + steps)
-                                        .coerceIn(0, currentGrid.historyLineCount)
-                                    dragPixels -= steps * rowPixels
+                                val geometry = TerminalGeometry.fit(size.width.toFloat(), size.height.toFloat(),
+                                    currentGrid.columns, currentGrid.rows, terminalCells)
+                                if (geometry != null) {
+                                    dragPixels += amount
+                                    val steps = (dragPixels / geometry.cellHeight).toInt()
+                                    if (steps != 0) {
+                                        terminalScroll?.invoke(steps.toDouble(), geometry.cell(change.position.x, change.position.y))
+                                        dragPixels -= steps * geometry.cellHeight
+                                    }
                                 }
                                 change.consume()
                             }

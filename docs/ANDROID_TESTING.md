@@ -25,6 +25,13 @@ output through framed RPC, checks duplicate suppression and alternate-screen
 restoration, forces a byte-sequence gap and verifies replay recovery, then
 scrolls into local history and back without a viewport change. It also confirms
 that parser device-query responses do not become terminal-input RPCs.
+Three further flows cover terminal touch and copying: the iOS-style View as Text
+sheet, native Android selection handles and selected-text copying, Copy All,
+long-press/menu entry, screen-anchored primary scroll isolation, alternate-screen
+wheel/click RPCs, and applying an older host's viewport-anchored scroll response.
+`terminal-text-selection.png` shows the native selection handles. Geometry and
+scroll queue JVM tests also cover coalescing during a delayed acknowledgement,
+prefetch cadence, failure without replay, and cancellation when leaving a surface.
 The peer uses synthetic data and never connects to a real cmux account.
 This check does not prove account sign-in, Tailscale routing, or compatibility
 with the live Mac; those remain in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
@@ -48,7 +55,7 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (7 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (10 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 
