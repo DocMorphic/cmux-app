@@ -478,10 +478,12 @@ fun NativeScreen(
                 }
             }
         }
+        fun isCurrent() = generation == replayGeneration && client === active &&
+            selectedWorkspace?.id == workspace.id && selectedTerminal?.id == terminal.id
         val scrollQueue = TerminalScrollQueue(this, onFailure = { failure ->
             if (generation == replayGeneration && client === active && selectedWorkspace?.id == workspace.id &&
                 selectedTerminal?.id == terminal.id) error = failure.message ?: "Terminal scroll failed"
-        }) { delivery ->
+        }, canSend = ::isCurrent) { delivery ->
             val response = active.terminalScroll(workspace.id, terminal.id, delivery)
             if (generation == replayGeneration && client === active && selectedWorkspace?.id == workspace.id &&
                 selectedTerminal?.id == terminal.id && response.optJSONObject("render_grid") != null) {
@@ -492,8 +494,6 @@ fun NativeScreen(
                 }
             }
         }
-        fun isCurrent() = generation == replayGeneration && client === active &&
-            selectedWorkspace?.id == workspace.id && selectedTerminal?.id == terminal.id
         var viewportAttempted = false
         var subscriptionAttempted = false
         try {
@@ -521,7 +521,7 @@ fun NativeScreen(
             if (!recoveryFailed && isCurrent()) {
                 terminalClick = { cell ->
                     if (isCurrent() && scrollOffset == 0) launch {
-                        try { active.terminalClick(workspace.id, terminal.id, cell) }
+                        try { if (isCurrent()) active.terminalClick(workspace.id, terminal.id, cell) }
                         catch (failure: Exception) {
                             if (failure is CancellationException) throw failure
                             if (isCurrent()) error = failure.message ?: "Terminal click failed"

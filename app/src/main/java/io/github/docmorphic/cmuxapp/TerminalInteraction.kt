@@ -31,6 +31,7 @@ data class TerminalScroll(val lines: Double, val column: Int, val row: Int, val 
 /** UI-dispatcher confined; one in-flight RPC plus one coalesced pending scroll. */
 class TerminalScrollQueue(private val scope: CoroutineScope,
                           private val onFailure: (Throwable) -> Unit,
+                          private val canSend: () -> Boolean = { true },
                           private val send: suspend (TerminalScroll) -> Unit) {
     private var pending: TerminalScroll? = null
     private var job: Job? = null
@@ -50,6 +51,7 @@ class TerminalScrollQueue(private val scope: CoroutineScope,
                 while (!closed) {
                     val next = pending ?: break
                     pending = null
+                    if (!canSend()) break
                     if (next.lines != 0.0) send(next)
                 }
             } catch (failure: Exception) {

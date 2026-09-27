@@ -32,7 +32,7 @@ UI resemblance alone does not count.
 
 ## Automated evidence (2026-09-27)
 
-54 JVM tests pass. Eight Compose flows and two rendering instrumentation checks pass on an Android 17
+55 JVM tests pass. Eight Compose flows and two rendering instrumentation checks pass on an Android 17
 (API 37) ARM64 emulator using the Pixel 6a display profile. It checks unread
 filtering, terminal output appearing, keyboard-driven viewport reduction,
 exactly one paste/submit request, and viewport cleanup on return to workspaces.

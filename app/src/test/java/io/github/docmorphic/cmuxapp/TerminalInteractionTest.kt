@@ -56,6 +56,25 @@ class TerminalInteractionTest {
         assertFalse(completed)
     }
 
+    @Test fun targetChangeStopsScheduledAndCoalescedScrollBeforeCleanup() = runBlocking {
+        var current = true
+        var sent = 0
+        val release = CompletableDeferred<Unit>()
+        val queue = TerminalScrollQueue(this, { throw AssertionError(it) }, canSend = { current }) {
+            sent++; release.await()
+        }
+        queue.offer(1.0, TerminalGeometry.Cell(0, 0))
+        current = false; yield()
+        assertEquals(0, sent) // The screen changed before the scheduled coroutine started.
+        current = true
+        queue.offer(2.0, TerminalGeometry.Cell(0, 0)); yield()
+        queue.offer(3.0, TerminalGeometry.Cell(0, 0))
+        current = false
+        release.complete(Unit); yield()
+        assertEquals(1, sent) // Pending motion is also revalidated after an acknowledgement.
+        queue.close()
+    }
+
     @Test fun snapshotKeepsRecentHistoryOnceAndDoesNotChangeAfterOutput() {
         val terminal = VtTerminal(30, 4)
         terminal.append((0..11).joinToString("\r\n") { "Line $it" }.toByteArray())
