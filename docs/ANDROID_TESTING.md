@@ -283,8 +283,8 @@ to an editable retained prompt after a request timeout, sends no automatic retry
 and reuses the operation ID only after an explicit unchanged retry. Task controls
 and prompt screenshots were reviewed at `captures/emulator/screenshots/task-model-options.png`
 and `task-model-effort.png`. The harness paints the same dark system-bar background
-as the production screen. Complete task recovery and persisted task drafts remain
-separate work; this check does not prove recovery after app process death.
+as the production screen. At `141d0f6`, complete task recovery and persisted drafts remained separate work;
+that check alone does not prove recovery after app process death.
 
 
 ## Task submission and navigation checks
@@ -309,6 +309,56 @@ list refreshes. This remains synthetic-peer testing, not a Mac CLI launch.
 
 Screenshots `task-create-rejected.png`, `task-created-terminal.png` and
 `task-created-workspaces.png` were reviewed under `captures/emulator/screenshots`.
-The failure footer and retry button remain visible above the keyboard. Persisted
-multi-draft storage, recovery after process death and completed-operation recovery
-remain open; mounted-composer retry handling does not establish those behaviors.
+The failure footer and retry button remain visible above the keyboard. At `cb1d96f`, persisted multi-draft storage, process-death recovery and completed-
+operation recovery remained open; mounted-composer retries alone did not establish
+those behaviors.
+
+## Encrypted task drafts and process recovery
+
+The saved-draft batch passes 140 JVM tests. A focused Android 17 emulator run
+passed 16 checks together (`OK (16 tests)`, 254.928 seconds): all five
+`NativeTaskDraftsTest` cases, all seven `NativeTaskModelsTest` cases, the three
+task/navigation flows, and composer background/Activity recreation. The suite
+now contains 45 unique instrumentation cases; it was not rerun in full.
+
+The initial 15-check run passed 12 cases. Its failures exposed stale model
+metadata crossing an agent change and assertions made before asynchronous UI
+updates. Provider-scoped reconciliation and waits for the relevant discovery/UI
+state fixed those failures; the 16-check rerun includes those same cases.
+
+Checks cover encrypted cold reload, independent drafts and deletion, raw Unicode
+prompts, explicit/default model and effort snapshots, save-before-send failures,
+unsupported hosts, stale editor callbacks, sign-out/new-account writes, and old
+token refreshes. The cross-Mac flow saves drafts on two fixture Macs, reconnects
+to the first draft's Mac, sends exactly one creation there, and retains the other
+draft. Activity recreation retains the open composer, draft ID, prompt and path.
+
+Process recovery was tested in two separate instrumentation invocations, with
+the debug app force-stopped between them. Seed passed in process 12735
+(`OK (1 test)`, 13.714 seconds); verification passed in process 12815
+(`OK (1 test)`, 7.600 seconds). The first process durably saves the request before
+a simulated timeout. The second decrypts it, restores prompt/model/effort,
+reuses the exact operation ID and command, and removes the successful draft.
+This case is skipped without an explicit phase argument; run both phases in
+order without clearing app data between them:
+
+```sh
+adb shell am instrument -w -r -e draftPhase seed \
+  -e class io.github.docmorphic.cmuxapp.NativeTaskDraftProcessTest \
+  io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am force-stop io.github.docmorphic.cmuxapp.debug
+adb shell am instrument -w -r -e draftPhase verify \
+  -e class io.github.docmorphic.cmuxapp.NativeTaskDraftProcessTest \
+  io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+These tests use a loopback fixture Mac and injected model catalog. They establish
+Android persistence and routing behavior, not physical Pixel pairing or an
+installed Mac agent launch. Completed-operation recovery, offline editing and
+the remaining task-composer parity work are tracked in `PARITY.md`.
+
+After correcting the Drafts sheet's status/navigation icon contrast in system
+light mode, the final source rebuilt successfully with all 140 JVM tests passing.
+The affected save/switch/resume/delete flow passed again (`OK (1 test)`, 30.871
+seconds). Draft list, restored composer, leave dialog and Activity-recreated
+composer screenshots were inspected in `captures/emulator/screenshots`.

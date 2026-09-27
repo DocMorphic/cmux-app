@@ -64,6 +64,7 @@ class NativeTaskModelsTest {
     @Test fun modelAndEffortReachCreateTaskWhilePromptRemainsData() {
         show(); state("Model", "Default"); state("Effort", "High")
         compose.onNodeWithText("Codex", useUnmergedTree = true).performClick()
+        compose.waitUntil(10_000) { repo.cached(TaskModelRepository.Key("fixture-mac", TaskAgentCommand.CODEX))?.source == TaskModelSource.DISCOVERED }
         state("Effort", "High")
         compose.onNodeWithContentDescription("Model").performClick()
         compose.onNodeWithText("Local codex").performClick()
@@ -126,6 +127,7 @@ class NativeTaskModelsTest {
     @Test fun shellDoesNotOfferModelControlsOrStartAnAgent() {
         show(); state("Effort", "High")
         compose.onNodeWithText("Shell", useUnmergedTree = true).performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Workspace title (optional)").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Model").assertDoesNotExist()
         compose.onNodeWithContentDescription("Effort").assertDoesNotExist()
         compose.onNodeWithText("Create Task").performClick()

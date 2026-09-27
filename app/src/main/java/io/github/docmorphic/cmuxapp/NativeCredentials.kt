@@ -73,6 +73,15 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
 
     fun load(): JSONObject? = synchronized(storageLock) { readState() }
 
+    /** A login incarnation, independent of access-token refresh and Activity recreation. */
+    internal fun taskSession(): String? = synchronized(storageLock) {
+        val state = load() ?: return@synchronized null
+        if (state.optString("refresh_token").isBlank()) return@synchronized null
+        state.optString("task_session").takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString().also { session ->
+            update { it.put("task_session", session) }
+        }
+    }
+
     private fun readState(): JSONObject? {
         val encoded = preferences.getString("state", null) ?: return null
         return try {
@@ -120,7 +129,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
 }
 
 /** The same production Stack project and OTP endpoints used by cmux iOS. */
-class NativeAccount(private val store: NativeCredentialStore) {
+class NativeAccount(private val store: NativeCredentialStore, private val refreshOverride: ((String) -> String)? = null) {
     private val refreshMutex = Mutex()
 
     suspend fun sendCode(email: String): Unit = withContext(Dispatchers.IO) {
@@ -136,7 +145,10 @@ class NativeAccount(private val store: NativeCredentialStore) {
         val result = request("/auth/otp/sign-in", JSONObject().put("code", code.trim()))
         val access = result.getString("access_token")
         val refresh = result.getString("refresh_token")
-        store.update { it.put("access_token", access).put("refresh_token", refresh) }
+        store.update {
+            it.put("access_token", access).put("refresh_token", refresh).put("task_session", UUID.randomUUID().toString())
+            it.remove("task_drafts")
+        }
     }
 
     suspend fun accessToken(): String? = refreshMutex.withLock {
@@ -145,12 +157,23 @@ class NativeAccount(private val store: NativeCredentialStore) {
         if (current != null && !expiresSoon(current)) return@withLock current
         val refresh = state.optString("refresh_token").takeIf { it.isNotBlank() }
             ?: return@withLock current
+        val session = store.taskSession() ?: return@withLock null
         try {
-            val newToken = withContext(Dispatchers.IO) { refresh(refresh) }
-            store.update { it.put("access_token", newToken) }
-            newToken
+            val newToken = withContext(Dispatchers.IO) { refreshOverride?.invoke(refresh) ?: refresh(refresh) }
+            var applied = false
+            store.update {
+                if (it.optString("refresh_token") == refresh && it.optString("task_session") == session) {
+                    it.put("access_token", newToken); applied = true
+                }
+            }
+            newToken.takeIf { applied }
         } catch (error: InvalidRefreshToken) {
-            store.update { it.put("access_token", "").put("refresh_token", "") }
+            store.update {
+                if (it.optString("refresh_token") == refresh && it.optString("task_session") == session) {
+                    it.put("access_token", "").put("refresh_token", "")
+                    it.remove("task_session"); it.remove("task_drafts")
+                }
+            }
             null
         }
     }
@@ -179,7 +202,11 @@ class NativeAccount(private val store: NativeCredentialStore) {
     }
 
     fun signOut() {
-        store.update { it.put("access_token", "").put("refresh_token", "") }
+        store.update {
+            it.put("access_token", "").put("refresh_token", "")
+            it.remove("task_session"); it.remove("task_drafts")
+        }
+        TaskDraftRepository.clearMemory()
     }
 
     private fun expiresSoon(token: String): Boolean = runCatching {
@@ -239,7 +266,7 @@ class NativeAccount(private val store: NativeCredentialStore) {
         }
     }
 
-    private class InvalidRefreshToken : Exception()
+    internal class InvalidRefreshToken : Exception()
 
     private companion object {
         const val PROJECT_ID = "9790718f-14cd-4f7e-824d-eaf527a82b82"

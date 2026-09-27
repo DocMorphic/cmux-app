@@ -137,7 +137,33 @@ fun NativeScreen(
     var pairedMacs by remember { mutableStateOf(store.pairedMacs()) }
     var showSettings by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
-    var showTaskComposer by remember { mutableStateOf(false) }
+    var showTaskComposer by rememberSaveable(signedIn) { mutableStateOf(false) }
+    var taskDraftId by rememberSaveable(signedIn) { mutableStateOf(java.util.UUID.randomUUID().toString()) }
+    var taskDraftRepository by remember(signedIn) { mutableStateOf<TaskDraftRepository?>(null) }
+    var taskDraftLoadError by remember(signedIn) { mutableStateOf<String?>(null) }
+    var taskDraftLoadAttempt by remember { mutableIntStateOf(0) }
+    LaunchedEffect(signedIn, taskDraftLoadAttempt) {
+        if (!signedIn) { TaskDraftRepository.clearMemory(); return@LaunchedEffect }
+        taskDraftLoadError = null
+        try {
+            taskDraftRepository = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val session = checkNotNull(store.taskSession()) { "Sign in to load task drafts" }
+                TaskDraftRepository.get(context, session)
+            }
+        } catch (failure: Exception) {
+            if (failure is CancellationException) throw failure
+            taskDraftLoadError = "Could not load saved task drafts"
+        }
+    }
+    val emptyTaskDrafts = remember { kotlinx.coroutines.flow.MutableStateFlow<Map<String, TaskDraft>>(emptyMap()) }
+    val taskDraftEntries by (taskDraftRepository?.drafts?.state ?: emptyTaskDrafts).collectAsState()
+    LaunchedEffect(taskDraftRepository) {
+        taskDraftRepository?.saveError?.collect { if (it != null) error = it }
+    }
+    fun newTaskDraft() {
+        taskDraftId = java.util.UUID.randomUUID().toString()
+        showTaskComposer = true
+    }
     var showCreateGroup by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     var backgroundNotifications by remember { mutableStateOf(NativeNotificationService.isEnabled(context)) }
@@ -981,9 +1007,19 @@ fun NativeScreen(
             showTaskComposer -> {
                 val active = client
                 val taskCode = connectedCode
-                if (active != null) NativeTaskComposerView(active,
+                val repository = taskDraftRepository
+                val restored = taskDraftEntries[taskDraftId]
+                val restoredMac = restored?.let { draft -> pairedMacs.firstOrNull { it.origin == draft.origin } }
+                LaunchedEffect(restored?.origin, pairedMacs) {
+                    if (restoredMac != null && code != restoredMac.code) selectComputer(restoredMac)
+                }
+                val taskMac = pairedMacs.firstOrNull { it.code == code }
+                val taskOrigin = taskMac?.origin ?: pairingOrigin(code)
+                if (active != null && connectedCode == code && repository != null &&
+                    (restored == null || restored.origin == taskOrigin)) key(taskDraftId, repository.session) {
+                NativeTaskComposerView(active,
                     directories = workspaces.mapNotNull { it.directory },
-                    origin = pairedMacs.firstOrNull { it.code == connectedCode }?.origin ?: pairingOrigin(connectedCode.orEmpty()),
+                    origin = taskOrigin,
                     models = feedSession.taskModels,
                     onCreated = { response ->
                         val result = TaskCreationResult.parse(response)
@@ -998,7 +1034,25 @@ fun NativeScreen(
                             it.id == response.optString("created_terminal_id")
                         } ?: created.terminals.firstOrNull()
                     }, onBack = { showTaskComposer = false },
-                    isCurrent = { signedIn && client === active && connectedCode == taskCode && code == taskCode })
+                    isCurrent = { signedIn && client === active && connectedCode == taskCode && code == taskCode },
+                    savedDrafts = repository.drafts, draftId = taskDraftId, macName = taskMac?.name ?: hostName,
+                    persistDrafts = repository::persistNow, flushDrafts = repository::flush,
+                    onResumeDraft = { draft ->
+                        val target = requireNotNull(pairedMacs.firstOrNull { it.origin == draft.origin }) {
+                            "This draft’s saved pairing is no longer available. Its prompt is still saved."
+                        }
+                        taskDraftId = draft.id
+                        selectComputer(target)
+                    }, onNewDraft = { newTaskDraft() },
+                    supportsTaskCreation = "workspace.task_create.v1" in hostCapabilities)
+                } else Column(Modifier.fillMaxSize().padding(22.dp)) {
+                    TextButton(onClick = { showTaskComposer = false }) { Text("‹  Workspaces") }
+                    Text(taskDraftLoadError ?: if (restored != null && restoredMac == null)
+                        "This draft’s saved pairing is no longer available. Return to Workspaces to open another draft."
+                    else connectionError ?: if (repository == null) "Loading saved drafts…" else "Connecting to the draft’s Mac…")
+                    if (taskDraftLoadError != null) TextButton(onClick = { taskDraftLoadAttempt++ }) { Text("Retry") }
+                    else if (connectionError != null) TextButton(onClick = { retry++ }) { Text("Reconnect") }
+                }
             }
             code.isBlank() -> {
                 NativeHeader("Pair your Mac")
@@ -1349,7 +1403,7 @@ fun NativeScreen(
                                         .onFailure { error = it.message } }
                                 })
                                 DropdownMenuItem(text = { Text("New task") }, onClick = {
-                                    createMenuOpen = false; finishSearch(); showTaskComposer = true
+                                    createMenuOpen = false; finishSearch(); newTaskDraft()
                                 })
                                 if ("workspace.group_create.v1" in hostCapabilities) {
                                     DropdownMenuItem(text = { Text("New group") }, onClick = {
@@ -1479,7 +1533,7 @@ fun NativeScreen(
                     }
                     if (searchState.active == null) NativeTaskComposerButton(
                         Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 2.dp), enabled = canCreateOnCurrentMac) {
-                        finishSearch(); showTaskComposer = true
+                        finishSearch(); newTaskDraft()
                     }
                     }
                 }

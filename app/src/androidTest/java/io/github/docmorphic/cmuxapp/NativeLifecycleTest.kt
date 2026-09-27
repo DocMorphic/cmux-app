@@ -12,10 +12,59 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertEquals
+import kotlinx.coroutines.runBlocking
 
 @OptIn(ExperimentalTestApi::class)
 class NativeLifecycleTest {
     @get:Rule val compose = createEmptyComposeRule(effectContext = StandardTestDispatcher())
+
+    @Test fun taskComposerSurvivesBackgroundAndActivityRecreation() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = NativeCredentialStore(context)
+        val peer = NativeFixturePeer()
+        TaskDraftRepository.clearMemory()
+        try {
+            store.clear(); store.update { it.put("refresh_token", "lifecycle-task-fixture") }
+            store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
+            NativeLifecycleTestActivity.connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            }
+            ActivityScenario.launch(NativeLifecycleTestActivity::class.java).use { scenario ->
+                compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithContentDescription("New Task").performClick()
+                compose.waitUntil(10_000) { compose.onAllNodesWithText("Task prompt").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithText("Task prompt").performTextInput("Retain this task through rotation 中")
+                compose.onNodeWithText("Directory on Mac").performTextReplacement("/rotated-project")
+                val repository = TaskDraftRepository.get(context, store.taskSession()!!)
+                compose.waitUntil(10_000) { repository.drafts.state.value.values.any { it.directory == "/rotated-project" } }
+                val id = repository.drafts.state.value.values.single { it.prompt.isNotEmpty() }.id
+                scenario.moveToState(Lifecycle.State.CREATED)
+                compose.waitUntil(10_000) {
+                    store.load()?.optJSONObject("task_drafts")?.let {
+                        TaskDrafts(it).state.value[id]?.directory == "/rotated-project"
+                    } == true
+                }
+                scenario.moveToState(Lifecycle.State.RESUMED)
+                scenario.recreate()
+                compose.waitUntil(15_000) { compose.onAllNodes(hasText("Retain this task through rotation 中") and hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithText("Task prompt").assertTextContains("Retain this task through rotation 中")
+                compose.onNodeWithText("Directory on Mac").assertTextContains("/rotated-project")
+                assertEquals(setOf(id), repository.drafts.state.value.keys)
+                runBlocking { repository.persistNow() }
+                assertEquals(setOf(id), TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.keys)
+                val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                val directory = java.io.File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+                java.io.File(directory, "task-draft-rotation.png").outputStream().use {
+                    screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                }
+                screenshot.recycle()
+            }
+        } finally {
+            NativeLifecycleTestActivity.connector = null
+            peer.close(); TaskDraftRepository.clearMemory(); store.clear()
+        }
+    }
 
     @Test fun loadedFeedWindowSurvivesOfflineActivityRecreation() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

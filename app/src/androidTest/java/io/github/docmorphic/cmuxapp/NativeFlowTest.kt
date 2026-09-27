@@ -593,6 +593,50 @@ class NativeFlowTest {
         assertTrue(peer.requests.none { it.optString("method") == "notification.feed.mark_read" })
     }
 
+    @Test fun savedTaskDraftReconnectsToItsOwnMacBeforeSubmission() {
+        val other = NativeFixturePeer().apply { deviceId = "second-mac"; displayName = "Second Mac" }
+        fun listing(title: String) = JSONObject().put("workspaces", JSONArray().put(JSONObject()
+            .put("id", "workspace-1").put("title", title).put("terminals", JSONArray()
+                .put(JSONObject().put("id", "terminal-1").put("title", "Shell")))))
+        peer.customWorkspaceListing = listing("First workspace")
+        other.customWorkspaceListing = listing("Second workspace")
+        val store = NativeCredentialStore(context)
+        store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.2:58465", "second-mac", "Second Mac")
+        store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    val target = if (pairing.routes.first().host == "100.64.0.2") other else peer
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("First workspace").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("New Task").performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Task prompt").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Task prompt").performTextInput("First Mac saved task")
+            compose.onNodeWithText("‹  Workspaces").performClick()
+            compose.onNodeWithText("Save Draft").performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Computer filter").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("Computer filter").performClick()
+            compose.onNode(hasText("Second Mac") and hasAnyAncestor(isPopup())).performClick()
+            compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("New Task").performClick()
+            compose.onNodeWithText("Task prompt").performTextInput("Second Mac saved task")
+            compose.onNodeWithText("Drafts").performClick()
+            compose.onNodeWithText("First Mac saved task").performClick()
+            compose.waitUntil(15_000) { compose.onAllNodes(hasText("First Mac saved task") and hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Create Task").performClick()
+            compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" &&
+                it.optJSONObject("params")?.optString("surface_id") == "task-terminal" } }
+            assertEquals(1, peer.requests.count { it.optString("method") == "workspace.create" })
+            assertTrue(other.requests.none { it.optString("method") == "workspace.create" })
+            val repository = TaskDraftRepository.get(context, store.taskSession()!!)
+            runBlocking { repository.persistNow() }
+            assertEquals(listOf("Second Mac saved task"), TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.values.map { it.prompt })
+            screenshot("task-draft-restored-mac")
+        } finally { other.close() }
+    }
+
     @Test fun taskCreationOpensExactTerminalAndPreservesExistingWorkspaces() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
@@ -1257,7 +1301,7 @@ internal class NativeFixturePeer : AutoCloseable {
             customWorkspaceListing = listing
         }
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
-            .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").also {
+            .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
                 if (rawTerminal) it.put("terminal.bytes.v1")
                 else { it.put("terminal.render_grid.v1"); if (screenAnchor) it.put("terminal.render_grid.screen_anchor.v1") }
             })
