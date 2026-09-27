@@ -42,8 +42,9 @@ internal fun workspaceHierarchy(source: NativeFeedSource, collapsedGroups: Map<S
         if (group?.id != previousGroup?.id) {
             closeRun(); previousGroup = group
             if (group != null && emittedHeaders.add(group.id)) {
-                val unread = members[group.id].orEmpty().any { it.hasUnread &&
-                    (group.isCollapsed || it.id == group.liveAnchorWorkspaceId) }
+                val unread = members[group.id].orEmpty()
+                    .filter { group.isCollapsed || it.id == group.liveAnchorWorkspaceId }
+                    .fold(NativeWorkspaceUnread.Read) { aggregate, row -> aggregate.merging(row.unreadState) }
                 items += WorkspaceListEntry.Header(source, group, unread)
             }
         }

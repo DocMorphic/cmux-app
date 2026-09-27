@@ -33,6 +33,7 @@ class NativeWorkspaceParityTest {
                         entry as WorkspaceListEntry.Header
                         assertEquals(name, item.getString("id"), entry.group.id)
                         assertEquals(name, item.getBoolean("has_unread"), entry.hasUnread)
+                        assertEquals(name, if (item.isNull("unread_count")) null else item.getLong("unread_count"), entry.unread.count)
                         assertEquals(name, item.nullable("anchor"), entry.group.liveAnchorWorkspaceId)
                     }
                     "workspace" -> {
@@ -40,6 +41,8 @@ class NativeWorkspaceParityTest {
                         entry as WorkspaceListEntry.Workspace
                         assertEquals(name, item.getString("id"), entry.workspace.id)
                         assertEquals(name, item.getBoolean("indented"), entry.indented)
+                        assertEquals(name, item.getBoolean("has_unread"), entry.workspace.unreadState.isUnread)
+                        assertEquals(name, if (item.isNull("unread_count")) null else item.getLong("unread_count"), entry.workspace.unreadState.count)
                     }
                     "footer" -> {
                         assertTrue("$name: $item", entry is WorkspaceListEntry.Footer)

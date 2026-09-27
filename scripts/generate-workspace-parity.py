@@ -18,11 +18,11 @@ UPSTREAM = Path(sys.argv[1]).resolve()
 FILES = ['MobileWorkspaceListItem', 'MobileWorkspaceListItem+MoveIntent',
          'MobileWorkspaceMoveIntent', 'MobileWorkspaceMovePolicy',
          'MobileWorkspaceOrderSignature', 'MobileWorkspaceOrderMoveApplier',
-         'MobileWorkspaceListMoveIntentResolver']
+         'MobileWorkspaceListMoveIntentResolver', 'MobileWorkspaceUnreadState']
 REL = Path('Packages/iOS/CmuxMobileShellModel/Sources/CmuxMobileShellModel')
 
-def w(id, group=None, pinned=False, unread=False):
-    return dict(id=id, title=id, group_id=group, is_pinned=pinned, has_unread=unread, window_id='window')
+def w(id, group=None, pinned=False, unread=False, count=None):
+    return dict(id=id, title=id, group_id=group, is_pinned=pinned, has_unread=unread, unread_count=count, window_id='window')
 
 def g(id, anchor=None, pinned=False, collapsed=False):
     return dict(id=id, name=id, anchor_workspace_id=anchor, is_empty=anchor is None,
@@ -48,6 +48,12 @@ case('missing-anchor', [w('a', 'g'), w('b', 'g'), w('c')], [g('g', 'missing')])
 case('empty-slots', [w('pin', pinned=True), w('pa', 'pg'), w('a', 'g'), w('b', 'g'), w('root')],
      [g('empty-pin-before', pinned=True), g('pg', 'pa', pinned=True), g('empty-pin-after', pinned=True),
       g('empty-before'), g('g', 'a'), g('empty-after')])
+for collapsed in [False, True]:
+    for counts in [(2, 3), (2, None), (None, 3), (0, 5), (1234, 5678)]:
+        case(f'unread-{collapsed}-{counts}',
+             [w('anchor', 'g', unread=True, count=counts[0]),
+              w('member', 'g', unread=True, count=counts[1]), w('read', 'g')],
+             [g('g', 'anchor', collapsed=collapsed)])
 rng = random.Random(13417)
 for i in range(24):
     groups = [g('g', 'a', rng.choice([False, True]), rng.choice([False, True])),
@@ -57,6 +63,7 @@ for i in range(24):
     for row in rows:
         row['is_pinned'] = rng.choice([False, True])
         row['has_unread'] = rng.choice([False, True])
+        row['unread_count'] = (rng.choice([None, 0, 1, 3, 1000]) if row['has_unread'] else rng.choice([None, 0]))
     if i % 3 == 0:
         rng.shuffle(rows)
     rng.shuffle(groups)
@@ -65,17 +72,13 @@ for i in range(24):
 STUBS = '''
 import Foundation
 extension String { var rawValue: String { self } }
-public struct MobileWorkspaceUnreadState: Equatable, Sendable {
-    var hasUnread: Bool
-    static let read = Self(hasUnread: false)
-    func merging(_ other: Self) -> Self { Self(hasUnread: hasUnread || other.hasUnread) }
-}
 public struct MobileWorkspacePreview: Equatable, Sendable {
     public typealias ID = String
     public var id: String
     public var groupID: String?
     public var isPinned: Bool
-    public var unreadState: MobileWorkspaceUnreadState
+    public var hasUnread: Bool
+    public var unreadCount: Int?
 }
 public struct MobileWorkspaceGroupPreview: Equatable, Sendable {
     public typealias ID = String
@@ -89,7 +92,7 @@ public struct MobileWorkspaceGroupPreview: Equatable, Sendable {
 '''
 MAIN = '''
 import Foundation
-func optional(_ value: String?) -> Any { value as Any? ?? NSNull() }
+func optional<T>(_ value: T?) -> Any { value as Any? ?? NSNull() }
 func intentJSON(_ intent: MobileWorkspaceMoveIntent?) -> Any {
     guard let intent else { return NSNull() }
     return ["group_id": optional(intent.groupID), "before_workspace_id": optional(intent.beforeWorkspaceID), "move_group": intent.movesGroup]
@@ -102,7 +105,7 @@ var cases = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]
 for index in cases.indices {
     let workspaces = (cases[index]["workspaces"] as! [[String: Any]]).map {
         MobileWorkspacePreview(id: $0["id"] as! String, groupID: $0["group_id"] as? String,
-          isPinned: $0["is_pinned"] as! Bool, unreadState: .init(hasUnread: $0["has_unread"] as! Bool))
+          isPinned: $0["is_pinned"] as! Bool, hasUnread: $0["has_unread"] as! Bool, unreadCount: $0["unread_count"] as? Int)
     }
     let groups = (cases[index]["groups"] as! [[String: Any]]).map {
         MobileWorkspaceGroupPreview(id: $0["id"] as! String, anchorWorkspaceID: $0["anchor_workspace_id"] as? String,
@@ -111,8 +114,8 @@ for index in cases.indices {
     let items = MobileWorkspaceListItem.items(workspaces: workspaces, groups: groups)
     cases[index]["items"] = items.map { item -> [String: Any] in
         switch item {
-        case .workspace(let w, let indented): return ["kind": "workspace", "id": w.id, "indented": indented]
-        case .groupHeader(let g, let unread): return ["kind": "group", "id": g.id, "has_unread": unread.hasUnread,
+        case .workspace(let w, let indented): return ["kind": "workspace", "id": w.id, "indented": indented, "has_unread": w.unreadState.isUnread, "unread_count": optional(w.unreadState.count)]
+        case .groupHeader(let g, let unread): return ["kind": "group", "id": g.id, "has_unread": unread.isUnread, "unread_count": optional(unread.count),
             "anchor": optional(g.liveAnchorWorkspaceID)]
         case .groupFooter(let id): return ["kind": "footer", "id": id]
         }

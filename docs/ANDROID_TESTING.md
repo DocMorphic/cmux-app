@@ -196,15 +196,15 @@ python3 scripts/generate-workspace-parity.py /path/to/cmux
 ./gradlew :app:testDebugUnitTest --tests '*NativeWorkspace*'
 ```
 
-The generator uses `git show` to extract seven unmodified algorithm files at the
+The generator uses `git show` to extract eight unmodified algorithm files at the
 pinned revision into a temporary directory, compiles them with Swift 6 and small
 DTO adapters, then records their SHA-256 hashes alongside the expected results.
 It neither changes the upstream checkout nor runs any upstream build scripts.
 The compressed JSON is committed; Linux CI consumes it without Swift. The DTO
-adapter checks unread visibility, not exact unread-count badges.
+adapter includes the upstream unread-state implementation and optional wire counts.
 
-The reference covers 36 snapshots, 2,190 rendered source/destination slots and
-19,160 direct proposals. Separate loopback tests verify move serialization,
+The reference covers 46 snapshots, 2,434 rendered source/destination slots and
+20,360 direct proposals. Separate loopback tests verify move serialization,
 rejection/retry, owner/window guards, and optimistic reconciliation. Runtime
 checks in `NativeWorkspaceDragTest` and the hierarchy flow in `NativeFlowTest`
 exercise actual touch input, accessibility actions, grouping and RPC dispatch.

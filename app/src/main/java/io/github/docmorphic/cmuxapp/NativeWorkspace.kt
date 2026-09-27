@@ -6,8 +6,11 @@ internal data class NativeWorkspace(
     val id: String, val title: String, val terminals: List<NativeTerminal>,
     val directory: String?, val hasUnread: Boolean, val lastActivityAt: Double?,
     val windowId: String?, val isPinned: Boolean, val browsers: List<NativeBrowser>,
-    val groupId: String?, val preview: String?, val color: String?, val description: String? = null
-)
+    val groupId: String?, val preview: String?, val color: String?, val description: String? = null,
+    val unreadCount: Long? = null
+) {
+    val unreadState get() = NativeWorkspaceUnread(hasUnread, unreadCount ?: if (hasUnread) null else 0L)
+}
 internal data class NativeGroup(
     val id: String, val name: String, val isCollapsed: Boolean, val isPinned: Boolean,
     val anchorWorkspaceId: String? = null, val isEmpty: Boolean = anchorWorkspaceId == null,
@@ -18,7 +21,9 @@ internal data class NativeGroup(
 internal sealed interface WorkspaceListEntry {
     val source: NativeFeedSource
     val key: String
-    data class Header(override val source: NativeFeedSource, val group: NativeGroup, val hasUnread: Boolean = false) : WorkspaceListEntry {
+    data class Header(override val source: NativeFeedSource, val group: NativeGroup,
+        val unread: NativeWorkspaceUnread = NativeWorkspaceUnread.Read) : WorkspaceListEntry {
+        val hasUnread get() = unread.isUnread
         override val key = source.mac.origin + ":group:" + group.id
     }
     data class Workspace(override val source: NativeFeedSource, val workspace: NativeWorkspace, val indented: Boolean = false) : WorkspaceListEntry {
@@ -72,7 +77,8 @@ internal fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 workspace.optString("group_id").takeIf { it.isNotBlank() && it != "null" },
                 workspace.optString("preview").takeIf { it.isNotBlank() && it != "null" },
                 workspace.optString("custom_color").takeIf { it.startsWith('#') },
-                workspace.optString("description").takeIf { it.isNotBlank() && it != "null" }
+                workspace.optString("description").takeIf { it.isNotBlank() && it != "null" },
+                workspace.optString("unread_count").toLongOrNull()?.takeIf { it >= 0 }
             ))
         }
     }
