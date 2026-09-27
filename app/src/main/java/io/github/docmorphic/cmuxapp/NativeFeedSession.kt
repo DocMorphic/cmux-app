@@ -19,8 +19,10 @@ internal class NativeFeedSession(
         connector.connect(PairingCodeParser.parse(mac.code).getOrThrow() as PairingCode.Tailscale, account)
     }, isAllowed = { mac -> account.isSignedIn() && store.pairedMacs().contains(mac) })
 
+    val workspaceMoves = NativeWorkspaceMoves(scope, coordinator)
+
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     override fun onCleared() { clear(); scope.cancel() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,

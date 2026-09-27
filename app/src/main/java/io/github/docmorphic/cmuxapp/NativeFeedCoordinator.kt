@@ -147,6 +147,25 @@ internal class NativeFeedCoordinator(
         }
     }
 
+    suspend fun moveWorkspace(mac: NativeCredentialStore.PairedMac, workspaceId: String,
+        intent: NativeWorkspaceMove, base: NativeWorkspaceOrder, canSend: () -> Boolean) =
+        withContext(scope.coroutineContext.minusKey(Job)) {
+            owningMutation(mac) { _, client ->
+                val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
+                check(canSend() && source.canReorderWorkspaces() && base.matches(source.workspaces, source.groups)) {
+                    "Workspace order changed. Try moving it again."
+                }
+                val workspace = source.workspaces.singleOrNull { it.id == workspaceId }
+                    ?: error("This workspace is no longer available.")
+                check(intent.beforeWorkspaceId == null || source.workspaces.any { it.id == intent.beforeWorkspaceId && it.windowId == workspace.windowId }) {
+                    "The destination workspace is no longer available in this window."
+                }
+                check(intent.groupId == null || source.groups.any { it.id == intent.groupId }) { "This group is no longer available." }
+                check(!intent.movesGroup || source.groups.any { it.liveAnchorWorkspaceId == workspaceId }) { "This group anchor changed." }
+                client.moveWorkspace(workspaceId, workspace.windowId, intent.groupId, intent.beforeWorkspaceId, intent.movesGroup)
+            }
+        }
+
     suspend fun groupAction(mac: NativeCredentialStore.PairedMac, groupId: String,
         action: String, title: String? = null): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
         owningMutation(mac) { _, client ->

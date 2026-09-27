@@ -18,7 +18,7 @@ UI resemblance alone does not count.
 | Computers | `MobilePairedMac`, `MacComputerListSection` | Encrypted saved-Mac list, select, forget, and reconnect coded; notification identities include device and installation as well as route; unverified on phone | Discover, choose, forget, and reconnect multiple Macs |
 | Pairing | `CmxPairingQRCode`, `CmxAttachTicketCompactCoder` | QR scan, deep link, and current v2 Tailscale code path coded; unverified on phone; v3 Iroh parse only | Scan official Mac QR, validate version/identity, authorize exact route, revoke |
 | Transport | `CmxNetworkByteTransport`, `MobileCoreRPCSession` | Framed RPC, VPN-bound 100.64/10 route resolution, and reconnect coded; unverified on phone; Iroh missing | Persistent framed RPC over authorized Tailscale; Iroh route; reconnect without duplicate input |
-| Workspaces | `MobileSyncWorkspaceListResponse`, `DeviceTreeView` | Native list, sections, previews, colors, compact toolbar, computer picker, unread filter, workspace/terminal/browser creation, rename, pin/read, close, group create/rename/pin/ungroup, and move RPCs coded; full hierarchy, drag reorder, and phone QA missing | Live hierarchy, add/rename/close/reorder/group, status and selection |
+| Workspaces | `MobileSyncWorkspaceListResponse`, `DeviceTreeView` | Native list, sections, previews, colors, compact toolbar, computer picker, unread filter, workspace/terminal/browser creation, rename, pin/read, close, group create/rename/pin/ungroup, and move RPCs coded; anchor hierarchy, durable empty headers, saved collapse state, and bounded drag reordering coded; numeric unread badges, group icon styling, and phone QA pending | Live hierarchy, add/rename/close/reorder/group, status and selection |
 | Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid with grapheme cell placement, semantic colors, wide cursor, delta/screen continuity and bounded local scrollback verified with JVM/emulator fixtures; actual viewport reporting/clear coded; native VT fallback, hybrid delivery, byte-gap recovery and screen-anchor negotiation verified with JVM/emulator fixtures and a captured Vim session; iOS-style View as Text with native selection/copy, cell tap, coalesced wheel RPCs and host viewport scroll responses verified with emulator fixtures; complete Ghostty fidelity, kinetic scrolling/inline graphics, and phone resize QA missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Native multiline paste/submit, encrypted per-Mac/terminal drafts, pending-send guards and acknowledgement reconciliation verified with an emulator fixture; direct IME keyboard, Unicode composition, repeated deletion, ordered input and explicit recovery from rejected delivery verified with an emulator fixture; modifier/navigation/control toolbar and hardware keys coded; photo/file picker, encrypted attachments, image paste and chunked file upload verified with an emulator fixture; rich keyboard paste, complete mode handling, and phone QA missing | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
 | Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; encrypted per-pairing alert identity and exact terminal routes, independent saved-Mac workers, read/forget cleanup and host-identity checks coded; combined saved-Mac feed, day/history grouping, unread filter, pull refresh, read/unread gestures and confirmed bulk read coded; offline snapshots and revision guards tested with loopback peers; event/mutation revision floors, bounded refresh retries and Activity-recreation retention coded; computer picker, scoped unread badge/bulk actions and live-destination filtering before the global cap coded; server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
@@ -32,8 +32,8 @@ UI resemblance alone does not count.
 
 ## Automated evidence (2026-09-27)
 
-95 JVM tests pass. The Android suite now contains 25 checks: seventeen Compose
-flows, two Activity-recreation checks, four notification/service checks and two
+105 JVM tests pass. The Android suite now contains 28 checks: eighteen Compose
+flows, two workspace drag checks, two Activity-recreation checks, four notification/service checks and two
 renderer checks. Earlier checks have passing evidence across suite and focused
 runs. The All Computers workspace flow passes separately; nine navigation,
 notification, lifecycle and terminal-entry cases passed for the preceding primary
@@ -117,8 +117,37 @@ Unavailable or forgotten owners never fall back to the foreground Mac. Workspace
 snapshots advance independently of notification revision fences. Opening a row,
 its changes or an exact browser/created terminal promotes the owning foreground
 connection and revalidates the route and fresh destination before navigation;
-workspace navigation never marks a notification read. Hierarchy and drag reorder
-remain open.
+workspace navigation never marks a notification read.
+
+Workspace hierarchy now preserves spatial host order, represents anchors only
+through group headers, indents children, aggregates unread visibility on collapse,
+and retains empty headers in their pin tier. Collapse overrides are persisted per
+Mac/group. Long-press reordering and edge scrolling use explicit inside/outside
+group slots, with accessible Move up/Move down actions. Only an unfiltered,
+connected, single-window/single-computer list can reorder. Up to three predictions
+may be pending; writes are serialized and scoped to the verified owner/window.
+Rejection, owner removal, external order changes, and changed pin tiers invalidate
+dependent predictions. Live titles, previews, created rows and deleted rows remain
+current while order is predicted. A fresh move can proceed after a rejected chain.
+
+The pinned unmodified Swift algorithms generate 36 reference snapshots, 2,190
+rendered drops, and 19,160 direct proposals. JVM tests compare hierarchy, canonical
+RPC intents, and predicted ordering against those reference results, including
+empty/promoted groups, collapsed groups, noncontiguous membership, pins and
+invalid targets. Two empty-group defects were found and corrected by this
+comparison. Loopback RPC tests exercise delayed acknowledgements, intermediate
+snapshots, the three-move bound, rejection, external pins, forgetting and stale
+window/owner guards. On the Android 17 Pixel-profile emulator, the full hierarchy flow opens the
+anchor, preserves collapse across navigation, drags a row through the actual RPC
+client, verifies the new order and disables reordering in search. A held gesture
+moves beyond recycled source rows using edge scrolling; an accessibility check
+exercises Move down and its disabled state. The first runtime pass exposed a
+conflict with LazyColumn touch scrolling; disabling touch scrolling while a row is
+held fixes cancellation while retaining programmatic edge scrolling. All three
+new checks pass in focused runs. Filtering/terminal keyboard entry, scoped search
+and multi-computer workspace mutation/navigation also pass for this batch.
+`workspace-hierarchy-reordered.png` was visually reviewed. Initial interrupted
+or failed diagnostic runs are not passes. Physical Pixel testing remains pending.
 Connection cleanup captures the specific composed client; route effects capture
 the same session as their keys and commit keyboard/navigation changes on the
 Android main thread after revalidating the route.

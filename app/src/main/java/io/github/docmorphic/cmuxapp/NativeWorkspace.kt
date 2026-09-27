@@ -8,15 +8,24 @@ internal data class NativeWorkspace(
     val windowId: String?, val isPinned: Boolean, val browsers: List<NativeBrowser>,
     val groupId: String?, val preview: String?, val color: String?, val description: String? = null
 )
-internal data class NativeGroup(val id: String, val name: String, val isCollapsed: Boolean, val isPinned: Boolean)
+internal data class NativeGroup(
+    val id: String, val name: String, val isCollapsed: Boolean, val isPinned: Boolean,
+    val anchorWorkspaceId: String? = null, val isEmpty: Boolean = anchorWorkspaceId == null,
+    val iconSymbol: String? = null
+) {
+    val liveAnchorWorkspaceId get() = anchorWorkspaceId.takeUnless { isEmpty }
+}
 internal sealed interface WorkspaceListEntry {
     val source: NativeFeedSource
     val key: String
-    data class Header(override val source: NativeFeedSource, val group: NativeGroup) : WorkspaceListEntry {
+    data class Header(override val source: NativeFeedSource, val group: NativeGroup, val hasUnread: Boolean = false) : WorkspaceListEntry {
         override val key = source.mac.origin + ":group:" + group.id
     }
-    data class Workspace(override val source: NativeFeedSource, val workspace: NativeWorkspace) : WorkspaceListEntry {
+    data class Workspace(override val source: NativeFeedSource, val workspace: NativeWorkspace, val indented: Boolean = false) : WorkspaceListEntry {
         override val key = source.mac.origin + ":workspace:" + workspace.id
+    }
+    data class Footer(override val source: NativeFeedSource, val group: NativeGroup) : WorkspaceListEntry {
+        override val key = source.mac.origin + ":footer:" + group.id
     }
 }
 internal data class NativeWorkspaceRoute(
@@ -27,22 +36,6 @@ internal data class NativeWorkspaceRoute(
 internal fun workspaceSearchId(source: NativeFeedSource, workspace: NativeWorkspace) =
     source.mac.origin + ":workspace:" + workspace.id
 
-internal fun workspaceEntries(sources: List<NativeFeedSource>, matches: Set<String>,
-    filtering: Boolean, unreadOnly: Boolean, expandedGroups: Set<String>): List<WorkspaceListEntry> = buildList {
-    sources.forEach { source ->
-        val matching = source.workspaces.filter { (!unreadOnly || it.hasUnread) && workspaceSearchId(source, it) in matches }
-        fun addRows(rows: List<NativeWorkspace>) = rows.forEach { add(WorkspaceListEntry.Workspace(source, it)) }
-        if (source.groups.isEmpty() || filtering || unreadOnly) addRows(matching)
-        else {
-            addRows(matching.filter { row -> source.groups.none { it.id == row.groupId } })
-            source.groups.forEach { group ->
-                val header = WorkspaceListEntry.Header(source, group)
-                add(header)
-                if (group.isCollapsed == (header.key in expandedGroups)) addRows(matching.filter { it.groupId == group.id })
-            }
-        }
-    }
-}
 internal data class NativeTerminal(val id: String, val title: String)
 internal data class NativeBrowser(val id: String, val title: String)
 
@@ -91,8 +84,11 @@ internal fun parseGroups(value: JSONObject): List<NativeGroup> {
         for (index in 0 until array.length()) {
             val item = array.optJSONObject(index) ?: continue
             val id = item.optString("id")
+            val anchor = item.optString("anchor_workspace_id").takeIf { it.isNotBlank() && it != "null" }
             if (id.isNotBlank()) add(NativeGroup(id, item.optString("name", "Group"),
-                item.optBoolean("is_collapsed"), item.optBoolean("is_pinned")))
+                item.optBoolean("is_collapsed"), item.optBoolean("is_pinned"),
+                anchor, item.optBoolean("is_empty") || anchor == null,
+                item.optString("icon_symbol").takeIf { it.isNotBlank() && it != "null" }))
         }
     }
 }

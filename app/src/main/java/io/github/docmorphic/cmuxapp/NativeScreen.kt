@@ -143,7 +143,11 @@ fun NativeScreen(
     var backgroundNotifications by remember { mutableStateOf(NativeNotificationService.isEnabled(context)) }
     var workspaces by remember(code) { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
     var groups by remember(code) { mutableStateOf<List<NativeGroup>>(emptyList()) }
-    var locallyExpandedGroups by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var collapsedGroups by remember(signedIn) {
+        val saved = store.load()?.optJSONObject("collapsed_groups")
+        mutableStateOf(saved?.keys()?.asSequence()?.filter { saved.opt(it) is Boolean }
+            ?.associateWith { saved.optBoolean(it) }.orEmpty())
+    }
     var notifications by remember(code) { mutableStateOf<List<NativeNotification>>(emptyList()) }
     var notificationTab by rememberSaveable(signedIn) { mutableStateOf(false) }
     var searchState by rememberSaveable(signedIn, stateSaver = listSaver(
@@ -181,6 +185,10 @@ fun NativeScreen(
     }
     val feedCoordinator = feedSession.coordinator
     val feedSources by feedCoordinator.sources.collectAsState()
+    val workspaceMoves = feedSession.workspaceMoves
+    val moveSources by workspaceMoves.sources.collectAsState()
+    val moveStatus by workspaceMoves.status.collectAsState()
+    LaunchedEffect(moveStatus) { moveStatus.values.mapNotNull { it.error }.firstOrNull()?.let { error = it } }
     var selectedComputerOrigin by rememberSaveable(signedIn) {
         mutableStateOf(store.load()?.optString("computer_selection").orEmpty())
     }
@@ -265,9 +273,9 @@ fun NativeScreen(
         }
     }
     val searchLocale = configuration.locales[0]
-    val workspaceSources = remember(pairedMacs, feedSources, selectedOrigin, connectedCode, client, workspaces, groups, hostCapabilities) {
+    val workspaceSources = remember(pairedMacs, feedSources, moveSources, selectedOrigin, connectedCode, client, workspaces, groups, hostCapabilities) {
         pairedMacs.filter { selectedOrigin == null || it.origin == selectedOrigin }.map { mac ->
-            val snapshot = feedSources[mac.origin]
+            val snapshot = moveSources[mac.origin] ?: feedSources[mac.origin]
             if (snapshot?.hasWorkspaceSnapshot == true) snapshot
             else if (client != null && connectedCode == mac.code) NativeFeedSource(mac, workspaces = workspaces,
                 groups = groups, capabilities = hostCapabilities, availability = NativeFeedAvailability.CONNECTED,
@@ -1367,9 +1375,19 @@ fun NativeScreen(
                         onMore = { feedRowWindow += 300 }, onRefresh = ::refreshFeed)
                 } else {
                     val matches = remember(workspaceSearch, search) { workspaceSearch.matches(search) }
-                    val entries = workspaceEntries(workspaceSources, matches, search.isNotEmpty(), unreadWorkspacesOnly, locallyExpandedGroups)
+                    val entries = workspaceEntries(workspaceSources, matches, search.isNotEmpty(), unreadWorkspacesOnly, collapsedGroups)
                     Box(Modifier.weight(1f)) {
-                    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 84.dp)) {
+                    val reorderSource = workspaceSources.singleOrNull()
+                    val canReorder = reorderSource != null && reorderSource.canReorderWorkspaces() &&
+                        (reorderSource.groups.isNotEmpty() || reorderSource.workspaces.none { it.isPinned }) &&
+                        reorderSource.mac.code == connectedCode && search.isBlank() && !unreadWorkspacesOnly &&
+                        (moveStatus[reorderSource.mac.origin]?.pending ?: 0) < 3
+                    fun move(source: NativeFeedSource, id: String, intent: NativeWorkspaceMove): Boolean {
+                        val accepted = workspaceMoves.enqueue(source, id, intent)
+                        if (accepted) error = null
+                        return accepted
+                    }
+                    NativeWorkspaceDragList(entries, canReorder, Modifier.fillMaxSize(), onMove = ::move, before = {
                         workspaceSources.filter { it.availability != NativeFeedAvailability.CONNECTED }.forEach { source ->
                             item("status:" + source.mac.origin) {
                                 Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1379,16 +1397,23 @@ fun NativeScreen(
                                 }
                             }
                         }
-                        items(entries, key = { it.key }) { entry ->
+                    }, empty = {
+                        Text(if (unreadWorkspacesOnly) "No unread workspaces." else "No workspaces found.",
+                            Modifier.padding(24.dp), color = nativeMuted)
+                    }) { entry ->
                             val owner = entry.source
                             if (entry is WorkspaceListEntry.Header) {
                                 val group = entry.group
                                 NativeGroupHeaderRow(group,
-                                    expanded = group.isCollapsed == (entry.key in locallyExpandedGroups),
+                                    expanded = !group.isCollapsed,
+                                    hasUnread = entry.hasUnread,
+                                    onOpen = group.liveAnchorWorkspaceId?.takeIf { id -> owner.workspaces.any { it.id == id } }?.let { anchor ->
+                                        { inAppNotification = null; workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, anchor) }
+                                    },
                                     canEdit = "workspace.group_actions.v1" in owner.capabilities,
                                     onToggle = {
-                                        locallyExpandedGroups = if (entry.key in locallyExpandedGroups)
-                                            locallyExpandedGroups - entry.key else locallyExpandedGroups + entry.key
+                                        collapsedGroups = collapsedGroups + (entry.key to !group.isCollapsed)
+                                        store.update { it.put("collapsed_groups", JSONObject(collapsedGroups)) }
                                     },
                                     onAction = { action, title -> scope.launch {
                                         try { feedCoordinator.groupAction(owner.mac, group.id, action, title); error = null }
@@ -1397,22 +1422,27 @@ fun NativeScreen(
                                             error = failure.message
                                         }
                                     } })
-                                return@items
-                            }
+                            } else if (entry is WorkspaceListEntry.Footer) {
+                                Spacer(Modifier.fillMaxWidth().height(16.dp).semantics { contentDescription = "End of ${entry.group.name}" })
+                            } else {
                             val workspace = (entry as WorkspaceListEntry.Workspace).workspace
                             fun open(terminalId: String? = null, browserId: String? = null, changes: Boolean = false) {
                                 inAppNotification = null
                                 workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, workspace.id, terminalId, browserId, changes)
                             }
-                            Column(Modifier.semantics { contentDescription = "${workspace.title} on ${owner.mac.name}" }) {
+                            Column(Modifier.padding(start = if (entry.indented) 18.dp else 0.dp)
+                                .semantics { contentDescription = "${workspace.title} on ${owner.mac.name}" }) {
                             NativeWorkspaceRow(
                                 workspace = workspace, groups = owner.groups,
                                 computer = owner.mac.name.takeIf { selectedOrigin == null && pairedMacs.size > 1 },
-                                canMove = "workspace.move.v1" in owner.capabilities,
+                                canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
                                 onOpen = { open() },
                                 onAction = { action, title ->
                                     if (action == "changes") open(changes = true)
-                                    else scope.launch {
+                                    else if (action.startsWith("move:")) {
+                                        val target = action.removePrefix("move:").takeIf { it.isNotBlank() }
+                                        move(owner, workspace.id, NativeWorkspaceMove(target, null))
+                                    } else scope.launch {
                                         try {
                                             val response = feedCoordinator.workspaceAction(owner.mac, workspace.id, action, title)
                                             error = null
@@ -1440,11 +1470,7 @@ fun NativeScreen(
                             }
                             }
                             HorizontalDivider(color = Color(0xFF292C31))
-                        }
-                        if (entries.isEmpty()) item {
-                            Text(if (unreadWorkspacesOnly) "No unread workspaces." else "No workspaces found.",
-                                Modifier.padding(24.dp), color = nativeMuted)
-                        }
+                            }
                     }
                     if (searchState.active == null) NativeTaskComposerButton(
                         Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 2.dp), enabled = canCreateOnCurrentMac) {
@@ -1483,6 +1509,8 @@ private fun NativeHeader(title: String) {
 private fun NativeGroupHeaderRow(
     group: NativeGroup,
     expanded: Boolean,
+    hasUnread: Boolean,
+    onOpen: (() -> Unit)?,
     canEdit: Boolean,
     onToggle: () -> Unit,
     onAction: (String, String?) -> Unit
@@ -1493,10 +1521,15 @@ private fun NativeGroupHeaderRow(
     var name by remember(group.id) { mutableStateOf(group.name) }
     Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text("${if (expanded) "⌄" else "›"}  ${group.name}",
-            Modifier.weight(1f).clickable(onClick = onToggle)
-                .padding(horizontal = 4.dp, vertical = 12.dp),
-            color = nativeMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        IconButton(onClick = onToggle, modifier = Modifier.semantics {
+            contentDescription = "${if (expanded) "Collapse" else "Expand"} ${group.name}"
+        }) { Text(if (expanded) "⌄" else "›", color = nativeMuted, fontSize = 20.sp) }
+        if (hasUnread) Text("●", color = nativeAccent, fontSize = 9.sp, modifier = Modifier.padding(end = 6.dp))
+        Text(group.name, Modifier.weight(1f).clickable(onClick = onOpen ?: onToggle)
+            .semantics { if (onOpen != null) contentDescription = "Open ${group.name}" }
+            .padding(horizontal = 4.dp, vertical = 12.dp),
+            color = if (hasUnread) Color.White else nativeMuted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        if (group.isPinned) Text("●", color = nativeAccent, fontSize = 8.sp)
         if (canEdit) Box {
             TextButton(onClick = { menuOpen = true }) { Text("⋯", color = nativeMuted) }
             DropdownMenu(menuOpen, onDismissRequest = { menuOpen = false }) {

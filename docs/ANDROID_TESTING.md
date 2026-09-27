@@ -143,10 +143,10 @@ adb shell am force-stop io.github.docmorphic.cmuxapp.debug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am start -W -n io.github.docmorphic.cmuxapp.debug/io.github.docmorphic.cmuxapp.MainActivity
-adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest,io.github.docmorphic.cmuxapp.NativeNotificationDeliveryTest,io.github.docmorphic.cmuxapp.NativeLifecycleTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.NativeWorkspaceDragTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest,io.github.docmorphic.cmuxapp.NativeNotificationDeliveryTest,io.github.docmorphic.cmuxapp.NativeLifecycleTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (25 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (28 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 
@@ -184,3 +184,39 @@ python3 scripts/capture-vim-fixture.py
 The script creates and removes its own temporary directory and disables Vim
 configuration, swap and history files. This checks genuine Vim output but does
 not verify live input latency, cmux authentication or a physical Pixel connection.
+
+
+## Workspace hierarchy and move reference
+
+Recreate the Swift reference fixture using a local official cmux checkout that
+contains revision `4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0`:
+
+```sh
+python3 scripts/generate-workspace-parity.py /path/to/cmux
+./gradlew :app:testDebugUnitTest --tests '*NativeWorkspace*'
+```
+
+The generator uses `git show` to extract seven unmodified algorithm files at the
+pinned revision into a temporary directory, compiles them with Swift 6 and small
+DTO adapters, then records their SHA-256 hashes alongside the expected results.
+It neither changes the upstream checkout nor runs any upstream build scripts.
+The compressed JSON is committed; Linux CI consumes it without Swift. The DTO
+adapter checks unread visibility, not exact unread-count badges.
+
+The reference covers 36 snapshots, 2,190 rendered source/destination slots and
+19,160 direct proposals. Separate loopback tests verify move serialization,
+rejection/retry, owner/window guards, and optimistic reconciliation. Runtime
+checks in `NativeWorkspaceDragTest` and the hierarchy flow in `NativeFlowTest`
+exercise actual touch input, accessibility actions, grouping and RPC dispatch.
+
+
+Hierarchy validation (2026-09-27): 105 JVM tests passed, including the reference
+comparisons and accessible whole-group step behavior. Three focused emulator
+checks pass for long-held auto-scroll across recycled rows, accessible movement,
+and the production hierarchy/anchor/collapse/RPC flow. Three existing flows also
+pass for filtering/terminal entry, scoped search and multi-computer workspaces.
+The earlier interrupted held-pointer run and two failed gesture runs are excluded;
+they exposed a touch-scroll conflict fixed by disabling LazyColumn's touch
+scrolling only while a row is held. Programmatic edge scrolling remains active.
+The inspected screenshot is `captures/emulator/screenshots/workspace-hierarchy-reordered.png`.
+These fixture peers do not prove a real cmux Mac or Pixel session.

@@ -86,7 +86,7 @@ class NativeFlowTest {
         compose.waitUntil(15_000) {
             compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Read project").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Open Completed group").assertIsDisplayed()
         screenshot("workspaces")
         compose.onNodeWithText("☷").performClick()
         compose.onNodeWithText("Unread").performClick()
@@ -147,7 +147,7 @@ class NativeFlowTest {
         val message = "Review these changes\nKeep the existing API"
         compose.onNode(hasSetTextAction()).performTextInput(message)
         compose.onNodeWithText("‹  2").performClick()
-        compose.onNodeWithText("Read project").performClick()
+        openReadProject()
         assertDraft("")
         compose.onNode(hasSetTextAction()).performTextInput("Separate draft")
         compose.onNodeWithText("‹  2").performClick()
@@ -187,7 +187,7 @@ class NativeFlowTest {
             assertEquals("terminal-1", request.getJSONObject("params").getString("surface_id"))
         }
         compose.onNodeWithText("‹  2").performClick()
-        compose.onNodeWithText("Read project").performClick()
+        openReadProject()
         assertDraft("Separate draft")
         compose.waitUntil(10_000) {
             val saved = NativeCredentialStore(context, "native_terminal_drafts").load()?.optJSONArray("drafts")
@@ -354,7 +354,7 @@ class NativeFlowTest {
         assertDraft("Keep my composer draft")
         val oldConnection = connection
         compose.onNodeWithText("‹  2").performClick()
-        compose.onNodeWithText("Read project").performClick()
+        openReadProject()
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Keyboard").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Keyboard").performClick()
         compose.runOnIdle {
@@ -568,7 +568,7 @@ class NativeFlowTest {
         screenshot("notification-search")
         compose.onNode(hasText("Workspaces") and SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Tab)).performClick()
         assertSearchFilter("Completed")
-        compose.onNodeWithText("Read project").performClick()
+        openReadProject()
         waitForTerminalText()
         compose.onNodeWithText("‹  2").performClick()
         assertSearchFilter("Completed")
@@ -633,6 +633,66 @@ class NativeFlowTest {
         compose.onNodeWithText("Settings").assertIsDisplayed()
     }
 
+    @Test fun workspaceHierarchyOpensAnchorPersistsCollapseAndDragsThroughRpc() {
+        peer.notificationFeed = searchNotifications()
+        peer.customWorkspaceListing = JSONObject("""{
+          "groups":[{"id":"complete","name":"Completed group","anchor_workspace_id":"workspace-2"}],
+          "workspaces":[
+            {"id":"workspace-1","window_id":"fixture-window","title":"Claude Code task","terminals":[{"id":"terminal-1"}]},
+            {"id":"workspace-2","window_id":"fixture-window","title":"Read project","group_id":"complete","terminals":[{"id":"terminal-2"}]},
+            {"id":"child","window_id":"fixture-window","title":"Group child","group_id":"complete","has_unread":true},
+            {"id":"tail","window_id":"fixture-window","title":"Tail workspace"}
+          ]} """)
+        showSearchFixture()
+        compose.onNodeWithText("Read project").assertDoesNotExist()
+        compose.onNodeWithText("Group child").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Collapse Completed group").performClick()
+        compose.onNodeWithText("Group child").assertDoesNotExist()
+        assertTrue(NativeCredentialStore(context).load()!!.getJSONObject("collapsed_groups")
+            .keys().asSequence().any { it.endsWith(":group:complete") })
+        compose.onNodeWithContentDescription("Open Completed group").performClick()
+        waitForTerminalText()
+        assertEquals("workspace-2", peer.requests.last { it.optString("method") == "mobile.terminal.replay" }
+            .getJSONObject("params").getString("workspace_id"))
+        compose.onNodeWithText("‹  4").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Expand Completed group").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Group child").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Expand Completed group").performClick()
+        compose.onNodeWithText("Group child").assertIsDisplayed()
+        val from = compose.onNodeWithText("Tail workspace").fetchSemanticsNode().boundsInRoot.center
+        val to = compose.onNodeWithText("Claude Code task").fetchSemanticsNode().boundsInRoot.center.copy(y =
+            compose.onNodeWithText("Claude Code task").fetchSemanticsNode().boundsInRoot.top - 6f)
+        compose.onRoot().performTouchInput {
+            down(from); advanceEventTime(650); moveTo(to, delayMillis = 300); up()
+        }
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "workspace.move" } }
+        val move = peer.requests.single { it.optString("method") == "workspace.move" }.getJSONObject("params")
+        assertEquals("tail", move.getString("workspace_id"))
+        assertEquals("workspace-1", move.getString("before_workspace_id"))
+        assertEquals("fixture-window", move.getString("window_id"))
+        compose.waitUntil(10_000) {
+            compose.onNodeWithText("Tail workspace").fetchSemanticsNode().boundsInRoot.top <
+                compose.onNodeWithText("Claude Code task").fetchSemanticsNode().boundsInRoot.top
+        }
+        screenshot("workspace-hierarchy-reordered")
+        openSearch()
+        compose.onNode(hasSetTextAction()).performTextInput("Group")
+        compose.onNodeWithText("Read project").assertIsDisplayed()
+        compose.onNodeWithText("Group child").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Open Completed group").assertDoesNotExist()
+        val movable = SemanticsMatcher("has move accessibility actions") { node ->
+            node.config.getOrElse(androidx.compose.ui.semantics.SemanticsActions.CustomActions) { emptyList() }
+                .any { it.label == "Move up" || it.label == "Move down" }
+        }
+        compose.onAllNodes(movable).assertCountEquals(0)
+    }
+
+    private fun openReadProject() {
+        val flat = compose.onAllNodesWithText("Read project").fetchSemanticsNodes().isNotEmpty()
+        if (flat) compose.onNodeWithText("Read project").performClick()
+        else compose.onNodeWithContentDescription("Open Completed group").performClick()
+    }
+
     private fun openSearch() {
         compose.onNodeWithContentDescription("Search").performClick()
         compose.waitUntil(10_000) { compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
@@ -650,7 +710,7 @@ class NativeFlowTest {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
         compose.onNodeWithText("Notifications (2)").performClick()
-        compose.onNodeWithText("Read project").performClick()
+        openReadProject()
         waitForTerminalText()
         compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "notification.feed.mark_read" } }
         val replay = peer.requests.last { it.optString("method") == "mobile.terminal.replay" }.getJSONObject("params")
@@ -1011,6 +1071,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var notificationFeed = JSONArray()
     @Volatile var renamedWorkspace: String? = null
     @Volatile var hiddenWorkspaceId: String? = null
+    @Volatile var customWorkspaceListing: JSONObject? = null
     private val readNotifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile var rawTerminal = false
     @Volatile var screenAnchor = true
@@ -1088,22 +1149,34 @@ internal class NativeFixturePeer : AutoCloseable {
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
-            .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").also {
+            .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").also {
                 if (rawTerminal) it.put("terminal.bytes.v1")
                 else { it.put("terminal.render_grid.v1"); if (screenAnchor) it.put("terminal.render_grid.screen_anchor.v1") }
             })
-        "mobile.workspace.list" -> JSONObject("""{
-            "groups":[{"id":"complete","name":"Completed group","is_collapsed":false}],
+        "mobile.workspace.list" -> (customWorkspaceListing?.let { JSONObject(it.toString()) } ?: JSONObject("""{
+            "groups":[{"id":"complete","name":"Completed group","is_collapsed":false,"anchor_workspace_id":"workspace-2"}],
             "workspaces":[
-              {"id":"workspace-1","title":"Claude Code task","current_directory":"~/projects/cmux-app","description":"Release gate",
+              {"id":"workspace-1","window_id":"fixture-window","title":"Claude Code task","current_directory":"~/projects/cmux-app","description":"Release gate",
                "has_unread":true,"terminals":[{"id":"terminal-1","title":"Shell"}]},
-              {"id":"workspace-2","title":"Read project","group_id":"complete",
+              {"id":"workspace-2","window_id":"fixture-window","title":"Read project","group_id":"complete",
                "has_unread":false,"terminals":[{"id":"terminal-2","title":"Shell"}]}
-            ]} """).also { listing ->
+            ]} """)).also { listing ->
             renamedWorkspace?.let { listing.getJSONArray("workspaces").getJSONObject(0).put("title", it) }
             hiddenWorkspaceId?.let { hidden ->
                 val items = listing.getJSONArray("workspaces")
                 for (index in items.length() - 1 downTo 0) if (items.getJSONObject(index).getString("id") == hidden) items.remove(index)
+            }
+        }
+        "workspace.move" -> JSONObject().also {
+            customWorkspaceListing?.let { listing ->
+                val array = listing.getJSONArray("workspaces")
+                val rows = (0 until array.length()).map { array.getJSONObject(it) }.toMutableList()
+                val moved = rows.single { it.getString("id") == params.getString("workspace_id") }
+                rows.remove(moved)
+                moved.put("group_id", params.optString("group_id").takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+                val before = rows.indexOfFirst { it.getString("id") == params.optString("before_workspace_id") }
+                rows.add(if (before < 0) rows.size else before, moved)
+                customWorkspaceListing = JSONObject(listing.toString()).put("workspaces", JSONArray(rows))
             }
         }
         "workspace.action" -> JSONObject().also {

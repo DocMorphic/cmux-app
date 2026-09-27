@@ -152,10 +152,13 @@ class MobileRpcClient(
             ?: error("Enter a group title"))
         return request("workspace.group.action", params)
     }
-    suspend fun moveWorkspace(workspaceId: String, windowId: String?, groupId: String?): JSONObject {
+    suspend fun moveWorkspace(workspaceId: String, windowId: String?, groupId: String?,
+        beforeWorkspaceId: String? = null, movesGroup: Boolean = false): JSONObject {
         val params = JSONObject().put("workspace_id", workspaceId).put("client_id", clientId)
         if (!windowId.isNullOrBlank()) params.put("window_id", windowId)
         if (!groupId.isNullOrBlank()) params.put("group_id", groupId)
+        if (!beforeWorkspaceId.isNullOrBlank()) params.put("before_workspace_id", beforeWorkspaceId)
+        if (movesGroup) params.put("move_group", true)
         return request("workspace.move", params)
     }
     suspend fun createTerminal(workspaceId: String): JSONObject = request(

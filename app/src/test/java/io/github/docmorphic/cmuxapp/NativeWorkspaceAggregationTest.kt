@@ -10,17 +10,17 @@ class NativeWorkspaceAggregationTest {
         workspaces = parseWorkspaces(JSONObject("""{"workspaces":[
             {"id":"same","title":"Task","group_id":"same-group","has_unread":true},
             {"id":"second","title":"Read","group_id":"same-group"}]}""")),
-        groups = listOf(NativeGroup("same-group", "Group", true, false)))
+        groups = listOf(NativeGroup("same-group", "Group", true, false, "same")))
 
     @Test fun groupExpansionAndWorkspaceKeysStayLocalToTheirMac() {
         val a = source("a"); val b = source("b")
         val matches = listOf(a, b).flatMap { source -> source.workspaces.map { workspaceSearchId(source, it) } }.toSet()
         val aHeader = WorkspaceListEntry.Header(a, a.groups.single())
-        val entries = workspaceEntries(listOf(a, b), matches, false, false, setOf(aHeader.key))
+        val entries = workspaceEntries(listOf(a, b), matches, false, false, mapOf(aHeader.key to false))
         assertEquals(4, entries.size)
-        assertEquals(2, entries.filterIsInstance<WorkspaceListEntry.Workspace>().size)
+        assertEquals(1, entries.filterIsInstance<WorkspaceListEntry.Workspace>().size)
         assertTrue(entries.filterIsInstance<WorkspaceListEntry.Workspace>().all { it.source.mac == a.mac })
-        val all = workspaceEntries(listOf(a, b), matches, true, false, emptySet())
+        val all = workspaceEntries(listOf(a, b), matches, true, false, emptyMap())
         assertEquals(4, all.size)
         assertEquals(4, all.map { it.key }.distinct().size)
     }
@@ -28,7 +28,7 @@ class NativeWorkspaceAggregationTest {
     @Test fun searchAndUnreadFiltersUseOwnerQualifiedIdsAndRevealCollapsedMembers() {
         val a = source("a"); val b = source("b")
         val matches = b.workspaces.map { workspaceSearchId(b, it) }.toSet()
-        val entries = workspaceEntries(listOf(a, b), matches, true, true, emptySet())
+        val entries = workspaceEntries(listOf(a, b), matches, true, true, emptyMap())
         assertEquals(1, entries.size)
         val row = entries.single() as WorkspaceListEntry.Workspace
         assertEquals(b.mac, row.source.mac)

@@ -17,7 +17,7 @@ class MobileRpcClientTest {
             val finishPeer = CountDownLatch(1)
             val peer = Thread {
                 server.accept().use { socket ->
-                    repeat(2) {
+                    repeat(3) {
                         val input = socket.getInputStream()
                         val header = input.readNBytes(4)
                         val length = header.fold(0) { n, byte -> (n shl 8) or (byte.toInt() and 0xff) }
@@ -36,14 +36,20 @@ class MobileRpcClientTest {
             try {
                 client.connect()
                 client.groupAction("group-1", "rename", "  Work  ")
-                client.moveWorkspace("workspace-1", "window-1", "group-1")
+                client.moveWorkspace("workspace-1", "window-1", "group-1", "workspace-2")
+                client.moveWorkspace("anchor", "window-1", null, "workspace-3", true)
                 peer.join(3_000)
-                assertEquals(2, observed.size)
+                assertEquals(3, observed.size)
                 assertEquals("workspace.group.action", observed[0].getString("method"))
                 assertEquals("Work", observed[0].getJSONObject("params").getString("title"))
                 assertEquals("workspace.move", observed[1].getString("method"))
                 assertEquals("group-1", observed[1].getJSONObject("params").getString("group_id"))
                 assertEquals("window-1", observed[1].getJSONObject("params").getString("window_id"))
+                assertEquals("workspace-2", observed[1].getJSONObject("params").getString("before_workspace_id"))
+                assertTrue(!observed[1].getJSONObject("params").has("move_group"))
+                assertTrue(observed[2].getJSONObject("params").getBoolean("move_group"))
+                assertTrue(!observed[2].getJSONObject("params").has("group_id"))
+                assertEquals("workspace-3", observed[2].getJSONObject("params").getString("before_workspace_id"))
                 assertEquals("token", observed[1].getJSONObject("auth").getString("stack_access_token"))
             } finally {
                 finishPeer.countDown()
