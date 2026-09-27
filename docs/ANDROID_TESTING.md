@@ -99,6 +99,17 @@ The peer uses synthetic data and never connects to a real cmux account.
 This check does not prove account sign-in, Tailscale routing, or compatibility
 with the live Mac; those remain in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
 
+A primary-navigation flow checks the two icon tabs and selected semantics,
+notification badge, detached Search control, automatic search focus and visible system IME, cancel and
+submit behavior, app Back cancellation, separate committed tab queries, the
+floating New Task entry, and Settings through the cmux logo. The task button is
+disabled without a live client and stays absent while Search is presented.
+`primary-navigation-workspaces.png`, `primary-navigation-notifications.png`, and
+`primary-navigation-search.png` record these states. Search uses Android IME and
+focus handling; the round cancel control clears the current scope, while submit
+and result navigation retain its committed filter. The editor is not reopened
+automatically after Activity recreation.
+
 Compose checks explicitly use `StandardTestDispatcher`, following the
 [Android testing guidance](https://developer.android.com/blog/posts/whats-new-in-the-jetpack-compose-december-release).
 This queues resumptions from the real socket worker onto the test scheduler;
@@ -123,7 +134,7 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest,io.github.docmorphic.cmuxapp.NativeNotificationDeliveryTest,io.github.docmorphic.cmuxapp.NativeLifecycleTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (23 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (24 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 

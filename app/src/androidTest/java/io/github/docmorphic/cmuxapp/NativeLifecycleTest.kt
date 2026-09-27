@@ -88,6 +88,7 @@ class NativeLifecycleTest {
                 compose.onNodeWithContentDescription("Computer filter").performClick()
                 compose.onNode(hasText("Fixture Mac") and hasAnyAncestor(isPopup())).performClick()
                 compose.onNodeWithText("Task done").assertIsDisplayed()
+                compose.onNodeWithContentDescription("Search").performClick()
                 compose.onNode(hasSetTextAction()).performTextInput("Task")
                 compose.onNode(hasSetTextAction()).performImeAction()
                 compose.onNodeWithContentDescription("Notification filter").performClick()
@@ -107,7 +108,9 @@ class NativeLifecycleTest {
                 compose.onNodeWithContentDescription("Computer filter").assert(
                     SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Fixture Mac"))
                 compose.onNodeWithText("Task done").assertDoesNotExist()
-                compose.onNode(hasSetTextAction()).assertTextEquals("Task")
+                compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
+                compose.onNodeWithContentDescription("Search").assert(SemanticsMatcher.expectValue(
+                    androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Search notifications: Task"))
                 compose.onNodeWithText("Earlier progress").assertIsDisplayed()
                 compose.waitUntil(10_000) {
                     compose.onAllNodesWithText("Unavailable:", substring = true).fetchSemanticsNodes().isNotEmpty()

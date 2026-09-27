@@ -29,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
@@ -1320,7 +1319,8 @@ fun NativeScreen(
                             }
                         }
                     }
-                    LazyColumn(Modifier.weight(1f)) {
+                    Box(Modifier.weight(1f)) {
+                    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 84.dp)) {
                         items(entries, key = {
                             when (it) {
                                 is WorkspaceListEntry.Header -> "group:${it.group.id}"
@@ -1414,37 +1414,17 @@ fun NativeScreen(
                                 Modifier.padding(24.dp), color = nativeMuted)
                         }
                     }
-                }
-                val searchActivation = searchState.generation
-                OutlinedTextField(searchState.text(searchScope), { value ->
-                    searchState = searchState.edit(value, searchScope, searchActivation)
-                },
-                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)
-                        .onFocusChanged {
-                            val currentScope = if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
-                            if (it.isFocused && searchScope == currentScope) searchState = searchState.begin(searchScope)
-                        },
-                    placeholder = { Text(if (notificationTab) "⌕  Search notifications" else "⌕  Search workspaces",
-                        color = nativeMuted) },
-                    trailingIcon = {
-                        if (searchState.active == searchScope || search.isNotEmpty()) TextButton(onClick = {
-                            finishSearch(cancel = true)
-                        }, modifier = Modifier.semantics { contentDescription = "Clear search" }) { Text("×") }
-                    },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { finishSearch() }),
-                    singleLine = true, shape = RoundedCornerShape(28.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    TextButton(onClick = { finishSearch(); notificationTab = false }) { Text("Workspaces", color = if (notificationTab) nativeMuted else nativeAccent) }
-                    TextButton(onClick = { finishSearch(); notificationTab = true }) {
-                        val unread = feedEntries.count { !it.notification.isRead }
-                        Text(if (unread > 0) "Notifications ($unread)" else "Notifications",
-                            color = if (notificationTab) nativeAccent else nativeMuted)
+                    if (searchState.active == null) NativeTaskComposerButton(
+                        Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 2.dp), enabled = client != null) {
+                        finishSearch(); showTaskComposer = true
                     }
-                    TextButton(onClick = { finishSearch(); showSettings = true }) {
-                        Text("Settings", color = nativeMuted)
                     }
                 }
+                NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
+                    onTab = { finishSearch(); notificationTab = it },
+                    onBeginSearch = { searchState = searchState.begin(searchScope) },
+                    onEdit = { value, generation -> searchState = searchState.edit(value, searchScope, generation) },
+                    onSubmit = { finishSearch() }, onCancel = { finishSearch(cancel = true) })
             }
         }
         val visibleError = error ?: connectionError.takeIf { !notificationTab || selectedTerminal != null || selectedBrowser != null }

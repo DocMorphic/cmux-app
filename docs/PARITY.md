@@ -23,7 +23,7 @@ UI resemblance alone does not count.
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Native multiline paste/submit, encrypted per-Mac/terminal drafts, pending-send guards and acknowledgement reconciliation verified with an emulator fixture; direct IME keyboard, Unicode composition, repeated deletion, ordered input and explicit recovery from rejected delivery verified with an emulator fixture; modifier/navigation/control toolbar and hardware keys coded; photo/file picker, encrypted attachments, image paste and chunked file upload verified with an emulator fixture; rich keyboard paste, complete mode handling, and phone QA missing | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
 | Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; encrypted per-pairing alert identity and exact terminal routes, independent saved-Mac workers, read/forget cleanup and host-identity checks coded; combined saved-Mac feed, day/history grouping, unread filter, pull refresh, read/unread gestures and confirmed bulk read coded; offline snapshots and revision guards tested with loopback peers; event/mutation revision floors, bounded refresh retries and Activity-recreation retention coded; computer picker, scoped unread badge/bulk actions and live-destination filtering before the global cap coded; server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
-| Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS search-tab layout, cross-computer workspace aggregation and phone QA pending | Search workspaces and notifications with matching navigation |
+| Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation and phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
 | Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Built-in Claude/Codex/OpenCode/Shell templates and new-workspace task RPC coded; model/effort, attachments, task recovery, chat UI, and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
@@ -32,11 +32,12 @@ UI resemblance alone does not count.
 
 ## Automated evidence (2026-09-27)
 
-89 JVM tests pass. The Android suite now contains 23 checks: fifteen Compose
+89 JVM tests pass. The Android suite now contains 24 checks: sixteen Compose
 flows, two Activity-recreation checks, four notification/service checks and two
-renderer checks. The previous 22 have passing results across suite and focused
-runs; seven focused notification/lifecycle cases pass for the latest changes
-(four in the first run and three after test-selector fixes). They run on Android 17
+renderer checks. Earlier checks have passing evidence across suite and focused
+runs; nine navigation, notification, lifecycle and terminal-entry cases pass
+for the latest navigation changes, with a further focused rerun confirming
+automatic Search keyboard visibility. They run on Android 17
 (API 37) ARM64 emulator using the Pixel 6a display profile. The checks cover unread
 filtering, terminal output appearing, keyboard-driven viewport reduction,
 exactly one paste/submit request, and viewport cleanup on return to workspaces.
@@ -125,6 +126,20 @@ fixed terminal background overdraw, skipped render updates, and a false
 cancellation error during resize. It uses a local RPC fixture; live Mac auth,
 pairing, real terminal applications, and the physical Pixel remain unverified.
 See [ANDROID_TESTING.md](ANDROID_TESTING.md) for reproduction.
+
+## Navigation presentation
+
+The primary scaffold follows the pinned iOS 26 structure: Workspaces and
+Notifications in a rounded tab group, a separate round Search control, a
+floating New Task action on Workspaces, and Settings through the cmux logo.
+The selected tab and unread badge have explicit Android accessibility semantics.
+Search temporarily replaces the tab group with an editor and cancel button;
+submit/result navigation commits its scope, while cancel/app Back clears it.
+Committed filters survive tab/terminal navigation and Activity recreation.
+The Android implementation uses Compose-drawn translucent surfaces and native
+Android focus/IME handling. Apple's system glass material is not reproduced by
+this implementation; final material, typography and physical-device visual QA
+remain open.
 
 ## Work order
 

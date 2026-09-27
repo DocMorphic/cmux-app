@@ -544,14 +544,16 @@ class NativeFlowTest {
     @Test fun scopedSearchMatchesGroupsNotificationMetadataAndPreservesCommittedFilters() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
+        openSearch()
         val field = compose.onNode(hasSetTextAction())
         field.performTextInput(" Completed ")
         compose.onNodeWithText("Read project").assertIsDisplayed()
         compose.onAllNodesWithText("Claude Code task").assertCountEquals(0)
         compose.onAllNodesWithText("Completed group").assertCountEquals(0)
         field.performImeAction()
-        assertDraft("Completed")
+        assertSearchFilter("Completed")
         compose.onNodeWithText("Notifications (2)").performClick()
+        openSearch()
         assertDraft("")
         field.performTextInput("cafe")
         compose.onNodeWithText("Build pipeline").assertIsDisplayed()
@@ -561,27 +563,86 @@ class NativeFlowTest {
         field.performTextReplacement("ＡＧＥＮＴ ＰＡＮＥ")
         compose.onNodeWithText("Build pipeline").assertIsDisplayed()
         field.performImeAction()
+        assertSearchFilter("ＡＧＥＮＴ ＰＡＮＥ", notifications = true)
         screenshot("notification-search")
-        compose.onNodeWithText("Workspaces").performClick()
-        assertDraft("Completed")
+        compose.onNode(hasText("Workspaces") and SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Tab)).performClick()
+        assertSearchFilter("Completed")
         compose.onNodeWithText("Read project").performClick()
         waitForTerminalText()
         compose.onNodeWithText("‹  2").performClick()
-        assertDraft("Completed")
-        compose.onNodeWithContentDescription("Clear search").performClick()
+        assertSearchFilter("Completed")
+        openSearch()
+        compose.onNodeWithContentDescription("Cancel search").performClick()
+        openSearch()
         field.performTextInput("Fixture Mac")
         compose.onNodeWithText("Read project").assertIsDisplayed()
         compose.onNodeWithText("Claude Code task").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Clear search").performClick()
+        compose.onNodeWithContentDescription("Cancel search").performClick()
+        openSearch()
         field.performTextInput("release gate")
         compose.onNodeWithText("Claude Code task").assertIsDisplayed()
         compose.onAllNodesWithText("Read project").assertCountEquals(0)
+        field.performImeAction()
         compose.onNodeWithText("Notifications (2)").performClick()
-        assertDraft("ＡＧＥＮＴ ＰＡＮＥ")
+        assertSearchFilter("ＡＧＥＮＴ ＰＡＮＥ", notifications = true)
         compose.onNodeWithText("Build pipeline").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Clear search").performClick()
+        openSearch()
+        compose.onNodeWithContentDescription("Cancel search").performClick()
         compose.onNodeWithText("Read project").assertIsDisplayed()
         assertTrue(peer.requests.none { it.optString("method") == "notification.feed.mark_read" })
+    }
+
+    @Test fun primaryNavigationSearchCancelSubmitAndComposerEntry() {
+        peer.notificationFeed = searchNotifications()
+        showSearchFixture()
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
+        compose.onNodeWithText("Settings").assertDoesNotExist()
+        compose.onNode(hasText("Workspaces") and SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Tab)).assertIsSelected()
+        compose.onNodeWithContentDescription("New Task").assertIsDisplayed()
+        screenshot("primary-navigation-workspaces")
+        compose.onNodeWithContentDescription("New Task").performClick()
+        compose.onNodeWithText("New Task").assertIsDisplayed()
+        compose.onNodeWithText("‹  Workspaces").performClick()
+        openSearch()
+        compose.waitUntil(10_000) {
+            androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+        }
+        compose.onNode(hasText("Workspaces") and SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Tab)).assertDoesNotExist()
+        compose.onNodeWithContentDescription("New Task").assertDoesNotExist()
+        compose.onNode(hasSetTextAction()).performTextInput("Read project")
+        screenshot("primary-navigation-search")
+        compose.onNodeWithContentDescription("Cancel search").performClick()
+        assertSearchFilter("")
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        openSearch()
+        compose.onNode(hasSetTextAction()).performTextInput("Read project")
+        compose.onNode(hasSetTextAction()).performImeAction()
+        assertSearchFilter("Read project")
+        compose.onNodeWithText("Claude Code task").assertDoesNotExist()
+        openSearch()
+        assertDraft("Read project")
+        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        assertSearchFilter("")
+        compose.onNodeWithText("Notifications (2)").performClick()
+        compose.onNodeWithText("Notifications (2)").assertIsSelected()
+        compose.onNodeWithContentDescription("New Task").assertDoesNotExist()
+        screenshot("primary-navigation-notifications")
+        compose.onNodeWithContentDescription("cmux settings").performClick()
+        compose.onNodeWithText("Settings").assertIsDisplayed()
+    }
+
+    private fun openSearch() {
+        compose.onNodeWithContentDescription("Search").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    private fun assertSearchFilter(query: String, notifications: Boolean = false) {
+        val label = if (notifications) "Search notifications" else "Search workspaces"
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Search").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Search").assert(SemanticsMatcher.expectValue(
+            SemanticsProperties.StateDescription, if (query.isEmpty()) label else "$label: $query"))
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
     }
 
     @Test fun notificationSearchNavigatesMovedSurfaceAndDoesNotReadMissingDestination() {
@@ -598,6 +659,7 @@ class NativeFlowTest {
         assertEquals("moved", read.getJSONArray("notification_ids").getString(0))
         compose.onNodeWithText("‹  2").performClick()
         compose.onNodeWithText("Closed workspace").assertDoesNotExist()
+        openSearch()
         compose.onNode(hasSetTextAction()).performTextInput("Build pipeline")
         // The row was valid when displayed; remove its target atomically with the tap.
         val open = compose.onNode(hasText("Build pipeline") and !hasSetTextAction()).fetchSemanticsNode()
@@ -793,6 +855,7 @@ class NativeFlowTest {
             compose.onNodeWithText("First machine task").assertIsDisplayed()
             compose.onNodeWithText("Second machine task").assertIsDisplayed()
             screenshot("notification-multiple-macs")
+            openSearch()
             compose.onNode(hasSetTextAction()).performTextInput("Second Mac")
             compose.onNodeWithText("First machine task").assertDoesNotExist()
             compose.onNodeWithText("Second machine task").performClick()
@@ -809,7 +872,7 @@ class NativeFlowTest {
             assertEquals("terminal-2", replay.getString("surface_id"))
             assertEquals(0, peer.requests.count { it.optString("method") == "notification.feed.mark_read" })
             compose.onNodeWithText("‹  2").performClick()
-            assertDraft("Second Mac")
+            assertSearchFilter("Second Mac", notifications = true)
             compose.onNodeWithText("First machine task").assertDoesNotExist()
             // Search narrows the presentation; the confirmed bulk action still reaches all connected Macs.
             compose.onNodeWithContentDescription("Mark All Read").performClick()
@@ -846,13 +909,14 @@ class NativeFlowTest {
             compose.onNodeWithText("Second machine task").assertIsDisplayed()
             assertEquals(store.pairedMacs().single { it.deviceId == "second-mac" }.origin,
                 store.load()!!.getString("computer_selection"))
+            openSearch()
             compose.onNode(hasSetTextAction()).performTextInput("First machine")
             compose.onNodeWithText("No matching notifications.").assertIsDisplayed()
             compose.onNodeWithContentDescription("Mark All Read").performClick()
             compose.onNodeWithText("Mark All Read").performClick()
             compose.waitUntil(10_000) { other.requests.any { it.optString("method") == "notification.feed.mark_all_read" } }
             assertTrue(peer.requests.none { it.optString("method") == "notification.feed.mark_all_read" })
-            compose.onNodeWithContentDescription("Clear search").performClick()
+            compose.onNodeWithContentDescription("Cancel search").performClick()
             screenshot("notification-computer-scope")
             compose.onNodeWithContentDescription("Computer filter").performClick()
             compose.onNode(hasText("All Computers") and hasAnyAncestor(isPopup())).performClick()
