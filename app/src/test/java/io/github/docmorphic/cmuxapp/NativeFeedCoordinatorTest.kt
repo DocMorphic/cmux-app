@@ -14,6 +14,72 @@ class NativeFeedCoordinatorTest {
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 
+    @Test fun workspaceActionsRefreshOnlyTheirOwnerEvenWithCollidingIdsAndRejectedWrites() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            val coordinator = NativeFeedCoordinator(this, { m -> (if (m.deviceId == "a") a else b).connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.hasWorkspaceSnapshot } == 2 }
+                coordinator.workspaceAction(mac("b"), "w", "rename", "Renamed")
+                assertEquals("Renamed", coordinator.sources.value[mac("b").origin]!!.workspaces.single().title)
+                assertEquals("Original", coordinator.sources.value[mac("a").origin]!!.workspaces.single().title)
+                assertTrue(a.requests.none { it.optString("method") == "workspace.action" })
+                assertEquals("window-b", b.requests.single { it.optString("method") == "workspace.action" }
+                    .getJSONObject("params").getString("window_id"))
+                b.rejectWorkspaceAction = true
+                b.workspaceTitle = "Changed elsewhere"
+                val failure = runCatching { coordinator.workspaceAction(mac("b"), "w", "pin") }.exceptionOrNull()
+                assertTrue(failure?.message?.contains("Rejected by fixture") == true)
+                assertEquals("Changed elsewhere", coordinator.sources.value[mac("b").origin]!!.workspaces.single().title)
+                coordinator.updateMacs(listOf(mac("a")))
+                assertTrue(runCatching { coordinator.workspaceAction(mac("b"), "w", "close") }.isFailure)
+                assertTrue(a.requests.none { it.optString("method") == "workspace.close" })
+            } finally { coordinator.close() }
+        } }
+    }
+
+    @Test fun retainedRowsCannotMutateBeforeReconnectedHostIdentityIsVerified() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            val gate = java.util.concurrent.CountDownLatch(1)
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.items?.isNotEmpty() == true }
+                coordinator.pause()
+                peer.hostStatusGate = gate
+                val statuses = peer.requests.count { it.optString("method") == "mobile.host.status" }
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { peer.requests.count { it.optString("method") == "mobile.host.status" } > statuses }
+                assertTrue(runCatching { coordinator.workspaceAction(mac("a"), "w", "pin") }.isFailure)
+                assertTrue(peer.requests.none { it.optString("method") == "workspace.action" })
+                gate.countDown()
+                awaitState { coordinator.sources.value.values.single().availability == NativeFeedAvailability.CONNECTED }
+                coordinator.workspaceAction(mac("a"), "w", "pin")
+                assertEquals(1, peer.requests.count { it.optString("method") == "workspace.action" })
+            } finally { gate.countDown(); coordinator.close() }
+        }
+    }
+
+    @Test fun workspaceSnapshotsAdvanceWhileNotificationRevisionIsStale() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.items?.isNotEmpty() == true }
+                peer.mutationRevision.set(5); peer.overrideFeedRevision = 1
+                coordinator.setRead(aggregateNativeFeed(coordinator.sources.value.values).single(), true)
+                peer.workspaceTitle = "New workspace state"
+                coordinator.refresh()
+                val source = coordinator.sources.value.values.single()
+                assertEquals("New workspace state", source.workspaces.single().title)
+                assertEquals("Group a", source.groups.single().name)
+                assertTrue("workspace.group_actions.v1" in source.capabilities)
+                assertTrue(source.items.single().isRead)
+                assertEquals(1L, source.revision)
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun independentMacReadsOfflineRetentionAndForgetting() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             val allowed = mutableSetOf("a", "b")
@@ -150,6 +216,9 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     val mutationRevision = AtomicInteger(2)
     @Volatile var overrideFeedRevision: Int? = null
     @Volatile var forceUnread = false
+    @Volatile var hostStatusGate: java.util.concurrent.CountDownLatch? = null
+    @Volatile var workspaceTitle = "Original"
+    @Volatile var rejectWorkspaceAction = false
     @Volatile private var read = false
     @Volatile private var revision = 1
     @Volatile private var closed = false
@@ -170,9 +239,17 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                 if (header.size != 4) break
                 val size = header.fold(0) { n, b -> (n shl 8) or (b.toInt() and 255) }
                 val request = JSONObject(String(input.readNBytes(size), Charsets.UTF_8)); requests += request
+                if (request.getString("method") == "mobile.host.status") hostStatusGate?.await(10, java.util.concurrent.TimeUnit.SECONDS)
                 val result = when (request.getString("method")) {
                     "mobile.host.status" -> JSONObject().put("mac_device_id", id)
-                    "mobile.workspace.list" -> JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w")))
+                        .put("capabilities", JSONArray().put("workspace.group_actions.v1"))
+                    "mobile.workspace.list" -> JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w")
+                        .put("window_id", "window-" + id).put("title", workspaceTitle)))
+                        .put("groups", JSONArray().put(JSONObject().put("id", "g").put("name", "Group " + id)))
+                    "workspace.action" -> JSONObject().also {
+                        if (!rejectWorkspaceAction && request.getJSONObject("params").optString("action") == "rename")
+                            workspaceTitle = request.getJSONObject("params").getString("title")
+                    }
                     "notification.feed.list" -> JSONObject().put("revision", overrideFeedRevision ?: revision)
                         .put("notifications", JSONArray().put(JSONObject().put("id", "shared").put("workspace_id", "w")
                             .put("created_at", 1).put("is_read", if (forceUnread) false else read)))
@@ -183,7 +260,10 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                     }
                     else -> JSONObject()
                 }
-                val response = JSONObject().put("id", request.getString("id")).put("ok", true).put("result", result)
+                val rejected = request.getString("method") == "workspace.action" && rejectWorkspaceAction
+                val response = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
+                if (rejected) response.put("error", JSONObject().put("code", "fixture_rejected").put("message", "Rejected by fixture"))
+                else response.put("result", result)
                 socket.getOutputStream().write(MobileFrameCodec.encode(response.toString().toByteArray()))
                 socket.getOutputStream().flush()
             }

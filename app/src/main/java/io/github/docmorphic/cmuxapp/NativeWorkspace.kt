@@ -10,8 +10,38 @@ internal data class NativeWorkspace(
 )
 internal data class NativeGroup(val id: String, val name: String, val isCollapsed: Boolean, val isPinned: Boolean)
 internal sealed interface WorkspaceListEntry {
-    data class Header(val group: NativeGroup) : WorkspaceListEntry
-    data class Workspace(val workspace: NativeWorkspace) : WorkspaceListEntry
+    val source: NativeFeedSource
+    val key: String
+    data class Header(override val source: NativeFeedSource, val group: NativeGroup) : WorkspaceListEntry {
+        override val key = source.mac.origin + ":group:" + group.id
+    }
+    data class Workspace(override val source: NativeFeedSource, val workspace: NativeWorkspace) : WorkspaceListEntry {
+        override val key = source.mac.origin + ":workspace:" + workspace.id
+    }
+}
+internal data class NativeWorkspaceRoute(
+    val origin: String, val workspaceId: String, val terminalId: String? = null,
+    val browserId: String? = null, val changes: Boolean = false,
+    val id: String = java.util.UUID.randomUUID().toString()
+)
+internal fun workspaceSearchId(source: NativeFeedSource, workspace: NativeWorkspace) =
+    source.mac.origin + ":workspace:" + workspace.id
+
+internal fun workspaceEntries(sources: List<NativeFeedSource>, matches: Set<String>,
+    filtering: Boolean, unreadOnly: Boolean, expandedGroups: Set<String>): List<WorkspaceListEntry> = buildList {
+    sources.forEach { source ->
+        val matching = source.workspaces.filter { (!unreadOnly || it.hasUnread) && workspaceSearchId(source, it) in matches }
+        fun addRows(rows: List<NativeWorkspace>) = rows.forEach { add(WorkspaceListEntry.Workspace(source, it)) }
+        if (source.groups.isEmpty() || filtering || unreadOnly) addRows(matching)
+        else {
+            addRows(matching.filter { row -> source.groups.none { it.id == row.groupId } })
+            source.groups.forEach { group ->
+                val header = WorkspaceListEntry.Header(source, group)
+                add(header)
+                if (group.isCollapsed == (header.key in expandedGroups)) addRows(matching.filter { it.groupId == group.id })
+            }
+        }
+    }
 }
 internal data class NativeTerminal(val id: String, val title: String)
 internal data class NativeBrowser(val id: String, val title: String)
@@ -51,6 +81,18 @@ internal fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 workspace.optString("custom_color").takeIf { it.startsWith('#') },
                 workspace.optString("description").takeIf { it.isNotBlank() && it != "null" }
             ))
+        }
+    }
+}
+
+internal fun parseGroups(value: JSONObject): List<NativeGroup> {
+    val array = value.optJSONArray("groups") ?: return emptyList()
+    return buildList {
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val id = item.optString("id")
+            if (id.isNotBlank()) add(NativeGroup(id, item.optString("name", "Group"),
+                item.optBoolean("is_collapsed"), item.optBoolean("is_pinned")))
         }
     }
 }

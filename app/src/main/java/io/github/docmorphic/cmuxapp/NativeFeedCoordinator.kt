@@ -1,5 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
+import org.json.JSONObject
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +15,7 @@ internal class NativeFeedCoordinator(
 ) : AutoCloseable {
     private class Handle(val mac: NativeCredentialStore.PairedMac, val revision: NativeFeedRevision) {
         var client: MobileRpcClient? = null
+        var verified = false
         var job: Job? = null
         val mutex = Mutex()
         val refresh = NativeFeedRefresh()
@@ -59,7 +61,15 @@ internal class NativeFeedCoordinator(
                 active = connect(handle.mac)
                 ensureActiveSession(handle)
                 handle.client = active
-                handle.mac.requireMatchingHost(active.hostStatus())
+                val status = active.hostStatus()
+                handle.mac.requireMatchingHost(status)
+                ensureActiveSession(handle)
+                handle.verified = true
+                val capabilities = status.optJSONArray("capabilities")?.let { values ->
+                    (0 until values.length()).mapNotNull { values.optString(it).takeIf(String::isNotBlank) }.toSet()
+                }.orEmpty()
+                publish(handle, (mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac))
+                    .copy(capabilities = capabilities))
                 val client = active
                 coroutineScope {
                     val events = launch(start = CoroutineStart.UNDISPATCHED) {
@@ -83,7 +93,7 @@ internal class NativeFeedCoordinator(
                 val source = mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac)
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
                     error = failure.message ?: "Computer unavailable"))
-            } finally { active?.close(); handle.client = null }
+            } finally { handle.verified = false; active?.close(); handle.client = null }
             handle.refresh.awaitRequest(10_000)
         }
     }
@@ -93,21 +103,90 @@ internal class NativeFeedCoordinator(
     }
     private suspend fun fetch(handle: Handle, client: MobileRpcClient) = handle.mutex.withLock {
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
+        check(handle.verified) { "Computer identity is still being verified." }
         val required = handle.revision.required()
-        val listing = client.workspaces()
+        refreshWorkspaces(handle, client)
         val response = client.notifications()
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val revision = response.optLong("revision", -1)
         if (!handle.revision.accept(revision, required)) return@withLock false
-        publish(handle, NativeFeedSource(handle.mac, parseNotifications(response), parseWorkspaces(listing),
-            NativeFeedAvailability.CONNECTED, revision))
+        val source = mutableSources.value[handle.mac.origin] ?: return@withLock false
+        publish(handle, source.copy(items = parseNotifications(response),
+            availability = NativeFeedAvailability.CONNECTED, revision = revision, error = null))
         !handle.revision.needsRefresh()
+    }
+
+    /** Workspace snapshots are independent of notification revision floors. Caller holds the handle mutex. */
+    private suspend fun refreshWorkspaces(handle: Handle, client: MobileRpcClient) {
+        val listing = client.workspaces()
+        if (!current(handle, client)) throw CancellationException("Saved computer changed")
+        val source = mutableSources.value[handle.mac.origin] ?: return
+        publish(handle, source.copy(workspaces = parseWorkspaces(listing), groups = parseGroups(listing), hasWorkspaceSnapshot = true))
+    }
+
+    /** Never substitute the foreground Mac when a row's owning session is unavailable. */
+    suspend fun workspaceAction(mac: NativeCredentialStore.PairedMac, workspaceId: String,
+        action: String, title: String? = null): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
+        owningMutation(mac) { _, client ->
+            // Resolve the latest window/group scope, not the possibly stale row captured by a menu.
+            val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
+            val workspace = source.workspaces.singleOrNull { it.id == workspaceId }
+                ?: error("This workspace is no longer available on ${mac.name}.")
+            when {
+                action == "terminal.create" -> client.createTerminal(workspace.id)
+                action == "browser.create" -> client.createBrowser(workspace.id)
+                action == "close" -> client.closeWorkspace(workspace.id, workspace.windowId)
+                action.startsWith("move:") -> {
+                    check("workspace.move.v1" in source.capabilities) { "This Mac does not support moving workspaces." }
+                    val groupId = action.removePrefix("move:").takeIf(String::isNotBlank)
+                    check(groupId == null || source.groups.any { it.id == groupId }) { "This group is no longer available." }
+                    client.moveWorkspace(workspace.id, workspace.windowId, groupId)
+                }
+                else -> client.workspaceAction(workspace.id, workspace.windowId, action, title)
+            }
+        }
+    }
+
+    suspend fun groupAction(mac: NativeCredentialStore.PairedMac, groupId: String,
+        action: String, title: String? = null): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
+        owningMutation(mac) { _, client ->
+            val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
+            check("workspace.group_actions.v1" in source.capabilities) { "This Mac does not support group actions." }
+            check(source.groups.any { it.id == groupId }) { "This group is no longer available." }
+            client.groupAction(groupId, action, title)
+        }
+    }
+
+    private suspend fun owningMutation(mac: NativeCredentialStore.PairedMac,
+        operation: suspend (Handle, MobileRpcClient) -> JSONObject): JSONObject {
+        val handle = handles[mac.origin] ?: error("Connect to ${mac.name} to change this workspace.")
+        check(handle.mac == mac && isAllowed(mac)) { "Saved computer changed" }
+        return handle.mutex.withLock {
+            val client = handle.client ?: error("${mac.name} is offline.")
+            check(current(handle, client)) { "Saved computer changed" }
+            check(handle.verified) { "Computer identity is still being verified." }
+            try {
+                val result = operation(handle, client)
+                if (!current(handle, client)) throw CancellationException("Saved computer changed")
+                result
+            } finally {
+                // Rejections/no-ops must also reconcile the owner's list. Never hide the original RPC error.
+                if (currentCoroutineContext().isActive && current(handle, client)) {
+                    try { refreshWorkspaces(handle, client) }
+                    catch (refreshFailure: Exception) {
+                        if (refreshFailure is CancellationException) throw refreshFailure
+                        handle.refresh.request()
+                    }
+                    handle.refresh.request()
+                }
+            }
+        }
     }
 
     suspend fun refresh() = withContext(scope.coroutineContext.minusKey(Job)) {
         handles.values.toList().map { handle -> async {
             val client = handle.client
-            if (client == null) handle.refresh.request()
+            if (client == null || !handle.verified) handle.refresh.request()
             else try { if (!fetch(handle, client)) handle.refresh.request() } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
                 handle.refresh.request()
@@ -139,6 +218,7 @@ internal class NativeFeedCoordinator(
     private suspend fun mutate(handle: Handle, ids: List<String>, read: Boolean, all: Boolean) = handle.mutex.withLock {
         val client = handle.client ?: error("${handle.mac.name} is offline.")
         check(current(handle, client)) { "Saved computer changed" }
+        check(handle.verified) { "Computer identity is still being verified." }
         val response = if (all) client.markAllNotificationsRead() else client.setNotificationRead(ids.single(), read)
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val source = mutableSources.value[handle.mac.origin] ?: return@withLock

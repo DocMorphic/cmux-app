@@ -110,6 +110,16 @@ focus handling; the round cancel control clears the current scope, while submit
 and result navigation retain its committed filter. The editor is not reopened
 automatically after Activity recreation.
 
+An All Computers workspace flow renders identical remote workspace IDs from two
+Macs, searches by computer, renames a background Mac's workspace, opens its exact
+terminal, preserves the committed filter on return, and switches between a named
+Mac and All Computers. It verifies the other Mac receives neither the mutation
+nor a terminal request, and that opening a workspace does not mark notifications
+read. `workspaces-all-computers.png` records the combined list. JVM checks cover
+owner-qualified row/group keys, local expansion, collapsed-group search, unread
+filtering, post-rejection refresh, stale notification revisions, forgotten owners,
+and blocking retained-row actions until a reconnecting host's identity is verified.
+
 Compose checks explicitly use `StandardTestDispatcher`, following the
 [Android testing guidance](https://developer.android.com/blog/posts/whats-new-in-the-jetpack-compose-december-release).
 This queues resumptions from the real socket worker onto the test scheduler;
@@ -129,12 +139,14 @@ On a Mac with limited RAM, build before starting the emulator:
 
 ```sh
 ./gradlew --no-daemon --max-workers=1 :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+adb shell am force-stop io.github.docmorphic.cmuxapp.debug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am start -W -n io.github.docmorphic.cmuxapp.debug/io.github.docmorphic.cmuxapp.MainActivity
 adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest,io.github.docmorphic.cmuxapp.NativeNotificationDeliveryTest,io.github.docmorphic.cmuxapp.NativeLifecycleTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (24 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (25 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 
@@ -150,7 +162,10 @@ an input API removed in Android 17; see the [AndroidX Test release notes](https:
 The flow was exercised on an ARM64 Android 17 (API 37) emulator with the Pixel
 6a display profile. Its cold boot initially hit System UI and Google Play
 services startup failures; the completed run used a recovered, idle emulator.
-Do not count runs with an ANR dialog, process crash, timeout, or `FAILURES!!!`
+APK replacement after snapshot restore also produced a focus timeout in the
+restored MainActivity while Android's PackageUpdateActivity was active. Before
+instrumentation, wait for the app's MainActivity (not PackageUpdateActivity) to
+resume and verify that no system dialog is covering it. Do not count runs with an ANR dialog, process crash, timeout, or `FAILURES!!!`
 as passing. Inspect the saved screenshots as well as the assertions.
 
 

@@ -12,7 +12,10 @@ internal data class NativeFeedSource(
     val workspaces: List<NativeWorkspace> = emptyList(),
     val availability: NativeFeedAvailability = NativeFeedAvailability.CONNECTING,
     val revision: Long = -1,
-    val error: String? = null
+    val error: String? = null,
+    val groups: List<NativeGroup> = emptyList(),
+    val capabilities: Set<String> = emptySet(),
+    val hasWorkspaceSnapshot: Boolean = false
 )
 internal data class NativeFeedEntry(val source: NativeFeedSource, val notification: NativeNotification) {
     val id = source.mac.origin + ":" + notification.id

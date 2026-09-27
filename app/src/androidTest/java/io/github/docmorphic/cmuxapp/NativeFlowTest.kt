@@ -826,6 +826,57 @@ class NativeFlowTest {
         assertEquals(1, peer.requests.count { it.optString("method") == "notification.feed.mark_all_read" })
     }
 
+    @Test fun allComputerWorkspacesSearchMutateAndOpenTheirOwnerWithCollidingIds() {
+        val other = NativeFixturePeer().apply {
+            deviceId = "second-mac"; displayName = "Second Mac"; gridFirstLine = "Second Mac terminal"
+        }
+        try {
+            val store = NativeCredentialStore(context)
+            store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.2:58465", "second-mac", "Second Mac")
+            store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    val target = if (pairing.routes.first().host == "100.64.0.2") other else peer
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().size == 2 }
+            screenshot("workspaces-all-computers")
+            openSearch()
+            compose.onNode(hasSetTextAction()).performTextInput("Second Mac")
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().size == 1 }
+            // A mutation on a background Mac must not promote the foreground or touch its colliding ID.
+            compose.onNode(hasText("⋯") and hasAnyAncestor(hasContentDescription("Claude Code task on Second Mac")))
+                .performClick()
+            compose.onNodeWithText("Rename").performClick()
+            compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextReplacement("Second renamed task")
+            compose.onNodeWithText("Save").performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Second renamed task").fetchSemanticsNodes().isNotEmpty() }
+            assertEquals(0, peer.requests.count { it.optString("method") == "workspace.action" })
+            assertEquals(1, other.requests.count { it.optString("method") == "workspace.action" })
+            assertEquals(0, other.requests.count { it.optString("method") == "mobile.terminal.replay" })
+            compose.onNodeWithText("Second renamed task").performClick()
+            compose.waitUntil(15_000) { other.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+            assertEquals("workspace-1", other.requests.last { it.optString("method") == "mobile.terminal.replay" }
+                .getJSONObject("params").getString("workspace_id"))
+            assertEquals(0, peer.requests.count { it.optString("method") == "mobile.terminal.replay" })
+            assertEquals(0, other.requests.count { it.optString("method") == "notification.feed.mark_read" })
+            compose.onNodeWithText("‹  2").performClick()
+            assertSearchFilter("Second Mac")
+            compose.onNodeWithText("Second renamed task").assertIsDisplayed()
+            compose.onNodeWithText("Claude Code task").assertDoesNotExist()
+            openSearch(); compose.onNodeWithContentDescription("Cancel search").performClick()
+            compose.onNodeWithContentDescription("Computer filter").performClick()
+            compose.onNode(hasText("Fixture Mac") and hasAnyAncestor(isPopup())).performClick()
+            compose.onNodeWithText("Second renamed task").assertDoesNotExist()
+            compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Computer filter").performClick()
+            compose.onNode(hasText("All Computers") and hasAnyAncestor(isPopup())).performClick()
+            compose.onNodeWithText("Second renamed task").assertIsDisplayed()
+            compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        } finally { other.close() }
+    }
+
     @Test fun combinedFeedKeepsDuplicateIdsAndRoutesSearchResultsToTheirMac() {
         val other = NativeFixturePeer().apply {
             deviceId = "second-mac"; displayName = "Second Mac"; gridFirstLine = "Second Mac terminal"
@@ -952,6 +1003,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var deviceId = "fixture-mac"
     @Volatile var displayName = "Fixture Mac"
     @Volatile var notificationFeed = JSONArray()
+    @Volatile var renamedWorkspace: String? = null
     @Volatile var hiddenWorkspaceId: String? = null
     private val readNotifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile var rawTerminal = false
@@ -1042,10 +1094,15 @@ internal class NativeFixturePeer : AutoCloseable {
               {"id":"workspace-2","title":"Read project","group_id":"complete",
                "has_unread":false,"terminals":[{"id":"terminal-2","title":"Shell"}]}
             ]} """).also { listing ->
+            renamedWorkspace?.let { listing.getJSONArray("workspaces").getJSONObject(0).put("title", it) }
             hiddenWorkspaceId?.let { hidden ->
                 val items = listing.getJSONArray("workspaces")
                 for (index in items.length() - 1 downTo 0) if (items.getJSONObject(index).getString("id") == hidden) items.remove(index)
             }
+        }
+        "workspace.action" -> JSONObject().also {
+            if (params.optString("action") == "rename" && params.optString("workspace_id") == "workspace-1")
+                renamedWorkspace = params.getString("title")
         }
         "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/cmux fixture.txt")
         "notification.feed.mark_read", "notification.feed.mark_unread" -> JSONObject().also {

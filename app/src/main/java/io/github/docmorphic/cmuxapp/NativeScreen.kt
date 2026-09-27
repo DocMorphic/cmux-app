@@ -169,6 +169,7 @@ fun NativeScreen(
     var selectedChangesWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
     var connectedCode by remember { mutableStateOf<String?>(null) }
     val notificationDelivery = remember(context) { NativeNotificationDelivery(context.applicationContext) }
+    var workspaceRoute by remember { mutableStateOf<NativeWorkspaceRoute?>(null) }
     var inAppNotification by remember { mutableStateOf<NotificationDestination?>(null) }
     val currentIncomingRoute by rememberUpdatedState(incomingNotificationRoute ?: inAppNotification?.routeId)
     val handleNotification by rememberUpdatedState(onNotificationHandled)
@@ -189,11 +190,14 @@ fun NativeScreen(
         selectedComputerOrigin = mac?.origin.orEmpty()
         store.update { it.put("computer_selection", selectedComputerOrigin) }
         if (mac != null) code = mac.code
+        workspaceRoute = null
         computerMenuOpen = false
     }
     LaunchedEffect(pairedMacs, selectedComputerOrigin) {
         if (selectedComputerOrigin.isNotBlank() && selectedComputer == null) selectComputer(null)
     }
+    val canCreateOnCurrentMac = client != null && connectedCode == code &&
+        (selectedComputer == null || selectedComputer.code == connectedCode)
     val scopedFeedSources = remember(feedSources, selectedOrigin) {
         feedSources.values.filter { selectedOrigin == null || it.mac.origin == selectedOrigin }
     }
@@ -261,11 +265,23 @@ fun NativeScreen(
         }
     }
     val searchLocale = configuration.locales[0]
-    val workspaceSearch = remember(workspaces, groups, hostName, searchLocale) {
-        val groupNames = groups.associate { it.id to it.name }
-        NativeSearchIndex(workspaces.map { workspace -> workspace.id to
-            (listOf(workspace.title, workspace.description, workspace.directory, workspace.preview,
-                hostName, groupNames[workspace.groupId]) + workspace.terminals.map { it.title }) }, searchLocale)
+    val workspaceSources = remember(pairedMacs, feedSources, selectedOrigin, connectedCode, client, workspaces, groups, hostCapabilities) {
+        pairedMacs.filter { selectedOrigin == null || it.origin == selectedOrigin }.map { mac ->
+            val snapshot = feedSources[mac.origin]
+            if (snapshot?.hasWorkspaceSnapshot == true) snapshot
+            else if (client != null && connectedCode == mac.code) NativeFeedSource(mac, workspaces = workspaces,
+                groups = groups, capabilities = hostCapabilities, availability = NativeFeedAvailability.CONNECTED,
+                hasWorkspaceSnapshot = true)
+            else snapshot ?: NativeFeedSource(mac)
+        }
+    }
+    val workspaceSearch = remember(workspaceSources, searchLocale) {
+        NativeSearchIndex(workspaceSources.flatMap { source ->
+            val groupNames = source.groups.associate { it.id to it.name }
+            source.workspaces.map { workspace -> workspaceSearchId(source, workspace) to
+                (listOf(workspace.title, workspace.description, workspace.directory, workspace.preview,
+                    source.mac.name, groupNames[workspace.groupId]) + workspace.terminals.map { it.title }) }
+        }, searchLocale)
     }
     val notificationSearch = remember(feedEntries, searchLocale) {
         NativeSearchIndex(feedEntries.map { it.id to it.searchFields() }, searchLocale, notification = true)
@@ -434,7 +450,7 @@ fun NativeScreen(
     LaunchedEffect(incomingCode) {
         if (incomingCode != null && incomingCode != code) proposePairing(incomingCode)
     }
-    LaunchedEffect(incomingNotificationRoute) { if (incomingNotificationRoute != null) inAppNotification = null }
+    LaunchedEffect(incomingNotificationRoute) { if (incomingNotificationRoute != null) { inAppNotification = null; workspaceRoute = null } }
     val routeClient = client
     val routeConnectedCode = connectedCode
     val routePairingCode = code
@@ -504,6 +520,51 @@ fun NativeScreen(
             if (isCurrent()) error = failure.message ?: "Could not open this notification"
         }
         if (isCurrent()) consumeRoute()
+    }
+
+    val capturedWorkspaceRoute = workspaceRoute
+    LaunchedEffect(capturedWorkspaceRoute?.id, routeSignedIn, routePairingCode, routeConnectedCode, routeClient) {
+        val route = capturedWorkspaceRoute ?: return@LaunchedEffect
+        if (!routeSignedIn) { workspaceRoute = null; return@LaunchedEffect }
+        val mac = store.pairedMacs().singleOrNull { it.origin == route.origin }
+        if (mac == null) {
+            error = "This workspace's saved Mac is no longer available."
+            workspaceRoute = null
+            return@LaunchedEffect
+        }
+        if (routePairingCode != mac.code) {
+            store.update { it.put("pairing_code", mac.code) }
+            selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null; selectedChangesWorkspace = null
+            code = mac.code
+            return@LaunchedEffect
+        }
+        val active = routeClient ?: return@LaunchedEffect
+        if (routeConnectedCode != mac.code) return@LaunchedEffect
+        fun isCurrent() = workspaceRoute?.id == route.id && signedIn && client === active && code == mac.code &&
+            store.pairedMacs().contains(mac)
+        try {
+            val listing = active.workspaces()
+            if (!isCurrent()) return@LaunchedEffect
+            val workspace = parseWorkspaces(listing).singleOrNull { it.id == route.workspaceId }
+                ?: error("This workspace is no longer available on ${mac.name}.")
+            val terminal = if (route.browserId != null || route.changes) null else if (route.terminalId != null)
+                workspace.terminals.singleOrNull { it.id == route.terminalId } else workspace.terminals.firstOrNull()
+            val browser = if (route.changes || route.terminalId != null) null else if (route.browserId != null)
+                workspace.browsers.singleOrNull { it.id == route.browserId } else if (terminal == null) workspace.browsers.firstOrNull() else null
+            check(route.changes || terminal != null || browser != null) { "This workspace pane is no longer available." }
+            withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                if (isCurrent()) {
+                    applyListing(listing); finishSearch(); notificationTab = false
+                    showSettings = false; showTaskComposer = false
+                    selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser
+                    selectedChangesWorkspace = if (route.changes) workspace else null
+                    error = null; workspaceRoute = null
+                }
+            }
+        } catch (failure: Exception) {
+            if (failure is CancellationException) throw failure
+            if (isCurrent()) { error = failure.message ?: "Could not open this workspace"; workspaceRoute = null }
+        }
     }
 
     LaunchedEffect(signedIn, code, retry) {
@@ -753,6 +814,7 @@ fun NativeScreen(
     }
     BackHandler(enabled = signedIn && code.isNotBlank() && searchState.active != null && selectedTerminal == null &&
         selectedBrowser == null && selectedChangesWorkspace == null && !showSettings && !showTaskComposer) { finishSearch(cancel = true) }
+    BackHandler(enabled = workspaceRoute != null && selectedTerminal == null && selectedBrowser == null) { workspaceRoute = null }
     BackHandler(enabled = selectedTerminal != null) { selectedTerminal = null; selectedWorkspace = null }
     BackHandler(enabled = selectedBrowser != null) { selectedBrowser = null; selectedWorkspace = null }
     BackHandler(enabled = showSettings && selectedTerminal == null) { showSettings = false }
@@ -794,7 +856,7 @@ fun NativeScreen(
             showCreateGroup = false
             if (active != null) scope.launch {
                 runCatching { active.createGroup(newGroupName); active.workspaces() }
-                    .onSuccess { applyListing(it); newGroupName = ""; error = null }
+                    .onSuccess { applyListing(it); refreshFeed(); newGroupName = ""; error = null }
                     .onFailure { error = it.message }
             }
         }) { Text("Create") } },
@@ -912,7 +974,7 @@ fun NativeScreen(
                 if (active != null) NativeTaskComposerView(active,
                     directories = workspaces.mapNotNull { it.directory },
                     onCreated = { response ->
-                        applyListing(response)
+                        applyListing(response); refreshFeed()
                         val created = workspaces.firstOrNull {
                             it.id == response.optString("created_workspace_id")
                         }
@@ -948,7 +1010,7 @@ fun NativeScreen(
                     }, enabled = pairingText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Connect") }
                     TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
                     TextButton(onClick = { showLicenses = true }) { Text("Open-source licenses") }
-                    if (pairedMacs.isNotEmpty()) TextButton(onClick = { finishSearch(); showSettings = true }) { Text("Saved computers") }
+                    if (pairedMacs.isNotEmpty()) TextButton(onClick = { workspaceRoute = null; finishSearch(); showSettings = true }) { Text("Saved computers") }
                 }
             }
             selectedTerminal != null -> {
@@ -1178,7 +1240,7 @@ fun NativeScreen(
             else -> {
                 Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { finishSearch(); showSettings = true }) {
+                    TextButton(onClick = { workspaceRoute = null; finishSearch(); showSettings = true }) {
                         Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
                     }
                     Box {
@@ -1190,7 +1252,7 @@ fun NativeScreen(
                                 modifier = Modifier.size(22.dp))
                         }
                         DropdownMenu(computerMenuOpen, onDismissRequest = { computerMenuOpen = false }) {
-                            if (notificationTab) DropdownMenuItem(text = { Text("All Computers") },
+                            DropdownMenuItem(text = { Text("All Computers") },
                                 onClick = { selectComputer(null) },
                                 leadingIcon = { Text(if (selectedComputer == null) "✓" else " ") })
                             pairedMacs.forEach { mac ->
@@ -1206,7 +1268,7 @@ fun NativeScreen(
                     Column(Modifier.weight(1f)) {
                         Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
                             fontSize = 17.sp)
-                        if (notificationTab) Text(selectedComputer?.name ?: "All Computers", color = nativeMuted,
+                        Text(selectedComputer?.name ?: "All Computers", color = nativeMuted,
                             fontSize = 11.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                     if (notificationTab) {
@@ -1251,7 +1313,7 @@ fun NativeScreen(
                             }
                         }
                         Box {
-                            TextButton(onClick = { createMenuOpen = true }, enabled = client != null) {
+                            TextButton(onClick = { createMenuOpen = true }, enabled = canCreateOnCurrentMac) {
                                 Text("+", color = nativeAccent, fontSize = 25.sp)
                             }
                             DropdownMenu(createMenuOpen, onDismissRequest = { createMenuOpen = false }) {
@@ -1260,7 +1322,7 @@ fun NativeScreen(
                                     val active = client
                                     if (active != null) scope.launch { runCatching { active.request("workspace.create") }
                                         .onSuccess { response ->
-                                            applyListing(response); notificationTab = false; error = null
+                                            applyListing(response); refreshFeed(); notificationTab = false; error = null
                                             val created = workspaces.firstOrNull {
                                                 it.id == response.optString("created_workspace_id")
                                             }
@@ -1286,7 +1348,7 @@ fun NativeScreen(
                     }
                 }
                 if (busy && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (client == null && !busy && !notificationTab) {
+                if (client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot }) {
                     Column(Modifier.padding(horizontal = 18.dp)) {
                         Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
                         TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
@@ -1296,6 +1358,7 @@ fun NativeScreen(
                     NativeNotificationFeedView(feedProjection, scopedFeedSources, unreadNotificationsOnly,
                         notificationQuery.isNotBlank(), feedRefreshing, notificationNow, searchLocale, Modifier.weight(1f),
                         onOpen = { entry ->
+                            workspaceRoute = null
                             inAppNotification = NotificationDestination(java.util.UUID.randomUUID().toString(),
                                 entry.source.mac.origin, entry.notification.id, entry.notification.workspaceId,
                                 entry.notification.surfaceId, entry.notification.retargetsToLiveSurfaceOwner)
@@ -1304,108 +1367,77 @@ fun NativeScreen(
                         onMore = { feedRowWindow += 300 }, onRefresh = ::refreshFeed)
                 } else {
                     val matches = remember(workspaceSearch, search) { workspaceSearch.matches(search) }
-                    val matching = workspaces.filter { (!unreadWorkspacesOnly || it.hasUnread) && it.id in matches }
-                    val entries = buildList<WorkspaceListEntry> {
-                        if (groups.isEmpty() || search.isNotEmpty() || unreadWorkspacesOnly) matching.forEach { add(WorkspaceListEntry.Workspace(it)) }
-                        else {
-                            matching.filter { it.groupId == null || groups.none { group -> group.id == it.groupId } }
-                                .forEach { add(WorkspaceListEntry.Workspace(it)) }
-                            groups.forEach { group ->
-                                val members = matching.filter { it.groupId == group.id }
-                                if (members.isNotEmpty() || (search.isBlank() && !unreadWorkspacesOnly))
-                                    add(WorkspaceListEntry.Header(group))
-                                if (search.isNotBlank() || (group.isCollapsed == (group.id in locallyExpandedGroups)))
-                                    members.forEach { add(WorkspaceListEntry.Workspace(it)) }
-                            }
-                        }
-                    }
+                    val entries = workspaceEntries(workspaceSources, matches, search.isNotEmpty(), unreadWorkspacesOnly, locallyExpandedGroups)
                     Box(Modifier.weight(1f)) {
                     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 84.dp)) {
-                        items(entries, key = {
-                            when (it) {
-                                is WorkspaceListEntry.Header -> "group:${it.group.id}"
-                                is WorkspaceListEntry.Workspace -> "workspace:${it.workspace.id}"
+                        workspaceSources.filter { it.availability != NativeFeedAvailability.CONNECTED }.forEach { source ->
+                            item("status:" + source.mac.origin) {
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text("${source.mac.name} · ${if (source.availability == NativeFeedAvailability.CONNECTING) "Connecting…" else "Unavailable"}",
+                                        Modifier.weight(1f), color = nativeMuted, fontSize = 12.sp)
+                                    TextButton(onClick = { refreshFeed() }) { Text("Retry") }
+                                }
                             }
-                        }) { entry ->
+                        }
+                        items(entries, key = { it.key }) { entry ->
+                            val owner = entry.source
                             if (entry is WorkspaceListEntry.Header) {
                                 val group = entry.group
                                 NativeGroupHeaderRow(group,
-                                    expanded = group.isCollapsed == (group.id in locallyExpandedGroups),
-                                    canEdit = "workspace.group_actions.v1" in hostCapabilities,
+                                    expanded = group.isCollapsed == (entry.key in locallyExpandedGroups),
+                                    canEdit = "workspace.group_actions.v1" in owner.capabilities,
                                     onToggle = {
-                                        locallyExpandedGroups = if (group.id in locallyExpandedGroups)
-                                            locallyExpandedGroups - group.id else locallyExpandedGroups + group.id
+                                        locallyExpandedGroups = if (entry.key in locallyExpandedGroups)
+                                            locallyExpandedGroups - entry.key else locallyExpandedGroups + entry.key
                                     },
-                                    onAction = { action, title ->
-                                        val active = client
-                                        if (active != null) scope.launch {
-                                            runCatching { active.groupAction(group.id, action, title); active.workspaces() }
-                                                .onSuccess { applyListing(it); error = null }
-                                                .onFailure { error = it.message }
+                                    onAction = { action, title -> scope.launch {
+                                        try { feedCoordinator.groupAction(owner.mac, group.id, action, title); error = null }
+                                        catch (failure: Exception) {
+                                            if (failure is CancellationException) throw failure
+                                            error = failure.message
                                         }
-                                    })
+                                    } })
                                 return@items
                             }
                             val workspace = (entry as WorkspaceListEntry.Workspace).workspace
+                            fun open(terminalId: String? = null, browserId: String? = null, changes: Boolean = false) {
+                                inAppNotification = null
+                                workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, workspace.id, terminalId, browserId, changes)
+                            }
+                            Column(Modifier.semantics { contentDescription = "${workspace.title} on ${owner.mac.name}" }) {
                             NativeWorkspaceRow(
-                                workspace = workspace,
-                                groups = groups,
-                                canMove = "workspace.move.v1" in hostCapabilities,
-                                onOpen = {
-                                    finishSearch()
-                                    workspace.terminals.firstOrNull()?.let { terminal ->
-                                        selectedWorkspace = workspace; selectedTerminal = terminal
-                                    } ?: workspace.browsers.firstOrNull()?.let { browser ->
-                                        selectedWorkspace = workspace; selectedBrowser = browser
-                                    }
-                                },
+                                workspace = workspace, groups = owner.groups,
+                                computer = owner.mac.name.takeIf { selectedOrigin == null && pairedMacs.size > 1 },
+                                canMove = "workspace.move.v1" in owner.capabilities,
+                                onOpen = { open() },
                                 onAction = { action, title ->
-                                    val active = client
-                                    if (active != null) scope.launch {
-                                        runCatching {
-                                            when (action) {
-                                                "changes" -> selectedChangesWorkspace = workspace
-                                                "terminal.create" -> {
-                                                    val listing = active.createTerminal(workspace.id)
-                                                    applyListing(listing)
-                                                    val updated = workspaces.firstOrNull { it.id == workspace.id }
-                                                    selectedWorkspace = updated
-                                                    selectedTerminal = updated?.terminals?.firstOrNull {
-                                                        it.id == listing.optString("created_terminal_id")
-                                                    } ?: updated?.terminals?.lastOrNull()
-                                                }
-                                                "browser.create" -> {
-                                                    val created = active.createBrowser(workspace.id)
-                                                    val panelId = created.optString("panel_id")
-                                                    require(panelId.isNotBlank()) { "Mac did not return a browser panel" }
-                                                    applyListing(active.workspaces())
-                                                    val updated = workspaces.firstOrNull { it.id == workspace.id }
-                                                    selectedWorkspace = updated
-                                                    selectedBrowser = updated?.browsers?.firstOrNull {
-                                                        it.id == panelId
-                                                    } ?: NativeBrowser(panelId, created.optString("title"))
-                                                }
-                                                else -> {
-                                                    if (action.startsWith("move:")) active.moveWorkspace(
-                                                        workspace.id, workspace.windowId,
-                                                        action.removePrefix("move:").takeIf { it.isNotBlank() })
-                                                    else if (action == "close") active.closeWorkspace(workspace.id, workspace.windowId)
-                                                    else active.workspaceAction(workspace.id, workspace.windowId, action, title)
-                                                    applyListing(active.workspaces())
-                                                }
+                                    if (action == "changes") open(changes = true)
+                                    else scope.launch {
+                                        try {
+                                            val response = feedCoordinator.workspaceAction(owner.mac, workspace.id, action, title)
+                                            error = null
+                                            if (action == "terminal.create") {
+                                                val id = response.optString("created_terminal_id")
+                                                check(id.isNotBlank()) { "Mac did not return the created terminal." }
+                                                open(terminalId = id)
+                                            } else if (action == "browser.create") {
+                                                val id = response.optString("panel_id")
+                                                check(id.isNotBlank()) { "Mac did not return the created browser." }
+                                                open(browserId = id)
                                             }
-                                        }.onSuccess { error = null }
-                                            .onFailure { error = it.message }
+                                        } catch (failure: Exception) {
+                                            if (failure is CancellationException) throw failure
+                                            error = failure.message
+                                        }
                                     }
                                 }
                             )
                             workspace.browsers.forEach { browser ->
                                 Text("▣  ${browser.title.ifBlank { "Browser" }}",
-                                    Modifier.fillMaxWidth().clickable {
-                                        finishSearch()
-                                        selectedWorkspace = workspace; selectedBrowser = browser
-                                    }.padding(start = 80.dp, top = 4.dp, bottom = 12.dp),
+                                    Modifier.fillMaxWidth().clickable { open(browserId = browser.id) }
+                                        .padding(start = 80.dp, top = 4.dp, bottom = 12.dp),
                                     color = nativeAccent, fontSize = 12.sp)
+                            }
                             }
                             HorizontalDivider(color = Color(0xFF292C31))
                         }
@@ -1415,19 +1447,19 @@ fun NativeScreen(
                         }
                     }
                     if (searchState.active == null) NativeTaskComposerButton(
-                        Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 2.dp), enabled = client != null) {
+                        Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 2.dp), enabled = canCreateOnCurrentMac) {
                         finishSearch(); showTaskComposer = true
                     }
                     }
                 }
                 NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
-                    onTab = { finishSearch(); notificationTab = it },
+                    onTab = { workspaceRoute = null; finishSearch(); notificationTab = it },
                     onBeginSearch = { searchState = searchState.begin(searchScope) },
                     onEdit = { value, generation -> searchState = searchState.edit(value, searchScope, generation) },
                     onSubmit = { finishSearch() }, onCancel = { finishSearch(cancel = true) })
             }
         }
-        val visibleError = error ?: connectionError.takeIf { !notificationTab || selectedTerminal != null || selectedBrowser != null }
+        val visibleError = error ?: connectionError.takeIf { selectedTerminal != null || selectedBrowser != null || workspaceSources.isEmpty() }
         if (visibleError != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Text(visibleError, Modifier.weight(1f).padding(vertical = 12.dp), color = Color(0xFFFFAAAA))
@@ -1446,17 +1478,6 @@ private fun NativeHeader(title: String) {
 }
 
 
-private fun parseGroups(value: JSONObject): List<NativeGroup> {
-    val array = value.optJSONArray("groups") ?: return emptyList()
-    return buildList {
-        for (index in 0 until array.length()) {
-            val item = array.optJSONObject(index) ?: continue
-            val id = item.optString("id")
-            if (id.isNotBlank()) add(NativeGroup(id, item.optString("name", "Group"),
-                item.optBoolean("is_collapsed"), item.optBoolean("is_pinned")))
-        }
-    }
-}
 
 @Composable
 private fun NativeGroupHeaderRow(
@@ -1518,6 +1539,7 @@ private fun NativeWorkspaceRow(
     workspace: NativeWorkspace,
     groups: List<NativeGroup>,
     canMove: Boolean,
+    computer: String? = null,
     onOpen: () -> Unit,
     onAction: (String, String?) -> Unit
 ) {
@@ -1536,6 +1558,7 @@ private fun NativeWorkspaceRow(
             contentAlignment = Alignment.Center) { Text("›", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
+            computer?.let { Text(it, color = nativeMuted, fontSize = 10.sp, maxLines = 1) }
             Text(workspace.title.ifBlank { "Workspace" }, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
             Text(workspace.preview ?: workspace.directory ?: workspace.terminals.firstOrNull()?.title.orEmpty(),
                 color = nativeMuted, fontSize = 11.sp, maxLines = 1)
