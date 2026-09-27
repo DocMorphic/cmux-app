@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
@@ -199,6 +200,26 @@ class NativeBrowserTest {
         peer.pushBrowserEvent("browser.frame", frame(1))
         compose.waitUntil(10_000) { requests("frame.ack").any { it.getJSONObject("params").optInt("seq") == 1 } }
         compose.onNodeWithContentDescription("Reload browser").assertIsEnabled()
+    }
+
+    @Test fun pageFlingUsesNativeScrollRpcAndNeverBecomesAClick() {
+        show(RecoveryClock())
+        peer.pushBrowserEvent("browser.frame", frame(1))
+        compose.waitUntil(10_000) { requests("frame.ack").size == 1 }
+        compose.onNodeWithContentDescription("Mac browser page").performTouchInput {
+            swipe(Offset(centerX, height * .2f), Offset(centerX, height * .65f), durationMillis = 80)
+        }
+        compose.waitUntil(15_000) {
+            requests("input.scroll").any { it.getJSONObject("params").optString("phase") == "momentum_ended" }
+        }
+        val scrolls = requests("input.scroll").map { it.getJSONObject("params") }
+        assertEquals("began", scrolls.first().getString("phase"))
+        assertTrue(scrolls.any { it.getString("phase") == "ended" })
+        assertTrue(scrolls.any { it.getString("phase") == "momentum_began" })
+        assertTrue(scrolls.any { it.getString("phase").startsWith("momentum_") && it.getDouble("dy") < 0 })
+        assertTrue(scrolls.all { it.getString("panel_id") == panel && it.getDouble("y") in 0.0..200.0 })
+        assertTrue(requests("input.pointer").isEmpty())
+        assertEquals(1, requests("stream.start").size)
     }
 
     private class RecoveryClock : BrowserRecoveryClock {

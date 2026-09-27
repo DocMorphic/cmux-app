@@ -5,7 +5,6 @@ import android.util.Base64
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,6 +80,7 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
         recovery.noteInput()
         client.request(it.method, it.parameters(panelId)); Unit
     } }
+    val scrollMotion = rememberBrowserScrollMotion(queue)
     val inputError by queue.error.collectAsState()
     DisposableEffect(queue, recovery) { onDispose { recovery.close(); queue.close() } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -198,23 +198,8 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
                             point.y.toDouble() / size.height * current.pageHeight))
                     }
                 }
-                .pointerInput(queue, current.pageWidth, current.pageHeight, inputEnabled) {
-                    if (inputEnabled) {
-                        var x = 0.0; var y = 0.0
-                        detectDragGestures(onDragStart = { point ->
-                            x = point.x.toDouble() / size.width * current.pageWidth
-                            y = point.y.toDouble() / size.height * current.pageHeight
-                            queue.offer(BrowserInput.Scroll(0.0, 0.0, x, y, "began"))
-                        }, onDragEnd = { queue.offer(BrowserInput.Scroll(0.0, 0.0, x, y, "ended")) },
-                            onDragCancel = { queue.offer(BrowserInput.Scroll(0.0, 0.0, x, y, "cancelled")) }) { change, amount ->
-                            x = change.position.x.toDouble() / size.width * current.pageWidth
-                            y = change.position.y.toDouble() / size.height * current.pageHeight
-                            queue.offer(BrowserInput.Scroll(-amount.x.toDouble() / size.width * current.pageWidth,
-                                -amount.y.toDouble() / size.height * current.pageHeight, x, y, "changed"))
-                            change.consume()
-                        }
-                    }
-                }, contentScale = ContentScale.FillBounds)
+                .browserScrollGestures(scrollMotion, current.pageWidth, current.pageHeight,
+                    measured, streamGeneration, inputEnabled), contentScale = ContentScale.FillBounds)
             key(queue) { BrowserKeyboardProxy(queue, policy.focus && !addressFocused && dialog == null, inputEnabled, keyboardRequest, Modifier.size(1.dp)) }
         }
         if (error != null) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -235,7 +220,7 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
                         .background(Color(0xFF303238), RoundedCornerShape(22.dp)).padding(horizontal = 12.dp, vertical = 12.dp)
                         .semantics { contentDescription = "Browser address" }
                         .onFocusChanged { state ->
-                            if (state.isFocused && !addressFocused) address = page.url
+                            if (state.isFocused && !addressFocused) { scrollMotion.stop(); address = page.url }
                             addressFocused = state.isFocused
                         }, singleLine = true, enabled = foreground && ready && inputError == null,
                         textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, textAlign = if (addressFocused) TextAlign.Start else TextAlign.Center),
@@ -252,6 +237,7 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
                         })
                     BrowserChromeButton("Reload browser", R.drawable.ic_browser_reload, inputEnabled) { queue.offer(BrowserInput.Navigation("reload")) }
                     BrowserChromeButton(if (keyboardVisible) "Hide browser keyboard" else "Show browser keyboard", R.drawable.ic_browser_keyboard, inputEnabled) {
+                        scrollMotion.stop()
                         if (keyboardVisible) { policy = policy.hide(); focusManager.clearFocus(); keyboard?.hide() }
                         else { focusManager.clearFocus(); policy = policy.show(); keyboardRequest++ }
                     }

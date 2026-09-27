@@ -14,6 +14,7 @@ internal class BrowserInputQueue(scope: CoroutineScope, private val deliver: sus
     private var closed = false
     private var inFlight = false
     private var pendingBytes = 0
+    var onNonScrollInput: (() -> Unit)? = null
     private fun bytes(input: BrowserInput) = input.parameters("").toString().toByteArray(Charsets.UTF_8).size
     private fun fail(message: String) { pending.clear(); pendingBytes = 0; failure.value = message }
     private val worker = scope.launch {
@@ -37,6 +38,10 @@ internal class BrowserInputQueue(scope: CoroutineScope, private val deliver: sus
     @Synchronized fun offer(vararg inputs: BrowserInput): Boolean = offer(inputs.toList())
     @Synchronized fun offer(inputs: List<BrowserInput>): Boolean {
         if (closed || failure.value != null) return false
+        if (inputs.any { it !is BrowserInput.Scroll }) {
+            onNonScrollInput?.invoke()
+            if (closed || failure.value != null) return false
+        }
         // Check the entire paste before enqueueing any part of it.
         if (inputs.size > 512 || inputs.sumOf { bytes(it).toLong() } + pendingBytes > 64 * 1024L) {
             fail("Browser input paused because the connection could not keep up. Check the page before resuming."); return false
@@ -56,5 +61,11 @@ internal class BrowserInputQueue(scope: CoroutineScope, private val deliver: sus
     }
     @Synchronized fun pause() { if (!closed) fail("Browser input paused. Check the page before resuming.") }
     @Synchronized fun pauseIfPending() { if (!closed && (inFlight || pending.isNotEmpty())) pause() }
-    @Synchronized override fun close() { closed = true; pending.clear(); pendingBytes = 0; worker.cancel(); wake.close() }
+    @Synchronized fun discardPendingScroll(): Boolean {
+        val scrolls = pending.filterIsInstance<BrowserInput.Scroll>()
+        pending.removeAll { it is BrowserInput.Scroll }
+        pendingBytes = (pendingBytes - scrolls.sumOf(::bytes)).coerceAtLeast(0)
+        return scrolls.isNotEmpty()
+    }
+    @Synchronized override fun close() { closed = true; onNonScrollInput = null; pending.clear(); pendingBytes = 0; worker.cancel(); wake.close() }
 }

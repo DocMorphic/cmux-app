@@ -22,13 +22,30 @@ UI resemblance alone does not count.
 | Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid with grapheme cell placement, semantic colors, wide cursor, delta/screen continuity and bounded local scrollback verified with JVM/emulator fixtures; actual viewport reporting/clear coded; native VT fallback, hybrid delivery, byte-gap recovery and screen-anchor negotiation verified with JVM/emulator fixtures and a captured Vim session; iOS-style View as Text with native selection/copy, cell tap, coalesced wheel RPCs and host viewport scroll responses verified with emulator fixtures; Android kinetic scrolling and cancellation verified with gesture fixtures; complete Ghostty fidelity, pixel scrolling/inline graphics, and phone resize QA missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Native multiline paste/submit, encrypted per-Mac/terminal drafts, pending-send guards and acknowledgement reconciliation verified with an emulator fixture; direct IME keyboard, Unicode composition, repeated deletion, ordered input and explicit recovery from rejected delivery verified with an emulator fixture; modifier/navigation/control toolbar and hardware keys coded; photo/file picker, encrypted attachments, image paste and chunked file upload verified with an emulator fixture; rich keyboard paste, complete mode handling, and phone QA missing | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
 | Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; encrypted per-pairing alert identity and exact terminal routes, independent saved-Mac workers, read/forget cleanup and host-identity checks coded; combined saved-Mac feed, day/history grouping, unread filter, pull refresh, read/unread gestures and confirmed bulk read coded; offline snapshots and revision guards tested with loopback peers; event/mutation revision floors, bounded refresh retries and Activity-recreation retention coded; computer picker, scoped unread badge/bulk actions and live-destination filtering before the global cap coded; server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
-| Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, bottom navigation/address/loading controls, direct IME and hardware input, live viewport updates, ordered/coalesced scrolling, frame validation and stale-dialog fencing coded; four browser fixture checks passed; watchdog/lifecycle recovery coded with runtime checks pending; downloads, momentum and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
+| Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, bottom navigation/address/loading controls, direct IME and hardware input, live viewport updates, ordered/coalesced scrolling, frame validation and stale-dialog fencing coded; four browser fixture checks passed; watchdog/lifecycle recovery and momentum/cancellation coded with runtime checks pending; local pinch zoom/pan, downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
 | Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; chat UI, remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
+
+## Browser momentum follow-up (2026-09-28)
+
+Compared the pinned iOS `BrowserStreamContentView`, scroll phase policy and scroll
+batcher. Android now uses native spline deceleration after a swipe and maps each
+delta from view pixels to Mac page points. Drag and momentum phases stay ordered,
+with movement coalesced only within the matching phase. A new touch, keyboard or
+navigation input, address editing, viewport change, stream replacement, modal,
+background or disposal cancels old motion. Pending scroll requests are discarded
+before newer input; an already in-flight request remains ordered ahead of cancellation.
+
+All 194 JVM cases passed, including five new phase/backlog/cancellation cases.
+Android test sources compiled. Three new gesture cases and one actual browser-view
+RPC case are prepared for the combined recovery/momentum integration run. They are
+not yet runtime evidence. No release APK is built for this feature commit; the
+current signed download remains build 143. The source audit also identified iOS
+local pinch zoom and panning while zoomed, which remain unimplemented on Android.
 
 ## Browser recovery follow-up (2026-09-28)
 
@@ -55,7 +72,7 @@ background/foreground stream lifecycle. **Those two cases have not run yet**; th
 are queued for the next combined integration build. Focused local evidence is in
 `captures/browser/recovery-checks.log` and `recovery-unit-tests.xml`. No APK was
 assembled or released for this feature; the current phone download remains build
-143. Browser momentum, download behavior and physical Pixel/Mac testing remain open.
+143. Momentum runtime checks, local pinch zoom/pan, download behavior and physical Pixel/Mac testing remain open.
 
 ## Browser source audit and implementation (2026-09-28)
 
@@ -102,7 +119,7 @@ cases with passing evidence across runs, not a clean full-suite run. Original lo
 and the focused rerun are retained in `captures/browser/`. Signed build 143 now includes this milestone and is the current download. No physical Pixel is attached to adb.
 
 
-189 JVM tests pass. The Android suite now contains 80 cases (including six browser checks, two of which are pending runtime execution, four offline-task checks, four task attachment/layout checks and three momentum gesture checks): twenty-three Compose
+194 JVM tests pass. The Android suite now contains 84 cases (including seven browser checks, three of which are pending runtime execution, four offline-task checks, four task attachment/layout checks, three terminal momentum gesture checks and three pending browser momentum gesture checks): twenty-three Compose
 flows, seven task model/submission controls checks, four template checks, five task destination checks, five task draft checks, six completed-task recovery checks, one
 explicit two-process draft check, two workspace drag checks, four Activity-recreation
 checks, four notification/service checks and two

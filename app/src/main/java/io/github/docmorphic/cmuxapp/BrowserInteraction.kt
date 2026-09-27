@@ -48,7 +48,8 @@ internal sealed interface BrowserInput {
         override val method = "mobile.browser.input.scroll"
         override fun parameters(panel: String) = JSONObject().put("panel_id", panel).put("dx", dx).put("dy", dy)
             .put("x", x).put("y", y).put("phase", phase)
-        fun merge(next: Scroll): Scroll? = if (next.phase == "changed" && phase in setOf("began", "changed"))
+        fun merge(next: Scroll): Scroll? = if ((next.phase == "changed" && phase in setOf("began", "changed")) ||
+            (next.phase == "momentum_changed" && phase in setOf("momentum_began", "momentum_changed")))
             copy(dx = dx + next.dx, dy = dy + next.dy, x = next.x, y = next.y) else null
     }
     data class Navigation(val command: String, val url: String? = null) : BrowserInput {
