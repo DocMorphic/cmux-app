@@ -1318,6 +1318,8 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var directoryErrorCode: String? = null
     @Volatile var taskGroupsSupported = false
     @Volatile var browserResponse: ((String, JSONObject) -> JSONObject)? = null
+    @Volatile var changesResponse: ((String, JSONObject) -> JSONObject)? = null
+    @Volatile var changesErrorCode: String? = null
     val nextTaskCreateError = java.util.concurrent.atomic.AtomicReference<String?>(null)
     @Volatile var rawTerminal = false
     @Volatile var screenAnchor = true
@@ -1395,10 +1397,11 @@ internal class NativeFixturePeer : AutoCloseable {
                         val result = if (taskError != null) JSONObject() else response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
                         val modelError = taskModelErrorCode.takeIf { request.optString("method") == "mobile.task.models.list" }
                         val directoryError = directoryErrorCode.takeIf { request.optString("method").startsWith("mobile.directory.") }
-                        val rejected = taskError != null || modelError != null || directoryError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
+                        val changesError = changesErrorCode.takeIf { request.optString("method").startsWith("mobile.workspace.changes.") }
+                        val rejected = taskError != null || modelError != null || directoryError != null || changesError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
                             (request.optString("method") == "terminal.input" && rejectNextInput.getAndSet(false))
                         val envelope = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
-                        if (rejected) envelope.put("error", JSONObject().put("code", taskError ?: modelError ?: directoryError ?: "surface_unavailable")
+                        if (rejected) envelope.put("error", JSONObject().put("code", taskError ?: modelError ?: directoryError ?: changesError ?: "surface_unavailable")
                             .put("message", "Fixture terminal temporarily unavailable"))
                         else envelope.put("result", result)
                         send(socket, envelope)
@@ -1527,7 +1530,11 @@ internal class NativeFixturePeer : AutoCloseable {
                 .put("cursor", JSONObject().put("row", 4.coerceAtMost(rows - 1)).put("column", 0)
                     .put("visible", true).put("style", "block")))
         }
-        else -> if (method.startsWith("mobile.browser.")) browserResponse?.invoke(method, params) ?: JSONObject() else JSONObject()
+        else -> when {
+            method.startsWith("mobile.browser.") -> browserResponse?.invoke(method, params) ?: JSONObject()
+            method.startsWith("mobile.workspace.changes.") -> changesResponse?.invoke(method, params) ?: JSONObject()
+            else -> JSONObject()
+        }
     }
 
     override fun close() {

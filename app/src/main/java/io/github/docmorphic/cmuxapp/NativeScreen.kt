@@ -1340,6 +1340,16 @@ fun NativeScreen(
                 val workspace = selectedChangesWorkspace!!
                 if (active != null) NativeChangesView(active, workspace.id, workspace.title,
                     onBack = { selectedChangesWorkspace = null })
+                else {
+                    BackHandler { selectedChangesWorkspace = null }
+                    Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(onClick = { selectedChangesWorkspace = null }) { Text("‹  Workspaces") }
+                        Text("Changes in ${workspace.title}", style = MaterialTheme.typography.titleMedium)
+                        Text(if (busy) "Reconnecting to your Mac…" else "Changes disconnected", color = nativeMuted)
+                        connectionError?.let { Text(it, color = Color(0xFFFF9999)) }
+                        TextButton(onClick = { retry++ }, enabled = !busy) { Text("Reconnect") }
+                    }
+                }
             }
             else -> {
                 Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 10.dp),
