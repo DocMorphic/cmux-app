@@ -285,3 +285,30 @@ and prompt screenshots were reviewed at `captures/emulator/screenshots/task-mode
 and `task-model-effort.png`. The harness paints the same dark system-bar background
 as the production screen. Complete task recovery and persisted task drafts remain
 separate work; this check does not prove recovery after app process death.
+
+
+## Task submission and navigation checks
+
+The task submission batch passes all 129 JVM tests. Eight focused Android 17
+emulator checks have passing results across runs: the seven `NativeTaskModelsTest`
+cases passed in the initial mixed run, and
+`NativeFlowTest#taskCreationOpensExactTerminalAndPreservesExistingWorkspaces`
+passed after correcting its fixture setup and UI label expectations (`OK (1 test)`,
+14.776 seconds). The initial mixed run failed only the new navigation test before
+creation because its helper expected two notification fixtures; subsequent test
+assertions were corrected for the terminal header and the existing group anchor.
+The full 37-case instrumentation suite was not rerun.
+
+New checks retain the prompt and operation ID after an incomplete creation response,
+reuse the ID after whitespace-only edits, rotate it for a different effective task,
+and reject late success after replacing the RPC client. The navigation check follows
+`workspace.create` through replay of the exact returned terminal, visible terminal
+output, and return to all three workspaces, including the existing group header.
+The fixture now returns a real created-workspace listing and retains it in later
+list refreshes. This remains synthetic-peer testing, not a Mac CLI launch.
+
+Screenshots `task-create-rejected.png`, `task-created-terminal.png` and
+`task-created-workspaces.png` were reviewed under `captures/emulator/screenshots`.
+The failure footer and retry button remain visible above the keyboard. Persisted
+multi-draft storage, recovery after process death and completed-operation recovery
+remain open; mounted-composer retry handling does not establish those behaviors.

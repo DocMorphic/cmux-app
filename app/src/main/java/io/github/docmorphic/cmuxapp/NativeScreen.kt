@@ -980,23 +980,25 @@ fun NativeScreen(
             }
             showTaskComposer -> {
                 val active = client
+                val taskCode = connectedCode
                 if (active != null) NativeTaskComposerView(active,
                     directories = workspaces.mapNotNull { it.directory },
                     origin = pairedMacs.firstOrNull { it.code == connectedCode }?.origin ?: pairingOrigin(connectedCode.orEmpty()),
                     models = feedSession.taskModels,
                     onCreated = { response ->
-                        applyListing(response); refreshFeed()
-                        val created = workspaces.firstOrNull {
-                            it.id == response.optString("created_workspace_id")
-                        }
+                        val result = TaskCreationResult.parse(response)
+                        workspaces = result.merge(workspaces)
+                        // Like iOS, partial create responses cannot replace group metadata.
+                        refreshFeed()
+                        val created = result.created
                         showTaskComposer = false
-                        if (created != null) {
-                            selectedWorkspace = created
-                            selectedTerminal = created.terminals.firstOrNull {
-                                it.id == response.optString("created_terminal_id")
-                            } ?: created.terminals.firstOrNull()
-                        }
-                    }, onBack = { showTaskComposer = false })
+                        selectedWorkspace = created
+                        selectedBrowser = null
+                        selectedTerminal = created.terminals.firstOrNull {
+                            it.id == response.optString("created_terminal_id")
+                        } ?: created.terminals.firstOrNull()
+                    }, onBack = { showTaskComposer = false },
+                    isCurrent = { signedIn && client === active && connectedCode == taskCode && code == taskCode })
             }
             code.isBlank() -> {
                 NativeHeader("Pair your Mac")

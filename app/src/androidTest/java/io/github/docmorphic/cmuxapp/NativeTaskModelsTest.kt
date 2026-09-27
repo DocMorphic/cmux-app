@@ -35,11 +35,13 @@ class NativeTaskModelsTest {
     }
     @After fun close() { peer.releaseTaskModels?.countDown(); compose.activity.finish(); client.close(); peer.close() }
     private fun show(createTask: (suspend (JSONObject) -> JSONObject)? = null,
+        onCreated: (JSONObject) -> Unit = {}, isCurrent: () -> Boolean = { true },
+        composerClient: () -> MobileRpcClient = { client },
         catalog: suspend (TaskAgentCommand) -> TaskModelResult = { awaitCancellation() }) {
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))
             .statusBarsPadding().navigationBarsPadding().imePadding()) {
-            NativeTaskComposerView(client, listOf("/tmp/project"), "fixture-mac", repo, {}, {}, catalog,
-                createTask ?: { client.request("workspace.create", it, timeoutMillis = 30_000) })
+            NativeTaskComposerView(composerClient(), listOf("/tmp/project"), "fixture-mac", repo, onCreated, {}, catalog,
+                createTask ?: { client.request("workspace.create", it, timeoutMillis = 30_000) }, isCurrent)
         } } }
     }
     private fun state(label: String, value: String) {
@@ -150,5 +152,63 @@ class NativeTaskModelsTest {
         compose.waitUntil(10_000) { attempts.size == 2 }
         assertEquals(attempts[0].getString("operation_id"), attempts[1].getString("operation_id"))
         assertEquals(attempts[0].getString("initial_command"), attempts[1].getString("initial_command"))
+    }
+
+    @Test fun incompleteCreateResponseKeepsDraftAndEquivalentRetryIdentity() {
+        val attempts = mutableListOf<JSONObject>()
+        var navigations = 0
+        show(createTask = { params ->
+            attempts += JSONObject(params.toString())
+            JSONObject().put("created_workspace_id", "missing")
+        }, onCreated = { navigations++ })
+        state("Effort", "High")
+        compose.onNodeWithText("Task prompt").performTextInput("Keep this task")
+        compose.onNodeWithText("Create Task").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Mac did not return the created task workspace",
+            substring = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Task prompt").assertTextContains("Keep this task")
+        assertEquals(0, navigations)
+        compose.onNodeWithText("Task prompt").performTextReplacement("  Keep this task  ")
+        compose.onNodeWithText("Create Task").performClick()
+        compose.waitUntil(10_000) { attempts.size == 2 }
+        assertEquals(attempts[0].getString("operation_id"), attempts[1].getString("operation_id"))
+        compose.onNodeWithText("Task prompt").performTextReplacement("Create a different task")
+        compose.onNodeWithText("Create Task").performClick()
+        compose.waitUntil(10_000) { attempts.size == 3 }
+        assertNotEquals(attempts[0].getString("operation_id"), attempts[2].getString("operation_id"))
+        assertEquals(0, navigations)
+        screenshot("task-create-rejected")
+    }
+
+    @Test fun lateCreateResponseCannotNavigateAfterConnectionReplacement() {
+        val release = CompletableDeferred<Unit>()
+        val current = java.util.concurrent.atomic.AtomicBoolean(true)
+        val active = mutableStateOf(client)
+        val replacement = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "test-only" })
+        runBlocking { replacement.connect() }
+        try {
+        var attempts = 0
+        var navigations = 0
+        show(createTask = {
+            attempts++
+            release.await()
+            JSONObject("""{"created_workspace_id":"created","workspaces":[{"id":"created"}]}""")
+        }, onCreated = { navigations++ }, isCurrent = current::get, composerClient = { active.value })
+        state("Effort", "High")
+        compose.onNodeWithText("Task prompt").performTextInput("Stay on the intended Mac")
+        compose.onNodeWithText("Create Task").performClick()
+        compose.waitUntil(10_000) { attempts == 1 }
+        compose.runOnIdle { active.value = replacement }
+        compose.waitForIdle()
+        release.complete(Unit)
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Connection changed before the task could be opened",
+            substring = true).fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(0, navigations)
+        compose.onNodeWithText("Task prompt").assertTextContains("Stay on the intended Mac")
+        current.set(false)
+        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithText("Connection changed. Reconnect to this Mac before creating the task").assertIsDisplayed()
+        assertEquals(1, attempts)
+        } finally { release.complete(Unit); replacement.close() }
     }
 }

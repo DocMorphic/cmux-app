@@ -34,13 +34,18 @@ internal fun NativeTaskComposerView(
     onCreated: (JSONObject) -> Unit,
     onBack: () -> Unit,
     catalog: suspend (TaskAgentCommand) -> TaskModelResult = TaskModelCatalog::load,
-    createTask: suspend (JSONObject) -> JSONObject = { client.request("workspace.create", it, timeoutMillis = 30_000) }
+    createTask: suspend (JSONObject) -> JSONObject = { client.request("workspace.create", it, timeoutMillis = 30_000) },
+    isCurrent: () -> Boolean = { true }
 ) {
     val scope = rememberCoroutineScope()
     var agent by remember { mutableStateOf(TaskCommand.Agent.CLAUDE) }
     var prompt by remember { mutableStateOf("") }
     var directory by remember { mutableStateOf(directories.firstOrNull().orEmpty()) }
-    var operationId by remember { mutableStateOf(UUID.randomUUID()) }
+    val submission = remember(origin) { TaskSubmissionIdentity() }
+    val connectionToken = remember(client, origin) { Any() }
+    val latestConnectionToken by rememberUpdatedState(connectionToken)
+    val currentContext by rememberUpdatedState(isCurrent)
+    val createdCallback by rememberUpdatedState(onCreated)
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val provider = agent.command?.let(TaskAgentCommand::detect)
@@ -70,7 +75,6 @@ internal fun NativeTaskComposerView(
         } finally { loading = false }
     }
     LaunchedEffect(modelResult, busy, selection.explicit) { if (!busy) selection = selection.reconcile(modelResult) }
-    LaunchedEffect(agent, prompt, directory, selection) { if (!busy) operationId = UUID.randomUUID() }
     BackHandler { if (!busy) onBack() }
 
     Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E)).padding(horizontal = 18.dp)) {
@@ -160,17 +164,29 @@ internal fun NativeTaskComposerView(
         if (error != null) Text(error.orEmpty(), color = Color(0xFFFF9999),
             modifier = Modifier.padding(bottom = 12.dp))
         Button(onClick = {
-            val parameters = runCatching { TaskCommand.parameters(agent, prompt, directory, operationId,
-                selection.explicit?.id, selectedEffort?.id) }
+            if (busy) return@Button
+            val requestConnectionToken = connectionToken
+            fun requestIsCurrent() = requestConnectionToken === latestConnectionToken && currentContext()
+            val parameters = runCatching {
+                check(requestIsCurrent()) { "Connection changed. Reconnect to this Mac before creating the task" }
+                submission.resolve(origin, TaskCommand.parameters(agent, prompt, directory, UUID.randomUUID(),
+                    selection.explicit?.id, selectedEffort?.id))
+            }
                 .getOrElse { error = it.message; return@Button }
             busy = true; error = null
             scope.launch {
-                runCatching { createTask(parameters) }
+                runCatching {
+                    check(requestIsCurrent()) { "Connection changed" }
+                    submission.submitted(origin, parameters)
+                    val response = createTask(parameters)
+                    currentCoroutineContext().ensureActive()
+                    check(requestIsCurrent()) { "Connection changed before the task could be opened" }
+                    TaskCreationResult.parse(response)
+                    response
+                }
                     .onSuccess { response ->
                         busy = false
-                        val created = response.optString("created_workspace_id")
-                        if (created.isBlank()) error = "Mac did not identify the new task workspace"
-                        else { operationId = UUID.randomUUID(); onCreated(response) }
+                        createdCallback(response)
                     }
                     .onFailure {
                         if (it is CancellationException) {

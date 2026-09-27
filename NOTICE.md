@@ -37,3 +37,10 @@ MobileTaskModelRefreshLoop and TaskComposerSheet+ModelSelection at revision
 4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0. Copyright (c) 2024-present Manaflow, Inc.;
 GPL-3.0-or-later. The task command reference generator runs the unmodified Swift
 provider code and records its hash alongside 695 cases.
+
+Task submission request equivalence and retry identity are translated from
+MobileTaskSubmissionIdentity and MobileTaskSubmissionSnapshot at cmux revision
+4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0. Created-workspace response validation is
+based on MobileShellComposite+WorkspaceCreateRequest; partial list merging follows
+MobileShellComposite.setForegroundWorkspaceState at the same revision.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.

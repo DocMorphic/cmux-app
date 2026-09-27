@@ -32,8 +32,8 @@ UI resemblance alone does not count.
 
 ## Automated evidence (2026-09-27)
 
-121 JVM tests pass. The Android suite now contains 34 checks: nineteen Compose
-flows, five task model controls checks, two workspace drag checks, two Activity-recreation checks, four notification/service checks and two
+129 JVM tests pass. The Android suite now contains 37 checks: twenty Compose
+flows, seven task model/submission controls checks, two workspace drag checks, two Activity-recreation checks, four notification/service checks and two
 renderer checks. Earlier checks have passing evidence across suite and focused
 runs. The All Computers workspace flow passes separately; nine navigation,
 notification, lifecycle and terminal-entry cases passed for the preceding primary
@@ -256,3 +256,25 @@ Default, plain Shell, older-host fallback, and prompt/operation-ID retention
 after a timeout followed by explicit retry. The final screenshots were inspected.
 This remains separate from actual
 Mac agent launch, task recovery and physical Pixel acceptance.
+
+
+## Task submission identity and response handling
+
+Task submission now compares the effective `workspace.create` parameters and
+exact Mac pairing origin. Prompt or directory whitespace that produces the same
+request keeps the retry ID. An effective command/environment/destination change
+gets a distinct ID; reverting an unsent edit returns to the submitted baseline.
+This follows `MobileTaskSubmissionIdentity` and `MobileTaskSubmissionSnapshot`
+at the pinned upstream revision. Caller JSON mutations cannot alter the baseline.
+
+The task composer requires a nonempty `created_workspace_id` identifying a unique
+workspace in the returned list. Incomplete or malformed responses keep the prompt
+and retry identity visible. A valid partial creation response updates existing
+rows and appends new workspaces without dropping unrelated rows. Group metadata
+is retained until a full list refresh, matching the iOS merge path. Navigation selects
+the returned workspace and terminal, clearing any prior browser selection.
+Requests are fenced to their original client and Mac: a late response after
+connection replacement cannot navigate or apply a workspace list to a new session.
+
+These changes cover a mounted composer session. Durable drafts, completed-operation
+reconciliation, capability gating and physical-Mac agent launch are still required.

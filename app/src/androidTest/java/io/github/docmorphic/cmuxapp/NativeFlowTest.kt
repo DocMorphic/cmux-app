@@ -593,6 +593,29 @@ class NativeFlowTest {
         assertTrue(peer.requests.none { it.optString("method") == "notification.feed.mark_read" })
     }
 
+    @Test fun taskCreationOpensExactTerminalAndPreservesExistingWorkspaces() {
+        peer.notificationFeed = searchNotifications()
+        showSearchFixture()
+        compose.onNodeWithContentDescription("New Task").performClick()
+        compose.onNodeWithText("Task prompt").performTextInput("Create and open a task")
+        compose.onNodeWithText("Create Task").performClick()
+        compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" &&
+            it.getJSONObject("params").optString("surface_id") == "task-terminal" } }
+        compose.onNodeWithText("New Task").assertDoesNotExist()
+        compose.onNodeWithText("Agent ▾").assertIsDisplayed()
+        waitForTerminalText()
+        screenshot("task-created-terminal")
+        compose.onNodeWithText("‹  3").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        // The existing group's anchor is represented by its group header, as on iOS.
+        compose.onNodeWithContentDescription("Open Completed group").assertIsDisplayed()
+        compose.onNodeWithText("Created task").assertIsDisplayed()
+        screenshot("task-created-workspaces")
+        assertEquals(1, peer.requests.count { it.optString("method") == "workspace.create" })
+        assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
     @Test fun primaryNavigationSearchCancelSubmitAndComposerEntry() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
@@ -1226,7 +1249,13 @@ internal class NativeFixturePeer : AutoCloseable {
                 """))
             JSONObject().put("source", "discovered").put("models", JSONArray().put(model)).put("default_model", model)
         }
-        "workspace.create" -> JSONObject().put("created_workspace_id", "task-created")
+        "workspace.create" -> JSONObject("""{"created_workspace_id":"task-created",
+            "created_terminal_id":"task-terminal","workspaces":[{"id":"task-created","title":"Created task",
+            "terminals":[{"id":"task-terminal","title":"Agent"}]}]}""").also { created ->
+            val listing = response("mobile.workspace.list", JSONObject())
+            listing.getJSONArray("workspaces").put(created.getJSONArray("workspaces").getJSONObject(0))
+            customWorkspaceListing = listing
+        }
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
             .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").also {
                 if (rawTerminal) it.put("terminal.bytes.v1")
