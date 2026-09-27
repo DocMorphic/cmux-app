@@ -534,3 +534,26 @@ and removal preserving the prompt and another attachment. Run these together wit
 `NativeTerminalMomentumTest`, task recovery/draft flows and the existing terminal
 attachment flow at the next integration milestone. No APK is published per feature
 commit. The last published APK remains build 133.
+
+
+## Task composer integration milestone
+
+All 172 JVM cases pass; debug and instrumentation APKs assemble. The new gesture
+and attachment batch passes seven cases (63.230 s). A 38-case regression run has
+36 passes and two obsolete-UI assertion failures; both are resolved by the final
+12-case run (132.686 s), which passes all model/effort checks, all four attachment/
+layout checks, and the production navigation/search flow. There are 45 distinct
+runtime cases with passing evidence across these runs, not a full 70-case run.
+
+The new attachment test intercepts the real document-picker result, stages a
+2400×1200 photo down to 2048×1024, adds an empty file, checks encrypted metadata and
+payloads, rejects creation, then retries with unchanged task/upload identities.
+Preview testing now intercepts ACTION_VIEW, reads the FileProvider URI, checks the
+read grant and confirms that returning removes the exported file. The layout test
+checks the prompt's available height and submit/options visibility above the IME.
+
+Initial diagnostic logs are retained separately: the regression run's obsolete
+assertions and two stopped performScrollTo loops are not presented as passing
+runs. The controlled coroutine dispatcher requires an explicit clock advance
+after a scroll action; TaskComposerTestActions uses one bounded action followed
+by visible-button clicking. The final 12-case run is clean.

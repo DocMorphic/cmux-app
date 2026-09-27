@@ -60,12 +60,12 @@ class NativeTaskRecoveryTest {
     private fun startTask() {
         compose.waitUntil(10_000) { models.cached(TaskModelRepository.Key("recovery-mac", TaskAgentCommand.CLAUDE))?.source == TaskModelSource.DISCOVERED }
         compose.waitForIdle()
-        compose.onNodeWithText("Task prompt").performTextInput("Recover my task 中")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Recover my task 中")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         waitFor("Refresh Workspaces")
-        compose.onNodeWithText("Create Task").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
     }
-    private fun waitFor(text: String) { compose.waitUntil(10_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }
+    private fun waitFor(text: String) { compose.waitUntil(10_000) { compose.onAllNodes(hasText(text) or hasContentDescription(text)).fetchSemanticsNodes().isNotEmpty() } }
     private fun screenshot(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -101,7 +101,7 @@ class NativeTaskRecoveryTest {
         val freshId = JSONObject(durable().lastRequest!!).getString("operation_id")
         compose.onNodeWithText("Refresh Workspaces").performClick()
         waitFor("Refresh Again")
-        compose.onNodeWithText("Create Task").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
         screenshot("task-recovery-still-missing")
         compose.onNodeWithText("Refresh Again").performClick()
         compose.waitUntil(10_000) { requests.size == 3 }
@@ -144,22 +144,22 @@ class NativeTaskRecoveryTest {
         show { if (requests.size == 1) missing() else throw MobileRpcException("request_timeout", "Unconfirmed") }
         startTask()
         val oldId = requests.single().getString("operation_id")
-        compose.onNodeWithText("Task prompt").performTextReplacement("Different task")
+        compose.onNodeWithContentDescription("Task prompt").performTextReplacement("Different task")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Refresh Workspaces").fetchSemanticsNodes().isEmpty() }
-        compose.onNodeWithText("Create Task").assertIsEnabled()
-        compose.onNodeWithText("Task prompt").performTextReplacement("Recover my task 中")
+        compose.onNodeWithContentDescription("Create Task").assertIsEnabled()
+        compose.onNodeWithContentDescription("Task prompt").performTextReplacement("Recover my task 中")
         waitFor("Refresh Workspaces")
-        compose.onNodeWithText("Create Task").assertIsNotEnabled()
-        compose.onNodeWithText("Task prompt").performTextReplacement("Different task")
+        compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Task prompt").performTextReplacement("Different task")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Refresh Workspaces").fetchSemanticsNodes().isEmpty() }
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Create Task").performClick()
         waitFor("Unconfirmed. Check your workspace list before retrying.")
         assertNull(durable().completedRequest)
         assertNotEquals(oldId, requests.last().getString("operation_id"))
-        compose.onNodeWithText("Task prompt").performTextReplacement("Recover my task 中")
+        compose.onNodeWithContentDescription("Task prompt").performTextReplacement("Recover my task 中")
         compose.waitForIdle()
         compose.onNodeWithText("Refresh Workspaces").assertDoesNotExist()
-        compose.onNodeWithText("Create Task").assertIsEnabled()
+        compose.onNodeWithContentDescription("Create Task").assertIsEnabled()
     }
 
     @Test fun lateModelDiscoveryCannotDetachAcceptedRequestRecovery() {
@@ -168,8 +168,8 @@ class NativeTaskRecoveryTest {
         peer.releaseTaskModels = discovery
         try {
             show { if (requests.size == 1) { completed.await(); missing() } else client.request("workspace.create", it) }
-            compose.onNodeWithText("Task prompt").performTextInput("Keep the original default")
-            compose.onNodeWithText("Create Task").performClick()
+            compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep the original default")
+            compose.onNodeWithContentDescription("Create Task").performClick()
             compose.waitUntil(10_000) { requests.size == 1 }
             assertFalse(requests.single().getString("initial_command").contains("--effort"))
             discovery.countDown()
@@ -177,7 +177,7 @@ class NativeTaskRecoveryTest {
             completed.complete(Unit)
             waitFor("Refresh Workspaces")
             compose.waitForIdle()
-            compose.onNodeWithText("Create Task").assertIsNotEnabled()
+            compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
             compose.onNodeWithText("Refresh Workspaces").performClick()
             compose.waitUntil(10_000) { opened != null }
             assertEquals(requests.first().toString(), requests.last().toString())
@@ -191,8 +191,8 @@ class NativeTaskRecoveryTest {
         try {
             show(composerClient = { active.value }) { released.await(); missing() }
             compose.waitUntil(10_000) { models.cached(TaskModelRepository.Key("recovery-mac", TaskAgentCommand.CLAUDE)) != null }
-            compose.onNodeWithText("Task prompt").performTextInput("Old client")
-            compose.onNodeWithText("Create Task").performClick()
+            compose.onNodeWithContentDescription("Task prompt").performTextInput("Old client")
+            compose.onNodeWithContentDescription("Create Task").performClick()
             compose.waitUntil(10_000) { requests.size == 1 }
             compose.runOnIdle { active.value = replacement }
             compose.waitForIdle(); released.complete(Unit)

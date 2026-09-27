@@ -55,12 +55,12 @@ class NativeTaskTemplatesTest {
                 createTask = { params -> request = JSONObject(params.toString()); client.request("workspace.create", params) }) }
         } } }
     }
-    private fun waitFor(text: String) { compose.waitUntil(10_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }
+    private fun waitFor(text: String) { compose.waitUntil(10_000) { compose.onAllNodes(hasText(text) or hasContentDescription(text)).fetchSemanticsNodes().isNotEmpty() } }
     private fun agent(name: String) {
         val matcher = hasContentDescription("Agent") and SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, name)
         compose.waitUntil(10_000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
     }
-    private fun editors() { compose.onNodeWithContentDescription("Agent").performClick(); compose.onNodeWithText("Edit Agents").performClick(); waitFor("Task Templates") }
+    private fun editors() { compose.openTaskPicker("Agent"); compose.onNodeWithText("Edit Agents").performClick(); waitFor("Task Templates") }
     private fun add(name: String, command: String = "", directory: String = "") {
         compose.onNodeWithContentDescription("Add Template").performClick()
         compose.onNodeWithText("Name").performTextInput(name)
@@ -86,9 +86,9 @@ class NativeTaskTemplatesTest {
         editors(); screenshot("task-template-list")
         compose.onNodeWithText("Done").performClick(); agent("Review 中")
         compose.onNodeWithContentDescription("Model").assertDoesNotExist()
-        compose.onNodeWithText("Directory on Mac").assertTextContains("/custom project")
-        compose.onNodeWithText("Task prompt").performTextInput("Keep 'quotes' and 中")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.assertTaskDirectory("/custom project")
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep 'quotes' and 中")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         waitFor("Task Created")
         assertEquals(script, request!!.getString("initial_command"))
         assertEquals("Keep 'quotes' and 中", request!!.getJSONObject("initial_env").getString("CMUX_TASK_PROMPT"))
@@ -109,12 +109,12 @@ class NativeTaskTemplatesTest {
         save()
         compose.onNodeWithContentDescription("Delete template: Claude Local").assertDoesNotExist()
         compose.onNodeWithText("Done").performClick(); agent("Claude Local")
-        compose.onNodeWithText("Directory on Mac").assertTextContains("/templates/claude")
+        compose.assertTaskDirectory("/templates/claude")
         editors(); add("Scratch", " \n ")
         save(); compose.onNodeWithText("Done").performClick(); agent("Scratch")
         compose.onNodeWithContentDescription("Model").assertDoesNotExist()
-        compose.onNodeWithText("Workspace title (optional)").assertIsDisplayed()
-        compose.onNodeWithText("Create Task").assertIsEnabled()
+        compose.onNodeWithContentDescription("Workspace title (optional)").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Create Task").assertIsEnabled()
         editors()
         compose.onNodeWithContentDescription("Delete template: Scratch").performClick()
         compose.waitUntil(10_000) { repository.templates.state.value.entries.none { it.name == "Scratch" } }
@@ -124,21 +124,21 @@ class NativeTaskTemplatesTest {
 
     @Test fun typedDirectoryAndSelectedTemplateSurviveComposerRecreation() {
         show(); agent("Claude")
-        compose.onNodeWithText("Directory on Mac").performTextReplacement(" /my typed path ")
-        compose.onNodeWithText("Task prompt").performTextInput("Retain this template draft")
+        compose.chooseTaskDirectory(peer, "/my typed path")
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Retain this template draft")
         editors(); add("My Codex", "codex --full-auto -- \"\$CMUX_TASK_PROMPT\"", "/ignored-default")
         save(); compose.onNodeWithText("Done").performClick(); agent("My Codex")
-        compose.onNodeWithText("Directory on Mac").assertTextContains(" /my typed path ")
+        compose.assertTaskDirectory("/my typed path")
         compose.waitUntil(10_000) { models.cached(TaskModelRepository.Key("template-mac", TaskAgentCommand.CODEX))?.source == TaskModelSource.DISCOVERED }
-        compose.onNodeWithContentDescription("Model").performClick(); compose.onNodeWithText("Local codex").performClick()
+        compose.openTaskPicker("Model"); compose.onNodeWithText("Local codex").performClick()
         runBlocking { repository.persistNow() }
         val stored = TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.getValue(draftId)
         assertEquals("My Codex", stored.templateName); assertTrue(stored.didEditDirectory)
         assertEquals("codex-live", stored.selection.explicit?.id)
         compose.runOnIdle { generation++ }
         agent("My Codex")
-        compose.onNodeWithText("Directory on Mac").assertTextContains(" /my typed path ")
-        compose.onNodeWithText("Task prompt").assertTextContains("Retain this template draft")
+        compose.assertTaskDirectory("/my typed path")
+        compose.onNodeWithContentDescription("Task prompt").assertTextContains("Retain this template draft")
         compose.onNodeWithContentDescription("Model").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Local codex"))
         screenshot("task-template-restored")
     }

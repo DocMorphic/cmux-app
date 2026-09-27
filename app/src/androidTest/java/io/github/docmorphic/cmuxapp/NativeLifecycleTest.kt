@@ -34,7 +34,7 @@ class NativeLifecycleTest {
                 compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithContentDescription("New Task").performClick()
                 compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Agent").fetchSemanticsNodes().isNotEmpty() }
-                compose.onNodeWithContentDescription("Agent").performClick()
+                compose.openTaskPicker("Agent")
                 compose.onNodeWithText("Edit Agents").performClick()
                 compose.onNodeWithContentDescription("Add Template").performClick()
                 compose.onNodeWithText("Name").performTextInput("Unsaved rotation template 中")
@@ -69,9 +69,9 @@ class NativeLifecycleTest {
             ActivityScenario.launch(NativeLifecycleTestActivity::class.java).use { scenario ->
                 compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithContentDescription("New Task").performClick()
-                compose.waitUntil(10_000) { compose.onAllNodesWithText("Task prompt").fetchSemanticsNodes().isNotEmpty() }
-                compose.onNodeWithText("Task prompt").performTextInput("Retain this task through rotation 中")
-                compose.onNodeWithText("Directory on Mac").performTextReplacement("/rotated-project")
+                compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Task prompt").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithContentDescription("Task prompt").performTextInput("Retain this task through rotation 中")
+                compose.chooseTaskDirectory(peer, "/rotated-project")
                 val repository = TaskDraftRepository.get(context, store.taskSession()!!)
                 compose.waitUntil(10_000) { repository.drafts.state.value.values.any { it.directory == "/rotated-project" } }
                 val id = repository.drafts.state.value.values.single { it.prompt.isNotEmpty() }.id
@@ -84,8 +84,8 @@ class NativeLifecycleTest {
                 scenario.moveToState(Lifecycle.State.RESUMED)
                 scenario.recreate()
                 compose.waitUntil(15_000) { compose.onAllNodes(hasText("Retain this task through rotation 中") and hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
-                compose.onNodeWithText("Task prompt").assertTextContains("Retain this task through rotation 中")
-                compose.onNodeWithText("Directory on Mac").assertTextContains("/rotated-project")
+                compose.onNodeWithContentDescription("Task prompt").assertTextContains("Retain this task through rotation 中")
+                compose.assertTaskDirectory("/rotated-project")
                 assertEquals(setOf(id), repository.drafts.state.value.keys)
                 runBlocking { repository.persistNow() }
                 assertEquals(setOf(id), TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.keys)

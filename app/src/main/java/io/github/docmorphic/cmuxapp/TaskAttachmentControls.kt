@@ -25,7 +25,8 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: TaskDrafts.Editor, origin: String,
     attachments: List<ComposerAttachment>, enabled: Boolean, canAdd: Boolean, isCurrent: () -> Boolean,
-    onPreparing: (Boolean) -> Unit, onChanged: () -> Unit, onError: (String) -> Unit) {
+    onPreparing: (Boolean) -> Unit, onChanged: () -> Unit, onError: (String) -> Unit,
+    content: @Composable (@Composable () -> Unit, @Composable () -> Unit) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val files = remember(context) { AttachmentFiles(context.applicationContext, taskFiles = true) }
@@ -72,7 +73,7 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
         if (matches) stage(uris, pickerImages)
     }
     if (preview != null) TaskAttachmentPreview(checkNotNull(preview), repository) { preview = null }
-    Column {
+    content({
         if (attachments.isNotEmpty()) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             attachments.forEach { item ->
                 Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 3.dp) {
@@ -94,8 +95,9 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
                 }
             }
         }
+    }, {
         if (canAdd) Box {
-            TextButton(onClick = { menu = true }, enabled = enabled) { Text("＋ Attach") }
+            TaskComposerCircle("Add task attachment", R.drawable.ic_task_plus, enabled, onClick = { menu = true })
             DropdownMenu(menu, { menu = false }) {
                 DropdownMenuItem(text = { Text("Photos") }, onClick = { menu = false; pickerOwner = owner; pickerImages = true; picker.launch(arrayOf("image/*")) })
                 DropdownMenuItem(text = { Text("Files") }, onClick = { menu = false; pickerOwner = owner; pickerImages = false; picker.launch(arrayOf("*/*")) })
@@ -109,5 +111,5 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
                 })
             }
         }
-    }
+    })
 }

@@ -76,30 +76,30 @@ class NativeTaskDraftsTest {
 
     @Test fun saveSwitchResumeAndDeleteKeepIndependentDrafts() {
         show(); state("Effort", "High")
-        compose.onNodeWithContentDescription("Agent").performClick()
+        compose.openTaskPicker("Agent")
         compose.onNodeWithText("Codex", useUnmergedTree = true).performClick()
         compose.waitUntil(10_000) { models.cached(TaskModelRepository.Key("draft-mac", TaskAgentCommand.CODEX))?.source == TaskModelSource.DISCOVERED }
         state("Effort", "High")
-        compose.onNodeWithContentDescription("Model").performClick()
+        compose.openTaskPicker("Model")
         compose.onNodeWithText("Local codex").performClick()
-        compose.onNodeWithContentDescription("Effort").performClick()
+        compose.openTaskPicker("Effort")
         compose.onNodeWithText("Low").performClick()
-        compose.onNodeWithText("Task prompt").performTextInput("First saved task 中")
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("First saved task 中")
         val firstId = activeId
-        compose.onNodeWithText("Drafts").performClick()
+        compose.onNodeWithContentDescription("Drafts").performClick()
         compose.onNodeWithText("No Other Drafts").assertIsDisplayed()
         compose.onNodeWithText("＋ New Draft").performClick()
         compose.waitUntil(10_000) { activeId != firstId }
-        compose.onNodeWithText("Task prompt").performTextInput("Second saved task")
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Second saved task")
         val secondId = activeId
-        compose.onNodeWithText("Drafts").performClick()
+        compose.onNodeWithContentDescription("Drafts").performClick()
         screenshot("task-drafts-list")
         compose.onNodeWithText("First saved task 中").performClick()
         compose.waitUntil(10_000) { activeId == firstId }
-        compose.onNodeWithText("Task prompt").assertTextContains("First saved task 中")
+        compose.onNodeWithContentDescription("Task prompt").assertTextContains("First saved task 中")
         state("Model", "Local codex"); state("Effort", "Low")
         screenshot("task-draft-restored")
-        compose.onNodeWithText("Drafts").performClick()
+        compose.onNodeWithContentDescription("Drafts").performClick()
         compose.onNodeWithContentDescription("Delete draft: Second saved task").performClick()
         compose.waitUntil(10_000) { secondId !in repository.drafts.state.value }
         compose.onNodeWithText("No Other Drafts").assertIsDisplayed()
@@ -113,17 +113,17 @@ class NativeTaskDraftsTest {
     @Test fun leaveOffersSaveDeleteAndKeepEditing() {
         var closed = 0
         show(onBack = { closed++ }); state("Effort", "High")
-        compose.onNodeWithText("Task prompt").performTextInput("Keep this before leaving")
-        compose.onNodeWithText("‹  Workspaces").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep this before leaving")
+        compose.onNodeWithContentDescription("Back to workspaces").performClick()
         screenshot("task-draft-leave")
         compose.onNodeWithText("Keep Editing").performClick()
         assertEquals(0, closed)
-        compose.onNodeWithText("Task prompt").assertTextContains("Keep this before leaving")
-        compose.onNodeWithText("‹  Workspaces").performClick()
+        compose.onNodeWithContentDescription("Task prompt").assertTextContains("Keep this before leaving")
+        compose.onNodeWithContentDescription("Back to workspaces").performClick()
         compose.onNodeWithText("Save Draft").performClick()
         compose.waitUntil(10_000) { closed == 1 }
         assertEquals("Keep this before leaving", TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.getValue(activeId).prompt)
-        compose.onNodeWithText("‹  Workspaces").performClick()
+        compose.onNodeWithContentDescription("Back to workspaces").performClick()
         compose.onNodeWithText("Delete Draft").performClick()
         compose.waitUntil(10_000) { closed == 2 }
         assertTrue(TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.isEmpty())
@@ -134,14 +134,14 @@ class NativeTaskDraftsTest {
         var attempts = 0
         show(persist = { throw IOException("Disk unavailable") }, supportsCreation = { supported }, create = { attempts++; JSONObject() })
         state("Effort", "High")
-        compose.onNodeWithText("Task prompt").performTextInput("Do not send without a saved retry ID")
-        compose.onNodeWithText("Create Task").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Do not send without a saved retry ID")
+        compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
         compose.onNodeWithText("Update cmux on this Mac to create tasks.").assertIsDisplayed()
         compose.runOnIdle { supported = true }
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Disk unavailable", substring = true).fetchSemanticsNodes().isNotEmpty() }
         assertEquals(0, attempts)
-        compose.onNodeWithText("Task prompt").assertTextContains("Do not send without a saved retry ID")
+        compose.onNodeWithContentDescription("Task prompt").assertTextContains("Do not send without a saved retry ID")
         assertNotNull(repository.drafts.state.value.getValue(activeId).lastRequest)
     }
 

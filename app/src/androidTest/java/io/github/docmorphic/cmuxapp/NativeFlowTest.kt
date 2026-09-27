@@ -613,22 +613,22 @@ class NativeFlowTest {
             } } }
             compose.waitUntil(15_000) { compose.onAllNodesWithText("First workspace").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithContentDescription("New Task").performClick()
-            compose.waitUntil(10_000) { compose.onAllNodesWithText("Task prompt").fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithContentDescription("Agent").performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Task prompt").fetchSemanticsNodes().isNotEmpty() }
+            compose.openTaskPicker("Agent")
             compose.onNodeWithText("Codex", useUnmergedTree = true).performClick()
-            compose.onNodeWithText("Task prompt").performTextInput("First Mac saved task")
-            compose.onNodeWithText("‹  Workspaces").performClick()
+            compose.onNodeWithContentDescription("Task prompt").performTextInput("First Mac saved task")
+            compose.onNodeWithContentDescription("Back to workspaces").performClick()
             compose.onNodeWithText("Save Draft").performClick()
             compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Computer filter").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithContentDescription("Computer filter").performClick()
             compose.onNode(hasText("Second Mac") and hasAnyAncestor(isPopup())).performClick()
             compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithContentDescription("New Task").performClick()
-            compose.onNodeWithText("Task prompt").performTextInput("Second Mac saved task")
-            compose.onNodeWithText("Drafts").performClick()
+            compose.onNodeWithContentDescription("Task prompt").performTextInput("Second Mac saved task")
+            compose.onNodeWithContentDescription("Drafts").performClick()
             compose.onNodeWithText("First Mac saved task").performClick()
             compose.waitUntil(15_000) { compose.onAllNodes(hasText("First Mac saved task") and hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithText("Create Task").performClick()
+            compose.onNodeWithContentDescription("Create Task").performClick()
             compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" &&
                 it.optJSONObject("params")?.optString("surface_id") == "task-terminal" } }
             assertEquals(1, peer.requests.count { it.optString("method") == "workspace.create" })
@@ -675,18 +675,18 @@ class NativeFlowTest {
             } } }
             compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithContentDescription("New Task").performClick()
-            compose.waitUntil(10_000) { compose.onAllNodesWithText("Task prompt").fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithText("Task prompt").performTextInput("Move my unsent task 中")
-            compose.onNodeWithText("Directory on Mac").performTextReplacement("/typed/path")
-            compose.onNodeWithText("Task Options").performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Task prompt").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("Task prompt").performTextInput("Move my unsent task 中")
+            compose.chooseTaskDirectory(peer, "/typed/path")
+            compose.onNodeWithContentDescription("Task Options").performClick()
             compose.onNodeWithText("Workspace name (optional)").performTextInput("Preserved task name")
             compose.onNodeWithContentDescription("Workspace group").performClick()
             compose.onNode(hasText("First") and hasAnyAncestor(isPopup())).performClick()
             compose.onNodeWithContentDescription("Task Mac").performClick()
             compose.onNodeWithContentDescription("Task Mac: Second Mac").performClick()
             compose.waitUntil(15_000) { compose.onAllNodes(hasText("Move my unsent task 中") and hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithText("Directory on Mac").assertTextContains("/typed/path")
-            compose.onNodeWithText("Task Options").performClick()
+            compose.assertTaskDirectory("/typed/path")
+            compose.onNodeWithContentDescription("Task Options").performClick()
             compose.onNodeWithContentDescription("Task Mac").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Second Mac"))
             compose.onNodeWithText("Workspace name (optional)").assertTextContains("Preserved task name")
             compose.onNodeWithContentDescription("Workspace group").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "None"))
@@ -696,7 +696,7 @@ class NativeFlowTest {
             screenshot("task-options-second-mac")
             compose.onNodeWithContentDescription("Workspace group").performClick()
             compose.onNode(hasText("Second") and hasAnyAncestor(isPopup())).performClick()
-            compose.onNodeWithText("Done").performClick(); compose.onNodeWithText("Create Task").performClick()
+            compose.onNodeWithText("Done").performClick(); compose.onNodeWithContentDescription("Create Task").performClick()
             compose.waitUntil(15_000) { other.requests.any { it.optString("method") == "mobile.terminal.replay" && it.getJSONObject("params").optString("surface_id") == "task-terminal" } }
             assertTrue(peer.requests.none { it.optString("method") == "workspace.create" })
             val sent = other.requests.single { it.optString("method") == "workspace.create" }.getJSONObject("params")
@@ -710,8 +710,8 @@ class NativeFlowTest {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
         compose.onNodeWithContentDescription("New Task").performClick()
-        compose.onNodeWithText("Task prompt").performTextInput("Create and open a task")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Create and open a task")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" &&
             it.getJSONObject("params").optString("surface_id") == "task-terminal" } }
         compose.onNodeWithText("New Task").assertDoesNotExist()
@@ -734,13 +734,13 @@ class NativeFlowTest {
         peer.nextTaskCreateError.set("already_completed")
         showSearchFixture()
         compose.onNodeWithContentDescription("New Task").performClick()
-        compose.onNodeWithText("Task prompt").performTextInput("Recover and open a task")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Recover and open a task")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodes(hasText("Refresh Workspaces") and isEnabled()).fetchSemanticsNodes().isNotEmpty() &&
-                compose.onAllNodesWithText("Create Task").fetchSemanticsNodes().isNotEmpty()
+                compose.onAllNodesWithContentDescription("Create Task").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Create Task").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
         val original = peer.requests.single { it.optString("method") == "workspace.create" }.getJSONObject("params")
         peer.customWorkspaceListing = JSONObject("""{"groups":[{"id":"complete","name":"Refreshed group",
             "anchor_workspace_id":"workspace-2"}],"workspaces":[
@@ -776,8 +776,9 @@ class NativeFlowTest {
         compose.onNodeWithContentDescription("New Task").assertIsDisplayed()
         screenshot("primary-navigation-workspaces")
         compose.onNodeWithContentDescription("New Task").performClick()
-        compose.onNodeWithText("New Task").assertIsDisplayed()
-        compose.onNodeWithText("‹  Workspaces").performClick()
+        compose.onNodeWithContentDescription("Task title").assertIsDisplayed()
+        screenshot("task-composer-canvas")
+        compose.onNodeWithContentDescription("Back to workspaces").performClick()
         openSearch()
         compose.waitUntil(10_000) {
             androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)

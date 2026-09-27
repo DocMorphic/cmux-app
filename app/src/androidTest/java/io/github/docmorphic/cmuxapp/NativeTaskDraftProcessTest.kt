@@ -30,6 +30,7 @@ class NativeTaskDraftProcessTest {
         val phase = InstrumentationRegistry.getArguments().getString("draftPhase")
         val completedRecovery = InstrumentationRegistry.getArguments().getString("completedRecovery") == "true"
         val customTemplate = InstrumentationRegistry.getArguments().getString("customTemplate") == "true"
+        val attachments = InstrumentationRegistry.getArguments().getString("taskAttachments") == "true"
         val destination = InstrumentationRegistry.getArguments().getString("taskDestination") == "true"
         Assume.assumeTrue("Requires explicit seed/verify process phases", phase == "seed" || phase == "verify")
         val context = instrumentation.targetContext
@@ -37,7 +38,7 @@ class NativeTaskDraftProcessTest {
         val store = NativeCredentialStore(context)
         TaskDraftRepository.clearMemory()
         if (phase == "seed") {
-            store.clear()
+            store.clear(); TaskDraftRepository.clearAttachments(context)
             store.update { it.put("refresh_token", "process-draft-fixture") }
             marker.edit().clear().commit()
         } else assertNotEquals("Verification must run in a fresh app process", marker.getInt("pid", -1), Process.myPid())
@@ -47,6 +48,20 @@ class NativeTaskDraftProcessTest {
                 "agent:codex", "codex --full-auto -- \"\$CMUX_TASK_PROMPT\"", "/cold-template"), true))
         }
         val id = if (phase == "seed") UUID.randomUUID().toString() else marker.getString("id", null)!!
+        val attachmentBytes = "Task file surviving process death 中".toByteArray()
+        if (attachments) {
+            if (phase == "seed") {
+                val editor = repository.drafts.begin(id, "process-mac", "Process Fixture Mac", "/repo")
+                val item = ComposerAttachment(name = "process.txt", size = attachmentBytes.size)
+                runBlocking { repository.attach(editor, AttachmentFiles.Prepared(item, attachmentBytes)) }
+                marker.edit().putString("attachment", item.id).commit()
+                repository.drafts.end(editor)
+            } else {
+                val item = repository.drafts.state.value.getValue(id).attachments.single()
+                assertEquals(marker.getString("attachment", null), item.id)
+                assertArrayEquals(attachmentBytes, runBlocking { repository.readAttachment(item) })
+            }
+        }
         val peer = NativeFixturePeer()
         val client = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
         val models = TaskModelRepository()
@@ -59,6 +74,7 @@ class NativeTaskDraftProcessTest {
                 NativeTaskComposerView(client, listOf("/repo"), "process-mac", models,
                     onCreated = { completed = true }, onBack = {}, catalog = { awaitCancellation() },
                     savedDrafts = repository.drafts, draftId = id, macName = "Process Fixture Mac",
+                    attachmentRepository = repository, supportsAttachments = true,
                     savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
                     supportsGroups = true, workspaceGroups = listOf(NativeGroup("process-group", "Process group", false, false)),
                     persistDrafts = repository::persistNow, flushDrafts = repository::flush,
@@ -78,17 +94,17 @@ class NativeTaskDraftProcessTest {
             }
             if (phase == "seed") {
                 state("Effort", "High")
-                compose.onNodeWithContentDescription("Agent").performClick()
+                compose.openTaskPicker("Agent")
                 compose.onNodeWithText(if (customTemplate) "Custom process Codex" else "Codex", useUnmergedTree = true).performClick()
                 compose.waitUntil(10_000) { models.cached(TaskModelRepository.Key("process-mac", TaskAgentCommand.CODEX))?.source == TaskModelSource.DISCOVERED }
                 state("Effort", "High")
-                compose.onNodeWithContentDescription("Model").performClick()
+                compose.openTaskPicker("Model")
                 compose.onNodeWithText("Local codex").performClick()
-                compose.onNodeWithContentDescription("Effort").performClick()
+                compose.openTaskPicker("Effort")
                 compose.onNodeWithText("Low").performClick()
-                compose.onNodeWithText("Task prompt").performTextInput("Recover this task 中\nKeep my 'quotes'")
+                compose.onNodeWithContentDescription("Task prompt").performTextInput("Recover this task 中\nKeep my 'quotes'")
                 if (destination) {
-                    compose.onNodeWithText("Task Options").performClick()
+                    compose.onNodeWithContentDescription("Task Options").performClick()
                     compose.onNodeWithText("Workspace name (optional)").performTextInput("Cold named task 👩🏽‍💻")
                     compose.onNodeWithContentDescription("Workspace group").performClick()
                     compose.onNodeWithText("Process group").performClick()
@@ -97,10 +113,10 @@ class NativeTaskDraftProcessTest {
             } else {
                 if (customTemplate) {
                     state("Agent", "Custom process Codex")
-                    compose.onNodeWithText("Directory on Mac").assertTextContains("/cold-template")
+                    compose.assertTaskDirectory("/cold-template")
                 }
                 state("Model", "Local codex"); state("Effort", "Low")
-                compose.onNodeWithText("Task prompt").assertTextContains("Recover this task 中\nKeep my 'quotes'")
+                compose.onNodeWithContentDescription("Task prompt").assertTextContains("Recover this task 中\nKeep my 'quotes'")
                 if (destination) {
                     val loaded = repository.drafts.state.value.getValue(id)
                     assertEquals("Cold named task 👩🏽‍💻", loaded.workspaceName)
@@ -108,12 +124,12 @@ class NativeTaskDraftProcessTest {
                 }
             }
             if (phase == "verify" && completedRecovery) {
-                compose.onNodeWithText("Create Task").assertIsNotEnabled()
+                compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
                 compose.onNodeWithText("Start Again").assertDoesNotExist()
                 val loaded = repository.drafts.state.value.getValue(id)
                 assertNotEquals(JSONObject(loaded.completedRequest!!).getString("operation_id"), JSONObject(loaded.lastRequest!!).getString("operation_id"))
                 compose.onNodeWithText("Refresh Workspaces").performClick()
-            } else compose.onNodeWithText("Create Task").performClick()
+            } else compose.onNodeWithContentDescription("Create Task").performClick()
             if (phase == "seed") {
                 compose.waitUntil(10_000) { compose.onAllNodesWithText(if (completedRecovery) "Refresh Workspaces" else "Check your workspace list before retrying.",
                     substring = true).fetchSemanticsNodes().isNotEmpty() }
@@ -130,10 +146,23 @@ class NativeTaskDraftProcessTest {
                 assertTrue(TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.isEmpty())
                 if (customTemplate) assertEquals("Custom process Codex", repository.templates.state.value.selected().name)
             }
-            instrumentation.sendStatus(0, Bundle().apply { putString("draft_phase", phase); putInt("draft_process_id", Process.myPid()); putBoolean("completed_recovery", completedRecovery); putBoolean("custom_template", customTemplate); putBoolean("task_destination", destination) })
+            if (attachments) {
+                val uploads = peer.requests.filter { it.optString("method") == "mobile.task.attachment.upload" }
+                if (phase == "verify" && completedRecovery) {
+                    assertTrue(uploads.isEmpty())
+                    assertFalse(submitted!!.getJSONObject("initial_env").has("CMUX_TASK_ATTACHMENTS"))
+                } else {
+                    val sent = uploads.single().getJSONObject("params")
+                    assertEquals(marker.getString("attachment", null), sent.getString("upload_id"))
+                    assertEquals(submitted!!.getString("operation_id"), sent.getString("operation_id"))
+                    assertArrayEquals(attachmentBytes, java.util.Base64.getDecoder().decode(sent.getString("data_b64")))
+                    assertEquals("/tmp/cmux fixture.txt", submitted!!.getJSONObject("initial_env").getString("CMUX_TASK_ATTACHMENTS"))
+                }
+            }
+            instrumentation.sendStatus(0, Bundle().apply { putString("draft_phase", phase); putInt("draft_process_id", Process.myPid()); putBoolean("completed_recovery", completedRecovery); putBoolean("custom_template", customTemplate); putBoolean("task_destination", destination); putBoolean("task_attachments", attachments) })
         } finally {
             compose.activity.finish(); client.close(); peer.close(); TaskDraftRepository.clearMemory()
-            if (phase == "verify") { store.clear(); marker.edit().clear().commit() }
+            if (phase == "verify") { TaskDraftRepository.clearAttachments(context); store.clear(); marker.edit().clear().commit() }
         }
     }
 }

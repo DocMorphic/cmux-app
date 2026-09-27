@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -35,6 +36,10 @@ class NativeTaskAttachmentsTest {
     private var completed by mutableStateOf(false)
 
     @Before fun start() {
+        compose.activity.runOnUiThread {
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(compose.activity.window, false)
+            compose.activity.window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
         TaskDraftRepository.clearMemory(); TaskDraftRepository.clearAttachments(context)
         store = NativeCredentialStore(context).also { it.clear(); it.update { state -> state.put("refresh_token", "task-attachment-fixture") } }
         repository = runBlocking { TaskDraftRepository.get(context, store.taskSession()!!) }
@@ -47,8 +52,8 @@ class NativeTaskAttachmentsTest {
         TaskDraftRepository.clearMemory(); TaskDraftRepository.clearAttachments(context); store.clear()
     }
     private fun show(create: suspend (JSONObject) -> JSONObject = { client.request("workspace.create", it) }) {
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
-            NativeTaskComposerView(client, listOf("/repo"), "attachment-mac", TaskModelRepository(),
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF0B0C0E)).statusBarsPadding().navigationBarsPadding().imePadding()) {
+            NativeTaskComposerView(client, listOf("/repo"), "attachment-mac", remember { TaskModelRepository() },
                 onCreated = { completed = true }, onBack = {}, catalog = { awaitCancellation() }, createTask = create,
                 savedDrafts = repository.drafts, draftId = id, persistDrafts = repository::persistNow,
                 flushDrafts = repository::flush, attachmentRepository = repository, supportsAttachments = true)
@@ -60,7 +65,7 @@ class NativeTaskAttachmentsTest {
             addCategory(Intent.CATEGORY_OPENABLE); addDataType("*/*")
         }, Instrumentation.ActivityResult(Activity.RESULT_OK, Intent().setData(Uri.fromFile(file))), true)
         try {
-            compose.onNodeWithText("＋ Attach").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Add task attachment").performClick()
             compose.onNodeWithText(label).performClick()
             compose.waitUntil(10_000) { monitor.hits > 0 }
         } finally { instrumentation.removeMonitor(monitor) }
@@ -95,11 +100,11 @@ class NativeTaskAttachmentsTest {
             val saved = TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.getValue(id)
             assertEquals(staged, saved.attachments)
             assertFalse(File(context.noBackupFilesDir, "task-attachments/${image.id}").readBytes().contentEquals(bytes))
-            compose.onNodeWithText("Task prompt").performScrollTo().performTextInput("Explain these files")
-            compose.onNodeWithText("Create Task").performClick()
+            compose.onNodeWithContentDescription("Task prompt").performTextInput("Explain these files")
+            compose.onNodeWithContentDescription("Create Task").performClick()
             compose.waitUntil(15_000) { compose.onAllNodesWithText("Fixture rejection", substring = true).fetchSemanticsNodes().isNotEmpty() }
             assertEquals(staged, repository.drafts.state.value.getValue(id).attachments)
-            compose.onNodeWithText("Create Task").performClick()
+            compose.onNodeWithContentDescription("Create Task").performClick()
             compose.waitUntil(15_000) { completed }
             assertEquals(2, sent.size)
             assertEquals(sent[0].getString("operation_id"), sent[1].getString("operation_id"))
@@ -111,6 +116,34 @@ class NativeTaskAttachmentsTest {
             runBlocking { repository.persistNow() }
             assertTrue(File(context.noBackupFilesDir, "task-attachments").listFiles().orEmpty().isEmpty())
         } finally { photo.delete(); empty.delete() }
+    }
+
+    @Test fun promptCanvasAndDockResizeWithKeyboardAndOptionsOwnDirectory() {
+        show()
+        compose.onNodeWithContentDescription("Task prompt").assertIsDisplayed()
+        compose.onNodeWithText("Directory on Mac").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Task title").assertTextEquals("repo")
+        val initial = compose.onNodeWithContentDescription("Task prompt").fetchSemanticsNode().boundsInRoot
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        assertTrue("Prompt should occupy most of the canvas", initial.height > root.height * 0.6f)
+        val before = compose.onNodeWithContentDescription("Create Task").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Make the tests pass")
+        compose.waitUntil(10_000) {
+            androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true &&
+                compose.onNodeWithContentDescription("Create Task").fetchSemanticsNode().boundsInRoot.bottom < before.bottom - 100
+        }
+        compose.onNodeWithContentDescription("Create Task").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithContentDescription("Task Options").assertIsDisplayed()
+        val screen = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        val output = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        File(output, "task-composer-keyboard.png").outputStream().use { screen.compress(Bitmap.CompressFormat.PNG, 100, it) }; screen.recycle()
+        compose.onNodeWithContentDescription("Task Options").performClick()
+        compose.onNodeWithContentDescription("Browse folders").assertIsDisplayed()
+        compose.onNodeWithText("Workspace name (optional)").performTextInput("Named task")
+        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithContentDescription("Task title").assertTextEquals("Named task")
+        compose.onNodeWithContentDescription("Task prompt").assertTextContains("Make the tests pass")
     }
 
     @Test fun encryptedFilesRestoreAndStaleEditorCannotReattachAfterSignOut() = runBlocking {
@@ -144,6 +177,27 @@ class NativeTaskAttachmentsTest {
         show()
         compose.onNodeWithText("preview.txt").performScrollTo().performClick()
         compose.onNodeWithText("${bytes.size} bytes").assertExists()
+        val opened = java.util.concurrent.atomic.AtomicReference<ByteArray?>()
+        val exportedUri = java.util.concurrent.atomic.AtomicReference<Uri?>()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val viewer = object : Instrumentation.ActivityMonitor() {
+            override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
+                if (intent.action != Intent.ACTION_VIEW) return null
+                assertTrue(intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
+                val uri = checkNotNull(intent.data)
+                assertEquals("${context.packageName}.task-previews", uri.authority)
+                opened.set(context.contentResolver.openInputStream(uri)!!.use { it.readBytes() })
+                exportedUri.set(uri)
+                return Instrumentation.ActivityResult(Activity.RESULT_OK, null)
+            }
+        }
+        instrumentation.addMonitor(viewer)
+        try {
+            compose.onNodeWithText("Open").performClick()
+            compose.waitUntil(10_000) { opened.get() != null && File(context.cacheDir, "task-previews").listFiles().orEmpty().isEmpty() }
+            assertArrayEquals(bytes, opened.get())
+            assertTrue(runCatching { context.contentResolver.openInputStream(exportedUri.get()!!)!!.close() }.isFailure)
+        } finally { instrumentation.removeMonitor(viewer) }
         compose.onNodeWithText("Done").performClick()
         compose.onNodeWithContentDescription("Remove task attachment: preview.txt").performScrollTo().performClick()
         compose.waitUntil(10_000) { repository.drafts.state.value[id]?.attachments == listOf(second) }

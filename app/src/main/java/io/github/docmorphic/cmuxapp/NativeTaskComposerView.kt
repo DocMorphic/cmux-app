@@ -2,12 +2,9 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -24,6 +21,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -377,145 +377,153 @@ internal fun NativeTaskComposerView(
             }
         })
 
-    Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E)).padding(horizontal = 18.dp)) {
-        Row(Modifier.fillMaxWidth().height(58.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { leave() }, enabled = !busy) { Text("‹  Workspaces") }
-            Text("New Task", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = { focus.clearFocus(); keyboard?.hide(); showDrafts = true }, enabled = canEdit) { Text("Drafts") }
-        }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-        Text("Agent", color = Color(0xFF9B9FA8))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.weight(1f)) {
-            OutlinedButton(onClick = { agentMenu = true }, enabled = canEdit,
-                modifier = Modifier.semantics { contentDescription = "Agent"; stateDescription = template.name }) {
-                TaskTemplateIcon(template.icon)
-                Spacer(Modifier.width(8.dp))
-                Text("${template.name} ▾")
-            }
-            DropdownMenu(expanded = agentMenu, onDismissRequest = { agentMenu = false }) {
-                templateState.entries.forEach { option ->
-                    DropdownMenuItem(text = { Text(option.name) }, leadingIcon = { TaskTemplateIcon(option.icon) },
-                        trailingIcon = { if (draft.templateId == option.id) Text("✓") },
-                        onClick = { selectTemplate(option); agentMenu = false })
+    val modelError = when (modelResult?.error) {
+        TaskModelError.PROVIDER_UNAVAILABLE -> "${template.name} unavailable"
+        TaskModelError.QUERY_FAILED -> "Couldn’t load models"
+        TaskModelError.HOST_UNAVAILABLE -> "Mac unavailable".takeUnless { modelResult?.usable == true }
+        null -> null
+    }
+    val loadingModels = loading && modelResult?.usable != true
+    val layout: @Composable (@Composable () -> Unit, @Composable () -> Unit) -> Unit = { attachmentStrip, attachmentPicker ->
+        Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))) {
+            Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { leave() }, enabled = !busy) {
+                    Icon(painterResource(R.drawable.ic_task_back), "Back to workspaces", Modifier.size(22.dp))
                 }
-                HorizontalDivider()
-                DropdownMenuItem(text = { Text("Edit Agents") }, onClick = {
-                    agentMenu = false; focus.clearFocus(); keyboard?.hide(); showTemplates = true
-                })
+                Text(draft.workspaceName.trim().ifEmpty { directory.trim().takeIf { it.isNotEmpty() }?.let(TaskDirectoryPaths::name) ?: "New Task" },
+                    Modifier.weight(1f).semantics { contentDescription = "Task title" }, textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                IconButton(onClick = { focus.clearFocus(); keyboard?.hide(); showDrafts = true }, enabled = canEdit) {
+                    Icon(painterResource(R.drawable.ic_task_drafts), "Drafts", Modifier.size(22.dp))
+                }
             }
-        }
-        TextButton(onClick = { focus.clearFocus(); keyboard?.hide(); showOptions = true }, enabled = canEdit) { Text("Task Options") }
-        }
-        if (provider != null) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box {
-                    OutlinedButton(onClick = {
-                        val current = modelResult?.models.orEmpty()
-                        modelMenu = if (selectedModel != null && current.none { it.id == selectedModel.id }) current + selectedModel else current
-                    }, enabled = canEdit, modifier = Modifier.semantics {
-                        contentDescription = "Model"; stateDescription = selectedModel?.name ?: "Default"
-                    }) { Text("${selectedModel?.name ?: "Default"} ▾") }
-                    DropdownMenu(expanded = modelMenu != null, onDismissRequest = { modelMenu = null }) {
-                        DropdownMenuItem(text = { Text("Default") }, onClick = {
-                            edit { it.copy(selection = selection.choose(null, modelResult), defaultModel = modelResult?.defaultModel) }
-                            modelMenu = null
-                        }, leadingIcon = { Text(if (selection.explicit == null) "✓" else " ") })
-                        modelMenu.orEmpty().forEach { option ->
-                            DropdownMenuItem(text = { Text(option.name) }, onClick = {
-                                edit { it.copy(selection = selection.choose(option, modelResult)) }
-                                modelMenu = null
-                            }, leadingIcon = { Text(if (selection.explicit?.id == option.id) "✓" else " ") })
+            TextField(prompt, { text -> edit { it.copy(prompt = text) } },
+                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).semantics {
+                    contentDescription = if (plainShell) "Workspace title (optional)" else "Task prompt"
+                }, enabled = canEdit, textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp),
+                placeholder = { Text(if (plainShell) "Workspace title (optional)" else directory.trim().takeIf { it.isNotEmpty() }
+                    ?.let { "Describe a coding task in ${TaskDirectoryPaths.name(it)}" } ?: "Describe a coding task",
+                    color = Color(0xFF64676E), fontSize = 20.sp) },
+                colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent, disabledIndicatorColor = Color.Transparent))
+            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!supportsTaskCreation) Text("Update cmux on this Mac to create tasks.",
+                    color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
+                if (recoveryApplies) {
+                    Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                        .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }) {
+                        Row(Modifier.fillMaxWidth().background(Color(0x19FF9999), RoundedCornerShape(14.dp)).padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Icon(painterResource(R.drawable.ic_task_warning), contentDescription = null,
+                                tint = Color(0xFFFF9999), modifier = Modifier.size(18.dp))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(if (error == null) "Task already accepted" else "Task status unconfirmed", color = Color(0xFFFF9999),
+                                    style = MaterialTheme.typography.titleSmall)
+                                Text(error ?: if (recoveryReady) TaskCompletedRecovery.MISSING_MESSAGE else TaskCompletedRecovery.REFRESH_MESSAGE,
+                                    color = Color(0xFFFF9999), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { launchTask(reconcile = true) }, enabled = canEdit && supportsTaskCreation,
+                                modifier = Modifier.weight(1f)) { Text(if (recoveryReady) "Refresh Again" else "Refresh Workspaces") }
+                            if (recoveryReady) OutlinedButton(onClick = { confirmStartAgain = true }, enabled = canEdit,
+                                modifier = Modifier.weight(1f)) { Text("Start Again") }
                         }
                     }
-                }
-                Box {
-                    OutlinedButton(onClick = { effortMenu = efforts.toList() }, enabled = canEdit && efforts.isNotEmpty(),
-                        modifier = Modifier.semantics {
-                            contentDescription = "Effort"; stateDescription = selectedEffort?.name ?: "Default"
-                        }) { Text("${selectedEffort?.name ?: "Default"} ▾") }
-                    DropdownMenu(expanded = effortMenu != null, onDismissRequest = { effortMenu = null }) {
-                        effortMenu.orEmpty().forEach { option ->
-                            DropdownMenuItem(text = { Column { Text(option.name)
-                                option.description?.let { Text(it, style = MaterialTheme.typography.bodySmall) } } },
-                                onClick = {
-                                    if (efforts.any { it.id == option.id }) edit { it.copy(selection = selection.copy(effortId = option.id)) }
-                                    effortMenu = null
-                                }, leadingIcon = { Text(if (selection.effortId == option.id) "✓" else " ") })
+                } else if (error != null) Text(error.orEmpty(), color = Color(0xFFFF9999),
+                    modifier = Modifier.padding(bottom = 12.dp))
+                if (!groupSelection.valid) Text(if (groupSelection.pending) "Loading the selected Mac’s groups…" else "The selected group is unavailable. Open Task Options to choose another group or None.",
+                    color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
+
+                if (preparingAttachments) Text("Preparing attachments…", color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
+                if (!plainShell && draft.attachments.isNotEmpty() && !supportsAttachments)
+                    Text("This Mac does not support task attachments. Update cmux or remove the attachments.", color = Color(0xFFFF9999))
+                attachmentStrip()
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TaskComposerCircle("Task Options", R.drawable.ic_task_options, canEdit,
+                        onClick = { focus.clearFocus(); keyboard?.hide(); showOptions = true })
+                    attachmentPicker()
+                    TaskComposerPillScroller(Modifier.weight(1f)) {
+                        Box {
+                            TaskComposerPill(onClick = { agentMenu = true }, enabled = canEdit,
+                                modifier = Modifier.semantics { contentDescription = "Agent"; stateDescription = template.name }) {
+                                TaskTemplateIcon(template.icon, Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("${template.name} ▾", maxLines = 1)
+                            }
+                            DropdownMenu(expanded = agentMenu, onDismissRequest = { agentMenu = false }) {
+                                templateState.entries.forEach { option ->
+                                    DropdownMenuItem(text = { Text(option.name) }, leadingIcon = { TaskTemplateIcon(option.icon) },
+                                        trailingIcon = { if (draft.templateId == option.id) Text("✓") },
+                                        onClick = { selectTemplate(option); agentMenu = false })
+                                }
+                                HorizontalDivider()
+                                DropdownMenuItem(text = { Text("Edit Agents") }, onClick = {
+                                    agentMenu = false; focus.clearFocus(); keyboard?.hide(); showTemplates = true
+                                })
+                            }
                         }
+                        if (provider != null) {
+                                Box {
+                                    TaskComposerPill(onClick = {
+                                        val current = modelResult?.models.orEmpty()
+                                        modelMenu = if (selectedModel != null && current.none { it.id == selectedModel.id }) current + selectedModel else current
+                                    }, enabled = canEdit && !loadingModels, modifier = Modifier.semantics {
+                                        contentDescription = "Model"; stateDescription = selectedModel?.name ?: "Default"
+                                    }) {
+                                        if (loadingModels) CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp)
+                                        if (!loadingModels) Icon(painterResource(R.drawable.ic_task_model), null, Modifier.size(16.dp).padding(end = 3.dp))
+                                        Text(if (loadingModels) "Loading models…" else modelError ?: "${selectedModel?.name ?: "Default"} ▾",
+                                            color = if (modelError != null) Color(0xFFFF9999) else Color.Unspecified, maxLines = 1)
+                                    }
+                                    DropdownMenu(expanded = modelMenu != null, onDismissRequest = { modelMenu = null }) {
+                                        DropdownMenuItem(text = { Text("Default") }, onClick = {
+                                            edit { it.copy(selection = selection.choose(null, modelResult), defaultModel = modelResult?.defaultModel) }
+                                            modelMenu = null
+                                        }, leadingIcon = { Text(if (selection.explicit == null) "✓" else " ") })
+                                        modelMenu.orEmpty().forEach { option ->
+                                            DropdownMenuItem(text = { Text(option.name) }, onClick = {
+                                                edit { it.copy(selection = selection.choose(option, modelResult)) }
+                                                modelMenu = null
+                                            }, leadingIcon = { Text(if (selection.explicit?.id == option.id) "✓" else " ") })
+                                        }
+                                    }
+                                }
+                                if (efforts.isNotEmpty()) Box {
+                                    TaskComposerPill(onClick = { effortMenu = efforts.toList() }, enabled = canEdit && efforts.isNotEmpty(),
+                                        modifier = Modifier.semantics {
+                                            contentDescription = "Effort"; stateDescription = selectedEffort?.name ?: "Default"
+                                        }) {
+                                        Icon(painterResource(R.drawable.ic_task_effort), null, Modifier.size(16.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("${selectedEffort?.name ?: "Effort"} ▾", maxLines = 1)
+                                    }
+                                    DropdownMenu(expanded = effortMenu != null, onDismissRequest = { effortMenu = null }) {
+                                        effortMenu.orEmpty().forEach { option ->
+                                            DropdownMenuItem(text = { Column { Text(option.name)
+                                                option.description?.let { Text(it, style = MaterialTheme.typography.bodySmall) } } },
+                                                onClick = {
+                                                    if (efforts.any { it.id == option.id }) edit { it.copy(selection = selection.copy(effortId = option.id)) }
+                                                    effortMenu = null
+                                                }, leadingIcon = { Text(if (selection.effortId == option.id) "✓" else " ") })
+                                        }
+                                    }
+                                }
+                        }
+
                     }
+                    TaskComposerCircle(if (accepted) "Task Created" else if (busy) "Creating…" else "Create Task", R.drawable.ic_task_submit,
+                        canEdit && !recoveryApplies && supportsTaskCreation && groupSelection.valid &&
+                            (plainShell || draft.attachments.isEmpty() || supportsAttachments) && (plainShell || prompt.isNotBlank()),
+                        accent = true, busy = busy, onClick = { launchTask() })
                 }
             }
-            if (loading && modelResult?.usable != true) Text("Loading models…", style = MaterialTheme.typography.bodySmall)
-            val modelError = when (modelResult?.error) {
-                TaskModelError.PROVIDER_UNAVAILABLE -> "${template.name} unavailable"
-                TaskModelError.QUERY_FAILED -> "Couldn’t load models"
-                TaskModelError.HOST_UNAVAILABLE -> "Mac unavailable".takeUnless { modelResult?.usable == true }
-                null -> null
-            }
-            modelError?.let { Text(it, color = Color(0xFFFF9999), style = MaterialTheme.typography.bodySmall) }
-        }
-        Spacer(Modifier.height(14.dp))
-        OutlinedTextField(prompt, { text -> edit { it.copy(prompt = text) } }, Modifier.fillMaxWidth().height(190.dp),
-            enabled = canEdit, label = { Text(if (plainShell) "Workspace title (optional)" else "Task prompt") },
-            minLines = 5)
-        if (attachmentRepository != null) TaskAttachmentControls(attachmentRepository, editor, origin,
-            draft.attachments, canEdit, canAdd = !plainShell && supportsAttachments,
-            isCurrent = { currentContext() && collection.isCurrent(editor) && !busy && !accepted && !plainShell && supportsAttachments },
-            onPreparing = { preparingAttachments = it }, onChanged = { dirty = true; error = null }, onError = { error = it })
-        if (preparingAttachments) Text("Preparing attachments…", color = Color(0xFF9B9FA8))
-        if (!plainShell && draft.attachments.isNotEmpty() && !supportsAttachments)
-            Text("This Mac does not support task attachments. Update cmux or remove the attachments.", color = Color(0xFFFF9999))
-        Spacer(Modifier.height(14.dp))
-        OutlinedTextField(directory, { text -> edit { it.copy(directory = text, didEditDirectory = true) } }, Modifier.fillMaxWidth(),
-            enabled = canEdit, singleLine = true, label = { Text("Directory on Mac") })
-        val suggestedDirectories = (directories + templateState.recent[origin].orEmpty().map { it.path }).distinct()
-        if (suggestedDirectories.isNotEmpty()) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                suggestedDirectories.take(20).forEach { option ->
-                    TextButton(onClick = { edit { it.copy(directory = option, didEditDirectory = true) } }, enabled = canEdit) {
-                        Text(option.substringAfterLast('/').ifBlank { option }, maxLines = 1)
-                    }
-                }
-            }
-        }
-        Text("The agent starts in a new cmux workspace on $macName.",
-            color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(18.dp))
-        }
-        if (!supportsTaskCreation) Text("Update cmux on this Mac to create tasks.",
-            color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
-        if (recoveryApplies) {
-            Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)
-                .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite }) {
-                Row(Modifier.fillMaxWidth().background(Color(0x19FF9999), RoundedCornerShape(14.dp)).padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(painterResource(R.drawable.ic_task_warning), contentDescription = null,
-                        tint = Color(0xFFFF9999), modifier = Modifier.size(18.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(if (error == null) "Task already accepted" else "Task status unconfirmed", color = Color(0xFFFF9999),
-                            style = MaterialTheme.typography.titleSmall)
-                        Text(error ?: if (recoveryReady) TaskCompletedRecovery.MISSING_MESSAGE else TaskCompletedRecovery.REFRESH_MESSAGE,
-                            color = Color(0xFFFF9999), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { launchTask(reconcile = true) }, enabled = canEdit && supportsTaskCreation,
-                        modifier = Modifier.weight(1f)) { Text(if (recoveryReady) "Refresh Again" else "Refresh Workspaces") }
-                    if (recoveryReady) OutlinedButton(onClick = { confirmStartAgain = true }, enabled = canEdit,
-                        modifier = Modifier.weight(1f)) { Text("Start Again") }
-                }
-            }
-        } else if (error != null) Text(error.orEmpty(), color = Color(0xFFFF9999),
-            modifier = Modifier.padding(bottom = 12.dp))
-        if (!groupSelection.valid) Text(if (groupSelection.pending) "Loading the selected Mac’s groups…" else "The selected group is unavailable. Open Task Options to choose another group or None.",
-            color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
-        Button(onClick = { launchTask() },
-            enabled = canEdit && !recoveryApplies && supportsTaskCreation && groupSelection.valid && (plainShell || draft.attachments.isEmpty() || supportsAttachments) && (plainShell || prompt.isNotBlank()),
-            colors = ButtonDefaults.buttonColors(contentColor = Color(0xFF081421)),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp)) {
-            Text(if (accepted) "Task Created" else if (busy) "Creating…" else "Create Task")
         }
     }
+    if (attachmentRepository != null) TaskAttachmentControls(attachmentRepository, editor, origin,
+        draft.attachments, canEdit, canAdd = !plainShell && supportsAttachments,
+        isCurrent = { currentContext() && collection.isCurrent(editor) && !busy && !accepted && !plainShell && supportsAttachments },
+        onPreparing = { preparingAttachments = it }, onChanged = { dirty = true; error = null }, onError = { error = it }, content = layout)
+    else layout({}, {})
 }

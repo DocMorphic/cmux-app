@@ -19,20 +19,20 @@ UI resemblance alone does not count.
 | Pairing | `CmxPairingQRCode`, `CmxAttachTicketCompactCoder` | QR scan, deep link, and current v2 Tailscale code path coded; unverified on phone; v3 Iroh parse only | Scan official Mac QR, validate version/identity, authorize exact route, revoke |
 | Transport | `CmxNetworkByteTransport`, `MobileCoreRPCSession` | Framed RPC, VPN-bound 100.64/10 route resolution, and reconnect coded; unverified on phone; Iroh missing | Persistent framed RPC over authorized Tailscale; Iroh route; reconnect without duplicate input |
 | Workspaces | `MobileSyncWorkspaceListResponse`, `DeviceTreeView` | Native list, sections, previews, colors, compact toolbar, computer picker, unread filter, workspace/terminal/browser creation, rename, pin/read, close, group create/rename/pin/ungroup, and move RPCs coded; anchor hierarchy, durable empty headers, saved collapse state, and bounded drag reordering coded; numeric unread badges and common group icon equivalents coded; arbitrary custom SF Symbols and phone QA pending | Live hierarchy, add/rename/close/reorder/group, status and selection |
-| Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid with grapheme cell placement, semantic colors, wide cursor, delta/screen continuity and bounded local scrollback verified with JVM/emulator fixtures; actual viewport reporting/clear coded; native VT fallback, hybrid delivery, byte-gap recovery and screen-anchor negotiation verified with JVM/emulator fixtures and a captured Vim session; iOS-style View as Text with native selection/copy, cell tap, coalesced wheel RPCs and host viewport scroll responses verified with emulator fixtures; complete Ghostty fidelity, kinetic scrolling/inline graphics, and phone resize QA missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
+| Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid with grapheme cell placement, semantic colors, wide cursor, delta/screen continuity and bounded local scrollback verified with JVM/emulator fixtures; actual viewport reporting/clear coded; native VT fallback, hybrid delivery, byte-gap recovery and screen-anchor negotiation verified with JVM/emulator fixtures and a captured Vim session; iOS-style View as Text with native selection/copy, cell tap, coalesced wheel RPCs and host viewport scroll responses verified with emulator fixtures; Android kinetic scrolling and cancellation verified with gesture fixtures; complete Ghostty fidelity, pixel scrolling/inline graphics, and phone resize QA missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Native multiline paste/submit, encrypted per-Mac/terminal drafts, pending-send guards and acknowledgement reconciliation verified with an emulator fixture; direct IME keyboard, Unicode composition, repeated deletion, ordered input and explicit recovery from rejected delivery verified with an emulator fixture; modifier/navigation/control toolbar and hardware keys coded; photo/file picker, encrypted attachments, image paste and chunked file upload verified with an emulator fixture; rich keyboard paste, complete mode handling, and phone QA missing | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
 | Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; encrypted per-pairing alert identity and exact terminal routes, independent saved-Mac workers, read/forget cleanup and host-identity checks coded; combined saved-Mac feed, day/history grouping, unread filter, pull refresh, read/unread gestures and confirmed bulk read coded; offline snapshots and revision guards tested with loopback peers; event/mutation revision floors, bounded refresh retries and Activity-recreation retention coded; computer picker, scoped unread badge/bulk actions and live-destination filtering before the global cap coded; server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
-| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry coded with focused JVM coverage; attachment runtime checks, chat UI, full composer styling and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
+| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition, chat UI, remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
 ## Automated evidence (2026-09-27)
 
-159 JVM tests pass. The Android suite now contains 63 cases: twenty-three Compose
+172 JVM tests pass. The Android suite now contains 70 cases (including four task attachment/layout checks and three momentum gesture checks): twenty-three Compose
 flows, seven task model/submission controls checks, four template checks, five task destination checks, five task draft checks, six completed-task recovery checks, one
 explicit two-process draft check, two workspace drag checks, four Activity-recreation
 checks, four notification/service checks and two
@@ -411,8 +411,7 @@ late scroll-response grids cannot replace the display after explicit input.
 
 The current source passes 163 JVM tests and compiles both debug APKs. Four added
 JVM checks cover carry/reversal, animated delivery and its deadline, cancellation/
-history bounds and dropping queued motion. Three Android gesture checks have been
-added and compiled, but are pending the next integration test batch. Build 133
+history bounds and dropping queued motion. Three Android gesture checks now pass in the integration batch described below. Build 133
 does not include this change. Pixel/Mac verification and pixel-precise rendering
 remain open.
 
@@ -434,8 +433,46 @@ uploads; an explicit new task gets a new operation ID. Shell tasks retain but do
 not upload their draft attachments. Capability and session guards gate delivery.
 
 34 focused JVM checks pass (9 attachment contracts, 9 submission identity checks,
-12 task draft checks and 4 terminal attachment regressions). Three Android checks
-compile for picker/import/retry, encrypted restoration/sign-out and preview/removal;
-their emulator run is pending the next integration milestone. Build 133 does not
+12 task draft checks and 4 terminal attachment regressions). Four Android checks now pass for picker/import/retry, encrypted restoration/sign-out, preview/external-viewer cleanup/removal, and keyboard-dock layout. Build 133 does not
 include this feature. Rich IME attachment paste and real Mac/Pixel testing remain
 open; clipboard content-URI import does not claim rich IME coverage.
+
+
+## Task composer canvas and keyboard dock
+
+The pinned `TaskComposerLayout.swift` now supplies the main Android composition:
+a full-height borderless prompt; a centered name/directory title; back and draft
+icons; and a compact dock with task options, attachment selection, horizontally
+scrolling agent/model/effort pills and a circular submit action. Edge fades show
+that further choices can be scrolled into view. Model loading/error states remain
+visible; effort choices are hidden when the host supplies none. Task Options owns
+folder browsing and selection, replacing the old directory form on the canvas.
+
+The dock remains above the Android IME while the prompt area shrinks. Visual
+surfaces remain 38 dp, with Android 48 dp activation targets and a matching scroll
+viewport. Icons and accessibility descriptions identify each action; long choices
+scroll without displacing the fixed options or submit controls. Drafts, recovery,
+agent templates, model/effort submission and destination checks use the new UI.
+
+
+### Combined integration evidence
+
+All 172 JVM tests pass. The initial seven new runtime cases passed together
+(`OK (7 tests)`, 63.230 seconds). The 38-case regression batch passed 36 cases;
+two obsolete UI assertions expected a fixed New Task title and an empty disabled
+effort picker. Both now assert the upstream behavior instead. The final focused
+12-case batch passed together (`OK (12 tests)`, 132.686 seconds), including those
+corrections, all seven model/effort cases, four attachment/layout cases and the
+production navigation/search flow. Together these runs provide passing evidence
+for 45 distinct Android cases; the full 70-case suite was not rerun.
+
+Two diagnostic runs stalled inside Compose 1.9.1's repeated performScrollTo helper
+on the compact dock and were explicitly stopped; they are excluded from passing
+run totals. The test helper now performs one scroll action, advances the controlled
+dispatcher, verifies visibility, and clicks the actual button. The final clean run
+uses that helper. The dock's scroll viewport also matches its 48 dp touch targets.
+
+Inspected emulator captures: `captures/task-composer/task-composer-keyboard.png`
+and the production-flow `task-composer-canvas.png`. Physical Pixel/Mac acceptance,
+rich IME attachments, offline task editing, agent chat, Iroh, full Ghostty/inline
+image fidelity and other open rows above remain unverified or incomplete.

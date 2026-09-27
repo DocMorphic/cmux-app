@@ -63,23 +63,23 @@ class NativeTaskModelsTest {
 
     @Test fun modelAndEffortReachCreateTaskWhilePromptRemainsData() {
         show(); state("Model", "Default"); state("Effort", "High")
-        compose.onNodeWithContentDescription("Agent").performClick()
+        compose.openTaskPicker("Agent")
         compose.onNodeWithText("Codex", useUnmergedTree = true).performClick()
         compose.waitUntil(10_000) { repo.cached(TaskModelRepository.Key("fixture-mac", TaskAgentCommand.CODEX))?.source == TaskModelSource.DISCOVERED }
         state("Effort", "High")
-        compose.onNodeWithContentDescription("Model").performClick()
+        compose.openTaskPicker("Model")
         compose.onNodeWithText("Local codex").performClick()
         state("Model", "Local codex")
-        compose.onNodeWithContentDescription("Effort").performClick()
+        compose.openTaskPicker("Effort")
         compose.onNodeWithText("Low").performClick()
         state("Effort", "Low")
         screenshot("task-model-options")
         val prompt = "Fix 'quotes'\nand Unicode 中"
-        compose.onNodeWithText("Task prompt").performTextInput(prompt)
+        compose.onNodeWithContentDescription("Task prompt").performTextInput(prompt)
         compose.waitUntil(10_000) { compose.onAllNodes(hasText(prompt)).fetchSemanticsNodes().isNotEmpty() }
         compose.runOnUiThread { compose.activity.window.decorView.clearFocus() }
         screenshot("task-model-effort")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Create Task").performClick()
         val params = created()
         assertEquals("codex -c model_reasoning_effort='low' -m 'codex-live' -- \"\$CMUX_TASK_PROMPT\"", params.getString("initial_command"))
         assertEquals("Fix 'quotes'\nand Unicode 中", params.getJSONObject("initial_env").getString("CMUX_TASK_PROMPT"))
@@ -92,7 +92,7 @@ class NativeTaskModelsTest {
         val snapshot = TaskModel("preview-model", "Catalog preview", listOf(TaskEffort("quick", "Quick")), "quick")
         show { TaskModelResult(listOf(snapshot), TaskModelSource.BACKEND) }
         compose.waitUntil(10_000) { repo.cached(TaskModelRepository.Key("fixture-mac", TaskAgentCommand.CLAUDE))?.source == TaskModelSource.BACKEND }
-        compose.onNodeWithContentDescription("Model").performClick()
+        compose.openTaskPicker("Model")
         compose.onNodeWithText("Catalog preview").assertIsDisplayed()
         release.countDown()
         compose.waitUntil(10_000) { repo.cached(TaskModelRepository.Key("fixture-mac", TaskAgentCommand.CLAUDE))?.source == TaskModelSource.DISCOVERED }
@@ -100,12 +100,12 @@ class NativeTaskModelsTest {
         compose.onNodeWithText("Local claude").assertDoesNotExist()
         compose.onNodeWithText("Catalog preview").performClick()
         state("Model", "Catalog preview"); state("Effort", "Quick")
-        compose.onNodeWithContentDescription("Model").performClick()
+        compose.openTaskPicker("Model")
         compose.onNodeWithText("Local claude").assertIsDisplayed()
         compose.onNodeWithText("Default").performClick()
         state("Model", "Default"); state("Effort", "High")
-        compose.onNodeWithText("Task prompt").performTextInput("Use the Mac default")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Use the Mac default")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         assertEquals("claude --effort 'high' -- \"\$CMUX_TASK_PROMPT\"", created().getString("initial_command"))
     }
 
@@ -114,25 +114,24 @@ class NativeTaskModelsTest {
         val backend = TaskModel("catalog-model", "Catalog model")
         show { TaskModelResult(listOf(backend), TaskModelSource.BACKEND, backend) }
         compose.waitUntil(10_000) { repo.cached(TaskModelRepository.Key("fixture-mac", TaskAgentCommand.CLAUDE))?.usable == true }
-        compose.onNodeWithContentDescription("Model").performClick()
+        compose.openTaskPicker("Model")
         compose.onNodeWithText("Catalog model").performClick()
         state("Model", "Catalog model")
-        state("Effort", "Default")
-        compose.onNodeWithContentDescription("Effort").assertIsNotEnabled()
-        compose.onNodeWithText("Task prompt").performTextInput("Use a catalog model")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Effort").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Use a catalog model")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         assertEquals("claude --model 'catalog-model' -- \"\$CMUX_TASK_PROMPT\"", created().getString("initial_command"))
         assertEquals(1, peer.requests.count { it.optString("method") == "mobile.task.models.list" })
     }
 
     @Test fun shellDoesNotOfferModelControlsOrStartAnAgent() {
         show(); state("Effort", "High")
-        compose.onNodeWithContentDescription("Agent").performClick()
+        compose.openTaskPicker("Agent")
         compose.onNodeWithText("Shell", useUnmergedTree = true).performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Workspace title (optional)").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Workspace title (optional)").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Model").assertDoesNotExist()
         compose.onNodeWithContentDescription("Effort").assertDoesNotExist()
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Create Task").performClick()
         val params = created()
         assertFalse(params.has("initial_command")); assertFalse(params.has("initial_env"))
     }
@@ -144,15 +143,15 @@ class NativeTaskModelsTest {
             withTimeout(1) { awaitCancellation() }
         })
         state("Effort", "High")
-        compose.onNodeWithText("Task prompt").performTextInput("Keep this draft")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep this draft")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Check your workspace list before retrying.", substring = true).fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Create Task").assertIsEnabled()
-        compose.onNodeWithText("Task prompt").assertTextContains("Keep this draft")
+        compose.onNodeWithContentDescription("Create Task").assertIsEnabled()
+        compose.onNodeWithContentDescription("Task prompt").assertTextContains("Keep this draft")
         assertEquals(1, attempts.size)
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.waitUntil(10_000) { attempts.size == 2 }
         assertEquals(attempts[0].getString("operation_id"), attempts[1].getString("operation_id"))
         assertEquals(attempts[0].getString("initial_command"), attempts[1].getString("initial_command"))
@@ -166,18 +165,18 @@ class NativeTaskModelsTest {
             JSONObject().put("created_workspace_id", "missing")
         }, onCreated = { navigations++ })
         state("Effort", "High")
-        compose.onNodeWithText("Task prompt").performTextInput("Keep this task")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep this task")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Mac did not return the created task workspace",
             substring = true).fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("Task prompt").assertTextContains("Keep this task")
+        compose.onNodeWithContentDescription("Task prompt").assertTextContains("Keep this task")
         assertEquals(0, navigations)
-        compose.onNodeWithText("Task prompt").performTextReplacement("  Keep this task  ")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextReplacement("  Keep this task  ")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.waitUntil(10_000) { attempts.size == 2 }
         assertEquals(attempts[0].getString("operation_id"), attempts[1].getString("operation_id"))
-        compose.onNodeWithText("Task prompt").performTextReplacement("Create a different task")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextReplacement("Create a different task")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.waitUntil(10_000) { attempts.size == 3 }
         assertNotEquals(attempts[0].getString("operation_id"), attempts[2].getString("operation_id"))
         assertEquals(0, navigations)
@@ -199,8 +198,8 @@ class NativeTaskModelsTest {
             JSONObject("""{"created_workspace_id":"created","workspaces":[{"id":"created"}]}""")
         }, onCreated = { navigations++ }, isCurrent = current::get, composerClient = { active.value })
         state("Effort", "High")
-        compose.onNodeWithText("Task prompt").performTextInput("Stay on the intended Mac")
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Stay on the intended Mac")
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.waitUntil(10_000) { attempts == 1 }
         compose.runOnIdle { active.value = replacement }
         compose.waitForIdle()
@@ -208,9 +207,9 @@ class NativeTaskModelsTest {
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Connection changed before the task could be opened",
             substring = true).fetchSemanticsNodes().isNotEmpty() }
         assertEquals(0, navigations)
-        compose.onNodeWithText("Task prompt").assertTextContains("Stay on the intended Mac")
+        compose.onNodeWithContentDescription("Task prompt").assertTextContains("Stay on the intended Mac")
         current.set(false)
-        compose.onNodeWithText("Create Task").performClick()
+        compose.onNodeWithContentDescription("Create Task").performClick()
         compose.onNodeWithText("Connection changed. Reconnect to this Mac before creating the task").assertIsDisplayed()
         assertEquals(1, attempts)
         } finally { release.complete(Unit); replacement.close() }
