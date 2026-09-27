@@ -11,7 +11,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.horizontalScroll
@@ -344,9 +343,13 @@ fun NativeScreen(
     var terminalTransport by remember { mutableStateOf(TerminalTransport.resolve(emptySet())) }
     var scrollOffset by remember { mutableIntStateOf(0) }
     var terminalClick by remember { mutableStateOf<((TerminalGeometry.Cell) -> Unit)?>(null) }
-    var terminalScroll by remember { mutableStateOf<((Double, TerminalGeometry.Cell) -> Unit)?>(null) }
+    var terminalScroll by remember { mutableStateOf<((Double, TerminalGeometry.Cell) -> Boolean)?>(null) }
+    var cancelQueuedScroll by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var scrollInteractionEpoch by remember { mutableIntStateOf(0) }
+    val terminalMotion = rememberTerminalScrollMotion(draftTarget, client)
+    fun stopTerminalScrolling() { terminalMotion.stop(); scrollInteractionEpoch++; cancelQueuedScroll?.invoke() }
     var textSnapshot by remember(draftTarget, client) { mutableStateOf<TerminalTextSnapshot?>(null) }
-    fun openTerminalText() { textSnapshot = TerminalTextSnapshot.capture(grid) }
+    fun openTerminalText() { stopTerminalScrolling(); textSnapshot = TerminalTextSnapshot.capture(grid) }
     textSnapshot?.let { TerminalTextSheet(it) { textSnapshot = null } }
 
     var controlArmed by remember { mutableStateOf(false) }
@@ -378,7 +381,7 @@ fun NativeScreen(
     fun queueInput(value: String, paste: Boolean = false): Boolean {
         val target = draftTarget ?: return false
         if (client == null || drafts.state.value[target]?.operation != null) return false
-        scrollOffset = 0
+        stopTerminalScrolling(); scrollOffset = 0
         return inputQueue.offer(value, paste)
     }
     fun directText(value: String) {
@@ -440,6 +443,7 @@ fun NativeScreen(
         if (preparingAttachments) return
         val send = drafts.begin(target) ?: return
         val supportsFiles = ComposerAttachment.FILE_CAPABILITY in hostCapabilities
+        stopTerminalScrolling(); scrollOffset = 0
         scope.launch {
             try {
                 inputQueue.awaitIdle()
@@ -770,11 +774,12 @@ fun NativeScreen(
             selectedWorkspace?.id == workspace.id && selectedTerminal?.id == terminal.id
         val scrollQueue = TerminalScrollQueue(this, onFailure = { failure ->
             if (generation == replayGeneration && client === active && selectedWorkspace?.id == workspace.id &&
-                selectedTerminal?.id == terminal.id) error = failure.message ?: "Terminal scroll failed"
+                selectedTerminal?.id == terminal.id) { terminalMotion.stop(); error = failure.message ?: "Terminal scroll failed" }
         }, canSend = ::isCurrent) { delivery ->
+            val interactionEpoch = scrollInteractionEpoch
             val response = active.terminalScroll(workspace.id, terminal.id, delivery)
             if (generation == replayGeneration && client === active && selectedWorkspace?.id == workspace.id &&
-                selectedTerminal?.id == terminal.id && response.optJSONObject("render_grid") != null) {
+                selectedTerminal?.id == terminal.id && interactionEpoch == scrollInteractionEpoch && response.optJSONObject("render_grid") != null) {
                 when (mirror.grid(response)) {
                     TerminalStreamMirror.Result.APPLIED -> publish()
                     TerminalStreamMirror.Result.REPLAY -> requestReplay()
@@ -816,15 +821,18 @@ fun NativeScreen(
                         }
                     }
                 }
+                cancelQueuedScroll = { scrollQueue.cancelPending() }
                 terminalScroll = { lines, cell ->
-                    if (isCurrent()) {
+                    if (!isCurrent()) false else {
                         val primary = mirror.display.activeScreen == "primary"
                         // Raw-byte mirrors retain their own history; viewport-anchored grids
                         // instead receive the Mac's viewport after the scroll RPC.
+                        var moved = false
                         if (primary && (transport.screenAnchor || transport.mode != TerminalOutputMode.GRID)) {
-                            scrollOffset = (scrollOffset + lines.toInt()).coerceIn(0, mirror.historyLineCount)
+                            val next = (scrollOffset.toLong() + lines.toLong()).coerceIn(0, mirror.historyLineCount.toLong()).toInt()
+                            moved = next != scrollOffset; scrollOffset = next
                         }
-                        if (!(transport.screenAnchor && primary)) scrollQueue.offer(lines, cell)
+                        if (transport.screenAnchor && primary) moved else scrollQueue.offer(lines, cell)
                     }
                 }
             }
@@ -834,7 +842,7 @@ fun NativeScreen(
             error = failure.message ?: "Terminal subscription failed"
         } finally {
             scrollQueue.close()
-            if (generation == replayGeneration) { terminalClick = null; terminalScroll = null }
+            if (generation == replayGeneration) { terminalClick = null; terminalScroll = null; cancelQueuedScroll = null }
             eventJob.cancel()
             // An old viewport effect must never clear a newer report on the same surface.
             if (viewportAttempted && (generation == replayGeneration ||
@@ -1168,30 +1176,18 @@ fun NativeScreen(
                                 rawKeyboardView?.showKeyboard()
                             }, onLongPress = { openTerminalText() })
                         }
-                        .pointerInput(terminal.id, currentGrid, terminalCells) {
-                        var dragPixels = 0f
-                        detectVerticalDragGestures(
-                            onDragStart = { dragPixels = 0f },
-                            onVerticalDrag = { change, amount ->
-                                val geometry = TerminalGeometry.fit(size.width.toFloat(), size.height.toFloat(),
-                                    currentGrid.columns, currentGrid.rows, terminalCells)
-                                if (geometry != null) {
-                                    dragPixels += amount
-                                    val steps = (dragPixels / geometry.cellHeight).toInt()
-                                    if (steps != 0) {
-                                        terminalScroll?.invoke(steps.toDouble(), geometry.cell(change.position.x, change.position.y))
-                                        dragPixels -= steps * geometry.cellHeight
-                                    }
-                                }
-                                change.consume()
-                            }
-                        )
-                    }, scrollOffset = scrollOffset.coerceAtMost(currentGrid.historyLineCount))
+                        .terminalScrollGestures(terminalMotion,
+                            TerminalGeometry.fit(terminalViewportPixels.width.toFloat(), terminalViewportPixels.height.toFloat(),
+                                currentGrid.columns, currentGrid.rows, terminalCells),
+                            replayGeneration, currentGrid.activeScreen,
+                            linePath = !(terminalTransport.screenAnchor && currentGrid.activeScreen == "primary"),
+                            enabled = terminalScroll != null,
+                            onScroll = { lines, cell -> terminalScroll?.invoke(lines, cell) ?: false }), scrollOffset = scrollOffset.coerceAtMost(currentGrid.historyLineCount))
                 if (scrollOffset > 0) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp)
                     .background(nativePanel, RoundedCornerShape(14.dp)).padding(start = 12.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text("Scrollback · $scrollOffset rows", color = nativeMuted, fontSize = 12.sp)
-                    TextButton(onClick = { scrollOffset = 0 }) { Text("Latest") }
+                    TextButton(onClick = { stopTerminalScrolling(); scrollOffset = 0 }) { Text("Latest") }
                 }
                 }
                 Row(Modifier.horizontalScroll(rememberScrollState()).background(nativePanel),

@@ -63,5 +63,6 @@ class TerminalScrollQueue(private val scope: CoroutineScope,
         }
         return true
     }
+    fun cancelPending() { pending = null }
     fun close() { closed = true; pending = null; job?.cancel() }
 }

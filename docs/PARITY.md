@@ -399,3 +399,19 @@ The five destination checks and production-screen Mac-switch flow pass together
 on the Android 17 emulator (six cases, 158.872 seconds). Options and folder screens
 were visually inspected with system bars and the search keyboard visible. The
 full 63-case instrumentation suite was not rerun for this batch.
+
+
+## Unreleased terminal momentum
+
+Android native spline decay, whole-row fractional carry and the upstream 450 ms
+alternate/legacy momentum limit are implemented. New touches, explicit input,
+Latest, View as Text, geometry/surface/mode replacement and disposal cancel motion.
+Confirmed local-primary history stops at its bounds. Typing drops queued scrolls;
+late scroll-response grids cannot replace the display after explicit input.
+
+The current source passes 163 JVM tests and compiles both debug APKs. Four added
+JVM checks cover carry/reversal, animated delivery and its deadline, cancellation/
+history bounds and dropping queued motion. Three Android gesture checks have been
+added and compiled, but are pending the next integration test batch. Build 133
+does not include this change. Pixel/Mac verification and pixel-precise rendering
+remain open.

@@ -75,6 +75,23 @@ class TerminalInteractionTest {
         queue.close()
     }
 
+    @Test fun typingDropsQueuedMotionWithoutReplayingOrCancellingAcknowledgement() = runBlocking {
+        val release = CompletableDeferred<Unit>()
+        val sent = mutableListOf<Double>()
+        val queue = TerminalScrollQueue(this, { throw AssertionError(it) }) {
+            sent += it.lines
+            if (sent.size == 1) release.await()
+        }
+        queue.offer(1.0, TerminalGeometry.Cell(0, 0)); yield()
+        queue.offer(9.0, TerminalGeometry.Cell(0, 0))
+        queue.cancelPending()
+        release.complete(Unit); yield()
+        assertEquals(listOf(1.0), sent)
+        queue.offer(-2.0, TerminalGeometry.Cell(0, 0)); yield()
+        assertEquals(listOf(1.0, -2.0), sent)
+        queue.close()
+    }
+
     @Test fun snapshotKeepsRecentHistoryOnceAndDoesNotChangeAfterOutput() {
         val terminal = VtTerminal(30, 4)
         terminal.append((0..11).joinToString("\r\n") { "Line $it" }.toByteArray())

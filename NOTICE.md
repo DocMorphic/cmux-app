@@ -74,3 +74,10 @@ and MobileTaskSubmissionSnapshot at cmux revision
 4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0. Directory ranking reference cases execute
 the unmodified Swift source; its SHA-256 is included in the fixture.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+
+Terminal momentum behavior references `GhosttySurfaceView.swift` in
+`Packages/iOS/CmuxMobileTerminal` at upstream commit
+`4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0`: whole-line fractional carry,
+a 450 ms alternate/legacy-scroll momentum budget, and cancellation on user input.
+The Android implementation uses Android spline decay rather than UIKit mechanics.
+Upstream copyright Manaflow (2024–present), GPL-3.0-or-later.

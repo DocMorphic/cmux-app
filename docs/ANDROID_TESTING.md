@@ -500,3 +500,15 @@ with the keyboard visible. The suite now contains 63 cases; it was not rerun in
 full for this batch. `NativeTaskDraftProcessTest` also accepts `-e taskDestination
 true` with its existing seed/verify, custom-template and completed-recovery modes.
 Physical Pixel/Mac verification remains required.
+
+
+## Terminal momentum — next integration batch
+
+The current source passes 163 JVM checks and assembles debug plus instrumentation
+APKs. `TerminalScrollMotionTest` exercises a frame clock with actual decay; the
+queue regression verifies that explicit input removes pending wheel delivery.
+`NativeTerminalMomentumTest` contains three compiled, not-yet-run checks for real
+touch-release inertia, the line-path deadline, new-touch/input cancellation and
+surface/mode replacement. Run these with the existing alternate-screen touch,
+viewport-anchored scrolling, raw-VT history and direct-keyboard production flows
+at the next integration milestone. No release APK was published for this commit.
