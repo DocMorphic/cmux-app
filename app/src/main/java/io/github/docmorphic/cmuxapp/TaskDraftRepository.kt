@@ -54,6 +54,20 @@ internal class TaskDraftRepository private constructor(
         }
     }
 
+    suspend fun selectMac(editor: TaskDrafts.Editor, origin: String, name: String, directory: String): Unit = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            // Keep the editor lease stable across the durable owner change. Old model/IME
+            // callbacks become invalid before the caller starts connecting to the new Mac.
+            synchronized(drafts) {
+                check(drafts.isCurrent(editor)) { "Task session changed" }
+                val changed = checkNotNull(drafts.state.value[editor.id]).onMac(origin, name, directory)
+                store.update { state -> requireSession(state)
+                    state.put("task_drafts", drafts.saved(changed).put("templates", templates.state.value.json())) }
+                drafts.retarget(editor, changed)
+            }
+        }
+    }
+
     /** Lifecycle flush does not depend on a disappearing composition's coroutine scope. */
     fun flush() { scope.launch { runCatching { persistNow() } } }
     private fun requireSession(state: org.json.JSONObject) {

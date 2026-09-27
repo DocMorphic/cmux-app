@@ -30,6 +30,7 @@ class NativeTaskDraftProcessTest {
         val phase = InstrumentationRegistry.getArguments().getString("draftPhase")
         val completedRecovery = InstrumentationRegistry.getArguments().getString("completedRecovery") == "true"
         val customTemplate = InstrumentationRegistry.getArguments().getString("customTemplate") == "true"
+        val destination = InstrumentationRegistry.getArguments().getString("taskDestination") == "true"
         Assume.assumeTrue("Requires explicit seed/verify process phases", phase == "seed" || phase == "verify")
         val context = instrumentation.targetContext
         val marker = context.getSharedPreferences("task_draft_process_fixture", Context.MODE_PRIVATE)
@@ -59,6 +60,7 @@ class NativeTaskDraftProcessTest {
                     onCreated = { completed = true }, onBack = {}, catalog = { awaitCancellation() },
                     savedDrafts = repository.drafts, draftId = id, macName = "Process Fixture Mac",
                     savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
+                    supportsGroups = true, workspaceGroups = listOf(NativeGroup("process-group", "Process group", false, false)),
                     persistDrafts = repository::persistNow, flushDrafts = repository::flush,
                     createTask = { params ->
                         submitted = JSONObject(params.toString())
@@ -85,6 +87,13 @@ class NativeTaskDraftProcessTest {
                 compose.onNodeWithContentDescription("Effort").performClick()
                 compose.onNodeWithText("Low").performClick()
                 compose.onNodeWithText("Task prompt").performTextInput("Recover this task 中\nKeep my 'quotes'")
+                if (destination) {
+                    compose.onNodeWithText("Task Options").performClick()
+                    compose.onNodeWithText("Workspace name (optional)").performTextInput("Cold named task 👩🏽‍💻")
+                    compose.onNodeWithContentDescription("Workspace group").performClick()
+                    compose.onNodeWithText("Process group").performClick()
+                    compose.onNodeWithText("Done").performClick()
+                }
             } else {
                 if (customTemplate) {
                     state("Agent", "Custom process Codex")
@@ -92,6 +101,11 @@ class NativeTaskDraftProcessTest {
                 }
                 state("Model", "Local codex"); state("Effort", "Low")
                 compose.onNodeWithText("Task prompt").assertTextContains("Recover this task 中\nKeep my 'quotes'")
+                if (destination) {
+                    val loaded = repository.drafts.state.value.getValue(id)
+                    assertEquals("Cold named task 👩🏽‍💻", loaded.workspaceName)
+                    assertEquals("process-group", loaded.groupId)
+                }
             }
             if (phase == "verify" && completedRecovery) {
                 compose.onNodeWithText("Create Task").assertIsNotEnabled()
@@ -111,11 +125,12 @@ class NativeTaskDraftProcessTest {
                 compose.waitUntil(10_000) { completed }
                 assertEquals(marker.getString("operation", null), submitted!!.getString("operation_id"))
                 assertEquals(marker.getString("command", null), submitted!!.getString("initial_command"))
+                if (destination) { assertEquals("Cold named task 👩🏽‍💻", submitted!!.getString("title")); assertEquals("process-group", submitted!!.getString("group_id")) }
                 runBlocking { repository.persistNow() }
                 assertTrue(TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.isEmpty())
                 if (customTemplate) assertEquals("Custom process Codex", repository.templates.state.value.selected().name)
             }
-            instrumentation.sendStatus(0, Bundle().apply { putString("draft_phase", phase); putInt("draft_process_id", Process.myPid()); putBoolean("completed_recovery", completedRecovery); putBoolean("custom_template", customTemplate) })
+            instrumentation.sendStatus(0, Bundle().apply { putString("draft_phase", phase); putInt("draft_process_id", Process.myPid()); putBoolean("completed_recovery", completedRecovery); putBoolean("custom_template", customTemplate); putBoolean("task_destination", destination) })
         } finally {
             compose.activity.finish(); client.close(); peer.close(); TaskDraftRepository.clearMemory()
             if (phase == "verify") { store.clear(); marker.edit().clear().commit() }

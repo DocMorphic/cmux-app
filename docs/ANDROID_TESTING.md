@@ -448,3 +448,45 @@ debug package, then running `-e draftPhase verify` without clearing its data.
 The Android suite now contains 57 cases; it was not rerun in full for this batch.
 These tests use loopback fixture Macs and an Android 17 Pixel-profile emulator.
 Physical Pixel/Mac validation and installed agent CLI execution remain pending.
+
+## Task destinations, folder browsing and workspace options
+
+All 159 JVM checks pass. Eight new cases cover strict folder DTOs and pagination,
+byte ordering and large counts, stale requests and page changes, bounded search
+coverage, 115 reference rankings, grapheme-safe titles and explicit group/name
+parameters, missing-group inventory states, and durable Mac reassignment with
+origin-bound retry/recovery anchors.
+
+Regenerate the ranking fixture with Swift 6 and the pinned upstream repository:
+
+```sh
+python3 scripts/generate-task-directory-parity.py /path/to/cmux
+```
+
+The generator runs the unmodified upstream `MobileTaskDirectorySuggestion.swift`
+at `4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0`. The fixture records that source hash;
+it covers selected Unicode, recency, source, fuzzy and exact-path cases, not every
+possible Unicode normalization difference between platforms.
+
+`NativeTaskDestinationsTest` exercises the real framed RPC client, encrypted store
+and task screens: pagination and exact selected path/name/group submission; stale
+search cancellation with local suggestions and partial-coverage copy; permission
+and unsupported-method errors with retry; restored/missing group resolution; and
+a group disappearing during the durable save. A production `NativeFlowTest` case
+switches two saved Macs whose group IDs collide, retains typed fields and submits
+only to the selected Mac after explicitly choosing its group.
+
+Diagnostic runs are excluded from passing evidence. The first four folder checks
+failed in setup because a window mutation ran off Android's UI thread; setup and
+failure cleanup were corrected. A later run passed the concurrent group-removal
+check but stalled in Compose's `performScrollToNode`; a captured thread dump located
+the wait there. That run was stopped, and the deterministic pagination check now
+uses explicit lazy-list indices before asserting the exact folder and RPC path.
+
+The final six-case destination/production-flow run passes together (`OK (6 tests)`,
+158.872 seconds) on the Android 17 Pixel 6a emulator profile. Screenshots were
+reviewed for the name/options cards, chosen folder, permission failure and search
+with the keyboard visible. The suite now contains 63 cases; it was not rerun in
+full for this batch. `NativeTaskDraftProcessTest` also accepts `-e taskDestination
+true` with its existing seed/verify, custom-template and completed-recovery modes.
+Physical Pixel/Mac verification remains required.

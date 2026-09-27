@@ -30,6 +30,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -654,6 +655,57 @@ class NativeFlowTest {
         } finally { other.close() }
     }
 
+    @Test fun taskOptionsSwitchMacWithoutLosingPromptOrSendingOldGroup() {
+        val other = NativeFixturePeer().apply { deviceId = "second-mac"; displayName = "Second Mac"; taskGroupsSupported = true }
+        peer.taskGroupsSupported = true
+        fun listing(name: String) = JSONObject().put("groups", JSONArray().put(JSONObject().put("id", "shared-group").put("name", name)))
+            .put("workspaces", JSONArray().put(JSONObject().put("id", "workspace-1").put("title", "$name workspace")
+                .put("current_directory", "/$name").put("terminals", JSONArray().put(JSONObject().put("id", "terminal-1").put("title", "Shell")))))
+        peer.customWorkspaceListing = listing("First")
+        other.customWorkspaceListing = listing("Second")
+        val store = NativeCredentialStore(context)
+        store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.2:58465", "second-mac", "Second Mac")
+        store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    val target = if (pairing.routes.first().host == "100.64.0.2") other else peer
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            compose.waitUntil(15_000) { compose.onAllNodes(hasContentDescription("New Task") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("New Task").performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Task prompt").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Task prompt").performTextInput("Move my unsent task 中")
+            compose.onNodeWithText("Directory on Mac").performTextReplacement("/typed/path")
+            compose.onNodeWithText("Task Options").performClick()
+            compose.onNodeWithText("Workspace name (optional)").performTextInput("Preserved task name")
+            compose.onNodeWithContentDescription("Workspace group").performClick()
+            compose.onNode(hasText("First") and hasAnyAncestor(isPopup())).performClick()
+            compose.onNodeWithContentDescription("Task Mac").performClick()
+            compose.onNodeWithContentDescription("Task Mac: Second Mac").performClick()
+            compose.waitUntil(15_000) { compose.onAllNodes(hasText("Move my unsent task 中") and hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Directory on Mac").assertTextContains("/typed/path")
+            compose.onNodeWithText("Task Options").performClick()
+            compose.onNodeWithContentDescription("Task Mac").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Second Mac"))
+            compose.onNodeWithText("Workspace name (optional)").assertTextContains("Preserved task name")
+            compose.onNodeWithContentDescription("Workspace group").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "None"))
+            val restored = TaskDrafts(store.load()!!.getJSONObject("task_drafts")).state.value.values.single()
+            assertEquals(store.pairedMacs().first { it.deviceId == "second-mac" }.origin, restored.origin)
+            assertEquals("Preserved task name", restored.workspaceName); assertNull(restored.groupId)
+            screenshot("task-options-second-mac")
+            compose.onNodeWithContentDescription("Workspace group").performClick()
+            compose.onNode(hasText("Second") and hasAnyAncestor(isPopup())).performClick()
+            compose.onNodeWithText("Done").performClick(); compose.onNodeWithText("Create Task").performClick()
+            compose.waitUntil(15_000) { other.requests.any { it.optString("method") == "mobile.terminal.replay" && it.getJSONObject("params").optString("surface_id") == "task-terminal" } }
+            assertTrue(peer.requests.none { it.optString("method") == "workspace.create" })
+            val sent = other.requests.single { it.optString("method") == "workspace.create" }.getJSONObject("params")
+            assertEquals("shared-group", sent.getString("group_id")); assertEquals("Preserved task name", sent.getString("title"))
+            assertEquals("/typed/path", sent.getString("working_directory"))
+            assertEquals("Move my unsent task 中", sent.getJSONObject("initial_env").getString("CMUX_TASK_PROMPT"))
+        } finally { other.close() }
+    }
+
     @Test fun taskCreationOpensExactTerminalAndPreservesExistingWorkspaces() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
@@ -1257,6 +1309,9 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var releaseTaskModels: CountDownLatch? = null
     @Volatile var taskModelsResponse: JSONObject? = null
     @Volatile var taskModelErrorCode: String? = null
+    @Volatile var directoryResponse: ((String, JSONObject) -> JSONObject)? = null
+    @Volatile var directoryErrorCode: String? = null
+    @Volatile var taskGroupsSupported = false
     val nextTaskCreateError = java.util.concurrent.atomic.AtomicReference<String?>(null)
     @Volatile var rawTerminal = false
     @Volatile var screenAnchor = true
@@ -1327,10 +1382,11 @@ internal class NativeFixturePeer : AutoCloseable {
                         val taskError = if (request.optString("method") == "workspace.create") nextTaskCreateError.getAndSet(null) else null
                         val result = if (taskError != null) JSONObject() else response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
                         val modelError = taskModelErrorCode.takeIf { request.optString("method") == "mobile.task.models.list" }
-                        val rejected = taskError != null || modelError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
+                        val directoryError = directoryErrorCode.takeIf { request.optString("method").startsWith("mobile.directory.") }
+                        val rejected = taskError != null || modelError != null || directoryError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
                             (request.optString("method") == "terminal.input" && rejectNextInput.getAndSet(false))
                         val envelope = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
-                        if (rejected) envelope.put("error", JSONObject().put("code", taskError ?: modelError ?: "surface_unavailable")
+                        if (rejected) envelope.put("error", JSONObject().put("code", taskError ?: modelError ?: directoryError ?: "surface_unavailable")
                             .put("message", "Fixture terminal temporarily unavailable"))
                         else envelope.put("result", result)
                         send(socket, envelope)
@@ -1341,6 +1397,7 @@ internal class NativeFixturePeer : AutoCloseable {
     }
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
+        "mobile.directory.list", "mobile.directory.search" -> directoryResponse?.invoke(method, params) ?: JSONObject()
         "mobile.task.models.list" -> taskModelsResponse?.let { JSONObject(it.toString()) } ?: run {
             val provider = params.getString("provider")
             val model = JSONObject().put("id", "$provider-live").put("display_name", "Local $provider")
@@ -1359,6 +1416,7 @@ internal class NativeFixturePeer : AutoCloseable {
         }
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
             .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
+                if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (rawTerminal) it.put("terminal.bytes.v1")
                 else { it.put("terminal.render_grid.v1"); if (screenAnchor) it.put("terminal.render_grid.screen_anchor.v1") }
             })

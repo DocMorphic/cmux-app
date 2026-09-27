@@ -55,7 +55,12 @@ internal fun NativeTaskComposerView(
     supportsTaskCreation: Boolean = true,
     refreshWorkspaces: suspend () -> Unit = { client.workspaces(); Unit },
     savedTemplates: TaskTemplates? = null,
-    persistTemplateChange: (suspend (TaskTemplateChange) -> Unit)? = null
+    persistTemplateChange: (suspend (TaskTemplateChange) -> Unit)? = null,
+    macs: List<NativeCredentialStore.PairedMac> = emptyList(),
+    selectMac: (suspend (TaskDrafts.Editor, String) -> Unit)? = null,
+    workspaceGroups: List<NativeGroup> = emptyList(), supportsGroups: Boolean = false, groupsLoaded: Boolean = true,
+    directoryWorkspaces: List<NativeWorkspace> = emptyList(), selectedWorkspaceId: String? = null,
+    groupIsCurrent: ((String?) -> Boolean)? = null
 ) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
@@ -87,7 +92,7 @@ internal fun NativeTaskComposerView(
     val directory = draft.directory
     val selection = draft.selection
     val submission = remember(editor) { TaskSubmissionIdentity().apply {
-        initialDraft.lastRequest?.let { submitted(origin, JSONObject(it)) }
+        initialDraft.lastRequest?.let { submitted(initialDraft.lastRequestOrigin ?: origin, JSONObject(it)) }
     } }
     val connectionToken = remember(client, origin) { Any() }
     val latestConnectionToken by rememberUpdatedState(connectionToken)
@@ -102,11 +107,16 @@ internal fun NativeTaskComposerView(
     var confirmLeave by remember(editor) { mutableStateOf(false) }
     var agentMenu by remember(editor) { mutableStateOf(false) }
     var showTemplates by rememberSaveable(editor.id) { mutableStateOf(false) }
+    var showOptions by rememberSaveable(editor.id) { mutableStateOf(false) }
+    var showDirectory by rememberSaveable(editor.id) { mutableStateOf(false) }
     var confirmStartAgain by remember(editor) { mutableStateOf(false) }
     var recoveryReady by remember(editor, draft.completedRequest) { mutableStateOf(false) }
-    val recovery = remember(editor, draft.completedRequest) {
-        draft.completedRequest?.let { TaskCompletedRecovery(origin, it) }
+    val recovery = remember(editor, draft.completedRequest, draft.completedOrigin) {
+        draft.completedRequest?.let { TaskCompletedRecovery(draft.completedOrigin ?: origin, it) }
     }
+    val groupSelection = TaskGroupSelection(draft.groupId, workspaceGroups, supportsGroups, groupsLoaded)
+    val latestGroups by rememberUpdatedState(groupSelection)
+    val currentGroupCheck by rememberUpdatedState(groupIsCurrent)
     val canEdit = !busy && !accepted
     fun edit(update: (TaskDraft) -> TaskDraft) {
         if (busy || accepted) return
@@ -158,18 +168,18 @@ internal fun NativeTaskComposerView(
     val restoredCommand = command?.let { command ->
         TaskAgentCommand.detect(command)?.apply(command, selection.explicit?.id, restoredEffort) ?: command
     }
-    val holdRecoveryModels = recovery != null && (recovery.parameters().opt("initial_command") as? String) == restoredCommand
+    val holdRecoveryModels = recovery != null && recovery.origin == origin && (recovery.parameters().opt("initial_command") as? String) == restoredCommand
     val selectionResult = if (holdRecoveryModels) restoredModels else modelResult
     val selectedModel = selection.model(selectionResult)
     val effortModel = selection.effective(selectionResult)
     val efforts = effortModel?.efforts.orEmpty()
     val selectedEffort = efforts.firstOrNull { it.id == selection.effortId }
     val effectiveRequest = runCatching {
-        TaskCommand.parameters(command, prompt, directory, UUID.randomUUID(), selection.explicit?.id, selectedEffort?.id)
+        TaskCommand.parameters(command, prompt, directory, UUID.randomUUID(), selection.explicit?.id, selectedEffort?.id, draft.workspaceName, draft.groupId)
     }.getOrNull()
     val recoveryApplies = recovery?.appliesTo(origin, effectiveRequest) == true
     fun launchTask(reconcile: Boolean = false, startAgain: Boolean = false) {
-        if (busy || accepted || !supportsTaskCreation) return
+        if (busy || accepted || !supportsTaskCreation || !groupSelection.valid) return
         if (reconcile && !recoveryApplies) return
         if (!reconcile && recoveryApplies && !(startAgain && recoveryReady)) return
         val requestConnectionToken = connectionToken
@@ -187,7 +197,7 @@ internal fun NativeTaskComposerView(
                 check(requestIsCurrent()) { "Connection changed" }
                 if (!reconcile) {
                     submission.submitted(origin, parameters)
-                    collection.edit(editor) { it.copy(lastRequest = parameters.toString(), completedRequest = null) }
+                    collection.edit(editor) { it.copy(lastRequest = parameters.toString(), lastRequestOrigin = origin, completedRequest = null, completedOrigin = null) }
                 }
                 persistDrafts()
                 currentCoroutineContext().ensureActive()
@@ -196,6 +206,9 @@ internal fun NativeTaskComposerView(
                     refreshWorkspaces()
                     currentCoroutineContext().ensureActive()
                     check(requestIsCurrent()) { "Connection changed while refreshing workspaces" }
+                }
+                check(currentGroupCheck?.invoke(parameters.opt("group_id") as? String) ?: latestGroups.valid) {
+                    "The selected group is no longer available. Choose another group or None."
                 }
                 transmitted = true
                 val response = createTask(parameters)
@@ -221,7 +234,7 @@ internal fun NativeTaskComposerView(
                     if (reconcile) recoveryReady = true
                     else {
                         val fresh = submission.retire(origin, parameters)
-                        collection.edit(editor) { it.copy(lastRequest = fresh.toString(), completedRequest = parameters.toString()) }
+                        collection.edit(editor) { it.copy(lastRequest = fresh.toString(), lastRequestOrigin = origin, completedRequest = parameters.toString(), completedOrigin = origin) }
                     }
                     try { persistDrafts() }
                     catch (saveFailure: Exception) {
@@ -260,6 +273,38 @@ internal fun NativeTaskComposerView(
         }
     }
     BackHandler { leave() }
+    if (showDirectory) {
+        val candidates = taskDirectoryCandidates(template, templateState, origin, directoryWorkspaces, selectedWorkspaceId) +
+            if (directoryWorkspaces.isEmpty()) directories.map { TaskDirectoryCandidate(it, TaskDirectorySource.OPEN_WORKSPACE) } else emptyList()
+        TaskDirectoryPickerView(client, origin, directory, candidates,
+            isCurrent = { currentContext() && collection.isCurrent(editor) && !busy && !accepted },
+            onSelect = { path -> edit { it.copy(directory = path, didEditDirectory = true) }; showDirectory = false },
+            onDismiss = { showDirectory = false })
+        return
+    }
+    if (showOptions) {
+        TaskOptionsView(draft, macs, groupSelection, canEdit, error,
+            onName = { name -> edit { it.copy(workspaceName = name) } },
+            onMac = { next ->
+                if (next != origin && selectMac != null && canEdit) {
+                    focus.clearFocus(); keyboard?.hide(); busy = true; error = null
+                    scope.launch {
+                        try { check(currentContext()); selectMac(editor, next) }
+                        catch (failure: Exception) { if (failure is CancellationException) throw failure; error = failure.message ?: "Could not select this Mac" }
+                        finally { busy = false }
+                    }
+                }
+            }, onGroup = { group -> edit { it.copy(groupId = group) } },
+            onDirectory = { focus.clearFocus(); keyboard?.hide(); showDirectory = true },
+            onRefreshGroups = {
+                if (canEdit) { busy = true; scope.launch {
+                    try { refreshWorkspaces(); error = null }
+                    catch (failure: Exception) { if (failure is CancellationException) throw failure; error = failure.message }
+                    finally { busy = false }
+                } }
+            }, onDismiss = { focus.clearFocus(); keyboard?.hide(); showOptions = false })
+        return
+    }
     if (showTemplates) {
         TaskTemplatesView(templateState, onDismiss = { showTemplates = false },
             onChange = { change ->
@@ -330,7 +375,8 @@ internal fun NativeTaskComposerView(
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
         Text("Agent", color = Color(0xFF9B9FA8))
-        Box {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) {
             OutlinedButton(onClick = { agentMenu = true }, enabled = canEdit,
                 modifier = Modifier.semantics { contentDescription = "Agent"; stateDescription = template.name }) {
                 TaskTemplateIcon(template.icon)
@@ -348,6 +394,8 @@ internal fun NativeTaskComposerView(
                     agentMenu = false; focus.clearFocus(); keyboard?.hide(); showTemplates = true
                 })
             }
+        }
+        TextButton(onClick = { focus.clearFocus(); keyboard?.hide(); showOptions = true }, enabled = canEdit) { Text("Task Options") }
         }
         if (provider != null) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -415,7 +463,7 @@ internal fun NativeTaskComposerView(
                 }
             }
         }
-        Text("The agent starts in a new cmux workspace on this Mac.",
+        Text("The agent starts in a new cmux workspace on $macName.",
             color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(18.dp))
         }
@@ -444,8 +492,10 @@ internal fun NativeTaskComposerView(
             }
         } else if (error != null) Text(error.orEmpty(), color = Color(0xFFFF9999),
             modifier = Modifier.padding(bottom = 12.dp))
+        if (!groupSelection.valid) Text(if (groupSelection.pending) "Loading the selected Mac’s groups…" else "The selected group is unavailable. Open Task Options to choose another group or None.",
+            color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
         Button(onClick = { launchTask() },
-            enabled = canEdit && !recoveryApplies && supportsTaskCreation && (plainShell || prompt.isNotBlank()),
+            enabled = canEdit && !recoveryApplies && supportsTaskCreation && groupSelection.valid && (plainShell || prompt.isNotBlank()),
             colors = ButtonDefaults.buttonColors(contentColor = Color(0xFF081421)),
             modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp)) {
             Text(if (accepted) "Task Created" else if (busy) "Creating…" else "Create Task")

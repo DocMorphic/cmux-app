@@ -165,6 +165,7 @@ fun NativeScreen(
     var backgroundNotifications by remember { mutableStateOf(NativeNotificationService.isEnabled(context)) }
     var workspaces by remember(code) { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
     var groups by remember(code) { mutableStateOf<List<NativeGroup>>(emptyList()) }
+    var taskGroupsLoaded by remember(code) { mutableStateOf(false) }
     var collapsedGroups by remember(signedIn) {
         val saved = store.load()?.optJSONObject("collapsed_groups")
         mutableStateOf(saved?.keys()?.asSequence()?.filter { saved.opt(it) is Boolean }
@@ -460,7 +461,7 @@ fun NativeScreen(
     fun applyListing(value: JSONObject) {
         val updated = parseWorkspaces(value)
         workspaces = updated
-        if (value.has("groups")) groups = parseGroups(value)
+        if (value.has("groups")) { groups = parseGroups(value); taskGroupsLoaded = true }
         selectedWorkspace?.let { previous ->
             val current = updated.firstOrNull { it.id == previous.id }
             selectedWorkspace = current
@@ -1040,6 +1041,23 @@ fun NativeScreen(
                     isCurrent = { signedIn && client === active && connectedCode == taskCode && code == taskCode },
                     savedDrafts = repository.drafts, draftId = taskDraftId, macName = taskMac?.name ?: hostName,
                     savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
+                    macs = pairedMacs, workspaceGroups = groups,
+                    supportsGroups = "workspace.create_in_group.v1" in hostCapabilities,
+                    groupsLoaded = taskGroupsLoaded,
+                    groupIsCurrent = { group -> group == null || ("workspace.create_in_group.v1" in hostCapabilities &&
+                        taskGroupsLoaded && groups.count { it.id == group } == 1) },
+                    directoryWorkspaces = workspaces, selectedWorkspaceId = selectedWorkspace?.id,
+                    selectMac = { editor, nextOrigin ->
+                        val target = requireNotNull(pairedMacs.singleOrNull { it.origin == nextOrigin }) { "This Mac is no longer paired" }
+                        val snapshot = workspaceSources.firstOrNull { it.mac.origin == nextOrigin && it.availability == NativeFeedAvailability.CONNECTED }
+                        val currentDraft = checkNotNull(repository.drafts.state.value[editor.id])
+                        val templates = repository.templates.state.value
+                        val nextDirectory = templates.suggestedDirectory(templates.selected(currentDraft.templateId), nextOrigin,
+                            snapshot?.let { preferredTaskDirectories(it.workspaces, null).firstOrNull() })
+                        repository.selectMac(editor, nextOrigin, target.name, nextDirectory)
+                        check(signedIn && taskDraftRepository === repository && pairedMacs.any { it.origin == nextOrigin }) { "Task account or Mac changed" }
+                        selectComputer(target)
+                    },
                     persistDrafts = repository::persistNow, flushDrafts = repository::flush,
                     onResumeDraft = { draft ->
                         val target = requireNotNull(pairedMacs.firstOrNull { it.origin == draft.origin }) {

@@ -68,3 +68,12 @@ Bundled Claude, Codex and OpenCode images are copied unchanged from that revisio
 CmuxMobileShellUI/Resources/AgentIcons; source paths and SHA-256 hashes are recorded
 in docs/TASK_TEMPLATE_ASSETS.json. Brand names and images identify their agents.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+
+Task Options, workspace naming/group routing, folder browsing and search derive
+from TaskComposerOptionsSheet, TaskComposerContextSection, TaskComposerSheet,
+TaskComposerDirectoryBrowseState/Screen/PickerView, MobileTaskDirectorySuggestion,
+MobileTaskDirectoryListRequest/Response/Entry, MobileTaskDirectorySearchResponse
+and MobileTaskSubmissionSnapshot at cmux revision
+4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0. Directory ranking reference cases execute
+the unmodified Swift source; its SHA-256 is included in the fixture.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.

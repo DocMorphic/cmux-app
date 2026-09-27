@@ -15,7 +15,9 @@ internal data class TaskDraft(
     val lastRequest: String? = null,
     val completedRequest: String? = null,
     val templateId: String? = null, val templateName: String? = null, val templateCommand: String? = null,
-    val didEditDirectory: Boolean = false
+    val didEditDirectory: Boolean = false,
+    val workspaceName: String = "", val groupId: String? = null,
+    val lastRequestOrigin: String? = null, val completedOrigin: String? = null
 ) {
     val command get() = templateCommand ?: agent.command
     fun selecting(template: TaskTemplate, suggestedDirectory: String): TaskDraft {
@@ -26,8 +28,13 @@ internal data class TaskDraft(
             selection = if (resetModel) TaskModelSelection() else selection,
             defaultModel = if (resetModel) null else defaultModel)
     }
-    val isEmpty get() = prompt.isBlank() && lastRequest == null && completedRequest == null
-    val title get() = prompt.trim().lineSequence().firstOrNull()?.takeIf { it.isNotEmpty() } ?: "Untitled task"
+    val isEmpty get() = prompt.isBlank() && workspaceName.isBlank() && lastRequest == null && completedRequest == null
+    val title get() = workspaceName.trim().takeIf { it.isNotEmpty() } ?: prompt.trim().lineSequence().firstOrNull()?.takeIf { it.isNotEmpty() } ?: "Untitled task"
+    fun onMac(nextOrigin: String, name: String, suggestedDirectory: String) = copy(origin = nextOrigin, macName = name,
+        groupId = if (nextOrigin == origin) groupId else null,
+        directory = if (didEditDirectory) directory else suggestedDirectory,
+        lastRequestOrigin = if (lastRequest != null) lastRequestOrigin ?: origin else null,
+        completedOrigin = if (completedRequest != null) completedOrigin ?: origin else null)
     fun restoredModels() = TaskModelResult(listOfNotNull(selection.explicit), TaskModelSource.FALLBACK, defaultModel)
     fun reconcileModels(provider: TaskAgentCommand?, result: TaskModelResult?): TaskDraft {
         if (command?.let(TaskAgentCommand::detect) != provider) return this
@@ -42,6 +49,8 @@ internal data class TaskDraft(
         .put("completed_request", completedRequest?.let(::JSONObject))
         .put("template_id", templateId).put("template_name", templateName).put("template_command", templateCommand)
         .put("did_edit_directory", didEditDirectory)
+        .put("workspace_name", workspaceName).put("group_id", groupId)
+        .put("last_request_origin", lastRequestOrigin).put("completed_origin", completedOrigin)
 
     companion object {
         private fun modelJson(model: TaskModel): JSONObject = JSONObject().put("id", model.id)
@@ -66,7 +75,10 @@ internal data class TaskDraft(
                 TaskModelSelection(model(raw.optJSONObject("model")), raw.opt("effort") as? String),
                 model(raw.optJSONObject("default_model")), request?.toString(), completed?.toString(),
                 (raw.opt("template_id") as? String)?.also { UUID.fromString(it) }, raw.opt("template_name") as? String,
-                raw.opt("template_command") as? String, raw.optBoolean("did_edit_directory", true))
+                raw.opt("template_command") as? String, raw.optBoolean("did_edit_directory", true),
+                raw.opt("workspace_name") as? String ?: "", (raw.opt("group_id") as? String)?.also { require(it.isNotBlank()) },
+                (raw.opt("last_request_origin") as? String)?.also { require(it.isNotBlank()) },
+                (raw.opt("completed_origin") as? String)?.also { require(it.isNotBlank()) })
         }
     }
 }
@@ -107,6 +119,14 @@ internal class TaskDrafts(saved: JSONObject? = null, private val now: () -> Long
     @Synchronized fun editIfCurrent(editor: Editor, update: (TaskDraft) -> TaskDraft): TaskDraft? =
         if (isCurrent(editor) && editor.id in mutable.value) edit(editor, update) else null
 
+    /** Explicit Mac selection is the only operation allowed to change a draft's owner. */
+    @Synchronized fun retarget(editor: Editor, draft: TaskDraft) {
+        check(isCurrent(editor) && mutable.value.containsKey(editor.id)) { "Task session changed" }
+        require(draft.id == editor.id && draft.origin.isNotBlank())
+        mutable.value = bounded(mutable.value + (draft.id to draft.copy(updatedAt = timestamp())))
+        leases.remove(editor.id)
+    }
+
     @Synchronized fun remove(editor: Editor): TaskDraft? {
         if (!isCurrent(editor)) return null
         val removed = mutable.value[editor.id] ?: return null
@@ -128,8 +148,9 @@ internal class TaskDrafts(saved: JSONObject? = null, private val now: () -> Long
 
     @Synchronized fun clear() { generation++; leases.clear(); mutable.value = emptyMap() }
 
-    @Synchronized fun saved(): JSONObject = JSONObject().put("version", 1).put("drafts",
-        JSONArray(mutable.value.values.filterNot { it.isEmpty }.sortedByDescending { it.updatedAt }.take(LIMIT).map { it.json() }))
+    @Synchronized fun saved(replacement: TaskDraft? = null): JSONObject = JSONObject().put("version", 1).put("drafts",
+        JSONArray((if (replacement == null) mutable.value else mutable.value + (replacement.id to replacement)).values
+            .filterNot { it.isEmpty }.sortedByDescending { it.updatedAt }.take(LIMIT).map { it.json() }))
 
     private fun timestamp(): Long = maxOf(now(), lastTimestamp + 1).also { lastTimestamp = it }
     private fun bounded(entries: Map<String, TaskDraft>): Map<String, TaskDraft> {

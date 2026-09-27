@@ -25,15 +25,15 @@ UI resemblance alone does not count.
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
-| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachments, chat UI, full composer styling and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
+| Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachments, chat UI, full composer styling and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
 ## Automated evidence (2026-09-27)
 
-151 JVM tests pass. The Android suite now contains 57 cases: twenty-two Compose
-flows, seven task model/submission controls checks, four template checks, five task draft checks, six completed-task recovery checks, one
+159 JVM tests pass. The Android suite now contains 63 cases: twenty-three Compose
+flows, seven task model/submission controls checks, four template checks, five task destination checks, five task draft checks, six completed-task recovery checks, one
 explicit two-process draft check, two workspace drag checks, four Activity-recreation
 checks, four notification/service checks and two
 renderer checks. Earlier checks have passing evidence across suite and focused
@@ -307,8 +307,7 @@ to its originating provider. A resumed draft selects its saved computer and wait
 for that exact pairing connection before mounting the composer. Task creation
 requires the host's `workspace.task_create.v1` capability.
 
-Remaining task work includes attachments, destination group/directory/name controls,
-offline composer editing, draft rebinding after a pairing code changes, full
+Remaining task work includes attachments, offline composer editing, draft rebinding after a pairing code changes, full
 composer styling and agent chat. Saved drafts remain bound to the saved pairing;
 they are not automatically redirected to a different or renewed pairing. Physical
 Pixel/Mac verification remains required.
@@ -365,5 +364,38 @@ then the last successful directory, then `~`. Explicitly typed paths survive age
 changes. Saved drafts retain their own Mac, template and directory. Deleted-template
 restoration falls back to an available template and clears the old submission anchor.
 
-Task attachments, destination browsing, offline composer editing, full composer
+Task attachments, offline composer editing, full composer
 visual parity, agent chat and physical Pixel/Mac acceptance remain separate work.
+
+
+## Task destinations and workspace options
+
+Task Options follows the pinned iOS name field and Machine/Directory/Workspace
+group card order. Explicit names override prompt-derived titles; generated titles
+retain 60 grapheme clusters rather than splitting emoji. Group selection waits
+for authoritative inventory, retains missing selections until explicitly resolved,
+and checks current membership again after the durable save and before sending.
+The wire field is `group_id`, gated by `workspace.create_in_group.v1`.
+
+Changing the Mac durably reassigns the draft before reconnecting. It preserves
+the prompt, name and typed directory, clears the previous Mac's group, and retains
+retry/recovery anchors with their original pairing origin. Identical group IDs
+on two Macs do not carry selection across computers.
+
+The folder picker uses `mobile.directory.list` in 50-entry pages and debounced
+`mobile.directory.search`. It supports Home/Computer, parent navigation, recent
+locations, unreadable-folder states, explicit retries and local suggestions when
+remote search is unsupported. Responses require bounded, ordered, nonduplicate
+pages; changed page inventories keep the earlier page and report an error. Stale
+queries cannot replace newer results. Search coverage limitations remain visible.
+Suggestion ranking matches 115 outputs generated from the pinned unmodified Swift
+implementation, including source priority, recency, fuzzy matching and byte order.
+
+These controls use Android full-screen navigation and attributed vector symbols.
+Full composer visual parity, task attachments, offline editing, agent chat, pairing
+renewal and physical Pixel/Mac acceptance remain open.
+
+The five destination checks and production-screen Mac-switch flow pass together
+on the Android 17 emulator (six cases, 158.872 seconds). Options and folder screens
+were visually inspected with system bars and the search keyboard visible. The
+full 63-case instrumentation suite was not rerun for this batch.

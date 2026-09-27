@@ -13,17 +13,18 @@ object TaskCommand {
     }
 
     fun parameters(agent: Agent, rawPrompt: String, directory: String?, operationId: UUID,
-        modelId: String? = null, effortId: String? = null): JSONObject =
-        parameters(agent.command, rawPrompt, directory, operationId, modelId, effortId)
+        modelId: String? = null, effortId: String? = null, workspaceName: String = "", groupId: String? = null): JSONObject =
+        parameters(agent.command, rawPrompt, directory, operationId, modelId, effortId, workspaceName, groupId)
 
     fun parameters(command: String?, rawPrompt: String, directory: String?, operationId: UUID,
-        modelId: String? = null, effortId: String? = null): JSONObject {
+        modelId: String? = null, effortId: String? = null, workspaceName: String = "", groupId: String? = null): JSONObject {
         val prompt = rawPrompt.trim()
         require(command.isNullOrBlank() || prompt.isNotEmpty()) { "Enter a task prompt" }
         val params = JSONObject().put("operation_id", operationId.toString())
-        prompt.lineSequence().firstOrNull()?.take(60)?.takeIf { it.isNotBlank() }?.let {
-            params.put("title", it)
-        }
+        val title = workspaceName.trim().takeIf { it.isNotEmpty() }
+            ?: prompt.lineSequence().firstOrNull()?.let { taskGraphemes(it).take(60).joinToString("") }?.takeIf { it.isNotBlank() }
+        title?.let { params.put("title", it) }
+        groupId?.let { require(it.isNotBlank()); params.put("group_id", it) }
         directory?.trim()?.takeIf { it.isNotEmpty() }?.let { params.put("working_directory", it) }
         command?.takeIf { it.isNotBlank() }?.let { command ->
             params.put("initial_command", TaskAgentCommand.detect(command)?.apply(command, modelId, effortId) ?: command)
