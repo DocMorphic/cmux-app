@@ -1,29 +1,35 @@
 package io.github.docmorphic.cmuxapp
 
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 /** Coalesce invalidations, serialize refreshes and break immediately on disconnect. */
 internal suspend fun monitorNativeNotificationFeed(client: MobileRpcClient,
     receive: (List<NativeNotification>) -> Unit) = coroutineScope {
-    val invalidations = Channel<Unit>(Channel.CONFLATED)
+    val refresh = NativeFeedRefresh()
+    val revision = NativeFeedRevision()
     val events = launch(start = CoroutineStart.UNDISPATCHED) {
-        client.events.collect { if (it.topic == "notification.feed.changed") invalidations.trySend(Unit) }
+        client.events.collect { event ->
+            if (event.topic == "notification.feed.changed") {
+                val changed = event.payload.optLong("revision", -1)
+                if (changed < 0 || revision.observe(changed)) refresh.request()
+            }
+        }
     }
     val disconnect = launch(start = CoroutineStart.UNDISPATCHED) {
-        client.disconnected.collect { invalidations.close(it) }
+        client.disconnected.collect { throw it }
     }
     try {
         client.subscribe(listOf("notification.feed.changed"))
-        while (isActive) {
-            receive(parseNotifications(client.notifications()))
-            withTimeoutOrNull(30_000) { invalidations.receive() }
+        refresh.run {
+            val required = revision.required()
+            val response = client.notifications()
+            val accepted = revision.accept(response.optLong("revision", -1), required)
+            if (accepted) receive(parseNotifications(response))
+            accepted && !revision.needsRefresh()
         }
     } finally {
-        events.cancel(); disconnect.cancel(); invalidations.cancel()
+        events.cancel(); disconnect.cancel(); refresh.close()
     }
 }

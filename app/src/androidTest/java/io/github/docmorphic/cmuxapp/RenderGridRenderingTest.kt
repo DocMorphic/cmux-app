@@ -1,5 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
+import kotlinx.coroutines.test.StandardTestDispatcher
+import androidx.compose.ui.test.ExperimentalTestApi
+
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -11,6 +14,7 @@ import org.junit.Test
 import java.io.File
 
 /** Exercises the device's actual ICU grapheme tables, font shaping and production painter. */
+@OptIn(ExperimentalTestApi::class)
 class RenderGridRenderingTest {
     @Test fun unicodeClustersStayInAuthoritativeCells() {
         val text = "A中e\u0301👩🏽‍💻B"

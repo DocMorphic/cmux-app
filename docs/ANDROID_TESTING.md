@@ -71,9 +71,29 @@ action remains global when search hides an unread item. Screenshots include
 anchors, revision-based read-state reconciliation, offline snapshots, partial bulk
 failures and a replacement Mac at the same route. Feed identities are cached and
 bound to pairing code, device ID and cmux instance tag.
+`NativeLifecycleTest` uses a debug-only Activity host around the production
+NativeScreen. It disconnects the fixture Mac, stops/resumes and recreates the real
+Activity, and checks retained offline rows, tab, committed query, unread filter
+and expanded history. A second case loads beyond the initial 300-row window,
+disconnects, recreates the Activity, and checks that the additional rows remain
+available. `notification-rotation-offline.png` records the offline state.
+This is Activity-recreation coverage, not a force-stop/process-death test. The
+fixture Activity and injected connector are absent from the release APK.
+Revision tests distinguish a complete list from read-acknowledgement watermarks,
+reject responses below the revision known when their request began, preserve
+floors through pause and resume, bound retries for stale hosts, and cancel a
+pending delayed refresh. An event arriving during a request permits valid
+in-flight progress and schedules a trailing fetch for the newer revision. The
+background worker socket test sends an invalidation followed by a stale list and
+checks that only the subsequent fresh list is delivered.
 The peer uses synthetic data and never connects to a real cmux account.
 This check does not prove account sign-in, Tailscale routing, or compatibility
 with the live Mac; those remain in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
+
+Compose checks explicitly use `StandardTestDispatcher`, following the
+[Android testing guidance](https://developer.android.com/blog/posts/whats-new-in-the-jetpack-compose-december-release).
+This queues resumptions from the real socket worker onto the test scheduler;
+the legacy unconfined dispatcher could run ripple animations on that worker.
 
 Debug builds use the `io.github.docmorphic.cmuxapp.debug` package. Their encrypted
 credentials and preferences are separate from the release app. The test clears
@@ -91,10 +111,10 @@ On a Mac with limited RAM, build before starting the emulator:
 ./gradlew --no-daemon --max-workers=1 :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest,io.github.docmorphic.cmuxapp.NativeNotificationDeliveryTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest,io.github.docmorphic.cmuxapp.NativeNotificationDeliveryTest,io.github.docmorphic.cmuxapp.NativeLifecycleTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (20 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (22 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 

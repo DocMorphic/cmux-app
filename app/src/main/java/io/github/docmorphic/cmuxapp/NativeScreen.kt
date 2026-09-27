@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalConfiguration
@@ -62,6 +63,10 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
@@ -123,6 +128,7 @@ fun NativeScreen(
     var otp by remember { mutableStateOf("") }
     var codeSent by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var connectionError by remember(code) { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var retry by remember { mutableIntStateOf(0) }
     var retryDelay by remember { mutableLongStateOf(2_000) }
@@ -140,8 +146,12 @@ fun NativeScreen(
     var groups by remember(code) { mutableStateOf<List<NativeGroup>>(emptyList()) }
     var locallyExpandedGroups by remember { mutableStateOf<Set<String>>(emptySet()) }
     var notifications by remember(code) { mutableStateOf<List<NativeNotification>>(emptyList()) }
-    var notificationTab by remember { mutableStateOf(false) }
-    var searchState by remember(signedIn) { mutableStateOf(NativeSearchState()) }
+    var notificationTab by rememberSaveable(signedIn) { mutableStateOf(false) }
+    var searchState by rememberSaveable(signedIn, stateSaver = listSaver(
+        save = { state: NativeSearchState -> state.commit().let { listOf(it.workspaceQuery, it.notificationQuery) } },
+        restore = { NativeSearchState(workspaceQuery = NativeSearchText.boundQuery(it[0]),
+            notificationQuery = NativeSearchText.boundQuery(it[1])) }
+    )) { mutableStateOf(NativeSearchState()) }
     val searchScope = if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
     val search = searchState.text(searchScope).trim()
     val notificationQuery = searchState.text(NativeSearchScope.NOTIFICATIONS).trim()
@@ -150,7 +160,7 @@ fun NativeScreen(
         focusManager.clearFocus(); softwareKeyboard?.hide()
     }
 
-    var unreadWorkspacesOnly by remember { mutableStateOf(false) }
+    var unreadWorkspacesOnly by rememberSaveable(signedIn) { mutableStateOf(false) }
     var createMenuOpen by remember { mutableStateOf(false) }
     var workspaceFilterMenuOpen by remember { mutableStateOf(false) }
     var computerMenuOpen by remember { mutableStateOf(false) }
@@ -164,11 +174,12 @@ fun NativeScreen(
     val currentIncomingRoute by rememberUpdatedState(incomingNotificationRoute ?: inAppNotification?.routeId)
     val handleNotification by rememberUpdatedState(onNotificationHandled)
     var notificationNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val feedCoordinator = remember(connection, account, scope) {
-        NativeFeedCoordinator(scope, connect = { mac ->
-            connection.connect(PairingCodeParser.parse(mac.code).getOrThrow() as PairingCode.Tailscale, account)
-        }, isAllowed = { mac -> account.isSignedIn() && store.pairedMacs().contains(mac) })
+    val feedOwner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
+    val feedSession = remember(feedOwner) {
+        ViewModelProvider(feedOwner, NativeFeedSession.Factory(connection, account, store))
+            .get(NativeFeedSession::class.java)
     }
+    val feedCoordinator = feedSession.coordinator
     val feedSources by feedCoordinator.sources.collectAsState()
     val feedEntries = remember(feedSources) { aggregateNativeFeed(feedSources.values) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -179,19 +190,19 @@ fun NativeScreen(
         onDispose { lifecycle.removeObserver(observer) }
     }
     LaunchedEffect(signedIn, pairedMacs, feedForeground) {
-        if (!signedIn) feedCoordinator.close()
+        if (!signedIn) feedSession.clear()
         else if (feedForeground) feedCoordinator.updateMacs(pairedMacs)
         else feedCoordinator.pause()
     }
-    DisposableEffect(feedCoordinator) { onDispose { feedCoordinator.close() } }
-    var unreadNotificationsOnly by remember(signedIn) { mutableStateOf(false) }
+    DisposableEffect(feedCoordinator) { onDispose { feedCoordinator.pause() } }
+    var unreadNotificationsOnly by rememberSaveable(signedIn) { mutableStateOf(false) }
     var notificationFilterMenu by remember { mutableStateOf(false) }
     var confirmReadAll by remember { mutableStateOf(false) }
     var readAllBusy by remember { mutableStateOf(false) }
     var feedRefreshing by remember { mutableStateOf(false) }
     var changingNotifications by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var feedRowWindow by remember(notificationQuery, unreadNotificationsOnly) { mutableIntStateOf(300) }
-    var feedProjection by remember(signedIn) { mutableStateOf(NativeFeedProjection()) }
+    var feedRowWindow by rememberSaveable(notificationQuery, unreadNotificationsOnly) { mutableIntStateOf(300) }
+    val feedProjection = feedSession.projection
     fun refreshFeed() {
         if (feedRefreshing) return
         scope.launch {
@@ -242,7 +253,7 @@ fun NativeScreen(
         NativeSearchIndex(feedEntries.map { it.id to it.searchFields() }, searchLocale, notification = true)
     }
     LaunchedEffect(feedEntries, notificationSearch, notificationQuery, unreadNotificationsOnly, notificationNow, feedRowWindow) {
-        feedProjection = NativeFeedProjection.build(feedEntries, unreadNotificationsOnly,
+        feedSession.projection = NativeFeedProjection.build(feedEntries, unreadNotificationsOnly,
             notificationSearch.matches(notificationQuery), java.time.ZoneId.systemDefault(), feedRowWindow, feedProjection)
     }
     LaunchedEffect(notificationTab) { if (notificationTab) refreshFeed() }
@@ -511,12 +522,12 @@ fun NativeScreen(
                 applyListing(listing); notifications = feed
                 client = active; connectedCode = requestedCode
                 pairedMacs = store.pairedMacs()
-                error = null
+                connectionError = null
                 retryDelay = 2_000
             } catch (failure: Throwable) { active.close(); throw failure }
         } catch (failure: Throwable) {
             if (failure is CancellationException) throw failure
-            error = failure.message ?: "Could not connect to cmux"
+            connectionError = nativeConnectionFailure(failure)
             busy = false
             delay(retryDelay)
             retryDelay = (retryDelay * 2).coerceAtMost(30_000)
@@ -528,7 +539,7 @@ fun NativeScreen(
     LaunchedEffect(client) {
         val active = client ?: return@LaunchedEffect
         active.disconnected.collect { failure ->
-            error = failure.message ?: "cmux disconnected"
+            connectionError = nativeConnectionFailure(failure)
             delay(2_000)
             retry++
         }
@@ -539,8 +550,8 @@ fun NativeScreen(
         active.events.collect { event ->
             if (event.topic == "workspace.list.changed" || event.topic == "workspace.updated") {
                 runCatching { active.workspaces() }
-                    .onSuccess { applyListing(it) }
-                    .onFailure { error = it.message }
+                    .onSuccess { applyListing(it); connectionError = null }
+                    .onFailure { connectionError = nativeConnectionFailure(it) }
             }
         }
     }
@@ -549,10 +560,10 @@ fun NativeScreen(
         val active = client ?: return@LaunchedEffect
         if (selectedTerminal != null) return@LaunchedEffect
         while (true) {
-            runCatching { active.workspaces() }.onSuccess { applyListing(it); error = null }
-                .onFailure { error = it.message }
+            runCatching { active.workspaces() }.onSuccess { applyListing(it); connectionError = null }
+                .onFailure { connectionError = nativeConnectionFailure(it) }
             runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
-                .onFailure { if (notificationTab) error = it.message }
+                .onFailure { connectionError = nativeConnectionFailure(it) }
             delay(5_000)
         }
     }
@@ -1241,8 +1252,8 @@ fun NativeScreen(
                         }
                     }
                 }
-                if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (client == null && !busy) {
+                if (busy && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (client == null && !busy && !notificationTab) {
                     Column(Modifier.padding(horizontal = 18.dp)) {
                         Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
                         TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
@@ -1256,7 +1267,7 @@ fun NativeScreen(
                                 entry.source.mac.origin, entry.notification.id, entry.notification.workspaceId,
                                 entry.notification.surfaceId, entry.notification.retargetsToLiveSurfaceOwner)
                         }, onRead = ::setNotificationRead,
-                        onToggle = { feedProjection = feedProjection.toggle(it) },
+                        onToggle = { feedSession.projection = feedProjection.toggle(it) },
                         onMore = { feedRowWindow += 300 }, onRefresh = ::refreshFeed)
                 } else {
                     val matches = remember(workspaceSearch, search) { workspaceSearch.matches(search) }
@@ -1402,9 +1413,10 @@ fun NativeScreen(
                 }
             }
         }
-        if (error != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),
+        val visibleError = error ?: connectionError.takeIf { !notificationTab || selectedTerminal != null || selectedBrowser != null }
+        if (visibleError != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Text(error.orEmpty(), Modifier.weight(1f).padding(vertical = 12.dp), color = Color(0xFFFFAAAA))
+            Text(visibleError, Modifier.weight(1f).padding(vertical = 12.dp), color = Color(0xFFFFAAAA))
             if (selectedTerminal != null) TextButton(onClick = { retryDelay = 2_000; retry++ }) { Text("Reconnect") }
         }
     }
@@ -1568,4 +1580,13 @@ private fun NativeWorkspaceRow(
         confirmButton = { TextButton(onClick = { confirmClose = false; onAction("close", null) }) { Text("Close", color = Color(0xFFFF9999)) } },
         dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("Cancel") } }
     )
+}
+
+private fun nativeConnectionFailure(failure: Throwable): String {
+    val networkFailure = generateSequence(failure) { it.cause }.take(8).any {
+        it is java.net.SocketException || it is java.net.SocketTimeoutException ||
+            it is java.net.UnknownHostException || it is java.io.EOFException
+    }
+    return if (networkFailure) "Could not reach this Mac. Check that cmux and Tailscale are running, then retry."
+        else failure.message ?: "Could not connect to this Mac."
 }

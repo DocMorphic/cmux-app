@@ -1,7 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -13,13 +12,14 @@ internal class NativeFeedCoordinator(
     private val connect: suspend (NativeCredentialStore.PairedMac) -> MobileRpcClient,
     private val isAllowed: (NativeCredentialStore.PairedMac) -> Boolean
 ) : AutoCloseable {
-    private class Handle(val mac: NativeCredentialStore.PairedMac) {
+    private class Handle(val mac: NativeCredentialStore.PairedMac, val revision: NativeFeedRevision) {
         var client: MobileRpcClient? = null
         var job: Job? = null
         val mutex = Mutex()
-        val signal = Channel<Unit>(Channel.CONFLATED)
+        val refresh = NativeFeedRefresh()
     }
     private val handles = mutableMapOf<String, Handle>()
+    private val revisions = mutableMapOf<String, NativeFeedRevision>()
     private val mutableSources = MutableStateFlow<Map<String, NativeFeedSource>>(emptyMap())
     val sources = mutableSources.asStateFlow()
 
@@ -27,8 +27,9 @@ internal class NativeFeedCoordinator(
         val allowed = macs.filter(isAllowed).associateBy { it.origin }
         handles.keys.toList().filter { allowed[it] != handles[it]?.mac }.forEach { remove(it) }
         mutableSources.value = mutableSources.value.filterKeys { it in allowed }
+        revisions.keys.retainAll(allowed.keys)
         for ((origin, mac) in allowed) if (origin !in handles) {
-            val handle = Handle(mac)
+            val handle = Handle(mac, revisions.getOrPut(origin) { NativeFeedRevision() })
             handles[origin] = handle
             publish(handle, (mutableSources.value[origin] ?: NativeFeedSource(mac))
                 .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null))
@@ -40,9 +41,9 @@ internal class NativeFeedCoordinator(
         handles.keys.toList().forEach(::remove)
         mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE) }
     }
-    override fun close() { pause(); mutableSources.value = emptyMap() }
+    override fun close() { pause(); mutableSources.value = emptyMap(); revisions.clear() }
     private fun remove(origin: String) {
-        handles.remove(origin)?.let { it.job?.cancel(); it.client?.close(); it.signal.close() }
+        handles.remove(origin)?.let { it.job?.cancel(); it.client?.close(); it.refresh.close() }
     }
     private fun current(handle: Handle, client: MobileRpcClient? = handle.client) =
         handles[handle.mac.origin] === handle && handle.client === client && isAllowed(handle.mac)
@@ -63,7 +64,10 @@ internal class NativeFeedCoordinator(
                 coroutineScope {
                     val events = launch(start = CoroutineStart.UNDISPATCHED) {
                         client.events.collect { event ->
-                            if (event.topic in FEED_TOPICS) handle.signal.trySend(Unit)
+                            if (event.topic == "notification.feed.changed") {
+                                val revision = event.payload.optLong("revision", -1)
+                                if (revision < 0 || handle.revision.observe(revision)) handle.refresh.request()
+                            } else if (event.topic in FEED_TOPICS) handle.refresh.request()
                         }
                     }
                     val disconnect = launch(start = CoroutineStart.UNDISPATCHED) {
@@ -71,10 +75,7 @@ internal class NativeFeedCoordinator(
                     }
                     try {
                         client.subscribe(FEED_TOPICS)
-                        while (isActive && current(handle, client)) {
-                            fetch(handle, client)
-                            withTimeoutOrNull(30_000) { handle.signal.receive() }
-                        }
+                        handle.refresh.run { fetch(handle, client) }
                     } finally { events.cancel(); disconnect.cancel() }
                 }
             } catch (failure: Exception) {
@@ -83,7 +84,7 @@ internal class NativeFeedCoordinator(
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
                     error = failure.message ?: "Computer unavailable"))
             } finally { active?.close(); handle.client = null }
-            withTimeoutOrNull(10_000) { handle.signal.receive() }
+            handle.refresh.awaitRequest(10_000)
         }
     }
     private suspend fun ensureActiveSession(handle: Handle) {
@@ -91,34 +92,35 @@ internal class NativeFeedCoordinator(
         if (!current(handle)) throw CancellationException("Saved computer changed")
     }
     private suspend fun fetch(handle: Handle, client: MobileRpcClient) = handle.mutex.withLock {
-        if (!current(handle, client)) return@withLock
+        if (!current(handle, client)) throw CancellationException("Saved computer changed")
+        val required = handle.revision.required()
         val listing = client.workspaces()
         val response = client.notifications()
-        if (!current(handle, client)) return@withLock
-        val old = mutableSources.value[handle.mac.origin]
+        if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val revision = response.optLong("revision", -1)
-        if (revision >= 0 && old != null && revision < old.revision) return@withLock
+        if (!handle.revision.accept(revision, required)) return@withLock false
         publish(handle, NativeFeedSource(handle.mac, parseNotifications(response), parseWorkspaces(listing),
             NativeFeedAvailability.CONNECTED, revision))
+        !handle.revision.needsRefresh()
     }
 
-    suspend fun refresh() = coroutineScope {
+    suspend fun refresh() = withContext(scope.coroutineContext.minusKey(Job)) {
         handles.values.toList().map { handle -> async {
             val client = handle.client
-            if (client == null) handle.signal.trySend(Unit)
-            else try { fetch(handle, client) } catch (failure: Exception) {
+            if (client == null) handle.refresh.request()
+            else try { if (!fetch(handle, client)) handle.refresh.request() } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
-                handle.signal.trySend(Unit)
+                handle.refresh.request()
             }
         } }.awaitAll()
         Unit
     }
 
-    suspend fun setRead(entry: NativeFeedEntry, read: Boolean) {
+    suspend fun setRead(entry: NativeFeedEntry, read: Boolean) = withContext(scope.coroutineContext.minusKey(Job)) {
         val handle = handles[entry.source.mac.origin] ?: error("Connect to ${entry.computer} to change this notification.")
         mutate(handle, listOf(entry.notification.id), read, all = false)
     }
-    suspend fun markAllRead() = coroutineScope {
+    suspend fun markAllRead() = withContext(scope.coroutineContext.minusKey(Job)) {
         val targets = mutableSources.value.values.filter { it.items.any { item -> !item.isRead } }
         val failures = targets.map { source -> async {
             try {
@@ -136,13 +138,12 @@ internal class NativeFeedCoordinator(
         val client = handle.client ?: error("${handle.mac.name} is offline.")
         check(current(handle, client)) { "Saved computer changed" }
         val response = if (all) client.markAllNotificationsRead() else client.setNotificationRead(ids.single(), read)
-        if (!current(handle, client)) return@withLock
+        if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val source = mutableSources.value[handle.mac.origin] ?: return@withLock
         val revision = response.optLong("revision", -1)
-        if (revision < 0 || revision >= source.revision) publish(handle, source.copy(
-            items = source.items.map { if (all || it.id in ids) it.copy(isRead = read) else it },
-            revision = maxOf(source.revision, revision)))
-        handle.signal.trySend(Unit)
+        if (handle.revision.acknowledge(revision)) publish(handle, source.copy(
+            items = source.items.map { if (all || it.id in ids) it.copy(isRead = read) else it }))
+        handle.refresh.request()
     }
     companion object {
         private val FEED_TOPICS = listOf("notification.feed.changed", "workspace.list.changed", "workspace.updated")

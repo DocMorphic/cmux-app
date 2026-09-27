@@ -1,5 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
+import kotlinx.coroutines.test.StandardTestDispatcher
+import androidx.compose.ui.test.ExperimentalTestApi
+
 import android.app.Activity
 import android.app.Instrumentation
 import android.content.Intent
@@ -40,8 +43,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /** Runs the real Compose flow and framed RPC client against a local test peer. */
+@OptIn(ExperimentalTestApi::class)
 class NativeFlowTest {
-    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>(effectContext = StandardTestDispatcher())
     private lateinit var peer: NativeFixturePeer
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
@@ -337,7 +341,10 @@ class NativeFlowTest {
         release.countDown()
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Resume typing").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Resume typing").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Resume typing").fetchSemanticsNodes().isEmpty() }
         compose.runOnIdle {
+            keyboard = findTerminalKeyboard(compose.activity.window.decorView)!!
+            assertTrue(keyboard.isEnabled)
             connection = keyboard.onCreateInputConnection(EditorInfo())!!
             connection.commitText("after resume", 1)
         }
@@ -817,7 +824,7 @@ class NativeFlowTest {
     }
 }
 
-private class NativeFixturePeer : AutoCloseable {
+internal class NativeFixturePeer : AutoCloseable {
     private val server = ServerSocket(0)
     val port get() = server.localPort
     val requests = CopyOnWriteArrayList<JSONObject>()

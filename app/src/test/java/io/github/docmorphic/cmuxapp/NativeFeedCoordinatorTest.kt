@@ -70,14 +70,40 @@ class NativeFeedCoordinatorTest {
                 val entry = aggregateNativeFeed(coordinator.sources.value.values).single()
                 coordinator.setRead(entry, true)
                 coordinator.refresh()
-                assertEquals(3, coordinator.sources.value.values.single().revision)
+                assertEquals(1, coordinator.sources.value.values.single().revision)
                 assertTrue(coordinator.sources.value.values.single().items.single().isRead)
                 peer.mutationRevision.set(4)
                 coordinator.setRead(entry, false)
                 coordinator.refresh()
-                assertEquals(4, coordinator.sources.value.values.single().revision)
+                assertEquals(1, coordinator.sources.value.values.single().revision)
                 assertFalse(coordinator.sources.value.values.single().items.single().isRead)
                 assertEquals(1, peer.requests.count { it.optString("method") == "notification.feed.mark_unread" })
+            } finally { coordinator.close() }
+        }
+    }
+
+    @Test fun pauseRetainsSnapshotAndMutationFloorUntilFreshReconnection() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.items?.isNotEmpty() == true }
+                peer.mutationRevision.set(5); peer.overrideFeedRevision = 1; peer.forceUnread = true
+                coordinator.setRead(aggregateNativeFeed(coordinator.sources.value.values).single(), true)
+                coordinator.pause()
+                assertTrue(coordinator.sources.value.values.single().items.single().isRead)
+                assertEquals(NativeFeedAvailability.OFFLINE, coordinator.sources.value.values.single().availability)
+                val previousLists = peer.requests.count { it.optString("method") == "notification.feed.list" }
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { peer.requests.count { it.optString("method") == "notification.feed.list" } > previousLists }
+                coordinator.refresh()
+                assertTrue(coordinator.sources.value.values.single().items.single().isRead)
+                peer.overrideFeedRevision = 6
+                coordinator.refresh()
+                awaitState { coordinator.sources.value.values.single().revision == 6L }
+                assertFalse(coordinator.sources.value.values.single().items.single().isRead)
+                coordinator.close()
+                assertTrue(coordinator.sources.value.isEmpty())
             } finally { coordinator.close() }
         }
     }

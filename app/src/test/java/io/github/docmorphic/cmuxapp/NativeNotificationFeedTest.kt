@@ -11,9 +11,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 class NativeNotificationFeedTest {
-    @Test fun invalidationRefreshesWithoutPollDelayAndDisconnectEndsWorker() = runBlocking {
+    @Test fun revisionInvalidationRejectsStaleListBeforeDeliveryAndDisconnectEndsWorker() = runBlocking {
         ServerSocket(0).use { server ->
             val closePeer = CountDownLatch(1)
+            val firstSnapshot = CountDownLatch(1)
             val peerFailure = AtomicReference<Throwable?>()
             val methods = java.util.concurrent.CopyOnWriteArrayList<String>()
             val peer = Thread {
@@ -25,17 +26,22 @@ class NativeNotificationFeedTest {
                         fun send(value: JSONObject) {
                             output.write(MobileFrameCodec.encode(value.toString().toByteArray())); output.flush()
                         }
-                        repeat(3) { index ->
+                        repeat(4) { index ->
                             val length = input.readNBytes(4).fold(0) { n, b -> (n shl 8) or (b.toInt() and 0xff) }
                             val request = JSONObject(String(input.readNBytes(length), Charsets.UTF_8))
                             methods += request.getString("method")
                             if (index == 0) assertEquals("notification.feed.changed", request.getJSONObject("params").getJSONArray("topics").getString(0))
-                            val result = if (index == 2) JSONObject().put("notifications", JSONArray().put(JSONObject()
-                                .put("id", "new").put("workspace_id", "w").put("surface_id", "s").put("title", "Ready")))
-                                else JSONObject().put("notifications", JSONArray())
+                            val result = JSONObject().put("revision", index).put("notifications",
+                                if (index >= 2) JSONArray().put(JSONObject()
+                                    .put("id", if (index == 2) "stale" else "new").put("workspace_id", "w")
+                                    .put("surface_id", "s").put("title", "Ready")) else JSONArray())
                             send(JSONObject().put("id", request.getString("id")).put("ok", true).put("result", result))
-                            if (index == 1) repeat(4) {
-                                send(JSONObject().put("kind", "event").put("topic", "notification.feed.changed").put("payload", JSONObject()))
+                            if (index == 1) {
+                                check(firstSnapshot.await(5, TimeUnit.SECONDS))
+                                repeat(4) {
+                                    send(JSONObject().put("kind", "event").put("topic", "notification.feed.changed")
+                                        .put("payload", JSONObject().put("revision", 3)))
+                                }
                             }
                         }
                         check(closePeer.await(5, TimeUnit.SECONDS))
@@ -47,16 +53,18 @@ class NativeNotificationFeedTest {
                 client.connect()
                 val received = CompletableDeferred<List<NativeNotification>>()
                 val task = async {
-                    runCatching { monitorNativeNotificationFeed(client) { if (it.isNotEmpty()) received.complete(it) } }
+                    runCatching { monitorNativeNotificationFeed(client) {
+                        if (it.isEmpty()) firstSnapshot.countDown() else received.complete(it)
+                    } }
                 }
                 val feed = withTimeout(5_000) { received.await() }
                 assertEquals("new", feed.single().id)
                 closePeer.countDown()
                 assertTrue(withTimeout(5_000) { task.await() }.isFailure)
-                assertEquals(listOf("mobile.events.subscribe", "notification.feed.list", "notification.feed.list"), methods.toList())
+                assertEquals(listOf("mobile.events.subscribe", "notification.feed.list", "notification.feed.list", "notification.feed.list"), methods.toList())
                 peer.join(2_000)
                 assertNull(peerFailure.get())
-            } finally { closePeer.countDown(); client.close(); peer.join(2_000) }
+            } finally { firstSnapshot.countDown(); closePeer.countDown(); client.close(); peer.join(2_000) }
         }
     }
 }
