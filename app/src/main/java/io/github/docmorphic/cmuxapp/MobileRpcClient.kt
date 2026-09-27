@@ -177,6 +177,13 @@ class MobileRpcClient(
         "mobile.workspace.changes.file_diff", JSONObject().put("workspace_id", workspaceId)
             .put("path", path).also { params -> maxLines?.let { params.put("max_lines", it.coerceIn(100, 96_000)) } }
     )
+    internal fun changesContent(workspaceId: String) = ChangesContentTransfer(
+        stat = { path, revision -> request("mobile.workspace.changes.file_stat", JSONObject()
+            .put("workspace_id", workspaceId).put("path", path).put("revision", revision.wire)) },
+        fetch = { path, revision, offset, length -> request("mobile.workspace.changes.file_fetch", JSONObject()
+            .put("workspace_id", workspaceId).put("path", path).put("revision", revision.wire)
+            .put("offset", offset).put("length", length)) },
+    )
     suspend fun browserPanels(workspaceId: String): JSONObject = request(
         "mobile.browser.list", JSONObject().put("workspace_id", workspaceId)
     )

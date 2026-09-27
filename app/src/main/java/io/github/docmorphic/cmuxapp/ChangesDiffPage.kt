@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -65,20 +66,17 @@ internal fun ChangesDiffPage(store: ChangesStore, file: ChangedFile, fontSize: F
             ChangesNotice(file.filename, "Binary file")
         } else {
             val continuation = DiffContinuation(state.budget, document, state.ceiling)
-            val gutter = (maxOf(2, document.maximumLineNumber.toString().length) * fontSize * .64f * LocalDensity.current.fontScale + 8).dp
+            val gutter = (maxOf(2, maxOf(document.maximumLineNumber, state.expansion.current?.lines?.size ?: 0).toString().length) * fontSize * .64f * LocalDensity.current.fontScale + 8).dp
             PullToRefreshBox(state.loading, { store.load(file.path, force = true) }, Modifier.weight(1f)) {
                 LazyColumn(Modifier.fillMaxSize().diffFontGesture(fontSize, onFont, onPersistFont), state = scroll) {
                     if (document.hunks.isEmpty()) item { ChangesNotice("No text changes", "This file has no textual diff hunks.") }
-                    document.hunks.forEachIndexed { hunkIndex, hunk ->
-                        item("$hunkIndex:header") {
-                            ChangesDiffRow(ChangesDiffLine(DiffKind.HEADER, hunk.header), hunk.copyText, gutter, fontSize) {
-                                clipboard.setText(AnnotatedString(it))
+                    items(state.rows, key = { it.id }) { row ->
+                        when (row) {
+                            is ChangesDiffRowContent.Code -> ChangesDiffRow(row.line, row.hunk, gutter, fontSize) { clipboard.setText(AnnotatedString(it)) }
+                            is ChangesDiffRowContent.Expand -> ChangesExpander(row, state.expansion) { direction ->
+                                store.expand(file.path, row.gap.id, direction, row.hidden)
                             }
                         }
-                        items(hunk.lines.size, key = { "$hunkIndex:line:$it" }) { index ->
-                            ChangesDiffRow(hunk.lines[index], hunk.copyText, gutter, fontSize) { clipboard.setText(AnnotatedString(it)) }
-                        }
-                        item("$hunkIndex:space") { Spacer(Modifier.height(8.dp)) }
                     }
                     if (document.truncated) item("continuation") {
                         Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -90,6 +88,28 @@ internal fun ChangesDiffPage(store: ChangesStore, file: ChangedFile, fontSize: F
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ChangesExpander(row: ChangesDiffRowContent.Expand, state: ChangesExpansion, expand: (ChangesExpandDirection) -> Unit) {
+    val count = row.hidden?.count?.let { if (it <= 120) it else 100 }
+    val directions = if (row.gap.directions.size == 2 && row.hidden?.count?.let { it <= 120 } == true)
+        listOf(ChangesExpandDirection.DOWN) else row.gap.directions
+    Row(Modifier.fillMaxWidth().background(Color(0x1C388BFD))) {
+        directions.forEach { direction ->
+            val label = when {
+                state.tooLarge -> "Too large to expand"
+                state.pending == row.gap.id -> "Loading hidden lines…"
+                state.failed == row.gap.id -> "Couldn't expand lines. Tap to retry."
+                count != null -> "Expand $count lines"
+                else -> "Expand hidden lines"
+            }
+            TextButton(onClick = { expand(direction) }, enabled = state.pending == null && !state.tooLarge,
+                modifier = Modifier.weight(1f).heightIn(min = 42.dp).semantics {
+                    contentDescription = "$label ${if (direction == ChangesExpandDirection.UP) "above" else "below"}"
+                }) { Text("${if (direction == ChangesExpandDirection.UP) "⌃" else "⌄"}  $label", fontSize = 12.sp) }
         }
     }
 }
@@ -112,8 +132,10 @@ private fun ChangesDiffRow(line: ChangesDiffLine, hunk: String, gutter: androidx
     Box(Modifier.fillMaxWidth().background(background)) {
         val interaction = if (line.kind == DiffKind.NO_NEWLINE) Modifier else Modifier
             .combinedClickable(onClick = {}, onLongClick = { menu = true })
-            .semantics { customActions = listOf(CustomAccessibilityAction("Copy Line") { copy(line.text); true },
-                CustomAccessibilityAction("Copy Hunk") { copy(hunk); true }) }
+            .semantics { customActions = buildList {
+                add(CustomAccessibilityAction("Copy Line") { copy(line.text); true })
+                if (hunk.isNotEmpty()) add(CustomAccessibilityAction("Copy Hunk") { copy(hunk); true })
+            } }
         when (line.kind) {
             DiffKind.NO_NEWLINE -> Text("↳ No newline at end of file", Modifier.padding(horizontal = 8.dp, vertical = 2.dp), color = changesMuted, fontSize = 10.sp)
             DiffKind.HEADER -> Text(line.text, Modifier.fillMaxWidth().then(interaction).padding(horizontal = 8.dp, vertical = 5.dp),
@@ -132,7 +154,7 @@ private fun ChangesDiffRow(line: ChangesDiffLine, hunk: String, gutter: androidx
         }
         DropdownMenu(menu, { menu = false }) {
             DropdownMenuItem(text = { Text("Copy Line") }, onClick = { copy(line.text); menu = false })
-            DropdownMenuItem(text = { Text("Copy Hunk") }, onClick = { copy(hunk); menu = false })
+            if (hunk.isNotEmpty()) DropdownMenuItem(text = { Text("Copy Hunk") }, onClick = { copy(hunk); menu = false })
         }
     }
 }

@@ -34,7 +34,8 @@ fun NativeChangesView(client: MobileRpcClient, workspaceId: String, title: Strin
     val scope = rememberCoroutineScope()
     val store = remember(client, workspaceId) { ChangesStore(scope, workspaceId,
         { client.changedFiles(workspaceId) }, { path, budget -> client.fileDiff(workspaceId, path,
-            budget.takeIf { it != DiffContinuation.DEFAULT_BUDGET }) }) }
+            budget.takeIf { it != DiffContinuation.DEFAULT_BUDGET }) },
+        fetchLines = { path -> client.changesContent(workspaceId).currentLines(path) }) }
     DisposableEffect(store) { onDispose { store.close() } }
     LaunchedEffect(store) { store.refresh().join() }
     ChangesContent(store, title, onBack)

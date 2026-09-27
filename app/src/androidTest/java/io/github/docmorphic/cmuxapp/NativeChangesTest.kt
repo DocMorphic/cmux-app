@@ -96,4 +96,54 @@ class NativeChangesTest {
         compose.onNodeWithContentDescription("Open diff big.txt").performClick(); waitText("new big.txt")
         compose.onNodeWithContentDescription("Diff text size 22").assertExists()
     }
+    @Test fun hiddenContextUsesMatchingRevisionAndReusesCurrentFileContent() {
+        val content = "first unchanged\nsecond unchanged\nnew App.kt\nlast unchanged\n"
+        val fingerprint = "stat:${content.toByteArray().size}:123:4:5:6"
+        peer.changesResponse = { method, params -> when {
+            method.endsWith(".files") -> files("App.kt")
+            method.endsWith(".file_diff") -> diff(params.getString("path")).put("content_fingerprint", fingerprint)
+            method.endsWith(".file_stat") -> JSONObject().put("exists", true).put("is_directory", false)
+                .put("size", content.toByteArray().size).put("kind", "text").put("content_fingerprint", fingerprint)
+            else -> JSONObject().put("data_b64", java.util.Base64.getEncoder().encodeToString(content.toByteArray()))
+                .put("offset", 0).put("total_size", content.toByteArray().size).put("eof", true).put("content_fingerprint", fingerprint)
+        } }
+        show(); waitText("App.kt")
+        compose.onNodeWithContentDescription("Open diff App.kt").performClick(); waitText("new App.kt")
+        compose.onNodeWithContentDescription("Expand 2 lines above").performClick(); waitText("first unchanged")
+        compose.onNodeWithText("second unchanged").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Expand 1 lines below").performScrollTo().performClick(); waitText("last unchanged")
+        assertEquals(1, peer.requests.count { it.optString("method").endsWith(".file_fetch") })
+        val contentRequests = peer.requests.filter { it.optString("method").endsWith(".file_fetch") || it.optString("method").endsWith(".file_stat") }
+        assertTrue(contentRequests.all { it.getJSONObject("params").let { p -> p.getString("path") == "App.kt" && p.getString("revision") == "current" && p.getString("workspace_id") == "ws" } })
+        compose.onNodeWithContentDescription("Refresh diff App.kt").performClick()
+        waitText("new App.kt")
+        compose.onNodeWithText("first unchanged").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Expand 2 lines above").assertExists()
+    }
+
+    @Test fun changedRevisionReloadsDiffInsteadOfShowingMismatchedContext() {
+        val latest = java.util.concurrent.atomic.AtomicBoolean(false)
+        val content = "wrong revision\nwrong revision\nnew App.kt\n"
+        val firstFingerprint = "stat:${content.length}:123:4:5:6"
+        val changedFingerprint = "stat:${content.length}:124:4:5:6"
+        peer.changesResponse = { method, params -> when {
+            method.endsWith(".files") -> files("App.kt")
+            method.endsWith(".file_diff") -> diff(params.getString("path")).put("content_fingerprint", if (latest.get()) changedFingerprint else firstFingerprint)
+            method.endsWith(".file_stat") -> {
+                latest.set(true)
+                JSONObject().put("exists", true).put("is_directory", false).put("size", content.length)
+                    .put("kind", "text").put("content_fingerprint", changedFingerprint)
+            }
+            else -> JSONObject().put("data_b64", java.util.Base64.getEncoder().encodeToString(content.toByteArray()))
+                .put("offset", 0).put("total_size", content.length).put("eof", true).put("content_fingerprint", changedFingerprint)
+        } }
+        show(); waitText("App.kt")
+        compose.onNodeWithContentDescription("Open diff App.kt").performClick(); waitText("new App.kt")
+        compose.onNodeWithContentDescription("Expand 2 lines above").performClick()
+        compose.waitUntil(10_000) { requests().size == 2 }
+        waitText("new App.kt")
+        compose.onNodeWithText("wrong revision").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Expand 2 lines above").assertExists()
+    }
+
 }

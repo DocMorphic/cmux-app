@@ -9,11 +9,13 @@ internal data class ChangesListState(val snapshot: ChangesSnapshot? = null, val 
     val error: String? = null, val notRepository: Boolean = false)
 internal data class ChangesPageState(val document: ChangesDiffDocument? = null, val loading: Boolean = false,
     val error: String? = null, val budget: Int = DiffContinuation.DEFAULT_BUDGET, val ceiling: Boolean = false,
-    val failedContinuation: Boolean = false)
+    val failedContinuation: Boolean = false, val expansion: ChangesExpansion = ChangesExpansion(),
+    val rows: List<ChangesDiffRowContent> = emptyList())
 
 /** Workspace/connection-scoped requests and a seven-page cache, independent of pager composition. */
 internal class ChangesStore(parent: CoroutineScope, private val workspace: String,
-    private val fetchFiles: suspend () -> JSONObject, private val fetchDiff: suspend (String, Int) -> JSONObject) : AutoCloseable {
+    private val fetchFiles: suspend () -> JSONObject, private val fetchDiff: suspend (String, Int) -> JSONObject,
+    private val fetchLines: suspend (String) -> ChangesCurrentFile = { error("File content is unavailable") }) : AutoCloseable {
     private val owner = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + owner)
     private val list = MutableStateFlow(ChangesListState())
@@ -71,15 +73,21 @@ internal class ChangesStore(parent: CoroutineScope, private val workspace: Strin
         val generation = ++record.generation
         record.job?.cancel()
         record.state.value = previous.copy(document = if (force) null else previous.document,
-            loading = true, error = null, failedContinuation = false)
+            loading = true, error = null, failedContinuation = false,
+            rows = if (force) emptyList() else previous.rows,
+            expansion = if (force) ChangesExpansion() else previous.expansion.copy(pending = null))
         return scope.launch {
             try {
                 val value = fetchDiff(path, requested)
-                val document = withContext(Dispatchers.Default) { ChangesDiffDocument.read(value, path) }
+                val kind = list.value.snapshot?.files?.firstOrNull { it.path == path }?.kind ?: ChangeKind.UNKNOWN
+                val (document, rows) = withContext(Dispatchers.Default) {
+                    val document = ChangesDiffDocument.read(value, path)
+                    document to projectChanges(document, kind)
+                }
                 ensureActive()
                 if (generation != record.generation || pages[path] !== record) return@launch
                 record.state.value = ChangesPageState(document, budget = requested,
-                    ceiling = more && document.rawLineCount <= (previous.document?.rawLineCount ?: 0))
+                    ceiling = more && document.rawLineCount <= (previous.document?.rawLineCount ?: 0), rows = rows)
                 touch(path); trim()
             } catch (failure: Exception) {
                 currentCoroutineContext().ensureActive()
@@ -88,6 +96,51 @@ internal class ChangesStore(parent: CoroutineScope, private val workspace: Strin
             } finally {
                 if (generation == record.generation) {
                     record.state.value = record.state.value.copy(loading = false)
+                    record.job = null
+                }
+            }
+        }.also { record.job = it }
+    }
+    fun expand(path: String, gapId: Int, direction: ChangesExpandDirection, preferred: ChangesLineRange? = null): Job? {
+        val record = pages[path] ?: return null
+        val previous = record.state.value
+        val document = previous.document ?: return null
+        val kind = list.value.snapshot?.files?.firstOrNull { it.path == path }?.kind ?: return null
+        if (!owner.isActive || kind == ChangeKind.DELETED || document.binary || previous.expansion.tooLarge || previous.expansion.pending != null) return null
+        if (ChangesGap.gaps(document, previous.expansion.current?.lines?.size).none { it.id == gapId }) return null
+        val generation = ++record.generation
+        record.job?.cancel()
+        record.state.value = previous.copy(loading = false, expansion = previous.expansion.copy(pending = gapId, failed = null))
+        return scope.launch {
+            try {
+                val current = previous.expansion.current ?: fetchLines(path)
+                ensureActive()
+                if (record.generation != generation || pages[path] !== record) return@launch
+                if (!changesFingerprintValid(document.fingerprint, currentOnly = true) || document.fingerprint != current.fingerprint) {
+                    load(path, force = true)
+                    return@launch
+                }
+                val (expansion, rows) = withContext(Dispatchers.Default) {
+                    var expansion = previous.expansion.copy(current = current, pending = null, failed = null)
+                    ChangesGap.gaps(document, current.lines.size).firstOrNull { it.id == gapId }?.let {
+                        expansion = expansion.reveal(it, direction, preferred)
+                    }
+                    expansion to projectChanges(document, kind, expansion)
+                }
+                ensureActive()
+                if (record.generation == generation && pages[path] === record) {
+                    record.state.value = record.state.value.copy(expansion = expansion, rows = rows)
+                    touch(path); trim()
+                }
+            } catch (failure: Exception) {
+                currentCoroutineContext().ensureActive()
+                if (record.generation != generation || pages[path] !== record) return@launch
+                if (failure is ChangesRevisionChanged) { load(path, force = true); return@launch }
+                record.state.value = record.state.value.copy(expansion = previous.expansion.copy(
+                    pending = null, failed = gapId, tooLarge = failure is ChangesContentTooLarge))
+            } finally {
+                if (record.generation == generation) {
+                    record.state.value = record.state.value.copy(expansion = record.state.value.expansion.copy(pending = null))
                     record.job = null
                 }
             }
@@ -115,7 +168,7 @@ internal class ChangesStore(parent: CoroutineScope, private val workspace: Strin
         while (pages.values.count { it.state.value.document != null } > 7) {
             val victim = recency.firstOrNull { it !in protected && pages[it]?.state?.value?.document != null } ?: return
             recency.remove(victim)
-            pages[victim]?.let { it.state.value = it.state.value.copy(document = null, budget = DiffContinuation.DEFAULT_BUDGET, ceiling = false) }
+            pages[victim]?.let { it.state.value = it.state.value.copy(document = null, budget = DiffContinuation.DEFAULT_BUDGET, ceiling = false, rows = emptyList(), expansion = ChangesExpansion()) }
         }
     }
     override fun close() { listGeneration++; pages.values.forEach { it.generation++ }; owner.cancel() }
