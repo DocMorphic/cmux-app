@@ -39,7 +39,7 @@ internal fun clampDiffFont(value: Float) = if (value.isFinite()) value.coerceIn(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChangesDiffPage(store: ChangesStore, file: ChangedFile, fontSize: Float,
-    onFont: (Float) -> Unit, onPersistFont: (Float) -> Unit) {
+    onFont: (Float) -> Unit, onPersistFont: (Float) -> Unit, content: ChangesContentTransfer? = null) {
     val page = remember(store, file.path) { store.page(file.path) }
     val state by page.collectAsState()
     val clipboard = LocalClipboardManager.current
@@ -63,7 +63,8 @@ internal fun ChangesDiffPage(store: ChangesStore, file: ChangedFile, fontSize: F
         if (document == null) {
             if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         } else if (document.binary) {
-            ChangesNotice(file.filename, "Binary file")
+            if (content != null) ChangesBinaryPreview(content, file, document)
+            else ChangesNotice(file.filename, "Binary file")
         } else {
             val continuation = DiffContinuation(state.budget, document, state.ceiling)
             val gutter = (maxOf(2, maxOf(document.maximumLineNumber, state.expansion.current?.lines?.size ?: 0).toString().length) * fontSize * .64f * LocalDensity.current.fontScale + 8).dp

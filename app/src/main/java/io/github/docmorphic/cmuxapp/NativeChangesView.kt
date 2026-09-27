@@ -38,12 +38,13 @@ fun NativeChangesView(client: MobileRpcClient, workspaceId: String, title: Strin
         fetchLines = { path -> client.changesContent(workspaceId).currentLines(path) }) }
     DisposableEffect(store) { onDispose { store.close() } }
     LaunchedEffect(store) { store.refresh().join() }
-    ChangesContent(store, title, onBack)
+    val content = remember(client, workspaceId) { client.changesContent(workspaceId) }
+    ChangesContent(store, title, onBack, content)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Unit) {
+internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Unit, content: ChangesContentTransfer? = null) {
     val listing by store.listing.collectAsState()
     var selected by remember(store) { mutableStateOf<String?>(null) }
     val snapshot = listing.snapshot
@@ -92,7 +93,7 @@ internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Un
                 HorizontalDivider(color = Color(0xFF292C31))
                 HorizontalPager(pager, Modifier.weight(1f), key = { files[it].path }) { index ->
                     ChangesDiffPage(store, files[index], fontSize, { fontSize = clampDiffFont(it) },
-                        { preferences.edit().putFloat("diff-font-size", clampDiffFont(it)).apply() })
+                        { preferences.edit().putFloat("diff-font-size", clampDiffFont(it)).apply() }, content)
                 }
             }
         }
