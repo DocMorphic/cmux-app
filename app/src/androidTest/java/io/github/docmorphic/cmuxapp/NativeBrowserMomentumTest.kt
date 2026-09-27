@@ -2,6 +2,7 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -33,9 +34,14 @@ class NativeBrowserMomentumTest {
             var size by remember { mutableStateOf(IntSize.Zero) }
             Box((if (shorter) Modifier.fillMaxWidth().height(250.dp) else Modifier.fillMaxSize())
                 .onSizeChanged { size = it }.testTag("browser")
-                .browserScrollGestures(motion, 1000.0, 2000.0, size, generation, true))
+                .browserScrollGestures(motion, 1000.0, 2000.0, size, generation, true)) {
+                Text("Browser momentum fixture")
+            }
         } }
-        compose.waitForIdle(); compose.mainClock.autoAdvance = false
+        compose.waitForIdle()
+        // Finish the measured-size recomposition before freezing animation time.
+        compose.mainClock.advanceTimeBy(64); compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
     }
     private fun flick() {
         compose.onNodeWithTag("browser").performTouchInput {
@@ -49,7 +55,8 @@ class NativeBrowserMomentumTest {
     @Test fun realFlingContinuesInPageCoordinatesAndEndsWithMomentumBoundary() {
         show(); flick()
         val released = distance()
-        assertTrue(released > 0)
+        assertNull(queue.error.value)
+        assertTrue("Touch must deliver scroll before release; sent=$sent", released > 0)
         compose.mainClock.advanceTimeBy(160); compose.waitForIdle()
         assertTrue(distance() > released)
         compose.mainClock.advanceTimeBy(10_000); compose.waitForIdle()
@@ -58,10 +65,20 @@ class NativeBrowserMomentumTest {
         assertEquals("momentum_ended", scrolls.last().phase)
         assertTrue(scrolls.any { it.phase == "ended" })
         assertTrue(scrolls.any { it.phase == "momentum_began" })
-        assertTrue(scrolls.filter { it.phase.startsWith("momentum_") }.any { it.dx < 0 && it.dy < 0 })
+        assertTrue(scrolls.filter { it.phase.startsWith("momentum_") }.any { it.dx > 0 && it.dy > 0 })
+        assertTrue("Downward/rightward touch uses positive Mac wheel deltas", scrolls.all { it.dx >= 0 && it.dy >= 0 })
         assertTrue(scrolls.all { it.x in 0.0..1000.0 && it.y in 0.0..2000.0 })
         val ended = distance(); compose.mainClock.advanceTimeBy(500); compose.waitForIdle()
         assertEquals(ended, distance(), 0.0)
+        val count = sent.size
+        compose.onNodeWithTag("browser").performTouchInput {
+            swipe(Offset(width * .6f, height * .6f), Offset(width * .3f, height * .2f), durationMillis = 80)
+        }
+        compose.mainClock.advanceTimeBy(10_000); compose.waitForIdle()
+        val reverse = sent.drop(count).filterIsInstance<BrowserInput.Scroll>()
+        assertEquals("momentum_ended", reverse.last().phase)
+        assertTrue("Upward/leftward touch uses negative Mac wheel deltas", reverse.all { it.dx <= 0 && it.dy <= 0 })
+        assertTrue(reverse.any { it.phase.startsWith("momentum_") && it.dx < 0 && it.dy < 0 })
     }
 
     @Test fun newTouchAndKeyboardInputStopMotionWithoutLateScroll() {

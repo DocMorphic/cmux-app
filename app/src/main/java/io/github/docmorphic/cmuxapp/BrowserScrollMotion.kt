@@ -79,7 +79,10 @@ internal class BrowserScrollMotion(private val scope: CoroutineScope, private va
                 if (generation != epoch) cancelAnimation()
                 else {
                     val delta = value - previous; previous = value
-                    if (!sequence.momentum(-delta.x.toDouble() * pagePerPixel.x, -delta.y.toDouble() * pagePerPixel.y)) cancelAnimation()
+                    // iOS negates UIScrollView content-offset deltas. Touch displacement
+                    // already has that sign, so Android must not negate it again.
+                    if (delta != Offset.Zero && !sequence.momentum(delta.x.toDouble() * pagePerPixel.x,
+                            delta.y.toDouble() * pagePerPixel.y)) cancelAnimation()
                 }
             }
             if (generation == epoch) sequence.finishMomentum()
@@ -137,7 +140,7 @@ internal fun Modifier.browserScrollGestures(motion: BrowserScrollMotion, pageWid
                 }) { change, delta ->
                 if (enabled && !multiTouch) {
                     val factor = scale()
-                    motion.drag(Offset(-delta.x * factor.x, -delta.y * factor.y), point(change.position))
+                    motion.drag(Offset(delta.x * factor.x, delta.y * factor.y), point(change.position))
                     change.consume()
                 }
             }

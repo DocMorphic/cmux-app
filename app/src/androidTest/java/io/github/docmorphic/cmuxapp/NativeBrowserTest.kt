@@ -216,7 +216,7 @@ class NativeBrowserTest {
         assertEquals("began", scrolls.first().getString("phase"))
         assertTrue(scrolls.any { it.getString("phase") == "ended" })
         assertTrue(scrolls.any { it.getString("phase") == "momentum_began" })
-        assertTrue(scrolls.any { it.getString("phase").startsWith("momentum_") && it.getDouble("dy") < 0 })
+        assertTrue(scrolls.any { it.getString("phase").startsWith("momentum_") && it.getDouble("dy") > 0 })
         assertTrue(scrolls.all { it.getString("panel_id") == panel && it.getDouble("y") in 0.0..200.0 })
         assertTrue(requests("input.pointer").isEmpty())
         assertEquals(1, requests("stream.start").size)
