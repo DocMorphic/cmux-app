@@ -1,5 +1,15 @@
 # Android runtime checks
 
+## Build cadence
+
+Commit feature work as it is completed. Run focused checks for changed behavior;
+full Android builds, emulator regression batches and signed APK publication happen
+at integration milestones. GitHub Actions skips the build job for draft PRs and
+does not build every branch push. Trigger `Android build` manually for a milestone;
+ready-for-review PRs build automatically on opening, reopening and updates.
+A source commit can therefore be newer than the most recently verified APK.
+
+
 The instrumented `NativeFlowTest` runs the production Compose screens and framed
 RPC client against an emulator-local TCP peer. It covers workspace filtering,
 terminal navigation, keyboard viewport resizing, paste/submit delivery, and

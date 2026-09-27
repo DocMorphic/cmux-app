@@ -1,8 +1,8 @@
 name: Android build
 
 on:
-  push:
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
 
 permissions:
@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   build:
+    # Draft feature commits accumulate without rebuilding release APKs.
+    # Build a milestone manually, or automatically once the PR is ready.
+    if: github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
