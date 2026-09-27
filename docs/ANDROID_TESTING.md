@@ -44,6 +44,10 @@ Two alert-navigation flows switch from one saved fixture Mac to another, verify
 exact workspace/terminal RPC targets, reject a superseded handshake while its
 initial feed is still pending, reopen the same route after consumption,
 and reject a forgotten computer without sending a read or terminal request.
+The routing regressions also cover session capture during recomposition: old
+cleanup must not close the new client, a route must not execute twice when a
+handshake finishes, and keyboard/focus changes after RPC must run on the main
+thread.
 Four `NativeNotificationDeliveryTest` checks exercise real Keystore encryption,
 NotificationManager and PendingIntent identity (including colliding string hashes
 and identical IDs across Macs), read/forget cleanup, late-feed suppression,
@@ -56,6 +60,17 @@ history/route eviction and retained moved-surface provenance. A socket test
 exercises the actual event-driven feed worker and disconnect handling.
 These do not yet prove delivery during physical-device sleep, boot recovery,
 notification-shade taps through Activity process death, or real tailnet reconnects.
+Two further feed flows check Today/Yesterday sections, collapsed and expanded
+same-pane history, read/unread long-press actions, leading-edge swipe, unread
+filtering, confirmed/cancelled bulk read, duplicate Mac-local IDs on two computers,
+computer search, exact cross-Mac terminal targets and query restoration. The bulk
+action remains global when search hides an unread item. Screenshots include
+`notification-history-collapsed.png`, `notification-history-unread.png`, and
+`notification-multiple-macs.png`. JVM tests cover the 2,000-item aggregate cap,
+300-item projection window, DST/day boundaries, two-hour grouping, stable expansion
+anchors, revision-based read-state reconciliation, offline snapshots, partial bulk
+failures and a replacement Mac at the same route. Feed identities are cached and
+bound to pairing code, device ID and cmux instance tag.
 The peer uses synthetic data and never connects to a real cmux account.
 This check does not prove account sign-in, Tailscale routing, or compatibility
 with the live Mac; those remain in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
@@ -79,7 +94,7 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest,io.github.docmorphic.cmuxapp.NativeNotificationDeliveryTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (18 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (20 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 

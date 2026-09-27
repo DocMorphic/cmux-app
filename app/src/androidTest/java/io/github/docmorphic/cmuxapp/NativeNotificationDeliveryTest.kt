@@ -45,10 +45,10 @@ class NativeNotificationDeliveryTest {
 
     @Test fun independentAlertsPersistWithoutPairingDataInIntentsAndReadCancelsOnlyItsMac() {
         val delivery = NativeNotificationDelivery(context)
-        delivery.refresh(pairingOrigin(a), "First Mac", emptyList()) { true }
-        delivery.refresh(pairingOrigin(b), "Second Mac", emptyList()) { true }
-        delivery.refresh(pairingOrigin(a), "First Mac", listOf(item("FB"), item("Ea"))) { true }
-        delivery.refresh(pairingOrigin(b), "Second Mac", listOf(item("FB"))) { true }
+        delivery.refresh(pairingOrigin(a, "a", "stable"), "First Mac", emptyList()) { true }
+        delivery.refresh(pairingOrigin(b, "b", "stable"), "Second Mac", emptyList()) { true }
+        delivery.refresh(pairingOrigin(a, "a", "stable"), "First Mac", listOf(item("FB"), item("Ea"))) { true }
+        delivery.refresh(pairingOrigin(b, "b", "stable"), "Second Mac", listOf(item("FB"))) { true }
         waitFor { alerts().size == 3 }
         assertEquals(3, alerts().map { it.tag }.toSet().size)
         assertEquals(3, alerts().map { it.notification.contentIntent }.toSet().size)
@@ -66,28 +66,28 @@ class NativeNotificationDeliveryTest {
         val encrypted = context.getSharedPreferences("native_notification_state", Context.MODE_PRIVATE).getString("state", "")!!
         assertFalse(encrypted.contains("workspace"))
         // A fresh delivery object simulates reconstruction after process death; no duplicate alert.
-        NativeNotificationDelivery(context).refresh(pairingOrigin(a), "First Mac", listOf(item("FB"), item("Ea"))) { true }
+        NativeNotificationDelivery(context).refresh(pairingOrigin(a, "a", "stable"), "First Mac", listOf(item("FB"), item("Ea"))) { true }
         waitFor { alerts().size == 3 }
-        delivery.refresh(pairingOrigin(a), "First Mac", listOf(item("FB", true), item("Ea"))) { true }
+        delivery.refresh(pairingOrigin(a, "a", "stable"), "First Mac", listOf(item("FB", true), item("Ea"))) { true }
         waitFor { alerts().size == 2 }
         assertEquals(setOf("First Mac", "Second Mac"), alerts().map { it.notification.extras.getString("android.subText") }.toSet())
         NativeCredentialStore(context).forgetMac(b)
-        delivery.prune(setOf(pairingOrigin(a)))
+        delivery.prune(setOf(pairingOrigin(a, "a", "stable")))
         waitFor { alerts().size == 1 }
-        assertNull(delivery.destination(routes.single { it.origin == pairingOrigin(b) }.routeId))
+        assertNull(delivery.destination(routes.single { it.origin == pairingOrigin(b, "b", "stable") }.routeId))
     }
 
     @Test fun lateFeedCannotPublishAndUntrustedIntentCannotSelectMac() {
         val delivery = NativeNotificationDelivery(context)
-        delivery.refresh(pairingOrigin(a), "First Mac", emptyList()) { true }
-        delivery.refresh(pairingOrigin(a), "First Mac", listOf(item("late"))) { false }
+        delivery.refresh(pairingOrigin(a, "a", "stable"), "First Mac", emptyList()) { true }
+        delivery.refresh(pairingOrigin(a, "a", "stable"), "First Mac", listOf(item("late"))) { false }
         assertTrue(alerts().isEmpty())
         var checks = 0
-        delivery.refresh(pairingOrigin(a), "First Mac", listOf(item("late"))) { ++checks < 3 }
+        delivery.refresh(pairingOrigin(a, "a", "stable"), "First Mac", listOf(item("late"))) { ++checks < 3 }
         assertEquals(3, checks)
         assertTrue(alerts().isEmpty())
         // Losing eligibility while the destination is saved must not acknowledge the alert.
-        delivery.refresh(pairingOrigin(a), "First Mac", listOf(item("late"))) { true }
+        delivery.refresh(pairingOrigin(a, "a", "stable"), "First Mac", listOf(item("late"))) { true }
         waitFor { alerts().size == 1 }
         val valid = NativeNotificationDelivery.launchIntent(context, java.util.UUID.randomUUID().toString())
         assertNull(NativeNotificationDelivery.routeFromIntent(context, Intent().putExtra("notification_workspace_id", "workspace")))

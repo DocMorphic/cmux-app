@@ -24,7 +24,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     private val preferences = context.getSharedPreferences(storageName, Context.MODE_PRIVATE)
 
     data class PairedMac(val code: String, val deviceId: String, val name: String, val instanceTag: String? = null) {
-        internal val origin get() = pairingOrigin(code)
+        internal val origin = pairingOrigin(code, deviceId, instanceTag)
         fun requireMatchingHost(status: JSONObject) {
             require(deviceId.isBlank() || status.optString("mac_device_id") == deviceId) {
                 "This pairing now reaches a different Mac. Forget it and pair the intended Mac again."

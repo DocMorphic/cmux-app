@@ -44,6 +44,14 @@ class NativeNotificationLedgerTest {
         assertEquals(pairingOrigin("a"), pairingOrigin("a"))
     }
 
+    @Test fun sameRouteCannotReuseAnotherDeviceOrInstallationIdentity() {
+        val a = NativeCredentialStore.PairedMac("same-code", "a", "Mac", "stable")
+        assertEquals(a.origin, a.copy(name = "Renamed Mac").origin)
+        assertNotEquals(a.origin, a.copy(deviceId = "b").origin)
+        assertNotEquals(a.origin, a.copy(instanceTag = "dev").origin)
+        assertNotEquals(a.origin, a.copy(instanceTag = null).origin)
+    }
+
     @Test fun forgottenMacDropsOnlyItsRoutesAndBaseline() {
         val ledger = NativeNotificationLedger(JSONObject())
         ledger.baseline("a", listOf(item("old"))); ledger.baseline("b", emptyList())

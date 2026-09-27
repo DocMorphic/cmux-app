@@ -5,8 +5,10 @@ import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.UUID
 
-internal fun pairingOrigin(code: String): String = MessageDigest.getInstance("SHA-256")
-    .digest(code.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+internal fun pairingOrigin(code: String, deviceId: String = "", instanceTag: String? = null): String =
+    MessageDigest.getInstance("SHA-256").digest(JSONArray().put(code).put(deviceId)
+        .put(instanceTag ?: JSONObject.NULL).toString().toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
 
 /** Only this random identifier crosses the Android notification/Intent boundary. */
 internal data class NotificationDestination(

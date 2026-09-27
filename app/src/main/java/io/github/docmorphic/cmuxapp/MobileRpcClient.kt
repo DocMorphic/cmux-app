@@ -114,8 +114,9 @@ class MobileRpcClient(
     suspend fun hostStatus(): JSONObject = request("mobile.host.status")
     suspend fun workspaces(): JSONObject = request("mobile.workspace.list")
     suspend fun notifications(): JSONObject = request("notification.feed.list")
-    suspend fun markNotificationRead(id: String): JSONObject = request(
-        "notification.feed.mark_read",
+    suspend fun markNotificationRead(id: String): JSONObject = setNotificationRead(id, true)
+    suspend fun setNotificationRead(id: String, read: Boolean): JSONObject = request(
+        if (read) "notification.feed.mark_read" else "notification.feed.mark_unread",
         JSONObject().put("notification_ids", org.json.JSONArray().put(id))
     )
     suspend fun markAllNotificationsRead(): JSONObject = request("notification.feed.mark_all_read")

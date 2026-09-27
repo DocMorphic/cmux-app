@@ -3,7 +3,6 @@ package io.github.docmorphic.cmuxapp
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
-import android.text.format.DateUtils
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -62,6 +61,9 @@ import java.util.Date
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -142,6 +144,7 @@ fun NativeScreen(
     var searchState by remember(signedIn) { mutableStateOf(NativeSearchState()) }
     val searchScope = if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
     val search = searchState.text(searchScope).trim()
+    val notificationQuery = searchState.text(NativeSearchScope.NOTIFICATIONS).trim()
     fun finishSearch(cancel: Boolean = false) {
         searchState = if (cancel) searchState.clear(searchScope) else searchState.commit()
         focusManager.clearFocus(); softwareKeyboard?.hide()
@@ -157,9 +160,71 @@ fun NativeScreen(
     var selectedChangesWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
     var connectedCode by remember { mutableStateOf<String?>(null) }
     val notificationDelivery = remember(context) { NativeNotificationDelivery(context.applicationContext) }
-    val currentIncomingRoute by rememberUpdatedState(incomingNotificationRoute)
+    var inAppNotification by remember { mutableStateOf<NotificationDestination?>(null) }
+    val currentIncomingRoute by rememberUpdatedState(incomingNotificationRoute ?: inAppNotification?.routeId)
     val handleNotification by rememberUpdatedState(onNotificationHandled)
     var notificationNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val feedCoordinator = remember(connection, account, scope) {
+        NativeFeedCoordinator(scope, connect = { mac ->
+            connection.connect(PairingCodeParser.parse(mac.code).getOrThrow() as PairingCode.Tailscale, account)
+        }, isAllowed = { mac -> account.isSignedIn() && store.pairedMacs().contains(mac) })
+    }
+    val feedSources by feedCoordinator.sources.collectAsState()
+    val feedEntries = remember(feedSources) { aggregateNativeFeed(feedSources.values) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var feedForeground by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, _ -> feedForeground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(signedIn, pairedMacs, feedForeground) {
+        if (!signedIn) feedCoordinator.close()
+        else if (feedForeground) feedCoordinator.updateMacs(pairedMacs)
+        else feedCoordinator.pause()
+    }
+    DisposableEffect(feedCoordinator) { onDispose { feedCoordinator.close() } }
+    var unreadNotificationsOnly by remember(signedIn) { mutableStateOf(false) }
+    var notificationFilterMenu by remember { mutableStateOf(false) }
+    var confirmReadAll by remember { mutableStateOf(false) }
+    var readAllBusy by remember { mutableStateOf(false) }
+    var feedRefreshing by remember { mutableStateOf(false) }
+    var changingNotifications by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var feedRowWindow by remember(notificationQuery, unreadNotificationsOnly) { mutableIntStateOf(300) }
+    var feedProjection by remember(signedIn) { mutableStateOf(NativeFeedProjection()) }
+    fun refreshFeed() {
+        if (feedRefreshing) return
+        scope.launch {
+            feedRefreshing = true
+            try { feedCoordinator.refresh() } finally { feedRefreshing = false }
+        }
+    }
+    fun setNotificationRead(entry: NativeFeedEntry, read: Boolean) {
+        if (entry.id in changingNotifications) return
+        changingNotifications += entry.id
+        scope.launch {
+            try { feedCoordinator.setRead(entry, read); error = null }
+            catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                error = failure.message
+            } finally { changingNotifications -= entry.id }
+        }
+    }
+    if (confirmReadAll) AlertDialog(onDismissRequest = { confirmReadAll = false },
+        title = { Text("Mark all notifications as read?") },
+        text = { Text("This marks notifications on connected computers as read. Offline computers keep their unread notifications.") },
+        confirmButton = { TextButton(onClick = {
+            confirmReadAll = false; readAllBusy = true
+            scope.launch {
+                try { feedCoordinator.markAllRead(); error = null }
+                catch (failure: Exception) {
+                    if (failure is CancellationException) throw failure
+                    error = failure.message
+                } finally { readAllBusy = false }
+            }
+        }) { Text("Mark All Read") } },
+        dismissButton = { TextButton(onClick = { confirmReadAll = false }) { Text("Cancel") } })
+
     LaunchedEffect(notificationTab) {
         if (notificationTab) while (true) {
             notificationNow = System.currentTimeMillis()
@@ -173,10 +238,14 @@ fun NativeScreen(
             (listOf(workspace.title, workspace.description, workspace.directory, workspace.preview,
                 hostName, groupNames[workspace.groupId]) + workspace.terminals.map { it.title }) }, searchLocale)
     }
-    val notificationSearch = remember(notifications, workspaces, hostName, searchLocale) {
-        NativeSearchIndex(notifications.map { it.id to it.searchFields(workspaces, hostName) },
-            searchLocale, notification = true)
+    val notificationSearch = remember(feedEntries, searchLocale) {
+        NativeSearchIndex(feedEntries.map { it.id to it.searchFields() }, searchLocale, notification = true)
     }
+    LaunchedEffect(feedEntries, notificationSearch, notificationQuery, unreadNotificationsOnly, notificationNow, feedRowWindow) {
+        feedProjection = NativeFeedProjection.build(feedEntries, unreadNotificationsOnly,
+            notificationSearch.matches(notificationQuery), java.time.ZoneId.systemDefault(), feedRowWindow, feedProjection)
+    }
+    LaunchedEffect(notificationTab) { if (notificationTab) refreshFeed() }
     val draftRepository = remember(context) { TerminalDraftRepository.get(context) }
     val drafts = draftRepository.drafts
     val draftStates by drafts.state.collectAsState()
@@ -249,7 +318,7 @@ fun NativeScreen(
         else error = "Allow notifications to receive cmux updates in the background"
     }
 
-    LaunchedEffect(signedIn) { if (!signedIn) drafts.clear() }
+    LaunchedEffect(signedIn) { if (!signedIn) { drafts.clear(); inAppNotification = null } }
 
     val attachmentFiles = remember(context) { AttachmentFiles(context.applicationContext) }
     var pickerTarget by remember { mutableStateOf<TerminalDrafts.Target?>(null) }
@@ -336,24 +405,38 @@ fun NativeScreen(
     LaunchedEffect(incomingCode) {
         if (incomingCode != null && incomingCode != code) proposePairing(incomingCode)
     }
-    LaunchedEffect(incomingNotificationRoute, signedIn, code, connectedCode, client) {
-        val routeId = incomingNotificationRoute ?: return@LaunchedEffect
-        if (!signedIn) return@LaunchedEffect
-        val route = notificationDelivery.destination(routeId)
+    LaunchedEffect(incomingNotificationRoute) { if (incomingNotificationRoute != null) inAppNotification = null }
+    val routeClient = client
+    val routeConnectedCode = connectedCode
+    val routePairingCode = code
+    val routeSignedIn = signedIn
+    val routeInAppNotification = inAppNotification
+    LaunchedEffect(incomingNotificationRoute, routeInAppNotification?.routeId, routeSignedIn,
+        routePairingCode, routeConnectedCode, routeClient) {
+        val routeId = incomingNotificationRoute ?: routeInAppNotification?.routeId ?: return@LaunchedEffect
+        val openedFromFeed = incomingNotificationRoute == null
+        fun consumeRoute() {
+            if (openedFromFeed) { if (inAppNotification?.routeId == routeId) inAppNotification = null }
+            else handleNotification(routeId)
+        }
+        if (!routeSignedIn || currentIncomingRoute != routeId) return@LaunchedEffect
+        val route = if (openedFromFeed) routeInAppNotification else notificationDelivery.destination(routeId)
         val mac = store.pairedMacs().singleOrNull { it.origin == route?.origin }
         if (route == null || mac == null) {
             error = "This notification's saved Mac is no longer available."
-            handleNotification(routeId)
+            consumeRoute()
             return@LaunchedEffect
         }
-        if (code != mac.code) {
+        if (routePairingCode != mac.code) {
             store.update { it.put("pairing_code", mac.code) }
             showSettings = false; selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null
             code = mac.code
             return@LaunchedEffect
         }
-        val active = client ?: return@LaunchedEffect
-        if (connectedCode != mac.code) return@LaunchedEffect
+        // Use the session captured with the effect keys. Reading mutable client here
+        // can run this route twice if a handshake completes before this effect starts.
+        val active = routeClient ?: return@LaunchedEffect
+        if (routeConnectedCode != mac.code) return@LaunchedEffect
         fun isCurrent() = currentIncomingRoute == routeId && client === active && code == mac.code &&
             signedIn && store.pairedMacs().contains(mac)
         try {
@@ -370,21 +453,28 @@ fun NativeScreen(
             check(workspace != null && (terminal != null || browser != null)) {
                 "This notification's workspace is no longer available."
             }
-            applyListing(listing); notifications = feed
-            finishSearch(); notificationTab = false; showSettings = false; showTaskComposer = false
-            showCreateGroup = false; showLicenses = false; selectedChangesWorkspace = null
-            selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser
-            notificationDelivery.cancel(routeId)
+            val opened = withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                if (!isCurrent()) false else {
+                    applyListing(listing); notifications = feed
+                    finishSearch(); notificationTab = openedFromFeed; showSettings = false; showTaskComposer = false
+                    showCreateGroup = false; showLicenses = false; selectedChangesWorkspace = null
+                    selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser
+                    notificationDelivery.cancel(routeId)
+                    true
+                }
+            }
+            if (!opened) return@LaunchedEffect
             // Navigation is committed. A failed read acknowledgment never targets a different session.
             active.markNotificationRead(notification.id)
             if (!isCurrent()) return@LaunchedEffect
             notifications = feed.map { if (it.id == notification.id) it.copy(isRead = true) else it }
+            scope.launch { feedCoordinator.refresh() }
             error = null
         } catch (failure: Exception) {
             if (failure is CancellationException) throw failure
             if (isCurrent()) error = failure.message ?: "Could not open this notification"
         }
-        if (isCurrent()) handleNotification(routeId)
+        if (isCurrent()) consumeRoute()
     }
 
     LaunchedEffect(signedIn, code, retry) {
@@ -398,6 +488,7 @@ fun NativeScreen(
             val active = connection.connect(pairing, account)
             try {
                 val status = active.hostStatus()
+                require(status.optString("mac_device_id").isNotBlank()) { "The Mac did not provide its device identity." }
                 store.pairedMacs().firstOrNull { it.code == requestedCode }?.requireMatchingHost(status)
                 val displayName = status.optString("mac_display_name").ifBlank { "cmux" }
                 val capabilities = status.optJSONArray("capabilities")?.let { values ->
@@ -625,9 +716,11 @@ fun NativeScreen(
         }
     }
 
-    DisposableEffect(client) {
-        val active = client
-        onDispose { active?.close() }
+    // Capture during composition: the effect callback may run after client changes.
+    // Reading the mutable state inside it can assign the next session to old cleanup.
+    val disposableClient = client
+    DisposableEffect(disposableClient) {
+        onDispose { disposableClient?.close() }
     }
     BackHandler(enabled = signedIn && code.isNotBlank() && searchState.active != null && selectedTerminal == null &&
         selectedBrowser == null && selectedChangesWorkspace == null && !showSettings && !showTaskComposer) { finishSearch(cancel = true) }
@@ -1077,13 +1170,25 @@ fun NativeScreen(
                     Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
                         fontSize = 17.sp, modifier = Modifier.weight(1f))
                     if (notificationTab) {
-                        TextButton(onClick = {
-                            val active = client ?: return@TextButton
-                            scope.launch { runCatching { active.markAllNotificationsRead(); active.notifications() }
-                                .onSuccess { notifications = parseNotifications(it); error = null }
-                                .onFailure { error = it.message } }
-                        }, enabled = notifications.any { !it.isRead }) {
-                            Text("Read all", color = nativeAccent, fontSize = 13.sp)
+                        if (feedEntries.any { !it.notification.isRead }) IconButton(
+                            onClick = { confirmReadAll = true }, enabled = !readAllBusy) {
+                            Icon(painterResource(R.drawable.ic_feed_read_all), "Mark All Read",
+                                tint = if (readAllBusy) nativeMuted else nativeAccent, modifier = Modifier.size(23.dp))
+                        }
+                        Box {
+                            IconButton(onClick = { notificationFilterMenu = true }) {
+                                Icon(painterResource(if (unreadNotificationsOnly) R.drawable.ic_feed_filter_active else R.drawable.ic_feed_filter),
+                                    "Notification filter", tint = if (unreadNotificationsOnly) nativeAccent else nativeMuted,
+                                    modifier = Modifier.size(23.dp))
+                            }
+                            DropdownMenu(notificationFilterMenu, onDismissRequest = { notificationFilterMenu = false }) {
+                                DropdownMenuItem(text = { Text("All Notifications") }, onClick = {
+                                    unreadNotificationsOnly = false; notificationFilterMenu = false
+                                }, leadingIcon = { Text(if (!unreadNotificationsOnly) "✓" else " ") })
+                                DropdownMenuItem(text = { Text("Unread") }, onClick = {
+                                    unreadNotificationsOnly = true; notificationFilterMenu = false
+                                }, leadingIcon = { Text(if (unreadNotificationsOnly) "✓" else " ") })
+                            }
                         }
                     } else {
                         Box {
@@ -1144,68 +1249,15 @@ fun NativeScreen(
                     }
                 }
                 if (notificationTab) {
-                    val matches = remember(notificationSearch, search) { notificationSearch.matches(search) }
-                    val visibleNotifications = notifications.filter { it.id in matches }
-                    LazyColumn(Modifier.weight(1f)) {
-                        items(visibleNotifications, key = { it.id }) { notification ->
-                            Column(Modifier.fillMaxWidth().clickable {
-                                val active = client
-                                val workspace = notification.destination(workspaces)
-                                val terminal = workspace?.terminals?.firstOrNull { it.id == notification.surfaceId }
-                                    ?: workspace?.terminals?.firstOrNull()
-                                val browser = workspace?.browsers?.firstOrNull { it.id == notification.surfaceId }
-                                    ?: if (terminal == null) workspace?.browsers?.firstOrNull() else null
-                                when {
-                                    active == null -> error = "Connect to the Mac to open this notification."
-                                    workspace == null || (terminal == null && browser == null) ->
-                                        error = "This notification's workspace is no longer available."
-                                    else -> {
-                                        finishSearch()
-                                        selectedWorkspace = workspace
-                                        if (browser != null) selectedBrowser = browser else selectedTerminal = terminal
-                                        scope.launch {
-                                            try {
-                                                active.markNotificationRead(notification.id)
-                                                val refreshed = active.notifications()
-                                                if (client === active) notifications = parseNotifications(refreshed)
-                                            } catch (failure: Exception) {
-                                                if (failure is CancellationException) throw failure
-                                                if (client === active) error = failure.message
-                                            }
-                                        }
-                                    }
-                                }
-                            }.semantics { stateDescription = if (notification.isRead) "Read" else "Unread" }
-                                .padding(horizontal = 18.dp, vertical = 14.dp)) {
-                                val row = remember(notification, workspaces, hostName, searchLocale) {
-                                    notification.presentation(workspaces, hostName, searchLocale)
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (!notification.isRead) Text("●  ", Modifier.clearAndSetSemantics { }, color = nativeAccent, fontSize = 9.sp)
-                                    Text(row.headline, fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.SemiBold,
-                                        maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                }
-                                row.source?.let { Text(it, color = nativeMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                                row.preview?.let { Text(it, color = nativeMuted, maxLines = 3) }
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(hostName, Modifier.weight(1f).padding(end = 8.dp), color = nativeMuted,
-                                        fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    notification.createdAt?.let { seconds ->
-                                        val time = remember(seconds, notificationNow) { runCatching {
-                                            DateUtils.getRelativeTimeSpanString((seconds * 1000).toLong(), notificationNow,
-                                                DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
-                                        }.getOrNull() }
-                                        time?.let { Text(it, color = nativeMuted, fontSize = 11.sp) }
-                                    }
-                                }
-                            }
-                            HorizontalDivider(color = Color(0xFF292C31))
-                        }
-                        if (visibleNotifications.isEmpty()) item {
-                            Text(if (search.isBlank()) "No notifications yet." else "No matching notifications.",
-                                Modifier.padding(24.dp), color = nativeMuted)
-                        }
-                    }
+                    NativeNotificationFeedView(feedProjection, feedSources.values, unreadNotificationsOnly,
+                        notificationQuery.isNotBlank(), feedRefreshing, notificationNow, searchLocale, Modifier.weight(1f),
+                        onOpen = { entry ->
+                            inAppNotification = NotificationDestination(java.util.UUID.randomUUID().toString(),
+                                entry.source.mac.origin, entry.notification.id, entry.notification.workspaceId,
+                                entry.notification.surfaceId, entry.notification.retargetsToLiveSurfaceOwner)
+                        }, onRead = ::setNotificationRead,
+                        onToggle = { feedProjection = feedProjection.toggle(it) },
+                        onMore = { feedRowWindow += 300 }, onRefresh = ::refreshFeed)
                 } else {
                     val matches = remember(workspaceSearch, search) { workspaceSearch.matches(search) }
                     val matching = workspaces.filter { (!unreadWorkspacesOnly || it.hasUnread) && it.id in matches }
@@ -1340,7 +1392,7 @@ fun NativeScreen(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     TextButton(onClick = { finishSearch(); notificationTab = false }) { Text("Workspaces", color = if (notificationTab) nativeMuted else nativeAccent) }
                     TextButton(onClick = { finishSearch(); notificationTab = true }) {
-                        val unread = notifications.count { !it.isRead }
+                        val unread = feedEntries.count { !it.notification.isRead }
                         Text(if (unread > 0) "Notifications ($unread)" else "Notifications",
                             color = if (notificationTab) nativeAccent else nativeMuted)
                     }
@@ -1367,44 +1419,6 @@ private fun NativeHeader(title: String) {
     }
 }
 
-private fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
-    val array = value.optJSONArray("workspaces") ?: return emptyList()
-    return buildList {
-        for (index in 0 until array.length()) {
-            val workspace = array.optJSONObject(index) ?: continue
-            val id = workspace.optString("id")
-            if (id.isBlank()) continue
-            val terminals = mutableListOf<NativeTerminal>()
-            val browsers = mutableListOf<NativeBrowser>()
-            val items = workspace.optJSONArray("terminals")
-            if (items != null) for (terminalIndex in 0 until items.length()) {
-                val terminal = items.optJSONObject(terminalIndex) ?: continue
-                val terminalId = terminal.optString("id")
-                if (terminalId.isNotBlank()) terminals += NativeTerminal(terminalId, terminal.optString("title"))
-            }
-            val surfaces = workspace.optJSONArray("surfaces")
-            if (surfaces != null) for (surfaceIndex in 0 until surfaces.length()) {
-                val surface = surfaces.optJSONObject(surfaceIndex) ?: continue
-                if (surface.optString("kind") == "browser") {
-                    val surfaceId = surface.optString("surface_id")
-                    if (surfaceId.isNotBlank()) browsers += NativeBrowser(surfaceId, surface.optString("title"))
-                }
-            }
-            add(NativeWorkspace(
-                id, workspace.optString("title", "Workspace"), terminals,
-                workspace.optString("current_directory").takeIf { it.isNotBlank() && it != "null" },
-                workspace.optBoolean("has_unread"),
-                workspace.optDouble("last_activity_at").takeIf { it > 0 },
-                workspace.optString("window_id").takeIf { it.isNotBlank() && it != "null" },
-                workspace.optBoolean("is_pinned"), browsers,
-                workspace.optString("group_id").takeIf { it.isNotBlank() && it != "null" },
-                workspace.optString("preview").takeIf { it.isNotBlank() && it != "null" },
-                workspace.optString("custom_color").takeIf { it.startsWith('#') },
-                workspace.optString("description").takeIf { it.isNotBlank() && it != "null" }
-            ))
-        }
-    }
-}
 
 private fun parseGroups(value: JSONObject): List<NativeGroup> {
     val array = value.optJSONArray("groups") ?: return emptyList()

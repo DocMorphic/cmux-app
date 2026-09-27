@@ -381,7 +381,8 @@ class NativeFlowTest {
             compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
         }
         waitText("Raw VT stream")
-        val subscribe = peer.requests.last { it.optString("method") == "mobile.events.subscribe" }.getJSONObject("params")
+        val subscribe = peer.requests.last { it.optString("method") == "mobile.events.subscribe" &&
+            it.optJSONObject("params")?.optJSONArray("topics")?.toString()?.contains("terminal.") == true }.getJSONObject("params")
         assertTrue(subscribe.getJSONArray("topics").toString().contains("terminal.bytes"))
         assertTrue(!subscribe.has("render_grid_anchor"))
         assertTrue(subscribe.getString("client_id").isNotBlank())
@@ -502,7 +503,8 @@ class NativeFlowTest {
         val viewport = peer.requests.first { it.optString("method") == "mobile.terminal.viewport" }.getJSONObject("params")
         assertEquals(viewport.getInt("viewport_columns") / 2, click.getInt("col"))
         assertEquals(viewport.getInt("viewport_rows") / 2, click.getInt("row"))
-        val clientId = peer.requests.first { it.optString("method") == "mobile.events.subscribe" }
+        val clientId = peer.requests.first { it.optString("method") == "mobile.events.subscribe" &&
+            it.optJSONObject("params")?.optJSONArray("topics")?.toString()?.contains("terminal.") == true }
             .getJSONObject("params").getString("client_id")
         (scroll.map { it.getJSONObject("params") } + click).forEach {
             assertEquals("workspace-1", it.getString("workspace_id"))
@@ -604,6 +606,7 @@ class NativeFlowTest {
             } }
         }
         compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Notifications (3)").fetchSemanticsNodes().isNotEmpty() }
     }
 
     private fun searchNotifications() = JSONArray("""[
@@ -650,7 +653,7 @@ class NativeFlowTest {
             credentials.rememberMac(firstCode, "fixture-mac", "Fixture Mac")
             var route: NotificationDestination? = null
             NativeCredentialStore(context, "native_notification_state").update {
-                route = NativeNotificationLedger(it).stage(pairingOrigin(secondCode),
+                route = NativeNotificationLedger(it).stage(pairingOrigin(secondCode, "second-mac"),
                     NativeNotification("shared-id", "workspace-2", "terminal-2", "Ready", "", false))
             }
             val incoming = mutableStateOf<String?>(null)
@@ -666,8 +669,10 @@ class NativeFlowTest {
                 } }
             }
             compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "notification.feed.list" } }
+            compose.waitUntil(10_000) { other.requests.any { it.optString("method") == "mobile.events.subscribe" } }
+            val backgroundHandshakes = other.requests.count { it.optString("method") == "mobile.host.status" }
             compose.runOnIdle { incoming.value = route!!.routeId }
-            compose.waitUntil(10_000) { other.requests.any { it.optString("method") == "mobile.host.status" } }
+            compose.waitUntil(10_000) { other.requests.count { it.optString("method") == "mobile.host.status" } > backgroundHandshakes }
             releaseFirstFeed.countDown()
             compose.waitUntil(15_000) { handled.get() == 1 && other.requests.any { it.optString("method") == "mobile.terminal.replay" } }
             val replay = other.requests.last { it.optString("method") == "mobile.terminal.replay" }.getJSONObject("params")
@@ -703,6 +708,106 @@ class NativeFlowTest {
         assertEquals(0, peer.requests.count { it.optString("method") == "mobile.terminal.replay" })
     }
 
+    @Test fun notificationHistoryFilterSwipeAndReadActionsMatchFeedScope() {
+        val now = java.time.LocalDate.now().atTime(12, 0).atZone(java.time.ZoneId.systemDefault()).toEpochSecond().toDouble()
+        peer.notificationFeed = JSONArray().also { feed ->
+            listOf("Latest update", "Second update", "First update", "Yesterday update").forEachIndexed { index, body ->
+                feed.put(JSONObject().put("id", "history-$index").put("workspace_id", "workspace-1")
+                    .put("surface_id", "terminal-1").put("title", "Claude Code").put("body", body)
+                    .put("workspace_title", if (index == 3) "Older task" else "Task group")
+                    .put("created_at", now - if (index == 3) 86400 else index * 60).put("is_read", false))
+            }
+        }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Notifications (4)").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Notifications (4)").performClick()
+        compose.onNodeWithText("Today").assertIsDisplayed()
+        compose.onNode(hasText("Yesterday") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)).assertIsDisplayed()
+        compose.onNodeWithText("First update").assertDoesNotExist()
+        screenshot("notification-history-collapsed")
+        compose.onNodeWithContentDescription("Show earlier notifications").performClick()
+        compose.onNodeWithText("First update").assertIsDisplayed().performTouchInput { longClick() }
+        compose.onNodeWithText("Mark as Read").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Notifications (3)").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("First update").performTouchInput { longClick() }
+        compose.onNodeWithText("Mark as Unread").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Notifications (4)").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Notification filter").performClick()
+        compose.onNodeWithText("Unread").performClick()
+        compose.onNodeWithText("Task group").performTouchInput { swipeRight() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Latest update").fetchSemanticsNodes().isEmpty() }
+        assertEquals(2, peer.requests.count { it.optString("method") == "notification.feed.mark_read" })
+        screenshot("notification-history-unread")
+        compose.onNodeWithContentDescription("Mark All Read").performClick()
+        compose.onNodeWithText("Mark all notifications as read?").assertIsDisplayed()
+        compose.onNodeWithText("Cancel").performClick()
+        assertEquals(0, peer.requests.count { it.optString("method") == "notification.feed.mark_all_read" })
+        compose.onNodeWithContentDescription("Mark All Read").performClick()
+        compose.onNodeWithText("Mark All Read").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("No unread notifications.").fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(1, peer.requests.count { it.optString("method") == "notification.feed.mark_all_read" })
+    }
+
+    @Test fun combinedFeedKeepsDuplicateIdsAndRoutesSearchResultsToTheirMac() {
+        val other = NativeFixturePeer().apply {
+            deviceId = "second-mac"; displayName = "Second Mac"; gridFirstLine = "Second Mac terminal"
+        }
+        try {
+            val now = System.currentTimeMillis() / 1000.0
+            fun notification(title: String, workspace: String, surface: String) = JSONArray().put(JSONObject()
+                .put("id", "same-id").put("workspace_id", workspace).put("surface_id", surface)
+                .put("title", "Agent").put("workspace_title", title).put("body", "Ready for review")
+                .put("created_at", now).put("is_read", false))
+            peer.notificationFeed = notification("First machine task", "workspace-1", "terminal-1")
+            other.notificationFeed = notification("Second machine task", "workspace-2", "terminal-2")
+            val firstCode = "cmux-ios://attach?v=2&r=100.64.0.1:58465"
+            val secondCode = "cmux-ios://attach?v=2&r=100.64.0.2:58465"
+            NativeCredentialStore(context).apply {
+                rememberMac(secondCode, "second-mac", "Second Mac")
+                rememberMac(firstCode, "fixture-mac", "Fixture Mac")
+            }
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    val target = if (pairing.routes.first().host == "100.64.0.2") other else peer
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Notifications (2)").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Notifications (2)").performClick()
+            compose.onNodeWithText("First machine task").assertIsDisplayed()
+            compose.onNodeWithText("Second machine task").assertIsDisplayed()
+            screenshot("notification-multiple-macs")
+            compose.onNode(hasSetTextAction()).performTextInput("Second Mac")
+            compose.onNodeWithText("First machine task").assertDoesNotExist()
+            compose.onNodeWithText("Second machine task").performClick()
+            try {
+                compose.waitUntil(15_000) { other.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+            } catch (failure: Throwable) {
+                screenshot("notification-mac-switch-failure")
+                throw AssertionError(compose.onRoot().printToString() + "\nSecond Mac methods: " +
+                    other.requests.map { it.optString("method") }.joinToString(), failure)
+            }
+            compose.waitUntil(10_000) { other.requests.any { it.optString("method") == "notification.feed.mark_read" } }
+            val replay = other.requests.last { it.optString("method") == "mobile.terminal.replay" }.getJSONObject("params")
+            assertEquals("workspace-2", replay.getString("workspace_id"))
+            assertEquals("terminal-2", replay.getString("surface_id"))
+            assertEquals(0, peer.requests.count { it.optString("method") == "notification.feed.mark_read" })
+            compose.onNodeWithText("‹  2").performClick()
+            assertDraft("Second Mac")
+            compose.onNodeWithText("First machine task").assertDoesNotExist()
+            // Search narrows the presentation; the confirmed bulk action still reaches all connected Macs.
+            compose.onNodeWithContentDescription("Mark All Read").performClick()
+            compose.onNodeWithText("Mark All Read").performClick()
+            compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "notification.feed.mark_all_read" } }
+            assertEquals(0, other.requests.count { it.optString("method") == "notification.feed.mark_all_read" })
+            assertEquals(0, peer.requests.count { it.optString("method") == "mobile.terminal.replay" })
+        } finally { other.close() }
+    }
+
     private fun screenshot(name: String) {
         compose.waitForIdle()
         val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
@@ -726,6 +831,7 @@ private class NativeFixturePeer : AutoCloseable {
     @Volatile private var closed = false
     private var revision = 0
     @Volatile var deviceId = "fixture-mac"
+    @Volatile var displayName = "Fixture Mac"
     @Volatile var notificationFeed = JSONArray()
     private val readNotifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile var rawTerminal = false
@@ -803,7 +909,7 @@ private class NativeFixturePeer : AutoCloseable {
     }
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
-        "mobile.host.status" -> JSONObject().put("mac_display_name", "Fixture Mac")
+        "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
             .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").also {
                 if (rawTerminal) it.put("terminal.bytes.v1")
                 else { it.put("terminal.render_grid.v1"); if (screenAnchor) it.put("terminal.render_grid.screen_anchor.v1") }
@@ -817,9 +923,15 @@ private class NativeFixturePeer : AutoCloseable {
                "has_unread":false,"terminals":[{"id":"terminal-2","title":"Shell"}]}
             ]} """)
         "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/cmux fixture.txt")
-        "notification.feed.mark_read" -> JSONObject().also {
+        "notification.feed.mark_read", "notification.feed.mark_unread" -> JSONObject().also {
             val ids = params.getJSONArray("notification_ids")
-            for (index in 0 until ids.length()) readNotifications.add(ids.getString(index))
+            for (index in 0 until ids.length()) {
+                val id = ids.getString(index)
+                if (method == "notification.feed.mark_read") readNotifications.add(id) else readNotifications.remove(id)
+            }
+        }
+        "notification.feed.mark_all_read" -> JSONObject().also {
+            for (index in 0 until notificationFeed.length()) readNotifications.add(notificationFeed.getJSONObject(index).getString("id"))
         }
         "notification.feed.list" -> JSONObject().put("notifications", JSONArray().also { output ->
             for (index in 0 until notificationFeed.length()) {
@@ -828,7 +940,9 @@ private class NativeFixturePeer : AutoCloseable {
                 output.put(item)
             }
         })
-        "mobile.events.subscribe" -> JSONObject().put("stream_id", params.optString("stream_id").also { terminalStreamId = it })
+        "mobile.events.subscribe" -> JSONObject().put("stream_id", params.optString("stream_id").also {
+            if (params.optJSONArray("topics")?.toString()?.contains("terminal.") == true) terminalStreamId = it
+        })
         "mobile.terminal.viewport" -> JSONObject().put("columns", params.optInt("viewport_columns", 40).also { viewportColumns = it })
             .put("rows", params.optInt("viewport_rows", 20).also { viewportRows = it })
         "mobile.terminal.scroll" -> if (!rawTerminal && !screenAnchor) {

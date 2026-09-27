@@ -39,7 +39,7 @@ internal fun parseNotifications(value: JSONObject): List<NativeNotification> {
     val array = value.optJSONArray("notifications") ?: return emptyList()
     val ids = mutableSetOf<String>()
     return buildList {
-        for (index in 0 until minOf(array.length(), 500)) {
+        for (index in 0 until minOf(array.length(), 2_000)) {
             val item = array.optJSONObject(index) ?: continue
             val id = item.optString("id")
             if (id.isBlank() || !ids.add(id)) continue

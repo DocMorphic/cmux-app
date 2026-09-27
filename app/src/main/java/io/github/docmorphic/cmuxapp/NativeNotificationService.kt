@@ -51,7 +51,7 @@ class NativeNotificationService : Service() {
         try {
             while (isActive && isEnabled(this@NativeNotificationService)) {
                 val paired = if (account.isSignedIn()) store.pairedMacs().filter {
-                    PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Tailscale
+                    it.deviceId.isNotBlank() && PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Tailscale
                 }.toSet() else emptySet()
                 workers.keys.toList().filter { it !in paired || workers[it]?.isActive != true }.forEach {
                     workers.remove(it)?.cancel()
