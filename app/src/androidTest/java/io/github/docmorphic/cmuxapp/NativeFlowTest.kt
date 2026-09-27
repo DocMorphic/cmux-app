@@ -1339,8 +1339,8 @@ internal class NativeFixturePeer : AutoCloseable {
                 .put("data_b64", java.util.Base64.getEncoder().encodeToString(bytes)))
         sockets.filter { !it.isClosed }.forEach { send(it, event) }
     }
-    fun pushBrowserEvent(topic: String, payload: JSONObject) {
-        val subscription = requests.last { it.optString("method") == "mobile.events.subscribe" &&
+    fun pushBrowserEvent(topic: String, payload: JSONObject, streamId: String? = null) {
+        val subscription = streamId ?: requests.last { it.optString("method") == "mobile.events.subscribe" &&
             it.getJSONObject("params").getJSONArray("topics").toString().contains("browser.") }.getJSONObject("params").getString("stream_id")
         val event = JSONObject().put("kind", "event").put("topic", topic).put("stream_id", subscription).put("payload", payload)
         sockets.filter { !it.isClosed }.forEach { send(it, event) }

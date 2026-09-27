@@ -14,8 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.StandardTestDispatcher
 import org.json.JSONArray
 import org.json.JSONObject
@@ -41,10 +43,10 @@ class NativeBrowserTest {
         runBlocking { client.connect() }
     }
     @After fun cleanup() { compose.activity.finish(); client.close(); peer.close() }
-    private fun show() {
+    private fun show(clock: BrowserRecoveryClock = MonotonicBrowserRecoveryClock) {
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             Column { Box(if (shorter) Modifier.fillMaxWidth().height(350.dp) else Modifier.fillMaxSize()) {
-                if (visible) NativeBrowserView(client, panel, "Browser", onBack = { visible = false })
+                if (visible) NativeBrowserView(client, panel, "Browser", onBack = { visible = false }, recoveryClock = clock)
             } }
         } } }
         compose.waitUntil(15_000) { compose.onAllNodesWithText("Browser fixture").fetchSemanticsNodes().isNotEmpty() }
@@ -83,6 +85,8 @@ class NativeBrowserTest {
         compose.onNodeWithContentDescription("Browser address").performImeAction()
         compose.waitUntil(10_000) { requests("navigate").isNotEmpty() }
         assertEquals("my new search", requests("navigate").single().getJSONObject("params").getString("url"))
+        peer.pushBrowserEvent("browser.frame", frame(1))
+        compose.waitUntil(10_000) { requests("frame.ack").isNotEmpty() }
         val initial = requests("stream.start").single().getJSONObject("params")
         compose.runOnIdle { shorter = true }
         compose.waitUntil(10_000) { requests("viewport").any { it.getJSONObject("params").getInt("viewport_height") < initial.getInt("viewport_height") } }
@@ -155,5 +159,58 @@ class NativeBrowserTest {
             compose.onNodeWithText("Accept").assertIsEnabled()
             assertEquals("first", requests("dialog.respond").single().getJSONObject("params").getString("dialog_id"))
         } finally { release.countDown() }
+    }
+
+    @Test fun unansweredInputRearmsStreamWithoutReplayAndRejectsOldSubscriptionFrames() {
+        val clock = RecoveryClock()
+        show(clock)
+        val originalStream = peer.requests.single { it.optString("method") == "mobile.events.subscribe" }.getJSONObject("params").getString("stream_id")
+        peer.pushBrowserEvent("browser.frame", frame(8))
+        compose.waitUntil(10_000) { requests("frame.ack").size == 1 }
+        compose.runOnIdle { clock.advance(60_000) }
+        assertEquals(1, requests("stream.start").size)
+        compose.onNodeWithContentDescription("Reload browser").performClick()
+        compose.waitUntil(10_000) { requests("reload").size == 1 && clock.waiting > 0 }
+        pushState("State events do not prove frame delivery")
+        compose.runOnIdle { clock.advance(2_550) }
+        compose.waitUntil(10_000) { requests("stream.start").size == 2 }
+        compose.onNodeWithContentDescription("Mac browser page").assertIsDisplayed()
+        peer.pushBrowserEvent("browser.frame", frame(99), originalStream)
+        peer.pushBrowserEvent("browser.frame", frame(1))
+        compose.waitUntil(10_000) { requests("frame.ack").any { it.getJSONObject("params").optInt("seq") == 1 } }
+        assertEquals(listOf(8, 1), requests("frame.ack").map { it.getJSONObject("params").getInt("seq") })
+        assertEquals(1, requests("reload").size)
+        compose.runOnIdle { clock.advance(60_000) }
+        assertEquals(2, requests("stream.start").size)
+    }
+
+    @Test fun backgroundStopsTheStreamAndForegroundRearmsItWithoutPausingIdleInput() {
+        val clock = RecoveryClock()
+        show(clock)
+        peer.pushBrowserEvent("browser.frame", frame(8))
+        compose.waitUntil(10_000) { requests("frame.ack").size == 1 }
+        compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        compose.waitUntil(10_000) { requests("stream.stop").size == 1 }
+        compose.runOnUiThread { clock.advance(60_000) }
+        assertEquals(1, requests("stream.start").size)
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        compose.waitUntil(10_000) { requests("stream.start").size == 2 }
+        compose.onNodeWithText("Resume browser input").assertDoesNotExist()
+        peer.pushBrowserEvent("browser.frame", frame(1))
+        compose.waitUntil(10_000) { requests("frame.ack").any { it.getJSONObject("params").optInt("seq") == 1 } }
+        compose.onNodeWithContentDescription("Reload browser").assertIsEnabled()
+    }
+
+    private class RecoveryClock : BrowserRecoveryClock {
+        @Volatile private var now = 0L
+        private val sleepers = java.util.concurrent.CopyOnWriteArrayList<Pair<Long, CompletableDeferred<Unit>>>()
+        val waiting get() = sleepers.count { it.second.isActive }
+        override fun nowMillis() = now
+        override suspend fun sleep(millis: Long) {
+            val signal = CompletableDeferred<Unit>(); val entry = now + millis to signal
+            sleepers += entry
+            try { signal.await() } finally { sleepers.remove(entry); signal.cancel() }
+        }
+        fun advance(millis: Long) { now += millis; sleepers.filter { it.first <= now }.forEach { it.second.complete(Unit) } }
     }
 }

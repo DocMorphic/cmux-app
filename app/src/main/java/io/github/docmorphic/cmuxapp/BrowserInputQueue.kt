@@ -55,5 +55,6 @@ internal class BrowserInputQueue(scope: CoroutineScope, private val deliver: sus
         failure.value = null; return true
     }
     @Synchronized fun pause() { if (!closed) fail("Browser input paused. Check the page before resuming.") }
+    @Synchronized fun pauseIfPending() { if (!closed && (inFlight || pending.isNotEmpty())) pause() }
     @Synchronized override fun close() { closed = true; pending.clear(); pendingBytes = 0; worker.cancel(); wake.close() }
 }

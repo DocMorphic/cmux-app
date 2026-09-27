@@ -1324,6 +1324,16 @@ fun NativeScreen(
                     client = active, panelId = browser.id, title = browser.title,
                     onBack = { selectedBrowser = null; selectedWorkspace = null }
                 )
+                else {
+                    BackHandler { selectedBrowser = null; selectedWorkspace = null }
+                    Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(onClick = { selectedBrowser = null; selectedWorkspace = null }) { Text("‹  Workspaces") }
+                        Text(browser.title.ifBlank { "Browser" }, style = MaterialTheme.typography.titleMedium)
+                        Text(if (busy) "Reconnecting to your Mac…" else "Browser disconnected", color = nativeMuted)
+                        connectionError?.let { Text(it, color = Color(0xFFFF9999)) }
+                        TextButton(onClick = { retry++ }, enabled = !busy) { Text("Reconnect") }
+                    }
+                }
             }
             selectedChangesWorkspace != null -> {
                 val active = client

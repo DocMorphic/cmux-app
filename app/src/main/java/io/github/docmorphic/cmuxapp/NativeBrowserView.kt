@@ -36,6 +36,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
@@ -43,11 +46,13 @@ import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
-internal data class BrowserFrame(val sequence: Long, val image: ImageBitmap, val pageWidth: Double, val pageHeight: Double)
+internal data class BrowserFrame(val sequence: Long, val image: ImageBitmap, val pageWidth: Double, val pageHeight: Double,
+    val generation: Long = 0)
 
 /** One streamed Mac browser panel with the iOS bottom navigation/input controls. */
 @Composable
-fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: String, onBack: () -> Unit) {
+internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: String, onBack: () -> Unit,
+    recoveryClock: BrowserRecoveryClock = MonotonicBrowserRecoveryClock) {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
@@ -62,6 +67,7 @@ fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: String, o
     var error by remember(client, panelId) { mutableStateOf<String?>(null) }
     var ready by remember(client, panelId) { mutableStateOf(false) }
     var retry by remember(client, panelId) { mutableIntStateOf(0) }
+    var streamGeneration by remember(client, panelId) { mutableLongStateOf(0) }
     var dialog by remember(client, panelId) { mutableStateOf<JSONObject?>(null) }
     var measured by remember(client, panelId) { mutableStateOf(IntSize.Zero) }
     var appliedViewport by remember(client, panelId) { mutableStateOf<Triple<Int, Int, Double>?>(null) }
@@ -70,22 +76,39 @@ fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: String, o
     val latestViewport by rememberUpdatedState(viewport)
     val back by rememberUpdatedState(onBack)
     val session = remember(client, panelId) { Mutex() }
-    val queue = remember(client, panelId) { BrowserInputQueue(scope) { client.request(it.method, it.parameters(panelId)); Unit } }
+    val recovery = remember(client, panelId, recoveryClock) { BrowserStreamRecovery(scope, recoveryClock) { retry++ } }
+    val queue = remember(client, panelId, recovery) { BrowserInputQueue(scope) {
+        recovery.noteInput()
+        client.request(it.method, it.parameters(panelId)); Unit
+    } }
     val inputError by queue.error.collectAsState()
-    DisposableEffect(queue) { onDispose { queue.close() } }
+    DisposableEffect(queue, recovery) { onDispose { recovery.close(); queue.close() } }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var foreground by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
+    DisposableEffect(lifecycle, recovery, queue) {
+        val observer = LifecycleEventObserver { _, _ ->
+            foreground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            if (!foreground) { recovery.stopped(); queue.pauseIfPending(); policy = policy.hide() }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
     BackHandler { policy = policy.hide(); focusManager.clearFocus(); keyboard?.hide(); onBack() }
     LaunchedEffect(page.url, addressFocused) { if (!addressFocused) address = page.url }
 
-    LaunchedEffect(client, panelId, retry) {
+    LaunchedEffect(client, panelId, retry, foreground, recovery) {
+        if (!foreground) return@LaunchedEffect
         snapshotFlow { measured }.first { it.width > 0 && it.height > 0 }
         session.withLock {
-            ready = false; error = null; frame = null; appliedViewport = null
+            ready = false; error = null; appliedViewport = null
+            val generation = recovery.started().also { streamGeneration = it }
+            var newestSequence = -1L
             var stateEvents = 0
             var dialogEvents = 0
-            var streamId: String? = null
+            val streamId = java.util.UUID.randomUUID().toString()
             val collector = launch(start = CoroutineStart.UNDISPATCHED) {
                 client.events.collect { event ->
-                    if (event.payload.optString("panel_id") != panelId || (streamId != null && event.streamId != null && event.streamId != streamId)) return@collect
+                    if (event.payload.optString("panel_id") != panelId || event.streamId != streamId) return@collect
                     when (event.topic) {
                         "browser.closed" -> { back(); return@collect }
                         "browser.dialog" -> { dialogEvents++; dialog = event.payload }
@@ -99,14 +122,17 @@ fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: String, o
                         }
                         "browser.frame" -> {
                             val decoded = withContext(Dispatchers.Default) { decodeBrowserFrame(event.payload) } ?: return@collect
-                            if (decoded.sequence > (frame?.sequence ?: -1)) frame = decoded
+                            if (decoded.sequence > newestSequence) {
+                                newestSequence = decoded.sequence
+                                frame = decoded.copy(generation = generation)
+                            }
                         }
                     }
                 }
             }
             try {
-                streamId = client.subscribe(listOf("browser.frame", "browser.state", "browser.closed", "browser.dialog", "browser.dialog.resolved"))
-                    .optString("stream_id").takeIf { it.isNotBlank() }
+                val subscribed = client.subscribe(listOf("browser.frame", "browser.state", "browser.closed", "browser.dialog", "browser.dialog.resolved"), streamId)
+                check(subscribed.optString("stream_id") == streamId) { "Browser subscription identity changed" }
                 val initial = latestViewport
                 val descriptor = client.startBrowserStream(panelId, initial.first, initial.second, initial.third)
                 ensureActive()
@@ -116,40 +142,43 @@ fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: String, o
                 appliedViewport = initial; ready = true
                 collector.join()
             } catch (failure: Exception) {
-                if (failure is CancellationException) throw failure
+                rethrowBrowserCancellation(failure)
                 queue.pause()
                 error = failure.message ?: "Browser stream disconnected"
             } finally {
-                ready = false; collector.cancel()
+                ready = false; recovery.stopped(); collector.cancel()
                 withContext(NonCancellable) {
+                    collector.join()
                     runCatching { withTimeout(2_000) { client.stopBrowserStream(panelId) } }
-                    streamId?.let { id -> runCatching { withTimeout(2_000) { client.unsubscribe(id) } } }
+                    runCatching { withTimeout(2_000) { client.unsubscribe(streamId) } }
                 }
             }
         }
     }
-    LaunchedEffect(client, panelId) {
-        client.disconnected.collect { failure -> ready = false; queue.pause(); policy = policy.hide(); error = failure.message ?: "Browser disconnected" }
+    LaunchedEffect(client, panelId, recovery) {
+        client.disconnected.collect { failure -> ready = false; recovery.stopped(); queue.pause(); policy = policy.hide(); error = failure.message ?: "Browser disconnected" }
     }
     // Keyboard/rotation changes update viewport without restarting or resetting frame sequence.
-    LaunchedEffect(client, panelId, ready, viewport) {
-        if (!ready || appliedViewport == viewport) return@LaunchedEffect
+    LaunchedEffect(client, panelId, ready, viewport, foreground) {
+        if (!foreground || !ready || appliedViewport == viewport) return@LaunchedEffect
         delay(60)
         try {
             client.browserViewport(panelId, viewport.first, viewport.second, viewport.third)
             ensureActive(); appliedViewport = viewport
         } catch (failure: Exception) {
-            if (failure is CancellationException) throw failure
+            rethrowBrowserCancellation(failure)
             error = failure.message ?: "Could not resize browser"
         }
     }
-    LaunchedEffect(client, panelId, frame?.sequence) {
+    LaunchedEffect(client, panelId, frame?.sequence, frame?.generation, streamGeneration, foreground) {
         val current = frame ?: return@LaunchedEffect
+        if (!foreground || current.generation != streamGeneration) return@LaunchedEffect
         withFrameNanos { }
+        recovery.noteDisplayedFrame(current.generation)
         try { client.acknowledgeBrowserFrame(panelId, current.sequence) }
-        catch (failure: Exception) { if (failure is CancellationException) throw failure; error = failure.message }
+        catch (failure: Exception) { rethrowBrowserCancellation(failure); error = failure.message }
     }
-    val inputEnabled = ready && inputError == null && dialog == null
+    val inputEnabled = foreground && ready && inputError == null && dialog == null
     if (dialog != null) BrowserDialog(checkNotNull(dialog), client, panelId,
         onResolved = { id -> if (dialog?.optString("dialog_id") == id) dialog = null }, onError = { error = it })
 
@@ -208,7 +237,7 @@ fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: String, o
                         .onFocusChanged { state ->
                             if (state.isFocused && !addressFocused) address = page.url
                             addressFocused = state.isFocused
-                        }, singleLine = true, enabled = ready && inputError == null,
+                        }, singleLine = true, enabled = foreground && ready && inputError == null,
                         textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White, textAlign = if (addressFocused) TextAlign.Start else TextAlign.Center),
                         cursorBrush = SolidColor(Color(0xFF76B9FF)), keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = {
@@ -259,7 +288,7 @@ private fun BrowserDialog(value: JSONObject, client: MobileRpcClient, panel: Str
                 client.respondBrowserDialog(panel, id, button.optString("id"), text.takeIf { value.optJSONObject("text_field") != null })
                 ensureActive(); resolved(id)
             } catch (failure: Exception) {
-                if (failure is CancellationException) throw failure
+                rethrowBrowserCancellation(failure)
                 if (id == currentId) reportError(failure.message ?: "Could not respond to browser dialog")
             } finally { if (id == currentId) busy = false }
         }
