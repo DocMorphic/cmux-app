@@ -21,7 +21,7 @@ UI resemblance alone does not count.
 | Workspaces | `MobileSyncWorkspaceListResponse`, `DeviceTreeView` | Native list, sections, previews, colors, compact toolbar, computer picker, unread filter, workspace/terminal/browser creation, rename, pin/read, close, group create/rename/pin/ungroup, and move RPCs coded; full hierarchy, drag reorder, and phone QA missing | Live hierarchy, add/rename/close/reorder/group, status and selection |
 | Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid with grapheme cell placement, semantic colors, wide cursor, delta/screen continuity and bounded local scrollback verified with JVM/emulator fixtures; actual viewport reporting/clear coded; native VT fallback, hybrid delivery, byte-gap recovery and screen-anchor negotiation verified with JVM/emulator fixtures and a captured Vim session; iOS-style View as Text with native selection/copy, cell tap, coalesced wheel RPCs and host viewport scroll responses verified with emulator fixtures; complete Ghostty fidelity, kinetic scrolling/inline graphics, and phone resize QA missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Native multiline paste/submit, encrypted per-Mac/terminal drafts, pending-send guards and acknowledgement reconciliation verified with an emulator fixture; direct IME keyboard, Unicode composition, repeated deletion, ordered input and explicit recovery from rejected delivery verified with an emulator fixture; modifier/navigation/control toolbar and hardware keys coded; photo/file picker, encrypted attachments, image paste and chunked file upload verified with an emulator fixture; rich keyboard paste, complete mode handling, and phone QA missing | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
-| Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; encrypted per-pairing alert identity and exact terminal routes, independent saved-Mac workers, read/forget cleanup and host-identity checks coded; combined saved-Mac feed, day/history grouping, unread filter, pull refresh, read/unread gestures and confirmed bulk read coded; offline snapshots and revision guards tested with loopback peers; event/mutation revision floors, bounded refresh retries and Activity-recreation retention coded; computer-picker and live-destination filtering before the global cap, server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
+| Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; encrypted per-pairing alert identity and exact terminal routes, independent saved-Mac workers, read/forget cleanup and host-identity checks coded; combined saved-Mac feed, day/history grouping, unread filter, pull refresh, read/unread gestures and confirmed bulk read coded; offline snapshots and revision guards tested with loopback peers; event/mutation revision floors, bounded refresh retries and Activity-recreation retention coded; computer picker, scoped unread badge/bulk actions and live-destination filtering before the global cap coded; server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS search-tab layout, cross-computer workspace aggregation and phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
@@ -32,9 +32,11 @@ UI resemblance alone does not count.
 
 ## Automated evidence (2026-09-27)
 
-85 JVM tests pass. All 22 Android checks have passing results across the suite
-and focused reruns: fourteen Compose flows, two Activity-recreation checks, four
-notification/service checks and two renderer checks. They run on an Android 17
+89 JVM tests pass. The Android suite now contains 23 checks: fifteen Compose
+flows, two Activity-recreation checks, four notification/service checks and two
+renderer checks. The previous 22 have passing results across suite and focused
+runs; seven focused notification/lifecycle cases pass for the latest changes
+(four in the first run and three after test-selector fixes). They run on Android 17
 (API 37) ARM64 emulator using the Pixel 6a display profile. The checks cover unread
 filtering, terminal output appearing, keyboard-driven viewport reduction,
 exactly one paste/submit request, and viewport cleanup on return to workspaces.
@@ -99,6 +101,13 @@ read/unread revision fences, offline bulk-action failures and replacement Mac
 identity. Emulator flows cover expandable history, the unread filter, long-press
 and swipe actions, bulk confirmation/cancel, identical IDs from two Macs, computer
 search, exact terminal navigation and bulk actions despite a narrower search.
+Computer filtering and live-destination visibility are applied before the global
+cap, preserving older valid rows. Source snapshots remain intact, including
+hidden notifications. Bulk read targets the captured computer scope and includes
+its retained rows hidden by search; an unknown/forgotten captured scope cannot
+widen to all computers. Selection persists in the encrypted account store, is
+restored on Activity recreation, and falls back to All Computers after removal.
+Workspace aggregation under All Computers remains a separate open item.
 Connection cleanup captures the specific composed client; route effects capture
 the same session as their keys and commit keyboard/navigation changes on the
 Android main thread after revalidating the route.

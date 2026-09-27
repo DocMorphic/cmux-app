@@ -181,7 +181,24 @@ fun NativeScreen(
     }
     val feedCoordinator = feedSession.coordinator
     val feedSources by feedCoordinator.sources.collectAsState()
-    val feedEntries = remember(feedSources) { aggregateNativeFeed(feedSources.values) }
+    var selectedComputerOrigin by rememberSaveable(signedIn) {
+        mutableStateOf(store.load()?.optString("computer_selection").orEmpty())
+    }
+    val selectedComputer = pairedMacs.firstOrNull { it.origin == selectedComputerOrigin }
+    val selectedOrigin = selectedComputer?.origin
+    fun selectComputer(mac: NativeCredentialStore.PairedMac?) {
+        selectedComputerOrigin = mac?.origin.orEmpty()
+        store.update { it.put("computer_selection", selectedComputerOrigin) }
+        if (mac != null) code = mac.code
+        computerMenuOpen = false
+    }
+    LaunchedEffect(pairedMacs, selectedComputerOrigin) {
+        if (selectedComputerOrigin.isNotBlank() && selectedComputer == null) selectComputer(null)
+    }
+    val scopedFeedSources = remember(feedSources, selectedOrigin) {
+        feedSources.values.filter { selectedOrigin == null || it.mac.origin == selectedOrigin }
+    }
+    val feedEntries = remember(feedSources, selectedOrigin) { aggregateNativeFeed(feedSources.values, selectedOrigin) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var feedForeground by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
     DisposableEffect(lifecycle) {
@@ -198,10 +215,12 @@ fun NativeScreen(
     var unreadNotificationsOnly by rememberSaveable(signedIn) { mutableStateOf(false) }
     var notificationFilterMenu by remember { mutableStateOf(false) }
     var confirmReadAll by remember { mutableStateOf(false) }
+    var pendingReadAllOrigin by remember { mutableStateOf<String?>(null) }
+    var pendingReadAllComputer by remember { mutableStateOf("All Computers") }
     var readAllBusy by remember { mutableStateOf(false) }
     var feedRefreshing by remember { mutableStateOf(false) }
     var changingNotifications by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var feedRowWindow by rememberSaveable(notificationQuery, unreadNotificationsOnly) { mutableIntStateOf(300) }
+    var feedRowWindow by rememberSaveable(notificationQuery, unreadNotificationsOnly, selectedOrigin) { mutableIntStateOf(300) }
     val feedProjection = feedSession.projection
     fun refreshFeed() {
         if (feedRefreshing) return
@@ -223,11 +242,11 @@ fun NativeScreen(
     }
     if (confirmReadAll) AlertDialog(onDismissRequest = { confirmReadAll = false },
         title = { Text("Mark all notifications as read?") },
-        text = { Text("This marks notifications on connected computers as read. Offline computers keep their unread notifications.") },
+        text = { Text("This marks all notifications for $pendingReadAllComputer as read, including those hidden by search. Offline computers keep their unread notifications.") },
         confirmButton = { TextButton(onClick = {
             confirmReadAll = false; readAllBusy = true
             scope.launch {
-                try { feedCoordinator.markAllRead(); error = null }
+                try { feedCoordinator.markAllRead(pendingReadAllOrigin); error = null }
                 catch (failure: Exception) {
                     if (failure is CancellationException) throw failure
                     error = failure.message
@@ -1163,26 +1182,41 @@ fun NativeScreen(
                     TextButton(onClick = { finishSearch(); showSettings = true }) {
                         Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
                     }
-                    if (!notificationTab) Box {
-                        TextButton(onClick = { computerMenuOpen = true }) {
-                            Text("▣", color = nativeMuted, fontSize = 19.sp)
+                    Box {
+                        IconButton(onClick = { computerMenuOpen = true }, modifier = Modifier.semantics {
+                            stateDescription = selectedComputer?.name ?: "All Computers"
+                        }) {
+                            Icon(painterResource(R.drawable.ic_feed_computer), "Computer filter",
+                                tint = if (selectedComputer == null) nativeMuted else nativeAccent,
+                                modifier = Modifier.size(22.dp))
                         }
                         DropdownMenu(computerMenuOpen, onDismissRequest = { computerMenuOpen = false }) {
+                            if (notificationTab) DropdownMenuItem(text = { Text("All Computers") },
+                                onClick = { selectComputer(null) },
+                                leadingIcon = { Text(if (selectedComputer == null) "✓" else " ") })
                             pairedMacs.forEach { mac ->
                                 DropdownMenuItem(text = { Text(mac.name.ifBlank { "cmux" }) }, onClick = {
-                                    computerMenuOpen = false; code = mac.code
-                                }, leadingIcon = { Text(if (code == mac.code) "✓" else " ") })
+                                    selectComputer(mac)
+                                }, leadingIcon = { Text(if (selectedOrigin == mac.origin) "✓" else " ") })
                             }
                             DropdownMenuItem(text = { Text("Pair another Mac") }, onClick = {
                                 computerMenuOpen = false; code = ""
                             })
                         }
                     }
-                    Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp, modifier = Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp)
+                        if (notificationTab) Text(selectedComputer?.name ?: "All Computers", color = nativeMuted,
+                            fontSize = 11.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    }
                     if (notificationTab) {
                         if (feedEntries.any { !it.notification.isRead }) IconButton(
-                            onClick = { confirmReadAll = true }, enabled = !readAllBusy) {
+                            onClick = {
+                                pendingReadAllOrigin = selectedOrigin
+                                pendingReadAllComputer = selectedComputer?.name ?: "All Computers"
+                                confirmReadAll = true
+                            }, enabled = !readAllBusy) {
                             Icon(painterResource(R.drawable.ic_feed_read_all), "Mark All Read",
                                 tint = if (readAllBusy) nativeMuted else nativeAccent, modifier = Modifier.size(23.dp))
                         }
@@ -1260,7 +1294,7 @@ fun NativeScreen(
                     }
                 }
                 if (notificationTab) {
-                    NativeNotificationFeedView(feedProjection, feedSources.values, unreadNotificationsOnly,
+                    NativeNotificationFeedView(feedProjection, scopedFeedSources, unreadNotificationsOnly,
                         notificationQuery.isNotBlank(), feedRefreshing, notificationNow, searchLocale, Modifier.weight(1f),
                         onOpen = { entry ->
                             inAppNotification = NotificationDestination(java.util.UUID.randomUUID().toString(),

@@ -85,6 +85,8 @@ class NativeLifecycleTest {
             ActivityScenario.launch(NativeLifecycleTestActivity::class.java).use { scenario ->
                 compose.waitUntil(15_000) { compose.onAllNodesWithText("Notifications (2)").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Notifications (2)").performClick()
+                compose.onNodeWithContentDescription("Computer filter").performClick()
+                compose.onNode(hasText("Fixture Mac") and hasAnyAncestor(isPopup())).performClick()
                 compose.onNodeWithText("Task done").assertIsDisplayed()
                 compose.onNode(hasSetTextAction()).performTextInput("Task")
                 compose.onNode(hasSetTextAction()).performImeAction()
@@ -102,6 +104,8 @@ class NativeLifecycleTest {
                 scenario.recreate()
                 compose.waitUntil(15_000) { compose.onAllNodesWithText("Task ready").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Task ready").assertIsDisplayed()
+                compose.onNodeWithContentDescription("Computer filter").assert(
+                    SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Fixture Mac"))
                 compose.onNodeWithText("Task done").assertDoesNotExist()
                 compose.onNode(hasSetTextAction()).assertTextEquals("Task")
                 compose.onNodeWithText("Earlier progress").assertIsDisplayed()

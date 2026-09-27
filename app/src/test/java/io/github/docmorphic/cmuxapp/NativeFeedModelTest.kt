@@ -7,6 +7,8 @@ import org.junit.Test
 
 class NativeFeedModelTest {
     private val zone = ZoneId.of("America/New_York")
+    private fun workspace(id: String = "w", surface: String = "s") = NativeWorkspace(id, id,
+        listOf(NativeTerminal(surface, surface)), null, false, null, null, false, emptyList(), null, null, null)
     private val noon = Instant.parse("2026-09-27T16:00:00Z").epochSecond.toDouble()
     private fun entry(id: String, time: Double? = noon, mac: String = "a", workspace: String = "w", read: Boolean = false) =
         NativeFeedEntry(NativeFeedSource(NativeCredentialStore.PairedMac(mac, mac, "Mac $mac")),
@@ -17,12 +19,44 @@ class NativeFeedModelTest {
 
     @Test fun aggregationKeepsIdenticalRemoteIdsOnDifferentMacsAndBoundsGlobalHistory() {
         fun source(mac: String) = NativeFeedSource(NativeCredentialStore.PairedMac(mac, mac, mac),
-            (0 until 1500).map { entry(it.toString(), noon - it, mac).notification })
+            (0 until 1500).map { entry(it.toString(), noon - it, mac).notification }, listOf(workspace()))
         val first = aggregateNativeFeed(listOf(source("b"), source("a")))
         assertEquals(2000, first.size)
         assertEquals(2000, first.map { it.id }.toSet().size)
         assertEquals(listOf("a", "b"), first.take(2).map { it.source.mac.deviceId })
         assertEquals(first, aggregateNativeFeed(listOf(source("a"), source("b"))))
+    }
+
+    @Test fun computerScopeAndDestinationVisibilityPrecedeTheGlobalCap() {
+        val a = NativeFeedSource(NativeCredentialStore.PairedMac("a", "a", "A"),
+            (0 until 2000).map { entry("a$it", noon - it).notification }, listOf(workspace()))
+        val b = NativeFeedSource(NativeCredentialStore.PairedMac("b", "b", "B"),
+            (0 until 5).map { entry("b$it", noon - 3000 - it).notification }, listOf(workspace()))
+        assertEquals(2000, aggregateNativeFeed(listOf(a, b)).size)
+        assertEquals(5, aggregateNativeFeed(listOf(a, b), b.mac.origin).size)
+        val removed = a.copy(workspaces = emptyList())
+        assertEquals(5, aggregateNativeFeed(listOf(removed, b)).size)
+        assertEquals(2000, removed.items.size)
+        assertTrue(aggregateNativeFeed(listOf(a, b), "forgotten-origin").isEmpty())
+    }
+
+    @Test fun liveDestinationFilteringUsesProvenanceAndRejectsAmbiguousOwners() {
+        val source = NativeFeedSource(NativeCredentialStore.PairedMac("a", "a", "A"), listOf(
+            entry("moved", workspace = "removed").notification.copy(retargetsToLiveSurfaceOwner = true),
+            entry("historical", workspace = "removed").notification,
+            entry("workspace-fallback").notification.copy(surfaceId = "removed")), listOf(workspace()))
+        assertEquals(listOf("moved", "workspace-fallback"), aggregateNativeFeed(listOf(source)).map { it.notification.id })
+        val ambiguous = source.copy(workspaces = listOf(workspace(), workspace("another")))
+        assertEquals(listOf("workspace-fallback"), aggregateNativeFeed(listOf(ambiguous)).map { it.notification.id })
+    }
+
+    @Test fun computerScopeKeepsSiblingInstallationsSeparateAndRetainsOfflineRows() {
+        val mac = NativeCredentialStore.PairedMac("a", "same-device", "Mac", "release")
+        val a = NativeFeedSource(mac, listOf(entry("same").notification), listOf(workspace()), NativeFeedAvailability.OFFLINE)
+        val b = a.copy(mac = mac.copy(code = "b", instanceTag = "nightly"))
+        assertEquals(2, aggregateNativeFeed(listOf(a, b)).size)
+        assertEquals(listOf(a), aggregateNativeFeed(listOf(a, b), a.mac.origin).map { it.source })
+        assertEquals(listOf(b), aggregateNativeFeed(listOf(a, b), b.mac.origin).map { it.source })
     }
 
     @Test fun consecutivePaneHistoryUsesLatestTimestampAndTwoHourBoundary() {

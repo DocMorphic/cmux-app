@@ -35,8 +35,8 @@ prefetch cadence, failure without replay, and cancellation when leaving a surfac
 Two search/notification flows verify separate workspace and notification queries,
 search submission/clearing, group/computer/description metadata, accent/width
 matching, retained filters after returning from a terminal, and moved-surface
-routing with a read acknowledgement. Missing destinations stay in the feed and
-are not marked read. `notification-search.png` and `notification-unavailable.png`
+routing with a read acknowledgement. Already missing destinations are hidden from the feed. A destination that
+disappears between display and opening reports an error and is not marked read. `notification-search.png` and `notification-unavailable.png`
 record these states. JVM tests additionally check late edits after cancellation,
 128-scalar/512-byte input bounds, duplicate/nullable feed fields, ambiguous
 surface ownership, and row headline/preview derivation.
@@ -64,17 +64,26 @@ Two further feed flows check Today/Yesterday sections, collapsed and expanded
 same-pane history, read/unread long-press actions, leading-edge swipe, unread
 filtering, confirmed/cancelled bulk read, duplicate Mac-local IDs on two computers,
 computer search, exact cross-Mac terminal targets and query restoration. The bulk
-action remains global when search hides an unread item. Screenshots include
+action includes retained notifications hidden by search, within the selected computer
+scope (or all saved computers when All Computers is selected). Screenshots include
 `notification-history-collapsed.png`, `notification-history-unread.png`, and
 `notification-multiple-macs.png`. JVM tests cover the 2,000-item aggregate cap,
-300-item projection window, DST/day boundaries, two-hour grouping, stable expansion
+300-item projection window, computer selection and live-destination filtering before
+the global cap, moved/ambiguous destinations, sibling-installation isolation,
+DST/day boundaries, two-hour grouping, stable expansion
 anchors, revision-based read-state reconciliation, offline snapshots, partial bulk
 failures and a replacement Mac at the same route. Feed identities are cached and
 bound to pairing code, device ID and cmux instance tag.
+A further two-Mac flow checks the computer picker, scoped unread badges, hidden
+search results, exact bulk-read scope, saved selection, and returning to All
+Computers. `notification-computer-scope.png` records the selected-Mac state.
+A coordinator regression ensures a captured scope for a forgotten Mac cannot
+widen to all computers when a bulk action is confirmed.
 `NativeLifecycleTest` uses a debug-only Activity host around the production
 NativeScreen. It disconnects the fixture Mac, stops/resumes and recreates the real
 Activity, and checks retained offline rows, tab, committed query, unread filter
-and expanded history. A second case loads beyond the initial 300-row window,
+and expanded history, including the selected computer. A second case loads
+beyond the initial 300-row window,
 disconnects, recreates the Activity, and checks that the additional rows remain
 available. `notification-rotation-offline.png` records the offline state.
 This is Activity-recreation coverage, not a force-stop/process-death test. The
@@ -114,7 +123,7 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest,io.github.docmorphic.cmuxapp.NativeNotificationDeliveryTest,io.github.docmorphic.cmuxapp.NativeLifecycleTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (22 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (23 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 

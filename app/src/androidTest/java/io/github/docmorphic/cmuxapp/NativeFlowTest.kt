@@ -551,7 +551,7 @@ class NativeFlowTest {
         compose.onAllNodesWithText("Completed group").assertCountEquals(0)
         field.performImeAction()
         assertDraft("Completed")
-        compose.onNodeWithText("Notifications (3)").performClick()
+        compose.onNodeWithText("Notifications (2)").performClick()
         assertDraft("")
         field.performTextInput("cafe")
         compose.onNodeWithText("Build pipeline").assertIsDisplayed()
@@ -576,7 +576,7 @@ class NativeFlowTest {
         field.performTextInput("release gate")
         compose.onNodeWithText("Claude Code task").assertIsDisplayed()
         compose.onAllNodesWithText("Read project").assertCountEquals(0)
-        compose.onNodeWithText("Notifications (3)").performClick()
+        compose.onNodeWithText("Notifications (2)").performClick()
         assertDraft("ＡＧＥＮＴ ＰＡＮＥ")
         compose.onNodeWithText("Build pipeline").assertIsDisplayed()
         compose.onNodeWithContentDescription("Clear search").performClick()
@@ -587,7 +587,7 @@ class NativeFlowTest {
     @Test fun notificationSearchNavigatesMovedSurfaceAndDoesNotReadMissingDestination() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
-        compose.onNodeWithText("Notifications (3)").performClick()
+        compose.onNodeWithText("Notifications (2)").performClick()
         compose.onNodeWithText("Read project").performClick()
         waitForTerminalText()
         compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "notification.feed.mark_read" } }
@@ -597,8 +597,13 @@ class NativeFlowTest {
         val read = peer.requests.single { it.optString("method") == "notification.feed.mark_read" }.getJSONObject("params")
         assertEquals("moved", read.getJSONArray("notification_ids").getString(0))
         compose.onNodeWithText("‹  2").performClick()
-        compose.onNode(hasSetTextAction()).performTextInput("closed workspace")
-        compose.onNodeWithText("Closed workspace").performClick()
+        compose.onNodeWithText("Closed workspace").assertDoesNotExist()
+        compose.onNode(hasSetTextAction()).performTextInput("Build pipeline")
+        // The row was valid when displayed; remove its target atomically with the tap.
+        val open = compose.onNode(hasText("Build pipeline") and !hasSetTextAction()).fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action!!
+        compose.runOnIdle { peer.hiddenWorkspaceId = "workspace-1"; open() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("This notification's workspace is no longer available.").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("This notification's workspace is no longer available.").assertIsDisplayed()
         assertEquals(1, peer.requests.count { it.optString("method") == "notification.feed.mark_read" })
         screenshot("notification-unavailable")
@@ -613,7 +618,7 @@ class NativeFlowTest {
             } }
         }
         compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
-        compose.waitUntil(15_000) { compose.onAllNodesWithText("Notifications (3)").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Notifications (2)").fetchSemanticsNodes().isNotEmpty() }
     }
 
     private fun searchNotifications() = JSONArray("""[
@@ -815,6 +820,49 @@ class NativeFlowTest {
         } finally { other.close() }
     }
 
+    @Test fun notificationComputerPickerScopesBadgeSearchAndBulkRead() {
+        val other = NativeFixturePeer().apply { deviceId = "second-mac"; displayName = "Second Mac" }
+        try {
+            fun notification(title: String) = JSONArray().put(JSONObject().put("id", "same-id")
+                .put("workspace_id", "workspace-1").put("surface_id", "terminal-1")
+                .put("workspace_title", title).put("title", "Agent").put("created_at", System.currentTimeMillis() / 1000.0))
+            peer.notificationFeed = notification("First machine task")
+            other.notificationFeed = notification("Second machine task")
+            val store = NativeCredentialStore(context)
+            store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.2:58465", "second-mac", "Second Mac")
+            store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    val target = if (pairing.routes.first().host == "100.64.0.2") other else peer
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Notifications (2)").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Notifications (2)").performClick()
+            compose.onNodeWithContentDescription("Computer filter").performClick()
+            compose.onNode(hasText("Second Mac") and hasAnyAncestor(isPopup())).performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Notifications (1)").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("First machine task").assertDoesNotExist()
+            compose.onNodeWithText("Second machine task").assertIsDisplayed()
+            assertEquals(store.pairedMacs().single { it.deviceId == "second-mac" }.origin,
+                store.load()!!.getString("computer_selection"))
+            compose.onNode(hasSetTextAction()).performTextInput("First machine")
+            compose.onNodeWithText("No matching notifications.").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Mark All Read").performClick()
+            compose.onNodeWithText("Mark All Read").performClick()
+            compose.waitUntil(10_000) { other.requests.any { it.optString("method") == "notification.feed.mark_all_read" } }
+            assertTrue(peer.requests.none { it.optString("method") == "notification.feed.mark_all_read" })
+            compose.onNodeWithContentDescription("Clear search").performClick()
+            screenshot("notification-computer-scope")
+            compose.onNodeWithContentDescription("Computer filter").performClick()
+            compose.onNode(hasText("All Computers") and hasAnyAncestor(isPopup())).performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("First machine task").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("First machine task").assertIsDisplayed()
+            compose.onNodeWithText("Second machine task").assertIsDisplayed()
+            assertEquals("", store.load()!!.getString("computer_selection"))
+        } finally { other.close() }
+    }
+
     private fun screenshot(name: String) {
         compose.waitForIdle()
         val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
@@ -840,6 +888,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var deviceId = "fixture-mac"
     @Volatile var displayName = "Fixture Mac"
     @Volatile var notificationFeed = JSONArray()
+    @Volatile var hiddenWorkspaceId: String? = null
     private val readNotifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile var rawTerminal = false
     @Volatile var screenAnchor = true
@@ -928,7 +977,12 @@ internal class NativeFixturePeer : AutoCloseable {
                "has_unread":true,"terminals":[{"id":"terminal-1","title":"Shell"}]},
               {"id":"workspace-2","title":"Read project","group_id":"complete",
                "has_unread":false,"terminals":[{"id":"terminal-2","title":"Shell"}]}
-            ]} """)
+            ]} """).also { listing ->
+            hiddenWorkspaceId?.let { hidden ->
+                val items = listing.getJSONArray("workspaces")
+                for (index in items.length() - 1 downTo 0) if (items.getJSONObject(index).getString("id") == hidden) items.remove(index)
+            }
+        }
         "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/cmux fixture.txt")
         "notification.feed.mark_read", "notification.feed.mark_unread" -> JSONObject().also {
             val ids = params.getJSONArray("notification_ids")

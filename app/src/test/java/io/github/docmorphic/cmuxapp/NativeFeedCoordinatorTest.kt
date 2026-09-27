@@ -39,6 +39,22 @@ class NativeFeedCoordinatorTest {
         } }
     }
 
+    @Test fun bulkReadStaysWithinCapturedComputerScopeIncludingHiddenRetainedRows() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            val coordinator = NativeFeedCoordinator(this, { m -> (if (m.deviceId == "a") a else b).connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                coordinator.markAllRead(mac("b").origin)
+                assertTrue(a.requests.none { it.optString("method") == "notification.feed.mark_all_read" })
+                assertEquals(1, b.requests.count { it.optString("method") == "notification.feed.mark_all_read" })
+                coordinator.markAllRead("forgotten-origin")
+                assertTrue(a.requests.none { it.optString("method") == "notification.feed.mark_all_read" })
+                assertFalse(coordinator.sources.value[mac("a").origin]!!.items.single().isRead)
+            } finally { coordinator.close() }
+        } }
+    }
+
     @Test fun replacementComputerAtSameRouteCannotAcceptOldRowActions() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             val first = mac("a").copy(code = "same-route")
@@ -156,7 +172,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                 val request = JSONObject(String(input.readNBytes(size), Charsets.UTF_8)); requests += request
                 val result = when (request.getString("method")) {
                     "mobile.host.status" -> JSONObject().put("mac_device_id", id)
-                    "mobile.workspace.list" -> JSONObject().put("workspaces", JSONArray())
+                    "mobile.workspace.list" -> JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w")))
                     "notification.feed.list" -> JSONObject().put("revision", overrideFeedRevision ?: revision)
                         .put("notifications", JSONArray().put(JSONObject().put("id", "shared").put("workspace_id", "w")
                             .put("created_at", 1).put("is_read", if (forceUnread) false else read)))

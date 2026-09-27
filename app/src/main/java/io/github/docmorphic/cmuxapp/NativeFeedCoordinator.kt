@@ -120,8 +120,10 @@ internal class NativeFeedCoordinator(
         val handle = handles[entry.source.mac.origin] ?: error("Connect to ${entry.computer} to change this notification.")
         mutate(handle, listOf(entry.notification.id), read, all = false)
     }
-    suspend fun markAllRead() = withContext(scope.coroutineContext.minusKey(Job)) {
-        val targets = mutableSources.value.values.filter { it.items.any { item -> !item.isRead } }
+    suspend fun markAllRead(selectedOrigin: String? = null) = withContext(scope.coroutineContext.minusKey(Job)) {
+        val targets = mutableSources.value.values.filter {
+            (selectedOrigin == null || it.mac.origin == selectedOrigin) && it.items.any { item -> !item.isRead }
+        }
         val failures = targets.map { source -> async {
             try {
                 val handle = handles[source.mac.origin] ?: error("Computer unavailable")

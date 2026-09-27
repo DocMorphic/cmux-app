@@ -21,8 +21,11 @@ internal data class NativeFeedEntry(val source: NativeFeedSource, val notificati
     fun searchFields() = notification.searchFields(source.workspaces, computer)
 }
 
-internal fun aggregateNativeFeed(sources: Collection<NativeFeedSource>): List<NativeFeedEntry> =
-    sources.flatMap { source -> source.items.map { NativeFeedEntry(source, it) } }
+/** Scope and live destinations precede the cap; retained source snapshots remain untouched. */
+internal fun aggregateNativeFeed(sources: Collection<NativeFeedSource>, selectedOrigin: String? = null): List<NativeFeedEntry> =
+    sources.filter { selectedOrigin == null || it.mac.origin == selectedOrigin }
+        .flatMap { source -> source.items.filter { it.destination(source.workspaces) != null }
+            .map { NativeFeedEntry(source, it) } }
         .sortedWith(compareByDescending<NativeFeedEntry> { it.notification.createdAt ?: Double.NEGATIVE_INFINITY }
             .thenBy { it.source.mac.deviceId }.thenBy { it.source.mac.instanceTag.orEmpty() }
             .thenBy { it.notification.id }.thenBy { it.source.mac.origin })
