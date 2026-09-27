@@ -21,6 +21,12 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
     var onText: (String) -> Unit = {}
     var onKey: (KeyEvent) -> Boolean = { false }
     var onPaste: (String) -> Unit = {}
+    var onDelete: (Int, Int) -> Unit = { before, after ->
+        if (before > 0) onText("\u007f".repeat(before))
+        if (after > 0) onText("\u001b[3~".repeat(after))
+    }
+    var onReturn: () -> Unit = { onText("\r") }
+    var imeAction: Int = EditorInfo.IME_ACTION_NONE
     private var connection: TerminalConnection? = null
 
     init {
@@ -57,7 +63,7 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
         if (!isEnabled) return null
         connection?.invalidate()
         outAttrs.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-        outAttrs.imeOptions = EditorInfo.IME_ACTION_NONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        outAttrs.imeOptions = imeAction or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
         outAttrs.initialSelStart = 1; outAttrs.initialSelEnd = 1
         return TerminalConnection().also { connection = it }
     }
@@ -167,8 +173,7 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
                 else { showComposition(buffer.toString().removePrefix("\u200b")); updateSelection() }
             } else {
                 clearBuffer()
-                if (before > 0) onText("\u007f".repeat(before))
-                if (after > 0) onText("\u001b[3~".repeat(after))
+                onDelete(before, after)
             }
             return true
         }
@@ -183,7 +188,7 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
         }
         override fun performEditorAction(actionCode: Int): Boolean {
             if (!ready()) return false
-            finishComposingText(); onText("\r"); return true
+            finishComposingText(); onReturn(); return true
         }
         override fun closeConnection() { invalidate(); super.closeConnection() }
     }

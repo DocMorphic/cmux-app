@@ -1322,9 +1322,6 @@ fun NativeScreen(
                 val browser = selectedBrowser!!
                 if (active != null) NativeBrowserView(
                     client = active, panelId = browser.id, title = browser.title,
-                    viewportWidth = configuration.screenWidthDp.coerceAtLeast(240),
-                    viewportHeight = (configuration.screenHeightDp - 180).coerceAtLeast(240),
-                    viewportScale = context.resources.displayMetrics.density.toDouble(),
                     onBack = { selectedBrowser = null; selectedWorkspace = null }
                 )
             }

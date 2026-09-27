@@ -187,6 +187,10 @@ class MobileRpcClient(
     suspend fun stopBrowserStream(panelId: String): JSONObject = request(
         "mobile.browser.stream.stop", JSONObject().put("panel_id", panelId)
     )
+    suspend fun browserViewport(panelId: String, width: Int, height: Int, scale: Double): JSONObject = request(
+        "mobile.browser.viewport", JSONObject().put("panel_id", panelId)
+            .put("viewport_width", width).put("viewport_height", height).put("viewport_scale", scale)
+    )
     suspend fun acknowledgeBrowserFrame(panelId: String, sequence: Long): JSONObject = request(
         "mobile.browser.frame.ack", JSONObject().put("panel_id", panelId).put("seq", sequence)
     )

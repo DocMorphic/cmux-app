@@ -1317,6 +1317,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var directoryResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var directoryErrorCode: String? = null
     @Volatile var taskGroupsSupported = false
+    @Volatile var browserResponse: ((String, JSONObject) -> JSONObject)? = null
     val nextTaskCreateError = java.util.concurrent.atomic.AtomicReference<String?>(null)
     @Volatile var rawTerminal = false
     @Volatile var screenAnchor = true
@@ -1336,6 +1337,12 @@ internal class NativeFixturePeer : AutoCloseable {
         val event = JSONObject().put("kind", "event").put("topic", "terminal.bytes").put("stream_id", terminalStreamId)
             .put("payload", JSONObject().put("surface_id", "terminal-1").put("seq", sequence)
                 .put("data_b64", java.util.Base64.getEncoder().encodeToString(bytes)))
+        sockets.filter { !it.isClosed }.forEach { send(it, event) }
+    }
+    fun pushBrowserEvent(topic: String, payload: JSONObject) {
+        val subscription = requests.last { it.optString("method") == "mobile.events.subscribe" &&
+            it.getJSONObject("params").getJSONArray("topics").toString().contains("browser.") }.getJSONObject("params").getString("stream_id")
+        val event = JSONObject().put("kind", "event").put("topic", topic).put("stream_id", subscription).put("payload", payload)
         sockets.filter { !it.isClosed }.forEach { send(it, event) }
     }
     private val acceptThread = Thread {
@@ -1402,6 +1409,8 @@ internal class NativeFixturePeer : AutoCloseable {
     }
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
+        "mobile.browser.stream.start" -> browserResponse?.invoke(method, params) ?: JSONObject().put("panel_id", params.getString("panel_id"))
+            .put("url", "https://cmux.com").put("title", "Browser fixture").put("can_go_back", false).put("can_go_forward", false).put("is_loading", false)
         "mobile.directory.list", "mobile.directory.search" -> directoryResponse?.invoke(method, params) ?: JSONObject()
         "mobile.task.models.list" -> taskModelsResponse?.let { JSONObject(it.toString()) } ?: run {
             val provider = params.getString("provider")
@@ -1518,7 +1527,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 .put("cursor", JSONObject().put("row", 4.coerceAtMost(rows - 1)).put("column", 0)
                     .put("visible", true).put("style", "block")))
         }
-        else -> JSONObject()
+        else -> if (method.startsWith("mobile.browser.")) browserResponse?.invoke(method, params) ?: JSONObject() else JSONObject()
     }
 
     override fun close() {
