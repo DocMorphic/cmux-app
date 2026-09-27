@@ -21,9 +21,9 @@ UI resemblance alone does not count.
 | Workspaces | `MobileSyncWorkspaceListResponse`, `DeviceTreeView` | Native list, sections, previews, colors, compact toolbar, computer picker, unread filter, workspace/terminal/browser creation, rename, pin/read, close, group create/rename/pin/ungroup, and move RPCs coded; full hierarchy, drag reorder, and phone QA missing | Live hierarchy, add/rename/close/reorder/group, status and selection |
 | Terminal | `MobileTerminalRenderGridFrame`, `GhosttySurfaceView` | Styled render-grid with grapheme cell placement, semantic colors, wide cursor, delta/screen continuity and bounded local scrollback verified with JVM/emulator fixtures; actual viewport reporting/clear coded; native VT fallback, hybrid delivery, byte-gap recovery and screen-anchor negotiation verified with JVM/emulator fixtures and a captured Vim session; iOS-style View as Text with native selection/copy, cell tap, coalesced wheel RPCs and host viewport scroll responses verified with emulator fixtures; complete Ghostty fidelity, kinetic scrolling/inline graphics, and phone resize QA missing | Stream render grid or VT bytes; colors, cursor, Unicode, alternate screen, scrollback, resize |
 | Input | `TerminalInputTextView`, `MobileTerminalInputResponse` | Native multiline paste/submit, encrypted per-Mac/terminal drafts, pending-send guards and acknowledgement reconciliation verified with an emulator fixture; direct IME keyboard, Unicode composition, repeated deletion, ordered input and explicit recovery from rejected delivery verified with an emulator fixture; modifier/navigation/control toolbar and hardware keys coded; photo/file picker, encrypted attachments, image paste and chunked file upload verified with an emulator fixture; rich keyboard paste, complete mode handling, and phone QA missing | Soft and hardware keyboard, modifiers, paste, image/file input, shortcuts, safe retry |
-| Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed and read sync coded; opt-in foreground connection and Android alerts coded but unverified on phone; server push fallback missing | Feed, unread counts, actions, deep links, Android background delivery, read sync |
+| Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; background identity/deep-link scoping, multi-Mac aggregation, grouped history, server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, navigation, tap, scroll, text, and dialog RPC paths coded; downloads and phone QA missing | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
-| Search | `MobilePrimarySearchCoordinator` | Workspace text filter | Search workspaces and notifications with matching navigation |
+| Search | `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; iOS search-tab layout, cross-computer aggregation and phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Changed-file list and bounded unified diffs coded; file content actions and phone QA missing | View changed files and diffs from the active workspace |
 | Tasks and agents | `CmuxAgentChatUI`, task composer in `CmuxMobileShellUI` | Built-in Claude/Codex/OpenCode/Shell templates and new-workspace task RPC coded; model/effort, attachments, task recovery, chat UI, and phone QA missing | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
@@ -32,7 +32,7 @@ UI resemblance alone does not count.
 
 ## Automated evidence (2026-09-27)
 
-55 JVM tests pass. Eight Compose flows and two rendering instrumentation checks pass on an Android 17
+62 JVM tests pass. Ten Compose flows and two rendering instrumentation checks pass on an Android 17
 (API 37) ARM64 emulator using the Pixel 6a display profile. It checks unread
 filtering, terminal output appearing, keyboard-driven viewport reduction,
 exactly one paste/submit request, and viewport cleanup on return to workspaces.
@@ -72,6 +72,17 @@ wheel direction, cell coordinates and workspace/surface/client scoping, and a
 viewport-anchored host's returned scroll frame. JVM cases cover shared hit-test
 geometry, slow-response coalescing, prefetch cadence, cancellation, uncertain
 scroll delivery, copy history boundaries and trimming blank screen tails.
+Search/navigation checks cover independent tab queries, submit/cancel semantics,
+bounded scalars without broken surrogate pairs, accent/width folding for
+notifications, group/computer/description/notification metadata matches, and
+returning from a search result with the committed filter intact. Moved-terminal
+notifications resolve to the live owner only with the host provenance flag;
+unresolved or ambiguous workspace destinations do not mark a notification read. Decoder cases
+cover nullable metadata, duplicate IDs and redundant row content. The emulator
+exercises moved-surface RPC scoping and an unavailable destination, and captures
+notification search and its error state. These use one local fixture Mac;
+multi-Mac aggregation, background notification identity and physical-device
+navigation still require implementation/verification.
 Screenshots were inspected with and without the keyboard. This caught and
 fixed terminal background overdraw, skipped render updates, and a false
 cancellation error during resize. It uses a local RPC fixture; live Mac auth,

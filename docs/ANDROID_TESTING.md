@@ -32,6 +32,14 @@ wheel/click RPCs, and applying an older host's viewport-anchored scroll response
 `terminal-text-selection.png` shows the native selection handles. Geometry and
 scroll queue JVM tests also cover coalescing during a delayed acknowledgement,
 prefetch cadence, failure without replay, and cancellation when leaving a surface.
+Two search/notification flows verify separate workspace and notification queries,
+search submission/clearing, group/computer/description metadata, accent/width
+matching, retained filters after returning from a terminal, and moved-surface
+routing with a read acknowledgement. Missing destinations stay in the feed and
+are not marked read. `notification-search.png` and `notification-unavailable.png`
+record these states. JVM tests additionally check late edits after cancellation,
+128-scalar/512-byte input bounds, duplicate/nullable feed fields, ambiguous
+surface ownership, and row headline/preview derivation.
 The peer uses synthetic data and never connects to a real cmux account.
 This check does not prove account sign-in, Tailscale routing, or compatibility
 with the live Mac; those remain in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
@@ -55,7 +63,7 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w -r -e class io.github.docmorphic.cmuxapp.NativeFlowTest,io.github.docmorphic.cmuxapp.RenderGridRenderingTest io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Check the instrumentation output for `OK (10 tests)`; the `adb` exit code alone
+Check the instrumentation output for `OK (12 tests)`; the `adb` exit code alone
 does not distinguish failed tests. Screenshots are saved to the debug app's
 external files directory and can be retrieved after the test:
 

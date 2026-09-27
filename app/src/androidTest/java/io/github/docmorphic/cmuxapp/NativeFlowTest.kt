@@ -529,6 +529,93 @@ class NativeFlowTest {
         assertTrue(peer.failures.toString(), peer.failures.isEmpty())
     }
 
+    @Test fun scopedSearchMatchesGroupsNotificationMetadataAndPreservesCommittedFilters() {
+        peer.notificationFeed = searchNotifications()
+        showSearchFixture()
+        val field = compose.onNode(hasSetTextAction())
+        field.performTextInput(" Completed ")
+        compose.onNodeWithText("Read project").assertIsDisplayed()
+        compose.onAllNodesWithText("Claude Code task").assertCountEquals(0)
+        compose.onAllNodesWithText("Completed group").assertCountEquals(0)
+        field.performImeAction()
+        assertDraft("Completed")
+        compose.onNodeWithText("Notifications (3)").performClick()
+        assertDraft("")
+        field.performTextInput("cafe")
+        compose.onNodeWithText("Build pipeline").assertIsDisplayed()
+        compose.onAllNodesWithText("Read project").assertCountEquals(0)
+        field.performTextReplacement("resume")
+        compose.onNodeWithText("Build pipeline").assertIsDisplayed()
+        field.performTextReplacement("ＡＧＥＮＴ ＰＡＮＥ")
+        compose.onNodeWithText("Build pipeline").assertIsDisplayed()
+        field.performImeAction()
+        screenshot("notification-search")
+        compose.onNodeWithText("Workspaces").performClick()
+        assertDraft("Completed")
+        compose.onNodeWithText("Read project").performClick()
+        waitForTerminalText()
+        compose.onNodeWithText("‹  2").performClick()
+        assertDraft("Completed")
+        compose.onNodeWithContentDescription("Clear search").performClick()
+        field.performTextInput("Fixture Mac")
+        compose.onNodeWithText("Read project").assertIsDisplayed()
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Clear search").performClick()
+        field.performTextInput("release gate")
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        compose.onAllNodesWithText("Read project").assertCountEquals(0)
+        compose.onNodeWithText("Notifications (3)").performClick()
+        assertDraft("ＡＧＥＮＴ ＰＡＮＥ")
+        compose.onNodeWithText("Build pipeline").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Clear search").performClick()
+        compose.onNodeWithText("Read project").assertIsDisplayed()
+        assertTrue(peer.requests.none { it.optString("method") == "notification.feed.mark_read" })
+    }
+
+    @Test fun notificationSearchNavigatesMovedSurfaceAndDoesNotReadMissingDestination() {
+        peer.notificationFeed = searchNotifications()
+        showSearchFixture()
+        compose.onNodeWithText("Notifications (3)").performClick()
+        compose.onNodeWithText("Read project").performClick()
+        waitForTerminalText()
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "notification.feed.mark_read" } }
+        val replay = peer.requests.last { it.optString("method") == "mobile.terminal.replay" }.getJSONObject("params")
+        assertEquals("workspace-2", replay.getString("workspace_id"))
+        assertEquals("terminal-2", replay.getString("surface_id"))
+        val read = peer.requests.single { it.optString("method") == "notification.feed.mark_read" }.getJSONObject("params")
+        assertEquals("moved", read.getJSONArray("notification_ids").getString(0))
+        compose.onNodeWithText("‹  2").performClick()
+        compose.onNode(hasSetTextAction()).performTextInput("closed workspace")
+        compose.onNodeWithText("Closed workspace").performClick()
+        compose.onNodeWithText("This notification's workspace is no longer available.").assertIsDisplayed()
+        assertEquals(1, peer.requests.count { it.optString("method") == "notification.feed.mark_read" })
+        screenshot("notification-unavailable")
+    }
+
+    private fun showSearchFixture() {
+        compose.setContent {
+            CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                })
+            } }
+        }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    private fun searchNotifications() = JSONArray("""[
+        {"id":"first","workspace_id":"workspace-1","surface_id":"terminal-1","title":"Claude Code",
+         "body":"Waiting for café report","subtitle":"Résumé review","workspace_title":"Build pipeline",
+         "surface_title":"Agent Pane","is_read":false},
+        {"id":"moved","workspace_id":"workspace-1","surface_id":"terminal-2","title":"Codex",
+         "body":"Moved terminal alert","workspace_title":"Read project","is_read":false,"retargets_to_live_surface_owner":true},
+        {"id":"missing","workspace_id":"removed","surface_id":"gone","title":"Orphan alert",
+         "body":"Missing destination","workspace_title":"Closed workspace","is_read":false,"retargets_to_live_surface_owner":true}
+    ]""").also { items ->
+        for (index in 0 until items.length()) items.getJSONObject(index)
+            .put("created_at", System.currentTimeMillis() / 1000.0 - 60 * (index + 1))
+    }
+
     private fun findTerminalKeyboard(view: View): TerminalKeyboardView? {
         if (view is TerminalKeyboardView) return view
         if (view is ViewGroup) for (index in 0 until view.childCount) {
@@ -569,6 +656,8 @@ private class NativeFixturePeer : AutoCloseable {
     private val sockets = CopyOnWriteArrayList<Socket>()
     @Volatile private var closed = false
     private var revision = 0
+    @Volatile var notificationFeed = JSONArray()
+    private val readNotifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile var rawTerminal = false
     @Volatile var screenAnchor = true
     @Volatile var alternateScreen = false
@@ -646,13 +735,23 @@ private class NativeFixturePeer : AutoCloseable {
         "mobile.workspace.list" -> JSONObject("""{
             "groups":[{"id":"complete","name":"Completed group","is_collapsed":false}],
             "workspaces":[
-              {"id":"workspace-1","title":"Claude Code task","current_directory":"~/projects/cmux-app",
+              {"id":"workspace-1","title":"Claude Code task","current_directory":"~/projects/cmux-app","description":"Release gate",
                "has_unread":true,"terminals":[{"id":"terminal-1","title":"Shell"}]},
               {"id":"workspace-2","title":"Read project","group_id":"complete",
                "has_unread":false,"terminals":[{"id":"terminal-2","title":"Shell"}]}
             ]} """)
         "mobile.task.attachment.upload" -> JSONObject().put("path", "/tmp/cmux fixture.txt")
-        "notification.feed.list" -> JSONObject().put("notifications", JSONArray())
+        "notification.feed.mark_read" -> JSONObject().also {
+            val ids = params.getJSONArray("notification_ids")
+            for (index in 0 until ids.length()) readNotifications.add(ids.getString(index))
+        }
+        "notification.feed.list" -> JSONObject().put("notifications", JSONArray().also { output ->
+            for (index in 0 until notificationFeed.length()) {
+                val item = JSONObject(notificationFeed.getJSONObject(index).toString())
+                if (item.getString("id") in readNotifications) item.put("is_read", true)
+                output.put(item)
+            }
+        })
         "mobile.events.subscribe" -> JSONObject().put("stream_id", params.optString("stream_id").also { terminalStreamId = it })
         "mobile.terminal.viewport" -> JSONObject().put("columns", params.optInt("viewport_columns", 40).also { viewportColumns = it })
             .put("rows", params.optInt("viewport_rows", 20).also { viewportRows = it })

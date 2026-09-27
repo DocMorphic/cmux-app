@@ -3,6 +3,7 @@ package io.github.docmorphic.cmuxapp
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.text.format.DateUtils
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -29,10 +30,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
@@ -43,8 +47,11 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
@@ -70,24 +77,6 @@ private val nativePanel = Color(0xFF191B1F)
 private val nativeAccent = Color(0xFF76B9FF)
 private val nativeMuted = Color(0xFF9B9FA8)
 
-private data class NativeWorkspace(
-    val id: String, val title: String, val terminals: List<NativeTerminal>,
-    val directory: String?, val hasUnread: Boolean, val lastActivityAt: Double?,
-    val windowId: String?, val isPinned: Boolean, val browsers: List<NativeBrowser>,
-    val groupId: String?, val preview: String?, val color: String?
-)
-private data class NativeGroup(val id: String, val name: String, val isCollapsed: Boolean, val isPinned: Boolean)
-private sealed interface WorkspaceListEntry {
-    data class Header(val group: NativeGroup) : WorkspaceListEntry
-    data class Workspace(val workspace: NativeWorkspace) : WorkspaceListEntry
-}
-private data class NativeTerminal(val id: String, val title: String)
-private data class NativeBrowser(val id: String, val title: String)
-private data class NativeNotification(
-    val id: String, val workspaceId: String, val surfaceId: String?,
-    val title: String, val body: String, val isRead: Boolean
-)
-
 @Composable
 fun NativeScreen(
     onUseHelper: () -> Unit, incomingCode: String? = null, incomingWorkspaceId: String? = null,
@@ -96,6 +85,8 @@ fun NativeScreen(
     val context = LocalContext.current
     val connection = remember(context, connector) { connector ?: TailscaleConnector(context.applicationContext) }
     val clipboard = LocalClipboardManager.current
+    val focusManager = LocalFocusManager.current
+    val softwareKeyboard = LocalSoftwareKeyboardController.current
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val displayPreferences = remember(context) {
@@ -133,8 +124,8 @@ fun NativeScreen(
     var retry by remember { mutableIntStateOf(0) }
     var retryDelay by remember { mutableLongStateOf(2_000) }
     var client by remember { mutableStateOf<MobileRpcClient?>(null) }
-    var hostName by remember { mutableStateOf("cmux") }
-    var hostCapabilities by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var hostName by remember(code) { mutableStateOf("cmux") }
+    var hostCapabilities by remember(code) { mutableStateOf<Set<String>>(emptySet()) }
     var pairedMacs by remember { mutableStateOf(store.pairedMacs()) }
     var showSettings by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
@@ -142,21 +133,46 @@ fun NativeScreen(
     var showCreateGroup by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     var backgroundNotifications by remember { mutableStateOf(NativeNotificationService.isEnabled(context)) }
-    var workspaces by remember { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
-    var groups by remember { mutableStateOf<List<NativeGroup>>(emptyList()) }
+    var workspaces by remember(code) { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
+    var groups by remember(code) { mutableStateOf<List<NativeGroup>>(emptyList()) }
     var locallyExpandedGroups by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var notifications by remember { mutableStateOf<List<NativeNotification>>(emptyList()) }
+    var notifications by remember(code) { mutableStateOf<List<NativeNotification>>(emptyList()) }
     var notificationTab by remember { mutableStateOf(false) }
-    var search by remember { mutableStateOf("") }
+    var searchState by remember(signedIn) { mutableStateOf(NativeSearchState()) }
+    val searchScope = if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
+    val search = searchState.text(searchScope).trim()
+    fun finishSearch(cancel: Boolean = false) {
+        searchState = if (cancel) searchState.clear(searchScope) else searchState.commit()
+        focusManager.clearFocus(); softwareKeyboard?.hide()
+    }
+
     var unreadWorkspacesOnly by remember { mutableStateOf(false) }
     var createMenuOpen by remember { mutableStateOf(false) }
     var workspaceFilterMenuOpen by remember { mutableStateOf(false) }
     var computerMenuOpen by remember { mutableStateOf(false) }
-    var selectedWorkspace by remember { mutableStateOf<NativeWorkspace?>(null) }
-    var selectedTerminal by remember { mutableStateOf<NativeTerminal?>(null) }
-    var selectedBrowser by remember { mutableStateOf<NativeBrowser?>(null) }
-    var selectedChangesWorkspace by remember { mutableStateOf<NativeWorkspace?>(null) }
+    var selectedWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
+    var selectedTerminal by remember(code) { mutableStateOf<NativeTerminal?>(null) }
+    var selectedBrowser by remember(code) { mutableStateOf<NativeBrowser?>(null) }
+    var selectedChangesWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
     var handledIncomingWorkspace by remember(incomingWorkspaceId) { mutableStateOf(false) }
+    var notificationNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(notificationTab) {
+        if (notificationTab) while (true) {
+            notificationNow = System.currentTimeMillis()
+            delay(60_000)
+        }
+    }
+    val searchLocale = configuration.locales[0]
+    val workspaceSearch = remember(workspaces, groups, hostName, searchLocale) {
+        val groupNames = groups.associate { it.id to it.name }
+        NativeSearchIndex(workspaces.map { workspace -> workspace.id to
+            (listOf(workspace.title, workspace.description, workspace.directory, workspace.preview,
+                hostName, groupNames[workspace.groupId]) + workspace.terminals.map { it.title }) }, searchLocale)
+    }
+    val notificationSearch = remember(notifications, workspaces, hostName, searchLocale) {
+        NativeSearchIndex(notifications.map { it.id to it.searchFields(workspaces, hostName) },
+            searchLocale, notification = true)
+    }
     val draftRepository = remember(context) { TerminalDraftRepository.get(context) }
     val drafts = draftRepository.drafts
     val draftStates by drafts.state.collectAsState()
@@ -561,6 +577,8 @@ fun NativeScreen(
         val active = client
         onDispose { active?.close() }
     }
+    BackHandler(enabled = signedIn && code.isNotBlank() && searchState.active != null && selectedTerminal == null &&
+        selectedBrowser == null && selectedChangesWorkspace == null && !showSettings && !showTaskComposer) { finishSearch(cancel = true) }
     BackHandler(enabled = selectedTerminal != null) { selectedTerminal = null; selectedWorkspace = null }
     BackHandler(enabled = selectedBrowser != null) { selectedBrowser = null; selectedWorkspace = null }
     BackHandler(enabled = showSettings && selectedTerminal == null) { showSettings = false }
@@ -756,7 +774,7 @@ fun NativeScreen(
                     }, enabled = pairingText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Connect") }
                     TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
                     TextButton(onClick = { showLicenses = true }) { Text("Open-source licenses") }
-                    if (pairedMacs.isNotEmpty()) TextButton(onClick = { showSettings = true }) { Text("Saved computers") }
+                    if (pairedMacs.isNotEmpty()) TextButton(onClick = { finishSearch(); showSettings = true }) { Text("Saved computers") }
                 }
             }
             selectedTerminal != null -> {
@@ -986,7 +1004,7 @@ fun NativeScreen(
             else -> {
                 Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { showSettings = true }) {
+                    TextButton(onClick = { finishSearch(); showSettings = true }) {
                         Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
                     }
                     if (!notificationTab) Box {
@@ -1055,7 +1073,7 @@ fun NativeScreen(
                                         .onFailure { error = it.message } }
                                 })
                                 DropdownMenuItem(text = { Text("New task") }, onClick = {
-                                    createMenuOpen = false; showTaskComposer = true
+                                    createMenuOpen = false; finishSearch(); showTaskComposer = true
                                 })
                                 if ("workspace.group_create.v1" in hostCapabilities) {
                                     DropdownMenuItem(text = { Text("New group") }, onClick = {
@@ -1074,31 +1092,60 @@ fun NativeScreen(
                     }
                 }
                 if (notificationTab) {
-                    val visibleNotifications = notifications.filter { notification ->
-                        search.isBlank() || notification.title.contains(search, true) ||
-                            notification.body.contains(search, true) ||
-                            workspaces.any { workspace ->
-                                workspace.id == notification.workspaceId && workspace.title.contains(search, true)
-                            }
-                    }
+                    val matches = remember(notificationSearch, search) { notificationSearch.matches(search) }
+                    val visibleNotifications = notifications.filter { it.id in matches }
                     LazyColumn(Modifier.weight(1f)) {
                         items(visibleNotifications, key = { it.id }) { notification ->
                             Column(Modifier.fillMaxWidth().clickable {
                                 val active = client
-                                if (active != null) scope.launch {
-                                    runCatching { active.markNotificationRead(notification.id) }
-                                        .onSuccess { notifications = parseNotifications(active.notifications()) }
-                                        .onFailure { error = it.message }
-                                }
-                                val workspace = workspaces.firstOrNull { it.id == notification.workspaceId }
+                                val workspace = notification.destination(workspaces)
                                 val terminal = workspace?.terminals?.firstOrNull { it.id == notification.surfaceId }
                                     ?: workspace?.terminals?.firstOrNull()
-                                if (workspace != null && terminal != null) {
-                                    selectedWorkspace = workspace; selectedTerminal = terminal
+                                val browser = workspace?.browsers?.firstOrNull { it.id == notification.surfaceId }
+                                    ?: if (terminal == null) workspace?.browsers?.firstOrNull() else null
+                                when {
+                                    active == null -> error = "Connect to the Mac to open this notification."
+                                    workspace == null || (terminal == null && browser == null) ->
+                                        error = "This notification's workspace is no longer available."
+                                    else -> {
+                                        finishSearch()
+                                        selectedWorkspace = workspace
+                                        if (browser != null) selectedBrowser = browser else selectedTerminal = terminal
+                                        scope.launch {
+                                            try {
+                                                active.markNotificationRead(notification.id)
+                                                val refreshed = active.notifications()
+                                                if (client === active) notifications = parseNotifications(refreshed)
+                                            } catch (failure: Exception) {
+                                                if (failure is CancellationException) throw failure
+                                                if (client === active) error = failure.message
+                                            }
+                                        }
+                                    }
                                 }
-                            }.padding(horizontal = 18.dp, vertical = 14.dp)) {
-                                Text(notification.title, fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.SemiBold)
-                                if (notification.body.isNotBlank()) Text(notification.body, color = nativeMuted, maxLines = 3)
+                            }.semantics { stateDescription = if (notification.isRead) "Read" else "Unread" }
+                                .padding(horizontal = 18.dp, vertical = 14.dp)) {
+                                val row = remember(notification, workspaces, hostName, searchLocale) {
+                                    notification.presentation(workspaces, hostName, searchLocale)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (!notification.isRead) Text("●  ", Modifier.clearAndSetSemantics { }, color = nativeAccent, fontSize = 9.sp)
+                                    Text(row.headline, fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.SemiBold,
+                                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                }
+                                row.source?.let { Text(it, color = nativeMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                row.preview?.let { Text(it, color = nativeMuted, maxLines = 3) }
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(hostName, Modifier.weight(1f).padding(end = 8.dp), color = nativeMuted,
+                                        fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    notification.createdAt?.let { seconds ->
+                                        val time = remember(seconds, notificationNow) { runCatching {
+                                            DateUtils.getRelativeTimeSpanString((seconds * 1000).toLong(), notificationNow,
+                                                DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
+                                        }.getOrNull() }
+                                        time?.let { Text(it, color = nativeMuted, fontSize = 11.sp) }
+                                    }
+                                }
                             }
                             HorizontalDivider(color = Color(0xFF292C31))
                         }
@@ -1108,14 +1155,10 @@ fun NativeScreen(
                         }
                     }
                 } else {
-                    val matching = workspaces.filter { (!unreadWorkspacesOnly || it.hasUnread) &&
-                        (it.title.contains(search, true) ||
-                        it.directory?.contains(search, true) == true ||
-                        it.preview?.contains(search, true) == true ||
-                        it.terminals.any { terminal -> terminal.title.contains(search, true) })
-                    }
+                    val matches = remember(workspaceSearch, search) { workspaceSearch.matches(search) }
+                    val matching = workspaces.filter { (!unreadWorkspacesOnly || it.hasUnread) && it.id in matches }
                     val entries = buildList<WorkspaceListEntry> {
-                        if (groups.isEmpty()) matching.forEach { add(WorkspaceListEntry.Workspace(it)) }
+                        if (groups.isEmpty() || search.isNotEmpty() || unreadWorkspacesOnly) matching.forEach { add(WorkspaceListEntry.Workspace(it)) }
                         else {
                             matching.filter { it.groupId == null || groups.none { group -> group.id == it.groupId } }
                                 .forEach { add(WorkspaceListEntry.Workspace(it)) }
@@ -1160,6 +1203,7 @@ fun NativeScreen(
                                 groups = groups,
                                 canMove = "workspace.move.v1" in hostCapabilities,
                                 onOpen = {
+                                    finishSearch()
                                     workspace.terminals.firstOrNull()?.let { terminal ->
                                         selectedWorkspace = workspace; selectedTerminal = terminal
                                     } ?: workspace.browsers.firstOrNull()?.let { browser ->
@@ -1209,6 +1253,7 @@ fun NativeScreen(
                             workspace.browsers.forEach { browser ->
                                 Text("▣  ${browser.title.ifBlank { "Browser" }}",
                                     Modifier.fillMaxWidth().clickable {
+                                        finishSearch()
                                         selectedWorkspace = workspace; selectedBrowser = browser
                                     }.padding(start = 80.dp, top = 4.dp, bottom = 12.dp),
                                     color = nativeAccent, fontSize = 12.sp)
@@ -1221,19 +1266,33 @@ fun NativeScreen(
                         }
                     }
                 }
-                OutlinedTextField(search, { search = it },
-                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp),
+                val searchActivation = searchState.generation
+                OutlinedTextField(searchState.text(searchScope), { value ->
+                    searchState = searchState.edit(value, searchScope, searchActivation)
+                },
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)
+                        .onFocusChanged {
+                            val currentScope = if (notificationTab) NativeSearchScope.NOTIFICATIONS else NativeSearchScope.WORKSPACES
+                            if (it.isFocused && searchScope == currentScope) searchState = searchState.begin(searchScope)
+                        },
                     placeholder = { Text(if (notificationTab) "⌕  Search notifications" else "⌕  Search workspaces",
                         color = nativeMuted) },
+                    trailingIcon = {
+                        if (searchState.active == searchScope || search.isNotEmpty()) TextButton(onClick = {
+                            finishSearch(cancel = true)
+                        }, modifier = Modifier.semantics { contentDescription = "Clear search" }) { Text("×") }
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { finishSearch() }),
                     singleLine = true, shape = RoundedCornerShape(28.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    TextButton(onClick = { notificationTab = false }) { Text("Workspaces", color = if (notificationTab) nativeMuted else nativeAccent) }
-                    TextButton(onClick = { notificationTab = true }) {
+                    TextButton(onClick = { finishSearch(); notificationTab = false }) { Text("Workspaces", color = if (notificationTab) nativeMuted else nativeAccent) }
+                    TextButton(onClick = { finishSearch(); notificationTab = true }) {
                         val unread = notifications.count { !it.isRead }
                         Text(if (unread > 0) "Notifications ($unread)" else "Notifications",
                             color = if (notificationTab) nativeAccent else nativeMuted)
                     }
-                    TextButton(onClick = { showSettings = true }) {
+                    TextButton(onClick = { finishSearch(); showSettings = true }) {
                         Text("Settings", color = nativeMuted)
                     }
                 }
@@ -1288,7 +1347,8 @@ private fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 workspace.optBoolean("is_pinned"), browsers,
                 workspace.optString("group_id").takeIf { it.isNotBlank() && it != "null" },
                 workspace.optString("preview").takeIf { it.isNotBlank() && it != "null" },
-                workspace.optString("custom_color").takeIf { it.startsWith('#') }
+                workspace.optString("custom_color").takeIf { it.startsWith('#') },
+                workspace.optString("description").takeIf { it.isNotBlank() && it != "null" }
             ))
         }
     }
@@ -1442,20 +1502,4 @@ private fun NativeWorkspaceRow(
         confirmButton = { TextButton(onClick = { confirmClose = false; onAction("close", null) }) { Text("Close", color = Color(0xFFFF9999)) } },
         dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("Cancel") } }
     )
-}
-
-private fun parseNotifications(value: JSONObject): List<NativeNotification> {
-    val array = value.optJSONArray("notifications") ?: return emptyList()
-    return buildList {
-        for (index in 0 until minOf(array.length(), 500)) {
-            val item = array.optJSONObject(index) ?: continue
-            val id = item.optString("id")
-            if (id.isBlank()) continue
-            add(NativeNotification(
-                id, item.optString("workspace_id"),
-                item.optString("surface_id").takeIf { it.isNotBlank() && it != "null" },
-                item.optString("title").take(512), item.optString("body").take(4096), item.optBoolean("is_read")
-            ))
-        }
-    }
 }
