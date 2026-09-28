@@ -24,8 +24,8 @@ UI resemblance alone does not count.
 | Notifications | `NotificationFeedView`, `CmuxAppDelegate` | Native in-app feed, workspace/source/preview/time rows, read sync, provenance-based moved-terminal navigation and per-Mac view state coded; search/navigation verified with emulator fixtures; encrypted per-pairing alert identity and exact terminal routes, independent saved-Mac workers, read/forget cleanup and host-identity checks coded; combined saved-Mac feed, day/history grouping, unread filter, pull refresh, read/unread gestures and confirmed bulk read coded; offline snapshots and revision guards tested with loopback peers; event/mutation revision floors, bounded refresh retries and Activity-recreation retention coded; computer picker, scoped unread badge/bulk actions and live-destination filtering before the global cap coded; server push fallback and phone QA pending | Feed, unread counts, actions, deep links, Android background delivery, read sync |
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, bottom navigation/address/loading controls, direct IME and hardware input, live viewport updates, ordered/coalesced scrolling, frame validation and stale-dialog fencing coded; seven browser-view checks and three browser momentum gesture checks have passing emulator evidence across initial/focused runs, including watchdog/lifecycle recovery and momentum/cancellation; width-fit geometry, local pinch zoom/pan and repeated-tap click counts also verified in a clean 13-case browser emulator run; download behavior and phone QA pending | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
-| Changes | `CmuxMobileChanges` | Collapsible directory tree, path-stable diff pager, numbered/wrapped hunks, grapheme-safe emphasis, line/hunk copy, persistent pinch font, refresh/retry and progressive 6,000→24,000→96,000-line loading coded; identity-checked hidden-context expansion and chunked content transfer coded; model/request checks passed; Before/After image, PDF, media and file-action previews coded; ten Changes cases passed in an Android 17 emulator run; phone QA, advanced text/Markdown and document-format parity remain open | View changed files and diffs from the active workspace |
-| Terminal Files | `TerminalArtifactFilesSheet`, `ChatArtifactFolderView`, `ChatArtifactViewerDestination` | Scoped RPC/paging/search store, Session/In view sheet, filters/sort, list/three-column grid, thumbnails, folder navigation, swipe previews and file actions coded; terminal menu/counted chip and direct relative/absolute path taps capability gated; 285 JVM checks and all 12 combined Android 17 Files/shared-preview runtime cases passed; row Share and folder-tap preference now coded with JVM checks; their two new UI checks compile but await the next runtime gate; advanced preview fidelity and physical acceptance remain open | Browse terminal/session files, folders and previews without crossing authorization scopes |
+| Changes | `CmuxMobileChanges` | Collapsible directory tree, path-stable diff pager, numbered/wrapped hunks, grapheme-safe emphasis, line/hunk copy, persistent pinch font, refresh/retry and progressive 6,000→24,000→96,000-line loading coded; identity-checked hidden-context expansion and chunked content transfer coded; model/request checks passed; Before/After image, PDF, media and file-action previews coded; ten Changes cases passed in an Android 17 emulator run; rendered Markdown now shares the original cmux web assets; phone QA, advanced raw-text controls and document-format parity remain open | View changed files and diffs from the active workspace |
+| Terminal Files | `TerminalArtifactFilesSheet`, `ChatArtifactFolderView`, `ChatArtifactViewerDestination` | Scoped RPC/paging/search store, Session/In view sheet, filters/sort, list/three-column grid, thumbnails, folder navigation, swipe previews and file actions coded; terminal menu/counted chip and direct relative/absolute path taps capability gated; 285 JVM checks and all 12 combined Android 17 Files/shared-preview runtime cases passed; row Share, folder-tap preference and rendered Markdown have passing runtime evidence; advanced raw-text controls, unified viewer-menu fidelity, broader document formats and physical acceptance remain open | Browse terminal/session files, folders and previews without crossing authorization scopes |
 | Tasks and agents | Task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, connection status, Open Folders on Tap and Show Missing Files controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
@@ -45,6 +45,62 @@ scope is terminal Files (Session/In view, search, filters, sorting, folders,
 previews and actions), along with the other open areas in the table. Haskell and
 PureScript highlighting also belongs to artifact code viewing, not a chat screen.
 No existing GUI chat implementation or verification is being claimed.
+
+## Shared Markdown renderer and Files runtime follow-up (2026-09-28)
+
+Files and Changes now render Markdown with the same bundled shell, marked,
+highlight.js, GitHub CSS, Mermaid and Vega libraries as iOS. The 11 original
+assets are copied without modification from the pinned cmux revision; their
+SHA-256 hashes are recorded in `assets/markdown-viewer/manifest.json` and
+`scripts/sync-markdown-viewer.py` reproduces the copy. Third-party notices and
+MIT/BSD licenses are bundled and visible in Open-source licenses.
+
+The Android host supplies the local bridge, lazy diagram loading, Rendered/Raw
+selection and the exact 1,500,000-byte rendered-mode threshold. It preserves
+same-page fragments and opens activated HTTP(S), mail and telephone links through
+Android. Local Markdown links and relative images remain unresolved, matching
+the inspected iOS host. Raw HTML is handled by the original sanitizer. CSP and
+request interception prevent implicit network loads; remote images retain the
+original per-image consent UI. The image transport permits HTTPS on port 443,
+rejects private/reserved addresses and mixed DNS answers, uses those validated
+addresses for TLS, permits at most three same-host redirects, and bounds decoded
+image data to 8 MiB with an image MIME allowlist. It uses OkHttp/Okio with system
+TLS verification and cancels outstanding image calls on closure.
+
+The renderer follows the app's dark palette through a scoped Android theme,
+scales text with the system font setting, and releases its WebView/bridge/jobs
+when leaving the page. Renderer process loss has two bounded recovery attempts
+before falling back to raw source. Remote-image live-network acceptance,
+renderer-recovery injection, full zoom/accessibility equivalence, unified viewer
+menu placement and advanced raw-text functionality remain open; these are not
+claimed as completed or unavoidable platform limitations.
+
+Verification:
+
+- All **300 JVM cases passed**. After the host integration correction, the seven
+  Markdown policy cases passed again. Debug and instrumentation APKs assembled.
+- The first 17-case Android 17 integration run passed 14 cases, including gallery
+  Share's exact bytes, session scope and read-only URI after sheet closure, the
+  other Files flows, and shared image/PDF/audio previews. Two Markdown cases
+  exposed the local shell being blocked by the request interceptor. The folder
+  preference fixture incorrectly expected `mobile.terminal.click`; the actual
+  RPC is `mobile.terminal.mouse`. The positive and negative assertions now use
+  the real method.
+- With the shell allowance and fixture fixed, a clean five-case rerun passed in
+  **58.231 seconds**, covering all three Markdown cases plus the two NativeScreen
+  chip/path/folder-preference flows. One attempted rerun stopped in a startup ANR
+  before any test cases; exit-info and its log are retained.
+- Screenshot review then caught light CSS against the dark Android background.
+  After the theme fix, all three Markdown cases passed in **31.091 seconds**,
+  including computed text-contrast, visible Mermaid geometry, a Vega chart,
+  tables, highlighted code, mode switching, the size threshold and inert active
+  markup/unapproved remote images. The final screenshot was inspected.
+
+These runs provide passing evidence for 17 distinct runtime cases across the
+initial and focused runs, not a clean full-suite run on the final source. Logs,
+initial failures and screenshots are in `captures/artifacts/`. Signed build 157
+remains the current download; this combined debug checkpoint has not been
+published as a new release. Physical Pixel/Mac acceptance remains pending.
 
 ## Gallery Share and folder-tap preference (2026-09-28)
 

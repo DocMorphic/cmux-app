@@ -57,7 +57,7 @@ internal fun FilePreviewContent(artifact: LocalFilePreview) {
         ChangesPreviewRoute.IMAGE -> ChangesImagePreview(artifact.file)
         ChangesPreviewRoute.PDF -> ChangesPdfPreview(artifact.file)
         ChangesPreviewRoute.MEDIA -> ChangesMediaPreview(artifact.file)
-        ChangesPreviewRoute.TEXT -> ChangesTextPreview(artifact.file)
+        ChangesPreviewRoute.TEXT -> ArtifactTextPreview(artifact)
         ChangesPreviewRoute.EXTERNAL -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Preview unavailable", style = MaterialTheme.typography.titleMedium)
@@ -223,7 +223,7 @@ private fun ChangesMediaPreview(file: File) {
 }
 
 @Composable
-private fun ChangesTextPreview(file: File) {
+internal fun ArtifactRawTextPreview(file: File) {
     var failure by remember(file) { mutableStateOf<String?>(null) }
     val lines by produceState<List<String>?>(null, file) {
         try { value = withContext(Dispatchers.IO) { file.bufferedReader().use { it.readLines() } } }

@@ -106,9 +106,12 @@ class NativeFlowTest {
         val bounds = terminal.fetchSemanticsNode().boundsInRoot
         val geometry = TerminalGeometry.fit(bounds.width, bounds.height, viewport.getInt("viewport_columns"), viewport.getInt("viewport_rows"), cells)!!
         terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(geometry.originX + geometry.cellWidth * 7.5f, geometry.originY + geometry.cellHeight * .5f)) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Raw").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Rendered").assertIsSelected()
+        compose.onNodeWithText("Raw").performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithText(body).fetchSemanticsNodes().isNotEmpty() }
         assertTrue(peer.requests.any { it.optString("method") == "mobile.terminal.artifact.stat" && it.getJSONObject("params").optString("path") == "notes.md" })
-        assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.click" })
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.mouse" })
     }
 
     @Test fun folderTapPreferencePersistsAndChangesActualTerminalTapBehavior() {
@@ -134,7 +137,7 @@ class NativeFlowTest {
         assertTrue(!context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE).getBoolean("terminal-folder-tap", true))
         compose.onNodeWithText("Claude Code task").performClick()
         tapArtifactCell("open ./folder", 8.5f)
-        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.click" } }
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.mouse" } }
         compose.onNodeWithContentDescription("Open file ./folder/note.txt").assertDoesNotExist()
         assertTrue(peer.requests.none { it.optString("method").endsWith("artifact.list") })
         compose.onNodeWithContentDescription("Back to workspaces").performClick()
@@ -144,10 +147,10 @@ class NativeFlowTest {
         compose.onNodeWithContentDescription("Show Missing Files").performScrollTo().assertIsOn()
         compose.onNodeWithText("‹  Back").performScrollTo().performClick()
         compose.onNodeWithText("Claude Code task").performClick()
-        val clicks = peer.requests.count { it.optString("method") == "mobile.terminal.click" }
+        val clicks = peer.requests.count { it.optString("method") == "mobile.terminal.mouse" }
         tapArtifactCell("open ./folder", 8.5f)
         compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Open file ./folder/note.txt").fetchSemanticsNodes().isNotEmpty() }
-        assertEquals(clicks, peer.requests.count { it.optString("method") == "mobile.terminal.click" })
+        assertEquals(clicks, peer.requests.count { it.optString("method") == "mobile.terminal.mouse" })
     }
 
     private fun tapArtifactCell(text: String, column: Float) {

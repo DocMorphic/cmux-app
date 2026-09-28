@@ -26,7 +26,7 @@ internal fun filePreviewRoute(kind: String, mimeType: String?, path: String): Ch
         kind == "image" || mime.startsWith("image/") -> ChangesPreviewRoute.IMAGE
         extension == "pdf" || mime == "application/pdf" -> ChangesPreviewRoute.PDF
         mime.startsWith("video/") || mime.startsWith("audio/") || extension in setOf("mp4", "mov", "m4v", "webm", "mkv", "mp3", "wav", "m4a", "aac", "ogg", "flac", "opus", "aiff") -> ChangesPreviewRoute.MEDIA
-        kind == "text" || extension in setOf("md", "markdown") -> ChangesPreviewRoute.TEXT
+        kind == "text" || MarkdownPreviewPolicy.isMarkdown(path, mime) -> ChangesPreviewRoute.TEXT
         else -> ChangesPreviewRoute.EXTERNAL
     }
 }

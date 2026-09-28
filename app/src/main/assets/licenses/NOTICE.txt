@@ -126,3 +126,14 @@ TerminalFolderTapPolicy and GhosttySurfaceCoordinator+Artifacts at cmux revision
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android shares original bytes through read-only FileProvider grants and preserves
 terminal authorization when a classification refusal opens the error viewer.
+
+The Markdown viewer bundles the unmodified cmux shell, navigation code, marked,
+highlight.js, GitHub CSS, Mermaid, Vega, Vega-Lite and Vega-Embed assets from
+cmux commit 4c5272e9153eca2033c9f40ac749f0c3a5bcb291. Exact source hashes are in
+app/src/main/assets/markdown-viewer/manifest.json. Third-party versions, copyright
+notices and MIT/BSD license text are in app/src/main/assets/licenses/Markdown.txt.
+The cmux renderer, rendering threshold, mobile link behavior and remote-image
+policy are copyright (c) 2024-present Manaflow, Inc., GPL-3.0-or-later.
+Android additions include WebView lifecycle integration, a restricted local bridge,
+and DNS-validated HTTPS image transport using OkHttp 4.12.0 and Okio 3.6.0
+(Square and contributors, Apache-2.0; full license bundled in Apache-2.0.txt).
