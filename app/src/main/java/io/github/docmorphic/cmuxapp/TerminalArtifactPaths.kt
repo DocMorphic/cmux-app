@@ -1,7 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
 import java.net.URI
-import java.nio.file.Paths
 
 /** Conservative path detector matching the iOS local Files-count fallback. */
 internal object TerminalArtifactPaths {
@@ -30,8 +29,17 @@ internal object TerminalArtifactPaths {
         }
         if (candidate.isEmpty() || candidate.any { it in forbidden || it == '(' || it == ')' } || '\u0000' in candidate) return null
         if (candidate.startsWith('/')) {
-            val normalized = runCatching { Paths.get(candidate).normalize().toString() }.getOrNull() ?: return null
-            if (normalized == "/" || normalized == "/.") return null
+            // These are remote Mac paths, never paths on the JVM's build host.
+            // Only classify lexical root aliases; keep the original path for Mac resolution.
+            var depth = 0
+            candidate.split('/').forEach { component ->
+                when (component) {
+                    "", "." -> Unit
+                    ".." -> depth = (depth - 1).coerceAtLeast(0)
+                    else -> depth++
+                }
+            }
+            if (depth == 0) return null
             return candidate
         }
         if (candidate.startsWith("http://") || candidate.startsWith("https://")) return null

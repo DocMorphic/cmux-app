@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "io.github.docmorphic.cmuxapp"
     compileSdk = 36
+    buildToolsVersion = "36.0.0"
     val releaseKeystorePath = System.getenv("CMUX_APP_RELEASE_KEYSTORE")
     val releasePassword = System.getenv("CMUX_APP_RELEASE_PASSWORD")
 

@@ -23,6 +23,10 @@ Install Android Studio with Android SDK 36 and JDK 17 or newer, then open this d
 ./gradlew :app:assembleDebug
 ```
 
+On Windows, use `.\gradlew.bat :app:assembleDebug` from PowerShell. See
+[Windows development](docs/WINDOWS_DEVELOPMENT.md) for setup and the focused
+handoff runtime runner shared by Windows and macOS.
+
 The APK will be at `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions
 produces a stable signed release APK at manually dispatched milestones or
 eligible non-draft PR builds. Draft feature commits intentionally skip the build

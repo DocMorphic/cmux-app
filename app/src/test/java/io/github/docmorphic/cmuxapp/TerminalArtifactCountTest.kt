@@ -54,6 +54,15 @@ class TerminalArtifactCountTest {
             assertEquals("Path case $index", canonical(case.getJSONArray("expected")), canonical(actual))
         }
     }
+    @Test fun remotePosixPathsDoNotUseTheDevelopmentHostsFilesystemRules() {
+        for (root in listOf("/", "//", "/..", "/../../", "/a//b/../../")) {
+            assertNull(root, TerminalArtifactPaths.normalized(root))
+        }
+        // Colons are legal in Mac filenames; parent components stay intact for the host.
+        for (path in listOf("/tmp/a:abc", "/a/../b", "/../../b", "//tmp///file")) {
+            assertEquals(path, TerminalArtifactPaths.normalized(path))
+        }
+    }
     @Test fun visibilityKeepsTheLastCountDuringGraceAndPositiveEvidenceCancelsHide() {
         val state = TerminalArtifactVisibility()
         assertEquals(TerminalArtifactVisibility.Action.NONE, state.update(0, true))
