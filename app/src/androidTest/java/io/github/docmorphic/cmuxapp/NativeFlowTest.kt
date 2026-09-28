@@ -376,6 +376,48 @@ class NativeFlowTest {
         file.delete(); photo.delete()
     }
 
+    @Test fun keyboardImageReachesExactTerminalBeforeFollowingKeysWithoutChangingComposerDraft() {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.onNode(hasSetTextAction()).performTextInput("Keep this draft")
+        val directory = File(context.cacheDir, "task-previews").apply { mkdirs() }
+        val photo = File(directory, "terminal-keyboard-fixture.png")
+        Bitmap.createBitmap(16, 8, Bitmap.Config.ARGB_8888).also { bitmap ->
+            bitmap.eraseColor(android.graphics.Color.GREEN)
+            photo.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+        }
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.task-previews", photo)
+            compose.onNodeWithText("Keyboard").performClick()
+            compose.runOnIdle {
+                val keyboard = findTerminalKeyboard(compose.activity.window.decorView)!!
+                val connection = keyboard.onCreateInputConnection(EditorInfo())!!
+                assertTrue(connection.commitContent(android.view.inputmethod.InputContentInfo(uri,
+                    android.content.ClipDescription("Photo", arrayOf("image/png")), null), 0, null))
+                connection.commitText("after image", 1)
+            }
+            compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.input" } }
+            val sent = peer.requests.filter { it.optString("method") in setOf("terminal.paste_image", "terminal.input", "terminal.paste") }
+            assertEquals(listOf("terminal.paste_image", "terminal.input"), sent.map { it.getString("method") })
+            val params = sent.first().getJSONObject("params")
+            assertEquals("workspace-1", params.getString("workspace_id"))
+            assertEquals("terminal-1", params.getString("surface_id"))
+            val bytes = java.util.Base64.getDecoder().decode(params.getString("image_base64"))
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size).also { bitmap ->
+                assertEquals(android.graphics.Color.GREEN, bitmap.getPixel(3, 3)); bitmap.recycle()
+            }
+            assertEquals("after image", sent.last().getJSONObject("params").getString("text"))
+            compose.onNodeWithText("Compose").performClick()
+            assertDraft("Keep this draft")
+        } finally { photo.delete() }
+    }
+
     @Test fun directKeyboardCompositionKeysPauseAndTargetSwitch() {
         compose.setContent {
             CmuxTheme {

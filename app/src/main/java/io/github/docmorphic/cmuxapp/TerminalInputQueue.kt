@@ -12,8 +12,12 @@ import kotlinx.coroutines.launch
 
 /** One ordered, bounded lane for keys and clipboard paste. Failed input is never replayed. */
 class TerminalInputQueue(scope: CoroutineScope, private val deliver: suspend (Entry) -> Unit) : AutoCloseable {
-    data class Entry(val text: String, val paste: Boolean = false) {
-        val bytes = text.toByteArray(Charsets.UTF_8).size
+    data class Entry(val text: String, val paste: Boolean = false, internal val action: Action? = null) {
+        val bytes = if (action != null) 1 else text.toByteArray(Charsets.UTF_8).size
+    }
+    class Action internal constructor(val run: suspend () -> Unit, private val release: () -> Unit) : AutoCloseable {
+        private val closed = java.util.concurrent.atomic.AtomicBoolean()
+        override fun close() { if (closed.compareAndSet(false, true)) release() }
     }
     data class Status(val pendingBytes: Int = 0, val error: String? = null, val closed: Boolean = false)
     private val state = MutableStateFlow(Status())
@@ -21,6 +25,7 @@ class TerminalInputQueue(scope: CoroutineScope, private val deliver: suspend (En
     private val entries = ArrayDeque<Entry>()
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private var inFlight = false
+    private var pendingActions = 0
     private val worker = scope.launch {
         for (signal in wake) {
             while (true) {
@@ -29,7 +34,7 @@ class TerminalInputQueue(scope: CoroutineScope, private val deliver: suspend (En
                     else entries.removeFirstOrNull()?.also { inFlight = true }
                 } ?: break
                 try {
-                    deliver(entry)
+                    if (entry.action != null) entry.action.run() else deliver(entry)
                     synchronized(this@TerminalInputQueue) {
                         inFlight = false
                         state.value = state.value.copy(pendingBytes = (state.value.pendingBytes - entry.bytes).coerceAtLeast(0))
@@ -41,15 +46,42 @@ class TerminalInputQueue(scope: CoroutineScope, private val deliver: suspend (En
                     }
                     if (failure is CancellationException && !currentCoroutineContext().isActive) throw failure
                     break
+                } finally {
+                    entry.action?.close()
+                    if (entry.action != null) synchronized(this@TerminalInputQueue) { pendingActions-- }
                 }
+            }
+        }
+    }
+
+    init {
+        worker.invokeOnCompletion {
+            synchronized(this) {
+                discardQueued()
+                state.value = state.value.copy(pendingBytes = 0, closed = true)
+                wake.close()
             }
         }
     }
 
     @Synchronized fun offer(text: String, paste: Boolean = false): Boolean {
         if (text.isEmpty()) return true
+        return enqueue(Entry(text, paste))
+    }
+
+    /** Reserve ordering before asynchronous image decoding. Owns release even when rejected. */
+    @Synchronized fun offerAction(release: () -> Unit, run: suspend () -> Unit): Boolean {
+        val action = Action(run, release)
+        if (pendingActions >= MAX_PENDING_ACTIONS) { action.close(); return false }
+        pendingActions++
+        if (enqueue(Entry("", action = action))) return true
+        pendingActions--
+        action.close()
+        return false
+    }
+
+    private fun enqueue(entry: Entry): Boolean {
         if (state.value.closed || state.value.error != null) return false
-        val entry = Entry(text, paste)
         if (entry.bytes > MAX_PENDING_BYTES - state.value.pendingBytes) {
             fail("Typing paused because the connection could not keep up. Check the terminal before resuming.")
             return false
@@ -73,16 +105,21 @@ class TerminalInputQueue(scope: CoroutineScope, private val deliver: suspend (En
     }
 
     private fun fail(message: String) {
-        entries.clear()
+        discardQueued()
         state.value = state.value.copy(pendingBytes = 0, error = message)
     }
 
     @Synchronized override fun close() {
-        entries.clear()
+        discardQueued()
         state.value = state.value.copy(pendingBytes = 0, closed = true)
         worker.cancel()
         wake.close()
     }
 
-    companion object { const val MAX_PENDING_BYTES = 64 * 1024 }
+    private fun discardQueued() {
+        entries.forEach { entry -> entry.action?.let { it.close(); pendingActions-- } }
+        entries.clear()
+    }
+
+    companion object { const val MAX_PENDING_BYTES = 64 * 1024; const val MAX_PENDING_ACTIONS = 4 }
 }

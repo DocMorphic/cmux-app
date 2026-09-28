@@ -5,6 +5,96 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TerminalInputQueueTest {
+    @Test fun imagePreparationReservesItsPlaceAheadOfLaterKeysAndReleasesOnce() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val prepared = CompletableDeferred<Unit>()
+        val sent = mutableListOf<String>()
+        var released = 0
+        val queue = TerminalInputQueue(scope) { sent += it.text }
+        try {
+            queue.offer("before")
+            assertTrue(queue.offerAction({ released++ }) { prepared.await(); sent += "image" })
+            queue.offer("after")
+            assertEquals(listOf("before"), sent)
+            assertEquals(0, released)
+            prepared.complete(Unit)
+            queue.awaitIdle()
+            assertEquals(listOf("before", "image", "after"), sent)
+            queue.close()
+            assertEquals(1, released)
+        } finally { queue.close(); scope.cancel() }
+    }
+
+    @Test fun ambiguousImageFailureReleasesWaitingGrantsAndNeverReplaysImages() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val fail = CompletableDeferred<Unit>()
+        var released = 0
+        var attempted = 0
+        val queue = TerminalInputQueue(scope) { error("Keys after uncertain image must be discarded") }
+        try {
+            queue.offerAction({ released++ }) { attempted++; fail.await(); error("Lost paste acknowledgement") }
+            queue.offerAction({ released++ }) { attempted++ }
+            queue.offer("after image")
+            fail.complete(Unit)
+            assertNotNull(queue.status.value.error)
+            assertEquals(2, released)
+            assertEquals(1, attempted)
+            assertTrue(queue.resume())
+            queue.awaitIdle()
+            assertEquals(1, attempted)
+        } finally { queue.close(); scope.cancel() }
+    }
+
+    @Test fun richInputIsBoundedAndClosingReleasesRunningQueuedAndRejectedGrants() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        var released = 0
+        var started = 0
+        val queue = TerminalInputQueue(scope) {}
+        try {
+            repeat(TerminalInputQueue.MAX_PENDING_ACTIONS) {
+                assertTrue(queue.offerAction({ released++ }) { started++; awaitCancellation() })
+            }
+            assertFalse(queue.offerAction({ released++ }) { error("Excess input must not run") })
+            assertEquals(1, released)
+            assertEquals(1, started)
+            queue.close()
+            assertEquals(TerminalInputQueue.MAX_PENDING_ACTIONS + 1, released)
+            assertFalse(queue.offerAction({ released++ }) { error("Closed input must not run") })
+            assertEquals(TerminalInputQueue.MAX_PENDING_ACTIONS + 2, released)
+        } finally { queue.close(); scope.cancel() }
+    }
+
+    @Test fun closingBeforeWorkerStartsStillReleasesProviderGrants() = runBlocking {
+        val tasks = ArrayDeque<Runnable>()
+        val dispatcher = object : CoroutineDispatcher() {
+            override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) { tasks.addLast(block) }
+        }
+        val scope = CoroutineScope(SupervisorJob() + dispatcher)
+        var released = 0
+        val queue = TerminalInputQueue(scope) {}
+        try {
+            assertTrue(queue.offerAction({ released++ }) { error("Disposed content must not be opened") })
+            queue.close()
+            assertEquals(1, released)
+        } finally {
+            queue.close(); scope.cancel()
+            while (tasks.isNotEmpty()) tasks.removeFirst().run()
+        }
+    }
+
+    @Test fun cancellingOwnerScopeDiscardsGrantsAndRejectsNewContent() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        var released = 0
+        val queue = TerminalInputQueue(scope) {}
+        queue.offerAction({ released++ }) { awaitCancellation() }
+        queue.offerAction({ released++ }) { error("Cancelled paste must not run") }
+        scope.cancel()
+        assertTrue(queue.status.value.closed)
+        assertEquals(2, released)
+        assertFalse(queue.offerAction({ released++ }) { error("Stopped worker must not accept input") })
+        assertEquals(3, released)
+    }
+
     @Test fun rpcTimeoutPausesButDoesNotKillTheLaneBeforeExplicitResume() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val attempted = mutableListOf<String>()

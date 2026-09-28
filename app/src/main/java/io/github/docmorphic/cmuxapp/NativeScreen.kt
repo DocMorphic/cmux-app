@@ -36,7 +36,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
@@ -100,7 +99,6 @@ fun NativeScreen(
         sharedConnections?.native?.state ?: kotlinx.coroutines.flow.MutableStateFlow(NativeComputersState())
     }
     val computerState by computerStates.collectAsState()
-    val clipboard = LocalClipboardManager.current
     val focusManager = LocalFocusManager.current
     val softwareKeyboard = LocalSoftwareKeyboardController.current
     val configuration = LocalConfiguration.current
@@ -511,6 +509,86 @@ fun NativeScreen(
                 error = failure.message ?: "Could not open the attachment"
             } finally { preparingAttachments = false }
         }
+    }
+
+    fun acceptTerminalPaste(content: TerminalPasteContent): Boolean {
+        val target = draftTarget ?: return false
+        val active = client ?: return false
+        if (preparingAttachments || terminalDraft.operation != null || inputStatus.error != null) return false
+        val generation = drafts.generation
+        val items = content.items
+        if (items.all { it is TerminalPasteContent.Item.Text }) {
+            val accepted = queueInput(items.joinToString("\n") { (it as TerminalPasteContent.Item.Text).value }, paste = true)
+            if (accepted) content.close()
+            return accepted
+        }
+        if (items.any { it is TerminalPasteContent.Item.Attachment && !it.image } &&
+            ComposerAttachment.FILE_CAPABILITY !in hostCapabilities) {
+            error = "Update cmux on your Mac to paste files"
+            return false
+        }
+        fun checkTarget() {
+            check(signedIn && client === active && code == target.pairing && drafts.generation == generation &&
+                workspaces.any { it.id == target.workspace && it.terminals.any { terminal -> terminal.id == target.surface } }) {
+                "The paste target changed. Paste again in the intended terminal."
+            }
+        }
+        if (directTyping) {
+            stopTerminalScrolling(); scrollOffset = 0
+            val accepted = inputQueue.offerAction(release = content::close) {
+                for (item in items) {
+                    checkTarget()
+                    when (item) {
+                        is TerminalPasteContent.Item.Text -> active.paste(target.workspace, target.surface, item.value, submit = false)
+                        is TerminalPasteContent.Item.Attachment -> {
+                            val prepared = attachmentFiles.prepare(item.uri, item.image)
+                            checkTarget()
+                            if (prepared.attachment.imageFormat != null) {
+                                active.pasteImage(target.workspace, target.surface, prepared.bytes, prepared.attachment.imageFormat)
+                            } else {
+                                val path = active.uploadAttachment(prepared.attachment, prepared.bytes, ::checkTarget)
+                                checkTarget()
+                                active.paste(target.workspace, target.surface, ComposerAttachment.withPaths(listOf(path), ""), submit = false)
+                            }
+                        }
+                    }
+                }
+            }
+            if (!accepted) error = "Could not queue the paste. Wait for pending input and try again."
+            return accepted
+        }
+        // Composer paste uses the same encrypted storage and captured target as picked attachments.
+        preparingAttachments = true
+        scope.launch {
+            try {
+                for (item in items) {
+                    checkTarget()
+                    when (item) {
+                        is TerminalPasteContent.Item.Text -> drafts.edit(target, (drafts.state.value[target]?.text ?: "") + item.value)
+                        is TerminalPasteContent.Item.Attachment -> {
+                            val prepared = attachmentFiles.prepare(item.uri, item.image)
+                            checkTarget()
+                            draftRepository.attach(target, prepared, generation)
+                        }
+                    }
+                }
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                error = failure.message ?: "Could not open the pasted attachment"
+            } finally { preparingAttachments = false }
+        }.invokeOnCompletion { content.close() }
+        return true
+    }
+
+    fun pasteClipboard() {
+        rawKeyboardView?.finishComposition()
+        try {
+            val clip = context.getSystemService(android.content.ClipboardManager::class.java).primaryClip ?: return
+            val content = TerminalPasteContent.fromClipboard(context, clip)
+            var accepted = false
+            try { accepted = acceptTerminalPaste(content) }
+            finally { if (!accepted) content.close() }
+        } catch (failure: Exception) { error = failure.message ?: "Could not read the clipboard" }
     }
 
     fun sendComposer(submit: Boolean) {
@@ -1351,11 +1429,7 @@ fun NativeScreen(
                                 queueInput(sequence)
                             }) { Text(label, color = nativeMuted) }
                         }
-                    TextButton(onClick = {
-                        val pasted = clipboard.getText()?.text.orEmpty()
-                        rawKeyboardView?.finishComposition()
-                        if (pasted.isNotEmpty()) queueInput(pasted, paste = true)
-                    }) { Text("Paste", color = nativeMuted) }
+                    TextButton(onClick = ::pasteClipboard) { Text("Paste", color = nativeMuted) }
 
                 }
                 inputStatus.error?.let { message ->
@@ -1377,6 +1451,8 @@ fun NativeScreen(
                             view.onText = ::directText
                             view.onKey = ::directHardware
                             view.onPaste = { queueInput(it, paste = true) }
+                            view.onContent = ::acceptTerminalPaste
+                            view.onContentError = { error = it }
                         }, onRelease = { view -> view.dispose(); if (rawKeyboardView === view) rawKeyboardView = null },
                             modifier = Modifier.fillMaxWidth().height(48.dp).background(nativePanel))
                     }

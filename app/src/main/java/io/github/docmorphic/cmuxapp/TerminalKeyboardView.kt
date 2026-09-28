@@ -14,6 +14,7 @@ import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
+import android.view.inputmethod.InputContentInfo
 import android.widget.TextView
 
 /** An IME endpoint, not a local copy of the remote terminal's editable contents. */
@@ -21,6 +22,9 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
     var onText: (String) -> Unit = {}
     var onKey: (KeyEvent) -> Boolean = { false }
     var onPaste: (String) -> Unit = {}
+    /** A true result transfers ownership, including releasing any temporary provider grant. */
+    var onContent: ((TerminalPasteContent) -> Boolean)? = null
+    var onContentError: (String) -> Unit = {}
     var onDelete: (Int, Int) -> Unit = { before, after ->
         if (before > 0) onText("\u007f".repeat(before))
         if (after > 0) onText("\u001b[3~".repeat(after))
@@ -65,15 +69,14 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
         outAttrs.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         outAttrs.imeOptions = imeAction or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
         outAttrs.initialSelStart = 1; outAttrs.initialSelEnd = 1
+        outAttrs.contentMimeTypes = if (onContent != null) arrayOf("image/*") else null
         return TerminalConnection().also { connection = it }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (!isEnabled) return false
         if ((event.isCtrlPressed && event.isShiftPressed || event.isMetaPressed) && keyCode == KeyEvent.KEYCODE_V) {
-            finishComposition()
-            val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
-            clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()?.let(onPaste)
+            pasteClipboard()
             return true
         }
         val composing = connection?.hasComposition() == true
@@ -103,6 +106,40 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
     }
 
     private fun manager() = context.getSystemService(InputMethodManager::class.java)
+    fun pasteClipboard(plainTextOnly: Boolean = false): Boolean {
+        if (!isEnabled) return false
+        finishComposition()
+        return try {
+            val clip = context.getSystemService(android.content.ClipboardManager::class.java).primaryClip ?: return false
+            val content = TerminalPasteContent.fromClipboard(context, clip)
+            if (plainTextOnly && content.items.any { it !is TerminalPasteContent.Item.Text }) {
+                content.close(); false
+            } else acceptContent(content)
+        } catch (failure: Exception) {
+            onContentError(failure.message ?: "Could not read the clipboard"); false
+        }
+    }
+
+    override fun onTextContextMenuItem(id: Int): Boolean = when (id) {
+        android.R.id.paste -> pasteClipboard()
+        android.R.id.pasteAsPlainText -> pasteClipboard(plainTextOnly = true)
+        else -> false
+    }
+
+    private fun acceptContent(content: TerminalPasteContent): Boolean {
+        var accepted = false
+        try {
+            val receiver = onContent
+            accepted = if (receiver != null) receiver(content) else {
+                // Browser keyboard reuse remains text-only, without URI coercion.
+                if (content.items.all { it is TerminalPasteContent.Item.Text }) {
+                    onPaste(content.items.joinToString("\n") { (it as TerminalPasteContent.Item.Text).value })
+                    content.close(); true
+                } else false
+            }
+            return accepted
+        } finally { if (!accepted) content.close() }
+    }
     private fun showComposition(value: String) { text = value.ifEmpty { "Direct typing · tap here for keyboard" } }
 
     private inner class TerminalConnection : BaseInputConnection(this@TerminalKeyboardView, true) {
@@ -189,6 +226,26 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
         override fun performEditorAction(actionCode: Int): Boolean {
             if (!ready()) return false
             finishComposingText(); onReturn(); return true
+        }
+        override fun performContextMenuAction(id: Int): Boolean =
+            ready() && onTextContextMenuItem(id)
+
+        override fun commitContent(info: InputContentInfo, flags: Int, opts: Bundle?): Boolean {
+            if (!ready() || onContent == null || info.contentUri.scheme != "content" ||
+                !info.description.hasMimeType("image/*")) return false
+            val granted = flags and InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION != 0
+            return try {
+                if (granted) info.requestPermission()
+                val content = TerminalPasteContent(listOf(TerminalPasteContent.Item.Attachment(info.contentUri, true))) {
+                    if (granted) info.releasePermission()
+                }
+                try {
+                    finishComposingText()
+                    acceptContent(content)
+                } catch (failure: Exception) { content.close(); throw failure }
+            } catch (failure: Exception) {
+                onContentError(failure.message ?: "Could not open the keyboard image"); false
+            }
         }
         override fun closeConnection() { invalidate(); super.closeConnection() }
     }
