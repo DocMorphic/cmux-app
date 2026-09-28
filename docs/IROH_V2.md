@@ -250,11 +250,51 @@ accept only `ios` for mobile peers; this is not just a stale iOS reference pin.
 Mobile peers may use an independent app namespace; exact host namespace/build
 matching is an additional rule for the separate Mac-to-Mac path.
 
-For enrollment implementation, explicitly resolve whether to use the existing
-`ios` mobile wire profile (clearly identified as Android in app namespace and
-device display name) or require deployed upstream Android metadata support.
+The envelope builder now explicitly selects `IOS_COMPATIBILITY` for the existing
+`ios` mobile wire discriminator, retaining the Android app namespace and adding
+`(Android)` to the device display name. This is a compatibility profile for the
+current unmodified host; it does not claim native Android backend metadata support.
 Using the profile must preserve the ordinary account/team checks and the user's
 host pairing opt-in; it must not claim an official app namespace or reuse keys.
 The health request sent no account credentials or device metadata. No live
 Android enrollment request has been made. iOS starts new identityGeneration at
 **1**, restoring the server record's generation on subsequent sessions.
+
+
+### Control transport and signed envelopes — 2026-09-28
+
+Added `IrohV2ControlSocket` and `IrohV2ControlHttp` in the app module. The socket
+correlates concurrent calls by request ID/schema, acknowledges delivery receipts,
+forwards directory/revocation events through a bounded channel, and terminates
+instead of dropping authority events under backpressure. Late replies cannot
+complete later calls. Revocation errors terminate pending/future calls. HTTP
+checks request IDs, retains typed error/retry metadata, limits response bytes,
+cancels owned calls on closure and refuses redirects. Both transports disable
+OkHttp automatic retries; uncertain mutations are not automatically repeated.
+The service owner still needs to choose HTTP recovery and run reconnect/renewal.
+
+`IrohV2SignedRequests` builds first-setup proofs, registration requests, and HTTP
+proofs covering the exact unsigned setup plus operation. It checks challenge
+expiration and the server's descriptor hash before signing, and validates returned
+identity/key/generation/revocation fields before accepting enrollment. Normal
+account traffic requires HTTPS at a root origin without embedded credentials or
+query/fragment; loopback HTTP is allowed for local fixtures. Outbound request bodies
+are capped at 16 KiB. Authorization headers reject blank credentials and CR/LF.
+The descriptor builder requires our independent release/debug namespace, starts
+at generation 1 and labels the Android device explicitly while selecting the
+existing mobile wire profile described above.
+
+**Nine focused JVM tests passed**, zero failures/errors/skips: five actual local
+MockWebServer socket/HTTP cases and four envelope/identity cases. Official Worker
+fixture signatures match exactly for socket setup, HTTP request and registration.
+Other cases cover reversed responses, receipts/events, timeout without mutation
+replay, revocation, HTTP redirects/limits/cancellation, challenge mismatch/expiry,
+and all identity fields. Combined focused run: successful in 50 seconds. Evidence:
+`captures/iroh/control-transport/` and `/tmp/cmux-v2-envelope-tests.log`.
+
+These are request/transport components, not an active enrollment session. Next
+wire them into the scoped service owner: authenticated team selection, lifecycle
+epoch guards, ready/challenge/register sequencing, ticket/relay renewal, consistent
+paginated directory snapshots and pushed revocation, followed by native endpoint
+and `MobileRpcClient` integration. No account token, installation descriptor or
+registration request was sent to the live service in this milestone.

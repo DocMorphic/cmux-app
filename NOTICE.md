@@ -174,3 +174,8 @@ IrohInstallationStore follows cmux V2IdentityKeyStore/V2InstallationIDStore's
 full-scope identity contract at 4c5272e9153eca2033c9f40ac749f0c3a5bcb291
 (Manaflow, GPL-3.0-or-later), with Android Keystore wrapping and atomic private
 file persistence in place of the iOS Keychain implementation.
+
+IrohV2ControlTransport and IrohV2SignedRequests adapt the cmux V2 control-service
+wire contracts at 4c5272e9153eca2033c9f40ac749f0c3a5bcb291 and deployed Worker
+e0263f46a6698bf7d74e828b6200e4bfa963a3dc (Manaflow, GPL-3.0-or-later).
+MockWebServer 4.12.0 is a JVM test dependency only (Square, Apache-2.0).
