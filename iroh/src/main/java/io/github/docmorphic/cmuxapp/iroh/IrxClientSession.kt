@@ -16,7 +16,7 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Owns a bidirectional stream. Frames precede raw application bytes on each lane. */
-class IrxDuplexLane internal constructor(private val stream: BiStream) : AutoCloseable {
+class IrxDuplexLane internal constructor(private val stream: BiStream, private val inbound: () -> Unit = {}) : AutoCloseable {
     private val send = stream.send()
     private val receive = stream.recv()
     private val writeMutex = Mutex()
@@ -30,19 +30,19 @@ class IrxDuplexLane internal constructor(private val stream: BiStream) : AutoClo
     suspend fun writeFrame(value: JSONObject) = write(IrxWire.encode(value))
     suspend fun readFrame(): JSONObject? = readMutex.withLock {
         check(!closed.get()) { "Irx lane closed" }
-        IrxWire.read { receive.read(it.toUInt()) }
+        IrxWire.read { receive.read(it.toUInt()).also { bytes -> if (bytes.isNotEmpty()) inbound() } }
     }
     suspend fun read(maxBytes: Int): ByteArray = readMutex.withLock {
         require(maxBytes in 1..(1024 * 1024))
         check(!closed.get()) { "Irx lane closed" }
-        receive.read(maxBytes.toUInt())
+        receive.read(maxBytes.toUInt()).also { if (it.isNotEmpty()) inbound() }
     }
     /** Reset both halves independently: a parked reader must not prevent retiring the writer. */
-    suspend fun retire() {
+    suspend fun retire(errorCode: ULong = 7uL) {
         try {
             withTimeout(2000) { coroutineScope {
-                launch { runCatching { send.reset(7uL) } }
-                launch { runCatching { receive.stop(7uL) } }
+                launch { runCatching { send.reset(errorCode) } }
+                launch { runCatching { receive.stop(errorCode) } }
             } }
         } finally { close() }
     }
@@ -53,11 +53,12 @@ class IrxDuplexLane internal constructor(private val stream: BiStream) : AutoClo
 }
 
 /** An independent host event stream. Descriptor bytes are consumed before exposing its payload. */
-class IrxIncomingEvents internal constructor(val resource: String?, private val receive: RecvStream) : AutoCloseable {
+class IrxIncomingEvents internal constructor(val resource: String?, private val receive: RecvStream,
+                                           private val inbound: () -> Unit = {}) : AutoCloseable {
     private val reading = Mutex()
     suspend fun read(maxBytes: Int = 64 * 1024): ByteArray = reading.withLock {
         require(maxBytes in 1..(1024 * 1024))
-        receive.read(maxBytes.toUInt())
+        receive.read(maxBytes.toUInt()).also { if (it.isNotEmpty()) inbound() }
     }
     suspend fun stop() { receive.stop(0uL) }
     override fun close() { receive.close() }
@@ -67,10 +68,12 @@ class IrxIncomingEvents internal constructor(val resource: String?, private val 
 class IrxClientSession private constructor(
     private val connection: Connection,
     val admission: IrxWire.Admission,
-    val control: IrxDuplexLane
+    val control: IrxDuplexLane,
+    private val activity: InboundActivity
 ) : AutoCloseable {
     private val closed = AtomicBoolean(false)
     val isClosed: Boolean get() = closed.get()
+    val lastInboundNanos: Long? get() = activity.last
     fun connectionIsClosed(): Boolean = closed.get() || connection.closeReason() != null
     suspend fun awaitConnectionClosed() { connection.closed() }
 
@@ -97,7 +100,8 @@ class IrxClientSession private constructor(
         val stream = connection.acceptUni()
         try {
             val descriptor = withTimeout(IrxWire.ADMISSION_TIMEOUT_MS) {
-                IrxWire.read { stream.read(it.toUInt()) } ?: throw EOFException("Missing Irx event descriptor")
+                IrxWire.read { stream.read(it.toUInt()).also { bytes -> if (bytes.isNotEmpty()) activity.record() } }
+                    ?: throw EOFException("Missing Irx event descriptor")
             }
             IrxWire.requireVersion(descriptor)
             if (descriptor.getString("lane") != IrxWire.Lane.EVENTS.wire) throw IOException("Unexpected Irx incoming lane")
@@ -105,7 +109,7 @@ class IrxClientSession private constructor(
             if (resource != null && (!resource.startsWith("terminal:") || resource.length !in 10..128))
                 throw IOException("Invalid Irx event resource")
             check(!closed.get())
-            return IrxIncomingEvents(resource, stream)
+            return IrxIncomingEvents(resource, stream, activity::record)
         } catch (error: Throwable) {
             // A stalled/invalid descriptor cannot retain stream credit or a pending read.
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { runCatching { stream.stop(0uL) } }
@@ -117,7 +121,7 @@ class IrxClientSession private constructor(
     suspend fun openLane(descriptor: IrxWire.Descriptor): IrxDuplexLane {
         require(descriptor.lane != IrxWire.Lane.CONTROL && descriptor.lane != IrxWire.Lane.EVENTS)
         check(!closed.get()) { "Irx session closed" }
-        val lane = IrxDuplexLane(connection.openBi())
+        val lane = IrxDuplexLane(connection.openBi(), activity::record)
         try {
             check(!closed.get()) { "Irx session closed" }
             lane.writeFrame(descriptor.json())
@@ -142,6 +146,7 @@ class IrxClientSession private constructor(
          */
         suspend fun admit(connection: Connection, expectedPeer: ByteArray): IrxClientSession {
             var lane: IrxDuplexLane? = null
+            val activity = InboundActivity()
             try {
                 require(expectedPeer.size == 32) { "Expected peer identity must be 32 bytes" }
                 connection.remoteId().use { peer ->
@@ -151,7 +156,7 @@ class IrxClientSession private constructor(
                 if (!connection.alpn().contentEquals(IrxWire.ALPN.toByteArray()))
                     throw IrxWire.AdmissionRejected(IrxWire.CloseCode.PROTOCOL_MISMATCH)
                 val admission = withTimeout(IrxWire.ADMISSION_TIMEOUT_MS) {
-                    val control = IrxDuplexLane(connection.openBi()).also { lane = it }
+                    val control = IrxDuplexLane(connection.openBi(), activity::record).also { lane = it }
                     control.writeFrame(IrxWire.Descriptor(IrxWire.Lane.CONTROL).json())
                     control.writeFrame(JSONObject().put("v", 1).put("proto", IrxWire.ALPN))
                     IrxWire.admission(control.readFrame() ?: throw EOFException("Host closed before Irx admission"))
@@ -159,7 +164,7 @@ class IrxClientSession private constructor(
                 // Match iOS: shared events + 16 surface output lanes, with replacement headroom.
                 connection.setMaxConcurrentBiStreams(0uL)
                 connection.setMaxConcurrentUniStreams(40uL)
-                return IrxClientSession(connection, admission, checkNotNull(lane))
+                return IrxClientSession(connection, admission, checkNotNull(lane), activity)
             } catch (error: Throwable) {
                 val remoteCode = IrxWire.CloseCode.parse(runCatching { connection.closeReason() }.getOrNull())
                 val code = remoteCode ?: (error as? IrxWire.AdmissionRejected)?.code
@@ -175,5 +180,11 @@ class IrxClientSession private constructor(
                 throw IOException("Irx admission failed", error)
             }
         }
+    }
+
+    private class InboundActivity {
+        @Volatile var last: Long? = null
+            private set
+        @Synchronized fun record() { last = System.nanoTime() }
     }
 }

@@ -18,7 +18,8 @@ internal class IrxControlChannel(
     private val replacement: suspend () -> MobileControlLane,
     private val permits: () -> Boolean,
     private val connectionClosed: () -> Boolean,
-    private val repairTimeoutMillis: Long = 5000
+    private val repairTimeoutMillis: Long = 5000,
+    private val positiveSilence: (Long) -> Boolean = { false }
 ) : AutoCloseable {
     private class Generation(val id: Long, val lane: MobileControlLane, var reader: Job? = null)
     private data class Read(val generation: Long, val frame: ByteArray? = null, val failure: Throwable? = null)
@@ -76,7 +77,7 @@ internal class IrxControlChannel(
         generation.id
     }
 
-    suspend fun repair(): MobileControlRepair {
+    suspend fun repair(silentSinceNanos: Long = System.nanoTime()): MobileControlRepair {
         val finished = synchronized(lock) {
             if (closed || connectionClosed()) return MobileControlRepair.Closed
             if (repair != null) return MobileControlRepair.Unavailable
@@ -104,7 +105,8 @@ internal class IrxControlChannel(
             }
         } catch (failure: Exception) {
             currentCoroutineContext().ensureActive()
-            return if (synchronized(lock) { closed } || connectionClosed()) MobileControlRepair.Closed
+            return if (synchronized(lock) { closed } || connectionClosed() ||
+                (failure is TimeoutCancellationException && positiveSilence(silentSinceNanos))) MobileControlRepair.Closed
                 else MobileControlRepair.Unavailable
         } finally {
             candidate?.let(::retire)

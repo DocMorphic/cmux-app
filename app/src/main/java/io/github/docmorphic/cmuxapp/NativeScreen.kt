@@ -265,10 +265,15 @@ fun NativeScreen(
     val feedEntries = remember(feedSources, selectedOrigin) { aggregateNativeFeed(feedSources.values, selectedOrigin) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var feedForeground by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
-    DisposableEffect(lifecycle) {
-        val observer = LifecycleEventObserver { _, _ -> feedForeground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) }
+    DisposableEffect(lifecycle, sharedConnections) {
+        val probeOwner = Any()
+        sharedConnections?.setProbeActive(probeOwner, feedForeground)
+        val observer = LifecycleEventObserver { _, _ ->
+            feedForeground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            sharedConnections?.setProbeActive(probeOwner, feedForeground)
+        }
         lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
+        onDispose { lifecycle.removeObserver(observer); sharedConnections?.setProbeActive(probeOwner, false) }
     }
     LaunchedEffect(signedIn, pairedMacs, feedForeground) {
         if (!signedIn) feedSession.clear()

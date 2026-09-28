@@ -29,7 +29,7 @@ class MobileControlRepairTest {
             if (stallResend && generation > 0) awaitCancellation()
             return generation
         }
-        override suspend fun repairControl(): MobileControlRepair {
+        override suspend fun repairControl(silentSinceNanos: Long): MobileControlRepair {
             repairs.incrementAndGet()
             if (repairResult is MobileControlRepair.Repaired) generation = (repairResult as MobileControlRepair.Repaired).generation
             return repairResult
@@ -69,6 +69,32 @@ class MobileControlRepairTest {
             assertTrue(next.await().getBoolean("answered"))
             assertEquals(0, wire.closes.get())
             assertEquals(1, wire.repairs.get())
+            assertTrue(wire.sent.tryReceive().isFailure)
+        }
+    }
+
+    @Test fun paramsAreFrozenBeforeAuthenticationAndDetermineResendSafety() = runBlocking<Unit> {
+        val wire = Transport()
+        val authenticating = CompletableDeferred<Unit>()
+        val tokenReady = CompletableDeferred<Unit>()
+        MobileRpcClient(wire, { authenticating.complete(Unit); tokenReady.await(); "fixture-token" }).use { client ->
+            client.connect()
+            val params = JSONObject().put("viewport_columns", 80).put("nested", JSONObject().put("value", "original"))
+            val mutation = async { runCatching { client.request("terminal.replay", params, 2000) } }
+            withTimeout(1000) { authenticating.await() }
+            params.remove("viewport_columns")
+            params.getJSONObject("nested").put("value", "changed")
+            tokenReady.complete(Unit)
+            val sent = withTimeout(1000) { wire.sent.receive() }.second.getJSONObject("params")
+            assertEquals(80, sent.getInt("viewport_columns"))
+            assertEquals("original", sent.getJSONObject("nested").getString("value"))
+            val trigger = async { runCatching { client.request("mobile.workspace.list", timeoutMillis = 100) } }
+            wire.sent.receive()
+            assertTrue(trigger.await().isFailure)
+            assertTrue(withTimeout(1000) { mutation.await() }.exceptionOrNull() is MobileRpcOutcomeUnknown)
+            val probe = withTimeout(1000) { wire.sent.receive() }.second
+            assertEquals(MobileControlResendPolicy.PROBE, probe.getString("method"))
+            wire.answer(probe)
             assertTrue(wire.sent.tryReceive().isFailure)
         }
     }

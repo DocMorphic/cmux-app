@@ -21,7 +21,8 @@ internal interface IrohAccountBackend : AutoCloseable {
 internal class NativeIrohBackend private constructor(
     private val key: IrohInstallationKey,
     private val control: IrohV2ControlSession,
-    private val current: () -> Boolean
+    private val current: () -> Boolean,
+    private val applicationActive: StateFlow<IrxProbeActivity>
 ) : IrohAccountBackend {
     private val lock = Any()
     private val endpointMutex = Mutex()
@@ -73,7 +74,7 @@ internal class NativeIrohBackend private constructor(
             val relay = mac.relayUrls.firstOrNull() ?: state.value.directoryRelays.firstOrNull()
                 ?: error("This Mac has no relay address yet")
             live.dial(mac.endpointId, relay, permits)
-        }, permits = { current() && !synchronized(lock) { closed } && permits() })
+        }, permits = { current() && !synchronized(lock) { closed } && permits() }, applicationActive = applicationActive)
 
     private fun requireCurrent() {
         if (!current() || synchronized(lock) { closed }) throw CancellationException("Account session changed")
@@ -101,7 +102,7 @@ internal class NativeIrohBackend private constructor(
 
     companion object {
         fun create(context: Context, team: NativeTeamScope, account: NativeAccount,
-                   current: () -> Boolean): NativeIrohBackend {
+                   current: () -> Boolean, applicationActive: StateFlow<IrxProbeActivity>): NativeIrohBackend {
             val application = context.applicationContext
             val key = IrohInstallationStore(application).loadOrCreate(IrohAccountScope(
                 "production", NativeAccount.PROJECT_ID, team.teamId, team.userId,
@@ -113,7 +114,7 @@ internal class NativeIrohBackend private constructor(
                     version, Build.MODEL.take(118).ifBlank { "Android" }, IrohMobileWireProfile.IOS_COMPATIBILITY)
                 val control = IrohV2ControlSession(IrohV2SignedRequests(descriptor, key::sign),
                     { force -> account.accessToken(force) ?: error("Sign in to cmux") }, current)
-                return NativeIrohBackend(key, control, current)
+                return NativeIrohBackend(key, control, current, applicationActive)
             } catch (failure: Throwable) { key.close(); throw failure }
         }
     }

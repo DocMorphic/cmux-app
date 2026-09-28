@@ -4,14 +4,18 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /** Activity recreation and the notification service share one enrolled endpoint per process. */
 internal class NativeAppConnections private constructor(context: Context) : AutoCloseable {
     val store = NativeCredentialStore(context)
     val account = NativeAccount(store)
     val teams = NativeAccountTeams(account, store)
+    private val activityLock = Any()
+    private val activityOwners = mutableSetOf<Any>()
+    private val applicationActive = MutableStateFlow(IrxProbeActivity(false))
     val native = NativeIrohRuntime(teams.state, teams::isCurrent, { account.accessToken() },
-        { team, current -> NativeIrohBackend.create(context, team, account, current) })
+        { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) })
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val tailscale = TailscaleConnector(context)
     val connector = object : NativeConnector {
@@ -49,7 +53,20 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         }
     }
 
-    override fun close() { scope.cancel(); native.close(); teams.close() }
+    fun setProbeActive(owner: Any, active: Boolean) = synchronized(activityLock) {
+        if (active) activityOwners.add(owner) else activityOwners.remove(owner)
+        val enabled = activityOwners.isNotEmpty()
+        if (applicationActive.value.active != enabled)
+            applicationActive.value = IrxProbeActivity(enabled, applicationActive.value.revision + 1)
+    }
+
+    override fun close() {
+        synchronized(activityLock) {
+            activityOwners.clear()
+            applicationActive.value = IrxProbeActivity(false, applicationActive.value.revision + 1)
+        }
+        scope.cancel(); native.close(); teams.close()
+    }
 
     class Handle internal constructor(val connections: NativeAppConnections) : AutoCloseable {
         private var released = false

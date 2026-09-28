@@ -93,6 +93,48 @@ class IrxAdmissionTest {
         }
     }
 
+    @Test fun keepaliveFramesUpdateActivityAndRetirementPreservesControl() = runBlocking<Unit> {
+        val controlFinished = CompletableDeferred<Unit>()
+        fixture(server = { connection ->
+            IrxDuplexLane(connection.acceptBi()).use { control ->
+                assertEquals("control", control.readFrame()?.getString("lane"))
+                control.readFrame()
+                control.writeFrame(JSONObject().put("v", 1).put("session", "probe-session")
+                    .put("keepaliveIntervalMs", 5000).put("keepaliveDeadlineMs", 2000))
+                IrxDuplexLane(connection.acceptBi()).use { probe ->
+                    assertEquals("keepalive", probe.readFrame()?.getString("lane"))
+                    repeat(2) {
+                        val ping = checkNotNull(probe.readFrame())
+                        assertFalse(ping.getBoolean("pong"))
+                        probe.writeFrame(JSONObject().put("v", 1).put("seq", ping.get("seq")).put("pong", true))
+                    }
+                    assertEquals("done", readRaw(control, 4).decodeToString())
+                    control.write("live".toByteArray())
+                    controlFinished.await()
+                }
+            }
+        }) { connection, expected ->
+            IrxClientSession.admit(connection, expected).use { session ->
+                var previous = checkNotNull(session.lastInboundNanos)
+                session.openLane(IrxWire.Descriptor(IrxWire.Lane.KEEPALIVE)).use { probe ->
+                    repeat(2) { index ->
+                        probe.writeFrame(JSONObject().put("v", 1).put("seq", index + 1).put("pong", false))
+                        val pong = checkNotNull(probe.readFrame())
+                        assertTrue(pong.getBoolean("pong")); assertEquals(index + 1, pong.getInt("seq"))
+                        val current = checkNotNull(session.lastInboundNanos)
+                        assertTrue(current > previous); previous = current
+                    }
+                    probe.retire(0uL)
+                }
+                assertFalse(session.connectionIsClosed())
+                session.control.write("done".toByteArray())
+                assertEquals("live", readRaw(session.control, 4).decodeToString())
+                assertTrue(checkNotNull(session.lastInboundNanos) > previous)
+                controlFinished.complete(Unit)
+            }
+        }
+    }
+
     @Test fun wrongDirectoryKeyFailsBeforeApplicationStream() = runBlocking {
         fixture(server = { connection ->
             assertTrue(connection.closed().contains("irx:identity-mismatch"))

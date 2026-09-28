@@ -83,4 +83,17 @@ class IrxControlChannelTest {
             assertArrayEquals(frame("original"), channel.read())
         }
     }
+
+    @Test fun repairTimeoutUsesPositiveProbeEvidenceButResetAloneDoesNotCondemnConnection() = runBlocking<Unit> {
+        var observedStart: Long? = null
+        IrxControlChannel(Lane(), { awaitCancellation() }, { true }, { false }, 20,
+            positiveSilence = { observedStart = it; true }).use { channel ->
+            assertEquals(MobileControlRepair.Closed, channel.repair(123))
+            assertEquals(123L, observedStart)
+        }
+        IrxControlChannel(Lane(), { throw IOException("host reset fresh stream") }, { true }, { false }, 20,
+            positiveSilence = { error("A reset is already a connection response") }).use { channel ->
+            assertEquals(MobileControlRepair.Unavailable, channel.repair(123))
+        }
+    }
 }

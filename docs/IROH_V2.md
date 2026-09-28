@@ -601,3 +601,50 @@ positive whole-connection silence evidence), socket promotion/cache, specialized
 lane consumers, and broader feature/UI/device acceptance remain open. Without
 running application probes, a repair timeout is inconclusive about whole-peer
 silence; Android does not infer peer death from a missed diagnostic pong.
+
+
+## Lifecycle-aware diagnostic keepalive — 2026-09-28
+
+Android now sends sequence-correlated `keepalive` ping/pong frames on a reusable
+native diagnostic stream. A timeout, malformed reply or stream end retires only
+that stream; the next attempt opens a fresh one. Native connection closure remains
+independently observed. A missed pong alone never closes the Mac session.
+
+Probing follows the foreground UI and the enabled notification service, with
+separate owners so one consumer cannot pause another. Backgrounding without that
+service pauses probes and retires their stream. Activity revisions invalidate
+prior silence evidence even when rapid lifecycle transitions are conflated.
+Detected scheduler gaps also reset coverage and retire the old diagnostic stream.
+
+Control-repair timeout can now use positive silence evidence: uninterrupted active
+probing spanning the request, at least two completed missed cycles, at least two
+full interval/deadline periods, and no received application bytes on any lane.
+A reset/error response on the replacement stream remains inconclusive about whole
+connection silence. Native control, repair, diagnostic and event reads all update
+one synchronized inbound activity clock. Production timing uses the admitted host
+values with bounds (interval 1–60 seconds, deadline 0.25–30 seconds); normal host
+5-second/2-second settings are unchanged.
+
+RPC parameters are copied before suspending for authentication. The serialized
+request and resend classification use the same snapshot, preventing caller edits
+from turning a viewport-changing replay into an automatically resent read.
+
+**Verification:** all **398 JVM tests in 65 suites passed**, zero failures, errors
+or skips. The full suite and `:iroh:assembleDebugAndroidTest` succeeded in 35 seconds.
+Coverage includes correlated/stale pongs, malformed replies, lane reuse/replacement,
+background/resume, scheduler suspension, activity-based silence decisions,
+repair timeout versus stream reset, and parameters mutated during authentication.
+
+New native method
+`IrxAdmissionTest.keepaliveFramesUpdateActivityAndRetirementPreservesControl`
+compiled. It exercises native ping/pong framing, inbound timestamps, retiring the
+diagnostic lane and then using the original control stream. **It has not run on
+the Pixel.** The event-stream and control-repair native checks remain pending too.
+
+Evidence: `captures/iroh/keepalive/` (local ignored logs, XML and source receipt).
+Native test APK SHA-256: `cc3be526a41729102dc4aaf0475ed3b23684b7ac76f8707955adad9fffbaa752`.
+The main debug APK remains the e1117b7 artifact; no new main or release APK was
+built/published here. Actual account enrollment, live Mac use, Android lifecycle
+and background delivery still require physical acceptance. Relay fallback after
+NAT authorization failure, tolerant optional event-lane acceptance, socket
+promotion/cache and specialized lane consumers remain open.

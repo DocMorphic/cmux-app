@@ -2,11 +2,15 @@ package io.github.docmorphic.cmuxapp
 
 import io.github.docmorphic.cmuxapp.iroh.IrxClientSession
 import io.github.docmorphic.cmuxapp.iroh.IrxDuplexLane
+import io.github.docmorphic.cmuxapp.iroh.IrxWire
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.json.JSONObject
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.IOException
@@ -74,14 +78,18 @@ internal class IrxEventMultiplexer(private val accept: suspend () -> MobileEvent
 /** Retires this admitted QUIC session on close; the account runtime owns the shared endpoint. */
 internal class IrxMobileRpcTransport(
     private val establish: suspend () -> IrxClientSession,
-    private val permits: () -> Boolean
+    private val permits: () -> Boolean,
+    private val applicationActive: StateFlow<IrxProbeActivity> = MutableStateFlow(IrxProbeActivity(true))
 ) : MobileRpcTransport {
     private val lock = Any()
     private val connecting = Mutex()
     private var session: IrxClientSession? = null
     private var control: IrxControlChannel? = null
+    private var keepalive: IrxKeepalive? = null
     private var dial: Job? = null
     private var closed = false
+    private data class Closing(val session: IrxClientSession?, val dial: Job?,
+                               val control: IrxControlChannel?, val probes: IrxKeepalive?)
     override val surfaceEventLanes = true
     override val supportsControlRepair = true
     override val disconnections = flow<Throwable> {
@@ -111,10 +119,23 @@ internal class IrxMobileRpcTransport(
                 synchronized(lock) {
                     check(!closed)
                     session = admitted
+                    val probes = IrxKeepalive(applicationActive, open = {
+                        val native = admitted.openLane(IrxWire.Descriptor(IrxWire.Lane.KEEPALIVE))
+                        object : IrxProbeLane {
+                            override suspend fun write(value: JSONObject) = native.writeFrame(value)
+                            override suspend fun read() = native.readFrame()
+                            override suspend fun retire() = native.retire(0uL)
+                            override fun close() = native.close()
+                        }
+                    }, permits = { !synchronized(lock) { closed } && permits() },
+                        lastInboundNanos = { admitted.lastInboundNanos },
+                        intervalMillis = admitted.admission.keepaliveIntervalMs.coerceIn(1000, 60_000),
+                        deadlineMillis = admitted.admission.keepaliveDeadlineMs.coerceIn(250, 30_000))
+                    keepalive = probes
                     control = IrxControlChannel(admitted.control.asControlLane(),
                         replacement = { admitted.openControlReplacement().asControlLane() },
                         permits = { !synchronized(lock) { closed } && permits() },
-                        connectionClosed = admitted::connectionIsClosed)
+                        connectionClosed = admitted::connectionIsClosed, positiveSilence = probes::positiveSilenceSince)
                 }
             } catch (error: Throwable) { admitted.close(); throw error }
         } finally { synchronized(lock) { if (dial === operation) dial = null } }
@@ -132,7 +153,7 @@ internal class IrxMobileRpcTransport(
         requireAccess()
         return channel().write(bytes)
     }
-    override suspend fun repairControl(): MobileControlRepair { requireAccess(); return channel().repair() }
+    override suspend fun repairControl(silentSinceNanos: Long): MobileControlRepair { requireAccess(); return channel().repair(silentSinceNanos) }
     private fun requireAccess() {
         if (!permits()) { close(); throw CancellationException("Mac access changed") }
     }
@@ -147,10 +168,11 @@ internal class IrxMobileRpcTransport(
     override fun close() {
         val old = synchronized(lock) {
             closed = true
-            Triple(session, dial, control).also { session = null; dial = null; control = null }
+            Closing(session, dial, control, keepalive).also { session = null; dial = null; control = null; keepalive = null }
         }
-        old.second?.cancel(CancellationException("Irx connection closed"))
-        old.third?.close()
-        old.first?.close()
+        old.probes?.close()
+        old.dial?.cancel(CancellationException("Irx connection closed"))
+        old.control?.close()
+        old.session?.close()
     }
 }

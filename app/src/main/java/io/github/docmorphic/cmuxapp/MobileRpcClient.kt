@@ -51,7 +51,7 @@ class MobileRpcClient internal constructor(
     private val stateLock = Any()
     private class Pending(val answer: CompletableDeferred<JSONObject>, val frame: ByteArray,
                           val resend: Boolean, val inbound: Long, val epoch: Long,
-                          val deadlineNanos: Long, var generation: Long? = null, var sequence: Long = 0)
+                          val startedNanos: Long, val deadlineNanos: Long, var generation: Long? = null, var sequence: Long = 0)
     private val pending = linkedMapOf<String, Pending>()
     private val leaseOperations = mutableSetOf<Job>()
     private val eventsMutable = MutableSharedFlow<Event>(
@@ -133,7 +133,8 @@ class MobileRpcClient internal constructor(
         if (delegate != null) return borrowing { it.request(method, params, timeoutMillis) }
         require(method.isNotBlank())
         val id = UUID.randomUUID().toString()
-        val body = JSONObject().put("id", id).put("method", method).put("params", params)
+        val parameters = JSONObject(params.toString())
+        val body = JSONObject().put("id", id).put("method", method).put("params", parameters)
         val token = if (method == "mobile.host.status") {
             try { accessToken()?.trim() }
             catch (error: Exception) { if (error is CancellationException) throw error; null }
@@ -150,9 +151,10 @@ class MobileRpcClient internal constructor(
         val answer = CompletableDeferred<JSONObject>()
         val entry = synchronized(stateLock) {
             check(!closed && connected) { "Not connected to cmux" }
+            val started = System.nanoTime()
             Pending(answer, MobileFrameCodec.encode(body.toString().toByteArray(Charsets.UTF_8)),
-                MobileControlResendPolicy.allows(method, params), inboundDelivery, silenceEpoch,
-                System.nanoTime() + timeoutMillis.coerceIn(0, 86_400_000) * 1_000_000).also { pending[id] = it }
+                MobileControlResendPolicy.allows(method, parameters), inboundDelivery, silenceEpoch, started,
+                started + timeoutMillis.coerceIn(0, 86_400_000) * 1_000_000).also { pending[id] = it }
         }
         try {
             return withTimeout(timeoutMillis) {
@@ -192,14 +194,14 @@ class MobileRpcClient internal constructor(
             }
         }
         if (retire) failConnection(EOFException("cmux stopped answering requests"))
-        if (replace) scope.launch { repairControl(timeoutMillis.coerceIn(1, 5000)) }
+        if (replace) scope.launch { repairControl(entry.startedNanos, timeoutMillis.coerceIn(1, 5000)) }
     }
 
-    private suspend fun repairControl(verificationMillis: Long) {
+    private suspend fun repairControl(silentSinceNanos: Long, verificationMillis: Long) {
         try {
             val outcome = writeMutex.withLock {
                 synchronized(stateLock) { if (closed) return }
-                val result = transport.repairControl()
+                val result = transport.repairControl(silentSinceNanos)
                 if (result is MobileControlRepair.Repaired) {
                     val stranded = synchronized(stateLock) { pending.toList().sortedBy { it.second.sequence } }
                     for ((id, request) in stranded) {

@@ -39,7 +39,8 @@ class NativeNotificationService : Service() {
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(STATUS_ID, statusNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING)
         } else startForeground(STATUS_ID, statusNotification())
-        if (!isEnabled(this)) { stopSelf(); return START_NOT_STICKY }
+        if (!isEnabled(this)) { connectionsHandle?.connections?.setProbeActive(this, false); stopSelf(); return START_NOT_STICKY }
+        connectionsHandle?.connections?.setProbeActive(this, true)
         if (worker?.isActive != true) worker = scope.launch { monitor() }
         return START_STICKY
     }
@@ -103,7 +104,12 @@ class NativeNotificationService : Service() {
             .build()
     }
 
-    override fun onDestroy() { scope.cancel(); connectionsHandle?.close(); connectionsHandle = null; super.onDestroy() }
+    override fun onDestroy() {
+        scope.cancel()
+        connectionsHandle?.connections?.setProbeActive(this, false)
+        connectionsHandle?.close(); connectionsHandle = null
+        super.onDestroy()
+    }
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {

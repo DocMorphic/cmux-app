@@ -15,7 +15,7 @@ internal interface MobileRpcTransport : AutoCloseable {
     val surfaceEventLanes: Boolean get() = false
     val disconnections: Flow<Throwable>? get() = null
     val supportsControlRepair: Boolean get() = false
-    suspend fun repairControl(): MobileControlRepair = MobileControlRepair.Unavailable
+    suspend fun repairControl(silentSinceNanos: Long): MobileControlRepair = MobileControlRepair.Unavailable
     suspend fun writeWithGeneration(bytes: ByteArray): Long { write(bytes); return 0 }
     suspend fun connect()
     suspend fun read(): ByteArray?
