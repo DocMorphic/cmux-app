@@ -19,6 +19,12 @@ Iroh Ready. Native Android connectivity requires **CmuxIrxTransport** and V2
 enrollment/discovery. Legacy TCP fixtures do not establish compatibility with
 this host. See [IROH_V2.md](IROH_V2.md) for the revised first milestone.
 
+**Physical viewer check (2026-09-28):** all four outstanding syntax/text/Markdown
+fixture methods passed on the actual Pixel 6a, Android 17, in 10.981 s. Screenshot
+pixel assertions and visual inspection confirm both Mermaid labels/arrow and Vega
+bars. See [SYNTAX_CHECKPOINT.md](SYNTAX_CHECKPOINT.md) for APK hashes and evidence.
+Live Mac connection and broader device acceptance remain open.
+
 | Area | iOS source / contract | Android status | Acceptance check |
 | --- | --- | --- | --- |
 | Account | `MobileAuthComposition`, `MobileRootAuthGate` | OTP sign-in and encrypted token refresh coded; unverified on phone | Sign in with the Mac's cmux account; restore session after restart; sign out |

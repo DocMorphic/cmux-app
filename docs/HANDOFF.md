@@ -7,7 +7,9 @@ and a focused runtime runner. See `WINDOWS_DEVELOPMENT.md` and the follow-up in
 `SYNTAX_CHECKPOINT.md`. The pause and outstanding four-test statements below
 describe the original handoff, not the user's current instruction to continue.
 The user has since explicitly approved enabling native mobile pairing, and the
-Mac panel reached Iroh Ready. A Pixel is connected and authorized over USB.
+Mac panel reached Iroh Ready. The four outstanding viewer fixtures now pass on
+the physical Pixel (10.981 s), including visible Mermaid/Vega pixel checks; see
+`SYNTAX_CHECKPOINT.md` for precise scope and APK hashes.
 Read [IROH_V2.md](IROH_V2.md): the live host requires Iroh, superseding the old
 Tailscale-first plan. Historical listener-approval restrictions below are resolved.
 
