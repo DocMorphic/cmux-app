@@ -56,6 +56,43 @@ class IrxAdmissionTest {
         }
     }
 
+    @Test fun acceptsSharedAndSurfaceEventStreamsAfterAdmissionWithoutConsumingTheirPayload() = runBlocking<Unit> {
+        fixture(server = { connection ->
+            IrxDuplexLane(connection.acceptBi()).use { control ->
+                assertEquals("control", control.readFrame()?.getString("lane"))
+                assertEquals(IrxWire.ALPN, control.readFrame()?.getString("proto"))
+                control.writeFrame(JSONObject().put("v", 1).put("session", "events-session")
+                    .put("keepaliveIntervalMs", 5000).put("keepaliveDeadlineMs", 2000))
+                for ((resource, payload) in listOf(null to "shared", "terminal:surface-a" to "surface")) {
+                    connection.openUni().use { send ->
+                        val header = IrxWire.encode(IrxWire.Descriptor(IrxWire.Lane.EVENTS, resource).json())
+                        send.writeAll(header.copyOfRange(0, 3))
+                        send.writeAll(header.copyOfRange(3, header.size) + payload.toByteArray())
+                        send.finish()
+                    }
+                }
+                assertEquals("done", readRaw(control, 4).decodeToString())
+            }
+        }) { connection, expected ->
+            IrxClientSession.admit(connection, expected).use { session ->
+                val values = mutableMapOf<String?, String>()
+                repeat(2) {
+                    session.acceptEvents().use { lane ->
+                        val output = java.io.ByteArrayOutputStream()
+                        while (true) {
+                            val bytes = lane.read()
+                            if (bytes.isEmpty()) break
+                            output.write(bytes)
+                        }
+                        values[lane.resource] = output.toString("UTF-8")
+                    }
+                }
+                assertEquals(mapOf(null to "shared", "terminal:surface-a" to "surface"), values)
+                session.control.write("done".toByteArray())
+            }
+        }
+    }
+
     @Test fun wrongDirectoryKeyFailsBeforeApplicationStream() = runBlocking {
         fixture(server = { connection ->
             assertTrue(connection.closed().contains("irx:identity-mismatch"))

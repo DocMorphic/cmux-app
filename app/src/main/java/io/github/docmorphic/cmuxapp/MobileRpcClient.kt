@@ -3,21 +3,19 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.io.EOFException
-import java.net.InetSocketAddress
-import java.net.Socket
 import java.util.UUID
 import javax.net.SocketFactory
 
@@ -26,15 +24,18 @@ internal class MobileRpcException(val code: String?, message: String) : IllegalS
 
 /**
  * The control channel of cmux's mobile RPC protocol. The caller must supply a
- * route from a scanned cmux pairing code and a current same-account Stack token.
+ * legacy route or admitted native transport and a current same-account Stack token.
  * Requests are never replayed after a timeout: terminal input is not idempotent.
  */
-class MobileRpcClient(
-    private val route: PairingCode.Route,
+class MobileRpcClient internal constructor(
+    private val transport: MobileRpcTransport,
     private val accessToken: suspend () -> String?,
-    private val attachToken: String? = null,
-    private val socketFactory: SocketFactory = SocketFactory.getDefault()
+    private val attachToken: String? = null
 ) : AutoCloseable {
+    constructor(route: PairingCode.Route, accessToken: suspend () -> String?, attachToken: String? = null,
+                socketFactory: SocketFactory = SocketFactory.getDefault()) :
+        this(SocketMobileRpcTransport(route, socketFactory), accessToken, attachToken)
+
     data class Event(val topic: String, val payload: JSONObject, val streamId: String?, val deliverySequence: Long = 0)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -49,30 +50,36 @@ class MobileRpcClient(
     private val disconnectedMutable = MutableSharedFlow<Throwable>(replay = 1)
     val disconnected = disconnectedMutable.asSharedFlow()
 
-    private var socket: Socket? = null
-    private var reader: Job? = null
+    private val connectMutex = Mutex()
+    private var connected = false
     private var closed = false
     private var eventDeliverySequence = 0L
 
-    suspend fun connect() = withContext(Dispatchers.IO) {
+    suspend fun connect(): Unit = connectMutex.withLock {
         synchronized(stateLock) {
             check(!closed) { "Connection has been closed" }
-            if (socket?.isConnected == true && socket?.isClosed == false) return@withContext
+            if (connected) return@withLock
         }
-        val candidate = socketFactory.createSocket()
         try {
-            candidate.connect(InetSocketAddress(route.host, route.port), 15_000)
-            candidate.tcpNoDelay = true
+            transport.connect()
             synchronized(stateLock) {
                 check(!closed) { "Connection has been closed" }
-                check(socket == null) { "Connection already active" }
-                socket = candidate
-                reader = scope.launch { readLoop(candidate) }
+                connected = true
+                scope.launch { readLoop() }
+                transport.independentEvents?.let { events ->
+                    scope.launch {
+                        try {
+                            events.collect { payload ->
+                                val envelope = JSONObject(payload.toString(Charsets.UTF_8))
+                                require(envelope.optString("kind") == "event") { "Non-event on Irx event lane" }
+                                dispatch(envelope)
+                            }
+                        } catch (error: Throwable) { failConnection(error) }
+                    }
+                }
             }
-        } catch (error: Exception) {
-            candidate.close()
-            throw error
-        }
+            Unit
+        } catch (error: Throwable) { failConnection(error); throw error }
     }
 
     suspend fun request(
@@ -84,7 +91,8 @@ class MobileRpcClient(
         val id = UUID.randomUUID().toString()
         val body = JSONObject().put("id", id).put("method", method).put("params", params)
         val token = if (method == "mobile.host.status") {
-            runCatching { accessToken()?.trim() }.getOrNull()
+            try { accessToken()?.trim() }
+            catch (error: Exception) { if (error is CancellationException) throw error; null }
         } else {
             accessToken()?.trim().also {
                 require(!it.isNullOrEmpty()) { "Sign in to cmux with the same account as your Mac" }
@@ -97,18 +105,18 @@ class MobileRpcClient(
         }
         val answer = CompletableDeferred<JSONObject>()
         synchronized(stateLock) {
-            check(!closed && socket != null) { "Not connected to cmux" }
+            check(!closed && connected) { "Not connected to cmux" }
             pending[id] = answer
         }
         try {
-            writeMutex.withLock {
-                withContext(Dispatchers.IO) {
-                    val active = synchronized(stateLock) { socket } ?: error("Connection closed")
-                    active.getOutputStream().write(MobileFrameCodec.encode(body.toString().toByteArray(Charsets.UTF_8)))
-                    active.getOutputStream().flush()
+            return withTimeout(timeoutMillis) {
+                writeMutex.withLock {
+                    synchronized(stateLock) { check(!closed && connected) { "Connection closed" } }
+                    try { transport.write(MobileFrameCodec.encode(body.toString().toByteArray(Charsets.UTF_8))) }
+                    catch (error: Throwable) { failConnection(error); throw error }
                 }
+                answer.await()
             }
-            return withTimeout(timeoutMillis) { answer.await() }
         } finally {
             synchronized(stateLock) { pending.remove(id) }
         }
@@ -321,31 +329,34 @@ class MobileRpcClient(
         "mobile.events.unsubscribe", JSONObject().put("stream_id", streamId)
     )
 
-    private fun readLoop(active: Socket) {
+    private suspend fun readLoop() {
         val decoder = MobileFrameDecoder()
-        val bytes = ByteArray(64 * 1024)
         var failure: Throwable = EOFException("cmux disconnected")
         try {
-            val input = active.getInputStream()
             while (true) {
-                val count = input.read(bytes)
-                if (count < 0) break
-                for (frame in decoder.feed(bytes.copyOf(count))) dispatch(JSONObject(String(frame, Charsets.UTF_8)))
+                val bytes = transport.read() ?: break
+                for (frame in decoder.feed(bytes)) dispatch(JSONObject(frame.toString(Charsets.UTF_8)))
             }
-        } catch (error: Throwable) {
-            failure = error
-        } finally {
-            synchronized(stateLock) {
-                if (socket === active) socket = null
-                pending.values.forEach { it.completeExceptionally(failure) }
-                pending.clear()
-            }
-            if (!closed) disconnectedMutable.tryEmit(failure)
-            active.close()
+        } catch (error: Throwable) { failure = error }
+        finally { failConnection(failure) }
+    }
+
+    private fun failConnection(failure: Throwable, notify: Boolean = true) {
+        synchronized(stateLock) {
+            if (closed) return
+            closed = true; connected = false
+            pending.values.forEach { it.completeExceptionally(failure) }
+            pending.clear()
+        }
+        try { transport.close() }
+        finally {
+            if (notify) disconnectedMutable.tryEmit(failure)
+            scope.cancel()
         }
     }
 
-    private fun dispatch(envelope: JSONObject) {
+    private fun dispatch(envelope: JSONObject) = synchronized(stateLock) {
+        if (closed) return@synchronized
         if (envelope.optString("kind") == "event") {
             val topic = envelope.optString("topic")
             if (topic.isNotBlank()) eventsMutable.tryEmit(Event(
@@ -354,10 +365,10 @@ class MobileRpcClient(
                 envelope.optString("stream_id").takeIf { it.isNotBlank() },
                 ++eventDeliverySequence
             ))
-            return
+            return@synchronized
         }
         val id = envelope.optString("id")
-        val waiter = synchronized(stateLock) { pending[id] } ?: return
+        val waiter = pending[id] ?: return@synchronized
         if (envelope.optBoolean("ok")) {
             waiter.complete(envelope.optJSONObject("result") ?: JSONObject())
         } else {
@@ -368,13 +379,5 @@ class MobileRpcClient(
         }
     }
 
-    override fun close() {
-        val active = synchronized(stateLock) {
-            if (closed) return
-            closed = true
-            socket.also { socket = null }
-        }
-        active?.close()
-        scope.cancel()
-    }
+    override fun close() = failConnection(EOFException("cmux connection closed"), notify = false)
 }

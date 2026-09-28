@@ -2,6 +2,7 @@ package io.github.docmorphic.cmuxapp.iroh
 
 import computer.iroh.BiStream
 import computer.iroh.Connection
+import computer.iroh.RecvStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -40,6 +41,17 @@ class IrxDuplexLane internal constructor(private val stream: BiStream) : AutoClo
     }
 }
 
+/** An independent host event stream. Descriptor bytes are consumed before exposing its payload. */
+class IrxIncomingEvents internal constructor(val resource: String?, private val receive: RecvStream) : AutoCloseable {
+    private val reading = Mutex()
+    suspend fun read(maxBytes: Int = 64 * 1024): ByteArray = reading.withLock {
+        require(maxBytes in 1..(1024 * 1024))
+        receive.read(maxBytes.toUInt())
+    }
+    suspend fun stop() { receive.stop(0uL) }
+    override fun close() { receive.close() }
+}
+
 /** Owns the native connection after authenticated admission; never replays application input. */
 class IrxClientSession private constructor(
     private val connection: Connection,
@@ -47,6 +59,34 @@ class IrxClientSession private constructor(
     val control: IrxDuplexLane
 ) : AutoCloseable {
     private val closed = AtomicBoolean(false)
+    val isClosed: Boolean get() = closed.get()
+
+    suspend fun authorizeDirectPaths() {
+        check(!closed.get())
+        connection.authorizeNatTraversal()
+    }
+
+    suspend fun acceptEvents(): IrxIncomingEvents {
+        check(!closed.get())
+        val stream = connection.acceptUni()
+        try {
+            val descriptor = withTimeout(IrxWire.ADMISSION_TIMEOUT_MS) {
+                IrxWire.read { stream.read(it.toUInt()) } ?: throw EOFException("Missing Irx event descriptor")
+            }
+            IrxWire.requireVersion(descriptor)
+            if (descriptor.getString("lane") != IrxWire.Lane.EVENTS.wire) throw IOException("Unexpected Irx incoming lane")
+            val resource = if (descriptor.isNull("resource")) null else descriptor.getString("resource")
+            if (resource != null && (!resource.startsWith("terminal:") || resource.length !in 10..128))
+                throw IOException("Invalid Irx event resource")
+            check(!closed.get())
+            return IrxIncomingEvents(resource, stream)
+        } catch (error: Throwable) {
+            // A stalled/invalid descriptor cannot retain stream credit or a pending read.
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { runCatching { stream.stop(0uL) } }
+            stream.close()
+            throw error
+        }
+    }
 
     suspend fun openLane(descriptor: IrxWire.Descriptor): IrxDuplexLane {
         require(descriptor.lane != IrxWire.Lane.CONTROL && descriptor.lane != IrxWire.Lane.EVENTS)

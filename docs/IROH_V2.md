@@ -391,3 +391,54 @@ installed on the phone, and no production enrollment was sent. Next connect the
 resolved account scope and protected native key to the control session, native
 endpoint/relay lifecycle, admitted Irx lanes and MobileRpcClient. The last published
 signed APK remains build 157. Main-app native packaging alone is not live-Mac parity.
+
+### Native RPC transport boundary — 2026-09-28
+
+`MobileRpcClient` now consumes a `MobileRpcTransport`. Its existing public TCP
+constructor delegates to `SocketMobileRpcTransport`, preserving the legacy test
+and host path. `IrxMobileRpcTransport` wraps an admitted session and feeds control
+bytes into the same RPC decoder. A separate event reader receives complete
+unframed event payloads. Concurrent control/event dispatch serializes delivery
+sequence changes. Closure immediately fails pending requests; write failure or a
+write deadline retires the connection because a frame may have been partially
+sent. A response timeout never replays the request, and late responses cannot
+complete a different call. Host-status token lookup preserves cancellation.
+
+`IrxEventMultiplexer` gives each shared/surface stream its own frame decoder.
+Partial bytes never cross streams or survive replacement. It limits active readers
+to the shared lane plus 16 surfaces and closes readers on cancellation/capacity
+failure. `IrxClientSession.acceptEvents` consumes a bounded/versioned incoming
+stream descriptor with a deadline before exposing raw event bytes. The existing
+app event-delivery/replay policy is unchanged. Surface-lane subscription opt-in,
+control-stream repair and specialized terminal/input/artifact/browser lane adapters
+still need integration with their app consumers.
+
+`IrxEndpointRuntime` adds the native endpoint owner: it binds the installation key
+with authenticated custom relays, remote stream credit zero, disabled port mapping
+and deferred NAT traversal; waits for relay readiness; validates directory peer
+keys through admission; and authorizes direct paths only after admission and the
+caller's authority check. Relay token updates use upsert before expired URLs are
+removed, and closing the endpoint retires owned sessions. This code compiles but
+its authenticated relay lifecycle has not been exercised on the Pixel or live Mac.
+The account/team lifecycle owner must still supply its scope/lease predicate,
+rotate credentials, cancel obsolete work and construct this transport for the UI.
+
+**All 351 JVM tests passed across 58 suites**, zero failures/errors/skips. The eight
+new tests cover independent event/control delivery, immediate close, uncertain
+writes, write deadlines, timeout without replay, multi-stream frame isolation,
+replacement and reader capacity. Four existing TCP RPC tests also pass. The native
+test APK compiled, including new method
+`IrxAdmissionTest.acceptsSharedAndSurfaceEventStreamsAfterAdmissionWithoutConsumingTheirPayload`.
+That new device test has **not run**. The initial compile caught a Kotlin Unit
+return mismatch in the socket adapter; it was corrected before the successful run.
+The combined full JVM/native-test build took 38 seconds. Local evidence:
+`captures/iroh/rpc-transport/`; log: `/tmp/cmux-irx-rpc-regression.log`.
+
+Native test APK SHA-256:
+`a14874b06d3883c082f915258a43ec2d9f2a62e24d30ae762b3a57b8c68a9e8f`.
+No new main APK was built/published in this step, no production enrollment was
+sent, and the phone was not needed. Injected connector fixtures now skip automatic
+real-account membership fetching. Next wire the protected identity/control service
+and native endpoint into one account owner and the computer picker, then run the
+real-device workflow. Native transport components alone are not foreground or
+background application parity.

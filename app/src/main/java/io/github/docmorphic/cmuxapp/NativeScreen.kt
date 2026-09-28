@@ -125,7 +125,7 @@ fun NativeScreen(
     DisposableEffect(accountTeams) { onDispose { accountTeams.close() } }
     LaunchedEffect(signedIn, accountTeams) {
         if (!signedIn) accountTeams.clear()
-        else try { accountTeams.refresh() }
+        else if (connector == null) try { accountTeams.refresh() }
         catch (failure: Exception) { if (failure is CancellationException) throw failure }
     }
     var code by remember { mutableStateOf(store.load()?.optString("pairing_code").orEmpty()) }

@@ -165,7 +165,8 @@ packages upstream LICENSE-MIT and LICENSE-APACHE under assets/licenses/iroh.
 JNA 5.15.0 is used under Apache-2.0; its Android AAR retains upstream notices.
 The main debug APK now includes Iroh/JNA for arm64. No updated signed release has been published.
 
-IrxWire and IrxClientSession adapt the cmux IrxProtocol, IrxAdmission and
+IrxWire, IrxClientSession, IrxEndpointRuntime and IrxMobileRpcTransport adapt the
+cmux IrxProtocol, IrxAdmission, IrxEndpoint, IrxServerEventLaneHub and
 MobileIrxRuntimeComposition+Dial contracts at
 4c5272e9153eca2033c9f40ac749f0c3a5bcb291. Copyright (c) 2024-present
 Manaflow, Inc.; GPL-3.0-or-later.
