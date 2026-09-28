@@ -12,6 +12,13 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**2026-09-28 live-host correction:** the installed cmux 0.64.25 pairing panel is
+Iroh-only; the pinned active `MobilePairingModel` confirms v2 publishes no legacy
+Tailscale QR/TCP route. The user approved enabling pairing; the panel reached
+Iroh Ready. Native Android connectivity requires **CmuxIrxTransport** and V2
+enrollment/discovery. Legacy TCP fixtures do not establish compatibility with
+this host. See [IROH_V2.md](IROH_V2.md) for the revised first milestone.
+
 | Area | iOS source / contract | Android status | Acceptance check |
 | --- | --- | --- | --- |
 | Account | `MobileAuthComposition`, `MobileRootAuthGate` | OTP sign-in and encrypted token refresh coded; unverified on phone | Sign in with the Mac's cmux account; restore session after restart; sign out |

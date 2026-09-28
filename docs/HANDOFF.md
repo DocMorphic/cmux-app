@@ -1,5 +1,16 @@
 # Codex laptop handoff — 2026-09-28
 
+**Continuation update:** work returned to the original Mac on 2026-09-28 at the
+user's request. Windows commit `9849010` was pulled without conflicts. It adds
+portable Gradle setup, LF-preserved asset hashes, remote POSIX path semantics,
+and a focused runtime runner. See `WINDOWS_DEVELOPMENT.md` and the follow-up in
+`SYNTAX_CHECKPOINT.md`. The pause and outstanding four-test statements below
+describe the original handoff, not the user's current instruction to continue.
+The user has since explicitly approved enabling native mobile pairing, and the
+Mac panel reached Iroh Ready. A Pixel is connected and authorized over USB.
+Read [IROH_V2.md](IROH_V2.md): the live host requires Iroh, superseding the old
+Tailscale-first plan. Historical listener-approval restrictions below are resolved.
+
 Read this first, then `PARITY.md`, `ANDROID_TESTING.md`, `RESEARCH.md`, and
 `PIXEL_INSTALL.md`. This is a continuation of an existing Android implementation,
 not a request to scaffold another prototype. The dated sections of the other

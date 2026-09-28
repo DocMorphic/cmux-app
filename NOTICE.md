@@ -1,5 +1,12 @@
 # Attribution
 
+`IrohV2SigningCodec.kt` follows the canonical signing contract in cmux's
+`Packages/Shared/CmuxIrxTransport/Sources/CmuxIrxTransport/V2/V2WireSigningCodec.swift`
+at `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`. The unchanged public test vectors
+under `app/src/test/resources/iroh-v2` come from the same package's V2 test
+fixtures (GPL-3.0-or-later, Manaflow). Their deterministic test seed is not an
+application or user credential and is not included in production app assets.
+
 `app/src/main/res/drawable-nodpi/cmux_logo.png` is copied without modification from
 `ios/cmux/Assets.xcassets/CmuxLogo.imageset/cmux-logo@3x.png` in the
 [cmux source repository](https://github.com/manaflow-ai/cmux), commit

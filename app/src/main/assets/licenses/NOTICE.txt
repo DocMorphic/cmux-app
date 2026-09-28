@@ -1,5 +1,10 @@
 cmux-app is an unofficial Android companion distributed under GNU GPL version 3.
 Source: https://github.com/DocMorphic/cmux-app
+
+IrohV2SigningCodec follows cmux's V2WireSigningCodec contract at
+4c5272e9153eca2033c9f40ac749f0c3a5bcb291 (GPL-3.0-or-later, Manaflow).
+Its public deterministic signing vectors are JVM test resources only and are
+not application identities or production app assets.
 This software is provided without warranty; redistribution and modification are permitted under its license.
 
 Termux terminal emulator

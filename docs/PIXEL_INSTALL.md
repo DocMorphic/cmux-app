@@ -3,6 +3,12 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
+**Current Mac correction (2026-09-28):** cmux 0.64.25 uses Iroh-only account
+discovery. Settings still says Show Tailscale QR, but the active panel publishes
+no QR. Android Iroh/V2 integration is unfinished; steps 3–4 below describe the
+legacy host flow and do not work on this host. Build 157 cannot supply the
+missing transport. See [IROH_V2.md](IROH_V2.md) for the current connection work.
+
 1. Connect the Pixel 6a and Mac to the same Tailscale tailnet.
 2. Install the latest `cmux-app-stable-signed-apk` release APK from GitHub Actions
    or the Mac's temporary Tailscale download link supplied for a device test.

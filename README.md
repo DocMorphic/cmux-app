@@ -6,6 +6,10 @@ The app opens on the direct cmux connection path: same-account sign-in, official
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
+**Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
+Android's transport currently targets the older Tailscale TCP path; current
+Iroh/V2 connectivity is under implementation. See [the connection migration](docs/IROH_V2.md).
+
 **Continuing on another laptop:** start with [HANDOFF.md](docs/HANDOFF.md) for the
 working branch, source research, implementation map, unfinished checks, release
 state, setup commands, and next steps. The latest feature work is on
