@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
+    inputs:
+      native_only:
+        description: Build the pinned Iroh arm64 dependency instead of APKs
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -12,7 +18,7 @@ jobs:
   build:
     # Draft feature commits accumulate without rebuilding release APKs.
     # Build a milestone manually, or automatically once the PR is ready.
-    if: github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft
+    if: (github.event_name == 'workflow_dispatch' && !inputs.native_only) || (github.event_name == 'pull_request' && !github.event.pull_request.draft)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,3 +64,40 @@ jobs:
         with:
           name: cmux-app-stable-signed-apk
           path: app/build/outputs/apk/release/app-release.apk
+
+  irohnative:
+    if: github.event_name == 'workflow_dispatch' && inputs.native_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: manaflow-ai/iroh-ffi
+          ref: ee19f156667ca640b912108a45f8b5bb8d156fec
+          path: native/iroh-ffi
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.91.0
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/iroh-ffi
+          key: cmux-iroh-android28-api26
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install pinned Android NDK
+        run: sdkmanager 'ndk;28.2.13676358'
+      - name: Build and verify Iroh native dependency
+        run: python3 scripts/build-iroh-android.py --source native/iroh-ffi --ndk "$ANDROID_HOME/ndk/28.2.13676358" --output build/iroh-android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmux-iroh-android-arm64
+          path: build/iroh-android
+          if-no-files-found: error
