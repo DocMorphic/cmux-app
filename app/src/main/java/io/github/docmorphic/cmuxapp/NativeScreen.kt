@@ -357,10 +357,12 @@ fun NativeScreen(
     var terminalArtifactPath by remember(draftTarget, client) { mutableStateOf<String?>(null) }
     val artifactRpc = remember(client, hostCapabilities) { client?.let { ArtifactRpc(it, hostCapabilities) } }
     val artifactPreferences = remember(context) { context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE) }
+    var folderTapEnabled by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("terminal-folder-tap", true)) }
     var showMissingArtifacts by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("show-missing-files", false)) }
     DisposableEffect(artifactPreferences) {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { preferences, key ->
             if (key == "show-missing-files") showMissingArtifacts = preferences.getBoolean(key, false)
+            if (key == "terminal-folder-tap") folderTapEnabled = preferences.getBoolean(key, true)
         }
         artifactPreferences.registerOnSharedPreferenceChangeListener(listener)
         onDispose { artifactPreferences.unregisterOnSharedPreferenceChangeListener(listener) }
@@ -377,6 +379,8 @@ fun NativeScreen(
             controller.observe(RenderGrid.plainText(grid.visibleLines(scrollOffset)))
         }
     }
+    val artifactTapController = remember(artifactRpc, draftTarget, grid, artifactsReady, folderTapEnabled) { TerminalArtifactTapController(scope) }
+    DisposableEffect(artifactTapController) { onDispose { artifactTapController.close() } }
     val artifactChipCount = artifactController?.count?.collectAsState()?.value
     val artifactRefresh = artifactController?.galleryRefresh?.collectAsState()?.value ?: 0
     if (terminalArtifactPath != null && artifactsReady && artifactRpc != null && draftTarget != null) {
@@ -1032,6 +1036,20 @@ fun NativeScreen(
                             .onFailure { error = it.message }
                     }, enabled = signedIn && code.isNotBlank())
                 }
+                Text("TERMINAL", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
+                Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Open Folders on Tap", Modifier.weight(1f))
+                    Switch(folderTapEnabled, onCheckedChange = { artifactPreferences.edit().putBoolean("terminal-folder-tap", it).apply() },
+                        modifier = Modifier.semantics { contentDescription = "Open Folders on Tap" })
+                }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Show Missing Files")
+                        Text("Keep files that were deleted or moved in the Files list", color = nativeMuted, fontSize = 12.sp)
+                    }
+                    Switch(showMissingArtifacts, onCheckedChange = { artifactPreferences.edit().putBoolean("show-missing-files", it).apply() },
+                        modifier = Modifier.semantics { contentDescription = "Show Missing Files" })
+                }
                 TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
                 Text("DISPLAY", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                     color = nativeMuted, fontSize = 11.sp)
@@ -1162,7 +1180,7 @@ fun NativeScreen(
             selectedTerminal != null -> {
                 val terminal = selectedTerminal!!
                 Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { selectedTerminal = null; selectedWorkspace = null }) {
+                    TextButton(onClick = { selectedTerminal = null; selectedWorkspace = null }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
                         Text("‹  ${workspaces.size}", color = nativeAccent)
                     }
                     Spacer(Modifier.weight(1f))
@@ -1212,21 +1230,41 @@ fun NativeScreen(
                             onClick("Open keyboard") { directTyping = true; rawKeyboardView?.showKeyboard(); true }
                             customActions = listOf(CustomAccessibilityAction("View as Text") { openTerminalText(); true })
                         }
-                        .pointerInput(terminal.id, currentGrid, terminalCells, artifactRpc, artifactsReady) {
+                        .pointerInput(terminal.id, currentGrid, terminalCells, artifactRpc, artifactsReady, artifactTapController) {
                             detectTapGestures(onTap = { point ->
-                                var openedArtifact = false
+                                artifactTapController.invalidate()
+                                var handlingArtifact = false
                                 TerminalGeometry.fit(size.width.toFloat(), size.height.toFloat(),
                                     currentGrid.columns, currentGrid.rows, terminalCells)?.let { geometry ->
                                     val cell = geometry.cell(point.x, point.y)
                                     val path = if (artifactsReady && geometry.contains(point.x, point.y)) TerminalArtifactHitTest.path(
                                         RenderGrid.plainText(currentGrid.visibleLines(visibleArtifactScroll)), cell.column, cell.row, currentGrid.columns) else null
                                     if (path != null) {
-                                        stopTerminalScrolling(); directTyping = false; softwareKeyboard?.hide()
-                                        terminalArtifactPath = path; openedArtifact = true
+                                        handlingArtifact = true
+                                        val authorization = ArtifactAuthorization.Terminal(draftTarget!!.workspace, draftTarget.surface)
+                                        val columns = currentGrid.columns
+                                        val rows = currentGrid.rows
+                                        artifactTapController.tap(path, folderTapEnabled,
+                                            stat = { candidate ->
+                                                val metadata = artifactRpc!!.stat(authorization, candidate)
+                                                if (metadata.getBoolean("is_directory")) ArtifactKind.DIRECTORY else ArtifactKind.read(metadata.opt("kind"))
+                                            },
+                                            stillMatches = {
+                                                currentGrid.columns == columns && currentGrid.rows == rows &&
+                                                    TerminalArtifactHitTest.path(RenderGrid.plainText(currentGrid.visibleLines(visibleArtifactScroll)), cell.column, cell.row, columns) == path
+                                            },
+                                            open = {
+                                                stopTerminalScrolling(); directTyping = false; softwareKeyboard?.hide()
+                                                terminalArtifactPath = path
+                                            },
+                                            focus = { sendClick ->
+                                                if (sendClick) terminalClick?.invoke(cell)
+                                                directTyping = true; rawKeyboardView?.showKeyboard()
+                                            })
                                     } else terminalClick?.invoke(cell)
                                 }
-                                if (!openedArtifact) { directTyping = true; rawKeyboardView?.showKeyboard() }
-                            }, onLongPress = { openTerminalText() })
+                                if (!handlingArtifact) { directTyping = true; rawKeyboardView?.showKeyboard() }
+                            }, onLongPress = { artifactTapController.invalidate(); openTerminalText() })
                         }
                         .terminalScrollGestures(terminalMotion,
                             TerminalGeometry.fit(terminalViewportPixels.width.toFloat(), terminalViewportPixels.height.toFloat(),

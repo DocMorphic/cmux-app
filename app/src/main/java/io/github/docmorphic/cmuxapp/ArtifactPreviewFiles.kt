@@ -52,13 +52,14 @@ internal class ArtifactContentTransfer(private val rpc: ArtifactRpc, private val
 /** A selection owns its private download. Export actions make an independent narrowly shared copy. */
 internal class ArtifactPreviewFiles(root: File, private val transfer: ArtifactContentTransfer) : AutoCloseable {
     private val directory = File(root, UUID.randomUUID().toString())
-    suspend fun download(path: String, metadata: ArtifactMetadata, progress: suspend (Long, Long) -> Unit): LocalFilePreview = withContext(Dispatchers.IO) {
+    suspend fun download(path: String, metadata: ArtifactMetadata, byteLimit: Long? = null, filename: String = changesPreviewName(path),
+        progress: suspend (Long, Long) -> Unit): LocalFilePreview = withContext(Dispatchers.IO) {
         val route = filePreviewRoute(metadata.kind.name.lowercase(), metadata.mime, path)
-        val limit = if (route == ChangesPreviewRoute.MEDIA) ChangesContentTransfer.MEDIA_BYTES else ChangesContentTransfer.PREVIEW_BYTES
+        val limit = byteLimit ?: if (route == ChangesPreviewRoute.MEDIA) ChangesContentTransfer.MEDIA_BYTES else ChangesContentTransfer.PREVIEW_BYTES
         check(metadata.size <= limit) { "This file is too large to preview (${metadata.size} bytes; limit $limit bytes)." }
         check(directory.mkdirs()) { "Could not create the preview folder." }
         val partial = File(directory, "download.partial")
-        val destination = File(directory, changesPreviewName(path).let { if (it == "download.partial") "file-download.partial" else it })
+        val destination = File(directory, changesPreviewName(filename).let { if (it == "download.partial") "file-download.partial" else it })
         try {
             partial.outputStream().use { output ->
                 transfer.stream(path, metadata, limit) { bytes, received -> output.write(bytes); progress(received, metadata.size) }

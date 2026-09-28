@@ -2,6 +2,8 @@ package io.github.docmorphic.cmuxapp
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Intent
+import java.io.File
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
@@ -180,7 +182,7 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
                             }
                         }
                         if (group.title !in folded) items(group.items, key = { it.path }) { item ->
-                            ArtifactGalleryRow(item, grid, thumbnails, if (activeSession) authorization!! else store.terminal) {
+                            ArtifactGalleryRow(rpc, item, grid, thumbnails, if (activeSession) authorization!! else store.terminal) {
                                 open(item, allItems, store.sheetAuthorization())
                             }
                         }
@@ -247,9 +249,43 @@ internal fun FilesMessage(title: String, message: String? = null, action: String
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ArtifactGalleryRow(item: ArtifactItem, grid: Boolean, thumbnails: ArtifactThumbnails, authorization: ArtifactAuthorization, onOpen: () -> Unit) {
+private fun ArtifactGalleryRow(rpc: ArtifactRpc, item: ArtifactItem, grid: Boolean, thumbnails: ArtifactThumbnails, authorization: ArtifactAuthorization, onOpen: () -> Unit) {
+    key(rpc, authorization, item.path) { ArtifactGalleryRowContent(rpc, item, grid, thumbnails, authorization, onOpen) }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ArtifactGalleryRowContent(rpc: ArtifactRpc, item: ArtifactItem, grid: Boolean, thumbnails: ArtifactThumbnails, authorization: ArtifactAuthorization, onOpen: () -> Unit) {
     val context = LocalContext.current
-    var menu by remember(item.path) { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var sharing by remember { mutableStateOf(false) }
+    var shareFailure by remember { mutableStateOf<String?>(null) }
+    fun share() {
+        if (sharing || !item.exists || item.kind == ArtifactKind.DIRECTORY) return
+        sharing = true; menu = false; shareFailure = null
+        scope.launch {
+            var exported: LocalFilePreview? = null
+            var handedOff = false
+            try {
+                val file = materializeArtifactShare(rpc, authorization, item.path, File(context.cacheDir, "task-previews")) { metadata ->
+                    fileActionType(changesPreviewName(item.path), metadata.mime).filename
+                }
+                exported = file
+                ensureActive()
+                context.startActivity(Intent.createChooser(artifactShareIntent(context, file.file, fileActionType(file.file.name, file.mime).mime), "Share ${file.file.name}"))
+                handedOff = true
+            } catch (error: Exception) {
+                ensureActive()
+                shareFailure = error.message ?: "Could not prepare file."
+            } finally {
+                if (!handedOff) withContext(NonCancellable + Dispatchers.IO) { exported?.file?.parentFile?.deleteRecursively() }
+                sharing = false
+            }
+        }
+    }
+    shareFailure?.let { message -> AlertDialog(onDismissRequest = { shareFailure = null }, title = { Text("Couldn't share file") },
+        text = { Text(message) }, confirmButton = { TextButton(onClick = { shareFailure = null }) { Text("OK") } }) }
     Box {
         val modifier = Modifier.fillMaxWidth().combinedClickable(onClick = onOpen, onLongClick = { menu = true })
             .semantics { contentDescription = "Open ${if (item.kind == ArtifactKind.DIRECTORY) "folder" else "file"} ${item.path}" }
@@ -265,8 +301,10 @@ private fun ArtifactGalleryRow(item: ArtifactItem, grid: Boolean, thumbnails: Ar
             }
             if (item.kind == ArtifactKind.DIRECTORY) Text("›", color = filesMuted, fontSize = 22.sp)
         }
+        if (sharing) CircularProgressIndicator(Modifier.align(Alignment.TopEnd).size(18.dp).semantics { contentDescription = "Preparing ${item.displayName} to share" }, strokeWidth = 2.dp)
         DropdownMenu(menu, { menu = false }) {
-            if (item.kind == ArtifactKind.DIRECTORY) DropdownMenuItem(text = { Text("Browse folder") }, onClick = { menu = false; onOpen() })
+            if (item.kind != ArtifactKind.DIRECTORY) DropdownMenuItem(text = { Text("Share") }, enabled = item.exists && !sharing, onClick = ::share)
+            if (item.kind == ArtifactKind.DIRECTORY) DropdownMenuItem(text = { Text("Browse folder") }, enabled = item.exists, onClick = { menu = false; onOpen() })
             DropdownMenuItem(text = { Text("Copy path") }, onClick = {
                 context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("File path", item.path)); menu = false
             })
@@ -351,7 +389,7 @@ internal fun ArtifactFolderContent(rpc: ArtifactRpc, thumbnails: ArtifactThumbna
                         if (failure != null) "Retry" else null) { retry++ }
                 }
                 items(listing?.entries.orEmpty(), key = { it.path }) { item ->
-                    ArtifactGalleryRow(item, false, thumbnails, destination.authorization) { onOpen(item, listing!!.entries) }
+                    ArtifactGalleryRow(rpc, item, false, thumbnails, destination.authorization) { onOpen(item, listing!!.entries) }
                 }
                 if (listing?.truncated == true) item(span = { GridItemSpan(maxLineSpan) }) { Text("This folder contains more items than the Mac returned.", color = filesMuted, fontSize = 12.sp) }
             }

@@ -2,6 +2,10 @@ package io.github.docmorphic.cmuxapp
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.app.Activity
+import android.app.Instrumentation
+import android.net.Uri
 import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
@@ -18,6 +22,7 @@ import org.json.JSONObject
 import org.junit.*
 import org.junit.Assert.*
 import java.util.Base64
+import java.util.concurrent.atomic.AtomicReference
 
 @OptIn(ExperimentalTestApi::class)
 class NativeArtifactFilesTest {
@@ -152,5 +157,43 @@ class NativeArtifactFilesTest {
         compose.onNodeWithContentDescription("Open file ./folder/note.txt").performClick(); waitText(text)
         assertTrue(peer.requests.isNotEmpty())
         peer.requests.forEach { assertTrue(it.getString("method").startsWith("mobile.terminal.artifact.")); assertEquals("surface", it.getJSONObject("params").getString("surface_id")) }
+    }
+
+    @Test fun galleryShareUsesSessionScopeReadOnlyUriAndSurvivesSheetClosure() {
+        val text = "Original bytes shared from the gallery"
+        val captured = AtomicReference<Intent?>()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val monitor = object : Instrumentation.ActivityMonitor() {
+            override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
+                if (intent.action != Intent.ACTION_CHOOSER) return null
+                captured.set(intent.getParcelableExtra(Intent.EXTRA_INTENT))
+                return Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null)
+            }
+        }
+        instrumentation.addMonitor(monitor)
+        try {
+            peer.artifactResponse = { method, _ -> when {
+                method.endsWith("scan") -> scan()
+                method.endsWith("gallery") -> gallery(item("/shared.txt"))
+                method.endsWith("stat") -> stat(text)
+                else -> chunk(text)
+            } }
+            show(); waitDescription("Open file /shared.txt")
+            compose.onNodeWithContentDescription("Open file /shared.txt").performTouchInput { longClick(durationMillis = 650) }
+            compose.onNodeWithText("Share").performClick()
+            compose.waitUntil(10_000) { captured.get() != null }
+            val intent = captured.get()!!
+            assertEquals(Intent.ACTION_SEND, intent.action); assertEquals("text/plain", intent.type)
+            val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)!!
+            assertEquals("${compose.activity.packageName}.task-previews", uri.authority)
+            assertEquals(uri, intent.clipData!!.getItemAt(0).uri)
+            assertTrue(intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
+            assertEquals(0, intent.flags and Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            compose.onNodeWithText("Done").performClick(); compose.waitUntil(5_000) { !visible }
+            assertEquals(text, compose.activity.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() })
+            val reads = peer.requests.filter { it.optString("method").endsWith(".stat") || it.optString("method").endsWith(".fetch") }
+            assertTrue(reads.isNotEmpty())
+            reads.forEach { assertTrue(it.getString("method").startsWith("mobile.chat.artifact.")); assertEquals("session", it.getJSONObject("params").getString("session_id")) }
+        } finally { instrumentation.removeMonitor(monitor) }
     }
 }

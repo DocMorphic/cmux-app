@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.webkit.MimeTypeMap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -99,13 +98,9 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?) {
         scope.launch {
             var exported: File? = null
             try {
-                val inferred = MimeTypeMap.getSingleton().getMimeTypeFromExtension(captured.file.extension.lowercase())
-                val mime = captured.mime?.substringBefore(';')?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
-                    ?: inferred ?: "application/octet-stream"
-                val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)?.takeIf { it.matches(Regex("[A-Za-z0-9]+")) }
-                // FileProvider derives MIME from the exported name. Preserve the host's type for
-                // extensionless files (and files whose extension disagrees with their content).
-                val name = if (extension != null && inferred != mime) "${captured.file.name}.$extension" else captured.file.name
+                val type = fileActionType(captured.file.name, captured.mime)
+                val mime = type.mime
+                val name = type.filename
                 val file = exportFilePreview(captured, File(context.cacheDir, "task-previews"), name)
                 exported = file
                 ensureActive()
@@ -117,7 +112,7 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?) {
                         busy = false
                     }
                     else -> {
-                        val intent = if (action == "Share") Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri)
+                        val intent = if (action == "Share") artifactShareIntent(context, file, mime)
                             else Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime)
                         intent.clipData = ClipData.newRawUri(file.name, uri)
                         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

@@ -51,6 +51,7 @@ class NativeFlowTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Before fun startPeer() {
+        context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE).edit().remove("terminal-folder-tap").remove("show-missing-files").commit()
         compose.runOnUiThread {
             compose.activity.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
@@ -65,6 +66,7 @@ class NativeFlowTest {
     }
 
     @After fun cleanUp() {
+        context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE).edit().remove("terminal-folder-tap").remove("show-missing-files").commit()
         compose.activity.finish()
         peer.close()
         NativeCredentialStore(context).clear()
@@ -107,6 +109,56 @@ class NativeFlowTest {
         compose.waitUntil(10_000) { compose.onAllNodesWithText(body).fetchSemanticsNodes().isNotEmpty() }
         assertTrue(peer.requests.any { it.optString("method") == "mobile.terminal.artifact.stat" && it.getJSONObject("params").optString("path") == "notes.md" })
         assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.click" })
+    }
+
+    @Test fun folderTapPreferencePersistsAndChangesActualTerminalTapBehavior() {
+        context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE).edit().putFloat("terminal_scale", 1f).commit()
+        peer.artifactsSupported = true
+        peer.gridFirstLine = "open ./folder"
+        peer.artifactResponse = { method, _ -> when {
+            method.endsWith("scan") -> JSONObject().put("gallery_row_total", 1)
+            method.endsWith("stat") -> JSONObject().put("exists", true).put("is_directory", true).put("kind", "directory")
+            method.endsWith("list") -> JSONObject().put("entries", JSONArray().put(JSONObject().put("name", "note.txt").put("kind", "text").put("is_directory", false)))
+            else -> JSONObject()
+        } }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("cmux settings").performClick()
+        compose.onNodeWithContentDescription("Open Folders on Tap").performScrollTo().assertIsOn().performClick()
+        compose.onNodeWithContentDescription("Show Missing Files").performScrollTo().assertIsOff().performClick()
+        compose.onNodeWithText("‹  Back").performScrollTo().performClick()
+        assertTrue(!context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE).getBoolean("terminal-folder-tap", true))
+        compose.onNodeWithText("Claude Code task").performClick()
+        tapArtifactCell("open ./folder", 8.5f)
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.click" } }
+        compose.onNodeWithContentDescription("Open file ./folder/note.txt").assertDoesNotExist()
+        assertTrue(peer.requests.none { it.optString("method").endsWith("artifact.list") })
+        compose.onNodeWithContentDescription("Back to workspaces").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("cmux settings").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("cmux settings").performClick()
+        compose.onNodeWithContentDescription("Open Folders on Tap").performScrollTo().assertIsOff().performClick()
+        compose.onNodeWithContentDescription("Show Missing Files").performScrollTo().assertIsOn()
+        compose.onNodeWithText("‹  Back").performScrollTo().performClick()
+        compose.onNodeWithText("Claude Code task").performClick()
+        val clicks = peer.requests.count { it.optString("method") == "mobile.terminal.click" }
+        tapArtifactCell("open ./folder", 8.5f)
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Open file ./folder/note.txt").fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(clicks, peer.requests.count { it.optString("method") == "mobile.terminal.click" })
+    }
+
+    private fun tapArtifactCell(text: String, column: Float) {
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty() }
+        val terminal = compose.onNodeWithText(text, substring = true)
+        val viewport = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }.getJSONObject("params")
+        val metrics = context.resources.displayMetrics
+        val cells = TerminalCellMetrics.fromFontSize(14f * metrics.scaledDensity, 2f * metrics.density)
+        val bounds = terminal.fetchSemanticsNode().boundsInRoot
+        val geometry = TerminalGeometry.fit(bounds.width, bounds.height, viewport.getInt("viewport_columns"), viewport.getInt("viewport_rows"), cells)!!
+        terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(geometry.originX + geometry.cellWidth * column, geometry.originY + geometry.cellHeight * .5f)) }
     }
 
     @Test fun workspaceFilterTerminalInputAndKeyboardResize() {

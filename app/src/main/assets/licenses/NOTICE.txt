@@ -118,3 +118,11 @@ produces 1,217 reference cell hits through scripts/generate-artifact-tap-parity.
 Android uses its renderer's grapheme cell widths and retains terminal authorization
 for relative paths and folder descendants.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+
+Terminal artifact row Share and folder-tap preference behavior are adapted from
+TerminalArtifactGalleryItemView, ChatArtifactFileActionStore,
+TerminalFolderTapPolicy and GhosttySurfaceCoordinator+Artifacts at cmux revision
+4c5272e9153eca2033c9f40ac749f0c3a5bcb291.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android shares original bytes through read-only FileProvider grants and preserves
+terminal authorization when a classification refusal opens the error viewer.
