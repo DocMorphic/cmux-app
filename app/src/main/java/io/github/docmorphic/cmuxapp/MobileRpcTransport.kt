@@ -13,9 +13,19 @@ import javax.net.SocketFactory
 internal interface MobileRpcTransport : AutoCloseable {
     val independentEvents: Flow<ByteArray>? get() = null
     val surfaceEventLanes: Boolean get() = false
+    val disconnections: Flow<Throwable>? get() = null
+    val supportsControlRepair: Boolean get() = false
+    suspend fun repairControl(): MobileControlRepair = MobileControlRepair.Unavailable
+    suspend fun writeWithGeneration(bytes: ByteArray): Long { write(bytes); return 0 }
     suspend fun connect()
     suspend fun read(): ByteArray?
     suspend fun write(bytes: ByteArray)
+}
+
+internal sealed interface MobileControlRepair {
+    data class Repaired(val generation: Long) : MobileControlRepair
+    data object Unavailable : MobileControlRepair
+    data object Closed : MobileControlRepair
 }
 
 /** Legacy TCP remains available for existing hosts and protocol fixtures. */

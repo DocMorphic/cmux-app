@@ -103,6 +103,38 @@ class IrxAdmissionTest {
         }
     }
 
+    @Test fun controlReplacementConsumesAckPreservesBytesAndObservesWholeConnectionClose() = runBlocking<Unit> {
+        fixture(server = { connection ->
+            IrxDuplexLane(connection.acceptBi()).use { original ->
+                assertEquals("control", original.readFrame()?.getString("lane"))
+                original.readFrame()
+                original.writeFrame(JSONObject().put("v", 1).put("session", "repair-session")
+                    .put("keepaliveIntervalMs", 5000).put("keepaliveDeadlineMs", 2000))
+                IrxDuplexLane(connection.acceptBi()).use { replacement ->
+                    assertEquals("control_repair", replacement.readFrame()?.getString("lane"))
+                    val ack = IrxWire.encode(JSONObject().put("v", 1))
+                    replacement.write(ack.copyOfRange(0, 2))
+                    replacement.write(ack.copyOfRange(2, ack.size) + "ready".toByteArray())
+                    assertEquals("done", readRaw(replacement, 4).decodeToString())
+                    connection.close(0, IrxWire.CloseCode.HOST_SHUTDOWN.reason())
+                }
+            }
+        }) { connection, expected ->
+            IrxClientSession.admit(connection, expected).use { session ->
+                val originalRead = async(start = CoroutineStart.UNDISPATCHED) { runCatching { session.control.read(64) } }
+                withTimeout(5000) { session.openControlReplacement() }.use { replacement ->
+                    assertEquals("ready", readRaw(replacement, 5).decodeToString())
+                    originalRead.cancelAndJoin()
+                    withTimeout(3000) { session.control.retire() }
+                    val closure = async { session.awaitConnectionClosed() }
+                    replacement.write("done".toByteArray())
+                    withTimeout(3000) { closure.await() }
+                    assertTrue(session.connectionIsClosed())
+                }
+            }
+        }
+    }
+
     @Test fun stalledAdmissionClosesNativeConnectionAtDeadline() = runBlocking {
         fixture(server = { connection ->
             connection.acceptBi().use { stream ->

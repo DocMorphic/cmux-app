@@ -540,3 +540,64 @@ follow-up, consistent with batching APK builds at device/release milestones.
 Verification result: **30 focused JVM tests in 3 suites passed**, zero failures,
 errors or skips; final run took 17 seconds. Local XML/log/source receipt:
 `captures/iroh/auth-recovery/`. No Pixel was attached during this check.
+
+
+## Control-stream replacement and complete-connection observation — 2026-09-28
+
+Audited the pinned `IrxControlByteTransport.swift`, `IrxConnection.swift`,
+`IrxProtocol.swift`, `MobileCoreRPCSession.swift` and
+`MobileRPCControlFrameResendPolicy.swift`. Android now implements:
+
+- A native `control_repair` stream on the existing admitted QUIC connection,
+  with a version-checked acknowledgement consumed before exposing RPC bytes.
+  Replacement is bounded to five seconds. Late acknowledgements cannot install
+  a lane after its deadline or after owner close.
+- A separate decoder per control-stream generation. Replacement discards old
+  partial frames and late native reads, resumes parked readers on the new stream,
+  and retires both old stream halves with protocol error code 7. Retired halves
+  are reset/stopped independently and cleanup is bounded.
+- An independent native whole-connection closure observer. Pending requests and
+  event consumers are woken even if an individual control read has not returned.
+- Silent-request timeout epochs: concurrent unanswered requests contribute one
+  silence window. Any received envelope resets the consecutive silence count.
+  The first silent timeout can attempt replacement; two distinct silent windows
+  retire the connection if replacement is unavailable.
+- The official explicit read-only resend allowlist. Still-pending reads written
+  to the old generation are resent in their original write order. Input, paste,
+  viewport-reporting replay, resize, subscriptions, artifact fetch/scan, unknown
+  methods and other mutations are never automatically resent; uncertain pending
+  actions return an unknown-outcome error. The request that already timed out
+  remains timed out.
+- A `mobile.events.probe` RPC checks the replacement after acknowledgement. Any
+  correlated RPC answer, including a host error, verifies it. No answer closes
+  the session instead of looping through replacements. Resent writes retain a
+  bounded deadline so a stalled resend cannot wedge future requests.
+
+**Verification:** all **390 JVM tests across 64 suites passed**, zero failures,
+errors or skips. New checks cover frame separation, late reads/acknowledgements,
+old-stream reset during repair, read-only resend versus uncertain input,
+concurrent timeout epochs, traffic during a slow request, unavailable repair,
+unanswered probes, stalled resends, and native-closure notification. The first
+full run failed an existing token-rejection test while connecting its loopback
+socket, before reaching the authentication assertion. That test now checks the
+credential boundary with an in-memory wire and asserts no frame was sent. The
+three existing real TCP framing/auth/error tests still pass. The initial failure
+log/XML is retained under `captures/iroh/control-repair/initial-run/`.
+
+The full JVM suite plus `:iroh:assembleDebugAndroidTest` succeeded in 32 seconds.
+New native method
+`IrxAdmissionTest.controlReplacementConsumesAckPreservesBytesAndObservesWholeConnectionClose`
+compiled, covering fragmented repair ACK/raw bytes, retired old read, and native
+connection closure. **It has not run on the Pixel.** The previously added native
+shared/surface event-stream method also still needs a physical run.
+
+Local final XML/build/source receipt: `captures/iroh/control-repair/`.
+Native test APK SHA-256: `27413faf44cc6857c863d7c1cbd1de3884050d91c9f45f21f8cec94dc03dd71e`.
+
+The main debug APK remains the e1117b7 artifact; no main/release APK was rebuilt
+or published for this step. No authenticated account enrollment or live Mac
+terminal workflow has been verified. Diagnostic keepalive probes (and early
+positive whole-connection silence evidence), socket promotion/cache, specialized
+lane consumers, and broader feature/UI/device acceptance remain open. Without
+running application probes, a repair timeout is inconclusive about whole-peer
+silence; Android does not infer peer death from a missed diagnostic pong.

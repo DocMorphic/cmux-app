@@ -8,6 +8,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.EOFException
 import java.io.IOException
@@ -35,6 +37,15 @@ class IrxDuplexLane internal constructor(private val stream: BiStream) : AutoClo
         check(!closed.get()) { "Irx lane closed" }
         receive.read(maxBytes.toUInt())
     }
+    /** Reset both halves independently: a parked reader must not prevent retiring the writer. */
+    suspend fun retire() {
+        try {
+            withTimeout(2000) { coroutineScope {
+                launch { runCatching { send.reset(7uL) } }
+                launch { runCatching { receive.stop(7uL) } }
+            } }
+        } finally { close() }
+    }
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
         send.close(); receive.close(); stream.close()
@@ -60,6 +71,21 @@ class IrxClientSession private constructor(
 ) : AutoCloseable {
     private val closed = AtomicBoolean(false)
     val isClosed: Boolean get() = closed.get()
+    fun connectionIsClosed(): Boolean = closed.get() || connection.closeReason() != null
+    suspend fun awaitConnectionClosed() { connection.closed() }
+
+    /** The repair acknowledgement must be consumed before exposing any new RPC bytes. */
+    suspend fun openControlReplacement(): IrxDuplexLane {
+        val lane = openLane(IrxWire.Descriptor(IrxWire.Lane.CONTROL_REPAIR))
+        try {
+            IrxWire.requireVersion(lane.readFrame() ?: throw EOFException("Missing control replacement acknowledgement"))
+            check(!closed.get())
+            return lane
+        } catch (failure: Throwable) {
+            cleanup.launch { runCatching { lane.retire() } }
+            throw failure
+        }
+    }
 
     suspend fun authorizeDirectPaths() {
         check(!closed.get())
@@ -109,6 +135,7 @@ class IrxClientSession private constructor(
     }
 
     companion object {
+        private val cleanup = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
         /**
          * Takes ownership even on failure. expectedPeer comes from the authenticated directory.
          * The endpoint must bind with initial remote bi/uni credit zero and deferred NAT traversal.

@@ -12,6 +12,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -24,6 +26,7 @@ import javax.net.SocketFactory
 
 /** Retains the protocol's error code so callers can distinguish retryable failures. */
 internal class MobileRpcException(val code: String?, message: String) : IllegalStateException(message)
+internal class MobileRpcOutcomeUnknown : java.io.IOException("The connection recovered, but this action’s outcome is unknown. Check the Mac before retrying.")
 
 /**
  * The control channel of cmux's mobile RPC protocol. The caller must supply a
@@ -46,7 +49,10 @@ class MobileRpcClient internal constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val writeMutex = Mutex()
     private val stateLock = Any()
-    private val pending = mutableMapOf<String, CompletableDeferred<JSONObject>>()
+    private class Pending(val answer: CompletableDeferred<JSONObject>, val frame: ByteArray,
+                          val resend: Boolean, val inbound: Long, val epoch: Long,
+                          val deadlineNanos: Long, var generation: Long? = null, var sequence: Long = 0)
+    private val pending = linkedMapOf<String, Pending>()
     private val leaseOperations = mutableSetOf<Job>()
     private val eventsMutable = MutableSharedFlow<Event>(
         extraBufferCapacity = 8,
@@ -60,6 +66,12 @@ class MobileRpcClient internal constructor(
     private var connected = false
     private var closed = false
     private var eventDeliverySequence = 0L
+    private var inboundDelivery = 0L
+    private var silenceEpoch = 0L
+    private var silentTimeouts = 0
+    private var repairing = false
+    private var unverifiedRepairs = 0
+    private var writeSequence = 0L
 
     internal val isClosed: Boolean get() = synchronized(stateLock) { closed } || delegate?.isClosed == true
 
@@ -93,6 +105,10 @@ class MobileRpcClient internal constructor(
                 check(!closed) { "Connection has been closed" }
                 connected = true
                 scope.launch { readLoop() }
+                transport.disconnections?.let { closures -> scope.launch {
+                    try { closures.collect { failConnection(it) } }
+                    catch (failure: Throwable) { failConnection(failure) }
+                } }
                 transport.independentEvents?.let { events ->
                     scope.launch {
                         try {
@@ -132,22 +148,97 @@ class MobileRpcClient internal constructor(
             body.put("auth", auth)
         }
         val answer = CompletableDeferred<JSONObject>()
-        synchronized(stateLock) {
+        val entry = synchronized(stateLock) {
             check(!closed && connected) { "Not connected to cmux" }
-            pending[id] = answer
+            Pending(answer, MobileFrameCodec.encode(body.toString().toByteArray(Charsets.UTF_8)),
+                MobileControlResendPolicy.allows(method, params), inboundDelivery, silenceEpoch,
+                System.nanoTime() + timeoutMillis.coerceIn(0, 86_400_000) * 1_000_000).also { pending[id] = it }
         }
         try {
             return withTimeout(timeoutMillis) {
                 writeMutex.withLock {
                     synchronized(stateLock) { check(!closed && connected) { "Connection closed" } }
-                    try { transport.write(MobileFrameCodec.encode(body.toString().toByteArray(Charsets.UTF_8))) }
+                    try {
+                        val generation = transport.writeWithGeneration(entry.frame)
+                        synchronized(stateLock) { entry.generation = generation; entry.sequence = ++writeSequence }
+                    }
                     catch (error: Throwable) { failConnection(error); throw error }
                 }
                 answer.await()
             }
+        } catch (failure: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            responseTimedOut(entry, timeoutMillis)
+            throw failure
         } finally {
             synchronized(stateLock) { pending.remove(id) }
         }
+    }
+
+    private fun responseTimedOut(entry: Pending, timeoutMillis: Long) {
+        var retire = false
+        var replace = false
+        synchronized(stateLock) {
+            if (closed || entry.generation == null || entry.answer.isCompleted) return
+            if (entry.inbound != inboundDelivery) { silentTimeouts = 0; return }
+            if (entry.epoch != silenceEpoch || repairing) return
+            silenceEpoch++
+            silentTimeouts++
+            if (silentTimeouts >= 2) retire = true
+            else if (transport.supportsControlRepair && unverifiedRepairs == 0) {
+                repairing = true
+                unverifiedRepairs++
+                replace = true
+            }
+        }
+        if (retire) failConnection(EOFException("cmux stopped answering requests"))
+        if (replace) scope.launch { repairControl(timeoutMillis.coerceIn(1, 5000)) }
+    }
+
+    private suspend fun repairControl(verificationMillis: Long) {
+        try {
+            val outcome = writeMutex.withLock {
+                synchronized(stateLock) { if (closed) return }
+                val result = transport.repairControl()
+                if (result is MobileControlRepair.Repaired) {
+                    val stranded = synchronized(stateLock) { pending.toList().sortedBy { it.second.sequence } }
+                    for ((id, request) in stranded) {
+                        val resend = synchronized(stateLock) {
+                            if (closed || pending[id] !== request || request.answer.isCompleted ||
+                                request.generation == null || request.generation!! >= result.generation ||
+                                System.nanoTime() >= request.deadlineNanos) false
+                            else if (!request.resend) {
+                                request.answer.completeExceptionally(MobileRpcOutcomeUnknown())
+                                false
+                            } else true
+                        }
+                        if (resend) {
+                            val remaining = ((request.deadlineNanos - System.nanoTime()) / 1_000_000).coerceIn(1, 5000)
+                            val generation = withTimeout(remaining) { transport.writeWithGeneration(request.frame) }
+                            synchronized(stateLock) { request.generation = generation }
+                        }
+                    }
+                }
+                result
+            }
+            when (outcome) {
+                MobileControlRepair.Closed -> failConnection(EOFException("cmux connection closed"))
+                MobileControlRepair.Unavailable -> Unit
+                is MobileControlRepair.Repaired -> {
+                    val answered = try {
+                        withTimeout(verificationMillis) {
+                            request(MobileControlResendPolicy.PROBE,
+                                JSONObject().put("stream_id", "cmux.control-stream-probe.${UUID.randomUUID()}"), verificationMillis)
+                        }
+                        true
+                    } catch (_: MobileRpcException) { true }
+                    catch (failure: Exception) { currentCoroutineContext().ensureActive(); false }
+                    if (answered) synchronized(stateLock) { silentTimeouts = 0; unverifiedRepairs = 0 }
+                    else failConnection(EOFException("cmux did not answer on the replacement stream"))
+                }
+            }
+        } catch (failure: Throwable) { failConnection(failure) }
+        finally { synchronized(stateLock) { repairing = false } }
     }
 
     suspend fun hostStatus(): JSONObject = request("mobile.host.status")
@@ -374,7 +465,7 @@ class MobileRpcClient internal constructor(
         synchronized(stateLock) {
             if (closed) return
             closed = true; connected = false
-            pending.values.forEach { it.completeExceptionally(failure) }
+            pending.values.forEach { it.answer.completeExceptionally(failure) }
             pending.clear()
         }
         try { transport.close() }
@@ -386,6 +477,8 @@ class MobileRpcClient internal constructor(
 
     private fun dispatch(envelope: JSONObject) = synchronized(stateLock) {
         if (closed) return@synchronized
+        inboundDelivery++
+        silentTimeouts = 0
         if (envelope.optString("kind") == "event") {
             val topic = envelope.optString("topic")
             if (topic.isNotBlank()) eventsMutable.tryEmit(Event(
@@ -399,12 +492,12 @@ class MobileRpcClient internal constructor(
         val id = envelope.optString("id")
         val waiter = pending[id] ?: return@synchronized
         if (envelope.optBoolean("ok")) {
-            waiter.complete(envelope.optJSONObject("result") ?: JSONObject())
+            waiter.answer.complete(envelope.optJSONObject("result") ?: JSONObject())
         } else {
             val error = envelope.optJSONObject("error")
             val message = error?.optString("message")
                 .orEmpty().ifBlank { "cmux RPC request failed" }
-            waiter.completeExceptionally(MobileRpcException(error?.opt("code") as? String, message))
+            waiter.answer.completeExceptionally(MobileRpcException(error?.opt("code") as? String, message))
         }
     }
 

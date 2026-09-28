@@ -129,12 +129,15 @@ class MobileRpcClientTest {
     }
 
     @Test fun rejectsAuthorizedRequestWithoutSameAccountToken() = runBlocking {
-        ServerSocket(0).use { server ->
-            val client = MobileRpcClient(PairingCode.Route("127.0.0.1", server.localPort), { null })
-            try {
-                client.connect()
-                assertTrue(runCatching { client.workspaces() }.isFailure)
-            } finally { client.close() }
+        // This checks the credential boundary, including that no request escapes it.
+        // The other three tests exercise the real TCP framing/connection path.
+        val transport = PoolTestTransport()
+        MobileRpcClient(transport, { null }).use { client ->
+            client.connect()
+            val failure = runCatching { client.workspaces() }.exceptionOrNull()
+            assertTrue(failure is IllegalArgumentException)
+            assertTrue(failure?.message.orEmpty().contains("same account"))
+            assertTrue(transport.sent.tryReceive().isFailure)
         }
     }
 }
