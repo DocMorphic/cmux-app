@@ -55,7 +55,7 @@ private fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthori
     }
     val state = produced.takeIf { it.identity === identity } ?: ArtifactPreviewLoad(identity)
     Column(Modifier.fillMaxSize().semantics { contentDescription = "File preview $path" }) {
-        FilePreviewActions(state.artifact)
+        if (state.artifact == null) FilePreviewActions(null)
         when {
             state.error != null -> FilesMessage("Couldn't load preview", state.error, "Retry") { retry++ }
             state.artifact != null -> key(state.artifact!!.file.absolutePath) { FilePreviewContent(state.artifact!!) }

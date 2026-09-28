@@ -33,29 +33,19 @@ internal object MarkdownPreviewPolicy {
 }
 
 @Composable
-internal fun ArtifactTextPreview(artifact: LocalFilePreview) {
-    if (!MarkdownPreviewPolicy.isMarkdown(artifact.file.name, artifact.mime)) { ArtifactRawTextPreview(artifact.file); return }
-    val available = MarkdownPreviewPolicy.renderedAvailable(artifact.size)
-    var rendered by remember(artifact.file) { mutableStateOf(available) }
-    var failure by remember(artifact.file) { mutableStateOf<String?>(null) }
+internal fun ArtifactTextPreview(artifact: LocalFilePreview, state: ArtifactViewerState) {
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val colors = FilterChipDefaults.filterChipColors(selectedContainerColor = androidx.compose.ui.graphics.Color(0xFF30343B),
-                selectedLabelColor = androidx.compose.ui.graphics.Color.White, labelColor = filesMuted)
-            FilterChip(rendered, { rendered = true; failure = null }, label = { Text("Rendered") }, enabled = available, colors = colors)
-            FilterChip(!rendered, { rendered = false }, label = { Text("Raw") }, colors = colors)
-        }
-        if (!available) Text("Rendered Markdown is available for files up to 1.5 MB.", Modifier.padding(horizontal = 16.dp), color = filesMuted)
-        failure?.let { Text(it, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.error) }
+        if (state.markdown && !state.renderedAvailable) Text("Rendered Markdown is available for files up to 1.5 MB.", Modifier.padding(horizontal = 16.dp), color = filesMuted)
+        state.failure?.let { Text(it, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.error) }
         Box(Modifier.weight(1f)) {
-            if (rendered) {
+            if (state.rendered) {
                 val text by produceState<String?>(null, artifact.file) {
                     try { value = withContext(Dispatchers.IO) { artifact.file.readText() } }
-                    catch (error: Exception) { ensureActive(); failure = error.message ?: "Could not read Markdown"; rendered = false }
+                    catch (error: Exception) { ensureActive(); state.failure = error.message ?: "Could not read Markdown"; state.rendered = false }
                 }
                 if (text == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-                else MarkdownWebPreview(text!!, onFailure = { failure = it; rendered = false })
-            } else ArtifactRawTextPreview(artifact.file)
+                else MarkdownWebPreview(text!!, onFailure = { state.failure = it; state.rendered = false })
+            } else ArtifactRawTextPreview(state)
         }
     }
 }

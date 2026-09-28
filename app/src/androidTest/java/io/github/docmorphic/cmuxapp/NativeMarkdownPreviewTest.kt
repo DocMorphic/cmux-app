@@ -80,10 +80,12 @@ class NativeMarkdownPreviewTest {
         val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         compose.activity.openFileOutput("markdown-rendered.png", Context.MODE_PRIVATE).use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
         screenshot.recycle()
-        compose.onNodeWithText("Raw", useUnmergedTree = true).performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("# Parity document").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("# Parity document").assertIsDisplayed()
-        compose.onNodeWithText("Rendered", useUnmergedTree = true).performClick()
+        compose.onNodeWithContentDescription("Viewer actions").performClick()
+        compose.onNodeWithText("Raw").performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Raw text preview").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnUiThread { assertTrue(findArtifactText(compose.activity.window.decorView)!!.textView.text.startsWith("# Parity document")) }
+        compose.onNodeWithContentDescription("Viewer actions").performClick()
+        compose.onNodeWithText("Rendered").performScrollTo().performClick()
         waitJs("document.querySelector('h1')?.textContent === 'Parity document'")
     }
 
@@ -105,9 +107,9 @@ class NativeMarkdownPreviewTest {
 
     @Test fun largeMarkdownKeepsRawContentAndDisablesRenderedMode() {
         show("# Large source", MarkdownPreviewPolicy.MAX_RENDERED_BYTES + 1)
-        compose.onNodeWithText("Rendered").assertIsNotEnabled()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("# Large source").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("# Large source").assertIsDisplayed()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Raw text preview").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Viewer actions").performClick()
+        compose.onNodeWithText("Rendered").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithContentDescription("Rendered Markdown").assertDoesNotExist()
     }
 }

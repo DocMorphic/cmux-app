@@ -84,7 +84,7 @@ class NativeChangesPreviewTest {
         waitDescription("Image preview image.png")
         var previousUri: android.net.Uri? = null
         compose.runOnUiThread { previousUri = (compose.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip?.getItemAt(0)?.uri }
-        compose.onNodeWithText("File actions").performClick(); compose.onNodeWithText("Copy Image").performClick()
+        compose.onNodeWithContentDescription("Viewer actions").performClick(); compose.onNodeWithText("Copy Image").performClick()
         var uri: android.net.Uri? = null
         compose.waitUntil(10_000) {
             compose.runOnUiThread { uri = (compose.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip?.getItemAt(0)?.uri }
@@ -145,10 +145,10 @@ class NativeChangesPreviewTest {
         show(); waitText("image.png"); compose.onNodeWithContentDescription("Open diff image.png").performClick()
         waitText("Couldn't load preview")
         compose.onNodeWithContentDescription("Image preview image.png").assertDoesNotExist()
-        compose.onNodeWithText("File actions").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Viewer actions").assertIsNotEnabled()
         assertTrue(File(compose.activity.cacheDir, "changes-previews").listFiles().orEmpty().isEmpty())
         inconsistent.set(false); compose.onNodeWithText("Retry").performClick()
-        waitDescription("Image preview image.png"); compose.onNodeWithText("File actions").assertIsEnabled()
+        waitDescription("Image preview image.png"); compose.onNodeWithContentDescription("Viewer actions").assertIsEnabled()
         compose.onNodeWithText("Before").assertDoesNotExist()
     }
 
@@ -186,7 +186,7 @@ class NativeChangesPreviewTest {
         waitDescription("Image preview image")
         var previousUri: android.net.Uri? = null
         compose.runOnUiThread { previousUri = (compose.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip?.getItemAt(0)?.uri }
-        compose.onNodeWithText("File actions").performClick(); compose.onNodeWithText("Copy Image").performClick()
+        compose.onNodeWithContentDescription("Viewer actions").performClick(); compose.onNodeWithText("Copy Image").performClick()
         var clip: android.content.ClipData? = null
         compose.waitUntil(10_000) {
             compose.runOnUiThread { clip = (compose.activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip }

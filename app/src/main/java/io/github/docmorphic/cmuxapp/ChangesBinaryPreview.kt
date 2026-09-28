@@ -7,6 +7,8 @@ import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,7 +58,7 @@ internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: Change
             policy.revisions.forEach { option -> FilterChip(selected = revision == option, onClick = { revision = option },
                 label = { Text(if (option == ChangesRevision.BASE) "Before" else "After") }, modifier = Modifier.weight(1f)) }
         }
-        FilePreviewActions(state.artifact?.localPreview())
+        if (state.artifact == null) FilePreviewActions(null)
         if (state.error != null) ChangesNotice("Couldn't load preview", state.error.orEmpty()) { retry++ }
         else if (state.artifact == null) Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center) {
@@ -69,12 +71,13 @@ internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: Change
 }
 
 @Composable
-internal fun FilePreviewActions(artifact: LocalFilePreview?) {
+internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactViewerState? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var menu by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
+    var fontDialog by remember { mutableStateOf(false) }
     var pendingSave by remember { mutableStateOf<File?>(null) }
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         val captured = pendingSave
@@ -127,14 +130,51 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?) {
             }
         }
     }
+    if (fontDialog && viewer != null) AlertDialog(onDismissRequest = { fontDialog = false }, title = { Text("Text size") },
+        text = { Column {
+            Text("${viewer.fontSize.toInt()} pt")
+            Slider(viewer.fontSize, viewer::setFont, valueRange = 8f..28f, steps = 19, modifier = Modifier.semantics { contentDescription = "Text size" })
+        } }, confirmButton = { TextButton(onClick = { fontDialog = false }) { Text("Done") } },
+        dismissButton = { TextButton(onClick = { viewer.setFont(15f) }) { Text("Reset") } })
     Column {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(artifact?.let { "${it.size} bytes" }.orEmpty(), Modifier.weight(1f), fontSize = 12.sp, color = changesMuted)
             Box {
-                TextButton(onClick = { menu = true }, enabled = artifact != null && !busy) { Text(if (busy) "Preparing…" else "File actions") }
-                DropdownMenu(menu, { menu = false }) {
+                IconButton(onClick = { menu = true }, enabled = artifact != null && !busy,
+                    modifier = Modifier.semantics { contentDescription = "Viewer actions" }) {
+                    if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Box(Modifier.size(24.dp).border(1.dp, filesMuted, CircleShape), contentAlignment = Alignment.Center) { Text("⋯", fontSize = 19.sp) }
+                }
+                DropdownMenu(menu, { menu = false }, containerColor = androidx.compose.ui.graphics.Color(0xFF232428)) {
                     listOf("Share", "Save", "Open").forEach { action -> DropdownMenuItem(text = { Text(action) }, onClick = { perform(action) }) }
                     if (artifact?.route == ChangesPreviewRoute.IMAGE) DropdownMenuItem(text = { Text("Copy Image") }, onClick = { perform("Copy Image") })
+                    if (artifact?.route == ChangesPreviewRoute.TEXT && viewer != null) {
+                        DropdownMenuItem(text = { Text("Copy Contents") }, enabled = !busy && artifact.size in 0..(4L * 1024 * 1024), onClick = {
+                            menu = false; busy = true
+                            scope.launch {
+                                try {
+                                    val text = viewer.document?.text ?: withContext(Dispatchers.IO) { artifact.file.readText() }
+                                    (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText(artifact.file.name, text))
+                                } catch (error: Exception) { ensureActive(); failure = error.message ?: "Could not copy contents." }
+                                finally { busy = false }
+                            }
+                        })
+                        if (viewer.raw) {
+                            HorizontalDivider()
+                            DropdownMenuItem(text = { Text("Search") }, onClick = { menu = false; viewer.searchOpen = !viewer.searchOpen; if (!viewer.searchOpen) viewer.closeSearch() })
+                            DropdownMenuItem(text = { Text("Go to line") }, onClick = { menu = false; viewer.goToLineOpen = true }, enabled = viewer.document != null)
+                            DropdownMenuItem(text = { Text("Top") }, onClick = { menu = false; viewer.jumpTo(0) })
+                            DropdownMenuItem(text = { Text("End") }, onClick = { menu = false; viewer.jumpTo(viewer.document?.text?.length ?: 0) })
+                            DropdownMenuItem(text = { Text("Line numbers") }, trailingIcon = { if (viewer.lineNumbers) Text("✓") }, onClick = { menu = false; viewer.lineNumbers = !viewer.lineNumbers })
+                            DropdownMenuItem(text = { Text("Word wrap") }, trailingIcon = { if (viewer.wrap) Text("✓") }, onClick = { menu = false; viewer.updateWrap(!viewer.wrap) })
+                            DropdownMenuItem(text = { Text("Text size") }, onClick = { menu = false; fontDialog = true })
+                        }
+                        if (viewer.markdown) {
+                            HorizontalDivider()
+                            DropdownMenuItem(text = { Text("Raw") }, trailingIcon = { if (!viewer.rendered) Text("✓") }, onClick = { menu = false; viewer.rendered = false })
+                            DropdownMenuItem(text = { Text("Rendered") }, enabled = viewer.renderedAvailable,
+                                trailingIcon = { if (viewer.rendered) Text("✓") }, onClick = { menu = false; viewer.closeSearch(); viewer.rendered = true; viewer.failure = null })
+                        }
+                    }
                 }
             }
         }

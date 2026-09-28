@@ -106,10 +106,14 @@ class NativeFlowTest {
         val bounds = terminal.fetchSemanticsNode().boundsInRoot
         val geometry = TerminalGeometry.fit(bounds.width, bounds.height, viewport.getInt("viewport_columns"), viewport.getInt("viewport_rows"), cells)!!
         terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(geometry.originX + geometry.cellWidth * 7.5f, geometry.originY + geometry.cellHeight * .5f)) }
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Raw").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("Rendered").assertIsSelected()
-        compose.onNodeWithText("Raw").performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText(body).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Rendered Markdown").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Viewer actions").performClick()
+        compose.onNodeWithText("Raw").performScrollTo().performClick()
+        compose.waitUntil(10_000) {
+            var loaded = false
+            compose.runOnUiThread { loaded = findArtifactTextInWindows()?.textView?.text?.toString() == body }
+            loaded
+        }
         assertTrue(peer.requests.any { it.optString("method") == "mobile.terminal.artifact.stat" && it.getJSONObject("params").optString("path") == "notes.md" })
         assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.mouse" })
     }

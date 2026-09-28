@@ -134,3 +134,10 @@ policy are copyright (c) 2024-present Manaflow, Inc., GPL-3.0-or-later.
 Android additions include WebView lifecycle integration, a restricted local bridge,
 and DNS-validated HTTPS image transport using OkHttp 4.12.0 and Okio 3.6.0
 (Square and contributors, Apache-2.0; full license bundled in Apache-2.0.txt).
+
+The artifact text viewer adapts ChatArtifactViewerActionsMenu, ChatArtifactSearchModel,
+ChatArtifactLineIndex, ChatArtifactTextLayoutKind and ChatArtifactTextPreferences
+from cmux commit 4c5272e9153eca2033c9f40ac749f0c3a5bcb291.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android additions provide a native selectable buffer, line-number gutter, search
+highlighting, two-axis scrolling, text-size controls and per-kind preferences.

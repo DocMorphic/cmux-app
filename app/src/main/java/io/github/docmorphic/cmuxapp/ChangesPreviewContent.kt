@@ -20,7 +20,6 @@ import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,7 +34,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -53,15 +51,22 @@ internal fun ChangesPreviewContent(artifact: ChangesPreviewArtifact) {
 
 @Composable
 internal fun FilePreviewContent(artifact: LocalFilePreview) {
-    when (artifact.route) {
-        ChangesPreviewRoute.IMAGE -> ChangesImagePreview(artifact.file)
-        ChangesPreviewRoute.PDF -> ChangesPdfPreview(artifact.file)
-        ChangesPreviewRoute.MEDIA -> ChangesMediaPreview(artifact.file)
-        ChangesPreviewRoute.TEXT -> ArtifactTextPreview(artifact)
-        ChangesPreviewRoute.EXTERNAL -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Preview unavailable", style = MaterialTheme.typography.titleMedium)
-            Text("Use File actions to open, share or save this file.", color = changesMuted)
+    val context = LocalContext.current
+    val state = remember(artifact.file) { ArtifactViewerState(context, artifact) }
+    Column(Modifier.fillMaxSize()) {
+        FilePreviewActions(artifact, state)
+        Box(Modifier.weight(1f)) {
+            when (artifact.route) {
+                ChangesPreviewRoute.IMAGE -> ChangesImagePreview(artifact.file)
+                ChangesPreviewRoute.PDF -> ChangesPdfPreview(artifact.file)
+                ChangesPreviewRoute.MEDIA -> ChangesMediaPreview(artifact.file)
+                ChangesPreviewRoute.TEXT -> ArtifactTextPreview(artifact, state)
+                ChangesPreviewRoute.EXTERNAL -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Preview unavailable", style = MaterialTheme.typography.titleMedium)
+                    Text("Use Viewer actions to open, share or save this file.", color = changesMuted)
+                }
+            }
         }
     }
 }
@@ -215,26 +220,9 @@ private fun ChangesMediaPreview(file: File) {
             setMediaController(MediaController(context).also { it.setAnchorView(this) })
             setOnPreparedListener { prepared = true }
             setOnCompletionListener { playing = false }
-            setOnErrorListener { _, _, _ -> failure = "Android could not play this media format. Use Open in File actions to choose another player."; true }
+            setOnErrorListener { _, _, _ -> failure = "Android could not play this media format. Use Open in Viewer actions to choose another player."; true }
             setVideoURI(Uri.fromFile(file))
         } }, modifier = Modifier.fillMaxWidth().weight(1f).semantics { contentDescription = "Media preview ${file.name}" },
             onRelease = { it.stopPlayback(); view = null })
-    }
-}
-
-@Composable
-internal fun ArtifactRawTextPreview(file: File) {
-    var failure by remember(file) { mutableStateOf<String?>(null) }
-    val lines by produceState<List<String>?>(null, file) {
-        try { value = withContext(Dispatchers.IO) { file.bufferedReader().use { it.readLines() } } }
-        catch (error: Exception) { if (error is CancellationException) throw error; failure = error.message ?: "Could not read text." }
-    }
-    if (failure != null) ChangesNotice("Preview unavailable", failure.orEmpty())
-    else if (lines == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-    else LazyColumn(Modifier.fillMaxSize().padding(12.dp)) {
-        items(lines!!.size) { index -> Row {
-            Text("${index + 1}", Modifier.width(48.dp), color = changesMuted, fontSize = 12.sp)
-            SelectionContainer { Text(lines!![index], fontFamily = FontFamily.Monospace, fontSize = 12.sp) }
-        } }
     }
 }

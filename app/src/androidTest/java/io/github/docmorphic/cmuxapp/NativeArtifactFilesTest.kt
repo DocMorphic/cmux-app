@@ -53,7 +53,11 @@ class NativeArtifactFilesTest {
             if (visible) ArtifactFilesSheet(rpc, terminal) { visible = false }
         } } }
     }
-    private fun waitText(text: String) = compose.waitUntil(10_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
+    private fun waitText(text: String) = compose.waitUntil(10_000) {
+        var nativeMatch = false
+        compose.runOnUiThread { nativeMatch = findArtifactTextInWindows()?.textView?.text?.toString() == text }
+        nativeMatch || compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+    }
     private fun waitDescription(value: String) = compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription(value).fetchSemanticsNodes().isNotEmpty() }
 
     @Test fun scopesFiltersGridAndMissingPreferenceUseWholeSessionGallery() {
