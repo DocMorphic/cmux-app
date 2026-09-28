@@ -169,3 +169,8 @@ IrxWire and IrxClientSession adapt the cmux IrxProtocol, IrxAdmission and
 MobileIrxRuntimeComposition+Dial contracts at
 4c5272e9153eca2033c9f40ac749f0c3a5bcb291. Copyright (c) 2024-present
 Manaflow, Inc.; GPL-3.0-or-later.
+
+IrohInstallationStore follows cmux V2IdentityKeyStore/V2InstallationIDStore's
+full-scope identity contract at 4c5272e9153eca2033c9f40ac749f0c3a5bcb291
+(Manaflow, GPL-3.0-or-later), with Android Keystore wrapping and atomic private
+file persistence in place of the iOS Keychain implementation.

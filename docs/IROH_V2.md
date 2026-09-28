@@ -76,8 +76,8 @@ Confirmed contracts:
 Exact cmux dependency: `manaflow-ai/iroh-ffi`, tag **v1.2.0-cmux.1.ios17**, commit
 `ee19f156667ca640b912108a45f8b5bb8d156fec`. Cloned/verified at
 `/tmp/cmux-iroh-ffi`. It includes generated Kotlin/JNA bindings, Android context
-initialization and Android build instructions. The release publishes only an
-Apple xcframework; Android native binaries still need to be built.
+initialization and Android build instructions. The upstream release publishes only an Apple xcframework; our pinned Android
+arm64 checkpoint is now built and verified below.
 
 Cargo requires Rust >=1.91 / edition 2024. Preserve Cargo.lock, the Iroh fork
 `9816d2505ddd9c62a4c847be7c06b404175af5c4`, and noq fork
@@ -95,10 +95,10 @@ Research excerpts: `/tmp/cmux-irx-audit`; upstream sparse clone:
    UTF-16 sorted keys, exact Unicode/unescaped slashes, safe integer rules,
    base64url, invalid Unicode rejection. Four focused JVM tests pass; three
    unchanged official Worker proof vectors match byte-for-byte and their
-   Ed25519 signatures verify with the JDK test provider. This does not implement
-   an Android signing provider, persistent keys, networking, or enrollment.
-2. Build exact Android arm64 native library/bindings reproducibly; initialize
-   context and own lifetimes; test local QUIC/admission. Include required other
+   Ed25519 signatures verify with the JDK test provider. The Android native signing provider and protected scoped keys are now verified
+   below. Control-service networking and enrollment remain to be integrated.
+2. **Verified:** exact Android arm64 native library/bindings, context setup,
+   native signatures, local QUIC and client admission. Include required other
    ABIs at release. Never ship missing native libraries.
 3. Implement Keystore-protected installation keys and account/team/build scope;
    enrollment/control requests, directory/revocation persistence; resolve the
@@ -208,3 +208,53 @@ This remains an isolated module, not a live Mac session. Next: protected scoped
 installation identity, enrollment/directory/relay credentials, endpoint lifecycle,
 server event/surface lanes, and integration with `MobileRpcClient` and account UI.
 Do not infer full app/device parity from these seven local native fixture passes.
+
+
+### Protected installation identity — 2026-09-28
+
+`IrohInstallationStore` now persists a fresh installation UUID and separate native
+Ed25519 keys for the full environment/project/team/user/device/app/build scope.
+The app namespace must equal the actual installed Android package, so debug and
+release cannot borrow an official or another build's identity. A nonexportable
+Android Keystore AES-256-GCM key wraps each 32-byte seed with every identity field
+as authenticated data. Atomic records live in `noBackupFilesDir`; only hashed
+scope names and the random installation ID are stored outside ciphertext.
+Private storage hashing is an Android-specific length-delimited encoding, not the
+Worker signing encoding. Proofs still require `IrohV2SigningCodec` canonical bytes.
+
+Stored seed corruption, loss of the wrapping key, and a missing installation ID
+for existing records fail without automatic replacement. Per-process synchronized
+creation prevents competing keys across app/service store instances. Temporary
+seed arrays are cleared and native key handles have explicit close semantics.
+The future service lifecycle must close live endpoint/key owners on sign-out;
+this store alone does not implement that service or remote revocation.
+
+Four physical Pixel cases returned **OK (4 tests), 0.830 seconds**. They prove
+restore/signature/endpoint continuity, separation of account scope fields,
+foreign-package rejection, concurrent-load convergence, ciphertext scope binding,
+tamper rejection, and no replacement after wrapping-key/installation-ID loss.
+Each test used its own random store/Keystore alias and removed it afterward.
+Build passed in 56 seconds. APK SHA-256:
+`117aa80c4d85b888dcd5ad66df85bf544d89fa642f9327938638b1f19e3f8b43`.
+Evidence and source hashes: `captures/iroh/identity/`. These four cases are separate
+from the earlier seven native checks, not an eleven-case combined suite.
+
+### Deployed backend audit — 2026-09-28
+
+An unauthenticated GET of `https://cmux-iroh-v2.debussy.workers.dev/v2/health`
+returned production revision **e0263f46a6698bf7d74e828b6200e4bfa963a3dc**, rule
+`cmux.mac-peer-inbound.v1`, storage max 7/write 6. That exact public source was
+fetched and inspected. Its platform enum and mobile inbound predicate still
+accept only `ios` for mobile peers; this is not just a stale iOS reference pin.
+`auth.ts` independently verifies Stack user identity and selected-team membership.
+Mobile peers may use an independent app namespace; exact host namespace/build
+matching is an additional rule for the separate Mac-to-Mac path.
+
+For enrollment implementation, explicitly resolve whether to use the existing
+`ios` mobile wire profile (clearly identified as Android in app namespace and
+device display name) or require deployed upstream Android metadata support.
+Using the profile must preserve the ordinary account/team checks and the user's
+host pairing opt-in; it must not claim an official app namespace or reuse keys.
+The health request sent no account credentials or device metadata. No live
+Android enrollment request has been made. iOS starts new identityGeneration at
+**1**, restoring the server record's generation on subsequent sessions.
