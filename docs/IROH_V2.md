@@ -800,3 +800,67 @@ No APK was built or published; the main debug artifact remains e1117b7 and signe
 release remains build 157. Remaining work includes artifact/simulator streams,
 input latency marker negotiation, socket promotion/cache, broader terminal/UI
 fidelity and actual authenticated Pixel/Mac acceptance. The full goal remains open.
+
+
+## Native artifact download and combined device build — 2026-09-28
+
+Audited pinned `MobileChatEventSource.fetchArtifactChunks`, terminal artifact
+calls, `ChatArtifactLaneDescriptor`, `MobileArtifactLaneFetchLoop` and
+`IrxArtifactLane`. Android previews and exports now mint a descriptor through the
+same selected terminal/chat `artifact.fetch` authorization, with
+`transport: "iroh_artifact_v1"`. Only the returned opaque resource ID is presented
+on an independent `artifact` stream, with offset zero. Paths and scope are never
+substituted. Descriptor size is checked against selected metadata/preview limits;
+its ISO date is validated while the host remains responsible for expiry.
+
+The stream reads at most 64 KiB at a time and awaits each consumer write before
+reading again. The final chunk is held until clean EOF confirms the exact size;
+truncation, excess bytes and empty non-EOF chunks fail. Empty files complete with
+one empty final delivery. A descriptor/open failure or failure before the first
+byte may restart the original authorized RPC at offset zero. After bytes arrive,
+failure aborts rather than splicing in another file version. Consumer write errors
+and caller cancellation never trigger fallback. Existing private partial-file
+cleanup and atomic completion remain in use. Each native read has a 30-second
+inactivity deadline; expired reads use the same before/after-data failure rules.
+
+Artifact streams belong to the consuming RPC lease and close independently from
+control, terminal and event streams. Legacy TCP keeps the existing chunked RPC
+path. Uploads still use the separately implemented attachment upload RPC.
+
+**Verification:** all **425 JVM tests across 70 suites passed**, zero failures,
+errors or skips. Full JVM plus Android instrumentation compilation took 41 seconds.
+New tests cover terminal/chat scope, mint/open/first-read fallback, after-data
+failure, deletion of partial previews, EOF validation, empty files, backpressure,
+consumer failure and cancellation.
+
+New native method
+`NativeArtifactLaneTest.mintedCapabilityStreamsBoundedRawFileAndLeavesControlUsable`
+compiled. Its actual Iroh loopback fixture requests a descriptor over control RPC,
+checks the opaque resource/offset, streams a 130,123-byte file and then checks a
+control RPC. **It has not executed on Pixel yet.** Before device testing, the native
+fixtures were corrected to grant additional bidirectional stream credit after
+admission; leaving the original one-stream allowance would block feature lanes.
+The production Mac already grants application stream credit after authorization.
+This fixture fix also applies to the pending terminal, keepalive and repair tests.
+
+### Combined APK checkpoint
+
+Built the main debug APK and both instrumentation APKs once for the accumulated
+native recovery, input/output and artifact work (37 seconds). After correcting
+fixture credit, rebuilt only the two instrumentation APKs (23 seconds). Main APK
+signature verification and 16 KiB ZIP alignment passed. All 14 packaged viewer
+asset hashes and the pinned arm64 Iroh library hash matched their receipts.
+
+- `app/build/outputs/apk/debug/app-debug.apk`: SHA-256 `78430e94298fd62df214838050476d94ff56dfc321526cc1055873852bb58d1e`.
+- `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`: SHA-256 `a42dcb5829f8d41a3b436144e10d8e91fb911b2db26309b34814ab06d8f7df3a`.
+- `iroh/build/outputs/apk/androidTest/debug/iroh-debug-androidTest.apk`: SHA-256 `17a1ff7b5d8c7effcd8938d679f65fff306439601b720f541c7456ee52cfb02c`.
+
+These debug APKs have **not been installed or exercised** on Pixel. The phone was
+absent from ADB; a new reconnect/unlock request was sent after the build was ready.
+No release was published; signed build 157 remains the published release.
+Local build/test/verification logs, XML, APK hashes and source receipt:
+`captures/iroh/artifact-and-device-build/`.
+
+Remaining work includes physical native fixtures and actual account/Mac testing,
+simulator streams, latency marker negotiation, socket promotion/cache and broader
+UI/terminal/notification fidelity. Full goal completion remains unproven.

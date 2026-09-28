@@ -391,6 +391,20 @@ class MobileRpcClient internal constructor(
             .put("client_id", clientId).put("clear", true)
             .put("viewport_generation", generation))
 
+    internal val supportsArtifactLanes get() = transport.supportsArtifactLanes
+
+    internal suspend fun useArtifactLane(resource: String, use: suspend (ArtifactLane) -> Unit): Boolean {
+        if (delegate != null) return borrowing { it.useArtifactLane(resource, use) }
+        synchronized(stateLock) { check(!closed && connected) }
+        val lane = transport.openArtifact(resource) ?: return false
+        try {
+            currentCoroutineContext().ensureActive()
+            synchronized(stateLock) { check(!closed && connected) }
+            use(lane)
+            return true
+        } finally { lane.close() }
+    }
+
     /** The consuming lease owns this coroutine and cancels it when released. */
     internal suspend fun useTerminalInputLane(surfaceId: String, use: suspend (TerminalInputLane) -> Unit): Boolean {
         if (delegate != null) return borrowing { it.useTerminalInputLane(surfaceId, use) }

@@ -143,6 +143,7 @@ class IrxAdmissionTest {
                 control.readFrame()
                 control.writeFrame(JSONObject().put("v", 1).put("session", "probe-session")
                     .put("keepaliveIntervalMs", 5000).put("keepaliveDeadlineMs", 2000))
+                connection.setMaxConcurrentBiStreams(16uL)
                 IrxDuplexLane(connection.acceptBi()).use { probe ->
                     assertEquals("keepalive", probe.readFrame()?.getString("lane"))
                     repeat(2) {
@@ -194,6 +195,7 @@ class IrxAdmissionTest {
                 original.readFrame()
                 original.writeFrame(JSONObject().put("v", 1).put("session", "repair-session")
                     .put("keepaliveIntervalMs", 5000).put("keepaliveDeadlineMs", 2000))
+                connection.setMaxConcurrentBiStreams(16uL)
                 IrxDuplexLane(connection.acceptBi()).use { replacement ->
                     assertEquals("control_repair", replacement.readFrame()?.getString("lane"))
                     val ack = IrxWire.encode(JSONObject().put("v", 1))

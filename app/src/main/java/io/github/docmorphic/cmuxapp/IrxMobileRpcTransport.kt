@@ -106,11 +106,27 @@ internal class IrxMobileRpcTransport(
     private suspend fun openTerminalWire(surfaceId: String, kind: IrxWire.Lane, cursor: ULong?): TerminalLaneWire {
         val surface = java.util.UUID.fromString(surfaceId).toString()
         require(surface.equals(surfaceId, ignoreCase = true)) { "Invalid terminal surface" }
+        val lane = openFeatureLane(IrxWire.Descriptor(kind, "terminal:$surface", cursor))
+        return object : TerminalLaneWire {
+            override suspend fun read(): ByteArray { requireAccess(); return lane.read(64 * 1024) }
+            override suspend fun write(bytes: ByteArray) { requireAccess(); lane.write(bytes) }
+            override suspend fun retire() = lane.retire(0uL)
+            override fun close() = lane.close()
+        }
+    }
+
+    override val supportsArtifactLanes = true
+    override suspend fun openArtifact(resource: String): ArtifactLane {
+        require(resource.isNotBlank() && resource.length <= 8192 && '\u0000' !in resource)
+        return IrxArtifactLane(openFeatureLane(IrxWire.Descriptor(IrxWire.Lane.ARTIFACT, resource, offset = 0uL)), ::requireAccess)
+    }
+
+    private suspend fun openFeatureLane(descriptor: IrxWire.Descriptor): IrxDuplexLane {
         requireAccess()
         var candidate: IrxDuplexLane? = null
         val lane = try {
             withTimeout(5000) {
-                active().openLane(IrxWire.Descriptor(kind, "terminal:$surface", cursor)).also { candidate = it }
+                active().openLane(descriptor).also { candidate = it }
             }
         } catch (failure: Throwable) {
             candidate?.let { abandoned ->
@@ -118,12 +134,7 @@ internal class IrxMobileRpcTransport(
             }
             throw failure
         }
-        return object : TerminalLaneWire {
-            override suspend fun read(): ByteArray { requireAccess(); return lane.read(64 * 1024) }
-            override suspend fun write(bytes: ByteArray) { requireAccess(); lane.write(bytes) }
-            override suspend fun retire() = lane.retire(0uL)
-            override fun close() = lane.close()
-        }
+        return lane
     }
     override val supportsControlRepair = true
     override val disconnections = flow<Throwable> {

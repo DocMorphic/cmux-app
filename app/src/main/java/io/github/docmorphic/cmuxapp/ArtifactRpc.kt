@@ -24,9 +24,12 @@ internal sealed interface ArtifactAuthorization {
 /** Bound to one connection. Scope is captured at selection; it never falls back to a different authorization. */
 internal class ArtifactRpc(
     val capabilities: ArtifactCapabilities,
+    private val nativeLane: (suspend (String, suspend (ArtifactLane) -> Unit) -> Boolean)?,
     private val request: suspend (String, JSONObject) -> JSONObject,
 ) {
+    constructor(capabilities: ArtifactCapabilities, request: suspend (String, JSONObject) -> JSONObject) : this(capabilities, null, request)
     constructor(client: MobileRpcClient, capabilities: Set<String>) : this(ArtifactCapabilities.read(capabilities),
+        if (client.supportsArtifactLanes) client::useArtifactLane else null,
         { method, params -> client.request(method, params) })
 
     private suspend fun call(method: String, params: JSONObject): JSONObject {
@@ -63,6 +66,30 @@ internal class ArtifactRpc(
     suspend fun fetch(scope: ArtifactAuthorization, path: String, offset: Long, length: Int): JSONObject {
         require(offset >= 0 && length in 1..ChangesContentTransfer.CHUNK_BYTES)
         return call(method(scope, "fetch"), pathParams(scope, path).put("offset", offset).put("length", length))
+    }
+    /** False means no lane data was accepted and the same authorized RPC can start at zero. */
+    suspend fun streamNative(scope: ArtifactAuthorization, path: String, size: Long,
+                             consume: suspend (ByteArray, Long) -> Unit): Boolean {
+        val open = nativeLane ?: return false
+        val params = pathParams(scope, path).put("transport", "iroh_artifact_v1")
+        var entered = false
+        try {
+            val descriptor = call(method(scope, "fetch"), params)
+            val resource = descriptor.get("resource_id") as? String ?: error("Invalid artifact capability")
+            require(resource.isNotBlank() && resource.length <= 8192 && '\u0000' !in resource)
+            val total = descriptor.get("total_size").toString().toLongOrNull()
+            require(total != null && total >= 0 && total == size) { "File changed before transfer" }
+            // Validate the date dialect; the Mac enforces expiration using its own clock.
+            java.time.Instant.parse(descriptor.getString("expires_at"))
+            return open(resource) { lane ->
+                entered = true
+                ArtifactLaneTransfer.stream(lane, total, consume)
+            }
+        } catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            if (!entered || failure is ArtifactLaneTransfer.BeforeData) return false
+            throw failure
+        }
     }
     suspend fun thumbnail(scope: ArtifactAuthorization, path: String, maxDimension: Int): JSONObject {
         require(maxDimension > 0)

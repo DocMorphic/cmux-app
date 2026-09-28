@@ -39,6 +39,7 @@ class NativeTerminalInputLaneTest {
                                 assertEquals(IrxWire.ALPN, IrxWire.read { read.read(it.toUInt()) }?.getString("proto"))
                                 send.writeAll(IrxWire.encode(JSONObject().put("v", 1).put("session", "input-fixture")
                                     .put("keepaliveIntervalMs", 5000).put("keepaliveDeadlineMs", 2000)))
+                                connection.setMaxConcurrentBiStreams(16uL)
                                 connection.acceptBi().use { input -> input.recv().use { keys -> input.send().use { ready ->
                                     val descriptorSize = ByteBuffer.wrap(keys.readExact(4u)).int
                                     require(descriptorSize in 1..IrxWire.MAX_CONTROL_BYTES)

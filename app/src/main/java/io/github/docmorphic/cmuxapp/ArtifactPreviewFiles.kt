@@ -23,6 +23,7 @@ internal class ArtifactContentTransfer(private val rpc: ArtifactRpc, private val
     suspend fun metadata(path: String) = ArtifactMetadata.read(rpc.stat(authorization, path))
     suspend fun stream(path: String, metadata: ArtifactMetadata, limit: Long, onChunk: suspend (ByteArray, Long) -> Unit) {
         check(metadata.size in 0..limit) { "This file is too large to preview." }
+        if (rpc.streamNative(authorization, path, metadata.size, onChunk)) return
         var offset = 0L
         while (true) {
             currentCoroutineContext().ensureActive()
