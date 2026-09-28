@@ -90,7 +90,16 @@ fun NativeScreen(
     connector: NativeConnector? = null
 ) {
     val context = LocalContext.current
-    val connection = remember(context, connector) { connector ?: TailscaleConnector(context.applicationContext) }
+    val runtimeOwner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
+    val sharedConnections = remember(runtimeOwner, connector) {
+        if (connector == null) ViewModelProvider(runtimeOwner, NativeConnectionsViewModel.Factory(context))
+            .get(NativeConnectionsViewModel::class.java).connections else null
+    }
+    val connection = connector ?: checkNotNull(sharedConnections).connector
+    val computerStates = remember(sharedConnections) {
+        sharedConnections?.native?.state ?: kotlinx.coroutines.flow.MutableStateFlow(NativeComputersState())
+    }
+    val computerState by computerStates.collectAsState()
     val clipboard = LocalClipboardManager.current
     val focusManager = LocalFocusManager.current
     val softwareKeyboard = LocalSoftwareKeyboardController.current
@@ -115,25 +124,19 @@ fun NativeScreen(
     val terminalRows = terminalViewport?.rows ?: 0
     var effectiveTerminalViewport by remember { mutableStateOf<TerminalViewport?>(null) }
     var viewportRequestGeneration by remember { mutableLongStateOf(0L) }
-    val store = remember(context) { NativeCredentialStore(context.applicationContext) }
-    val account = remember(store) { NativeAccount(store) }
+    val store = remember(context, sharedConnections) { sharedConnections?.store ?: NativeCredentialStore(context.applicationContext) }
+    val account = remember(store) { sharedConnections?.account ?: NativeAccount(store) }
     val scope = rememberCoroutineScope()
     val terminalFocusRequester = remember { FocusRequester() }
     var signedIn by remember { mutableStateOf(account.isSignedIn()) }
-    val accountTeams = remember(account, store) { NativeAccountTeams(account, store) }
+    val accountTeams = remember(account, store) { sharedConnections?.teams ?: NativeAccountTeams(account, store) }
     val teamState by accountTeams.state.collectAsState()
-    DisposableEffect(accountTeams) { onDispose { accountTeams.close() } }
+    DisposableEffect(accountTeams) { onDispose { if (sharedConnections == null) accountTeams.close() } }
     LaunchedEffect(signedIn, accountTeams) {
         if (!signedIn) accountTeams.clear()
-        else if (connector == null) try { accountTeams.refresh() }
-        catch (failure: Exception) { if (failure is CancellationException) throw failure }
     }
     var code by remember { mutableStateOf(store.load()?.optString("pairing_code").orEmpty()) }
-    var pairingText by remember { mutableStateOf("") }
     var pendingPairingCode by remember { mutableStateOf<String?>(null) }
-    var email by remember { mutableStateOf("") }
-    var otp by remember { mutableStateOf("") }
-    var codeSent by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var connectionError by remember(code) { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -143,7 +146,10 @@ fun NativeScreen(
     var connectionReady by remember { mutableStateOf(false) }
     var hostName by remember(code) { mutableStateOf("cmux") }
     var hostCapabilities by remember(code) { mutableStateOf<Set<String>>(emptySet()) }
-    var pairedMacs by remember { mutableStateOf(store.pairedMacs()) }
+    var savedPairedMacs by remember { mutableStateOf(store.pairedMacs()) }
+    val pairedMacs = savedPairedMacs.filter {
+        PairingCodeParser.parse(it.code).getOrNull()?.let(connection::allowsSaved) == true
+    }
     var showSettings by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
     var showTaskComposer by rememberSaveable(signedIn) { mutableStateOf(false) }
@@ -204,6 +210,13 @@ fun NativeScreen(
     var selectedBrowser by remember(code) { mutableStateOf<NativeBrowser?>(null) }
     var selectedChangesWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
     var connectedCode by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(teamState.scope, signedIn) {
+        val pairing = PairingCodeParser.parse(code).getOrNull()
+        if (pairing is PairingCode.Iroh && (!signedIn || (teamState.scope != null && !connection.allowsSaved(pairing)))) {
+            client?.close(); client = null; code = ""
+            selectedTerminal = null; selectedWorkspace = null; selectedBrowser = null
+        }
+    }
     val notificationDelivery = remember(context) { NativeNotificationDelivery(context.applicationContext) }
     var workspaceRoute by remember { mutableStateOf<NativeWorkspaceRoute?>(null) }
     var inAppNotification by remember { mutableStateOf<NotificationDestination?>(null) }
@@ -534,7 +547,15 @@ fun NativeScreen(
                 if (pairing is PairingCode.Tailscale) {
                     pendingPairingCode = value.trim()
                     error = null
-                } else error = "This code uses Iroh. Ask cmux on your Mac to show its Tailscale QR."
+                } else if (pairing is PairingCode.Iroh) {
+                    val team = computerState.account
+                    val mac = computerState.computers.singleOrNull { it.endpointId == pairing.endpointId &&
+                        (pairing.macDeviceId == null || pairing.macDeviceId.equals(it.deviceId, ignoreCase = true)) }
+                    if (team != null && mac != null && computerState.ready && connection.allowsSaved(pairing)) {
+                        code = PairingCodeParser.computer(mac, team)
+                        error = null
+                    } else error = "This Mac is not available in your selected team. Check its Mobile settings and refresh Computers."
+                }
             },
             onFailure = { error = it.message }
         )
@@ -668,8 +689,7 @@ fun NativeScreen(
         busy = true
         try {
             val pairing = PairingCodeParser.parse(requestedCode).getOrThrow()
-            require(pairing is PairingCode.Tailscale) { "This cmux pairing code uses a transport this build cannot connect to yet" }
-            val active = connection.connect(pairing, account)
+            val active = connection.connectPairing(pairing, account)
             try {
                 val status = active.hostStatus()
                 require(status.optString("mac_device_id").isNotBlank()) { "The Mac did not provide its device identity." }
@@ -695,7 +715,7 @@ fun NativeScreen(
                 applyListing(listing); notifications = feed
                 client = active; connectedCode = requestedCode
                 connectionReady = true
-                pairedMacs = store.pairedMacs()
+                savedPairedMacs = store.pairedMacs()
                 connectionError = null
                 retryDelay = 2_000
             } catch (failure: Throwable) { active.close(); throw failure }
@@ -965,31 +985,8 @@ fun NativeScreen(
 
     Column(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding()) {
         when {
-            !signedIn -> {
-                NativeHeader("Sign in to cmux")
-                Column(Modifier.fillMaxWidth().padding(24.dp)) {
-                    Text("Use the same cmux account as your Mac.", color = nativeMuted)
-                    Spacer(Modifier.height(24.dp))
-                    OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("Email") }, singleLine = true)
-                    Spacer(Modifier.height(12.dp))
-                    Button(onClick = {
-                        scope.launch { busy = true; runCatching { account.sendCode(email) }
-                            .onSuccess { codeSent = true; error = null }
-                            .onFailure { error = it.message }; busy = false }
-                    }, enabled = !busy && email.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Email me a sign-in code") }
-                    if (codeSent) {
-                        Spacer(Modifier.height(16.dp))
-                        OutlinedTextField(otp, { otp = it }, Modifier.fillMaxWidth(), label = { Text("Code or link code") })
-                        Button(onClick = {
-                            scope.launch { busy = true; runCatching { account.signIn(otp) }
-                                .onSuccess { signedIn = true; error = null }
-                                .onFailure { error = it.message }; busy = false }
-                        }, enabled = !busy && otp.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Sign in") }
-                    }
-                    TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
-                    TextButton(onClick = { showLicenses = true }) { Text("Open-source licenses") }
-                }
-            }
+            !signedIn -> NativeSignIn(account, onUseHelper,
+                onLicenses = { showLicenses = true }, onSignedIn = { signedIn = true }, onError = { error = it })
             showSettings -> {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1022,10 +1019,10 @@ fun NativeScreen(
                 }
                 TextButton(onClick = {
                     code = ""; showSettings = false; selectedTerminal = null; selectedWorkspace = null
-                }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Pair another Mac") }
+                }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Find another Mac") }
                 if (code.isNotBlank()) TextButton(onClick = {
                     store.forgetMac(code)
-                    pairedMacs = store.pairedMacs()
+                    savedPairedMacs = store.pairedMacs()
                     code = store.load()?.optString("pairing_code").orEmpty()
                     showSettings = false
                 }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Forget current Mac", color = Color(0xFFFF9999)) }
@@ -1172,33 +1169,15 @@ fun NativeScreen(
                     if (taskDraftLoadError != null) TextButton(onClick = { taskDraftLoadAttempt++ }) { Text("Retry") }
                 }
             }
-            code.isBlank() -> {
-                NativeHeader("Pair your Mac")
-                Column(Modifier.padding(24.dp)) {
-                    Text("Open cmux Mobile Pairing on your Mac and scan its QR code.", color = nativeMuted)
-                    Spacer(Modifier.height(20.dp))
-                    Button(onClick = {
-                        runCatching {
-                            GmsBarcodeScanning.getClient(context,
-                                GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                                    .enableAutoZoom().build()).startScan()
-                        }.onSuccess { scan -> scan.addOnSuccessListener { barcode ->
-                            val scanned = barcode.rawValue.orEmpty()
-                            proposePairing(scanned)
-                        }.addOnFailureListener { error = it.message } }
-                            .onFailure { error = it.message ?: "Could not open the QR scanner" }
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Scan cmux QR code") }
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(pairingText, { pairingText = it }, Modifier.fillMaxWidth(), label = { Text("Or paste pairing code") })
-                    Button(onClick = {
-                        proposePairing(pairingText)
-                    }, enabled = pairingText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Connect") }
-                    TextButton(onClick = { newTaskDraft() }, modifier = Modifier.fillMaxWidth()) { Text("New task") }
-                    TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
-                    TextButton(onClick = { showLicenses = true }) { Text("Open-source licenses") }
-                    if (pairedMacs.isNotEmpty()) TextButton(onClick = { workspaceRoute = null; finishSearch(); showSettings = true }) { Text("Saved computers") }
-                }
-            }
+            code.isBlank() -> NativeComputerPicker(teamState, computerState,
+                hasSavedComputers = pairedMacs.isNotEmpty(),
+                onSelect = { mac -> computerState.account?.let { code = PairingCodeParser.computer(mac, it) } },
+                onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
+                onRefresh = { scope.launch {
+                    try { accountTeams.refresh(); sharedConnections?.native?.refresh() }
+                    catch (failure: Exception) { if (failure is CancellationException) throw failure }
+                } }, onPairing = ::proposePairing, onNewTask = ::newTaskDraft,
+                onUseHelper = onUseHelper, onLicenses = { showLicenses = true }, onError = { error = it })
             selectedTerminal != null -> {
                 val terminal = selectedTerminal!!
                 Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1890,7 +1869,7 @@ private fun nativeConnectionFailure(failure: Throwable): String {
         it is java.net.SocketException || it is java.net.SocketTimeoutException ||
             it is java.net.UnknownHostException || it is java.io.EOFException
     }
-    return if (networkFailure) "Could not reach this Mac. Check that cmux and Tailscale are running, then retry."
+    return if (networkFailure) "Could not reach this Mac. Check that cmux is running, mobile pairing is enabled, and both devices are online, then retry."
         else failure.message ?: "Could not connect to this Mac."
 }
 
@@ -1919,5 +1898,113 @@ private fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh: 
         Text("Join or create a team in cmux on your Mac, then refresh.", Modifier.padding(horizontal = 22.dp), color = nativeMuted, fontSize = 13.sp)
     TextButton(onClick = onRefresh, enabled = !state.loading, modifier = Modifier.padding(horizontal = 14.dp)) {
         Text("Refresh account")
+    }
+}
+
+
+@Composable
+private fun NativeComputerPicker(
+    teamState: NativeAccountTeamsState, computerState: NativeComputersState,
+    hasSavedComputers: Boolean, onSelect: (IrohV2Computer) -> Unit, onSettings: () -> Unit,
+    onRefresh: () -> Unit, onPairing: (String) -> Unit, onNewTask: () -> Unit,
+    onUseHelper: () -> Unit, onLicenses: () -> Unit, onError: (String?) -> Unit
+) {
+    val context = LocalContext.current
+    var pairingText by remember { mutableStateOf("") }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) { NativeHeader("Computers") }
+        TextButton(onClick = { onSettings() }) { Text("Settings") }
+    }
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
+        val selectedTeam = teamState.teams.firstOrNull { it.id == teamState.selectedTeamId }
+        Text(selectedTeam?.name ?: "Your cmux account", fontWeight = FontWeight.SemiBold)
+        Text("Open cmux on your Mac and enable mobile pairing to see it here.", color = nativeMuted)
+        if (teamState.loading || computerState.loading) {
+            LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 16.dp))
+            Text("Finding your computers…", color = nativeMuted)
+        }
+        (teamState.error ?: computerState.error)?.let {
+            Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(vertical = 10.dp))
+        }
+        if (computerState.ready && computerState.computers.isEmpty()) {
+            Text("No computers available in this team.", color = nativeMuted,
+                modifier = Modifier.padding(vertical = 16.dp))
+        }
+        computerState.computers.forEach { mac ->
+            Surface(Modifier.fillMaxWidth().padding(top = 12.dp).clickable {
+                onSelect(mac)
+            }, shape = RoundedCornerShape(14.dp), color = nativePanel) {
+                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("◉", color = nativeAccent, fontSize = 22.sp)
+                    Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                        Text(mac.name.ifBlank { "Mac" }, fontWeight = FontWeight.Medium)
+                        Text("Available", color = nativeMuted, fontSize = 12.sp)
+                    }
+                    Text("›", color = nativeMuted, fontSize = 24.sp)
+                }
+            }
+        }
+        TextButton(onClick = onRefresh, enabled = !teamState.loading) { Text("Refresh computers") }
+        Spacer(Modifier.height(20.dp))
+        var showPairingOptions by remember { mutableStateOf(false) }
+        TextButton(onClick = { showPairingOptions = !showPairingOptions }) {
+            Text(if (showPairingOptions) "Hide pairing options" else "Scan or paste a pairing code")
+        }
+        if (showPairingOptions) {
+        Button(onClick = {
+            runCatching {
+                GmsBarcodeScanning.getClient(context,
+                    GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                        .enableAutoZoom().build()).startScan()
+            }.onSuccess { scan -> scan.addOnSuccessListener { barcode ->
+                val scanned = barcode.rawValue.orEmpty()
+                onPairing(scanned)
+            }.addOnFailureListener { onError(it.message) } }
+                .onFailure { onError(it.message ?: "Could not open the QR scanner") }
+        }, modifier = Modifier.fillMaxWidth()) { Text("Scan cmux QR code") }
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(pairingText, { pairingText = it }, Modifier.fillMaxWidth(), label = { Text("Or paste pairing code") })
+        Button(onClick = {
+            onPairing(pairingText)
+        }, enabled = pairingText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Connect") }
+        }
+        TextButton(onClick = onNewTask, modifier = Modifier.fillMaxWidth()) { Text("New task") }
+        TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
+        TextButton(onClick = onLicenses) { Text("Open-source licenses") }
+        if (hasSavedComputers) TextButton(onClick = onSettings) { Text("Saved computers") }
+    }
+}
+
+
+@Composable
+private fun NativeSignIn(account: NativeAccount, onUseHelper: () -> Unit, onLicenses: () -> Unit,
+                         onSignedIn: () -> Unit, onError: (String?) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var email by remember { mutableStateOf("") }
+    var otp by remember { mutableStateOf("") }
+    var codeSent by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    NativeHeader("Sign in to cmux")
+    Column(Modifier.fillMaxWidth().padding(24.dp)) {
+        Text("Use the same cmux account as your Mac.", color = nativeMuted)
+        Spacer(Modifier.height(24.dp))
+        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("Email") }, singleLine = true)
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = {
+            scope.launch { busy = true; runCatching { account.sendCode(email) }
+                .onSuccess { codeSent = true; onError(null) }
+                .onFailure { if (it is CancellationException) throw it; onError(it.message) }; busy = false }
+        }, enabled = !busy && email.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Email me a sign-in code") }
+        if (codeSent) {
+            Spacer(Modifier.height(16.dp))
+            OutlinedTextField(otp, { otp = it }, Modifier.fillMaxWidth(), label = { Text("Code or link code") })
+            Button(onClick = {
+                scope.launch { busy = true; runCatching { account.signIn(otp) }
+                    .onSuccess { onSignedIn(); onError(null) }
+                    .onFailure { if (it is CancellationException) throw it; onError(it.message) }; busy = false }
+            }, enabled = !busy && otp.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Sign in") }
+        }
+        TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
+        TextButton(onClick = onLicenses) { Text("Open-source licenses") }
     }
 }

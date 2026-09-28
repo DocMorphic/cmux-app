@@ -442,3 +442,60 @@ real-account membership fetching. Next wire the protected identity/control servi
 and native endpoint into one account owner and the computer picker, then run the
 real-device workflow. Native transport components alone are not foreground or
 background application parity.
+
+
+## Integrated account owner and Computers screen — 2026-09-28
+
+The main app now routes native computer selection through the existing V2 and
+Irx implementations:
+
+- `NativeAppConnections` shares one process owner between the retained Activity
+  ViewModel and the notification service. It refreshes actual Stack membership;
+  sign-out/login incarnation and selected-team changes invalidate the old owner.
+- `NativeIrohRuntime` creates one backend per verified team incarnation,
+  publishes available Macs, fences stale startup completion, reconnects transient
+  control failures and stops automatic enrollment retries after explicit access
+  revocation. Manual directory refresh preserves healthy Mac connections.
+- `NativeIrohBackend` owns the protected signing key, control session and lazy
+  endpoint. Debug and release retain separate namespaces/build tags; both target
+  production to connect to the user's production Mac. It refreshes relay tokens,
+  uses Mac metadata or the directory's relay fallback, and closes the old endpoint
+  before a replacement owner finishes cleanup.
+- `MobileRpcConnections` supplies reference-counted client leases. The terminal,
+  aggregate feed and notification service share one admitted wire per Mac;
+  each lease retains its own subscription client ID. Closing one cancels its
+  pending replies without closing another consumer's wire. Revocation closes
+  pending admission and wakes all consumers. Retired leases cannot close a newer
+  replacement connection. Terminal input is never replayed automatically.
+- The Computers screen lists current selected-team Macs and keeps legacy QR
+  routes under pairing options. Native selections save a credential-free
+  `cmux-android://attach` locator scoped to user/team/device/build, then validate
+  against a fresh directory entry before dial. Settings/saved feeds filter by
+  account/team scope. Existing Tailscale fixtures remain injectable without
+  starting real account discovery.
+- Native subscriptions now request `surface_event_lanes: v1`; fragmented shared
+  and terminal event streams feed the existing RPC event dispatcher. Closing
+  a pending native dial cancels its isolated operation.
+
+Verification: all **365 JVM tests across 61 suites passed**, with zero failures,
+errors or skips. New checks cover independent leases/subscriptions, pending reply
+cancellation, revocation fan-out, stale release versus replacement, interrupted
+admission, account/team/host lookup checks, team change cleanup, late backend
+creation after sign-out, directory expiry, scoped locator parsing, native dial
+cancellation and the surface-lane subscription field. The directory fixture also
+checks relay fallback retention. These are local deterministic/loopback checks,
+not live account or relay evidence.
+
+The build caught the existing large `NativeScreen` reaching the JVM method-size
+limit; sign-in and Computers views were extracted to separate composables before
+successful compilation. Runtime checks against the Pixel/Mac are next. Stream
+repair, specialized lane consumers, account cache/team creation, network recovery
+and full feature/UI/device acceptance remain open. No signed release was published
+in this checkpoint; build 157 remains the last published APK.
+
+Build command: `:app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest`
+completed successfully in 65 seconds. APK signature and 16 KiB ZIP alignment
+verification passed. Local receipt/XML/build log: `captures/iroh/native-discovery/`.
+
+- `app/build/outputs/apk/debug/app-debug.apk`: SHA-256 `8c497cc07cd2a14250f31981d8170736712fecbf4a131510d356e84801e6af4f`
+- `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`: SHA-256 `890cd0f059c7dd70527094ea46d9727954fca6805c46125fb93a3b427a1ca53d`

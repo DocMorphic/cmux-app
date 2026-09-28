@@ -8,6 +8,14 @@ import kotlinx.coroutines.withContext
 /** Connection boundary shared by the UI and its on-device contract tests. */
 fun interface NativeConnector {
     suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount): MobileRpcClient
+    suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount): MobileRpcClient =
+        error("Native computer discovery is unavailable in this connection provider")
+    fun allowsSaved(pairing: PairingCode): Boolean = true
+}
+
+internal suspend fun NativeConnector.connectPairing(pairing: PairingCode, account: NativeAccount): MobileRpcClient = when (pairing) {
+    is PairingCode.Tailscale -> connect(pairing, account)
+    is PairingCode.Iroh -> connectIroh(pairing, account)
 }
 
 class TailscaleConnector(private val context: Context) : NativeConnector {

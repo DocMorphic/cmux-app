@@ -30,4 +30,16 @@ class PairingCodeParserTest {
         assertTrue(PairingCodeParser.parse("cmux-ios://attach?v=4&i=peer").isFailure)
         assertTrue(PairingCodeParser.parse("cmux-ios://attach?v=2&r=example.com:58465").isFailure)
     }
+
+    @Test fun localComputerLocatorRoundTripsItsAccountTeamAndBuildWithoutCredentials() {
+        val mac = IrohV2Computer("record", "ab".repeat(32), "device+id", "beta/test", "Mac", emptyList())
+        val scope = NativeTeamScope("login-not-in-locator", "user/a", "team&b", 4)
+        val code = PairingCodeParser.computer(mac, scope)
+        assertEquals(PairingCode.Iroh(mac.endpointId, mac.deviceId, scope.userId, scope.teamId, mac.buildTag),
+            PairingCodeParser.parse(code).getOrThrow())
+        assertTrue(!code.contains(scope.login))
+        assertTrue(PairingCodeParser.parse(code + "&t=other").isFailure)
+        assertTrue(PairingCodeParser.parse(code + "&access_token=secret").isFailure)
+        assertTrue(PairingCodeParser.parse("cmux-android://attach?v=3&i=peer&d=mac").isFailure)
+    }
 }

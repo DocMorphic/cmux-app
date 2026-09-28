@@ -24,11 +24,13 @@ import kotlinx.coroutines.launch
 class NativeNotificationService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var worker: Job? = null
+    private var connectionsHandle: NativeAppConnections.Handle? = null
     private val manager by lazy { getSystemService(NotificationManager::class.java) }
     private val delivery by lazy { NativeNotificationDelivery(applicationContext) }
 
     override fun onCreate() {
         super.onCreate()
+        connectionsHandle = NativeAppConnections.acquire(applicationContext)
         manager.createNotificationChannel(NotificationChannel(
             STATUS_CHANNEL, "cmux connection", NotificationManager.IMPORTANCE_LOW))
     }
@@ -43,15 +45,16 @@ class NativeNotificationService : Service() {
     }
 
     private suspend fun monitor() = coroutineScope {
-        val store = NativeCredentialStore(applicationContext)
-        val account = NativeAccount(store)
-        val connector = TailscaleConnector(applicationContext)
+        val connections = checkNotNull(connectionsHandle).connections
+        val store = connections.store
+        val account = connections.account
+        val connector = connections.connector
         val workers = mutableMapOf<NativeCredentialStore.PairedMac, Job>()
         var previousOrigins: Set<String>? = null
         try {
             while (isActive && isEnabled(this@NativeNotificationService)) {
                 val paired = if (account.isSignedIn()) store.pairedMacs().filter {
-                    it.deviceId.isNotBlank() && PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Tailscale
+                    it.deviceId.isNotBlank() && PairingCodeParser.parse(it.code).getOrNull()?.let(connector::allowsSaved) == true
                 }.toSet() else emptySet()
                 workers.keys.toList().filter { it !in paired || workers[it]?.isActive != true }.forEach {
                     workers.remove(it)?.cancel()
@@ -65,14 +68,14 @@ class NativeNotificationService : Service() {
                     while (isActive) {
                         var client: MobileRpcClient? = null
                         try {
-                            val pairing = PairingCodeParser.parse(mac.code).getOrThrow() as PairingCode.Tailscale
-                            client = connector.connect(pairing, account)
+                            val pairing = PairingCodeParser.parse(mac.code).getOrThrow()
+                            client = connector.connectPairing(pairing, account)
                             val active = client
                             mac.requireMatchingHost(active.hostStatus())
                             monitorNativeNotificationFeed(active) { feed ->
                                 delivery.refresh(mac.origin, mac.name, feed) {
                                     isEnabled(this@NativeNotificationService) && account.isSignedIn() &&
-                                        store.pairedMacs().contains(mac)
+                                        store.pairedMacs().contains(mac) && connector.allowsSaved(pairing)
                                 }
                             }
                         } catch (failure: Exception) {
@@ -100,7 +103,7 @@ class NativeNotificationService : Service() {
             .build()
     }
 
-    override fun onDestroy() { scope.cancel(); super.onDestroy() }
+    override fun onDestroy() { scope.cancel(); connectionsHandle?.close(); connectionsHandle = null; super.onDestroy() }
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {

@@ -12,6 +12,7 @@ import javax.net.SocketFactory
 /** One connection incarnation. Independent events are complete, unframed JSON payloads. */
 internal interface MobileRpcTransport : AutoCloseable {
     val independentEvents: Flow<ByteArray>? get() = null
+    val surfaceEventLanes: Boolean get() = false
     suspend fun connect()
     suspend fun read(): ByteArray?
     suspend fun write(bytes: ByteArray)

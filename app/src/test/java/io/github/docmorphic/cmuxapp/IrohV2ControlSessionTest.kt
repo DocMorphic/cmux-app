@@ -113,10 +113,12 @@ class IrohV2ControlSessionTest {
 
     @Test fun enrollsThenPublishesMacDirectoryAndRelayCredentialsTogether() = runBlocking<Unit> {
         Fixture(enroll = true).use { fixture ->
+            fixture.page = { fixture.directory().put("relayURLs", JSONArray().put("https://fallback.example.com/")) }
             fixture.session().use { session ->
                 val ready = withTimeout(3000) { session.connect() }
                 assertTrue(ready.ready)
                 assertEquals("websocket", ready.mode)
+                assertEquals(listOf("https://fallback.example.com/"), ready.directoryRelays)
                 assertEquals(listOf("mac-record"), ready.computers.map { it.recordId })
                 assertEquals("fixture-relay-secret", ready.relays.single().token)
                 assertFalse(ready.toString().contains("fixture-relay-secret"))

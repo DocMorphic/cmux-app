@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -30,7 +33,9 @@ internal class MobileRpcException(val code: String?, message: String) : IllegalS
 class MobileRpcClient internal constructor(
     private val transport: MobileRpcTransport,
     private val accessToken: suspend () -> String?,
-    private val attachToken: String? = null
+    private val attachToken: String? = null,
+    private val delegate: MobileRpcClient? = null,
+    private val releaseLease: (() -> Unit)? = null
 ) : AutoCloseable {
     constructor(route: PairingCode.Route, accessToken: suspend () -> String?, attachToken: String? = null,
                 socketFactory: SocketFactory = SocketFactory.getDefault()) :
@@ -42,20 +47,42 @@ class MobileRpcClient internal constructor(
     private val writeMutex = Mutex()
     private val stateLock = Any()
     private val pending = mutableMapOf<String, CompletableDeferred<JSONObject>>()
+    private val leaseOperations = mutableSetOf<Job>()
     private val eventsMutable = MutableSharedFlow<Event>(
         extraBufferCapacity = 8,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
-    val events = eventsMutable.asSharedFlow()
+    val events: kotlinx.coroutines.flow.SharedFlow<Event> = delegate?.events ?: eventsMutable.asSharedFlow()
     private val disconnectedMutable = MutableSharedFlow<Throwable>(replay = 1)
-    val disconnected = disconnectedMutable.asSharedFlow()
+    val disconnected: kotlinx.coroutines.flow.SharedFlow<Throwable> = delegate?.disconnected ?: disconnectedMutable.asSharedFlow()
 
     private val connectMutex = Mutex()
     private var connected = false
     private var closed = false
     private var eventDeliverySequence = 0L
 
+    internal val isClosed: Boolean get() = synchronized(stateLock) { closed } || delegate?.isClosed == true
+
+    internal fun retire() = failConnection(EOFException("Computer access or account session changed"))
+
+    /** Each consumer owns its subscriptions and cancellation, while one owner retains the wire. */
+    internal fun lease(release: () -> Unit): MobileRpcClient {
+        check(delegate == null && !isClosed) { "Cannot lease a closed or borrowed connection" }
+        return MobileRpcClient(transport, accessToken, attachToken, this, release)
+    }
+
+    private suspend fun <T> borrowing(block: suspend (MobileRpcClient) -> T): T = coroutineScope {
+        val operation = checkNotNull(currentCoroutineContext()[Job])
+        synchronized(stateLock) {
+            check(!closed) { "Connection lease closed" }
+            leaseOperations += operation
+        }
+        try { block(checkNotNull(delegate)) }
+        finally { synchronized(stateLock) { leaseOperations -= operation } }
+    }
+
     suspend fun connect(): Unit = connectMutex.withLock {
+        if (delegate != null) return@withLock borrowing { it.connect() }
         synchronized(stateLock) {
             check(!closed) { "Connection has been closed" }
             if (connected) return@withLock
@@ -87,6 +114,7 @@ class MobileRpcClient internal constructor(
         params: JSONObject = JSONObject(),
         timeoutMillis: Long = 15_000
     ): JSONObject {
+        if (delegate != null) return borrowing { it.request(method, params, timeoutMillis) }
         require(method.isNotBlank())
         val id = UUID.randomUUID().toString()
         val body = JSONObject().put("id", id).put("method", method).put("params", params)
@@ -321,6 +349,7 @@ class MobileRpcClient internal constructor(
                           screenAnchor: Boolean = false): JSONObject {
         val params = JSONObject().put("client_id", clientId).put("stream_id", streamId)
             .put("topics", org.json.JSONArray(topics))
+        if (transport.surfaceEventLanes) params.put("surface_event_lanes", "v1")
         if (screenAnchor && "terminal.render_grid" in topics) params.put("render_grid_anchor", "screen")
         return request("mobile.events.subscribe", params)
     }
@@ -379,5 +408,17 @@ class MobileRpcClient internal constructor(
         }
     }
 
-    override fun close() = failConnection(EOFException("cmux connection closed"), notify = false)
+    override fun close() {
+        if (delegate == null) {
+            failConnection(EOFException("cmux connection closed"), notify = false)
+            return
+        }
+        val operations = synchronized(stateLock) {
+            if (closed) return
+            closed = true
+            leaseOperations.toList().also { leaseOperations.clear() }
+        }
+        try { operations.forEach { it.cancel(CancellationException("Connection lease closed")) } }
+        finally { try { releaseLease?.invoke() } finally { scope.cancel() } }
+    }
 }

@@ -77,7 +77,9 @@ internal class IrxMobileRpcTransport(
     private val lock = Any()
     private val connecting = Mutex()
     private var session: IrxClientSession? = null
+    private var dial: Job? = null
     private var closed = false
+    override val surfaceEventLanes = true
     override val independentEvents: Flow<ByteArray> = IrxEventMultiplexer(accept = {
         val lane = active().acceptEvents()
         object : MobileEventLane {
@@ -88,15 +90,20 @@ internal class IrxMobileRpcTransport(
         }
     }, permits = { !synchronized(lock) { closed } && permits() }).frames
 
-    override suspend fun connect() = connecting.withLock {
-        synchronized(lock) { check(!closed); if (session != null) return@withLock }
-        requireAccess()
-        val admitted = establish()
+    override suspend fun connect(): Unit = connecting.withLock { coroutineScope {
+        synchronized(lock) { check(!closed); if (session != null) return@coroutineScope }
+        val operation = checkNotNull(currentCoroutineContext()[Job])
+        synchronized(lock) { check(!closed); dial = operation }
         try {
             requireAccess()
-            synchronized(lock) { check(!closed); session = admitted }
-        } catch (error: Throwable) { admitted.close(); throw error }
-    }
+            val admitted = establish()
+            try {
+                currentCoroutineContext().ensureActive()
+                requireAccess()
+                synchronized(lock) { check(!closed); session = admitted }
+            } catch (error: Throwable) { admitted.close(); throw error }
+        } finally { synchronized(lock) { if (dial === operation) dial = null } }
+    } }
     override suspend fun read(): ByteArray? {
         requireAccess()
         val bytes = active().control.read(64 * 1024)
@@ -112,7 +119,11 @@ internal class IrxMobileRpcTransport(
     }
     private fun active() = synchronized(lock) { check(!closed); checkNotNull(session) { "Irx connection not admitted" } }
     override fun close() {
-        val old = synchronized(lock) { closed = true; session.also { session = null } }
-        old?.close()
+        val old = synchronized(lock) {
+            closed = true
+            (session to dial).also { session = null; dial = null }
+        }
+        old.second?.cancel(CancellationException("Irx connection closed"))
+        old.first?.close()
     }
 }

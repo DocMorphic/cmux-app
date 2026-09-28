@@ -2,13 +2,15 @@
 
 An **unofficial Android companion project** for [cmux](https://cmux.com). The release goal is feature parity with the official iOS companion on a Pixel 6a.
 
-The app opens on the direct cmux connection path: same-account sign-in, official QR parsing, framed mobile RPC, workspace and notification feeds, browser streams, and a styled terminal with scrollback. The previously tested [Mac helper](bridge/README.md) remains available in the app. The direct path is under build and physical-device validation; it is not yet a parity release. The [parity tracker](docs/PARITY.md) records every feature and its acceptance check.
+The app opens on the direct cmux connection path: same-account sign-in, selected-team computer discovery, framed mobile RPC, workspace and notification feeds, browser streams, and a styled terminal with scrollback. The previously tested [Mac helper](bridge/README.md) remains available in the app. The direct path is under physical-device validation; it is not yet a parity release. The [parity tracker](docs/PARITY.md) records every feature and its acceptance check.
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
-Android's transport currently targets the older Tailscale TCP path; current
-Iroh/V2 connectivity is under implementation. See [the connection migration](docs/IROH_V2.md).
+Android now wires Iroh/V2 discovery and admitted RPC connections into the app and
+background feeds. Actual account enrollment and Pixel-to-Mac traffic are not yet
+verified. Legacy Tailscale QR routes remain available for older hosts.
+See [the connection migration](docs/IROH_V2.md).
 
 **Continuing on another laptop:** start with [HANDOFF.md](docs/HANDOFF.md) for the
 working branch, source research, implementation map, unfinished checks, release

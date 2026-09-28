@@ -27,6 +27,7 @@ internal data class IrohV2ControlState(
     val computers: List<IrohV2Computer> = emptyList(),
     val directoryRevision: Long? = null,
     val permissionExpiresAt: Long? = null,
+    val directoryRelays: List<String> = emptyList(),
     val relays: List<IrohV2Relay> = emptyList(),
     val failure: String? = null
 )
@@ -150,6 +151,7 @@ internal class IrohV2ControlSession(
             val records = mutableSetOf<String>()
             val endpoints = mutableSetOf<String>()
             val computers = mutableListOf<IrohV2Computer>()
+            var directoryRelays: List<String>? = null
             var count = 0
             var pages = 0
             do {
@@ -164,6 +166,9 @@ internal class IrohV2ControlSession(
                 val pageRevision = IrohV2Wire.integer(page, "revision")
                 if (revision != null && pageRevision != revision) { restart = true; break }
                 revision = pageRevision
+                val pageRelays = page.getJSONArray("relayURLs").strings().map(::relayUrl).distinct()
+                if (directoryRelays != null && directoryRelays != pageRelays) throw IOException("Iroh directory relays changed within a revision")
+                directoryRelays = pageRelays
                 val permissionExpiry = IrohV2Wire.integer(page, "permissionExpiresAt")
                 if (permissionExpiry <= now()) throw IOException("Iroh directory permission expired")
                 expires = minOf(expires ?: permissionExpiry, permissionExpiry)
@@ -202,7 +207,8 @@ internal class IrohV2ControlSession(
                     mutableState.value = mutableState.value.copy(computers = computers.filterNot {
                         (revokedRecords[it.recordId] ?: -1) >= acceptedRevision
                     },
-                        directoryRevision = revision, permissionExpiresAt = expires, failure = null)
+                        directoryRevision = revision, permissionExpiresAt = expires,
+                        directoryRelays = directoryRelays.orEmpty(), failure = null)
                     revokedRecords.entries.removeAll { it.value < acceptedRevision }
                     committed = true
                     lastDirectoryAt = now()
