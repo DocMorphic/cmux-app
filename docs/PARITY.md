@@ -82,7 +82,7 @@ Verification: 233 JVM tests passed (13 new expansion/content-transfer cases), ze
 failures/errors/skips. Production and Android test sources compile. Two additional
 Android cases cover context reuse and revision mismatch; all five Changes UI cases
 remain unrun until the combined Changes runtime milestone. No new APK was assembled;
-signed build 150 remains the current download. Current/base preview UI remains open.
+At that point, signed build 150 was the current download and revision preview UI was still open; both features later shipped in build 157.
 
 ## Changes viewer foundation (2026-09-28)
 
@@ -115,7 +115,7 @@ Android test sources compile. Three new Android cases are prepared for tree/page
 copy behavior, error recovery, and continuation/font persistence. **They have not
 run yet.** Revision previews and hidden-context expansion remain to be implemented;
 the combined changes runtime milestone will include them. No APK was assembled or
-released for this feature commit; build 150 remains the current download. Local
+released for this feature commit; build 150 was then the current download. Local
 logs and selected XML reports are retained under `captures/changes/`.
 
 ## Upstream refresh (2026-09-28)
@@ -152,7 +152,7 @@ vertically, with black letterboxing. Pixel assertions and post-pan click coordin
 also passed. Evidence is in `captures/browser/lens-runtime.log`,
 `lens-verification.json` and `browser-width-fit.png`. This is a focused emulator
 run, not a full 87-case suite or physical Pixel/Mac run. The current signed phone
-download, build 150, includes this work together with recovery and momentum.
+download, build 157, includes this work together with recovery, momentum and Changes.
 
 ## Browser momentum follow-up (2026-09-28)
 
@@ -210,7 +210,7 @@ now also pass in the combined recovery/momentum run: unanswered-input recovery w
 old-subscription frame rejection, and background/foreground stream lifecycle.
 Focused local evidence is in `captures/browser/recovery-checks.log` and
 `recovery-unit-tests.xml`; runtime evidence is in `momentum-runtime-initial.log`.
-The current phone download is build 150. Geometry/lens verification is
+The current phone download is build 157. Geometry/lens verification is
 recorded above; download behavior and physical Pixel/Mac testing remain open.
 
 ## Browser download source follow-up (2026-09-28)
@@ -267,7 +267,7 @@ state, and a task-options tap raced the system IME animation. Waiting for the
 observable state and invoking the dock’s accessible action produced a clean
 2/2 focused rerun, including the production Mac-switch flow. That is 11 distinct
 cases with passing evidence across runs, not a clean full-suite run. Original logs
-and the focused rerun are retained in `captures/browser/`. This milestone first shipped in signed build 143; the current download is build 150. No physical Pixel is attached to adb.
+and the focused rerun are retained in `captures/browser/`. This milestone first shipped in signed build 143; the current download is build 157. No physical Pixel is attached to adb.
 
 
 240 JVM tests pass. The Android suite now contains 97 cases (including ten changes-viewer/preview checks, seven browser checks, three browser lens checks, four offline-task checks, four task attachment/layout checks, three terminal momentum gesture checks and three browser momentum gesture checks): twenty-three Compose
@@ -760,7 +760,7 @@ fixture screenshot are in `captures/browser/`.
 This is an integration preview. The full iOS parity goal and physical Pixel/Mac
 acceptance are still open.
 
-## Signed integration build 150 (2026-09-28) — current download
+## Signed integration build 150 (2026-09-28)
 
 [GitHub run 36358173423](https://github.com/DocMorphic/cmux-app/actions/runs/36358173423)
 succeeded at `6aba8c2977f3b47516d03cc77671cfaa8f0bdd22`. This combined milestone
@@ -781,3 +781,26 @@ Local receipt: `captures/releases/6aba8c2-verification.json`. Runtime logs, geom
 unit checks and the inspected generated-image screenshot are in `captures/browser/`.
 This remains an integration preview; full iOS parity and physical Pixel/Mac
 acceptance are not complete.
+
+
+## Signed integration build 157 (2026-09-28) — current download
+
+[GitHub run 36360218971](https://github.com/DocMorphic/cmux-app/actions/runs/36360218971)
+succeeded at `d53abe9b05fc5912dc820738a725360096e7aa80`. This combined Changes
+milestone includes the tree/pager/numbered diffs, continuation/copy/font controls,
+revision-checked hidden-context expansion, Before/After image/PDF/media previews,
+and file actions. The source passed 240 JVM cases, a clean ten-case Android 17
+Changes run, and a focused two-case rendered-image/MIME rerun. The upstream remote
+HEAD was rechecked and still matches `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
+
+Verified package/version, the unchanged signer, Changes and earlier feature classes,
+instrumentation-fixture exclusion, licenses, agent asset pixels and FileProvider
+scope. The tailnet server was updated atomically; its full HTTP response matched
+the signed artifact. Local receipt: `captures/releases/d53abe9-verification.json`.
+
+SHA-256: `a847a2f9465cac4ac62883b6401217fac4624bd1f3b85223fbbfb127b1cd1e33` (9218260 bytes).
+
+The current download is build 157. Evidence and inspected fixture screenshots are
+in `captures/changes/`. This is an integration preview: advanced artifact/text
+viewing, agent chat, remaining terminal/transport/settings/notification parity,
+and physical Pixel/Mac acceptance remain open.
