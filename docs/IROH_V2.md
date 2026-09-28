@@ -864,3 +864,40 @@ Local build/test/verification logs, XML, APK hashes and source receipt:
 Remaining work includes physical native fixtures and actual account/Mac testing,
 simulator streams, latency marker negotiation, socket promotion/cache and broader
 UI/terminal/notification fidelity. Full goal completion remains unproven.
+
+
+## HTTP recovery restores the pushed control channel — 2026-09-28
+
+Pinned `V2ControlService+Connection.swift` retries its preferred WebSocket after
+60 seconds while HTTP recovery serves requests. Android now also attempts this
+restoration after initial HTTP fallback or a subsequently lost socket.
+
+The candidate opens outside the operation mutex, so HTTP directory/relay calls
+continue while upgrade is pending. Only one candidate can exist per account
+incarnation. Every setup gets a fresh signed nonce/request ID and the current
+directory revision. Candidate enrollment challenges, device scope/key validation,
+metadata and tickets settle before adoption. Adoption waits for existing HTTP
+operations, then refreshes directory authority through the new channel.
+
+Explicit authentication rejection permits one forced Stack refresh with another
+fresh proof. Repeated rejection or invalid device scope removes authority. Transient
+upgrade failures retain working HTTP state; retries wait at least 60 seconds and
+honor a longer server Retry-After. Scope changes or close cancel pending candidates,
+and late ready messages cannot install them. Receiver identity guards prevent a
+retired socket from downgrading or invalidating its replacement. This affects the
+V2 discovery/control channel; it does not tear down the separate admitted terminal
+QUIC session merely because a preferred control upgrade is unavailable.
+
+**Verification:** **33 focused JVM tests in 3 suites passed**, zero failures,
+errors or skips (29 seconds). Cases include enrollment during restoration, fresh
+proofs/revision hints, pushed peer revocation, HTTP progress during a stalled
+candidate, single-candidate ownership, Retry-After, forced auth refresh, repeated
+rejection, wrong account scope, close during upgrade, automatic maintenance, and
+restoration after a previously working socket drops.
+
+Local XML/log/source receipt: `captures/iroh/push-recovery/`.
+No APK rebuilt or published. The combined device APK remains checkpoint 443ebe9,
+and the last full JVM checkpoint remains its 425 tests; this source change has not
+been exercised on Pixel or with the live production service. The phone remained
+absent from ADB; the existing reconnect question remains pending. Cache restoration,
+simulator streams and broader actual device/feature/UI acceptance remain open.

@@ -22,11 +22,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 class IrohV2ControlSessionTest {
-    private class Fixture(val httpOnly: Boolean = false, val enroll: Boolean = false) : AutoCloseable {
+    private class Fixture(@Volatile var httpOnly: Boolean = false, val enroll: Boolean = false) : AutoCloseable {
         val server = MockWebServer()
         val time = AtomicLong(1000)
         val current = AtomicBoolean(true)
         val peer = CompletableDeferred<WebSocket>()
+        @Volatile var readyHandler: ((WebSocket, JSONObject) -> Unit)? = null
         val seen = CopyOnWriteArrayList<JSONObject>()
         val setups = CopyOnWriteArrayList<JSONObject>()
         val auth = CopyOnWriteArrayList<String>()
@@ -50,7 +51,8 @@ class IrohV2ControlSessionTest {
                         return MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
                             override fun onOpen(webSocket: WebSocket, response: Response) {
                                 peer.complete(webSocket)
-                                webSocket.send(ready(setup).toString())
+                                val handler = readyHandler
+                                if (handler != null) handler(webSocket, setup) else webSocket.send(ready(setup).toString())
                             }
                             override fun onMessage(webSocket: WebSocket, text: String) {
                                 val body = JSONObject(text)
@@ -142,6 +144,121 @@ class IrohV2ControlSessionTest {
                 assertEquals(listOf("Bearer fixture-access-token", "Bearer fixture-access-token", "IrohTicket fixture-ticket", "IrohTicket fixture-ticket"), fixture.auth)
             }
         }
+    }
+
+    @Test fun restoresPushAfterHttpRecoveryWithFreshProofAndReceivesRevocation() = runBlocking<Unit> {
+        Fixture(httpOnly = true, enroll = true).use { fixture -> fixture.session().use { session ->
+            session.connect()
+            assertFalse(session.restorePushChannel())
+            fixture.httpOnly = false; fixture.time.set(1060)
+            assertTrue(withTimeout(3000) { session.restorePushChannel() })
+            assertEquals("websocket", session.state.value.mode); assertTrue(session.state.value.ready)
+            val promoted = fixture.setups.last()
+            assertEquals(1L, promoted.getLong("haveRevision"))
+            assertNotEquals(fixture.setups[1].getJSONObject("proof").getString("nonce"), promoted.getJSONObject("proof").getString("nonce"))
+            fixture.page = { fixture.directory(2, emptyList()) }
+            fixture.event("device.revoked.v1", 2, "mac-record")
+            withTimeout(3000) { session.state.first { it.computers.isEmpty() && it.directoryRevision == 2L } }
+            assertTrue(session.state.value.ready)
+        } }
+    }
+
+    @Test fun promotionDoesNotBlockHttpAndOnlyOneCandidateCanOpen() = runBlocking<Unit> {
+        Fixture(httpOnly = true).use { fixture -> fixture.session().use { session ->
+            session.connect(); fixture.httpOnly = false; fixture.time.set(1060)
+            val held = CompletableDeferred<Pair<WebSocket, JSONObject>>()
+            fixture.readyHandler = { socket, setup -> held.complete(socket to setup) }
+            val promoting = async { session.restorePushChannel() }
+            val (socket, setup) = withTimeout(3000) { held.await() }
+            assertFalse(session.restorePushChannel())
+            assertEquals("http", withTimeout(2000) { session.refreshDirectory() }.mode)
+            assertTrue(session.state.value.computers.isNotEmpty())
+            socket.send(fixture.ready(setup).toString())
+            assertTrue(withTimeout(3000) { promoting.await() })
+            assertEquals("websocket", session.state.value.mode)
+        } }
+    }
+
+    @Test fun failedPromotionRetainsHttpAuthorityAndHonorsRetryAfter() = runBlocking<Unit> {
+        Fixture(httpOnly = true).use { fixture -> fixture.session().use { session ->
+            session.connect(); fixture.httpOnly = false; fixture.time.set(1060)
+            fixture.rejectHttp = { request -> if (request.path == "/v2/control/socket")
+                MockResponse().setResponseCode(429).setHeader("Retry-After", "120") else null }
+            assertFalse(session.restorePushChannel()); assertTrue(session.state.value.ready)
+            assertEquals("http", session.state.value.mode)
+            val requests = fixture.server.requestCount
+            fixture.time.set(1179); assertFalse(session.restorePushChannel())
+            assertEquals(requests, fixture.server.requestCount)
+            assertEquals("http", session.refreshDirectory().mode)
+            fixture.rejectHttp = null; fixture.time.set(1180)
+            assertTrue(session.restorePushChannel())
+        } }
+    }
+
+    @Test fun closingDuringPromotionCannotAdoptLateReady() = runBlocking<Unit> {
+        Fixture(httpOnly = true).use { fixture -> fixture.session().use { session ->
+            session.connect(); fixture.httpOnly = false; fixture.time.set(1060)
+            val held = CompletableDeferred<Pair<WebSocket, JSONObject>>()
+            fixture.readyHandler = { socket, setup -> held.complete(socket to setup) }
+            val promoting = async { runCatching { session.restorePushChannel() } }
+            val (socket, setup) = withTimeout(3000) { held.await() }
+            session.close(); socket.send(fixture.ready(setup).toString())
+            assertTrue(withTimeout(3000) { promoting.await() }.isFailure)
+            assertFalse(session.state.value.ready); assertNull(session.state.value.mode)
+            assertTrue(currentCoroutineContext().isActive)
+        } }
+    }
+
+    @Test fun promotionAuthenticationRejectionForcesFreshStackTokenOnce() = runBlocking<Unit> {
+        Fixture(httpOnly = true).use { fixture ->
+            val forces = CopyOnWriteArrayList<Boolean>()
+            fixture.session(token = { force -> forces += force; if (force) "fresh-token" else "fixture-access-token" }).use { session ->
+                session.connect(); fixture.httpOnly = false; fixture.time.set(1060)
+                val rejected = AtomicBoolean()
+                fixture.rejectHttp = { request -> if (request.path == "/v2/control/socket" && !rejected.getAndSet(true))
+                    MockResponse().setResponseCode(401) else null }
+                assertTrue(session.restorePushChannel())
+                assertEquals(listOf(false, true), forces.toList())
+                assertTrue(fixture.auth.contains("Bearer fresh-token")); assertTrue(session.state.value.ready)
+            }
+        }
+    }
+
+    @Test fun maintenanceRestoresPushAfterTheRecoveryInterval() = runBlocking<Unit> {
+        Fixture(httpOnly = true).use { fixture -> fixture.session(maintain = true).use { session ->
+            session.connect(); fixture.httpOnly = false; fixture.time.set(1061)
+            withTimeout(4000) { session.state.first { it.mode == "websocket" } }
+            assertTrue(session.state.value.ready)
+        } }
+    }
+
+    @Test fun repeatedPromotionAuthenticationFailureRemovesAuthorityWithoutCancellingCaller() = runBlocking<Unit> {
+        Fixture(httpOnly = true).use { fixture ->
+            val forces = CopyOnWriteArrayList<Boolean>()
+            fixture.session(token = { force -> forces += force; "fixture-token" }).use { session ->
+                session.connect(); fixture.httpOnly = false; fixture.time.set(1060)
+                fixture.rejectHttp = { request -> if (request.path == "/v2/control/socket") MockResponse().setResponseCode(401) else null }
+                runCatching { session.restorePushChannel() }
+                assertEquals(listOf(false, true), forces.toList())
+                assertFalse(session.state.value.ready); assertTrue(session.state.value.computers.isEmpty())
+                assertEquals("unauthorized", session.state.value.failure)
+                assertTrue(currentCoroutineContext().isActive)
+            }
+        }
+    }
+
+    @Test fun promotionCannotAdoptADeviceFromAnotherScope() = runBlocking<Unit> {
+        Fixture(httpOnly = true).use { fixture -> fixture.session().use { session ->
+            session.connect(); fixture.httpOnly = false; fixture.time.set(1060)
+            fixture.readyHandler = { socket, setup ->
+                val wrong = fixture.ready(setup)
+                wrong.getJSONObject("device").getJSONObject("descriptor").getJSONObject("identity").put("teamId", "other-team")
+                socket.send(wrong.toString())
+            }
+            runCatching { session.restorePushChannel() }
+            assertFalse(session.state.value.ready); assertNull(session.state.value.mode)
+            assertTrue(session.state.value.computers.isEmpty()); assertTrue(currentCoroutineContext().isActive)
+        } }
     }
 
     @Test fun repeatedAuthenticationRejectionRefreshesOnceWithoutFallbackOrEnrollment() = runBlocking<Unit> {
@@ -259,6 +376,11 @@ class IrohV2ControlSessionTest {
                 assertEquals(1, fixture.setups.size)
                 assertEquals(0, fixture.seen.count { it.getString("schemaId") == "device.register.v1" })
                 assertEquals("IrohTicket fixture-ticket", fixture.auth.last())
+                fixture.time.set(1060)
+                assertTrue(withTimeout(3000) { session.restorePushChannel() })
+                assertEquals("websocket", session.state.value.mode)
+                assertEquals(listOf("after-recovery"), session.state.value.computers.map { it.recordId })
+                assertEquals(2L, fixture.setups.last().getLong("haveRevision"))
             }
         }
     }

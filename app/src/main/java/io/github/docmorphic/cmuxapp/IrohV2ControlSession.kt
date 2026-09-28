@@ -57,6 +57,8 @@ internal class IrohV2ControlSession(
     private var maintenance: Job? = null
     private var directoryWorker: Job? = null
     private var watchdog: Job? = null
+    private var promotion: Job? = null
+    private var pushRetryAt = 0L
     private val directoryChanges = Channel<Unit>(Channel.CONFLATED)
     private var ticket: Ticket? = null
     private var ownRecordId: String? = null
@@ -132,7 +134,10 @@ internal class IrohV2ControlSession(
                     setup = requests.setup()
                     val ready = transport.exchange(requests.httpSessionRequest(origin, auth, setup),
                         setup.getString("requestId"), "session.ready.v1")
-                    mutate(run) { mutableState.value = mutableState.value.copy(mode = "http") }
+                    mutate(run) {
+                        pushRetryAt = now() + 60
+                        mutableState.value = mutableState.value.copy(mode = "http")
+                    }
                     return ready
                 }
             } catch (error: Exception) {
@@ -155,6 +160,81 @@ internal class IrohV2ControlSession(
         val run = currentRun()
         try { relays(run); mutableState.value.relays }
         catch (error: Throwable) { handleFailure(run, error); throw error }
+    }
+
+    /** Restore push while HTTP remains available. Only adoption waits for in-flight operations. */
+    suspend fun restorePushChannel(): Boolean = coroutineScope {
+        val operation = checkNotNull(currentCoroutineContext()[Job])
+        val run = synchronized(lock) {
+            if (!isCurrent(epoch) || !mutableState.value.ready || socket != null || promotion != null ||
+                now() < maxOf(pushRetryAt, cooldownUntil)) return@coroutineScope false
+            promotion = operation
+            epoch
+        }
+        var candidate: IrohV2ControlSocket? = null
+        try {
+            for (attempt in 0..1) {
+                try {
+                    val setup = requests.setup(mutableState.value.directoryRevision)
+                    val auth = authorization(run, force = attempt == 1)
+                    val opened = IrohV2ControlSocket.open(client, requests.socketRequest(origin, auth, setup), setup.getString("requestId"))
+                    candidate = opened.first
+                    checkCurrent(run)
+                    val ready = opened.second
+                    val record = when {
+                        ready.has("challenge") -> opened.first.request(requests.registration(ready.getJSONObject("challenge"))).getJSONObject("device")
+                        ready.has("device") -> ready.getJSONObject("device")
+                        else -> throw IOException("Iroh service omitted enrollment result")
+                    }
+                    val enrolled = requests.acceptDevice(record)
+                    val revision = IrohV2Wire.integer(ready, "teamRevision")
+                    val newTicket = ready.optJSONObject("ticket")?.let(::parseTicket)
+                    if (!IrohV2SigningCodec.encode(enrolled.getJSONObject("descriptor").getJSONObject("metadata"))
+                            .contentEquals(IrohV2SigningCodec.encode(requests.device().getJSONObject("metadata")))) {
+                        opened.first.request(requests.operation("device.metadata.v1").put("metadata", requests.device().getJSONObject("metadata")))
+                    }
+                    operations.withLock {
+                        mutate(run) {
+                            check(socket == null && promotion === operation)
+                            val id = enrolled.getString("deviceRecordId")
+                            if (id in revokedRecords) throw IrohV2ServerFailure("device_revoked", false)
+                            ownRecordId = id
+                            wantedRevision = maxOf(wantedRevision, revision)
+                            newTicket?.let { ticket = it }
+                            receiver?.cancel()
+                            socket = opened.first
+                            candidate = null
+                            mutableState.value = mutableState.value.copy(mode = "websocket", failure = null)
+                            receiver = scope.launch { receive(run, opened.first) }
+                        }
+                        try { directory(run) } catch (failure: Exception) { handleFailure(run, failure) }
+                    }
+                    return@coroutineScope synchronized(lock) { isCurrent(run) && socket === opened.first }
+                } catch (failure: Exception) {
+                    candidate?.close(); candidate = null
+                    currentCoroutineContext().ensureActive(); checkCurrent(run)
+                    if (attempt == 0 && IrohV2Wire.isAuthenticationFailure(failure)) {
+                        mutate(run) { ticket = null }
+                    } else throw failure
+                }
+            }
+            false
+        } catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            if (isCurrent(run)) {
+                val retryable = permitsHttp(failure) || (failure is IrohV2HttpFailure && failure.status == 429) ||
+                    (failure is IrohV2ServerFailure && (failure.retryable || failure.code == "rate_limited"))
+                if (retryable && !IrohV2Recovery.stops(failure)) {
+                    val delay = IrohV2Recovery.delayMillis(failure, 0, 60_000, now() * 1000)
+                    val seconds = (delay / 1000 + if (delay % 1000 == 0L) 0 else 1).coerceAtLeast(60)
+                    mutate(run) { pushRetryAt = now() + seconds }
+                } else invalidate(run, failure)
+            }
+            false
+        } finally {
+            candidate?.close()
+            synchronized(lock) { if (promotion === operation) promotion = null }
+        }
     }
 
     private suspend fun directory(run: Long) {
@@ -311,7 +391,9 @@ internal class IrohV2ControlSession(
                 if (event.getString("teamId") != requests.teamId) throw IOException("Iroh event team mismatch")
                 val revision = IrohV2Wire.integer(event, "revision")
                 var ownRevoked = false
-                mutate(run) {
+                synchronized(lock) {
+                    checkCurrent(run)
+                    if (socket !== incoming) return@collect
                     wantedRevision = maxOf(wantedRevision, revision)
                     if (event.getString("schemaId") == "device.revoked.v1") {
                         val id = event.getString("deviceRecordId")
@@ -329,10 +411,13 @@ internal class IrohV2ControlSession(
             if (error is IrohV2Unavailable && isCurrent(run)) {
                 // Pending calls fail once. Only subsequent requests use signed HTTP recovery.
                 mutate(run) {
-                    socket = null
-                    mutableState.value = mutableState.value.copy(mode = "http", failure = "Connection interrupted")
+                    if (socket === incoming) {
+                        socket = null
+                        pushRetryAt = now() + 60
+                        mutableState.value = mutableState.value.copy(mode = "http", failure = "Connection interrupted")
+                    }
                 }
-            } else if (error !is CancellationException) invalidate(run, error)
+            } else if (error !is CancellationException) invalidate(run, error, incoming)
         }
     }
 
@@ -386,6 +471,8 @@ internal class IrohV2ControlSession(
                     (snapshot.mode == "http" && now() - lastDirectoryAt >= 30))
                     renew(run, "directory") { directory(run) }
             }
+            if (synchronized(lock) { socket == null && promotion == null && now() >= maxOf(pushRetryAt, cooldownUntil) })
+                scope.launch { restorePushChannel() }
         }
     }
 
@@ -419,9 +506,9 @@ internal class IrohV2ControlSession(
         } else invalidate(run, error)
     }
 
-    private fun invalidate(run: Long, error: Throwable) {
+    private fun invalidate(run: Long, error: Throwable, expectedSocket: IrohV2ControlSocket? = null) {
         val resources = synchronized(lock) {
-            if (epoch != run || closed) return
+            if (epoch != run || closed || (expectedSocket != null && socket !== expectedSocket)) return
             ++epoch
             ticket = null
             mutableState.value = IrohV2ControlState(failure = when {
@@ -432,7 +519,7 @@ internal class IrohV2ControlSession(
             (socket to http).also { socket = null; http = null }
         }
         resources.first?.close(); resources.second?.close()
-        receiver?.cancel(); maintenance?.cancel(); directoryWorker?.cancel(); watchdog?.cancel()
+        receiver?.cancel(); maintenance?.cancel(); directoryWorker?.cancel(); watchdog?.cancel(); promotion?.cancel()
     }
 
     override fun close() {
@@ -442,7 +529,7 @@ internal class IrohV2ControlSession(
             mutableState.value = IrohV2ControlState()
             (socket to http).also { socket = null; http = null }
         }
-        resources.first?.close(); resources.second?.close(); scope.cancel()
+        resources.first?.close(); resources.second?.close(); promotion?.cancel(); scope.cancel()
     }
 
     private fun permitsHttp(error: Exception) = error is IrohV2Unavailable || error is TimeoutCancellationException ||
