@@ -164,3 +164,8 @@ Native build receipts record Cargo.lock and all delivered file hashes. The modul
 packages upstream LICENSE-MIT and LICENSE-APACHE under assets/licenses/iroh.
 JNA 5.15.0 is used under Apache-2.0; its Android AAR retains upstream notices.
 The Iroh module is not yet included in the main app or a published signed APK.
+
+IrxWire and IrxClientSession adapt the cmux IrxProtocol, IrxAdmission and
+MobileIrxRuntimeComposition+Dial contracts at
+4c5272e9153eca2033c9f40ac749f0c3a5bcb291. Copyright (c) 2024-present
+Manaflow, Inc.; GPL-3.0-or-later.

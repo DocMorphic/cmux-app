@@ -25,6 +25,11 @@ pixel assertions and visual inspection confirm both Mermaid labels/arrow and Veg
 bars. See [SYNTAX_CHECKPOINT.md](SYNTAX_CHECKPOINT.md) for APK hashes and evidence.
 Live Mac connection and broader device acceptance remain open.
 
+**Native transport checkpoint (2026-09-28):** the exact Iroh fork built for Android
+arm64; two crypto/QUIC tests and five Irx admission/framing tests passed on the
+physical Pixel. The module is isolated, with no current Mac enrollment or app
+connection yet. See [IROH_V2.md](IROH_V2.md) for build pins and test scope.
+
 | Area | iOS source / contract | Android status | Acceptance check |
 | --- | --- | --- | --- |
 | Account | `MobileAuthComposition`, `MobileRootAuthGate` | OTP sign-in and encrypted token refresh coded; unverified on phone | Sign in with the Mac's cmux account; restore session after restart; sign out |

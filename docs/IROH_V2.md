@@ -174,7 +174,37 @@ check is not a runtime claim on a 16 KiB device. Build and packaging evidence:
 `/tmp/cmux-iroh-android-build.log`, `/tmp/cmux-iroh-apk-verification.json`,
 `/tmp/cmux-iroh-zipalign.log`. No new signed main-app APK was published.
 
-Device execution is pending: ADB installation reached Android's Play Protect
-installation activity while the Pixel screen was off. The user has been asked
-to unlock the phone and review the prompt; Play Protect was not disabled. No
-native test pass is claimed from the successful build alone.
+The initial installation reached Play Protect while the screen was off. After
+the user requested a new prompt, ADB installation succeeded; Play Protect was
+not disabled. On the physical Pixel 6a, the two original native tests returned
+**OK (2 tests), 0.688 seconds**. They verified all three official Worker signatures,
+altered-message rejection, authenticated loopback peer keys, negotiated ALPN,
+and two independent bidirectional QUIC streams. Original APK hash is above;
+raw evidence: `captures/iroh/native-checkpoint/instrumentation.txt`.
+
+
+### Client admission and wire framing — 2026-09-28
+
+`IrxWire` and `IrxClientSession` now implement the current control descriptor and
+grantless hello/admit exchange, bounded unsigned frame lengths (256 KiB), exact
+UInt64 cursor serialization, strict UTF-8, serialized reads/writes, expected
+remote-key and ALPN checks, a five-second deadline, and attributed native-close
+codes with upstream automatic-redial classification. Raw application bytes after
+the handshake remain untouched; input is never replayed. Post-admission remote
+stream credit matches iOS (`bi=0`, `uni=40`) for shared/per-terminal events and
+replacement headroom. The future endpoint supervisor must bind with zero initial
+remote credit and deferred NAT traversal before passing connections to admission.
+
+Five focused Android cases returned **OK (5 tests), 5.890 seconds** on the physical
+Pixel. Cases cover fragmented/coalesced admission + following raw bytes, a wrong
+authenticated-directory key, remote revocation, a native stalled read closed at
+the five-second deadline, and frame bounds/EOF/version/UInt64 handling. The first
+run failed JUnit initialization because one Kotlin expression-body method inferred
+an exception return type; explicit `Unit` fixed the runner signature. That failed
+run is retained in `captures/iroh/admission-initial/`; the valid run and source/APK
+hash receipt are in `captures/iroh/admission-final/`. Build completed in 16 seconds.
+
+This remains an isolated module, not a live Mac session. Next: protected scoped
+installation identity, enrollment/directory/relay credentials, endpoint lifecycle,
+server event/surface lanes, and integration with `MobileRpcClient` and account UI.
+Do not infer full app/device parity from these seven local native fixture passes.
