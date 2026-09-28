@@ -352,6 +352,13 @@ fun NativeScreen(
     var textSnapshot by remember(draftTarget, client) { mutableStateOf<TerminalTextSnapshot?>(null) }
     fun openTerminalText() { stopTerminalScrolling(); textSnapshot = TerminalTextSnapshot.capture(grid) }
     textSnapshot?.let { TerminalTextSheet(it) { textSnapshot = null } }
+    var showTerminalFiles by remember(draftTarget, client) { mutableStateOf(false) }
+    val artifactRpc = remember(client, hostCapabilities) { client?.let { ArtifactRpc(it, hostCapabilities) } }
+    if (showTerminalFiles && connectionReady && connectedCode == code && artifactRpc != null && draftTarget != null) {
+        ArtifactFilesSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), gridRevision) {
+            showTerminalFiles = false
+        }
+    }
 
     var controlArmed by remember { mutableStateOf(false) }
     var altArmed by remember { mutableStateOf(false) }
@@ -1139,6 +1146,9 @@ fun NativeScreen(
                             DropdownMenuItem(text = { Text("View as Text") }, onClick = {
                                 terminalMenu = false; openTerminalText()
                             })
+                            if ("terminal.artifact.v1" in hostCapabilities) DropdownMenuItem(text = { Text("Files") }, onClick = {
+                                terminalMenu = false; stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
+                            }, enabled = connectionReady)
                         }
                     }
                     Spacer(Modifier.weight(1f))

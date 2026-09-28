@@ -1319,6 +1319,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var taskGroupsSupported = false
     @Volatile var browserResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var changesResponse: ((String, JSONObject) -> JSONObject)? = null
+    @Volatile var artifactResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var changesErrorCode: String? = null
     val nextTaskCreateError = java.util.concurrent.atomic.AtomicReference<String?>(null)
     @Volatile var rawTerminal = false
@@ -1533,6 +1534,7 @@ internal class NativeFixturePeer : AutoCloseable {
         else -> when {
             method.startsWith("mobile.browser.") -> browserResponse?.invoke(method, params) ?: JSONObject()
             method.startsWith("mobile.workspace.changes.") -> changesResponse?.invoke(method, params) ?: JSONObject()
+            method.startsWith("mobile.terminal.artifact.") || method.startsWith("mobile.chat.artifact.") -> artifactResponse?.invoke(method, params) ?: JSONObject()
             else -> JSONObject()
         }
     }

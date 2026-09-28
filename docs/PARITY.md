@@ -25,6 +25,7 @@ UI resemblance alone does not count.
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, bottom navigation/address/loading controls, direct IME and hardware input, live viewport updates, ordered/coalesced scrolling, frame validation and stale-dialog fencing coded; seven browser-view checks and three browser momentum gesture checks have passing emulator evidence across initial/focused runs, including watchdog/lifecycle recovery and momentum/cancellation; width-fit geometry, local pinch zoom/pan and repeated-tap click counts also verified in a clean 13-case browser emulator run; download behavior and phone QA pending | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Collapsible directory tree, path-stable diff pager, numbered/wrapped hunks, grapheme-safe emphasis, line/hunk copy, persistent pinch font, refresh/retry and progressive 6,000→24,000→96,000-line loading coded; identity-checked hidden-context expansion and chunked content transfer coded; model/request checks passed; Before/After image, PDF, media and file-action previews coded; ten Changes cases passed in an Android 17 emulator run; phone QA, advanced text/Markdown and document-format parity remain open | View changed files and diffs from the active workspace |
+| Terminal Files | `TerminalArtifactFilesSheet`, `ChatArtifactFolderView`, `ChatArtifactViewerDestination` | Scoped RPC/paging/search store, Session/In view sheet, filters/sort, list/three-column grid, thumbnails, folder navigation, swipe previews and file actions coded; terminal menu entry capability gated; JVM checks passed and four UI fixtures compile; runtime/phone QA, Files chip/path taps, row Share and advanced preview fidelity remain open | Browse terminal/session files, folders and previews without crossing authorization scopes |
 | Tasks and agents | Task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
@@ -44,6 +45,37 @@ scope is terminal Files (Session/In view, search, filters, sorting, folders,
 previews and actions), along with the other open areas in the table. Haskell and
 PureScript highlighting also belongs to artifact code viewing, not a chat screen.
 No existing GUI chat implementation or verification is being claimed.
+
+## Terminal Files UI integration (2026-09-28)
+
+The terminal menu now opens Files when the connected Mac advertises terminal
+artifacts. The sheet implements Session/In view selection, whole-session search,
+All/Images/Code/Logs/Docs/Folders filters, stable Recent/Name/Size sorting,
+collapsible provenance groups, missing-file preference, pull refresh, list and
+three-column grid layouts, bounded thumbnail loading, and deferred new-file
+updates while reading. Terminal output changes are coalesced into gallery refresh
+requests while the sheet is visible. Folder navigation retains the selected scope
+and validates each immediate child path. Long press offers Copy path and Browse
+folder; the upstream row-level Share action remains to be added.
+
+File selection captures its visible swipe order and authorization. Preview pages
+stream to private temporary files and reuse image/PDF/media/text viewers and
+Share/Save/Open/Copy Image actions. Exported copies survive preview closure.
+Terminal/session chunks use upstream stat-size/offset/EOF validation; Changes
+retains its separate fingerprint enforcement. Interrupted, corrupt and cancelled
+downloads remove partial files. Folder and preview loads reject obsolete results.
+
+The full JVM suite passed **276 cases** with zero failures/errors/skips. Four new
+Android Files fixtures compile (scopes/filter/grid/missing, remote search/copy,
+nested folder/preview scope and navigation, corrupt-transfer retry/close). They
+have **not yet run**. Logs are retained in `captures/artifacts/`. No APK was built
+for these feature commits, and signed build 157 remains the current download.
+
+Remaining Files work includes runtime layout/interaction proof, the terminal Files
+chip/count/path-hit flow, row Share, thumbnail/cache and richer text/Markdown/document
+fidelity, and physical Pixel/Mac acceptance. The common Code extension mapping was
+checked against Apple UTType on this Mac; complete iOS type-registry equivalence
+has not been verified. No platform limitation is inferred from these open items.
 
 ## Terminal Files foundation (2026-09-28)
 
@@ -68,8 +100,8 @@ The full JVM suite passed 264 cases before the final generation-race guard. The
 focused 25-case Files rerun then passed with zero failures/errors/skips, and
 Android test-source compilation succeeded. Logs are retained in `captures/artifacts/`.
 
-This is the data/state foundation, not a completed Files screen. Sheet integration,
-previews and runtime/real-Mac acceptance remain pending.
+At this foundation checkpoint the Files screen was still pending. The subsequent
+UI integration and its remaining verification work are recorded above.
 No APK was built for this feature commit; build 157 remains the current download.
 
 ## Changed-file revision previews (2026-09-28)
