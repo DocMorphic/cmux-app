@@ -79,25 +79,7 @@ internal class IrohV2ControlSession(
             catch (error: Throwable) { transport.close(); throw error }
             // Scope and lease checks must run even while a request owns the operation mutex.
             mutate(run) { watchdog = scope.launch { watchAuthority(run) } }
-            var setup = requests.setup()
-            var ready: JSONObject
-            val initialAuthorization = authorization(run)
-            try {
-                val opened = IrohV2ControlSocket.open(client, requests.socketRequest(origin, initialAuthorization, setup), setup.getString("requestId"))
-                try { mutate(run) { socket = opened.first; mutableState.value = mutableState.value.copy(mode = "websocket") } }
-                catch (error: Throwable) { opened.first.close(); throw error }
-                ready = opened.second
-                mutate(run) { receiver = scope.launch { receive(run, opened.first) } }
-            } catch (error: Exception) {
-                currentCoroutineContext().ensureActive()
-                checkCurrent(run)
-                if (!permitsHttp(error)) throw error
-                // A new proof avoids reusing a nonce possibly consumed by a lost socket setup.
-                setup = requests.setup()
-                ready = transport.exchange(requests.httpSessionRequest(origin, authorization(run), setup),
-                    setup.getString("requestId"), "session.ready.v1")
-                mutate(run) { mutableState.value = mutableState.value.copy(mode = "http") }
-            }
+            val ready = openSession(run, transport)
             checkCurrent(run)
             mutate(run) { wantedRevision = maxOf(wantedRevision, IrohV2Wire.integer(ready, "teamRevision")) }
             ready.optJSONObject("ticket")?.let { value -> mutate(run) { ticket = parseTicket(value) } }
@@ -127,6 +109,40 @@ internal class IrohV2ControlSession(
             invalidate(run, error)
             throw error
         }
+    }
+
+    private suspend fun openSession(run: Long, transport: IrohV2ControlHttp): JSONObject {
+        for (attempt in 0..1) {
+            try {
+                var setup = requests.setup()
+                val auth = authorization(run, force = attempt == 1)
+                try {
+                    val opened = IrohV2ControlSocket.open(client, requests.socketRequest(origin, auth, setup), setup.getString("requestId"))
+                    try { mutate(run) {
+                        socket = opened.first
+                        mutableState.value = mutableState.value.copy(mode = "websocket")
+                        receiver = scope.launch { receive(run, opened.first) }
+                    } } catch (error: Throwable) { opened.first.close(); throw error }
+                    return opened.second
+                } catch (error: Exception) {
+                    currentCoroutineContext().ensureActive()
+                    checkCurrent(run)
+                    if (!permitsHttp(error)) throw error
+                    // A lost upgrade may have consumed its nonce. HTTP always gets a fresh proof.
+                    setup = requests.setup()
+                    val ready = transport.exchange(requests.httpSessionRequest(origin, auth, setup),
+                        setup.getString("requestId"), "session.ready.v1")
+                    mutate(run) { mutableState.value = mutableState.value.copy(mode = "http") }
+                    return ready
+                }
+            } catch (error: Exception) {
+                currentCoroutineContext().ensureActive()
+                checkCurrent(run)
+                if (attempt != 0 || !IrohV2Wire.isAuthenticationFailure(error)) throw error
+                mutate(run) { ticket = null }
+            }
+        }
+        error("Authentication recovery exhausted")
     }
 
     suspend fun refreshDirectory(): IrohV2ControlState = operations.withLock {
@@ -234,7 +250,7 @@ internal class IrohV2ControlSession(
         mutate(run) { mutableState.value = mutableState.value.copy(relays = parsed) }
     }
 
-    private suspend fun perform(run: Long, body: JSONObject): JSONObject {
+    private suspend fun perform(run: Long, body: JSONObject, refreshAuth: Boolean = true): JSONObject {
         checkCurrent(run)
         val active = synchronized(lock) {
             if (now() < cooldownUntil) throw IrohV2ServerFailure("rate_limited", true, (cooldownUntil - now()) * 1000)
@@ -247,9 +263,33 @@ internal class IrohV2ControlSession(
             }
             checkCurrent(run)
             return result
-        } catch (error: IrohV2ServerFailure) {
-            if (error.code == "rate_limited") mutate(run) { cooldownUntil = now() + maxOf(1, ((error.retryAfterMs ?: 60_000) + 999) / 1000) }
-            if (error.code in setOf("device_revoked", "team_access_revoked")) invalidate(run, error)
+        } catch (error: Exception) {
+            currentCoroutineContext().ensureActive()
+            checkCurrent(run)
+            if (refreshAuth && IrohV2Wire.isAuthenticationFailure(error)) {
+                // Explicit auth rejection is evidence the operation was not authorized. A lost
+                // reply or timeout takes no such path and never replays a mutation.
+                mutate(run) { ticket = null }
+                val token = accessToken(true)
+                checkCurrent(run)
+                require(token.isNotBlank()) { "Sign in to cmux" }
+                val renewal = if (body.getString("schemaId") == "ticket.request.v1")
+                    JSONObject(body.toString()).put("stackAccessToken", token)
+                else requests.operation("ticket.request.v1").put("stackAccessToken", token)
+                val activeSocket = active.first
+                val renewed = if (activeSocket != null) activeSocket.request(renewal) else {
+                    val request = requests.httpOperationRequest(origin, "Bearer $token", renewal, mutableState.value.directoryRevision)
+                    active.second.exchange(request, renewal.getString("requestId"), "ticket.result.v1")
+                }
+                checkCurrent(run)
+                mutate(run) { ticket = parseTicket(renewed.getJSONObject("ticket")) }
+                if (body.getString("schemaId") == "ticket.request.v1") return renewed
+                return perform(run, body, refreshAuth = false)
+            }
+            if (error is IrohV2ServerFailure) {
+                if (error.code == "rate_limited") mutate(run) { cooldownUntil = now() + maxOf(1, ((error.retryAfterMs ?: 60_000) + 999) / 1000) }
+                if (error.code in setOf("device_revoked", "team_access_revoked")) invalidate(run, error)
+            }
             throw error
         }
     }
@@ -384,7 +424,11 @@ internal class IrohV2ControlSession(
             if (epoch != run || closed) return
             ++epoch
             ticket = null
-            mutableState.value = IrohV2ControlState(failure = (error as? IrohV2ServerFailure)?.code ?: "Connection unavailable")
+            mutableState.value = IrohV2ControlState(failure = when {
+                error is IrohV2ServerFailure -> error.code
+                IrohV2Wire.isAuthenticationFailure(error) -> "unauthorized"
+                else -> "Connection unavailable"
+            })
             (socket to http).also { socket = null; http = null }
         }
         resources.first?.close(); resources.second?.close()

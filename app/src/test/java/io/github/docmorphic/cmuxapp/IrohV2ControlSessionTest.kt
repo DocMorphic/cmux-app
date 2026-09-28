@@ -33,6 +33,7 @@ class IrohV2ControlSessionTest {
         val blocked = Channel<JSONObject>(Channel.UNLIMITED)
         @Volatile var intercept: ((WebSocket, JSONObject) -> Boolean)? = null
         @Volatile var page: (JSONObject) -> JSONObject = { directory() }
+        @Volatile var rejectHttp: ((RecordedRequest) -> MockResponse?)? = null
         val identity = JSONObject().put("environment", "test").put("projectId", "project").put("teamId", "team")
             .put("userId", "user").put("deviceId", "phone").put("appNamespace", "io.github.docmorphic.cmuxapp.debug").put("buildTag", "test")
         val device = IrohV2AndroidDevice.descriptor(identity, "a".repeat(64), "test", "Pixel 6a", IrohMobileWireProfile.IOS_COMPATIBILITY)
@@ -41,6 +42,7 @@ class IrohV2ControlSessionTest {
             server.dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest): MockResponse {
                     auth += request.getHeader("Authorization").orEmpty()
+                    rejectHttp?.invoke(request)?.let { return it }
                     if (request.path == "/v2/control/socket") {
                         val setup = JSONObject(String(Base64.getUrlDecoder().decode(request.getHeader("x-cmux-v2-setup"))))
                         setups += setup
@@ -99,6 +101,8 @@ class IrohV2ControlSessionTest {
                 "directory.request.v1" -> result.put("directory", page(body))
                 "relay.request.v1" -> result.put("credentials", JSONArray().put(JSONObject().put("relayURL", "https://relay.example.com/")
                     .put("token", "fixture-relay-secret").put("expiresAt", 1600).put("refreshAfter", 1500)))
+                "ticket.request.v1" -> result.put("ticket", JSONObject().put("token", "renewed-fixture-ticket")
+                    .put("expiresAt", 1800).put("refreshAfter", 1700))
                 else -> error("Unexpected fixture operation: $schema")
             }
         }
@@ -140,14 +144,102 @@ class IrohV2ControlSessionTest {
         }
     }
 
-    @Test fun authenticationRejectionDoesNotFallBackOrEnroll() = runBlocking<Unit> {
+    @Test fun repeatedAuthenticationRejectionRefreshesOnceWithoutFallbackOrEnrollment() = runBlocking<Unit> {
         Fixture().use { fixture ->
             fixture.server.dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest) = MockResponse().setResponseCode(401)
             }
-            fixture.session().use { session ->
+            val forces = mutableListOf<Boolean>()
+            fixture.session(token = { force -> forces += force; "fixture-access-token" }).use { session ->
                 val failure = runCatching { withTimeout(3000) { session.connect() } }.exceptionOrNull()
                 assertTrue(failure is IrohV2HttpFailure && failure.status == 401)
+                assertEquals(2, fixture.server.requestCount)
+                assertEquals(listOf(false, true), forces)
+                assertFalse(session.state.value.ready)
+            }
+        }
+    }
+
+    @Test fun setupAuthenticationRecoveryUsesFreshTokenAndSignedProof() = runBlocking<Unit> {
+        Fixture().use { fixture ->
+            val setupIds = CopyOnWriteArrayList<String>()
+            val nonces = CopyOnWriteArrayList<String>()
+            fixture.rejectHttp = { request ->
+                val setup = JSONObject(String(Base64.getUrlDecoder().decode(request.getHeader("x-cmux-v2-setup"))))
+                setupIds += setup.getString("requestId"); nonces += setup.getJSONObject("proof").getString("nonce")
+                if (setupIds.size == 1) MockResponse().setResponseCode(401) else null
+            }
+            val forces = mutableListOf<Boolean>()
+            fixture.session(token = { force -> forces += force; if (force) "fresh-token" else "stale-token" }).use { session ->
+                assertTrue(withTimeout(3000) { session.connect() }.ready)
+                assertEquals(listOf(false, true), forces)
+                assertEquals(listOf("Bearer stale-token", "Bearer fresh-token"), fixture.auth)
+                assertNotEquals(setupIds[0], setupIds[1])
+                assertNotEquals(nonces[0], nonces[1])
+                assertEquals(1, fixture.setups.size)
+            }
+        }
+    }
+
+    @Test fun expiredHttpTicketRefreshesStackThenTicketBeforeRetryingDirectoryOnce() = runBlocking<Unit> {
+        Fixture(httpOnly = true).use { fixture ->
+            val rejected = AtomicBoolean(false)
+            val proofs = CopyOnWriteArrayList<JSONObject>()
+            fixture.rejectHttp = { request ->
+                if (request.path == "/v2/requests") {
+                    val body = JSONObject(request.body.clone().readUtf8())
+                    if (body.getString("schemaId") == "directory.request.v1") {
+                        proofs += JSONObject(String(Base64.getUrlDecoder().decode(request.getHeader("x-cmux-v2-setup"))))
+                        if (rejected.compareAndSet(false, true)) MockResponse().setResponseCode(401).setBody(JSONObject()
+                            .put("schemaId", "error.v1").put("requestId", body.getString("requestId"))
+                            .put("code", "ticket_expired").put("retryable", false).toString()) else null
+                    } else null
+                } else null
+            }
+            val forces = mutableListOf<Boolean>()
+            fixture.session(token = { force -> forces += force; if (force) "fresh-token" else "stale-token" }).use { session ->
+                assertTrue(withTimeout(3000) { session.connect() }.ready)
+                assertEquals(listOf(false, true), forces)
+                val renewal = fixture.seen.single { it.getString("schemaId") == "ticket.request.v1" }
+                assertEquals("fresh-token", renewal.getString("stackAccessToken"))
+                assertEquals("Bearer fresh-token", fixture.auth[3])
+                assertEquals("IrohTicket renewed-fixture-ticket", fixture.auth[4])
+                assertEquals(proofs[0].getString("requestId"), proofs[1].getString("requestId"))
+                assertNotEquals(proofs[0].getJSONObject("proof").getString("nonce"), proofs[1].getJSONObject("proof").getString("nonce"))
+            }
+        }
+    }
+
+    @Test fun socketAuthorizationRejectionRenewsTicketAndRepeatedRejectionStops() = runBlocking<Unit> {
+        Fixture().use { fixture ->
+            fixture.intercept = { socket, body ->
+                if (body.getString("schemaId") == "directory.request.v1") {
+                    socket.send(JSONObject().put("schemaId", "error.v1").put("requestId", body.getString("requestId"))
+                        .put("code", "unauthorized").put("retryable", false).toString())
+                    true
+                } else false
+            }
+            val forces = mutableListOf<Boolean>()
+            fixture.session(token = { force -> forces += force; "fixture-token" }).use { session ->
+                val error = runCatching { withTimeout(3000) { session.connect() } }.exceptionOrNull()
+                assertEquals("unauthorized", (error as? IrohV2ServerFailure)?.code)
+                assertEquals(listOf(false, true), forces)
+                assertEquals(listOf("directory.request.v1", "ticket.request.v1", "directory.request.v1"),
+                    fixture.seen.map { it.getString("schemaId") })
+                assertFalse(session.state.value.ready)
+            }
+        }
+    }
+
+    @Test fun accountChangedDuringForcedRefreshCannotRetrySetup() = runBlocking<Unit> {
+        Fixture().use { fixture ->
+            fixture.rejectHttp = { MockResponse().setResponseCode(401) }
+            fixture.session(token = { force ->
+                if (force) fixture.current.set(false)
+                "fixture-token"
+            }).use { session ->
+                val error = runCatching { withTimeout(3000) { session.connect() } }.exceptionOrNull()
+                assertTrue(error is CancellationException)
                 assertEquals(1, fixture.server.requestCount)
                 assertFalse(session.state.value.ready)
             }

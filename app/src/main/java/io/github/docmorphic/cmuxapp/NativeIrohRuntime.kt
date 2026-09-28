@@ -67,7 +67,9 @@ internal class NativeIrohRuntime(
                             }
                         } catch (error: Throwable) {
                             currentCoroutineContext().ensureActive()
-                            failure = error
+                            val reason = service?.state?.value?.failure
+                            failure = if (reason in IrohV2Recovery.terminalCodes || reason in IrohV2Recovery.authenticationCodes)
+                                IrohV2ServerFailure(checkNotNull(reason), false) else error
                         } finally {
                             synchronized(lock) {
                                 if (owner === run) {
@@ -81,9 +83,8 @@ internal class NativeIrohRuntime(
                             withContext(NonCancellable) { service?.awaitClosed() }
                         }
                         if (!isCurrent(team)) break
-                        if ((failure as? IrohV2ServerFailure)?.retryable == false ||
-                            failure?.message in setOf("device_revoked", "team_access_revoked")) break
-                        delay((retryDelayMillis * (1L shl minOf(attempt++, 4))).coerceAtMost(30_000))
+                        if (IrohV2Recovery.stops(failure)) break
+                        delay(IrohV2Recovery.delayMillis(failure, attempt++, retryDelayMillis, now() * 1000))
                     }
                 }
         }
@@ -105,7 +106,17 @@ internal class NativeIrohRuntime(
         }
     }
 
-    suspend fun connect(pairing: PairingCode.Iroh): MobileRpcClient {
+    suspend fun connect(pairing: PairingCode.Iroh): MobileRpcClient = try {
+        connectCurrent(pairing)
+    } catch (failure: CancellationException) {
+        // A child dial deadline or retirement must not cancel a still-active UI/service owner.
+        // Actual caller cancellation still propagates, including during account/Activity teardown.
+        currentCoroutineContext().ensureActive()
+        throw IOException(if (failure is TimeoutCancellationException) "Timed out connecting to this Mac"
+            else "The Mac connection changed. Reconnecting…", failure)
+    }
+
+    private suspend fun connectCurrent(pairing: PairingCode.Iroh): MobileRpcClient {
         val available = withTimeout(30_000) { state.first { it.ready || (!it.loading && it.error != null) } }
         check(available.ready) { available.error ?: "Waiting for your computers" }
         val run = synchronized(lock) { owner } ?: error("Account session changed")
@@ -148,7 +159,13 @@ internal class NativeIrohRuntime(
         mac.endpointId, mac.recordId, mac.deviceId, mac.buildTag)).toString()
     private fun requireCurrent(run: Owner) { if (!current(run)) throw CancellationException("Account session changed") }
     private fun failureMessage(failure: Throwable?) = when (failure) {
-        is IrohV2ServerFailure -> failure.code
+        is IrohV2ServerFailure -> when (failure.code) {
+            "unauthorized", "ticket_expired" -> "Sign in again to connect to your computers"
+            "device_revoked" -> "This device’s cmux access was revoked"
+            "team_access_revoked" -> "Your access to this team was removed"
+            else -> "Could not connect to your computers"
+        }
+        is IrohV2HttpFailure -> if (failure.status == 401) "Sign in again to connect to your computers" else "Could not connect to your computers"
         null, is CancellationException -> null
         else -> "Could not connect to your computers"
     }

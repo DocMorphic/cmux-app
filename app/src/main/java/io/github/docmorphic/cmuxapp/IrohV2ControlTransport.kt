@@ -25,6 +25,9 @@ internal class IrohV2Unavailable(cause: Throwable? = null) : IOException("Iroh c
 internal object IrohV2Wire {
     const val MAX_REPLY = 2 * 1024 * 1024
     const val MAX_REQUEST = 16 * 1024
+    fun isAuthenticationFailure(error: Throwable): Boolean =
+        (error is IrohV2HttpFailure && error.status == 401) ||
+            (error is IrohV2ServerFailure && error.code in setOf("unauthorized", "ticket_expired"))
     val requestResponses = mapOf(
         "device.register.v1" to "device.registered.v1", "challenge.request.v1" to "challenge.result.v1",
         "ticket.request.v1" to "ticket.result.v1", "relay.request.v1" to "relay.result.v1",

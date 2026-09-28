@@ -499,3 +499,44 @@ verification passed. Local receipt/XML/build log: `captures/iroh/native-discover
 
 - `app/build/outputs/apk/debug/app-debug.apk`: SHA-256 `8c497cc07cd2a14250f31981d8170736712fecbf4a131510d356e84801e6af4f`
 - `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`: SHA-256 `890cd0f059c7dd70527094ea46d9727954fca6805c46125fb93a3b427a1ca53d`
+
+
+## Authentication and connection recovery follow-up — 2026-09-28
+
+Compared the pinned iOS `V2ControlService+Connection.swift`,
+`V2ControlService+HTTP.swift`, `V2ControlService.swift` and Worker error contracts
+against the Android account owner. The following missing recovery behavior is
+now implemented:
+
+- A setup HTTP 401 or explicit `unauthorized`/`ticket_expired` reply gets one
+  forced Stack-token refresh and a new signed setup proof. It does not trigger
+  HTTP fallback merely because authentication failed. Repeated rejection is
+  surfaced and stops automatic enrollment until the user refreshes/signs in.
+- An explicit operation authentication rejection renews the API ticket with a
+  freshly refreshed Stack token, then retries the rejected operation once. HTTP
+  retry proofs use fresh nonces; the original request ID is preserved. Ticket
+  renewal itself is bounded. Lost replies/timeouts do not take this replay path.
+- Scope is checked after token refresh, before sending any recovery request.
+  A sign-out/team change during refresh cannot publish or use the old authority.
+- A nested native dial timeout or retired child operation becomes a normal
+  connection failure while the UI/service coroutine is active. Actual caller
+  cancellation still propagates. This prevents a dial deadline from silently
+  ending the foreground reconnect effect.
+- The runtime preserves explicit revocation/authentication reasons when backend
+  cleanup also cancels transport work. An operation's `retryable=false` flag is
+  no longer treated as a blanket ban on starting a fresh control session;
+  challenge expiry/proof replay can start fresh, while identity/access failures
+  stop. Startup retries honor server retry delays, including numeric/date HTTP
+  Retry-After and rate-limit defaults, independently of exponential backoff.
+
+The focused verification covers control-session authentication, account-owner
+cancellation/revocation, and reconnect delay policy. This follow-up does not
+establish live production connectivity and does not implement socket promotion,
+control-stream repair, persistent discovery/ticket cache, or specialized lane
+consumers. The last full-suite/build checkpoint remains e1117b7 (365 JVM tests);
+its APK hash above is unchanged. No APK was rebuilt or published for this source
+follow-up, consistent with batching APK builds at device/release milestones.
+
+Verification result: **30 focused JVM tests in 3 suites passed**, zero failures,
+errors or skips; final run took 17 seconds. Local XML/log/source receipt:
+`captures/iroh/auth-recovery/`. No Pixel was attached during this check.

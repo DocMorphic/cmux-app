@@ -17,11 +17,16 @@ class NativeIrohRuntimeTest {
         val closes = AtomicInteger()
         val refreshes = AtomicInteger()
         val transports = mutableListOf<PoolTestTransport>()
-        override suspend fun start() { }
+        var startAction: suspend () -> Unit = { }
+        var dial: suspend () -> Unit = { }
+        override suspend fun start() { startAction() }
         override suspend fun refresh() { refreshes.incrementAndGet() }
         override fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport {
             assertTrue(permits())
-            return PoolTestTransport().also { synchronized(transports) { transports += it } }
+            val wire = PoolTestTransport().also { synchronized(transports) { transports += it } }
+            return object : MobileRpcTransport by wire {
+                override suspend fun connect() { dial(); wire.connect() }
+            }
         }
         override fun close() { closes.incrementAndGet() }
     }
@@ -116,6 +121,70 @@ class NativeIrohRuntimeTest {
             time = 2000
             assertTrue(runCatching { runtime.connect(pairing()) }.isFailure)
             assertTrue(backend.transports.isEmpty())
+        }
+    }
+
+    @Test fun childDialTimeoutIsReconnectableWithoutCancellingTheCaller() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
+        val backend = Backend().apply { dial = { withTimeout(30) { awaitCancellation() } } }
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "test-token" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            val failure = runCatching { runtime.connect(pairing()) }.exceptionOrNull()
+            assertTrue(failure is java.io.IOException)
+            assertTrue(failure?.cause is TimeoutCancellationException)
+            assertTrue(currentCoroutineContext().isActive)
+            assertEquals(1, backend.transports.single().closes.get())
+            backend.dial = { }
+            runtime.connect(pairing()).close()
+            assertEquals(2, backend.transports.size)
+        }
+    }
+
+    @Test fun cancellingCallerDuringDialStillPropagatesAndClosesCandidate() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
+        val entered = CompletableDeferred<Unit>()
+        val backend = Backend().apply { dial = { entered.complete(Unit); awaitCancellation() } }
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "test-token" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            val pending = async { runtime.connect(pairing()) }
+            withTimeout(2000) { entered.await() }
+            pending.cancelAndJoin()
+            assertTrue(pending.isCancelled)
+            assertEquals(1, backend.transports.single().closes.get())
+            assertEquals(0, backend.closes.get())
+            backend.dial = { }
+            runtime.connect(pairing()).close()
+        }
+    }
+
+    @Test fun startupRevocationCannotBeHiddenByItsTransportCancellation() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
+        val count = AtomicInteger()
+        val backend = Backend().apply { startAction = {
+            state.value = IrohV2ControlState(failure = "device_revoked")
+            throw CancellationException("Account session changed")
+        } }
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "test-token" }, { _, _ ->
+            count.incrementAndGet(); backend
+        }, { 1000 }, retryDelayMillis = 10).use { runtime ->
+            val result = withTimeout(2000) { runtime.state.first { it.error != null } }
+            assertEquals("This device’s cmux access was revoked", result.error)
+            delay(100)
+            assertEquals(1, count.get())
+        }
+    }
+
+    @Test fun runningAuthenticationFailureStopsAutomaticReenrollment() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
+        val count = AtomicInteger()
+        val backend = Backend()
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "test-token" }, { _, _ ->
+            count.incrementAndGet(); backend
+        }, { 1000 }, retryDelayMillis = 10).use { runtime ->
+            withTimeout(2000) { runtime.state.first { it.ready } }
+            backend.state.value = IrohV2ControlState(failure = "unauthorized")
+            withTimeout(2000) { runtime.state.first { it.error == "Sign in again to connect to your computers" } }
+            delay(100)
+            assertEquals(1, count.get())
+            assertFalse(runtime.state.value.ready)
         }
     }
 }

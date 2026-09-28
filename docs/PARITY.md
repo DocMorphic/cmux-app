@@ -46,6 +46,13 @@ notifications use independently closable leases on one admitted Mac connection.
 The full JVM run passed 365 tests (61 suites). This is local/build evidence;
 Pixel enrollment, relay traversal and actual Mac traffic are still unverified.
 
+**Recovery follow-up (2026-09-28):** bounded forced-token/API-ticket recovery
+now handles explicit authentication rejection. Native dial timeouts remain
+reconnectable without swallowing actual caller cancellation. Revocation remains
+terminal; fresh sessions can recover expired challenges, with server rate-limit
+delays honored. See [IROH_V2.md](IROH_V2.md) for test scope and remaining recovery
+work. This follow-up has no new APK or live-device claim.
+
 | Area | iOS source / contract | Android status | Acceptance check |
 | --- | --- | --- | --- |
 | Account | `MobileAuthComposition`, `MobileRootAuthGate`, `AuthCoordinator` | OTP sign-in/encrypted token refresh coded; verified team membership and Settings selection implemented with login/team generation guards, HTTP cancellation and explicit token refresh tests; team creation/cache and live phone account QA remain open | Sign in with the Mac's cmux account/team; switch teams without stale authority; restore session; sign out |
