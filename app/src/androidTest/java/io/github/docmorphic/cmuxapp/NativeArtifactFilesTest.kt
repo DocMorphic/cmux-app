@@ -63,6 +63,7 @@ class NativeArtifactFilesTest {
         compose.onNodeWithText("All", useUnmergedTree = true).performClick()
         compose.onNodeWithContentDescription("Icons").performClick()
         compose.onNodeWithContentDescription("List").assertIsDisplayed()
+        compose.onNodeWithText("Recent ▾").performClick()
         compose.onNodeWithText("Show missing").performClick()
         waitDescription("Open file /gone.txt")
         compose.onNodeWithText("In view").performClick()
@@ -128,5 +129,28 @@ class NativeArtifactFilesTest {
         assertTrue(peer.requests.filter { it.getString("method").endsWith(".fetch") }.all {
             it.getString("method") == "mobile.terminal.artifact.fetch" && it.getJSONObject("params").getString("surface_id") == "surface"
         })
+    }
+    @Test fun unicodeAndWrappedTapCellsMatchUnmodifiedIosHitTester() {
+        val assets = InstrumentationRegistry.getInstrumentation().context.assets
+        val cases = JSONObject(assets.open("artifacts/ios-taps.json").bufferedReader().readText()).getJSONArray("cases")
+        for (index in 0 until cases.length()) {
+            val case = cases.getJSONObject(index)
+            assertEquals("Tap $index", case.opt("expected") as? String,
+                TerminalArtifactHitTest.path(case.getString("text"), case.getInt("column"), case.getInt("row"), case.getInt("columns")))
+        }
+    }
+    @Test fun directRelativeFolderTapKeepsTerminalScopeForDescendants() {
+        val text = "Relative terminal artifact"
+        peer.artifactResponse = { method, params -> when {
+            method.endsWith("stat") && params.getString("path") == "./folder" -> JSONObject().put("exists", true).put("is_directory", true).put("kind", "directory")
+            method.endsWith("list") -> JSONObject().put("entries", JSONArray().put(JSONObject().put("name", "note.txt").put("kind", "text").put("is_directory", false).put("size", text.length)))
+            method.endsWith("stat") -> stat(text)
+            else -> chunk(text)
+        } }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) { if (visible) ArtifactPathSheet(rpc, terminal, "./folder") { visible = false } } } }
+        waitDescription("Open file ./folder/note.txt")
+        compose.onNodeWithContentDescription("Open file ./folder/note.txt").performClick(); waitText(text)
+        assertTrue(peer.requests.isNotEmpty())
+        peer.requests.forEach { assertTrue(it.getString("method").startsWith("mobile.terminal.artifact.")); assertEquals("surface", it.getJSONObject("params").getString("surface_id")) }
     }
 }

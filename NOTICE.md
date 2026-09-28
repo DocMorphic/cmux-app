@@ -107,3 +107,11 @@ TerminalArtifactPathDetector and GhosttySurfaceCoordinator+Artifacts at cmux com
 scripts/generate-artifact-count-parity.py executes unmodified Swift policies and
 records their source hashes with the reference cases.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+
+Terminal path tap detection and soft-wrap stitching derive from
+TerminalArtifactTapHitTester at cmux commit
+4c5272e9153eca2033c9f40ac749f0c3a5bcb291. The unmodified Swift implementation
+produces 1,217 reference cell hits through scripts/generate-artifact-tap-parity.py.
+Android uses its renderer's grapheme cell widths and retains terminal authorization
+for relative paths and folder descendants.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.

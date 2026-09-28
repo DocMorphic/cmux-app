@@ -71,7 +71,7 @@ internal class ArtifactRpc(
     private fun method(scope: ArtifactAuthorization, operation: String) =
         "mobile.${if (scope is ArtifactAuthorization.Terminal) "terminal" else "chat"}.artifact.$operation"
     private fun pathParams(scope: ArtifactAuthorization, path: String): JSONObject {
-        require(validArtifactPath(path)) { "Invalid Mac file path." }
+        require(if (scope is ArtifactAuthorization.Terminal) validTerminalArtifactPath(path) else validArtifactPath(path)) { "Invalid Mac file path." }
         return params(scope).put("path", path)
     }
     private fun params(scope: ArtifactAuthorization): JSONObject = when (scope) {

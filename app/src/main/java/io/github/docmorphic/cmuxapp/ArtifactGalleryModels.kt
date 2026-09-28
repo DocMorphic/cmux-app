@@ -42,6 +42,8 @@ internal data class ArtifactItem(
 }
 
 internal fun validArtifactPath(path: String): Boolean = path.startsWith('/') && '\u0000' !in path
+// Terminal taps may send bare/relative names; only the Mac resolves them against its terminal cwd.
+internal fun validTerminalArtifactPath(path: String): Boolean = path.isNotBlank() && '\u0000' !in path && "://" !in path
 private fun JSONObject.nonnegativeLong(key: String): Long? = (opt(key) as? Number)?.toLong()?.takeIf { it >= 0 }
 private fun JSONObject.nonnegativeInt(key: String): Int? = nonnegativeLong(key)?.takeIf { it <= Int.MAX_VALUE }?.toInt()
 private fun JSONArray?.artifactItems(): List<ArtifactItem> = if (this == null) emptyList() else
@@ -120,7 +122,7 @@ internal data class ArtifactGalleryPage(val snapshot: ArtifactGallerySnapshot, v
 internal data class ArtifactDirectoryListing(val entries: List<ArtifactItem>, val truncated: Boolean) {
     companion object {
         fun read(value: JSONObject, parent: String): ArtifactDirectoryListing {
-            require(validArtifactPath(parent))
+            require(validTerminalArtifactPath(parent))
             val entries = value.optJSONArray("entries") ?: JSONArray()
             return ArtifactDirectoryListing((0 until entries.length()).mapNotNull { index ->
                 val entry = entries.optJSONObject(index) ?: return@mapNotNull null

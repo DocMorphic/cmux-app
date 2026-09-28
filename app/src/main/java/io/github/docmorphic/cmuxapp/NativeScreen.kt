@@ -354,6 +354,7 @@ fun NativeScreen(
     fun openTerminalText() { stopTerminalScrolling(); textSnapshot = TerminalTextSnapshot.capture(grid) }
     textSnapshot?.let { TerminalTextSheet(it) { textSnapshot = null } }
     var showTerminalFiles by remember(draftTarget, client) { mutableStateOf(false) }
+    var terminalArtifactPath by remember(draftTarget, client) { mutableStateOf<String?>(null) }
     val artifactRpc = remember(client, hostCapabilities) { client?.let { ArtifactRpc(it, hostCapabilities) } }
     val artifactPreferences = remember(context) { context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE) }
     var showMissingArtifacts by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("show-missing-files", false)) }
@@ -378,6 +379,11 @@ fun NativeScreen(
     }
     val artifactChipCount = artifactController?.count?.collectAsState()?.value
     val artifactRefresh = artifactController?.galleryRefresh?.collectAsState()?.value ?: 0
+    if (terminalArtifactPath != null && artifactsReady && artifactRpc != null && draftTarget != null) {
+        ArtifactPathSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), terminalArtifactPath!!) {
+            terminalArtifactPath = null
+        }
+    }
     if (showTerminalFiles && connectionReady && connectedCode == code && artifactRpc != null && draftTarget != null) {
         ArtifactFilesSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), artifactRefresh) {
             showTerminalFiles = false
@@ -1194,6 +1200,7 @@ fun NativeScreen(
                     }
                 }
                 val currentGrid = grid
+                val visibleArtifactScroll by rememberUpdatedState(scrollOffset)
                 Box(Modifier.fillMaxWidth().weight(1f)) {
                 RenderGridView(currentGrid, terminalCells, gridRevision,
                     Modifier.fillMaxSize()
@@ -1205,14 +1212,20 @@ fun NativeScreen(
                             onClick("Open keyboard") { directTyping = true; rawKeyboardView?.showKeyboard(); true }
                             customActions = listOf(CustomAccessibilityAction("View as Text") { openTerminalText(); true })
                         }
-                        .pointerInput(terminal.id, currentGrid, terminalCells) {
+                        .pointerInput(terminal.id, currentGrid, terminalCells, artifactRpc, artifactsReady) {
                             detectTapGestures(onTap = { point ->
+                                var openedArtifact = false
                                 TerminalGeometry.fit(size.width.toFloat(), size.height.toFloat(),
                                     currentGrid.columns, currentGrid.rows, terminalCells)?.let { geometry ->
-                                    terminalClick?.invoke(geometry.cell(point.x, point.y))
+                                    val cell = geometry.cell(point.x, point.y)
+                                    val path = if (artifactsReady && geometry.contains(point.x, point.y)) TerminalArtifactHitTest.path(
+                                        RenderGrid.plainText(currentGrid.visibleLines(visibleArtifactScroll)), cell.column, cell.row, currentGrid.columns) else null
+                                    if (path != null) {
+                                        stopTerminalScrolling(); directTyping = false; softwareKeyboard?.hide()
+                                        terminalArtifactPath = path; openedArtifact = true
+                                    } else terminalClick?.invoke(cell)
                                 }
-                                directTyping = true
-                                rawKeyboardView?.showKeyboard()
+                                if (!openedArtifact) { directTyping = true; rawKeyboardView?.showKeyboard() }
                             }, onLongPress = { openTerminalText() })
                         }
                         .terminalScrollGestures(terminalMotion,

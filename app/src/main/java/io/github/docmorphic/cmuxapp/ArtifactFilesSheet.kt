@@ -10,12 +10,14 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -23,6 +25,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -117,24 +121,30 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
                 }
             }
             if (activeSession) {
-                OutlinedTextField(searchText, { searchText = it; store.setQuery(it) }, singleLine = true,
-                    placeholder = { Text("Search session files") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    trailingIcon = { if (searchText.isNotEmpty()) TextButton(onClick = { searchText = ""; store.setQuery("") }) { Text("Clear") } })
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    ArtifactFilter.entries.forEach { option -> TextButton(onClick = { filter = option }) {
-                        Text(option.title, color = if (filter == option) filesAccent else filesMuted, fontWeight = if (filter == option) FontWeight.SemiBold else FontWeight.Normal)
-                    } }
-                }
-                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                FilesSearchField(searchText) { searchText = it; store.setQuery(it) }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ArtifactFilter.entries.forEach { option ->
+                            TextButton(onClick = { filter = option }, shape = RoundedCornerShape(50),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
+                                colors = ButtonDefaults.textButtonColors(containerColor = if (filter == option) Color(0xFF007AFF) else filesPanel)) {
+                                Text(option.title, color = if (filter == option) Color.White else filesMuted, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
                     var sortMenu by remember { mutableStateOf(false) }
                     Box {
                         TextButton(onClick = { sortMenu = true }) { Text("${sort.title} ▾", color = filesAccent) }
                         DropdownMenu(sortMenu, { sortMenu = false }) {
                             ArtifactSort.entries.forEach { option -> DropdownMenuItem(text = { Text(option.title) }, onClick = { sort = option; sortMenu = false }) }
+                            HorizontalDivider()
+                            DropdownMenuItem(text = { Text(if (showMissing) "Hide missing" else "Show missing") }, onClick = {
+                                showMissing = !showMissing
+                                preferences.edit().putBoolean("show-missing-files", showMissing).apply()
+                                sortMenu = false
+                            })
                         }
                     }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { showMissing = !showMissing; preferences.edit().putBoolean("show-missing-files", showMissing).apply() }) { Text(if (showMissing) "Hide missing" else "Show missing", color = filesMuted, fontSize = 12.sp) }
                 }
             }
             HorizontalDivider(color = filesPanel)
@@ -193,12 +203,37 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
 
 @Composable
 internal fun FilesHeader(title: String, onBack: (() -> Unit)?, onDone: () -> Unit, extra: @Composable () -> Unit = {}) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = onBack ?: onDone) { Text(if (onBack == null) "Done" else "‹ Back", color = filesAccent) }
-        Text(title, Modifier.weight(1f).padding(horizontal = 8.dp), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        extra()
-        if (onBack != null) TextButton(onClick = onDone) { Text("Done", color = filesAccent) }
+    Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
+        Text(title, Modifier.fillMaxWidth().padding(horizontal = 84.dp), textAlign = TextAlign.Center,
+            fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack ?: onDone) { Text(if (onBack == null) "Done" else "‹ Back", color = filesAccent) }
+            Spacer(Modifier.weight(1f))
+            extra()
+            if (onBack != null) TextButton(onClick = onDone) { Text("Done", color = filesAccent) }
+        }
     }
+}
+
+@Composable
+private fun FilesSearchField(value: String, onChange: (String) -> Unit) {
+    BasicTextField(value, onChange, singleLine = true, textStyle = TextStyle(color = Color.White, fontSize = 16.sp),
+        cursorBrush = SolidColor(filesAccent),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).heightIn(min = 40.dp)
+            .background(filesPanel, RoundedCornerShape(10.dp)).padding(horizontal = 12.dp),
+        decorationBox = { field ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Canvas(Modifier.size(16.dp)) {
+                    drawCircle(filesMuted, radius = size.width * .3f, center = androidx.compose.ui.geometry.Offset(size.width * .36f, size.height * .36f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.8.dp.toPx()))
+                    drawLine(filesMuted, androidx.compose.ui.geometry.Offset(size.width * .6f, size.height * .6f), androidx.compose.ui.geometry.Offset(size.width * .95f, size.height * .95f), strokeWidth = 1.8.dp.toPx())
+                }
+                Box(Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 9.dp)) {
+                    if (value.isEmpty()) Text("Search session files", color = filesMuted, fontSize = 16.sp)
+                    field()
+                }
+                if (value.isNotEmpty()) TextButton(onClick = { onChange("") }) { Text("Clear", color = filesMuted) }
+            }
+        })
 }
 @Composable
 internal fun FilesMessage(title: String, message: String? = null, action: String? = null, onAction: () -> Unit = {}) {
@@ -264,7 +299,7 @@ private fun ArtifactGlyph(item: ArtifactItem, thumbnails: ArtifactThumbnails, au
     }
 }
 
-private class ArtifactThumbnails(private val rpc: ArtifactRpc) {
+internal class ArtifactThumbnails(private val rpc: ArtifactRpc) {
     private data class Key(val scope: ArtifactAuthorization, val path: String, val modifiedAt: Double?, val size: Long?)
     private val cache = object : LruCache<Key, Bitmap>(8 * 1024 * 1024) { override fun sizeOf(key: Key, value: Bitmap) = value.byteCount }
     private val permits = Semaphore(3)
@@ -289,7 +324,7 @@ private data class ArtifactFolderLoad(val identity: Any? = null, val listing: Ar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ArtifactFolderContent(rpc: ArtifactRpc, thumbnails: ArtifactThumbnails, destination: ArtifactDestination.Folder,
+internal fun ArtifactFolderContent(rpc: ArtifactRpc, thumbnails: ArtifactThumbnails, destination: ArtifactDestination.Folder,
     onBack: () -> Unit, onDone: () -> Unit, onOpen: (ArtifactItem, List<ArtifactItem>) -> Unit) {
     var retry by remember { mutableIntStateOf(0) }
     val identity = remember(rpc, destination, retry) { Any() }

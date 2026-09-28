@@ -72,4 +72,16 @@ class ArtifactRpcTest {
         assertTrue(runCatching { rpc.stat(session, "relative") }.isFailure)
         assertTrue(runCatching { rpc.thumbnail(terminal, "/file", 0) }.isFailure)
     }
+    @Test fun tappedRelativePathsAreResolvedOnlyByTheMacUnderTerminalAuthorization() = runBlocking {
+        val paths = mutableListOf<String>()
+        val rpc = ArtifactRpc(all) { method, params ->
+            assertTrue(method.startsWith("mobile.terminal.artifact."))
+            assertEquals("surface", params.getString("surface_id")); assertFalse(params.has("session_id"))
+            paths += params.getString("path"); JSONObject()
+        }
+        rpc.stat(terminal, "notes.md"); rpc.fetch(terminal, "../folder/file.txt", 0, 1); rpc.list(terminal, "./folder")
+        assertEquals(listOf("notes.md", "../folder/file.txt", "./folder"), paths)
+        assertTrue(runCatching { rpc.stat(session, "notes.md") }.isFailure)
+        assertTrue(runCatching { rpc.stat(terminal, "https://example/file") }.isFailure)
+    }
 }

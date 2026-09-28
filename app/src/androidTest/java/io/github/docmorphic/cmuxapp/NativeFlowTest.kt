@@ -73,6 +73,42 @@ class NativeFlowTest {
         TerminalDraftRepository.get(context).drafts.clear()
     }
 
+    @Test fun terminalFilesChipAndRelativePathTapUseNativeTerminalRoute() {
+        context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE).edit().putFloat("terminal_scale", 1f).commit()
+        peer.artifactsSupported = true
+        peer.gridFirstLine = "open notes.md"
+        val body = "Native terminal path preview"
+        peer.artifactResponse = { method, _ -> when {
+            method.endsWith("scan") -> JSONObject().put("session_id", "session").put("gallery_row_total", 1)
+            method.endsWith("gallery") -> JSONObject().put("session_id", "session").put("referenced", JSONArray().put(JSONObject().put("path", "/fixture/notes.md").put("kind", "text")))
+            method.endsWith("stat") -> JSONObject().put("exists", true).put("is_directory", false).put("kind", "text").put("size", body.length)
+            else -> JSONObject().put("offset", 0).put("total_size", body.length).put("eof", true)
+                .put("data_b64", java.util.Base64.getEncoder().encodeToString(body.toByteArray()))
+        } }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Open files in view").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Open files in view").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Open file /fixture/notes.md").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Done").performClick()
+        val terminal = compose.onNodeWithText("open notes.md", substring = true)
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("open notes.md", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        val viewport = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }.getJSONObject("params")
+        val metrics = context.resources.displayMetrics
+        val cells = TerminalCellMetrics.fromFontSize(14f * metrics.scaledDensity, 2f * metrics.density)
+        val bounds = terminal.fetchSemanticsNode().boundsInRoot
+        val geometry = TerminalGeometry.fit(bounds.width, bounds.height, viewport.getInt("viewport_columns"), viewport.getInt("viewport_rows"), cells)!!
+        terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(geometry.originX + geometry.cellWidth * 7.5f, geometry.originY + geometry.cellHeight * .5f)) }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(body).fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(peer.requests.any { it.optString("method") == "mobile.terminal.artifact.stat" && it.getJSONObject("params").optString("path") == "notes.md" })
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.click" })
+    }
+
     @Test fun workspaceFilterTerminalInputAndKeyboardResize() {
         compose.setContent {
             CmuxTheme {
@@ -1320,6 +1356,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var browserResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var changesResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var artifactResponse: ((String, JSONObject) -> JSONObject)? = null
+    @Volatile var artifactsSupported = false
     @Volatile var changesErrorCode: String? = null
     val nextTaskCreateError = java.util.concurrent.atomic.AtomicReference<String?>(null)
     @Volatile var rawTerminal = false
@@ -1435,6 +1472,7 @@ internal class NativeFixturePeer : AutoCloseable {
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
             .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
+                if (artifactsSupported) it.put("terminal.artifact.v1").put("chat.artifact.gallery.v1").put("terminal.artifact.list.v1")
                 if (rawTerminal) it.put("terminal.bytes.v1")
                 else { it.put("terminal.render_grid.v1"); if (screenAnchor) it.put("terminal.render_grid.screen_anchor.v1") }
             })

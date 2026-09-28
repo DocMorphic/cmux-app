@@ -10,6 +10,8 @@ import kotlin.math.min
 data class TerminalGeometry(val scale: Float, val cellWidth: Float, val cellHeight: Float,
                             val originX: Float, val originY: Float, val columns: Int, val rows: Int) {
     data class Cell(val column: Int, val row: Int)
+    fun contains(x: Float, y: Float): Boolean = x.isFinite() && y.isFinite() &&
+        x >= originX && x < originX + columns * cellWidth && y >= originY && y < originY + rows * cellHeight
     fun cell(x: Float, y: Float) = Cell(((x - originX) / cellWidth).toInt().coerceIn(0, columns - 1),
         ((y - originY) / cellHeight).toInt().coerceIn(0, rows - 1))
     companion object {
