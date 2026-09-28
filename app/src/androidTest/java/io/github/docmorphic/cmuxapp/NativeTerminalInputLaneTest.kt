@@ -14,7 +14,10 @@ import java.nio.ByteBuffer
 
 /** Real native QUIC, admission and input readiness, without altering saved account credentials. */
 class NativeTerminalInputLaneTest {
-    @Test fun nativeInputUsesIndependentStreamAndControlRpcRemainsUsable() = runBlocking<Unit> {
+    @Test fun nativeInputUsesIndependentStreamAndControlRpcRemainsUsable() = exercise(inputOnly = true)
+    @Test fun nativeDuplexTerminalStreamsReplayChunksAndInputAlongsideControl() = exercise(inputOnly = false)
+
+    private fun exercise(inputOnly: Boolean) = runBlocking<Unit> {
         IrohRuntime.initialize(InstrumentationRegistry.getInstrumentation().targetContext)
         withTimeout(20_000) {
             val options = EndpointOptions(preset = presetMinimal(), bindAddr = "127.0.0.1:0",
@@ -26,6 +29,7 @@ class NativeTerminalInputLaneTest {
             val finish = CompletableDeferred<Unit>()
             val surface = "382d08b0-890c-4a4f-a26a-3466cda11b81"
             val text = "é😀\u001b[A\r"
+            val cursor = ULong.MAX_VALUE - 20u
             try {
                 val peer = async {
                     checkNotNull(host.acceptNext()).use { incoming -> incoming.accept().use { accepting ->
@@ -36,14 +40,23 @@ class NativeTerminalInputLaneTest {
                                 send.writeAll(IrxWire.encode(JSONObject().put("v", 1).put("session", "input-fixture")
                                     .put("keepaliveIntervalMs", 5000).put("keepaliveDeadlineMs", 2000)))
                                 connection.acceptBi().use { input -> input.recv().use { keys -> input.send().use { ready ->
-                                    val descriptor = checkNotNull(IrxWire.read { keys.read(it.toUInt()) })
-                                    assertEquals("terminal_input", descriptor.getString("lane"))
+                                    val descriptorSize = ByteBuffer.wrap(keys.readExact(4u)).int
+                                    require(descriptorSize in 1..IrxWire.MAX_CONTROL_BYTES)
+                                    val descriptorText = keys.readExact(descriptorSize.toUInt()).decodeToString()
+                                    val descriptor = MobileJson.objectValue(descriptorText)
+                                    assertEquals(if (inputOnly) "terminal_input" else "terminal", descriptor.getString("lane"))
                                     assertEquals("terminal:$surface", descriptor.getString("resource"))
-                                    assertFalse(descriptor.has("cursor"))
-                                    // Independent host baseline deliberately exceeds signed Long range.
-                                    val baseline = ByteBuffer.allocate(36).putInt(0x434d5854).put(1).put(1).putShort(0)
-                                        .putLong(-2).putLong(-2).putLong(-2).putInt(0).array()
-                                    ready.writeAll(baseline.copyOfRange(0, 11)); ready.writeAll(baseline.copyOfRange(11, 36))
+                                    if (inputOnly) assertFalse(descriptor.has("cursor"))
+                                    else assertEquals(cursor.toString(), descriptor.get("cursor").toString())
+                                    fun envelope(kind: Int, start: ULong, content: String): ByteArray {
+                                        val bytes = content.toByteArray()
+                                        return ByteBuffer.allocate(36 + bytes.size).putInt(0x434d5854).put(1).put(kind.toByte()).putShort(0)
+                                            .putLong(cursor.toLong()).putLong(start.toLong()).putLong((start + bytes.size.toULong()).toLong())
+                                            .putInt(bytes.size).put(bytes).array()
+                                    }
+                                    val baseline = envelope(1, cursor, if (inputOnly) "" else "native")
+                                    ready.writeAll(baseline.copyOfRange(0, 11)); ready.writeAll(baseline.copyOfRange(11, baseline.size))
+                                    if (!inputOnly) ready.writeAll(envelope(2, cursor + 6u, "!"))
                                     val length = ByteBuffer.wrap(keys.readExact(4u)).int
                                     assertEquals(text.toByteArray().size, length)
                                     assertEquals(text, keys.readExact(length.toUInt()).decodeToString())
@@ -63,10 +76,20 @@ class NativeTerminalInputLaneTest {
                         MutableStateFlow(IrxProbeActivity(false)))
                     MobileRpcClient(transport, { null }).use { client ->
                         client.connect()
-                        assertTrue(client.useTerminalInputLane(surface) { lane ->
+                        suspend fun checkInput(lane: TerminalInputLane) {
                             lane.send(text)
                             assertTrue(client.hostStatus().getBoolean("input_checked"))
                             assertFalse(client.isClosed)
+                        }
+                        if (inputOnly) assertTrue(client.useTerminalInputLane(surface, ::checkInput))
+                        else assertTrue(client.useTerminalOutputLane(surface, cursor) { lane ->
+                            val replay = checkNotNull(lane.receive())
+                            assertTrue(replay.replay); assertEquals(cursor, replay.sequence)
+                            assertEquals("native", replay.bytes.decodeToString())
+                            val chunk = checkNotNull(lane.receive())
+                            assertFalse(chunk.replay); assertEquals(cursor + 6u, chunk.sequence)
+                            assertEquals("!", chunk.bytes.decodeToString())
+                            checkInput(lane)
                         })
                         finish.complete(Unit)
                         peer.await()

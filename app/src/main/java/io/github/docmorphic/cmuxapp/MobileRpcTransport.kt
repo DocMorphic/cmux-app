@@ -17,6 +17,7 @@ internal interface MobileRpcTransport : AutoCloseable {
     val supportsControlRepair: Boolean get() = false
     suspend fun repairControl(silentSinceNanos: Long): MobileControlRepair = MobileControlRepair.Unavailable
     suspend fun openTerminalInput(surfaceId: String): TerminalInputLane? = null
+    suspend fun openTerminalOutput(surfaceId: String, cursor: ULong?): TerminalOutputLane? = null
     suspend fun writeWithGeneration(bytes: ByteArray): Long { write(bytes); return 0 }
     suspend fun connect()
     suspend fun read(): ByteArray?

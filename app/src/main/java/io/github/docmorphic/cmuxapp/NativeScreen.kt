@@ -435,6 +435,7 @@ fun NativeScreen(
     val hardwareInput = remember(draftTarget) { TerminalHardwareInput() }
     val inputClient = client
     val inputTarget = draftTarget
+    var outputInput by remember(inputClient, inputTarget) { mutableStateOf<TerminalOutputLaneOwner?>(null) }
     val nativeInput = remember(inputClient, inputTarget, terminalTransport.mode, connectionReady) {
         if (inputClient != null && inputTarget != null && connectionReady && terminalTransport.mode == TerminalOutputMode.GRID)
             TerminalInputLaneOwner(scope) { use -> inputClient.useTerminalInputLane(inputTarget.surface, use) }
@@ -446,7 +447,8 @@ fun NativeScreen(
             check(inputClient != null && inputTarget != null && client === inputClient &&
                 code == inputTarget.pairing && signedIn) { "Terminal connection changed" }
             if (entry.paste) inputClient.paste(inputTarget.workspace, inputTarget.surface, entry.text, submit = false)
-            else if (nativeInput?.send(entry.text) != true) inputClient.input(inputTarget.workspace, inputTarget.surface, entry.text)
+            else if (nativeInput?.send(entry.text) != true && outputInput?.send(entry.text) != true)
+                inputClient.input(inputTarget.workspace, inputTarget.surface, entry.text)
         }
     }
     val inputStatus by inputQueue.status.collectAsState()
@@ -774,7 +776,7 @@ fun NativeScreen(
         }
     }
 
-    LaunchedEffect(client, selectedWorkspace?.id, selectedTerminal?.id, terminalColumns, terminalRows) {
+    LaunchedEffect(client, selectedWorkspace?.id, selectedTerminal?.id, terminalColumns, terminalRows, terminalTransport) {
         val active = client ?: return@LaunchedEffect
         val workspace = selectedWorkspace ?: return@LaunchedEffect
         val terminal = selectedTerminal ?: return@LaunchedEffect
@@ -789,6 +791,7 @@ fun NativeScreen(
         var replayAgain = false
         var recoveryFailed = false
         var subscriptionReady = false
+        var nativeOutput: TerminalOutputLaneOwner? = null
         val subscriptionId = java.util.UUID.randomUUID().toString()
         fun publish() {
             grid = mirror.display
@@ -797,6 +800,7 @@ fun NativeScreen(
         }
         suspend fun replayTerminal() {
             if (replayRunning || recoveryFailed) return
+            nativeOutput?.pause()
             replayRunning = true
             mirror.beginReplay()
             try {
@@ -811,6 +815,7 @@ fun NativeScreen(
                     publish()
                     if (result != TerminalStreamMirror.Result.REPLAY && !replayAgain) {
                         error = null
+                        nativeOutput?.resume()
                         return
                     }
                     mirror.beginReplay()
@@ -823,6 +828,7 @@ fun NativeScreen(
             } finally { replayRunning = false }
         }
         fun requestReplay() {
+            nativeOutput?.pause()
             mirror.beginReplay()
             if (replayRunning) replayAgain = true
             else if (subscriptionReady && !recoveryFailed) launch(start = CoroutineStart.UNDISPATCHED) { replayTerminal() }
@@ -896,6 +902,16 @@ fun NativeScreen(
             subscriptionReady = true
             replayTerminal()
             if (!recoveryFailed && isCurrent()) {
+                if (transport.mode != TerminalOutputMode.GRID) {
+                    nativeOutput = TerminalOutputLaneOwner(this, cursor = { mirror.nativeCursor.takeUnless { mirror.replayPending } },
+                        useLane = { cursor, use -> active.useTerminalOutputLane(terminal.id, cursor, use) },
+                        consume = { frame ->
+                            check(isCurrent()) { "Terminal connection changed" }
+                            mirror.lane(frame).also { if (it == TerminalStreamMirror.Result.APPLIED) publish() }
+                        }, resync = ::requestReplay)
+                    outputInput = nativeOutput
+                    nativeOutput?.resume()
+                }
                 terminalClick = { cell ->
                     if (isCurrent() && scrollOffset == 0) launch {
                         try { if (isCurrent()) active.terminalClick(workspace.id, terminal.id, cell) }
@@ -925,6 +941,8 @@ fun NativeScreen(
             if (failure is CancellationException) throw failure
             error = failure.message ?: "Terminal subscription failed"
         } finally {
+            nativeOutput?.close()
+            if (outputInput === nativeOutput) outputInput = null
             scrollQueue.close()
             if (generation == replayGeneration) { terminalClick = null; terminalScroll = null; cancelQueuedScroll = null }
             eventJob.cancel()

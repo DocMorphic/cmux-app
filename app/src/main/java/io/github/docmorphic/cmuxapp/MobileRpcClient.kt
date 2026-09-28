@@ -113,7 +113,7 @@ class MobileRpcClient internal constructor(
                     scope.launch {
                         try {
                             events.collect { payload ->
-                                val envelope = JSONObject(payload.toString(Charsets.UTF_8))
+                                val envelope = MobileJson.objectValue(payload.toString(Charsets.UTF_8))
                                 require(envelope.optString("kind") == "event") { "Non-event on Irx event lane" }
                                 dispatch(envelope)
                             }
@@ -133,7 +133,7 @@ class MobileRpcClient internal constructor(
         if (delegate != null) return borrowing { it.request(method, params, timeoutMillis) }
         require(method.isNotBlank())
         val id = UUID.randomUUID().toString()
-        val parameters = JSONObject(params.toString())
+        val parameters = MobileJson.objectValue(params.toString())
         val body = JSONObject().put("id", id).put("method", method).put("params", parameters)
         val token = if (method == "mobile.host.status") {
             try { accessToken()?.trim() }
@@ -404,6 +404,18 @@ class MobileRpcClient internal constructor(
         } finally { lane.close() }
     }
 
+    internal suspend fun useTerminalOutputLane(surfaceId: String, cursor: ULong?, use: suspend (TerminalOutputLane) -> Unit): Boolean {
+        if (delegate != null) return borrowing { it.useTerminalOutputLane(surfaceId, cursor, use) }
+        synchronized(stateLock) { check(!closed && connected) }
+        val lane = transport.openTerminalOutput(surfaceId, cursor) ?: return false
+        try {
+            currentCoroutineContext().ensureActive()
+            synchronized(stateLock) { check(!closed && connected) }
+            use(lane)
+            return true
+        } finally { lane.close() }
+    }
+
     suspend fun input(workspaceId: String, surfaceId: String, text: String): JSONObject =
         request("terminal.input", JSONObject()
             .put("workspace_id", workspaceId)
@@ -470,7 +482,7 @@ class MobileRpcClient internal constructor(
         try {
             while (true) {
                 val bytes = transport.read() ?: break
-                for (frame in decoder.feed(bytes)) dispatch(JSONObject(frame.toString(Charsets.UTF_8)))
+                for (frame in decoder.feed(bytes)) dispatch(MobileJson.objectValue(frame.toString(Charsets.UTF_8)))
             }
         } catch (error: Throwable) { failure = error }
         finally { failConnection(failure) }

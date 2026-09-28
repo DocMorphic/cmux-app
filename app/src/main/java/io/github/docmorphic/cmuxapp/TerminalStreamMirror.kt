@@ -8,13 +8,18 @@ class TerminalStreamMirror(
     val surfaceId: String, val transport: TerminalTransport, private val viewport: TerminalViewport
 ) {
     enum class Result { APPLIED, IGNORED, REPLAY }
-    private data class Chunk(val bytes: ByteArray, val sequence: Long?) {
-        val end get() = sequence?.let { Math.addExact(it, bytes.size.toLong()) }
+    private data class Chunk(val bytes: ByteArray, val sequence: ULong?) {
+        val end get() = sequence?.let {
+            require(it <= ULong.MAX_VALUE - bytes.size.toULong()) { "Terminal sequence overflow" }
+            it + bytes.size.toULong()
+        }
     }
     private var authoritative = RenderGrid()
     private var raw = VtTerminal(viewport.columns, viewport.rows)
     private var hybridScreen = "primary"
-    private var deliveredEnd: Long? = null
+    private var deliveredEnd: ULong? = null
+    internal val nativeCursor: ULong? get() = deliveredEnd
+    internal val replayPending get() = pending
     private var pending = true
     private val buffered = ArrayDeque<Chunk>()
     private var bufferedBytes = 0
@@ -35,6 +40,16 @@ class TerminalStreamMirror(
         if (chunk.bytes.isEmpty()) return Result.IGNORED
         if (pending) { buffer(chunk); return Result.IGNORED }
         return append(chunk)
+    }
+
+    /** Native output shares the event cursor, so overlap is trimmed exactly once. */
+    internal fun lane(frame: TerminalLaneProtocol.Output): Result {
+        if (transport.mode == TerminalOutputMode.GRID || usesAlternateGrid) return Result.IGNORED
+        if (pending || deliveredEnd == null) return Result.REPLAY
+        if (frame.bytes.isEmpty()) {
+            return if (frame.sequence <= checkNotNull(deliveredEnd)) Result.IGNORED else Result.REPLAY
+        }
+        return append(Chunk(frame.bytes, frame.sequence))
     }
 
     fun grid(value: JSONObject): Result {
@@ -150,9 +165,9 @@ class TerminalStreamMirror(
             require(value.length <= MobileFrameCodec.MAX_FRAME_BYTES) { "Terminal byte chunk is too large" }
             return Base64.getDecoder().decode(value)
         }
-        private fun sequence(value: JSONObject, key: String): Long? {
+        private fun sequence(value: JSONObject, key: String): ULong? {
             if (!value.has(key) || value.isNull(key)) return null
-            return value.get(key).toString().toLongOrNull()?.also { require(it >= 0) }
+            return value.get(key).toString().toULongOrNull()
                 ?: throw IllegalArgumentException("Invalid terminal sequence")
         }
     }

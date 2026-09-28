@@ -118,7 +118,9 @@ class TerminalStreamMirrorTest {
             assertThrows(IllegalArgumentException::class.java) { mirror.bytes(value) }
             assertEquals("safe", text(mirror))
         }
-        assertThrows(ArithmeticException::class.java) { mirror.bytes(event("x".toByteArray(), Long.MAX_VALUE)) }
+        assertThrows(IllegalArgumentException::class.java) {
+            mirror.bytes(event("x".toByteArray(), 0).put("seq", java.math.BigInteger(ULong.MAX_VALUE.toString())))
+        }
         assertEquals("safe", text(mirror))
     }
 

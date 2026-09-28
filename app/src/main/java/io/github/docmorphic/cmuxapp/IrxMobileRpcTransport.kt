@@ -97,14 +97,20 @@ internal class IrxMobileRpcTransport(
     private data class Closing(val session: IrxClientSession?, val dial: Job?,
                                val control: IrxControlChannel?, val probes: IrxKeepalive?)
     override val surfaceEventLanes = true
-    override suspend fun openTerminalInput(surfaceId: String): TerminalInputLane {
+    override suspend fun openTerminalInput(surfaceId: String): TerminalInputLane =
+        IrxTerminalInputLane.open(openTerminalWire(surfaceId, IrxWire.Lane.TERMINAL_INPUT, null))
+
+    override suspend fun openTerminalOutput(surfaceId: String, cursor: ULong?): TerminalOutputLane =
+        IrxTerminalOutputLane(openTerminalWire(surfaceId, IrxWire.Lane.TERMINAL, cursor), cursor)
+
+    private suspend fun openTerminalWire(surfaceId: String, kind: IrxWire.Lane, cursor: ULong?): TerminalLaneWire {
         val surface = java.util.UUID.fromString(surfaceId).toString()
         require(surface.equals(surfaceId, ignoreCase = true)) { "Invalid terminal surface" }
         requireAccess()
         var candidate: IrxDuplexLane? = null
         val lane = try {
             withTimeout(5000) {
-                active().openLane(IrxWire.Descriptor(IrxWire.Lane.TERMINAL_INPUT, "terminal:$surface")).also { candidate = it }
+                active().openLane(IrxWire.Descriptor(kind, "terminal:$surface", cursor)).also { candidate = it }
             }
         } catch (failure: Throwable) {
             candidate?.let { abandoned ->
@@ -112,13 +118,12 @@ internal class IrxMobileRpcTransport(
             }
             throw failure
         }
-        val wire = object : TerminalLaneWire {
+        return object : TerminalLaneWire {
             override suspend fun read(): ByteArray { requireAccess(); return lane.read(64 * 1024) }
             override suspend fun write(bytes: ByteArray) { requireAccess(); lane.write(bytes) }
             override suspend fun retire() = lane.retire(0uL)
             override fun close() = lane.close()
         }
-        return IrxTerminalInputLane.open(wire)
     }
     override val supportsControlRepair = true
     override val disconnections = flow<Throwable> {

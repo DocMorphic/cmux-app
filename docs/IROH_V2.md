@@ -747,3 +747,56 @@ Dedicated byte-output terminal lanes, artifact/simulator lane consumers, input
 latency marker negotiation, socket promotion/cache, actual account enrollment and
 live Mac/UI/device acceptance remain open. This is one implemented native path,
 not evidence that the full app goal is complete.
+
+
+## Dedicated terminal output and replay barriers — 2026-09-28
+
+The mounted byte/hybrid terminal now opens a duplex `terminal` stream on its
+existing admitted Mac connection, with the exact surface UUID and last delivered
+UInt64 cursor. Render-grid-only terminals retain the separate input-only path.
+The stream requires an initial CMXT replay matching the requested cursor; later
+replay envelopes, truncated output, invalid ranges and missing baselines retire
+the lane. The initial replay has one five-second deadline across all fragments.
+
+Native output and event bytes share `TerminalStreamMirror`'s delivered cursor.
+Already delivered overlap is trimmed in bytes, including inside UTF-8 sequences.
+Hybrid alternate-screen grids remain authoritative. Native frames cannot cross
+an outstanding RPC replay barrier: a gap pauses and closes the lane, requests
+an authoritative replay, then reopens from the new cursor. Late native reads after
+pause/cancellation cannot mutate the mirror or re-enable input. Without a known
+baseline cursor, the existing event/RPC path remains in use until a replay can
+establish one. Stream attempts are bounded to three; persistent optional-lane
+failure does not create an RPC resynchronization loop.
+
+Once the output replay is accepted, the same duplex stream carries small direct
+keystrokes. Paste and oversized operations keep their existing RPC path. An
+attempted native write never falls back automatically after uncertain delivery.
+Surface, viewport, connection and output-mode changes retire the old owner, and
+RPC lease cancellation closes its feature stream independently of other leases.
+
+Mirror counters now use UInt64 with checked addition. Android's default JSON
+parser rounds integers outside signed Long through Double, so incoming control
+and independent-event JSON (and request parameter snapshots) now use a tokenizer
+that preserves those integer tokens as BigInteger. Nested arrays/objects retain
+exact cursor values; ordinary strings, small numbers and decimal/exponent parsing
+keep their normal behavior. Binary CMXT counters remain unsigned end to end.
+
+**Verification:** all **418 JVM tests in 69 suites passed**, zero failures, errors
+or skips. The full JVM suite plus `:app:compileDebugAndroidTestKotlin` succeeded in
+44 seconds. New checks cover replay/chunk framing, wrong cursors, repeated replay,
+truncation, overlapping native/event bytes above signed Long, a gap followed by a
+fresh RPC baseline, paused owners receiving late native reads, bounded failures,
+input/output coexistence, and precise nested JSON cursor parsing.
+
+The native loopback fixture now also compiles
+`NativeTerminalInputLaneTest.nativeDuplexTerminalStreamsReplayChunksAndInputAlongsideControl`.
+It opens actual Iroh endpoints and verifies an unsigned cursor descriptor,
+fragmented replay, subsequent output, exact Unicode input and a concurrent control
+RPC. **Both loopback methods still require execution on Pixel.** No account
+credentials are read/cleared by this fixture. It is not proof of live Mac parity.
+
+Local XML, logs and source receipt: `captures/iroh/terminal-output/`.
+No APK was built or published; the main debug artifact remains e1117b7 and signed
+release remains build 157. Remaining work includes artifact/simulator streams,
+input latency marker negotiation, socket promotion/cache, broader terminal/UI
+fidelity and actual authenticated Pixel/Mac acceptance. The full goal remains open.
