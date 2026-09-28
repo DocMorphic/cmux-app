@@ -10,6 +10,10 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.NonCancellable
 import org.json.JSONObject
 import java.io.EOFException
 import java.io.IOException
@@ -60,7 +64,7 @@ class IrxIncomingEvents internal constructor(val resource: String?, private val 
         require(maxBytes in 1..(1024 * 1024))
         receive.read(maxBytes.toUInt()).also { if (it.isNotEmpty()) inbound() }
     }
-    suspend fun stop() { receive.stop(0uL) }
+    suspend fun stop(errorCode: ULong = 0uL) { receive.stop(errorCode) }
     override fun close() { receive.close() }
 }
 
@@ -90,31 +94,47 @@ class IrxClientSession private constructor(
         }
     }
 
-    suspend fun authorizeDirectPaths() {
+    /** Direct path promotion is optional: failure must preserve the admitted relay session. */
+    suspend fun authorizeDirectPaths(): Boolean {
         check(!closed.get())
-        connection.authorizeNatTraversal()
+        return try {
+            connection.authorizeNatTraversal()
+            currentCoroutineContext().ensureActive()
+            true
+        } catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            false
+        }
     }
 
     suspend fun acceptEvents(): IrxIncomingEvents {
-        check(!closed.get())
-        val stream = connection.acceptUni()
-        try {
-            val descriptor = withTimeout(IrxWire.ADMISSION_TIMEOUT_MS) {
-                IrxWire.read { stream.read(it.toUInt()).also { bytes -> if (bytes.isNotEmpty()) activity.record() } }
-                    ?: throw EOFException("Missing Irx event descriptor")
-            }
-            IrxWire.requireVersion(descriptor)
-            if (descriptor.getString("lane") != IrxWire.Lane.EVENTS.wire) throw IOException("Unexpected Irx incoming lane")
-            val resource = if (descriptor.isNull("resource")) null else descriptor.getString("resource")
-            if (resource != null && (!resource.startsWith("terminal:") || resource.length !in 10..128))
-                throw IOException("Invalid Irx event resource")
+        while (true) {
+            currentCoroutineContext().ensureActive()
             check(!closed.get())
-            return IrxIncomingEvents(resource, stream, activity::record)
-        } catch (error: Throwable) {
-            // A stalled/invalid descriptor cannot retain stream credit or a pending read.
-            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { runCatching { stream.stop(0uL) } }
-            stream.close()
-            throw error
+            // Failure to accept is a connection failure; an individual descriptor is optional.
+            val stream = connection.acceptUni()
+            try {
+                val descriptor = withTimeout(IrxWire.ADMISSION_TIMEOUT_MS) {
+                    IrxWire.read { stream.read(it.toUInt()).also { bytes -> if (bytes.isNotEmpty()) activity.record() } }
+                        ?: throw EOFException("Missing Irx event descriptor")
+                }
+                IrxWire.requireVersion(descriptor)
+                if (descriptor.getString("lane") != IrxWire.Lane.EVENTS.wire) throw IOException("Unexpected Irx incoming lane")
+                val resource = if (descriptor.isNull("resource")) null else descriptor.getString("resource")
+                if (resource != null && (!resource.startsWith("terminal:") || resource.length !in 10..128))
+                    throw IOException("Invalid Irx event resource")
+                currentCoroutineContext().ensureActive()
+                check(!closed.get())
+                return IrxIncomingEvents(resource, stream, activity::record)
+            } catch (error: Throwable) {
+                // Bounded cleanup releases credit without wedging later valid streams.
+                withContext(NonCancellable) {
+                    try { runCatching { withTimeout(2000) { stream.stop(2uL) } } }
+                    finally { stream.close() }
+                }
+                currentCoroutineContext().ensureActive()
+                if (error !is Exception || connectionIsClosed()) throw error
+            }
         }
     }
 

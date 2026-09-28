@@ -648,3 +648,45 @@ built/published here. Actual account enrollment, live Mac use, Android lifecycle
 and background delivery still require physical acceptance. Relay fallback after
 NAT authorization failure, tolerant optional event-lane acceptance, socket
 promotion/cache and specialized lane consumers remain open.
+
+
+## Optional event-stream isolation and relay preservation — 2026-09-28
+
+Further audit of pinned `IrxServerEventLaneHub.swift` and `IrxConnection.swift`
+corrected Android behavior that was stricter than the iOS companion:
+
+- Direct-path authorization failure no longer discards an already admitted relay
+  session. Caller cancellation still propagates, and the endpoint rechecks account
+  authority after the attempt. This follows the upstream optional-promotion rule;
+  actual failed NAT traversal over a working relay remains physically unverified.
+- A bad, unsupported, truncated or timed-out uni-stream descriptor is stopped with
+  code 2 and acceptance continues. Cleanup has a two-second bound. Native accept
+  failure/whole-connection closure still terminates the connection consumer.
+- A reset event reader discards only its unfinished frame. Oversized event frames
+  stop only their lane with code 5; healthy shared and surface streams continue.
+- The hub now admits 32 surface readers (matching iOS), with an overall 40-reader
+  bound matching native uni credit. Excess readers are refused with code 3 so the
+  host can fall back, rather than closing the entire session.
+- Overlapping streams for the same surface retain independent readers until each
+  ends. Complete frames from the old stream remain deliverable. This supersedes
+  the earlier Android policy of immediately cancelling an old reader by resource.
+
+**Verification:** **11 focused JVM tests across 3 suites passed**, zero failures,
+errors or skips. Cases cover interleaved fragments, overlapping streams, reset and
+malformed stream isolation, limit refusal while other streams continue, native
+accept failure, RPC framing/auth/error behavior and transport ownership. The full
+398-test checkpoint remains the preceding keepalive commit; it was not rerun here.
+
+The focused suite plus `:iroh:assembleDebugAndroidTest` succeeded in 33 seconds.
+New native method
+`IrxAdmissionTest.badOptionalDescriptorsAreSkippedAndLaterEventsAndControlStillWork`
+compiled but **has not run on Pixel**. It sends malformed/unsupported descriptors,
+then verifies a valid event and bidirectional control traffic. Previously compiled
+native event, repair and keepalive checks still await physical execution too.
+
+Local evidence: `captures/iroh/optional-streams/`.
+Native test APK SHA-256: `107e6dd36424bdd4f7c3861157053f31c44338589b9fd6e5e7a6bb73b2a07514`.
+No main/release APK was rebuilt or published. Authenticated enrollment, live Mac
+traffic and comprehensive feature/UI acceptance remain unverified. Next native
+implementation work includes specialized terminal/input/artifact lanes and runtime
+socket promotion/cache; these changes do not establish full parity by themselves.

@@ -13,12 +13,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONObject
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.IOException
 
 internal interface MobileEventLane : AutoCloseable {
     val resource: String?
     suspend fun read(): ByteArray
-    suspend fun stop()
+    suspend fun stop(errorCode: ULong = 0uL)
 }
 
 /** Each native stream has its own decoder; only complete frames enter the common event queue. */
@@ -27,49 +26,56 @@ internal class IrxEventMultiplexer(private val accept: suspend () -> MobileEvent
     private class Reader(val lane: MobileEventLane, var job: Job? = null)
 
     val frames: Flow<ByteArray> = channelFlow {
-        val lanes = mutableMapOf<String?, Reader>()
+        val lanes = mutableSetOf<Reader>()
         fun allowed() { if (!permits()) throw CancellationException("Mac access changed") }
+        suspend fun retire(lane: MobileEventLane, code: ULong) = withContext(NonCancellable) {
+            try { runCatching { withTimeout(2000) { lane.stop(code) } } }
+            finally { lane.close() }
+        }
         try {
             while (true) {
                 allowed()
                 val lane = accept()
                 val reader = Reader(lane)
-                val previous = synchronized(lanes) {
-                    if (!lanes.containsKey(lane.resource) && lanes.size >= 17) {
-                        lane.close()
-                        throw IOException("Too many Irx event lanes")
-                    }
-                    lanes.put(lane.resource, reader)
+                val admitted = synchronized(lanes) {
+                    // Match the iOS hub's 32 surface readers, bounded by native uni credit.
+                    // Replacement streams coexist until their own EOF/reset; complete old
+                    // frames remain valid and each unfinished frame stays with its reader.
+                    if (lanes.size >= 40 || (lane.resource != null && lanes.count { it.lane.resource != null } >= 32)) false
+                    else { lanes.add(reader); true }
                 }
-                previous?.job?.cancel()
-                previous?.let { runCatching { it.lane.stop() } }
-                reader.job = launch(start = CoroutineStart.LAZY) {
+                if (!admitted) { retire(lane, 3uL); continue }
+                reader.job = launch(start = CoroutineStart.UNDISPATCHED) {
+                    var stopCode = 0uL
                     try {
                         val decoder = MobileFrameDecoder()
                         while (true) {
                             val bytes = lane.read()
                             if (bytes.isEmpty()) break
                             allowed()
-                            for (frame in decoder.feed(bytes)) {
-                                if (synchronized(lanes) { lanes[lane.resource] !== reader }) return@launch
-                                send(frame)
-                            }
+                            val frames = try { decoder.feed(bytes) }
+                            catch (failure: IllegalArgumentException) { stopCode = 5uL; throw failure }
+                            for (frame in frames) send(frame)
                         }
                     } catch (error: Exception) {
-                        if (synchronized(lanes) { lanes[lane.resource] === reader }) throw error
+                        // A reset/invalid optional lane loses only its own unfinished frame.
+                        currentCoroutineContext().ensureActive()
+                        allowed()
                     } finally {
-                        withContext(NonCancellable) { runCatching { lane.stop() } }
-                        lane.close()
-                        synchronized(lanes) { if (lanes[lane.resource] === reader) lanes.remove(lane.resource) }
+                        retire(lane, stopCode)
+                        synchronized(lanes) { lanes.remove(reader) }
                     }
                 }
-                reader.job!!.start()
             }
         } finally {
-            val remaining = synchronized(lanes) { lanes.values.toList().also { lanes.clear() } }
+            val remaining = synchronized(lanes) { lanes.toList().also { lanes.clear() } }
             remaining.forEach { it.job?.cancel() }
+            // Reader finally blocks own stream cleanup, including cancellation during acceptance.
             withContext(NonCancellable) {
-                remaining.forEach { runCatching { it.lane.stop() }; it.lane.close() }
+                remaining.forEach { reader ->
+                    reader.job?.join()
+                    if (reader.job == null) retire(reader.lane, 0uL)
+                }
             }
         }
     }.buffer(8)
@@ -101,7 +107,7 @@ internal class IrxMobileRpcTransport(
         object : MobileEventLane {
             override val resource = lane.resource
             override suspend fun read() = lane.read()
-            override suspend fun stop() = lane.stop()
+            override suspend fun stop(errorCode: ULong) = lane.stop(errorCode)
             override fun close() = lane.close()
         }
     }, permits = { !synchronized(lock) { closed } && permits() }).frames

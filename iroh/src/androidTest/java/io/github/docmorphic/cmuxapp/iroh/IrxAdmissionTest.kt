@@ -93,6 +93,48 @@ class IrxAdmissionTest {
         }
     }
 
+    @Test fun badOptionalDescriptorsAreSkippedAndLaterEventsAndControlStillWork() = runBlocking<Unit> {
+        val finished = CompletableDeferred<Unit>()
+        fixture(server = { connection ->
+            IrxDuplexLane(connection.acceptBi()).use { control ->
+                control.readFrame(); control.readFrame()
+                control.writeFrame(JSONObject().put("v", 1).put("session", "optional-events")
+                    .put("keepaliveIntervalMs", 5000).put("keepaliveDeadlineMs", 2000))
+                val bad = listOf(
+                    byteArrayOf(0, 0, 0, 4, 123), // truncated JSON payload
+                    IrxWire.encode(JSONObject().put("v", 2).put("lane", "events")),
+                    IrxWire.encode(JSONObject().put("v", 1).put("lane", "unsupported")),
+                    IrxWire.encode(JSONObject().put("v", 1).put("lane", "events").put("resource", "bad"))
+                )
+                for (bytes in bad) connection.openUni().use { send -> send.writeAll(bytes); send.finish() }
+                connection.openUni().use { send ->
+                    send.writeAll(IrxWire.encode(IrxWire.Descriptor(IrxWire.Lane.EVENTS).json()) + "event".toByteArray())
+                    send.finish()
+                }
+                assertEquals("done", readRaw(control, 4).decodeToString())
+                control.write("live".toByteArray())
+                finished.await()
+            }
+        }) { connection, expected ->
+            IrxClientSession.admit(connection, expected).use { session ->
+                session.acceptEvents().use { lane ->
+                    assertNull(lane.resource)
+                    val output = java.io.ByteArrayOutputStream()
+                    while (true) {
+                        val bytes = lane.read()
+                        if (bytes.isEmpty()) break
+                        output.write(bytes)
+                    }
+                    assertEquals("event", output.toString("UTF-8"))
+                }
+                assertFalse(session.connectionIsClosed())
+                session.control.write("done".toByteArray())
+                assertEquals("live", readRaw(session.control, 4).decodeToString())
+                finished.complete(Unit)
+            }
+        }
+    }
+
     @Test fun keepaliveFramesUpdateActivityAndRetirementPreservesControl() = runBlocking<Unit> {
         val controlFinished = CompletableDeferred<Unit>()
         fixture(server = { connection ->

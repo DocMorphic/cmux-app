@@ -14,11 +14,14 @@ class IrxEventMultiplexerTest {
         val readStarted = CompletableDeferred<Unit>()
         val readChunk = Channel<Unit>(16)
         val closed = AtomicBoolean()
+        val stopCode = CompletableDeferred<ULong>()
         override suspend fun read(): ByteArray {
             readStarted.complete(Unit)
-            return chunks.receiveCatching().getOrNull()?.also { readChunk.send(Unit) } ?: byteArrayOf()
+            val result = chunks.receiveCatching()
+            result.exceptionOrNull()?.let { throw it }
+            return result.getOrNull()?.also { readChunk.send(Unit) } ?: byteArrayOf()
         }
-        override suspend fun stop() { chunks.close() }
+        override suspend fun stop(errorCode: ULong) { stopCode.complete(errorCode); chunks.close() }
         override fun close() { closed.set(true) }
     }
     private fun frame(text: String) = MobileFrameCodec.encode(text.toByteArray())
@@ -40,28 +43,64 @@ class IrxEventMultiplexerTest {
         assertTrue(listOf(first, second, shared).all { it.closed.get() })
     }
 
-    @Test fun replacementDropsOnlyTheOldPartialFrameAndKeepsOtherLanesRunning() = runBlocking<Unit> {
+    @Test fun overlappingStreamsKeepTheirOwnCompleteFramesWithoutMixingPartialBytes() = runBlocking<Unit> {
         val accepts = Channel<MobileEventLane>(8)
         val old = Lane("terminal:a")
         val replacement = Lane("terminal:a")
         val other = Lane("terminal:b")
-        val result = async { IrxEventMultiplexer({ accepts.receive() }, { true }).frames.take(2).toList() }
+        val result = async { IrxEventMultiplexer({ accepts.receive() }, { true }).frames.take(3).toList() }
         accepts.send(old); accepts.send(other)
-        old.chunks.send(frame("partial").copyOfRange(0, 6)); old.readChunk.receive()
+        val partial = frame("old-complete")
+        old.chunks.send(partial.copyOfRange(0, 6)); old.readChunk.receive()
         accepts.send(replacement)
         replacement.readStarted.await()
         replacement.chunks.send(frame("replacement"))
         other.chunks.send(frame("unaffected"))
-        assertEquals(setOf("replacement", "unaffected"), withTimeout(2000) { result.await() }.map { it.toString(Charsets.UTF_8) }.toSet())
-        assertTrue(old.closed.get())
+        old.chunks.send(partial.copyOfRange(6, partial.size))
+        assertEquals(setOf("old-complete", "replacement", "unaffected"),
+            withTimeout(2000) { result.await() }.map { it.toString(Charsets.UTF_8) }.toSet())
+        assertTrue(listOf(old, replacement, other).all { it.closed.get() })
     }
 
-    @Test fun excessIncomingStreamsFailAndReleaseEveryAcceptedReader() = runBlocking<Unit> {
-        val accepts = Channel<MobileEventLane>(20)
-        val lanes = (0 until 18).map { Lane("terminal:$it") }
-        val result = async { runCatching { IrxEventMultiplexer({ accepts.receive() }, { true }).frames.toList() } }
-        lanes.forEach { accepts.send(it) }
+    @Test fun excessSurfaceStreamIsRefusedWhileSharedAndExistingStreamsKeepWorking() = runBlocking<Unit> {
+        val accepts = Channel<MobileEventLane>(40)
+        val lanes = (0 until 33).map { Lane("terminal:$it") }
+        val shared = Lane(null)
+        val result = async { IrxEventMultiplexer({ accepts.receive() }, { true }).frames.take(2).toList() }
+        lanes.forEach { accepts.send(it) }; accepts.send(shared)
+        assertEquals(3uL, withTimeout(2000) { lanes.last().stopCode.await() })
+        lanes.first().chunks.send(frame("existing")); shared.chunks.send(frame("notification"))
+        assertEquals(setOf("existing", "notification"),
+            withTimeout(2000) { result.await() }.map { it.toString(Charsets.UTF_8) }.toSet())
+        assertTrue((lanes + shared).all { it.closed.get() })
+    }
+
+    @Test fun malformedAndResetStreamsLoseOnlyTheirOwnPartialFrame() = runBlocking<Unit> {
+        val accepts = Channel<MobileEventLane>(8)
+        val malformed = Lane("terminal:bad")
+        val reset = Lane("terminal:reset")
+        val replacement = Lane("terminal:reset")
+        val shared = Lane(null)
+        val result = async { IrxEventMultiplexer({ accepts.receive() }, { true }).frames.take(2).toList() }
+        accepts.send(malformed); accepts.send(reset); accepts.send(shared)
+        malformed.chunks.send(byteArrayOf(0x7f, -1, -1, -1))
+        assertEquals(5uL, withTimeout(2000) { malformed.stopCode.await() })
+        reset.chunks.send(frame("incomplete").copyOfRange(0, 6)); reset.readChunk.receive()
+        reset.chunks.close(java.io.IOException("fixture stream reset"))
+        withTimeout(2000) { reset.stopCode.await() }
+        accepts.send(replacement)
+        replacement.chunks.send(frame("replacement")); shared.chunks.send(frame("notification"))
+        assertEquals(setOf("replacement", "notification"),
+            withTimeout(2000) { result.await() }.map { it.toString(Charsets.UTF_8) }.toSet())
+        assertTrue(listOf(malformed, reset, replacement, shared).all { it.closed.get() })
+    }
+
+    @Test fun connectionAcceptFailureStillTerminatesTheHubAndReleasesReaders() = runBlocking<Unit> {
+        val lane = Lane(null)
+        val result = async { runCatching { IrxEventMultiplexer(accept = {
+            if (!lane.readStarted.isCompleted) lane else throw java.io.IOException("native connection closed")
+        }, permits = { true }).frames.toList() } }
         assertTrue(withTimeout(2000) { result.await() }.isFailure)
-        assertTrue(lanes.all { it.closed.get() })
+        assertTrue(lane.closed.get())
     }
 }
