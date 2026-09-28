@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Latest combined runtime checkpoint (2026-09-28):** 441 JVM tests passed;
+15 native-module and 16 app tests passed in separate Android 17 emulator runs.
+This run found and fixed shared RPC disconnection when a screen cancelled during
+a frame write. Direct/composer images, task uploads and native terminal/artifact
+lanes now have emulator runtime evidence. A new combined debug APK is prepared;
+physical Pixel/live Mac acceptance and full rendering parity remain open.
+See [NATIVE_RUNTIME_CHECKPOINT.md](NATIVE_RUNTIME_CHECKPOINT.md) for the failure,
+fix, exact test scope, APK hashes, screenshot limits and next device work.
+
 **2026-09-28 live-host correction:** the installed cmux 0.64.25 pairing panel is
 Iroh-only; the pinned active `MobilePairingModel` confirms v2 publishes no legacy
 Tailscale QR/TCP route. The user approved enabling pairing; the panel reached

@@ -901,3 +901,15 @@ and the last full JVM checkpoint remains its 425 tests; this source change has n
 been exercised on Pixel or with the live production service. The phone remained
 absent from ADB; the existing reconnect question remains pending. Cache restoration,
 simulator streams and broader actual device/feature/UI acceptance remain open.
+
+
+## Combined emulator runtime acceptance (2026-09-28)
+
+The previously compiled optional stream, repair, keepalive, terminal input/output
+and artifact fixtures now have Android 17 emulator runtime evidence. The native
+module passed all 15 tests; the rebuilt app passed a separate 16-case run, including
+its three native terminal/artifact cases. A UI cancellation bug uncovered during
+that work is fixed and covered in the 441-case JVM run. See
+[NATIVE_RUNTIME_CHECKPOINT.md](NATIVE_RUNTIME_CHECKPOINT.md) for exact scope and
+artifact hashes. This remains loopback fixture evidence; actual Pixel/Mac account
+enrollment, discovery and live terminal acceptance are still pending.

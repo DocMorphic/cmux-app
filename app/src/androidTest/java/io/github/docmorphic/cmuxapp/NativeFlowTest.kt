@@ -48,6 +48,7 @@ import java.util.concurrent.TimeUnit
 class NativeFlowTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>(effectContext = StandardTestDispatcher())
     private lateinit var peer: NativeFixturePeer
+    private val observedClients = CopyOnWriteArrayList<MobileRpcClient>()
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Before fun startPeer() {
@@ -380,14 +381,14 @@ class NativeFlowTest {
         val keyboard = java.util.concurrent.atomic.AtomicReference<androidx.compose.ui.platform.PlatformTextInputMethodRequest?>()
         compose.setContent { CaptureComposerInput({ keyboard.set(it) }) { CmuxTheme { Surface(Modifier.fillMaxSize()) {
             NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
-                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect(); observedClients += it }
             })
         } } } }
-        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Claude Code task").performClick()
         waitForTerminalText()
         compose.onNode(hasSetTextAction()).performTextInput("Explain this picture")
-        compose.waitUntil(10_000) { keyboard.get() != null }
+        waitForTerminalFixture(10_000) { keyboard.get() != null }
         val directory = File(context.cacheDir, "task-previews").apply { mkdirs() }
         val photo = File(directory, "composer-keyboard-fixture.png")
         Bitmap.createBitmap(16, 8, Bitmap.Config.ARGB_8888).also { bitmap ->
@@ -405,14 +406,14 @@ class NativeFlowTest {
             }
             val repository = TerminalDraftRepository.get(context)
             val target = TerminalDrafts.Target("cmux-ios://attach?v=2&r=100.64.0.1:58465", "workspace-1", "terminal-1")
-            compose.waitUntil(15_000) { repository.drafts.state.value[target]?.attachments?.size == 1 }
+            waitForTerminalFixture(15_000) { repository.drafts.state.value[target]?.attachments?.size == 1 }
             assertDraft("Explain this picture")
             assertTrue(peer.requests.none { it.optString("method") == "terminal.paste_image" })
-            compose.waitUntil(10_000) { compose.onAllNodesWithText("Send").fetchSemanticsNodes().any {
+            waitForTerminalFixture(10_000) { compose.onAllNodesWithText("Send").fetchSemanticsNodes().any {
                 !it.config.contains(SemanticsProperties.Disabled)
             } }
             compose.onNodeWithText("Send").performClick()
-            compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
+            waitForTerminalFixture(15_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
             val sent = peer.requests.filter { it.optString("method") in setOf("terminal.paste_image", "terminal.paste") }
             assertEquals(listOf("terminal.paste_image", "terminal.paste"), sent.map { it.getString("method") })
             assertEquals("Explain this picture", sent.last().getJSONObject("params").getString("text"))
@@ -426,10 +427,10 @@ class NativeFlowTest {
     @Test fun keyboardImageReachesExactTerminalBeforeFollowingKeysWithoutChangingComposerDraft() {
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
             NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
-                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect(); observedClients += it }
             })
         } } }
-        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Claude Code task").performClick()
         waitForTerminalText()
         compose.onNode(hasSetTextAction()).performTextInput("Keep this draft")
@@ -449,7 +450,7 @@ class NativeFlowTest {
                     android.content.ClipDescription("Photo", arrayOf("image/png")), null), 0, null))
                 connection.commitText("after image", 1)
             }
-            compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.input" } }
+            waitForTerminalFixture(10_000) { peer.requests.any { it.optString("method") == "terminal.input" } }
             val sent = peer.requests.filter { it.optString("method") in setOf("terminal.paste_image", "terminal.input", "terminal.paste") }
             assertEquals(listOf("terminal.paste_image", "terminal.input"), sent.map { it.getString("method") })
             val params = sent.first().getJSONObject("params")
@@ -471,19 +472,19 @@ class NativeFlowTest {
                 Surface(Modifier.fillMaxSize()) {
                     NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
                         MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
-                            .also { it.connect() }
+                            .also { it.connect(); observedClients += it }
                     })
                 }
             }
         }
-        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Claude Code task").performClick()
         waitForTerminalText()
         val initialRows = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }
             .getJSONObject("params").getInt("viewport_rows")
         compose.onNode(hasSetTextAction()).performTextInput("Keep my composer draft")
         compose.onNodeWithText("Keyboard").performClick()
-        try { compose.waitUntil(10_000) {
+        try { waitForTerminalFixture(10_000) {
             androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
                 ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true &&
                 peer.requests.lastOrNull { it.optString("method") == "mobile.terminal.viewport" }
@@ -515,39 +516,39 @@ class NativeFlowTest {
             connection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_UP))
             connection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_F1))
         }
-        compose.waitUntil(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 7 }
+        waitForTerminalFixture(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 7 }
         assertEquals(listOf("你", "\u007f\u007f", "界", "\r", "\u0003", "\u001b[A", "\u001bOP"),
             peer.requests.filter { it.optString("method") == "terminal.input" }.map { it.getJSONObject("params").getString("text") })
         peer.rejectNextInput.set(true)
         val release = CountDownLatch(1)
         peer.releaseNextInput = release
         compose.runOnIdle { connection.commitText("maybe delivered", 1); connection.commitText("never replay this", 1) }
-        compose.waitUntil(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 8 }
+        waitForTerminalFixture(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 8 }
         release.countDown()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Resume typing").fetchSemanticsNodes().isNotEmpty() }
+        waitForTerminalFixture(10_000) { compose.onAllNodesWithText("Resume typing").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Resume typing").performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Resume typing").fetchSemanticsNodes().isEmpty() }
+        waitForTerminalFixture(10_000) { compose.onAllNodesWithText("Resume typing").fetchSemanticsNodes().isEmpty() }
         compose.runOnIdle {
             keyboard = findTerminalKeyboard(compose.activity.window.decorView)!!
             assertTrue(keyboard.isEnabled)
             connection = keyboard.onCreateInputConnection(EditorInfo())!!
             connection.commitText("after resume", 1)
         }
-        compose.waitUntil(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 9 }
+        waitForTerminalFixture(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 9 }
         assertTrue(peer.requests.none { it.optJSONObject("params")?.optString("text") == "never replay this" })
         compose.onNodeWithText("Compose").performClick()
         assertDraft("Keep my composer draft")
         val oldConnection = connection
         compose.onNodeWithText("‹  2").performClick()
         openReadProject()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Keyboard").fetchSemanticsNodes().isNotEmpty() }
+        waitForTerminalFixture(10_000) { compose.onAllNodesWithText("Keyboard").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Keyboard").performClick()
         compose.runOnIdle {
             assertTrue(!oldConnection.commitText("stale input", 1))
             val next = findTerminalKeyboard(compose.activity.window.decorView)!!
             next.onCreateInputConnection(EditorInfo())!!.commitText("second terminal", 1)
         }
-        compose.waitUntil(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 10 }
+        waitForTerminalFixture(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 10 }
         val last = peer.requests.last { it.optString("method") == "terminal.input" }.getJSONObject("params")
         assertEquals("terminal-2", last.getString("surface_id"))
         assertEquals("second terminal", last.getString("text"))
@@ -1191,6 +1192,16 @@ class NativeFlowTest {
         compose.waitUntil(10_000) { compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
         compose.onNode(hasSetTextAction()).assert(
             SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString(text)))
+    }
+
+    private fun waitForTerminalFixture(timeout: Long, condition: () -> Boolean) {
+        try { compose.waitUntil(timeout, condition) }
+        catch (failure: Throwable) {
+            screenshot("terminal-input-failure")
+            val failures = observedClients.flatMap { it.disconnected.replayCache }.joinToString("\n") { it.stackTraceToString() }
+            throw AssertionError("Terminal transport failures: $failures\nPeer failures: ${peer.failures}\n" +
+                "Methods: ${peer.requests.map { it.optString("method") }}\n" + compose.onRoot().printToString(), failure)
+        }
     }
 
     private fun waitForTerminalText() {

@@ -19,6 +19,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.io.EOFException
 import java.util.UUID
@@ -159,12 +162,27 @@ class MobileRpcClient internal constructor(
         try {
             return withTimeout(timeoutMillis) {
                 writeMutex.withLock {
-                    synchronized(stateLock) { check(!closed && connected) { "Connection closed" } }
-                    try {
-                        val generation = transport.writeWithGeneration(entry.frame)
-                        synchronized(stateLock) { entry.generation = generation; entry.sequence = ++writeSequence }
+                    val caller = currentCoroutineContext()
+                    // A viewport/editor can disappear while its frame is being written. Finish
+                    // that frame once started; abandoning it would corrupt every consumer's wire.
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        caller.ensureActive() // Cancellation before writing sends nothing.
+                        synchronized(stateLock) { check(!closed && connected) { "Connection closed" } }
+                        val remaining = ((entry.deadlineNanos - System.nanoTime()) / 1_000_000).coerceAtLeast(0)
+                        withTimeout(remaining) {
+                            // Closing the transport also interrupts legacy blocking Socket writes,
+                            // which coroutine timeout alone cannot interrupt.
+                            val deadline = scope.launch {
+                                delay(remaining)
+                                failConnection(java.net.SocketTimeoutException("cmux RPC frame write timed out"))
+                            }
+                            try {
+                                val generation = transport.writeWithGeneration(entry.frame)
+                                synchronized(stateLock) { entry.generation = generation; entry.sequence = ++writeSequence }
+                            } catch (error: Throwable) { failConnection(error); throw error }
+                            finally { deadline.cancel() }
+                        }
                     }
-                    catch (error: Throwable) { failConnection(error); throw error }
                 }
                 answer.await()
             }
