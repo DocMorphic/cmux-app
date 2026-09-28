@@ -9,6 +9,13 @@ does not build every branch push. Trigger `Android build` manually for a milesto
 ready-for-review PRs build automatically on opening, reopening and updates.
 A source commit can therefore be newer than the most recently verified APK.
 
+`scripts/check-handoff-runtime.py --serial DEVICE --install` checks foreground
+focus and records exact results and fresh screenshots. Repeatable `--case
+Class#method` selects only affected handoff cases. The Markdown fixture checks
+painted Mermaid labels and Vega bars as well as DOM assertions. See
+`SYNTAX_CHECKPOINT.md` for current results. A system ANR modal, locked screen, or
+stale screenshot cannot establish visual acceptance.
+
 
 The instrumented `NativeFlowTest` runs the production Compose screens and framed
 RPC client against an emulator-local TCP peer. It covers workspace filtering,

@@ -15,6 +15,8 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.test.StandardTestDispatcher
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.*
 import org.junit.Assert.*
 import java.io.File
@@ -49,6 +51,73 @@ class NativeMarkdownPreviewTest {
     }
     private fun waitJs(expression: String) = compose.waitUntil(45_000) { js(expression) == "true" }
 
+    /** DOM completion alone does not prove Chromium has painted the diagram. */
+    private fun assertPaintedDiagrams() {
+        var lastScreenshot: Bitmap? = null
+        var lastGeometry: String? = null
+        var lastCounts = emptyList<Int>()
+        try {
+            compose.waitUntil(15_000) {
+                lastGeometry = js("""
+                    (() => ({width: innerWidth, labels: Array.from(document.querySelectorAll('.cmux-mermaid .node .nodeLabel')).map(e => {
+                        const r=e.getBoundingClientRect(); return [r.left,r.top,r.right,r.bottom];
+                    }), bars: Array.from(document.querySelectorAll('.cmux-vega .mark-rect.role-mark path')).map(e => {
+                        const r=e.getBoundingClientRect(); return [r.left,r.top,r.right,r.bottom];
+                    })}))()
+                """.trimIndent())
+                val geometry = JSONObject(lastGeometry ?: "{}")
+                val origin = IntArray(2)
+                var scale = 0.0
+                var focused = false
+                compose.runOnUiThread {
+                    findWeb(compose.activity.window.decorView)?.let { web ->
+                        web.getLocationOnScreen(origin)
+                        scale = web.width / geometry.getDouble("width")
+                        focused = web.hasWindowFocus()
+                    }
+                }
+                lastScreenshot?.recycle()
+                val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                lastScreenshot = bitmap
+                fun pixels(rect: JSONArray, isInk: (Int, Int, Int) -> Boolean): Int {
+                    val left = origin[0] + rect.getDouble(0) * scale
+                    val top = origin[1] + rect.getDouble(1) * scale
+                    val right = origin[0] + rect.getDouble(2) * scale
+                    val bottom = origin[1] + rect.getDouble(3) * scale
+                    // A clipped/offscreen diagram is not visual acceptance.
+                    if (left < 0 || top < 0 || right > bitmap.width || bottom > bitmap.height ||
+                        right - left < 4 || bottom - top < 4) return 0
+                    var count = 0
+                    for (y in kotlin.math.ceil(top).toInt() until bottom.toInt())
+                        for (x in kotlin.math.ceil(left).toInt() until right.toInt()) {
+                            val color = bitmap.getPixel(x, y)
+                            if (isInk(android.graphics.Color.red(color), android.graphics.Color.green(color), android.graphics.Color.blue(color))) count++
+                        }
+                    return count
+                }
+                val labels = geometry.getJSONArray("labels")
+                val bars = geometry.getJSONArray("bars")
+                lastCounts = (0 until labels.length()).map { index ->
+                    pixels(labels.getJSONArray(index)) { r, g, b -> minOf(r, g, b) > 130 && maxOf(r, g, b) - minOf(r, g, b) < 25 }
+                } + (0 until bars.length()).map { index ->
+                    pixels(bars.getJSONArray(index)) { r, g, b -> b > r + 30 && g > r + 15 }
+                }
+                focused && labels.length() == 2 && bars.length() == 2 && lastCounts.all { it > 30 }
+            }
+        } finally {
+            // Retain the actual last frame even on failure, before Activity teardown.
+            lastScreenshot?.let { screenshot ->
+                compose.activity.openFileOutput("markdown-rendered.png", Context.MODE_PRIVATE).use {
+                    screenshot.compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+                screenshot.recycle()
+            }
+            compose.activity.openFileOutput("markdown-paint-evidence.json", Context.MODE_PRIVATE).use {
+                it.write(JSONObject().put("geometry", lastGeometry).put("inkPixels", JSONArray(lastCounts)).toString(2).toByteArray())
+            }
+        }
+    }
+
     @Test fun sharedRendererDisplaysTablesCodeMermaidAndVegaAndSwitchesToRaw() {
         show("""
             # Parity document
@@ -77,9 +146,7 @@ class NativeMarkdownPreviewTest {
         assertEquals("true", js("window.matchMedia('(prefers-color-scheme: dark)').matches"))
         assertEquals("true", js("getComputedStyle(document.querySelector('h1')).color.match(/\\d+/g).slice(0,3).map(Number).reduce((a,b)=>a+b,0) > 500"))
         assertEquals("0", js("document.querySelectorAll('.cmux-render-error').length"))
-        val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-        compose.activity.openFileOutput("markdown-rendered.png", Context.MODE_PRIVATE).use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        screenshot.recycle()
+        assertPaintedDiagrams()
         compose.onNodeWithContentDescription("Viewer actions").performClick()
         compose.onNodeWithText("Raw").performScrollTo().performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Raw text preview").fetchSemanticsNodes().isNotEmpty() }

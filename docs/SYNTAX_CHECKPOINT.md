@@ -3,6 +3,46 @@
 Portable record of the last local run before the laptop handoff. This is a
 summary of observed results, not replacement raw logs or a new test run.
 
+## Subsequent Windows result, reported on return to Mac (2026-09-28)
+
+The user relayed the other Codex session's results after commit `9849010`:
+308 JVM cases and four helper cases passed; debug/test APKs built; all 14 vendor
+hashes matched both the checkout and debug APK. The four outstanding Android
+methods returned **OK (4 tests) in 94.197 seconds**. The original Windows logs
+and screenshots were not transferred with that commit, so this is an attributed
+result, not a new Mac run or independently inspected Windows evidence.
+
+The Windows screenshot reportedly showed a blank Mermaid diagram despite passing
+DOM assertions. A stronger pixel test and runner changes remained uncommitted on
+Windows, and their follow-up was interrupted by System UI ANR. The Mac pulled
+`9849010` and is independently adding visible label/bar checks; visual acceptance
+remains open until those pass and the actual screenshot is inspected. The older
+Mac screenshot at `captures/artifacts/markdown-rendered.png` does show both nodes
+and chart bars, which does not disprove the reported Windows rendering failure.
+
+The original results below are retained as history. Physical Pixel/Mac acceptance
+and publication of an APK newer than build 157 remain outstanding.
+
+## Resumed Mac visual gate (2026-09-28)
+
+The recreated Markdown check inspects screenshot pixels inside both Mermaid
+label bounds and both Vega bar bounds, requires foreground window focus, and
+retains the last frame and geometry even on failure. The renderer is unchanged.
+The runner supports selecting one case, reads the full window dump for focus,
+removes stale fixture captures, and retains failed-run evidence.
+
+Debug/test APK assembly succeeded in 23 seconds; all 14 vendor asset hashes
+matched inside the APK. The focused emulator run **failed** in 88.833 s: a System
+UI ANR modal covered the rendered document, and the focus/paint gate timed out.
+The saved screenshot was inspected and confirms the modal. Evidence:
+`captures/handoff/20260928T111334Z/`. No clean visual rerun is claimed.
+
+The Pixel 6a connected and authorized ADB (Android 17); debug/test APKs were
+installed. Its first run stopped at preflight because the screen was locked/off,
+before any test executed. The user was asked to unlock it. Evidence:
+`captures/handoff/20260928T111736Z/`. This is not a physical fixture pass or a
+native Mac connection.
+
 ## Build and static verification
 
 - Full JVM XML results re-read during handoff: 51 report files, **307 tests,
