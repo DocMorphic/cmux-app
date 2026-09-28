@@ -298,3 +298,50 @@ epoch guards, ready/challenge/register sequencing, ticket/relay renewal, consist
 paginated directory snapshots and pushed revocation, followed by native endpoint
 and `MobileRpcClient` integration. No account token, installation descriptor or
 registration request was sent to the live service in this milestone.
+
+### Account control session — 2026-09-28
+
+`IrohV2ControlSession` now owns one authenticated account/team incarnation. It
+coordinates signed socket setup, ready/challenge/register, returned-device checks,
+metadata synchronization, complete computer-directory snapshots and relay
+credentials. A new service instance is required after terminal failure or closure.
+A guarded account-scope predicate prevents replies from a previous login from
+publishing into the new session. A separate authority watcher clears state and
+closes transports after scope loss, even while a request holds the operation lock.
+
+Socket upgrade/network failure can use signed HTTP with a fresh setup proof;
+authentication rejection does not trigger this fallback. If an established socket
+fails, subsequent requests use signed HTTP without automatically replaying the
+interrupted operation. HTTP mode polls the directory while permission is valid.
+Automatic promotion back to WebSocket and persisted service-cache recovery are
+still pending.
+
+Directory pages must agree on team and revision, stay within capacity bounds and
+use nonrepeating cursors. Concurrent revision changes restart the read, and partial
+pages are never published. Pushed updates use one conflated refresh worker with a
+revision floor. Revoked peers disappear immediately; delayed registration cannot
+restore this phone after its own revocation. A newer complete authoritative
+snapshot can restore a peer after a subsequent permission grant. Directory and
+relay expiry are checked independently of stalled requests. Ticket, relay and
+directory renewal have independent retry delays; explicit server rate limiting
+still applies to all operations. Relay tokens are omitted from state string output.
+
+This service is not yet attached to the app's authenticated team selector, native
+endpoint or computer UI. No installation descriptor or enrollment request has been
+sent to the live service. The next integration must supply the protected scoped
+key, Stack account/team identity and login-incarnation guard, acquire/package the
+native dependency, then connect endpoint admission and the separate Irx lanes to
+`MobileRpcClient`. Native endpoint lifecycle, persistent directory/ticket cache,
+forced Stack refresh after rejected authentication, socket promotion, and actual
+Pixel/Mac acceptance remain open.
+
+Verification: **21 focused JVM tests passed**, zero failures/errors/skips, in a
+combined run (Gradle 3m 10s): 12 control-session cases, the five existing transport
+cases and four signing-envelope cases. Session cases cover enrollment, fresh HTTP
+fallback proof/ticket usage, rejection without fallback, mixed-revision pagination,
+cursor cycles, pushed revocation during registration, coalesced revision refresh,
+expiry during stalled I/O, account changes during token/network waits, established
+socket loss followed by HTTP recovery, and independent credential renewal.
+Evidence/source hashes: `captures/iroh/control-session/`; local build log:
+`/tmp/cmux-v2-session-tests.log`. These are local network fixtures, not production
+account, phone-to-Mac, or full-app acceptance results.

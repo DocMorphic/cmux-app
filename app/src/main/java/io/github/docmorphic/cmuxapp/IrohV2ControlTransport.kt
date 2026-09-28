@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit
 
 internal class IrohV2ServerFailure(val code: String, val retryable: Boolean, val retryAfterMs: Long? = null) : IOException(code)
 internal class IrohV2HttpFailure(val status: Int, val retryAfter: String?) : IOException("Iroh service HTTP $status")
+internal class IrohV2Unavailable(cause: Throwable? = null) : IOException("Iroh control transport unavailable", cause)
 
 internal object IrohV2Wire {
     const val MAX_REPLY = 2 * 1024 * 1024
@@ -149,11 +150,11 @@ internal class IrohV2ControlSocket private constructor(private val timeoutMs: Lo
                     else session.receive(webSocket, bytes.toByteArray())
                 }
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                    session.terminate(response?.let { IrohV2HttpFailure(it.code, it.header("Retry-After")) } ?: t)
+                    session.terminate(response?.let { IrohV2HttpFailure(it.code, it.header("Retry-After")) } ?: IrohV2Unavailable(t))
                 }
                 override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                     session.terminate(if (code == 1008 && reason in setOf("device_revoked", "team_access_revoked"))
-                        IrohV2ServerFailure(reason, false) else IOException("Iroh control socket closed ($code)"))
+                        IrohV2ServerFailure(reason, false) else IrohV2Unavailable())
                 }
             })
             synchronized(session.lock) {
@@ -182,7 +183,7 @@ internal class IrohV2ControlHttp(base: OkHttpClient) : AutoCloseable {
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, error: IOException) {
                 synchronized(lock) { calls.remove(call) }
-                continuation.resumeWith(Result.failure(error))
+                continuation.resumeWith(Result.failure(IrohV2Unavailable(error)))
             }
             override fun onResponse(call: Call, response: Response) {
                 val result = runCatching {
