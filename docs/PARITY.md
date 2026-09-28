@@ -55,8 +55,21 @@ Referenced-row cap, rejects stale generations, and stops repeated cursors while
 preserving a retry position. Immediate directory children cannot escape their
 parent path. Fifteen focused JVM cases passed; Android test sources compile.
 
-This is the data foundation, not a completed Files screen. Sheet integration,
-search/lifecycle state, previews and runtime/real-Mac acceptance remain pending.
+The per-connection/terminal Files store now binds Session only from a supported
+terminal scan. Session and search states remain independent; search trims input
+and debounces for 300 ms. Failed page loads retain readable rows and retry the same
+cursor. Expired cursors fetch a fresh first page, preserving search order or
+showing a deferred new-files count while scrolled. Live refresh retains loaded
+history and rejects late replies after close, explicit refresh or generation
+recovery. Selection can capture the sheet's session authorization while direct
+terminal taps retain terminal authorization.
+
+The full JVM suite passed 264 cases before the final generation-race guard. The
+focused 25-case Files rerun then passed with zero failures/errors/skips, and
+Android test-source compilation succeeded. Logs are retained in `captures/artifacts/`.
+
+This is the data/state foundation, not a completed Files screen. Sheet integration,
+previews and runtime/real-Mac acceptance remain pending.
 No APK was built for this feature commit; build 157 remains the current download.
 
 ## Changed-file revision previews (2026-09-28)
