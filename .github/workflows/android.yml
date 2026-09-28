@@ -93,11 +93,21 @@ jobs:
         with:
           packages: platform-tools
       - name: Install pinned Android NDK
-        run: sdkmanager 'ndk;28.2.13676358'
+        run: sdkmanager 'ndk;28.2.13676358' 'platforms;android-36' 'build-tools;36.0.0'
       - name: Build and verify Iroh native dependency
         run: python3 scripts/build-iroh-android.py --source native/iroh-ffi --ndk "$ANDROID_HOME/ndk/28.2.13676358" --output build/iroh-android
       - uses: actions/upload-artifact@v4
         with:
           name: cmux-iroh-android-arm64
           path: build/iroh-android
+          if-no-files-found: error
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile Android Iroh module and device tests
+        run: ./gradlew --no-daemon --max-workers=2 :iroh:assembleDebug :iroh:assembleDebugAndroidTest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmux-iroh-android-checkpoint
+          path: |
+            iroh/build/outputs/aar/iroh-debug.aar
+            iroh/build/outputs/apk/androidTest/debug/iroh-debug-androidTest.apk
           if-no-files-found: error

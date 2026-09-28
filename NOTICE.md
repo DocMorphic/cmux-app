@@ -156,3 +156,11 @@ GPL-3.0-or-later). The raw-code assets are copied from Highlightr 2.3.0 at
 05e7fcc63b33925cd0c1faaa205cdd5681e7bbef, the exact dependency pinned by iOS.
 They contain highlight.js 11.11.1 and the Xcode palettes. RawCode.txt contains
 the MIT and BSD licenses; raw-code/manifest.json records exact asset hashes.
+
+The isolated `iroh` module builds manaflow-ai/iroh-ffi at
+ee19f156667ca640b912108a45f8b5bb8d156fec (MIT OR Apache-2.0), including its
+matching generated UniFFI Kotlin bindings and Android context initializer.
+Native build receipts record Cargo.lock and all delivered file hashes. The module
+packages upstream LICENSE-MIT and LICENSE-APACHE under assets/licenses/iroh.
+JNA 5.15.0 is used under Apache-2.0; its Android AAR retains upstream notices.
+The Iroh module is not yet included in the main app or a published signed APK.

@@ -38,7 +38,7 @@ job; see [build cadence](docs/ANDROID_TESTING.md#build-cadence).
 
 ## Project choices
 
-- Kotlin, Jetpack Compose, one Android app module.
+- Kotlin and Jetpack Compose, with an app module and an isolated Iroh library module under development.
 - `io.github.docmorphic.cmuxapp` is a temporary independent app ID.
 - The native path follows the cmux mobile RPC protocol and the optional Mac helper remains available during migration.
 - The optional Mac helper binds loopback by default; it requires an explicit flag to listen on Tailscale.

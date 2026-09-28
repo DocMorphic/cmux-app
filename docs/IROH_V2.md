@@ -112,3 +112,69 @@ Research excerpts: `/tmp/cmux-irx-audit`; upstream sparse clone:
 
 Pixel viewer fixtures, signing vectors and QUIC loopback each prove only their
 own layer. A complete native connection has not been demonstrated.
+
+## Android native module
+
+`:iroh` is an isolated Android library, not yet a dependency of `:app`. Ordinary
+app builds do not need its checkpoint. It uses the matching generated Kotlin
+bindings, JNA 5.15.0 **Android AAR**, JDK 17, API 26 minimum and arm64 only.
+`IrohRuntime.initialize` installs the application context once before endpoint
+creation. Library pre-build verifies the pin, NDK, ABI and every receipt hash;
+missing or mismatched artifacts fail instead of silently creating an unusable AAR.
+The AAR includes the upstream MIT/Apache notices and build receipt.
+
+Reproduce the native artifact by dispatching `Android build` on the working
+branch with `native_only=true`, or running `scripts/build-iroh-android.py` with
+the exact source/NDK. Download **a reviewed successful run**, not an arbitrary
+latest artifact, to `build/iroh-android`:
+
+```sh
+gh run download RUN_ID --name cmux-iroh-android-arm64 --dir build/iroh-android
+./gradlew :iroh:assembleDebug :iroh:assembleDebugAndroidTest
+./gradlew :iroh:connectedDebugAndroidTest
+```
+
+Run only with the intended device attached. Native tests are entirely local:
+three official signing vectors (plus altered-message rejection), and two
+sequential bidirectional QUIC streams using `cmux/irx/1`, peer-key validation,
+minimal endpoints, explicit loopback sockets and disabled port mapping. This
+checks FFI/TLS/streams, **not** V2 directory enrollment or Mac admission.
+Do not describe this module as verified until native build and device results
+are recorded below. Further release ABIs and full app packaging must be verified before integrating
+it into a shipping APK.
+
+### Platform compatibility audit
+
+At the pinned source, `storage/team-store.ts` confirms this is more than a UI
+label: `listDirectory` grants mobile inbound peers only when `platform == ios`.
+The current schema rejects `android`, and changing only that enum would still
+omit Android from the Mac's inbound-peer directory. A supported upstream change
+must cover schema/storage types, inbound rules, Swift directory decoding and
+admission policy. No request claiming an iOS identity has been sent. An Android
+client keeps its independent namespace and must not silently impersonate an
+official installation.
+
+### Native build checkpoint — 2026-09-28
+
+GitHub run **36416151322**, source `82cf4c7`, successfully built the exact arm64
+native library and matching Kotlin bindings. Artifact `cmux-iroh-android-arm64`,
+ID `10967356904`, archive digest
+`sha256:05ad2b78a647ed914989ae7150476dd43f8af222aab2a9dd20a823c027ffd002`.
+Native library SHA-256:
+`339ce4fe9ca83892a59fe1b3c214fc7ab9c7001be97486bf96113cbbf6a4f9e1`.
+Generated Kotlin SHA-256:
+`8be5c2349a2101dd59c8cf81a4b287ce964d8adfb93020adb93ab485fd679acd`.
+
+The local JDK 17 module/AAR and instrumented APK build passed in **51 seconds**.
+The missing-artifact check also fails with an actionable error. Test APK SHA-256:
+`24ee198c4c3b2bbb8b924089db831a9df464e8a0f6830de9f9f93a040759e209`.
+`zipalign -c -P 16` passed. Packaged arm64 ELF LOAD alignment is 16,384 for Iroh
+and 65,536 for JNA; the actual Pixel uses 4,096-byte pages, so this packaging
+check is not a runtime claim on a 16 KiB device. Build and packaging evidence:
+`/tmp/cmux-iroh-android-build.log`, `/tmp/cmux-iroh-apk-verification.json`,
+`/tmp/cmux-iroh-zipalign.log`. No new signed main-app APK was published.
+
+Device execution is pending: ADB installation reached Android's Play Protect
+installation activity while the Pixel screen was off. The user has been asked
+to unlock the phone and review the prompt; Play Protect was not disabled. No
+native test pass is claimed from the successful build alone.
