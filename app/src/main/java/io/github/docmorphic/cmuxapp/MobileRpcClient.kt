@@ -391,6 +391,19 @@ class MobileRpcClient internal constructor(
             .put("client_id", clientId).put("clear", true)
             .put("viewport_generation", generation))
 
+    /** The consuming lease owns this coroutine and cancels it when released. */
+    internal suspend fun useTerminalInputLane(surfaceId: String, use: suspend (TerminalInputLane) -> Unit): Boolean {
+        if (delegate != null) return borrowing { it.useTerminalInputLane(surfaceId, use) }
+        synchronized(stateLock) { check(!closed && connected) }
+        val lane = transport.openTerminalInput(surfaceId) ?: return false
+        try {
+            currentCoroutineContext().ensureActive()
+            synchronized(stateLock) { check(!closed && connected) }
+            use(lane)
+            return true
+        } finally { lane.close() }
+    }
+
     suspend fun input(workspaceId: String, surfaceId: String, text: String): JSONObject =
         request("terminal.input", JSONObject()
             .put("workspace_id", workspaceId)

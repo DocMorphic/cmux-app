@@ -690,3 +690,60 @@ No main/release APK was rebuilt or published. Authenticated enrollment, live Mac
 traffic and comprehensive feature/UI acceptance remain unverified. Next native
 implementation work includes specialized terminal/input/artifact lanes and runtime
 socket promotion/cache; these changes do not establish full parity by themselves.
+
+
+## Dedicated render-grid input lane — 2026-09-28
+
+Audited the pinned `MobileTerminalInputFrame.swift`, `MobileIrohTerminalLane.swift`,
+`CmxIrohTerminalOutputEnvelope{,Codec,Decoder}.swift`,
+`MobileTerminalLaneCoordinator.swift`, `MobileShellComposite+TerminalLane.swift`
+and `MobileHostIrxTerminalLaneServer.swift`.
+
+The mounted Android terminal now uses an independent `terminal_input` stream
+when render-grid output is selected and the underlying transport supports native
+lanes. The descriptor targets the exact UUID surface on the existing admitted
+Mac session, without an output cursor. Readiness requires the host's first empty
+CMXT replay envelope; its independent UInt64 baseline is not compared with the
+render-grid/event cursor. Partial, invalid or unexpected output never enables
+input. Stream opening and readiness each have a five-second deadline.
+
+The CMXT decoder preserves unsigned sequences, bounds output to 256 KiB, validates
+magic/version/reserved bits and sequence/length invariants, and retains arbitrary
+partial chunks. Input uses exact UTF-8 length framing with a 16 KiB bound. The codec
+also supports the official optional UInt64 measurement marker, but production does
+not send markers without capability negotiation (currently sends unmarked frames).
+
+One owner per mounted terminal performs up to three opening/reopening attempts.
+Before readiness, on unsupported legacy transports, and for oversized operations,
+input uses existing RPC. Paste remains on its dedicated paste RPC. After a native
+write is attempted, failure propagates to the existing paused-input UI: the same
+text is never silently resent through RPC. Successful native writes indicate
+transport submission, not a separate host execution acknowledgement, matching iOS.
+
+The consumer's RPC lease owns the lane coroutine. Closing that lease, selecting a
+different terminal, or removing the screen retires the lane; another consumer's
+lease stays usable. Late opening results after lease cancellation are closed before
+being exposed. EOF/reset retires only the input lane. Output still arrives through
+the existing render-grid event subscription.
+
+**Verification:** all **410 JVM tests across 67 suites passed**, zero failures,
+errors or skips (30 seconds). Coverage includes every binary split, UInt64 values
+above signed Long, malformed headers/bounds, Unicode and frame limits, fragmented
+readiness, invalid/truncated baselines, pre-readiness and oversized fallback,
+uncertain writes without retry, cancellation, late open results, and independent
+lease ownership. The initial focused 17-test run also passed before cancellation
+checks were added.
+
+`:app:compileDebugAndroidTestKotlin` succeeded in 21 seconds. New method
+`NativeTerminalInputLaneTest.nativeInputUsesIndependentStreamAndControlRpcRemainsUsable`
+compiled, using actual Iroh endpoints, admission, the production native transport
+and RPC client, a fragmented host readiness frame and exact Unicode input, then a
+control RPC on the same session. **It has not run on the Pixel.** It does not read
+or clear saved account credentials. This checkpoint built no APK; the main debug
+APK is still e1117b7, and the published signed release is still build 157.
+
+Local XML, compiler logs and source receipt: `captures/iroh/terminal-input/`.
+Dedicated byte-output terminal lanes, artifact/simulator lane consumers, input
+latency marker negotiation, socket promotion/cache, actual account enrollment and
+live Mac/UI/device acceptance remain open. This is one implemented native path,
+not evidence that the full app goal is complete.

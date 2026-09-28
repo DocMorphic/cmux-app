@@ -435,12 +435,18 @@ fun NativeScreen(
     val hardwareInput = remember(draftTarget) { TerminalHardwareInput() }
     val inputClient = client
     val inputTarget = draftTarget
-    val inputQueue = remember(inputClient, inputTarget) {
+    val nativeInput = remember(inputClient, inputTarget, terminalTransport.mode, connectionReady) {
+        if (inputClient != null && inputTarget != null && connectionReady && terminalTransport.mode == TerminalOutputMode.GRID)
+            TerminalInputLaneOwner(scope) { use -> inputClient.useTerminalInputLane(inputTarget.surface, use) }
+        else null
+    }
+    DisposableEffect(nativeInput) { onDispose { nativeInput?.close() } }
+    val inputQueue = remember(inputClient, inputTarget, nativeInput) {
         TerminalInputQueue(scope) { entry ->
             check(inputClient != null && inputTarget != null && client === inputClient &&
                 code == inputTarget.pairing && signedIn) { "Terminal connection changed" }
             if (entry.paste) inputClient.paste(inputTarget.workspace, inputTarget.surface, entry.text, submit = false)
-            else inputClient.input(inputTarget.workspace, inputTarget.surface, entry.text)
+            else if (nativeInput?.send(entry.text) != true) inputClient.input(inputTarget.workspace, inputTarget.surface, entry.text)
         }
     }
     val inputStatus by inputQueue.status.collectAsState()
