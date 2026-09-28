@@ -1,8 +1,9 @@
 # Native transport and keyboard runtime checkpoint — 2026-09-28
 
 This is Android 17 **emulator fixture evidence**, not physical Pixel or authenticated
-Mac acceptance. The emulator was shut down after the run. The Pixel was absent
-from ADB; a reconnect request is pending. Published signed build 157 is unchanged.
+Mac acceptance. The Pixel can remain disconnected during independent development;
+the physical workflow still needs a later device session. Published signed build
+157 is unchanged. The sections below record separate checkpoints.
 
 ## Failure found and fixed
 
@@ -36,13 +37,13 @@ These are separate 15-test and 16-test instrumentation runs. The failed initial 
 run and diagnostic reruns remain retained; the final app run passed all 16 in one
 process. No tests were disabled or assertions weakened to obtain the pass.
 
-Inspected screenshots confirm the task prompt/dock fits above the keyboard and
-terminal keyboard controls remain visible. The terminal capture occurs during
+Inspected screenshots at this initial checkpoint confirm the task prompt/dock fits
+above the keyboard and terminal keyboard controls remain visible. Its terminal capture occurs during
 viewport resizing and shows a blank output frame; it does **not** establish terminal
-rendering fidelity or absence of resize flicker. That needs a settled-frame check
-and remains part of the full rendering work.
+rendering fidelity or absence of resize flicker. The resize follow-up below addresses
+that blank frame; full rendering fidelity remains open.
 
-## Prepared APKs
+## Prepared APKs at the initial checkpoint
 
 | Artifact | SHA-256 |
 | --- | --- |
@@ -70,6 +71,50 @@ the source base, exact RPC source hash, APK hashes and emulator fingerprint.
 2. Verify actual account enrollment/discovery against the already enabled cmux
    mobile listener; then open workspaces, type, paste images/files, resize, navigate
    and reconnect with the actual Mac.
-3. Check real Gboard temporary URI grants and settled terminal rendering. Continue
+3. Check real Gboard temporary URI grants and physical terminal rendering. Continue
    the remaining parity requirements in `PARITY.md`; this milestone does not close
    the full-app goal.
+
+## Resize follow-up — 2026-09-29
+
+Opening the keyboard created a fresh output mirror and immediately published its
+empty display before the host answered the resize replay. The Android screen now
+retains the last painted frame during a same-terminal, same-connection resize.
+A different terminal or client resets the display. Every new viewport still owns
+a fresh parser and protocol cursor; only the previous visible frame is retained.
+An uninitialized render grid cannot replace it, while a valid empty host frame can.
+
+The new regression holds the actual fixture RPC replay response after opening the
+keyboard. On the previous APK it fails because the terminal text disappears. The
+fixed checks cover grid and byte output, count painted foreground pixels while
+waiting and after replay, and require zero old foreground pixels when switching
+to another terminal whose replay is held.
+
+All 20 focused JVM checks passed (10 mirror and 10 render-grid tests). The main
+and test APKs built. Both final retention cases passed in one emulator run in
+32.881 seconds. The existing keyboard-resize/input and raw-byte recovery cases
+also passed in the preceding run. These are four distinct passing cases across
+separate runs, not a clean combined four-case run.
+
+The initial emulator startup hit Android service/Gboard ANRs before testing. A
+later System UI startup dialog obstructed the first combined run and its keyboard
+case timed out. The pre-fix text-retention assertion failed with that dialog still
+present, so that run is supporting evidence only. After dismissing the dialog, the
+keyboard case passed; the new byte case exposed a fixture race where its global
+replay latch could hold an outgoing terminal's response. The fixture now holds
+only the selected surface's replay. No production assertions were weakened.
+All failed runs and diagnostic logs are retained.
+
+The four final retention screenshots were visually inspected without the system
+dialog. They show Gboard, the retained frame scaled to fit while the response is
+held, and the replacement frame at its new dimensions after the response arrives.
+The separate keyboard/input screenshot also shows terminal output above Gboard.
+
+| Updated artifact | SHA-256 |
+| --- | --- |
+| Main debug APK | `3527c33e64fa852c78d79af0e58d965839761af2594e532c62b5e16149243970` |
+| App instrumentation APK | `5747e92d8a6e0c255984a9e9f972f0377f8fce9744e6df7bf2e858984e569186` |
+
+Evidence is in `captures/runtime/resize-retention/`, excluded from Git: the
+before-fix failure, fixed run, APK/source hashes, JVM XML and screenshots. This
+follow-up does not establish physical keyboard behavior or full Ghostty fidelity.

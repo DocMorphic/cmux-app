@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Terminal resize follow-up (2026-09-29):** the last painted frame now stays visible
+while a same-terminal resize waits for replay; changing terminal/client resets it.
+20 focused JVM checks and both new grid/byte pixel checks passed. The existing
+keyboard/input and byte-recovery cases also passed in a separate emulator run.
+Inspected screenshots show Gboard and retained/settled output. See the resize
+section of [NATIVE_RUNTIME_CHECKPOINT.md](NATIVE_RUNTIME_CHECKPOINT.md) for the
+failed attempts, corrected fixture, final evidence and APK hashes. Physical Mac/
+Pixel acceptance and complete terminal fidelity remain open.
+
 **Latest combined runtime checkpoint (2026-09-28):** 441 JVM tests passed;
 15 native-module and 16 app tests passed in separate Android 17 emulator runs.
 This run found and fixed shared RPC disconnection when a screen cancelled during

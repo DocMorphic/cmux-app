@@ -363,7 +363,7 @@ fun NativeScreen(
         TerminalDrafts.Target(code, workspace.id, terminal.id)
     } }
     val terminalDraft = draftStates[draftTarget] ?: TerminalDrafts.Draft()
-    var grid by remember(draftTarget) { mutableStateOf<TerminalDisplay>(RenderGrid()) }
+    var grid by remember(draftTarget, client) { mutableStateOf<TerminalDisplay>(RenderGrid()) }
     var gridRevision by remember { mutableIntStateOf(0) }
     var replayGeneration by remember { mutableIntStateOf(0) }
     var terminalTransport by remember { mutableStateOf(TerminalTransport.resolve(emptySet())) }
@@ -862,7 +862,9 @@ fun NativeScreen(
         val generation = ++replayGeneration
         val transport = terminalTransport
         val mirror = TerminalStreamMirror(terminal.id, transport, requestedViewport)
-        grid = mirror.display; gridRevision++
+        // Keep the last painted frame while this viewport gets a fresh replay.
+        // The display state above resets for a different terminal or connection;
+        // protocol cursors and parser state always belong to this new mirror.
         scrollOffset = 0
         effectiveTerminalViewport = null
         var replayRunning = false
@@ -872,7 +874,9 @@ fun NativeScreen(
         var nativeOutput: TerminalOutputLaneOwner? = null
         val subscriptionId = java.util.UUID.randomUUID().toString()
         fun publish() {
-            grid = mirror.display
+            val next = mirror.display
+            if (next.columns <= 0 || next.rows <= 0) return
+            grid = next
             gridRevision++
             if (grid.activeScreen == "alternate") scrollOffset = 0
         }

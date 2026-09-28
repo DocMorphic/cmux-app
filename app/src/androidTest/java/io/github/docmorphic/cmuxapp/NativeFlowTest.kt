@@ -21,7 +21,10 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -375,6 +378,77 @@ class NativeFlowTest {
         runBlocking { repo.persistNow() }
         assertTrue(!File(context.noBackupFilesDir, "terminal-attachments/${attachment.id}").exists())
         file.delete(); photo.delete()
+    }
+
+    @Test fun resizingRetainsPaintedFrameUntilReplayButAnotherTerminalStartsEmpty() {
+        checkResizeRetention(raw = false)
+    }
+
+    @Test fun byteTerminalRetainsPaintedFrameDuringResizeAndClearsOnSwitch() {
+        checkResizeRetention(raw = true)
+    }
+
+    private fun checkResizeRetention(raw: Boolean) {
+        peer.rawTerminal = raw
+        fun setFirstLine(text: String) {
+            peer.gridFirstLine = text
+            peer.rawReplayText = "$text\r\nColors and grid layout\r\n$ printf cmux\r\ncmux"
+        }
+        setFirstLine("cmux Android terminal")
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                    .also { it.connect(); observedClients += it }
+            })
+        } } }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        val resize = CountDownLatch(1)
+        val switch = CountDownLatch(1)
+        fun foregroundPixels(node: SemanticsNodeInteraction): Int {
+            val bitmap = node.captureToImage().asAndroidBitmap()
+            var foreground = 0
+            for (y in 0 until bitmap.height) for (x in 0 until bitmap.width) {
+                val pixel = bitmap.getPixel(x, y)
+                if (android.graphics.Color.red(pixel) > 150 && android.graphics.Color.green(pixel) > 150 &&
+                    android.graphics.Color.blue(pixel) > 150) foreground++
+            }
+            return foreground
+        }
+        fun painted(label: String) {
+            val node = compose.onNodeWithText(label, substring = true).assertIsDisplayed()
+            assertTrue("Terminal text must be painted, not just present in semantics", foregroundPixels(node) > 1000)
+        }
+        val mode = if (raw) "bytes" else "grid"
+        try {
+            peer.replayGateSurface = "terminal-1"
+            peer.releaseReplays = resize
+            setFirstLine("After resize")
+            compose.onNodeWithText("Keyboard").performClick()
+            waitForTerminalFixture(10_000) { "terminal-1" in peer.blockedReplaySurfaces }
+            painted("cmux Android terminal")
+            screenshot("terminal-resize-$mode-retained")
+            resize.countDown()
+            waitForTerminalFixture(10_000) { compose.onAllNodesWithText("After resize", substring = true).fetchSemanticsNodes().isNotEmpty() }
+            painted("After resize")
+            screenshot("terminal-resize-$mode-settled")
+            compose.onNodeWithText("‹  2").performClick()
+            peer.replayGateSurface = "terminal-2"
+            peer.releaseReplays = switch
+            setFirstLine("Second terminal")
+            openReadProject()
+            waitForTerminalFixture(10_000) { "terminal-2" in peer.blockedReplaySurfaces }
+            compose.onNodeWithText("After resize", substring = true).assertDoesNotExist()
+            compose.onNodeWithText("cmux Android terminal", substring = true).assertDoesNotExist()
+            val emptyTerminal = compose.onNode(SemanticsMatcher("Terminal keyboard target") {
+                it.config.getOrNull(SemanticsActions.OnClick)?.label == "Open keyboard"
+            }).assertIsDisplayed()
+            assertEquals("A different terminal must not paint the previous terminal's frame", 0, foregroundPixels(emptyTerminal))
+            switch.countDown()
+            waitForTerminalFixture(10_000) { compose.onAllNodesWithText("Second terminal", substring = true).fetchSemanticsNodes().isNotEmpty() }
+            painted("Second terminal")
+        } finally { resize.countDown(); switch.countDown() }
     }
 
     @Test fun composerKeyboardImageStagesUntilSendAndPreservesItsText() {
@@ -1519,6 +1593,9 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var changesErrorCode: String? = null
     val nextTaskCreateError = java.util.concurrent.atomic.AtomicReference<String?>(null)
     @Volatile var rawTerminal = false
+    @Volatile var replayGateSurface: String? = null
+    @Volatile var releaseReplays: CountDownLatch? = null
+    val blockedReplaySurfaces = CopyOnWriteArrayList<String>()
     @Volatile var screenAnchor = true
     @Volatile var alternateScreen = false
     @Volatile var gridFirstLine = "cmux Android terminal"
@@ -1566,6 +1643,12 @@ internal class NativeFixturePeer : AutoCloseable {
                     for (frame in decoder.feed(buffer.copyOf(count))) {
                         val request = JSONObject(String(frame, Charsets.UTF_8))
                         requests += request
+                        if (request.optString("method") == "mobile.terminal.replay") {
+                            releaseReplays?.takeIf { replayGateSurface == request.getJSONObject("params").getString("surface_id") }?.let { latch ->
+                                blockedReplaySurfaces += request.getJSONObject("params").getString("surface_id")
+                                check(latch.await(20, TimeUnit.SECONDS)) { "Replay acknowledgement was not released" }
+                            }
+                        }
                         if (request.optString("method") == "terminal.paste") {
                             releaseNextPaste?.let { latch ->
                                 check(latch.await(10, TimeUnit.SECONDS)) { "Paste test acknowledgement was not released" }
