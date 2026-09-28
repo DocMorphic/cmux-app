@@ -30,7 +30,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.Base64
@@ -39,7 +38,6 @@ internal val filesAccent = Color(0xFF76B9FF)
 internal val filesMuted = Color(0xFF9B9FA8)
 private val filesPanel = Color(0xFF191B1F)
 
-@OptIn(FlowPreview::class)
 @Composable
 internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, refreshSignal: Int = 0, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -48,9 +46,9 @@ internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorizatio
     var showingSession by remember(store) { mutableStateOf(true) }
     DisposableEffect(store) { onDispose { store.close() } }
     LaunchedEffect(store) { store.initialize().join() }
-    // Coalesce terminal output changes; an unchanged terminal causes no refresh RPCs.
+    // The terminal controller sends only accepted count reports, never provisional per-frame counts.
     LaunchedEffect(store) {
-        snapshotFlow { latestSignal }.drop(1).sample(1_500).collect { if (showingSession) store.refreshLive() }
+        snapshotFlow { latestSignal }.drop(1).collect { if (showingSession) store.refreshLive() }
     }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = Color(0xFF111316), contentColor = Color(0xFFE5E7EB)) {

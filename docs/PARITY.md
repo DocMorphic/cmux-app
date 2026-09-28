@@ -25,7 +25,7 @@ UI resemblance alone does not count.
 | Browser | `CmuxMobileBrowser`, `MobileBrowserFrameEvent` | JPEG/PNG stream, bottom navigation/address/loading controls, direct IME and hardware input, live viewport updates, ordered/coalesced scrolling, frame validation and stale-dialog fencing coded; seven browser-view checks and three browser momentum gesture checks have passing emulator evidence across initial/focused runs, including watchdog/lifecycle recovery and momentum/cancellation; width-fit geometry, local pinch zoom/pan and repeated-tap click counts also verified in a clean 13-case browser emulator run; download behavior and phone QA pending | Show browser panels; navigate, scroll, tap, type, handle dialogs and downloads |
 | Search | `MobilePrimaryTabScaffold`, `MobilePrimarySearchCoordinator` | Independent workspace/notification queries, bounded Unicode editing, group/computer/description and notification metadata matching, submit/clear and result navigation verified with JVM/emulator fixtures; cross-computer notification search and exact target navigation verified with emulator fixtures; iOS 26 primary-tab structure with separate Search control, cancel/submit lifecycle, unread badge and floating New Task entry coded; cross-computer workspace aggregation coded; phone QA pending | Search workspaces and notifications with matching navigation |
 | Changes | `CmuxMobileChanges` | Collapsible directory tree, path-stable diff pager, numbered/wrapped hunks, grapheme-safe emphasis, line/hunk copy, persistent pinch font, refresh/retry and progressive 6,000→24,000→96,000-line loading coded; identity-checked hidden-context expansion and chunked content transfer coded; model/request checks passed; Before/After image, PDF, media and file-action previews coded; ten Changes cases passed in an Android 17 emulator run; phone QA, advanced text/Markdown and document-format parity remain open | View changed files and diffs from the active workspace |
-| Terminal Files | `TerminalArtifactFilesSheet`, `ChatArtifactFolderView`, `ChatArtifactViewerDestination` | Scoped RPC/paging/search store, Session/In view sheet, filters/sort, list/three-column grid, thumbnails, folder navigation, swipe previews and file actions coded; terminal menu entry capability gated; JVM checks passed and four UI fixtures compile; runtime/phone QA, Files chip/path taps, row Share and advanced preview fidelity remain open | Browse terminal/session files, folders and previews without crossing authorization scopes |
+| Terminal Files | `TerminalArtifactFilesSheet`, `ChatArtifactFolderView`, `ChatArtifactViewerDestination` | Scoped RPC/paging/search store, Session/In view sheet, filters/sort, list/three-column grid, thumbnails, folder navigation, swipe previews and file actions coded; terminal menu and counted overlay chip capability gated; JVM checks passed and four UI fixtures compile; runtime/phone QA, path taps, row Share and advanced preview fidelity remain open | Browse terminal/session files, folders and previews without crossing authorization scopes |
 | Tasks and agents | Task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, and connection status controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
@@ -45,6 +45,32 @@ scope is terminal Files (Session/In view, search, filters, sorting, folders,
 previews and actions), along with the other open areas in the table. Haskell and
 PureScript highlighting also belongs to artifact code viewing, not a chat screen.
 No existing GUI chat implementation or verification is being claimed.
+
+## Terminal Files chip (2026-09-28)
+
+Added the counted Files overlay on the terminal. The upstream count policy keeps
+accepted session totals across transport failures, invalidates totals when the
+bound session changes, distinguishes authoritative gallery-row totals from legacy
+session totals, coalesces pending scans, and bounds generation-mismatch rearms.
+A zero count keeps the previous chip for the upstream 3.5-second grace period;
+positive observations cancel the hide and connection teardown removes it at once.
+The missing-file setting also controls count scans. Accepted count reports now
+trigger Files-gallery refresh; provisional per-frame counts do not.
+
+`scripts/generate-artifact-count-parity.py` executes the unmodified pinned Swift
+count state and path detector. Android matches 6,400 state transitions and 33
+conservative path cases. The full JVM run passed **282 cases** with no failures,
+errors or skips, and Android test sources compile. An existing browser recovery
+test now waits for the actual delivery callback before asserting completion.
+Runtime logs, initial failures and final passing output are under
+`captures/artifacts/`. No APK was built; the current download is still build 157.
+
+The path reference inputs involving parent components use nonexistent roots to
+avoid the generator Mac's `/tmp` symlink affecting Foundation standardization.
+Android's local fallback uses lexical normalization; complete cross-platform
+symlink-sensitive count equivalence is not claimed. Host gallery totals remain
+authoritative. Direct path taps, row Share, richer previews and Files runtime/
+physical acceptance are still pending; the chip is not a claim of completed parity.
 
 ## Terminal Files UI integration (2026-09-28)
 

@@ -73,6 +73,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -354,8 +355,31 @@ fun NativeScreen(
     textSnapshot?.let { TerminalTextSheet(it) { textSnapshot = null } }
     var showTerminalFiles by remember(draftTarget, client) { mutableStateOf(false) }
     val artifactRpc = remember(client, hostCapabilities) { client?.let { ArtifactRpc(it, hostCapabilities) } }
+    val artifactPreferences = remember(context) { context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE) }
+    var showMissingArtifacts by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("show-missing-files", false)) }
+    DisposableEffect(artifactPreferences) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { preferences, key ->
+            if (key == "show-missing-files") showMissingArtifacts = preferences.getBoolean(key, false)
+        }
+        artifactPreferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { artifactPreferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    val artifactsReady = connectionReady && connectedCode == code && artifactRpc?.capabilities?.terminal == true && draftTarget != null
+    val artifactController = remember(artifactRpc, draftTarget, artifactsReady, showMissingArtifacts) {
+        if (artifactsReady) TerminalArtifactController(scope, artifactRpc!!,
+            ArtifactAuthorization.Terminal(draftTarget!!.workspace, draftTarget.surface), showMissingArtifacts) else null
+    }
+    DisposableEffect(artifactController) { onDispose { artifactController?.close() } }
+    LaunchedEffect(artifactController) {
+        val controller = artifactController ?: return@LaunchedEffect
+        snapshotFlow { gridRevision to scrollOffset }.collectLatest {
+            controller.observe(RenderGrid.plainText(grid.visibleLines(scrollOffset)))
+        }
+    }
+    val artifactChipCount = artifactController?.count?.collectAsState()?.value
+    val artifactRefresh = artifactController?.galleryRefresh?.collectAsState()?.value ?: 0
     if (showTerminalFiles && connectionReady && connectedCode == code && artifactRpc != null && draftTarget != null) {
-        ArtifactFilesSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), gridRevision) {
+        ArtifactFilesSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), artifactRefresh) {
             showTerminalFiles = false
         }
     }
@@ -1203,6 +1227,11 @@ fun NativeScreen(
                     verticalAlignment = Alignment.CenterVertically) {
                     Text("Scrollback · $scrollOffset rows", color = nativeMuted, fontSize = 12.sp)
                     TextButton(onClick = { stopTerminalScrolling(); scrollOffset = 0 }) { Text("Latest") }
+                }
+                artifactChipCount?.let { count ->
+                    TerminalArtifactChip(count, Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = if (scrollOffset > 0) 62.dp else 10.dp)) {
+                        stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
+                    }
                 }
                 }
                 Row(Modifier.horizontalScroll(rememberScrollState()).background(nativePanel),
