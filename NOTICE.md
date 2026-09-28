@@ -81,3 +81,11 @@ Terminal momentum behavior references `GhosttySurfaceView.swift` in
 a 450 ms alternate/legacy-scroll momentum budget, and cancellation on user input.
 The Android implementation uses Android spline decay rather than UIKit mechanics.
 Upstream copyright Manaflow (2024–present), GPL-3.0-or-later.
+
+Terminal Files wire models, gallery snapshot merging and eager paging are adapted
+from ChatArtifactGallery*, TerminalArtifactScanResponse, TerminalArtifactFilesSheet
+and MobileChatEventSource in cmux revision
+4c5272e9153eca2033c9f40ac749f0c3a5bcb291.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android additions include explicit immutable authorization scopes, rejection of
+foreign session identities, and immediate-child path validation.
