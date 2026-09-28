@@ -88,11 +88,15 @@ class BrowserInteractionTest {
     @Test fun timeoutPausesWithoutKillingExplicitRecovery() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         var count = 0
-        val queue = BrowserInputQueue(scope) { if (++count == 1) withTimeout(10) { awaitCancellation() } }
+        val recovered = CompletableDeferred<Unit>()
+        val queue = BrowserInputQueue(scope) {
+            if (++count == 1) withTimeout(10) { awaitCancellation() } else recovered.complete(Unit)
+        }
         try {
             queue.offer(BrowserInput.Key("return"))
             withTimeout(3_000) { while (queue.error.value == null) yield() }
-            assertTrue(queue.resume()); queue.offer(BrowserInput.Text("after timeout"))
+            assertTrue(queue.resume()); assertTrue(queue.offer(BrowserInput.Text("after timeout")))
+            withTimeout(3_000) { recovered.await() }
             assertEquals(2, count)
         } finally { queue.close(); scope.cancel() }
     }
