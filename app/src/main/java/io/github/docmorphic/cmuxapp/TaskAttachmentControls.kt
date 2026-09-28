@@ -2,7 +2,6 @@ package io.github.docmorphic.cmuxapp
 
 import android.content.ClipboardManager
 import android.content.Context
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -21,12 +20,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 
 @Composable
 internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: TaskDrafts.Editor, origin: String,
     attachments: List<ComposerAttachment>, enabled: Boolean, canAdd: Boolean, isCurrent: () -> Boolean,
     onPreparing: (Boolean) -> Unit, onChanged: () -> Unit, onError: (String) -> Unit,
-    content: @Composable (@Composable () -> Unit, @Composable () -> Unit) -> Unit) {
+    content: @Composable (@Composable () -> Unit, @Composable () -> Unit, (TerminalPasteContent) -> Boolean) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val files = remember(context) { AttachmentFiles(context.applicationContext, taskFiles = true) }
@@ -34,17 +34,22 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
     var menu by remember { mutableStateOf(false) }
     var preview by remember { mutableStateOf<ComposerAttachment?>(null) }
     val owner = "${repository.session}:${editor.id}:$origin"
+    val currentOwner by rememberUpdatedState(owner)
+    val currentEditor by rememberUpdatedState(editor)
     var pickerOwner by rememberSaveable { mutableStateOf<String?>(null) }
     var pickerImages by rememberSaveable { mutableStateOf(false) }
-    fun stage(uris: List<Uri>, images: Boolean) {
-        if (uris.isEmpty() || !guard()) return
+    var staging by remember(owner, editor) { mutableStateOf(false) }
+    fun current() = currentOwner == owner && currentEditor == editor && guard()
+    fun stage(items: List<TerminalPasteContent.Item.Attachment>, release: () -> Unit = {}): Boolean {
+        if (items.isEmpty() || staging || !enabled || !canAdd || !current() || !scope.isActive) return false
         val remaining = TaskAttachments.MAX_COUNT - repository.drafts.state.value[editor.id]?.attachments.orEmpty().size
-        if (remaining <= 0) { onError("You can attach up to 10 items to a task."); return }
+        if (items.size > remaining) { onError("You can attach up to 10 items to a task."); return false }
+        staging = true
         onPreparing(true)
         scope.launch {
             try {
-                for (uri in uris.take(remaining)) {
-                    currentCoroutineContext().ensureActive(); check(guard()) { "Task session changed" }
+                for ((uri, images) in items) {
+                    currentCoroutineContext().ensureActive(); check(current()) { "Task session changed" }
                     val prepared = if (!images) files.prepare(uri, false, allowEmpty = true) else {
                         try {
                             files.prepare(uri, true, TaskAttachments.IMAGE_BYTES).let { prepared ->
@@ -57,20 +62,21 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
                             files.prepare(uri, false, allowEmpty = true)
                         }
                     }
-                    currentCoroutineContext().ensureActive(); check(guard()) { "Task session changed" }
+                    currentCoroutineContext().ensureActive(); check(current()) { "Task session changed" }
                     repository.attach(editor, prepared)
                     currentCoroutineContext().ensureActive()
-                    if (guard()) onChanged()
+                    if (current()) onChanged()
                 }
             } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
-                if (guard()) onError(failure.message ?: "That file couldn’t be read. Choose another file.")
-            } finally { onPreparing(false) }
-        }
+                if (current()) onError(failure.message ?: "That file couldn’t be read. Choose another file.")
+            } finally { staging = false; onPreparing(false) }
+        }.invokeOnCompletion { release() }
+        return true
     }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         val matches = pickerOwner == owner; pickerOwner = null
-        if (matches) stage(uris, pickerImages)
+        if (matches) stage(uris.map { TerminalPasteContent.Item.Attachment(it, pickerImages) })
     }
     if (preview != null) TaskAttachmentPreview(checkNotNull(preview), repository) { preview = null }
     content({
@@ -103,13 +109,18 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
                 DropdownMenuItem(text = { Text("Files") }, onClick = { menu = false; pickerOwner = owner; pickerImages = false; picker.launch(arrayOf("*/*")) })
                 DropdownMenuItem(text = { Text("Paste attachment") }, onClick = {
                     menu = false
-                    val clip = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val data = clip.primaryClip
-                    val uris = if (data == null) emptyList() else (0 until data.itemCount).mapNotNull { data.getItemAt(it).uri?.takeIf { uri -> uri.scheme == "content" } }
-                    if (uris.isEmpty()) onError("No copied photos or files. Paste text into the task prompt.")
-                    else stage(uris, data?.description?.hasMimeType("image/*") == true)
+                    try {
+                        val data = (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip
+                        val pasted = data?.let { TerminalPasteContent.fromClipboard(context, it) }
+                        val items = pasted?.items?.filterIsInstance<TerminalPasteContent.Item.Attachment>().orEmpty()
+                        if (items.isEmpty()) { pasted?.close(); onError("No copied photos or files. Paste text into the task prompt.") }
+                        else if (!stage(items) { pasted?.close() }) pasted?.close()
+                    } catch (failure: Exception) { onError(failure.message ?: "Could not read clipboard attachments") }
                 })
             }
         }
+    }, { pasted ->
+        val items = pasted.items.filterIsInstance<TerminalPasteContent.Item.Attachment>()
+        items.size == pasted.items.size && stage(items, pasted::close)
     })
 }

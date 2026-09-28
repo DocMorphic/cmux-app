@@ -231,21 +231,8 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
             ready() && onTextContextMenuItem(id)
 
         override fun commitContent(info: InputContentInfo, flags: Int, opts: Bundle?): Boolean {
-            if (!ready() || onContent == null || info.contentUri.scheme != "content" ||
-                !info.description.hasMimeType("image/*")) return false
-            val granted = flags and InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION != 0
-            return try {
-                if (granted) info.requestPermission()
-                val content = TerminalPasteContent(listOf(TerminalPasteContent.Item.Attachment(info.contentUri, true))) {
-                    if (granted) info.releasePermission()
-                }
-                try {
-                    finishComposingText()
-                    acceptContent(content)
-                } catch (failure: Exception) { content.close(); throw failure }
-            } catch (failure: Exception) {
-                onContentError(failure.message ?: "Could not open the keyboard image"); false
-            }
+            if (!ready() || onContent == null) return false
+            return TerminalPasteContent.receiveImage(info, flags, ::acceptContent, onContentError) { finishComposingText() }
         }
         override fun closeConnection() { invalidate(); super.closeConnection() }
     }

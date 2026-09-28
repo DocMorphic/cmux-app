@@ -410,7 +410,7 @@ internal fun NativeTaskComposerView(
         null -> null
     }
     val loadingModels = loading && modelResult?.usable != true
-    val layout: @Composable (@Composable () -> Unit, @Composable () -> Unit) -> Unit = { attachmentStrip, attachmentPicker ->
+    val layout: @Composable (@Composable () -> Unit, @Composable () -> Unit, (TerminalPasteContent) -> Boolean) -> Unit = { attachmentStrip, attachmentPicker, receiveAttachment ->
         Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))) {
             Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { leave() }, enabled = !busy) {
@@ -423,16 +423,20 @@ internal fun NativeTaskComposerView(
                     Icon(painterResource(R.drawable.ic_task_drafts), "Drafts", Modifier.size(22.dp))
                 }
             }
-            TextField(prompt, { text -> edit { it.copy(prompt = text) } },
-                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).semantics {
-                    contentDescription = if (plainShell) "Workspace title (optional)" else "Task prompt"
-                }, enabled = canEdit, textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp),
-                placeholder = { Text(if (plainShell) "Workspace title (optional)" else directory.trim().takeIf { it.isNotEmpty() }
-                    ?.let { "Describe a coding task in ${TaskDirectoryPaths.name(it)}" } ?: "Describe a coding task",
-                    color = Color(0xFF64676E), fontSize = 20.sp) },
-                colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent, disabledIndicatorColor = Color.Transparent))
+            RichContentEditor(owner = editor to origin,
+                enabled = canEdit && !plainShell && supportsAttachments && attachmentRepository != null,
+                onContent = receiveAttachment, onError = { error = it }) {
+                TextField(prompt, { text -> edit { it.copy(prompt = text) } },
+                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp).semantics {
+                        contentDescription = if (plainShell) "Workspace title (optional)" else "Task prompt"
+                    }, enabled = canEdit, textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp),
+                    placeholder = { Text(if (plainShell) "Workspace title (optional)" else directory.trim().takeIf { it.isNotEmpty() }
+                        ?.let { "Describe a coding task in ${TaskDirectoryPaths.name(it)}" } ?: "Describe a coding task",
+                        color = Color(0xFF64676E), fontSize = 20.sp) },
+                    colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent, disabledIndicatorColor = Color.Transparent))
+            }
             Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (client == null) Text(if (hasSelectedMac) "That Mac is not connected. Open cmux on the Mac to start this task."
                     else "Pair a Mac to start this task. You can save your draft now.",
@@ -554,5 +558,5 @@ internal fun NativeTaskComposerView(
         draft.attachments, canEdit, canAdd = !plainShell && supportsAttachments,
         isCurrent = { currentContext() && collection.isCurrent(editor) && !busy && !accepted && !plainShell && supportsAttachments },
         onPreparing = { preparingAttachments = it }, onChanged = { dirty = true; error = null }, onError = { error = it }, content = layout)
-    else layout({}, {})
+    else layout({}, {}, { false })
 }

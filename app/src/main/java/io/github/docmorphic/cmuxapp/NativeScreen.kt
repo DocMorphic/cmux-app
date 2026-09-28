@@ -1489,17 +1489,21 @@ fun NativeScreen(
                                         enabled = ComposerAttachment.FILE_CAPABILITY in hostCapabilities)
                                 }
                             }
-                            OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
-                                Modifier.weight(1f).onPreviewKeyEvent { event ->
-                                    val key = event.nativeKeyEvent
-                                    if (key.action == AndroidKeyEvent.ACTION_DOWN &&
-                                        key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {
-                                        sendComposer(submit = true); true
-                                    } else false
-                                }, minLines = 1, maxLines = 5,
-                                placeholder = { Text("Message or command") },
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
-                                keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
+                            RichContentEditor(owner = draftTarget to client,
+                                enabled = client != null && terminalDraft.operation == null && !preparingAttachments,
+                                onContent = ::acceptTerminalPaste, onError = { error = it }) {
+                                OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
+                                    Modifier.weight(1f).onPreviewKeyEvent { event ->
+                                        val key = event.nativeKeyEvent
+                                        if (key.action == AndroidKeyEvent.ACTION_DOWN &&
+                                            key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {
+                                            sendComposer(submit = true); true
+                                        } else false
+                                    }, minLines = 1, maxLines = 5,
+                                    placeholder = { Text("Message or command") },
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
+                                    keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
+                            }
                             val canSend = client != null && (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty()) &&
                                 terminalDraft.operation == null && !preparingAttachments
                             TextButton(onClick = { sendComposer(submit = true) }, enabled = canSend) {

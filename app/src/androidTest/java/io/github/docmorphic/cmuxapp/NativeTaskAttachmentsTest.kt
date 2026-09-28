@@ -34,6 +34,7 @@ class NativeTaskAttachmentsTest {
     private lateinit var client: MobileRpcClient
     private val id = UUID.randomUUID().toString()
     private var completed by mutableStateOf(false)
+    @Volatile private var keyboardRequest: androidx.compose.ui.platform.PlatformTextInputMethodRequest? = null
 
     @Before fun start() {
         compose.activity.runOnUiThread {
@@ -52,12 +53,49 @@ class NativeTaskAttachmentsTest {
         TaskDraftRepository.clearMemory(); TaskDraftRepository.clearAttachments(context); store.clear()
     }
     private fun show(create: suspend (JSONObject) -> JSONObject = { client.request("workspace.create", it) }) {
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF0B0C0E)).statusBarsPadding().navigationBarsPadding().imePadding()) {
+        compose.setContent { CaptureComposerInput({ keyboardRequest = it }) { CmuxTheme { Surface(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF0B0C0E)).statusBarsPadding().navigationBarsPadding().imePadding()) {
             NativeTaskComposerView(client, listOf("/repo"), "attachment-mac", remember { TaskModelRepository() },
                 onCreated = { completed = true }, onBack = {}, catalog = { awaitCancellation() }, createTask = create,
                 savedDrafts = repository.drafts, draftId = id, persistDrafts = repository::persistNow,
                 flushDrafts = repository::flush, attachmentRepository = repository, supportsAttachments = true)
-        } } }
+        } } } }
+    }
+
+    @Test fun keyboardImageStagesWithPromptAndUploadsWhenTaskIsCreated() {
+        show()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Explain this image")
+        compose.waitUntil(10_000) { keyboardRequest != null }
+        val directory = File(context.cacheDir, "task-previews").apply { mkdirs() }
+        val photo = File(directory, "task-keyboard-fixture.png")
+        Bitmap.createBitmap(16, 8, Bitmap.Config.ARGB_8888).also { bitmap ->
+            bitmap.eraseColor(android.graphics.Color.MAGENTA)
+            photo.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+        }
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.task-previews", photo)
+            compose.runOnIdle {
+                val attributes = android.view.inputmethod.EditorInfo()
+                val connection = keyboardRequest!!.createInputConnection(attributes)
+                assertArrayEquals(arrayOf("image/*"), attributes.contentMimeTypes)
+                assertTrue(connection.commitContent(android.view.inputmethod.InputContentInfo(uri,
+                    android.content.ClipDescription("Photo", arrayOf("image/png")), null), 0, null))
+            }
+            compose.waitUntil(15_000) { repository.drafts.state.value[id]?.attachments?.size == 1 }
+            val draft = repository.drafts.state.value.getValue(id)
+            assertEquals("Explain this image", draft.prompt)
+            val bytes = runBlocking { repository.readAttachment(draft.attachments.single()) }
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size).also { bitmap ->
+                assertEquals(android.graphics.Color.MAGENTA, bitmap.getPixel(3, 3)); bitmap.recycle()
+            }
+            compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Create Task").fetchSemanticsNodes().any {
+                !it.config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)
+            } }
+            compose.onNodeWithContentDescription("Create Task").performClick()
+            compose.waitUntil(15_000) { completed }
+            val upload = peer.requests.single { it.optString("method") == "mobile.task.attachment.upload" }.getJSONObject("params")
+            assertEquals(draft.attachments.single().id, upload.getString("upload_id"))
+            assertArrayEquals(bytes, java.util.Base64.getDecoder().decode(upload.getString("data_b64")))
+        } finally { photo.delete() }
     }
     private fun choose(file: File, label: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()

@@ -376,6 +376,53 @@ class NativeFlowTest {
         file.delete(); photo.delete()
     }
 
+    @Test fun composerKeyboardImageStagesUntilSendAndPreservesItsText() {
+        val keyboard = java.util.concurrent.atomic.AtomicReference<androidx.compose.ui.platform.PlatformTextInputMethodRequest?>()
+        compose.setContent { CaptureComposerInput({ keyboard.set(it) }) { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.onNode(hasSetTextAction()).performTextInput("Explain this picture")
+        compose.waitUntil(10_000) { keyboard.get() != null }
+        val directory = File(context.cacheDir, "task-previews").apply { mkdirs() }
+        val photo = File(directory, "composer-keyboard-fixture.png")
+        Bitmap.createBitmap(16, 8, Bitmap.Config.ARGB_8888).also { bitmap ->
+            bitmap.eraseColor(android.graphics.Color.CYAN)
+            photo.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+        }
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.task-previews", photo)
+            compose.runOnIdle {
+                val attributes = EditorInfo()
+                val connection = keyboard.get()!!.createInputConnection(attributes)
+                assertTrue(attributes.contentMimeTypes.contentEquals(arrayOf("image/*")))
+                assertTrue(connection.commitContent(android.view.inputmethod.InputContentInfo(uri,
+                    android.content.ClipDescription("Photo", arrayOf("image/png")), null), 0, null))
+            }
+            val repository = TerminalDraftRepository.get(context)
+            val target = TerminalDrafts.Target("cmux-ios://attach?v=2&r=100.64.0.1:58465", "workspace-1", "terminal-1")
+            compose.waitUntil(15_000) { repository.drafts.state.value[target]?.attachments?.size == 1 }
+            assertDraft("Explain this picture")
+            assertTrue(peer.requests.none { it.optString("method") == "terminal.paste_image" })
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Send").fetchSemanticsNodes().any {
+                !it.config.contains(SemanticsProperties.Disabled)
+            } }
+            compose.onNodeWithText("Send").performClick()
+            compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
+            val sent = peer.requests.filter { it.optString("method") in setOf("terminal.paste_image", "terminal.paste") }
+            assertEquals(listOf("terminal.paste_image", "terminal.paste"), sent.map { it.getString("method") })
+            assertEquals("Explain this picture", sent.last().getJSONObject("params").getString("text"))
+            val bytes = java.util.Base64.getDecoder().decode(sent.first().getJSONObject("params").getString("image_base64"))
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size).also { bitmap ->
+                assertEquals(android.graphics.Color.CYAN, bitmap.getPixel(3, 3)); bitmap.recycle()
+            }
+        } finally { photo.delete() }
+    }
+
     @Test fun keyboardImageReachesExactTerminalBeforeFollowingKeysWithoutChangingComposerDraft() {
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
             NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
