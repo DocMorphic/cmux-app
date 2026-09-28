@@ -38,6 +38,29 @@ jobs:
           packages: platform-tools
       - name: Install Android SDK
         run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Restore pinned Iroh dependency
+        id: iroh-cache
+        uses: actions/cache@v4
+        with:
+          path: build/iroh-android
+          key: ${{ runner.os }}-iroh-ee19f156-ndk28-api26-arm64-${{ hashFiles('scripts/build-iroh-android.py') }}
+      - uses: actions/checkout@v4
+        if: steps.iroh-cache.outputs.cache-hit != 'true'
+        with:
+          repository: manaflow-ai/iroh-ffi
+          ref: ee19f156667ca640b912108a45f8b5bb8d156fec
+          path: native/iroh-ffi
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        if: steps.iroh-cache.outputs.cache-hit != 'true'
+        with:
+          toolchain: 1.91.0
+          targets: aarch64-linux-android
+      - name: Build missing native dependency from pinned source
+        if: steps.iroh-cache.outputs.cache-hit != 'true'
+        run: |
+          sdkmanager 'ndk;28.2.13676358'
+          python3 scripts/build-iroh-android.py --source native/iroh-ffi --ndk "$ANDROID_HOME/ndk/28.2.13676358" --output build/iroh-android
       - uses: gradle/actions/setup-gradle@v4
       - name: Prepare stable release key
         env:

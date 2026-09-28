@@ -21,11 +21,21 @@ The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux
 
 ## Open the Android project
 
-Install Android Studio with Android SDK 36 and JDK 17 or newer, then open this directory. For a command line build:
+Install Android Studio with Android SDK 36 and JDK 17. The app now includes its
+native Iroh dependency. Obtain the reviewed checkpoint first (requires GitHub CLI
+access to this repository), or reproduce it from the pinned source as described
+in [IROH_V2.md](docs/IROH_V2.md#android-native-module):
 
 ```bash
+gh run download 36416151322 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
 ./gradlew :app:assembleDebug
 ```
+
+Gradle verifies the native receipt and every listed hash before compiling. If the
+checkpoint has expired, use a reviewed new `native_only` workflow run or the
+documented source build. Current native APKs target **arm64**, including Pixel 6a;
+x86 emulator and other ABI support remains to be added. CI builds the pinned
+native source on a cache miss and validates it again through Gradle.
 
 On Windows, use `.\gradlew.bat :app:assembleDebug` from PowerShell. See
 [Windows development](docs/WINDOWS_DEVELOPMENT.md) for setup and the focused

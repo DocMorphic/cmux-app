@@ -30,9 +30,16 @@ arm64; two crypto/QUIC tests and five Irx admission/framing tests passed on the
 physical Pixel. The module is isolated, with no current Mac enrollment or app
 connection yet. See [IROH_V2.md](IROH_V2.md) for build pins and test scope.
 
+**Main native packaging/account scope (2026-09-28):** the main debug APK now
+includes the verified arm64 Iroh/JNA libraries and their notices; APK alignment,
+signature and native hash checks pass. Account membership and Settings team
+selection are implemented with 10 local network tests. A combined run with 25 V2
+checks passed all 35 cases. This new APK has not been installed or connected to
+the Mac. Other native ABIs and account-scope-to-endpoint/RPC integration remain open.
+
 | Area | iOS source / contract | Android status | Acceptance check |
 | --- | --- | --- | --- |
-| Account | `MobileAuthComposition`, `MobileRootAuthGate` | OTP sign-in and encrypted token refresh coded; unverified on phone | Sign in with the Mac's cmux account; restore session after restart; sign out |
+| Account | `MobileAuthComposition`, `MobileRootAuthGate`, `AuthCoordinator` | OTP sign-in/encrypted token refresh coded; verified team membership and Settings selection implemented with login/team generation guards, HTTP cancellation and explicit token refresh tests; team creation/cache and live phone account QA remain open | Sign in with the Mac's cmux account/team; switch teams without stale authority; restore session; sign out |
 | Computers | `MobilePairedMac`, `MacComputerListSection`, `V2ControlService` | Saved-Mac list/select/forget coded; V2 account-session directory pagination, pushed changes/revocation, lease expiry and relay renewal implemented with local network fixtures; connecting account/team selection and computer UI to this service remains open | Discover, choose, forget, and reconnect multiple Macs on the actual account |
 | Pairing | `MobileIrohV2InstallationStore`, `V2ControlService`, legacy `CmxPairingQRCode` | Scoped protected native identity verified on Pixel; signed V2 enrollment implemented with local network fixtures; legacy QR/deep-link codecs retained; actual account enrollment remains open | Enroll Android against current Mac/account, validate key/scope, admit and revoke; QR only for hosts exposing the legacy route |
 | Transport | `CmuxIrxTransport`, `MobileCoreRPCSession`, legacy `CmxNetworkByteTransport` | Iroh Android library, native QUIC and Irx admission verified on Pixel; V2 control networking implemented; production native endpoint/lane/RPC integration remains open. Legacy TCP fixtures already implemented | Current Mac Irx connection with control/events/terminal/artifact lanes, reconnect without duplicate input |

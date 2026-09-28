@@ -115,8 +115,8 @@ own layer. A complete native connection has not been demonstrated.
 
 ## Android native module
 
-`:iroh` is an isolated Android library, not yet a dependency of `:app`. Ordinary
-app builds do not need its checkpoint. It uses the matching generated Kotlin
+`:iroh` is now a dependency of `:app`; app builds require its checked native
+artifact. It uses the matching generated Kotlin
 bindings, JNA 5.15.0 **Android AAR**, JDK 17, API 26 minimum and arm64 only.
 `IrohRuntime.initialize` installs the application context once before endpoint
 creation. Library pre-build verifies the pin, NDK, ABI and every receipt hash;
@@ -139,9 +139,9 @@ three official signing vectors (plus altered-message rejection), and two
 sequential bidirectional QUIC streams using `cmux/irx/1`, peer-key validation,
 minimal endpoints, explicit loopback sockets and disabled port mapping. This
 checks FFI/TLS/streams, **not** V2 directory enrollment or Mac admission.
-Do not describe this module as verified until native build and device results
-are recorded below. Further release ABIs and full app packaging must be verified before integrating
-it into a shipping APK.
+The recorded native device results below verify the isolated module. Main debug
+APK packaging is now checked separately below. Further ABIs and the integrated
+app workflow still need verification before a complete signed release.
 
 ### Platform compatibility audit
 
@@ -345,3 +345,49 @@ socket loss followed by HTTP recovery, and independent credential renewal.
 Evidence/source hashes: `captures/iroh/control-session/`; local build log:
 `/tmp/cmux-v2-session-tests.log`. These are local network fixtures, not production
 account, phone-to-Mac, or full-app acceptance results.
+
+### Authenticated teams and main APK packaging — 2026-09-28
+
+`NativeAccountTeams` loads `/users/me` and `/teams?user_id=me` using the cmux
+Stack client project. Settings now shows the selected team, available memberships
+and refresh action. Like iOS AuthCoordinator, a missing/invalid selection resolves
+to an actual membership; no user-ID-to-team-ID inference is made. Team changes
+PATCH `selected_team_id` and require a matching account/selected-team response
+before replacing the local scope. Rejected switches preserve the existing team;
+loss of membership access clears scope. Login incarnation and a monotonic team
+generation fence delayed responses, including switching away and back to one team.
+Sign-out/disposal clears state and cancels HTTP calls.
+
+An explicit authentication rejection refreshes the token once; the network layer
+refuses redirects and does not replay uncertain PATCH requests. NativeAccount now
+accepts an explicit forced refresh while preserving its existing stored-login guard.
+These are local fixture checks; the new Settings UI has compiled but has not yet
+been viewed on the Pixel or used with a live account. Team creation and persistent
+team-cache behavior remain open.
+
+The app now depends on `:iroh`, with arm64 ABI filtering so a JNA-only x86 payload
+cannot install as though Iroh were available. CI restores the pinned native
+artifact from a build-script-keyed cache or builds it from the exact source, Rust
+and NDK versions. The normal Gradle receipt/hash verification runs in either case.
+The new CI cache branch has not yet run remotely. Draft commits still do not trigger
+APK builds. Fresh checkout/native checkpoint instructions are updated for Windows
+and macOS. Other ABIs remain a release task, not an unavoidable Android limitation.
+
+**35 focused JVM tests passed**, zero failures/errors/skips: 10 account/team cases
+and 25 V2 session/transport/signing cases. The combined debug APK build passed in
+23 seconds. It contains Iroh and JNA arm64 libraries, the original Iroh binary
+hash matches the native receipt, and its MIT/Apache/JNA notices are packaged and
+listed in the app's license dialog. `zipalign -c -P 16 -v 4` and APK v2 signature
+verification pass. Debug APK SHA-256:
+`2c13559ed8adbb2aa498f4250d999186ead09ad090734dd6215934087ec3bd4a`.
+Local evidence: `captures/iroh/account-native-package/`; final log:
+`/tmp/cmux-account-native-final.log`. An initial compile exposed the private Stack
+configuration companion, which was fixed before the successful run. The signature
+check needed the configured JDK path; rerunning with JAVA_HOME verified it.
+
+The Pixel is no longer required connected for this local work; the user was told
+it can be disconnected until the actual connection test. This APK has not been
+installed on the phone, and no production enrollment was sent. Next connect the
+resolved account scope and protected native key to the control session, native
+endpoint/relay lifecycle, admitted Irx lanes and MobileRpcClient. The last published
+signed APK remains build 157. Main-app native packaging alone is not live-Mac parity.

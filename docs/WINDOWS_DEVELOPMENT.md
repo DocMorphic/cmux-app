@@ -14,6 +14,7 @@ Set the paths for the current machine; do not copy the handoff Mac paths:
 $env:JAVA_HOME = 'C:\path\to\jdk-17'
 $env:ANDROID_HOME = 'C:\path\to\android-sdk'
 $env:Path = "$env:ANDROID_HOME\platform-tools;$env:Path"
+gh run download 36416151322 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
 .\gradlew.bat --no-daemon --max-workers=1 :app:testDebugUnitTest
 node --test bridge/*.test.mjs
 python scripts/verify-viewer-assets.py
@@ -27,6 +28,12 @@ the pinned upstream hashes even with Git's Windows `core.autocrlf=true` default.
 No release signing configuration
 changes are needed. Use the existing GitHub workflow/secrets for signed milestones;
 local versionCode 2 is not an upgrade over published build 157.
+
+The app now requires the pinned Iroh dependency. Gradle verifies its receipt and
+hashes. See [IROH_V2.md](IROH_V2.md#android-native-module) to reproduce an expired
+checkpoint via Linux/macOS or the native CI job. The current native APK is arm64;
+the older x86-64 emulator evidence below predates this dependency. Use the Pixel
+or an arm64 target for current runtime checks until x86-64 native support is built.
 
 At a combined runtime milestone, build before starting the emulator:
 
@@ -44,8 +51,9 @@ Python subprocess pipes, avoiding binary corruption from older PowerShell text
 redirection. Inspect the screenshots; a successful fixture run does not prove
 the real account, VPN, Mac, Windows host, or physical Pixel workflow.
 
-For Android 17 x86-64, check the SDK package list: current package naming uses
-`system-images;android-37.0;google_apis;x86_64`. Check `emulator -accel-check` before
+The historical Windows run used Android 17 x86-64 package
+`system-images;android-37.0;google_apis;x86_64`; it cannot run the new arm64 native APK.
+Check `emulator -accel-check` before
 launch. Use a cold boot without saving/restoring snapshots when diagnosing ANRs.
 Never dismiss an ANR by relabeling the test as passed. Do not stop unrelated apps
 to free memory; build and run the owned emulator sequentially on constrained hosts.
@@ -70,15 +78,15 @@ published signed APK remains build 157 until a separate verified milestone.
 
 ## Real Mac acceptance gate
 
-The existing `docs/HANDOFF.md` restriction still applies: the native listener on
-58465 was left off after an automatic approval review rejected enabling it.
-The detailed rejection reason was not retained. Cloning, setting up Windows, or
-permission to continue development does not authorize bypassing that restriction.
+The user subsequently explicitly approved native mobile pairing on the original
+Mac. It is enabled and the cmux 0.64.25 panel reached Iroh Ready. That host exposes
+V2 account/Iroh pairing, with no legacy Tailscale QR/TCP route. See the corrected
+plan and evidence in [IROH_V2.md](IROH_V2.md); do not reapply the historical handoff
+restriction or silently substitute a legacy host.
 
-The prepared test path is: connect the Pixel by USB and authorize debugging;
-connect Pixel and Mac to their existing tailnet; install a verified signed
-milestone; sign in to the same cmux account; after explicit approval/user action
-enable Mobile pairing on the Mac and scan its Tailscale QR locally. Then open a
+The prepared test path is: connect the Pixel by USB-C and authorize debugging;
+install a verified milestone; sign in to the same cmux account/team, enroll the
+Android installation and connect to the authorized Mac through Irx. Then open a
 test workspace, exchange a harmless unique terminal marker, interrupt/restore
 the phone connection and verify no duplicate input, and trigger/open a test
 notification. Record device/cmux/APK versions and results at each stage. Never

@@ -157,13 +157,13 @@ GPL-3.0-or-later). The raw-code assets are copied from Highlightr 2.3.0 at
 They contain highlight.js 11.11.1 and the Xcode palettes. RawCode.txt contains
 the MIT and BSD licenses; raw-code/manifest.json records exact asset hashes.
 
-The isolated `iroh` module builds manaflow-ai/iroh-ffi at
+The `iroh` module, now a main app dependency, builds manaflow-ai/iroh-ffi at
 ee19f156667ca640b912108a45f8b5bb8d156fec (MIT OR Apache-2.0), including its
 matching generated UniFFI Kotlin bindings and Android context initializer.
 Native build receipts record Cargo.lock and all delivered file hashes. The module
 packages upstream LICENSE-MIT and LICENSE-APACHE under assets/licenses/iroh.
 JNA 5.15.0 is used under Apache-2.0; its Android AAR retains upstream notices.
-The Iroh module is not yet included in the main app or a published signed APK.
+The main debug APK now includes Iroh/JNA for arm64. No updated signed release has been published.
 
 IrxWire and IrxClientSession adapt the cmux IrxProtocol, IrxAdmission and
 MobileIrxRuntimeComposition+Dial contracts at
@@ -179,3 +179,9 @@ IrohV2ControlTransport and IrohV2SignedRequests adapt the cmux V2 control-servic
 wire contracts at 4c5272e9153eca2033c9f40ac749f0c3a5bcb291 and deployed Worker
 e0263f46a6698bf7d74e828b6200e4bfa963a3dc (Manaflow, GPL-3.0-or-later).
 MockWebServer 4.12.0 is a JVM test dependency only (Square, Apache-2.0).
+
+IrohV2ControlSession and NativeAccountTeams follow the cmux V2 service and
+authenticated team-scope lifecycle contracts at
+4c5272e9153eca2033c9f40ac749f0c3a5bcb291 (Manaflow, GPL-3.0-or-later).
+Account HTTP paths and payloads follow the Stack Auth client API used by that
+revision of the bundled Swift SDK; no Stack SDK code is compiled into this app.

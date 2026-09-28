@@ -17,6 +17,8 @@ android {
         targetSdk = 36
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 2
         versionName = "0.2.0"
+        // Native milestone targets the Pixel 6a; never install a partial JNA-only ABI.
+        ndk { abiFilters += "arm64-v8a" }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -58,6 +60,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":iroh"))
     val composeBom = platform("androidx.compose:compose-bom:2025.09.00")
     implementation(composeBom)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

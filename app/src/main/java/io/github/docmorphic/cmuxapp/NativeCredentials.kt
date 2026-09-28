@@ -151,10 +151,10 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
         }
     }
 
-    suspend fun accessToken(): String? = refreshMutex.withLock {
+    suspend fun accessToken(forceRefresh: Boolean = false): String? = refreshMutex.withLock {
         val state = store.load() ?: return@withLock null
         val current = state.optString("access_token").takeIf { it.isNotBlank() }
-        if (current != null && !expiresSoon(current)) return@withLock current
+        if (current != null && !forceRefresh && !expiresSoon(current)) return@withLock current
         val refresh = state.optString("refresh_token").takeIf { it.isNotBlank() }
             ?: return@withLock current
         val session = store.taskSession() ?: return@withLock null
@@ -268,7 +268,7 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
 
     internal class InvalidRefreshToken : Exception()
 
-    private companion object {
+    internal companion object {
         const val PROJECT_ID = "9790718f-14cd-4f7e-824d-eaf527a82b82"
         const val PUBLISHABLE_KEY = "pck_kzj80gx4mh2jrzn1cx6y5e8jk0kwa01vkevh2p9zd4twr"
     }
