@@ -27,11 +27,9 @@ internal class ArtifactTextDocument(val text: String) {
 internal enum class ArtifactTextKind(val defaultWrap: Boolean) {
     CODE(true), LOG(false), PLAIN(true);
     companion object {
-        // Extension set from ChatArtifactSyntaxHighlightPolicy at the pinned upstream revision.
-        private val code = "bash c cc cjs clj cljs cpp cs css cxx dart ex exs fs fsx go gradle groovy h hh hpp hs htm html java js json jsx kt kts less lua m markdown md mjs mm php pl pm purs py r rb rs sass scala scss sh sql swift ts tsx xml yaml yml zsh".split(' ').toSet()
-        fun forPath(path: String): ArtifactTextKind = when (path.substringAfterLast('.', "").lowercase()) {
-            "log", "out" -> LOG
-            in code -> CODE
+        fun forPath(path: String): ArtifactTextKind = when {
+            path.substringAfterLast('.', "").lowercase() in setOf("log", "out") -> LOG
+            ArtifactSyntaxPolicy.language(path) != null -> CODE
             else -> PLAIN
         }
         fun fontSize(value: Float) = if (value.isFinite()) value.coerceIn(8f, 28f) else 15f

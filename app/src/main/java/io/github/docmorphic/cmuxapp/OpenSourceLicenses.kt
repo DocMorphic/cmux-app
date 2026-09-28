@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.sp
 fun OpenSourceLicensesDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val licenses = remember(context) {
-        listOf("NOTICE.txt", "GPL-3.0.txt", "Apache-2.0.txt", "Lucide.txt", "Markdown.txt").joinToString("\n\n") { name ->
+        listOf("NOTICE.txt", "GPL-3.0.txt", "Apache-2.0.txt", "Lucide.txt", "Markdown.txt", "RawCode.txt").joinToString("\n\n") { name ->
             context.assets.open("licenses/$name").bufferedReader().use { it.readText() }
         }
     }

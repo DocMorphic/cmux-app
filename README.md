@@ -6,6 +6,11 @@ The app opens on the direct cmux connection path: same-account sign-in, official
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
+**Continuing on another laptop:** start with [HANDOFF.md](docs/HANDOFF.md) for the
+working branch, source research, implementation map, unfinished checks, release
+state, setup commands, and next steps. The latest feature work is on
+`feature/local-mac-bridge`, ahead of the last signed APK.
+
 ## What was researched
 
 The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux, shows live terminal workspaces, lets users control terminal sessions, and forwards agent notifications. The [iOS guide](https://cmux.com/docs/ios) says the terminal stream is direct over a private network such as Tailscale; cmux's servers handle account and device metadata and, if enabled, push notification delivery. The [public source](https://github.com/manaflow-ai/cmux/tree/main/ios) also shows pairing, attach tickets, multiplexed RPC, workspace lists, terminal rendering, browser surfaces, and more. The detailed source review is in [RESEARCH.md](docs/RESEARCH.md).
@@ -18,7 +23,10 @@ Install Android Studio with Android SDK 36 and JDK 17 or newer, then open this d
 ./gradlew :app:assembleDebug
 ```
 
-The APK will be at `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions also produces a stable signed release APK artifact for each successful build.
+The APK will be at `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions
+produces a stable signed release APK at manually dispatched milestones or
+eligible non-draft PR builds. Draft feature commits intentionally skip the build
+job; see [build cadence](docs/ANDROID_TESTING.md#build-cadence).
 
 ## Project choices
 

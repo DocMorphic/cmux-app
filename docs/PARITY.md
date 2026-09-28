@@ -46,6 +46,45 @@ previews and actions), along with the other open areas in the table. Haskell and
 PureScript highlighting also belongs to artifact code viewing, not a chat screen.
 No existing GUI chat implementation or verification is being claimed.
 
+## Raw-code syntax highlighting (2026-09-28)
+
+Raw Files/Changes viewing now uses the exact Highlightr dependency pinned in the
+iOS Package.resolved: Highlightr 2.3.0 at
+`05e7fcc63b33925cd0c1faaa205cdd5681e7bbef`. Its unmodified highlight.js 11.11.1
+bundle contains 192 languages, including Haskell (also used for PureScript by
+cmux), and both Xcode palettes. The three asset hashes are recorded in
+`assets/raw-code/manifest.json`; `scripts/sync-raw-code-highlighter.py` reproduces
+them. The MIT/BSD notices are bundled and visible in Open-source licenses.
+All 57 extension mappings match the pinned iOS policy, and all 35 mapped language
+IDs are available in the bundle.
+
+The policy matches iOS: highlight recognized languages through 1,500,000 bytes;
+automatically detect unknown languages only below 256,000 bytes. Larger files
+show the expandable Highlighting off pill with the file size and threshold.
+They retain the raw viewer and its controls.
+
+An off-screen WebView runs only the bundled tokenizer and styles, with networking,
+file/content access and navigation blocked. The source is passed as JSON data.
+Generated HTML is converted to contiguous UTF-16 style ranges; CR/CRLF are
+preserved and the decoded text must match the original exactly before anything
+is applied. The displayed view remains the native selectable buffer. Attributes
+supply foreground color and bold/italic monospaced traits, preserving the user's
+font size and avoiding theme backgrounds that would cover search highlights.
+Page cancellation closes the worker, a deadline bounds waiting, and an engine
+failure leaves plain text available. A shared coroutine lock serializes workers.
+
+All **307 JVM cases passed**, and debug/test APK assembly succeeded. The final
+11-case Android run recorded **7 passes, 3 failures, and 1 started without a
+result** before interruption. Four of the five new syntax cases passed; the
+late-coloring case failed on a null clipboard read. Two existing text cases failed
+on clipboard/gutter checks. A System UI ANR dialog was observed over the app; its
+role in these failures is not yet confirmed by a rerun. See
+[SYNTAX_CHECKPOINT.md](SYNTAX_CHECKPOINT.md) for exact outcomes and
+[HANDOFF.md](HANDOFF.md) for continuation steps. Runtime verification remains
+incomplete. This does not prove large-file performance, incremental remote
+viewing, complete lifecycle/fault recovery or physical Pixel/Mac acceptance.
+Signed build 157 remains the current download.
+
 ## Unified viewer menu and native text controls (2026-09-28)
 
 Files and Changes now share one ellipsis-circle Viewer actions menu, following

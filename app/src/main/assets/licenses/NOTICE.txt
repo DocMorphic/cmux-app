@@ -144,3 +144,11 @@ from cmux commit 4c5272e9153eca2033c9f40ac749f0c3a5bcb291.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android additions provide a native selectable buffer, line-number gutter, search
 highlighting, two-axis scrolling, text-size controls and per-kind preferences.
+
+Raw artifact syntax policy and native attribute application adapt cmux's
+ChatArtifactSyntaxHighlightPolicy/Highlighter/TextViewCoordinator at
+4c5272e9153eca2033c9f40ac749f0c3a5bcb291 (Manaflow, 2024-present,
+GPL-3.0-or-later). The raw-code assets are copied from Highlightr 2.3.0 at
+05e7fcc63b33925cd0c1faaa205cdd5681e7bbef, the exact dependency pinned by iOS.
+They contain highlight.js 11.11.1 and the Xcode palettes. RawCode.txt contains
+the MIT and BSD licenses; raw-code/manifest.json records exact asset hashes.

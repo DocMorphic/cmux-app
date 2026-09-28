@@ -1,0 +1,65 @@
+# Raw syntax checkpoint evidence — 2026-09-28
+
+Portable record of the last local run before the laptop handoff. This is a
+summary of observed results, not replacement raw logs or a new test run.
+
+## Build and static verification
+
+- Full JVM XML results re-read during handoff: 51 report files, **307 tests,
+  0 failures, 0 errors, 0 skipped**.
+- `/tmp/cmux-syntax-build.log`: successful full JVM/debug/test APK build (53 s).
+- `/tmp/cmux-syntax-pill-build.log`: latest debug/test APK assembly successful
+  (21 s), including the five-case syntax fixture and status pill.
+- All 57 upstream extension mappings matched; all 35 language IDs were present
+  in the 192-language highlight.js 11.11.1 bundle. Three vendored asset hashes
+  matched the pinned source manifest.
+- No production/test source changes were made after that last APK assembly before
+  handoff. Documentation and provenance packaging do not establish new runtime
+  verification. No signed APK was published for this change.
+
+## Android results
+
+First launch failed before cases ran: BIND APPLICATION ANR. Cold boot then ran
+the three classes below on Android 17/API 37. The cold-run log has **no terminal
+instrumentation result**, so the run must not be described as a successful suite.
+
+| Class | Method | Recorded result |
+| --- | --- | --- |
+| NativeArtifactSyntaxTest | pinnedEngineSupportsHaskellPureScriptXcodePalettesAndAutomaticDetection | PASS |
+| NativeArtifactSyntaxTest | realViewerAutomaticallyHighlightsPureScriptWithNativeSpans | PASS |
+| NativeArtifactSyntaxTest | activeMarkupQuotesCrLfAndUnicodeRemainLiteralCode | PASS |
+| NativeArtifactSyntaxTest | nativeLateColoringPreservesSelectionSearchFontViewportAndClipboard | FAIL: null primaryClip at clipboard assertion |
+| NativeArtifactSyntaxTest | oversizedFileExplainsHighlightingLimitAndKeepsRawTextAvailable | PASS |
+| NativeArtifactTextTest | wrappingFontAndPinchPersistPerTextKindAcrossFiles | PASS |
+| NativeArtifactTextTest | searchWrapsAndJumpsToMatchesAndLineControlsMoveActualViewport | FAIL: visible gutter pixel wait |
+| NativeArtifactTextTest | selectionAndCopyContentsPreserveNewlinesUnicodeAndExcludeLineNumbers | FAIL: clipboard expected text, received null |
+| NativeMarkdownPreviewTest | renderedMarkupCannotExecuteScriptsOrLoadRemoteImagesBeforeConsent | PASS |
+| NativeMarkdownPreviewTest | largeMarkdownKeepsRawContentAndDisablesRenderedMode | PASS |
+| NativeMarkdownPreviewTest | sharedRendererDisplaysTablesCodeMermaidAndVegaAndSwitchesToRaw | STARTED; no recorded result |
+
+Totals: **7 passes, 3 failures, 1 incomplete**. Instrumentation status 0 marks
+each listed pass; -2 marks each failure. The foreground screenshot showed a
+System UI ANR modal covering/dimming the app. This is a plausible common cause
+of the clipboard and pixel failures, **not a verified diagnosis**. Dismiss any
+system modal on a responsive test device and rerun the four affected methods.
+Do not weaken assertions or count pre-clipboard assertions as a whole-test pass.
+
+The oversize fixture declares >1.5 MB but contains small text. It verifies policy
+and UI, not large-file runtime performance. Renderer-crash/cancellation behavior
+has not been fault-injected. Physical Pixel/real Mac acceptance is outstanding.
+
+## Original evidence locations (old laptop only; ignored by Git)
+
+- `/tmp/cmux-syntax-cold-runtime.log`: original partial run and failure stacks.
+- `/tmp/cmux-syntax-runtime.log`: pre-test process crash.
+- `/tmp/cmux-syntax-{build,compile,fixture-build,pill-build}.log`: builds.
+- `captures/artifacts/syntax-instrumentation-exit-info.txt`: startup exit reason.
+- `captures/artifacts/syntax-webview-logcat.txt`: renderer diagnostic evidence.
+- `captures/artifacts/syntax-cold-screen.png`: inspected ANR-modal screenshot.
+- `captures/artifacts/syntax-system-dialog.xml`: empty; dump never yielded UI.
+- `captures/artifacts/artifact-syntax.png`: invalid 58-byte missing-file error;
+  not screenshot evidence. Recreate after the late-coloring fixture passes.
+
+All old emulator/instrumentation processes were gone at the handoff inspection.
+The Git clone carries reproducible fixtures and this result record, not the old
+ignored evidence files, emulator, APKs, credentials, or temporary clones.

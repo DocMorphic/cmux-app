@@ -7,6 +7,8 @@ import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.Spannable
 import android.text.SpannableString
+import android.text.TextPaint
+import android.text.style.MetricAffectingSpan
 import android.text.style.BackgroundColorSpan
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -40,6 +42,8 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
     var rendered by mutableStateOf(renderedAvailable)
     var failure by mutableStateOf<String?>(null)
     var document by mutableStateOf<ArtifactTextDocument?>(null)
+    var syntax by mutableStateOf<ArtifactSyntaxResult?>(null)
+    var highlightedDocument: ArtifactTextDocument? = null
     var searchOpen by mutableStateOf(false)
     var goToLineOpen by mutableStateOf(false)
     var query by mutableStateOf("")
@@ -67,10 +71,24 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
 
 @Composable
 internal fun ArtifactRawTextPreview(state: ArtifactViewerState) {
+    val context = LocalContext.current
     LaunchedEffect(state) {
         if (state.document == null) try {
             state.document = withContext(Dispatchers.IO) { ArtifactTextDocument(state.artifact.file.readText()) }
         } catch (error: Exception) { ensureActive(); state.failure = error.message ?: "Could not read text." }
+    }
+    LaunchedEffect(state, state.document) {
+        val document = state.document ?: return@LaunchedEffect
+        if (state.highlightedDocument === document) return@LaunchedEffect
+        val decision = ArtifactSyntaxPolicy.decision(state.artifact.file.name, state.artifact.size)
+        try {
+            val result = if (decision.enabled) ArtifactSyntaxHighlighter.highlight(context, document.text, decision.language) else null
+            ensureActive()
+            if (state.document === document) { state.syntax = result; state.highlightedDocument = document }
+        } catch (error: Exception) {
+            ensureActive() // Cancellation cannot publish into a replaced page.
+            state.highlightedDocument = document // Keep the fully usable plain-text view on engine failure.
+        }
     }
     LaunchedEffect(state.document, state.query) {
         val document = state.document ?: return@LaunchedEffect
@@ -134,6 +152,7 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
     val textView = ArtifactNumberedTextView(context)
     private val horizontal = HorizontalScrollView(context).apply { isFillViewport = true }
     private var document: ArtifactTextDocument? = null
+    private var syntax: ArtifactSyntaxResult? = null
     private var ranges: List<IntRange>? = null
     private var selected = -1
     private var appliedJump: Pair<Long, Int>? = null
@@ -188,7 +207,16 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
         if (document !== value) {
             document = value; textView.document = value
             textView.setText(SpannableString(value.text), TextView.BufferType.SPANNABLE)
-            ranges = null
+            ranges = null; syntax = null
+        }
+        val highlighted = state.syntax?.takeIf { it.text == value.text }
+        if (syntax !== highlighted) {
+            val buffer = textView.text as Spannable
+            buffer.getSpans(0, buffer.length, ArtifactSyntaxSpan::class.java).forEach(buffer::removeSpan)
+            highlighted?.runs?.forEach { run ->
+                buffer.setSpan(ArtifactSyntaxSpan(run.color, run.style), run.start, run.end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            syntax = highlighted
         }
         font = state.fontSize
         if (textView.textSize != android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, font, resources.displayMetrics)) textView.textSize = font
@@ -261,6 +289,37 @@ internal class ArtifactNumberedTextView(context: Context) : TextView(context) {
             val logical = index.line(start)
             if (index.offset(logical) == start) canvas.drawText(logical.toString(), paddingLeft - 12 * resources.displayMetrics.density,
                 (textLayout.getLineBaseline(visual) + paddingTop).toFloat(), numberPaint)
+        }
+    }
+}
+
+/** Syntax never changes the text, size, background, selection or search spans. */
+internal class ArtifactSyntaxSpan(val color: Int, val style: Int) : MetricAffectingSpan() {
+    override fun updateDrawState(paint: TextPaint) { paint.color = color; updateMeasureState(paint) }
+    override fun updateMeasureState(paint: TextPaint) { paint.typeface = Typeface.create(Typeface.MONOSPACE, style) }
+}
+
+@Composable
+internal fun ArtifactHighlightingOffPill(bytes: Long) {
+    var expanded by remember(bytes) { mutableStateOf(false) }
+    val context = LocalContext.current
+    val explanation = "This file is ${android.text.format.Formatter.formatShortFileSize(context, bytes)}. Syntax highlighting is off above ${android.text.format.Formatter.formatShortFileSize(context, ArtifactSyntaxPolicy.MAX_HIGHLIGHT_BYTES)} to keep scrolling smooth."
+    Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), contentAlignment = Alignment.CenterEnd) {
+        TextButton(onClick = { expanded = !expanded }, shape = androidx.compose.foundation.shape.CircleShape,
+            modifier = Modifier.widthIn(max = 360.dp),
+            colors = ButtonDefaults.textButtonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF24272C), contentColor = filesMuted),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+            androidx.compose.foundation.Canvas(Modifier.size(18.dp)) {
+                val scale = size.width / 24
+                fun line(x: Float, y: Float, xx: Float, yy: Float) = drawLine(filesMuted,
+                    androidx.compose.ui.geometry.Offset(x * scale, y * scale), androidx.compose.ui.geometry.Offset(xx * scale, yy * scale), 1.5f * scale)
+                line(5f, 4f, 16f, 4f); line(16f, 4f, 16f, 11f); line(16f, 11f, 5f, 11f); line(5f, 11f, 5f, 4f)
+                line(10.5f, 11f, 10.5f, 21f); line(2f, 2f, 22f, 22f)
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(if (expanded) explanation else "Highlighting off", Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.width(8.dp))
+            Text(if (expanded) "×" else "›")
         }
     }
 }
