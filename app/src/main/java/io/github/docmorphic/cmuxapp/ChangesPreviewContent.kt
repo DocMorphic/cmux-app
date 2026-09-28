@@ -48,6 +48,11 @@ import kotlin.math.sqrt
 
 @Composable
 internal fun ChangesPreviewContent(artifact: ChangesPreviewArtifact) {
+    FilePreviewContent(artifact.localPreview())
+}
+
+@Composable
+internal fun FilePreviewContent(artifact: LocalFilePreview) {
     when (artifact.route) {
         ChangesPreviewRoute.IMAGE -> ChangesImagePreview(artifact.file)
         ChangesPreviewRoute.PDF -> ChangesPdfPreview(artifact.file)

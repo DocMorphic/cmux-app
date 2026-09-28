@@ -18,14 +18,15 @@ internal data class ChangesPreviewPolicy(val revisions: List<ChangesRevision>, v
     }
 }
 internal enum class ChangesPreviewRoute { IMAGE, PDF, MEDIA, TEXT, EXTERNAL }
-internal fun changesPreviewRoute(metadata: ChangesFileMetadata, path: String): ChangesPreviewRoute {
+internal fun changesPreviewRoute(metadata: ChangesFileMetadata, path: String): ChangesPreviewRoute = filePreviewRoute(metadata.kind, metadata.mime, path)
+internal fun filePreviewRoute(kind: String, mimeType: String?, path: String): ChangesPreviewRoute {
     val extension = path.substringAfterLast('.', "").lowercase()
-    val mime = metadata.mime?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+    val mime = mimeType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
     return when {
-        metadata.kind == "image" || mime.startsWith("image/") -> ChangesPreviewRoute.IMAGE
+        kind == "image" || mime.startsWith("image/") -> ChangesPreviewRoute.IMAGE
         extension == "pdf" || mime == "application/pdf" -> ChangesPreviewRoute.PDF
         mime.startsWith("video/") || mime.startsWith("audio/") || extension in setOf("mp4", "mov", "m4v", "webm", "mkv", "mp3", "wav", "m4a", "aac", "ogg", "flac", "opus", "aiff") -> ChangesPreviewRoute.MEDIA
-        metadata.kind == "text" || extension in setOf("md", "markdown") -> ChangesPreviewRoute.TEXT
+        kind == "text" || extension in setOf("md", "markdown") -> ChangesPreviewRoute.TEXT
         else -> ChangesPreviewRoute.EXTERNAL
     }
 }
@@ -33,6 +34,8 @@ internal fun changesPreviewName(path: String): String = path.substringAfterLast(
     .filterNot { it.isISOControl() }.take(120).takeUnless { it.isBlank() || it == "." || it == ".." } ?: "file"
 internal data class ChangesPreviewArtifact(val path: String, val revision: ChangesRevision, val metadata: ChangesFileMetadata,
     val route: ChangesPreviewRoute, val file: File)
+internal data class LocalFilePreview(val file: File, val size: Long, val mime: String?, val route: ChangesPreviewRoute)
+internal fun ChangesPreviewArtifact.localPreview() = LocalFilePreview(file, metadata.size, metadata.mime, route)
 
 /** One revision owns one directory; callers close it after cancellation or leaving the page. */
 internal class ChangesPreviewFiles(root: File, private val transfer: ChangesContentTransfer) : AutoCloseable {
@@ -64,7 +67,9 @@ internal class ChangesPreviewFiles(root: File, private val transfer: ChangesCont
 }
 
 /** Export a snapshot independent of the preview lifetime; a picker/clipboard may outlive its page. */
-internal suspend fun exportChangesPreview(artifact: ChangesPreviewArtifact, root: File, filename: String = artifact.file.name): File = withContext(Dispatchers.IO) {
+internal suspend fun exportChangesPreview(artifact: ChangesPreviewArtifact, root: File, filename: String = artifact.file.name): File =
+    exportFilePreview(artifact.localPreview(), root, filename)
+internal suspend fun exportFilePreview(artifact: LocalFilePreview, root: File, filename: String = artifact.file.name): File = withContext(Dispatchers.IO) {
     root.mkdirs()
     root.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 3_600_000 }?.forEach { it.deleteRecursively() }
     val directory = File(root, UUID.randomUUID().toString())

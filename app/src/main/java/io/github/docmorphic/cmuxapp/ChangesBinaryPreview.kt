@@ -57,7 +57,7 @@ internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: Change
             policy.revisions.forEach { option -> FilterChip(selected = revision == option, onClick = { revision = option },
                 label = { Text(if (option == ChangesRevision.BASE) "Before" else "After") }, modifier = Modifier.weight(1f)) }
         }
-        ChangesPreviewActions(state.artifact)
+        FilePreviewActions(state.artifact?.localPreview())
         if (state.error != null) ChangesNotice("Couldn't load preview", state.error.orEmpty()) { retry++ }
         else if (state.artifact == null) Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center) {
@@ -70,7 +70,7 @@ internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: Change
 }
 
 @Composable
-private fun ChangesPreviewActions(artifact: ChangesPreviewArtifact?) {
+internal fun FilePreviewActions(artifact: LocalFilePreview?) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var menu by remember { mutableStateOf(false) }
@@ -100,13 +100,13 @@ private fun ChangesPreviewActions(artifact: ChangesPreviewArtifact?) {
             var exported: File? = null
             try {
                 val inferred = MimeTypeMap.getSingleton().getMimeTypeFromExtension(captured.file.extension.lowercase())
-                val mime = captured.metadata.mime?.substringBefore(';')?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+                val mime = captured.mime?.substringBefore(';')?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
                     ?: inferred ?: "application/octet-stream"
                 val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)?.takeIf { it.matches(Regex("[A-Za-z0-9]+")) }
                 // FileProvider derives MIME from the exported name. Preserve the host's type for
                 // extensionless files (and files whose extension disagrees with their content).
                 val name = if (extension != null && inferred != mime) "${captured.file.name}.$extension" else captured.file.name
-                val file = exportChangesPreview(captured, File(context.cacheDir, "task-previews"), name)
+                val file = exportFilePreview(captured, File(context.cacheDir, "task-previews"), name)
                 exported = file
                 ensureActive()
                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file)
@@ -134,7 +134,7 @@ private fun ChangesPreviewActions(artifact: ChangesPreviewArtifact?) {
     }
     Column {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(artifact?.let { "${it.metadata.size} bytes" }.orEmpty(), Modifier.weight(1f), fontSize = 12.sp, color = changesMuted)
+            Text(artifact?.let { "${it.size} bytes" }.orEmpty(), Modifier.weight(1f), fontSize = 12.sp, color = changesMuted)
             Box {
                 TextButton(onClick = { menu = true }, enabled = artifact != null && !busy) { Text(if (busy) "Preparing…" else "File actions") }
                 DropdownMenu(menu, { menu = false }) {

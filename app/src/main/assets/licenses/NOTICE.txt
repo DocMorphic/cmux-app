@@ -92,3 +92,13 @@ and MobileChatEventSource in cmux revision
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android additions include explicit immutable authorization scopes, rejection of
 foreign session identities, and immediate-child path validation.
+
+Terminal Files layout, kind filters, stable sorting, folder navigation and file
+preview transfer rules are adapted from TerminalArtifactFilesSheet,
+ChatArtifactGalleryPresentation/Classifier/SwipeOrder, ChatArtifactFolderView,
+ChatArtifactChunkValidator and ChatArtifactTemporaryFileWriter at cmux revision
+4c5272e9153eca2033c9f40ac749f0c3a5bcb291.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses Compose, bounded bitmap/PDF decoders, native media playback and a
+scoped FileProvider for exported copies. Changes keeps its fingerprint validation;
+standard terminal/session artifact transfers use the upstream size/offset/EOF contract.
