@@ -45,7 +45,8 @@ def main():
         "CC_aarch64_linux_android": str(compiler),
         "CXX_aarch64_linux_android": str(toolchain / f"{TARGET}{API}-clang++"),
         "AR_aarch64_linux_android": str(toolchain / "llvm-ar"),
-        "CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS": "-C link-arg=-Wl,-z,max-page-size=16384",
+        "CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS":
+            "-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384",
     })
     run("cargo", "build", "--locked", "--release", "--lib", "--target", TARGET, "--jobs", "2", env=env)
     metadata = json.loads(run("cargo", "metadata", "--locked", "--format-version", "1", "--no-deps", capture=True))
@@ -58,6 +59,9 @@ def main():
     segments = run(str(toolchain / "llvm-readelf"), "-lW", str(native), capture=True)
     loads = [line.split() for line in segments.splitlines() if line.strip().startswith("LOAD ")]
     assert loads and all(int(row[-1], 16) >= 16384 for row in loads), "Missing 16 KiB LOAD alignment"
+    relro = [line.split() for line in segments.splitlines() if line.strip().startswith("GNU_RELRO ")]
+    assert relro and all((int(row[2], 16) + int(row[5], 16)) % 16384 == 0 for row in relro), \
+        "Missing 16 KiB RELRO end alignment"
     (output / "elf-verification.txt").write_text(elf_header + segments)
     # UniFFI reads metadata from the Android library; no Android code runs on the build host.
     run("cargo", "run", "--locked", "--jobs", "2", "--bin", "uniffi-bindgen", "--", "generate",
@@ -71,6 +75,7 @@ def main():
     receipt = {
         "repository": "https://github.com/manaflow-ai/iroh-ffi", "revision": PIN,
         "ndk": NDK_VERSION, "androidApi": API, "abi": "arm64-v8a",
+        "elfPageSize": 16384,
         "rustc": run("rustc", "--version", capture=True).strip(),
         "scope": "Native library and generated bindings; not an APK or runtime acceptance",
         "files": {str(p.relative_to(output)): hashlib.sha256(p.read_bytes()).hexdigest()

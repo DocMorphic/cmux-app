@@ -18,6 +18,7 @@ val verifyNative by tasks.registering {
         check(receipt["revision"] == "ee19f156667ca640b912108a45f8b5bb8d156fec")
         check(receipt["abi"] == "arm64-v8a" && receipt["androidApi"] == 26)
         check(receipt["ndk"] == "28.2.13676358")
+        check(receipt["elfPageSize"] == 16384) { "Rebuild the native checkpoint with 16 KiB RELRO alignment." }
         val files = receipt["files"] as Map<*, *>
         val required = setOf("jniLibs/arm64-v8a/libiroh_ffi.so", "kotlin/computer/iroh/iroh_ffi.kt",
             "kotlin/computer/iroh/IrohAndroid.kt", "LICENSE-MIT", "LICENSE-APACHE", "Cargo.lock", "uniffi.toml")
@@ -63,7 +64,7 @@ android {
 tasks.named("preBuild").configure { dependsOn(nativeNotices) }
 
 dependencies {
-    implementation("net.java.dev.jna:jna:5.15.0@aar")
+    implementation("net.java.dev.jna:jna:5.17.0@aar")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("junit:junit:4.13.2")
