@@ -92,9 +92,11 @@ locally; see the source correction in that checkpoint.
   [keep-awake row indicators](MAC_POWER_INDICATORS.md).
 - Per-computer connection-method selection, direct-only endpoint/address intents,
   route editing and remaining legacy Tailscale detail flows.
-- Compatibility/version-floor guidance and account-wide Forget/revocation. The
-  older Android “Forget current Mac” only removes a local saved pairing; it is
-  not equivalent to the iOS detail's authenticated account revoke.
+- Compatibility/version-floor guidance and the confirmed Forget/local-cleanup
+  flow. The [revocation control layer](COMPUTER_REVOCATION.md) is implemented;
+  UI integration and physical acceptance remain. The older Android “Forget
+  current Mac” still only removes a local saved pairing. Active upstream V2
+  revocation targets a selected-team registration, not every build/team.
 - Full visual comparison with the running iOS detail. Its pinned body renders
   private addresses and identity; the shared Networking source comments describe
   moving checks per computer, but that comment alone is not proof of a rendered

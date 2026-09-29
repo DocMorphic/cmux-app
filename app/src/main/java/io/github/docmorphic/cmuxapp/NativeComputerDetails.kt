@@ -20,7 +20,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 internal data class NativeComputerTarget(val deviceId: String, val buildTag: String, val name: String) {
-    fun matches(mac: IrohV2Computer) = deviceId == mac.deviceId && buildTag == mac.buildTag
+    fun matches(mac: IrohV2Computer) = canonicalMacDeviceId(deviceId) == canonicalMacDeviceId(mac.deviceId) && buildTag == mac.buildTag
     fun matches(path: NativePrivatePath) = deviceId == path.deviceId && buildTag == path.buildTag
     companion object {
         fun from(mac: IrohV2Computer) = NativeComputerTarget(mac.deviceId, mac.buildTag, mac.name)

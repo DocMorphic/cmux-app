@@ -29,7 +29,8 @@ internal data class IrohV2ControlState(
     val permissionExpiresAt: Long? = null,
     val directoryRelays: List<String> = emptyList(),
     val relays: List<IrohV2Relay> = emptyList(),
-    val failure: String? = null
+    val failure: String? = null,
+    val registeredMacs: List<IrohV2Computer> = emptyList()
 )
 
 /** One authenticated account/team incarnation. A replacement owns a separate instance. */
@@ -156,6 +157,52 @@ internal class IrohV2ControlSession(
         catch (error: Throwable) { handleFailure(run, error); throw error }
     }
 
+    /** Explicit user removal of one Mac/build in this account/team, including
+     * registrations that currently have mobile pairing disabled. Never dials a Mac.
+     */
+    suspend fun revokeComputer(target: NativeComputerTarget) = operations.withLock {
+        require(target.deviceId.isNotBlank() && target.deviceId.length <= 128 &&
+            target.buildTag.isNotBlank() && target.buildTag.length <= 64)
+        val run = currentRun()
+        try {
+            directory(run)
+            checkCurrent(run)
+            val snapshot = mutableState.value
+            check(snapshot.ready && (snapshot.permissionExpiresAt ?: 0) > now()) { "Computer directory is unavailable" }
+            val matches = snapshot.registeredMacs.filter { target.matches(it) }
+            for (mac in matches) {
+                checkCurrent(run)
+                val response = perform(run, requests.operation("device.revoke.v1").put("deviceRecordId", mac.recordId))
+                val revision = IrohV2Wire.integer(response, "revision")
+                check(revision >= (snapshot.directoryRevision ?: 0)) { "Stale computer removal acknowledgement" }
+                mutate(run) {
+                    wantedRevision = maxOf(wantedRevision, revision)
+                    revokedRecords[mac.recordId] = maxOf(revokedRecords[mac.recordId] ?: 0, revision)
+                    check(revokedRecords.size <= 4096) { "Iroh revocation capacity exceeded" }
+                    mutableState.value = mutableState.value.copy(
+                        computers = mutableState.value.computers.filterNot { it.recordId == mac.recordId },
+                        registeredMacs = mutableState.value.registeredMacs.filterNot { it.recordId == mac.recordId })
+                }
+            }
+            checkCurrent(run)
+        } catch (failure: Throwable) {
+            if (IrohV2Wire.isAuthenticationFailure(failure) ||
+                (failure is IrohV2ServerFailure && IrohV2Recovery.stops(failure))) handleFailure(run, failure)
+            throw failure
+        } finally {
+            // An unknown outcome may still have revoked a record. Re-read authority;
+            // neither a lost reply nor caller cancellation automatically repeats a revoke.
+            if (isCurrent(run)) scope.launch {
+                operations.withLock {
+                    if (isCurrent(run)) {
+                        try { directory(run) }
+                        catch (failure: Exception) { handleFailure(run, failure) }
+                    }
+                }
+            }
+        }
+    }
+
     suspend fun refreshRelays(): List<IrohV2Relay> = operations.withLock {
         val run = currentRun()
         try { relays(run); mutableState.value.relays }
@@ -247,6 +294,7 @@ internal class IrohV2ControlSession(
             val records = mutableSetOf<String>()
             val endpoints = mutableSetOf<String>()
             val computers = mutableListOf<IrohV2Computer>()
+            val registeredMacs = mutableListOf<IrohV2Computer>()
             var directoryRelays: List<String>? = null
             var count = 0
             var pages = 0
@@ -286,10 +334,13 @@ internal class IrohV2ControlSession(
                     if (record.get("revoked") !is Boolean) throw IOException("Invalid Iroh revocation flag")
                     if (record.getBoolean("revoked")) continue
                     val metadata = descriptor.getJSONObject("metadata")
-                    if (metadata.getString("platform") != "mac" || metadata.get("pairingEnabled") != true) continue
+                    if (metadata.getString("platform") != "mac") continue
+                    val pairingEnabled = metadata.get("pairingEnabled") as? Boolean ?: throw IOException("Invalid Iroh pairing flag")
                     val relayUrls = metadata.getJSONArray("relayURLs").strings().map(::relayUrl)
-                    computers += IrohV2Computer(id, endpoint, identity.getString("deviceId"), identity.getString("buildTag"),
+                    val computer = IrohV2Computer(id, endpoint, identity.getString("deviceId"), identity.getString("buildTag"),
                         metadata.getString("displayName"), relayUrls)
+                    registeredMacs += computer
+                    if (pairingEnabled) computers += computer
                 }
                 cursor = if (page.isNull("nextCursor")) null else page.getString("nextCursor")
                 if (cursor != null && (cursor.length !in 1..128 || !cursors.add(cursor))) throw IOException("Iroh directory cursor cycle")
@@ -301,6 +352,8 @@ internal class IrohV2ControlSession(
                 if (revision != null && revision >= floor && (expires ?: 0) > now()) {
                     val acceptedRevision = revision
                     mutableState.value = mutableState.value.copy(computers = computers.filterNot {
+                        (revokedRecords[it.recordId] ?: -1) >= acceptedRevision
+                    }, registeredMacs = registeredMacs.filterNot {
                         (revokedRecords[it.recordId] ?: -1) >= acceptedRevision
                     },
                         directoryRevision = revision, permissionExpiresAt = expires,
@@ -401,7 +454,8 @@ internal class IrohV2ControlSession(
                         ownRevoked = id == ownRecordId
                         revokedRecords[id] = maxOf(revokedRecords[id] ?: 0, revision)
                         if (revokedRecords.size > 4096) throw IOException("Iroh revocation capacity exceeded")
-                        mutableState.value = mutableState.value.copy(computers = mutableState.value.computers.filterNot { it.recordId == id })
+                        mutableState.value = mutableState.value.copy(computers = mutableState.value.computers.filterNot { it.recordId == id },
+                            registeredMacs = mutableState.value.registeredMacs.filterNot { it.recordId == id })
                     }
                 }
                 if (ownRevoked) throw IrohV2ServerFailure("device_revoked", false)

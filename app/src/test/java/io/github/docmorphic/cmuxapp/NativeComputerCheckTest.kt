@@ -35,11 +35,14 @@ class NativeComputerCheckTest {
     private inner class Backend : IrohAccountBackend {
         override val state = MutableStateFlow(IrohV2ControlState(ready = true, computers = listOf(mac), permissionExpiresAt = 2000))
         var refreshAction: suspend () -> Unit = { }
+        var revokeAction: suspend (NativeComputerTarget) -> Unit = { }
+        val revokes = CopyOnWriteArrayList<NativeComputerTarget>()
         val refreshes = AtomicInteger()
         val wires = CopyOnWriteArrayList<Wire>()
         var configure: (Wire) -> Unit = { }
         override suspend fun start() { }
         override suspend fun refresh() { refreshes.incrementAndGet(); refreshAction() }
+        override suspend fun revokeComputer(target: NativeComputerTarget) { revokes += target; revokeAction(target) }
         override fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport {
             assertTrue(permits())
             return Wire(mac).also { configure(it); wires += it }
@@ -54,6 +57,47 @@ class NativeComputerCheckTest {
             block(runtime, backend, teams)
         }
     }
+
+    @Test fun forgetUsesCapturedOwnerAndBackendWithoutDialingMac() = runBlocking { fixture { runtime, backend, _ ->
+        runtime.forgetComputer(team, target)
+        assertEquals(listOf(target), backend.revokes)
+        assertTrue(backend.wires.isEmpty())
+        assertTrue(runCatching { runtime.forgetComputer(team.copy(teamId = "other"), target) }.isFailure)
+        assertTrue(runCatching { runtime.forgetComputer(team.copy(userId = "other"), target) }.isFailure)
+        assertEquals(1, backend.revokes.size)
+    } }
+
+    @Test fun duplicateForgetIsRejectedAndGateIsReleasedAfterFailure() = runBlocking { fixture { runtime, backend, _ ->
+        val started = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        backend.revokeAction = { started.complete(Unit); release.await(); error("fixture rejection") }
+        val first = async { runCatching { runtime.forgetComputer(team, target) } }
+        started.await()
+        assertTrue(runCatching { runtime.forgetComputer(team, target) }.isFailure)
+        assertEquals(1, backend.revokes.size)
+        release.complete(Unit); assertTrue(first.await().isFailure)
+        backend.revokeAction = {}
+        runtime.forgetComputer(team, target)
+        assertEquals(2, backend.revokes.size)
+    } }
+
+    @Test fun scopeSwitchAfterRevokeCannotReportSuccessForAnotherAccount() = runBlocking { fixture { runtime, backend, teams ->
+        backend.revokeAction = { teams.value = NativeAccountTeamsState() }
+        assertTrue(runCatching { runtime.forgetComputer(team, target) }.isFailure)
+        assertTrue(backend.wires.isEmpty())
+        assertEquals(1, backend.revokes.size)
+    } }
+
+    @Test fun forgetDeadlineCancelsTheOperationWithoutRetrying() = runBlocking { fixture { runtime, backend, _ ->
+        var cancelled = false
+        backend.revokeAction = { try { awaitCancellation() } finally { cancelled = true } }
+        val failure = runCatching { runtime.forgetComputer(team, target, timeoutMillis = 100) }.exceptionOrNull()
+        assertTrue(failure is TimeoutCancellationException)
+        assertTrue(cancelled)
+        assertEquals(1, backend.revokes.size)
+        backend.revokeAction = {}
+        runtime.forgetComputer(team, target)
+        assertEquals(2, backend.revokes.size)
+    } }
 
     @Test fun checksUnopenedMacAndReleasesItsTemporaryLease() = runBlocking { fixture { runtime, backend, _ ->
         val report = runtime.checkComputer(team, target)

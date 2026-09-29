@@ -13,6 +13,7 @@ internal interface IrohAccountBackend : AutoCloseable {
     val state: StateFlow<IrohV2ControlState>
     suspend fun start()
     suspend fun refresh()
+    suspend fun revokeComputer(target: NativeComputerTarget) { error("Computer removal is unavailable") }
     suspend fun refreshNetworking() { refresh() }
     fun endpointStatus(): IrxEndpointStatus? = null
     fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport
@@ -36,6 +37,7 @@ internal class NativeIrohBackend private constructor(
     private var closed = false
     override val state get() = control.state
     override suspend fun refresh() { control.refreshDirectory() }
+    override suspend fun revokeComputer(target: NativeComputerTarget) { requireCurrent(); control.revokeComputer(target); requireCurrent() }
     override suspend fun refreshNetworking() {
         requireCurrent()
         control.refreshDirectory()

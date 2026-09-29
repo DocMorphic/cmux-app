@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Native computer revocation backend checkpoint (2026-09-29):** the active iOS
+V2 removal path is traced and implemented through the Android control/runtime
+layers. It resolves fresh exact-device/build registrations, including disabled
+pairings, uses server management permission and reconciles uncertain outcomes
+without replaying mutations. Sixty-five JVM cases pass after fixing a missed
+refresh on lost acknowledgement. The user-facing confirmation/local cleanup is
+still pending; the existing “Forget current Mac” remains local-only. No real Mac
+was revoked and no new APK was built. See
+[COMPUTER_REVOCATION.md](COMPUTER_REVOCATION.md) for scope, evidence and integration
+steps. This is a backend checkpoint, not completed Forget UI parity.
+
 **Keep-awake computer indicators checkpoint (2026-09-29):** connected computer
 rows and selector entries now show the iOS-style orange cup only for confirmed
 enabled state. Read-only observers reuse each UI feed connection and clear state

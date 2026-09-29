@@ -38,6 +38,8 @@ class IrohV2ControlSessionTest {
         val identity = JSONObject().put("environment", "test").put("projectId", "project").put("teamId", "team")
             .put("userId", "user").put("deviceId", "phone").put("appNamespace", "io.github.docmorphic.cmuxapp.debug").put("buildTag", "test")
         val device = IrohV2AndroidDevice.descriptor(identity, "a".repeat(64), "test", "Pixel 6a", IrohMobileWireProfile.IOS_COMPATIBILITY)
+        val revokeRevision = AtomicLong(1)
+        val revoked = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
         val signed = IrohV2SignedRequests(device, { ByteArray(64) }, { time.get() })
         init {
             server.dispatcher = object : Dispatcher() {
@@ -81,8 +83,8 @@ class IrohV2ControlSessionTest {
                 .put("relayURLs", JSONArray().put("https://relay.example.com/"))
             return record(id, descriptor)
         }
-        fun directory(revision: Long = 1, devices: List<JSONObject> = listOf(mac()), next: String? = null) = JSONObject()
-            .put("teamId", "team").put("revision", revision).put("devices", JSONArray(devices))
+        fun directory(revision: Long = revokeRevision.get(), devices: List<JSONObject> = listOf(mac()), next: String? = null) = JSONObject()
+            .put("teamId", "team").put("revision", revision).put("devices", JSONArray(devices.filterNot { it.getString("deviceRecordId") in revoked }))
             .put("issuedAt", 1000).put("permissionExpiresAt", 1600).put("relayURLs", JSONArray())
             .put("nextCursor", next ?: JSONObject.NULL)
         fun ready(setup: JSONObject): JSONObject {
@@ -101,6 +103,9 @@ class IrohV2ControlSessionTest {
             return when (schema) {
                 "device.register.v1" -> result.put("device", record())
                 "directory.request.v1" -> result.put("directory", page(body))
+                "device.revoke.v1" -> result.put("revision", revokeRevision.incrementAndGet()).also {
+                    revoked += body.getString("deviceRecordId")
+                }
                 "relay.request.v1" -> result.put("credentials", JSONArray().put(JSONObject().put("relayURL", "https://relay.example.com/")
                     .put("token", "fixture-relay-secret").put("expiresAt", 1600).put("refreshAfter", 1500)))
                 "ticket.request.v1" -> result.put("ticket", JSONObject().put("token", "renewed-fixture-ticket")
@@ -115,6 +120,154 @@ class IrohV2ControlSessionTest {
                 .apply { id?.let { put("deviceRecordId", it) } }.toString())
         }
         override fun close() { server.close() }
+    }
+
+    @Test fun forgetRevokesExactFreshRegistrationsIncludingDisabledPairingOverBothTransports() = runBlocking<Unit> {
+        for (httpOnly in listOf(false, true)) Fixture(httpOnly).use { fixture ->
+            val stable = fixture.mac("old-record")
+            val disabled = fixture.mac("disabled-record", "c").also {
+                it.getJSONObject("descriptor").getJSONObject("identity").put("deviceId", "old-record")
+                it.getJSONObject("descriptor").getJSONObject("metadata").put("pairingEnabled", false)
+            }
+            val sibling = fixture.mac("nightly", "d").also {
+                it.getJSONObject("descriptor").getJSONObject("identity").put("deviceId", "old-record").put("buildTag", "nightly")
+            }
+            fixture.page = { fixture.directory(devices = listOf(stable, disabled, sibling)) }
+            fixture.session().use { session ->
+                withTimeout(3000) { session.connect() }
+                assertEquals(2, session.state.value.computers.size)
+                assertEquals(3, session.state.value.registeredMacs.size)
+                val rotated = fixture.mac("new-record", "e").also {
+                    it.getJSONObject("descriptor").getJSONObject("identity").put("deviceId", "old-record")
+                }
+                fixture.page = { fixture.directory(devices = listOf(rotated, disabled, sibling)) }
+                withTimeout(3000) { session.revokeComputer(NativeComputerTarget("old-record", "test", "Mac")) }
+                assertEquals(setOf("new-record", "disabled-record"), fixture.revoked)
+                assertEquals(listOf("nightly"), session.state.value.computers.map { it.recordId })
+                assertEquals(listOf("nightly"), session.state.value.registeredMacs.map { it.recordId })
+                assertFalse(fixture.seen.any { it.optString("deviceRecordId") == "old-record" })
+                assertTrue(session.state.value.ready)
+            }
+        }
+    }
+
+    @Test fun forgetWithNoMatchingRegistrationIsReadOnlyAndDoesNotRemoveSibling() = runBlocking<Unit> {
+        Fixture().use { fixture -> fixture.session().use { session ->
+            withTimeout(3000) { session.connect() }
+            session.revokeComputer(NativeComputerTarget("absent", "test", "Mac"))
+            session.revokeComputer(NativeComputerTarget("mac-record", "nightly", "Mac"))
+            assertTrue(fixture.revoked.isEmpty())
+            assertEquals(1, session.state.value.computers.size)
+            assertTrue(fixture.seen.none { it.getString("schemaId") == "device.revoke.v1" })
+        } }
+    }
+
+    @Test fun permissionDeniedLeavesDirectoryAndConnectionUsable() = runBlocking<Unit> {
+        Fixture().use { fixture -> fixture.session().use { session ->
+            withTimeout(3000) { session.connect() }
+            fixture.intercept = { socket, request ->
+                if (request.getString("schemaId") == "device.revoke.v1") {
+                    socket.send(JSONObject().put("schemaId", "error.v1").put("requestId", request.getString("requestId"))
+                        .put("code", "permission_denied").put("retryable", false).toString()); true
+                } else false
+            }
+            val failure = runCatching { session.revokeComputer(NativeComputerTarget("mac-record", "test", "Mac")) }.exceptionOrNull()
+            assertEquals("permission_denied", (failure as? IrohV2ServerFailure)?.code)
+            assertTrue(session.state.value.ready)
+            assertEquals(1, session.refreshDirectory().computers.size)
+            assertTrue(fixture.revoked.isEmpty())
+        } }
+    }
+
+    @Test fun lostReplyNeverReplaysMutationAndFreshDirectoryReconcilesAuthority() = runBlocking<Unit> {
+        Fixture().use { fixture -> fixture.session().use { session ->
+            withTimeout(3000) { session.connect() }
+            fixture.intercept = { _, request ->
+                if (request.getString("schemaId") == "device.revoke.v1") {
+                    fixture.revoked += request.getString("deviceRecordId"); fixture.revokeRevision.incrementAndGet(); true
+                } else false
+            }
+            val failure = runCatching { withTimeout(150) {
+                session.revokeComputer(NativeComputerTarget("mac-record", "test", "Mac"))
+            } }.exceptionOrNull()
+            assertTrue(failure is TimeoutCancellationException)
+            withTimeout(3000) { session.state.first { it.computers.isEmpty() && it.registeredMacs.isEmpty() } }
+            assertEquals(1, fixture.seen.count { it.getString("schemaId") == "device.revoke.v1" })
+            session.revokeComputer(NativeComputerTarget("mac-record", "test", "Mac"))
+            assertEquals(1, fixture.seen.count { it.getString("schemaId") == "device.revoke.v1" })
+        } }
+    }
+
+    @Test fun malformedCompletionCannotClaimConfirmedRemoval() = runBlocking<Unit> {
+        for (revision in listOf<Any>(JSONObject.NULL, "2", -1, 0)) Fixture().use { fixture -> fixture.session().use { session ->
+            withTimeout(3000) { session.connect() }
+            fixture.intercept = { socket, request ->
+                if (request.getString("schemaId") == "device.revoke.v1") {
+                    socket.send(JSONObject().put("schemaId", "operation.completed.v1")
+                        .put("requestId", request.getString("requestId")).put("revision", revision).toString()); true
+                } else false
+            }
+            assertTrue(runCatching { session.revokeComputer(NativeComputerTarget("mac-record", "test", "Mac")) }.isFailure)
+            assertEquals(1, session.state.value.computers.size)
+            assertEquals(1, fixture.seen.count { it.getString("schemaId") == "device.revoke.v1" })
+        } }
+    }
+
+    @Test fun partialRemovalKeepsRemainingRecordAndNextExplicitAttemptOnlyRevokesRemainder() = runBlocking<Unit> {
+        Fixture().use { fixture -> fixture.session().use { session ->
+            val second = fixture.mac("second", "c").also {
+                it.getJSONObject("descriptor").getJSONObject("identity").put("deviceId", "mac-record")
+            }
+            fixture.page = { fixture.directory(devices = listOf(fixture.mac(), second)) }
+            withTimeout(3000) { session.connect() }
+            fixture.intercept = { socket, request ->
+                if (request.optString("deviceRecordId") == "second") {
+                    socket.send(JSONObject().put("schemaId", "error.v1").put("requestId", request.getString("requestId"))
+                        .put("code", "permission_denied").put("retryable", false).toString()); true
+                } else false
+            }
+            assertTrue(runCatching { session.revokeComputer(NativeComputerTarget("mac-record", "test", "Mac")) }.isFailure)
+            assertEquals(setOf("mac-record"), fixture.revoked)
+            assertEquals(listOf("second"), session.state.value.registeredMacs.map { it.recordId })
+            fixture.intercept = null
+            session.revokeComputer(NativeComputerTarget("mac-record", "test", "Mac"))
+            assertEquals(setOf("mac-record", "second"), fixture.revoked)
+            assertEquals(1, fixture.seen.count { it.optString("deviceRecordId") == "mac-record" })
+        } }
+    }
+
+    @Test fun scopeChangeBetweenBindingsStopsFurtherRevokes() = runBlocking<Unit> {
+        Fixture().use { fixture -> fixture.session().use { session ->
+            val second = fixture.mac("second", "c").also {
+                it.getJSONObject("descriptor").getJSONObject("identity").put("deviceId", "mac-record")
+            }
+            fixture.page = { fixture.directory(devices = listOf(fixture.mac(), second)) }
+            withTimeout(3000) { session.connect() }
+            fixture.intercept = { socket, request ->
+                if (request.getString("schemaId") == "device.revoke.v1") {
+                    fixture.current.set(false)
+                    socket.send(fixture.reply(request).toString()); true
+                } else false
+            }
+            assertTrue(runCatching { session.revokeComputer(NativeComputerTarget("mac-record", "test", "Mac")) }.isFailure)
+            assertEquals(1, fixture.seen.count { it.getString("schemaId") == "device.revoke.v1" })
+        } }
+    }
+
+    @Test fun deviceMatchingNormalizesOnlyUuidCaseAndNeverOpaqueIdsOrBuilds() = runBlocking<Unit> {
+        val upper = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"
+        assertEquals(upper.lowercase(), canonicalMacDeviceId(upper))
+        assertEquals("Opaque-MAC", canonicalMacDeviceId("Opaque-MAC"))
+        assertEquals("1-1-1-1-1", canonicalMacDeviceId("1-1-1-1-1"))
+        Fixture().use { fixture -> fixture.session().use { session ->
+            val mac = fixture.mac().also {
+                it.getJSONObject("descriptor").getJSONObject("identity").put("deviceId", upper)
+            }
+            fixture.page = { fixture.directory(devices = listOf(mac)) }
+            withTimeout(3000) { session.connect() }
+            session.revokeComputer(NativeComputerTarget(upper.lowercase(), "test", "Mac"))
+            assertEquals(setOf("mac-record"), fixture.revoked)
+        } }
     }
 
     @Test fun enrollsThenPublishesMacDirectoryAndRelayCredentialsTogether() = runBlocking<Unit> {

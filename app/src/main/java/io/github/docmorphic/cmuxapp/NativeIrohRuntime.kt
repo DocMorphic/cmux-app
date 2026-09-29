@@ -24,6 +24,7 @@ internal class NativeIrohRuntime(
     private class Owner(val account: NativeTeamScope) {
         val connections = MobileRpcConnections()
         val powerMutations = mutableMapOf<String, kotlinx.coroutines.sync.Mutex>()
+        val forgetMutations = mutableMapOf<NativeMacIdentity, kotlinx.coroutines.sync.Mutex>()
         var service: IrohAccountBackend? = null
     }
     private val lock = Any()
@@ -138,6 +139,27 @@ internal class NativeIrohRuntime(
             else -> NativeConnectionReport.Failure.CONNECTION
         }
         NativeConnectionReport(failure = reason)
+    }
+
+    /** The captured detail's owner fences every network operation. The backend
+     * resolves fresh registration IDs and the server decides management permission.
+     */
+    suspend fun forgetComputer(team: NativeTeamScope, target: NativeComputerTarget, timeoutMillis: Long = 30_000) {
+        val run = synchronized(lock) { owner } ?: error("Networking is not ready")
+        requireCurrent(run)
+        check(run.account == team) { "Account or team changed. Reopen Computer Details." }
+        val gate = synchronized(lock) { run.forgetMutations.getOrPut(NativeMacIdentity(canonicalMacDeviceId(target.deviceId), target.buildTag)) {
+            kotlinx.coroutines.sync.Mutex()
+        } }
+        check(gate.tryLock()) { "Computer removal is already in progress" }
+        try {
+            withTimeout(timeoutMillis) {
+                requireCurrent(run)
+                val service = synchronized(lock) { run.service } ?: error("Networking is not ready")
+                service.revokeComputer(target)
+                requireCurrent(run)
+            }
+        } finally { gate.unlock() }
     }
 
     fun powerSession(team: NativeTeamScope, target: NativeComputerTarget): NativeMacPowerSession? {
