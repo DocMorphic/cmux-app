@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Team creation implementation (2026-09-29):** Settings now includes Create Team
+with name validation, pending-state duplicate-submit protection and the production
+cmux creation route. Known-created teams remain selectable if the later refresh
+or selection fails; uncertain POSTs are never automatically repeated. Sixteen
+account-controller JVM checks and three emulator UI cases pass; pending/error
+dialog screenshots were inspected. Live-account creation has not been performed.
+See [TEAM_CREATION.md](TEAM_CREATION.md) for the upstream contract and acceptance.
+
 **Uncertain-input checkpoint (2026-09-29):** 26 focused JVM checks and one
 Android 17 UI case passed. The controlled host loses a composer acknowledgement;
 the app automatically reconnects without resending, preserves the draft/warning,
@@ -92,7 +100,7 @@ work. This follow-up has no new APK or live-device claim.
 
 | Area | iOS source / contract | Android status | Acceptance check |
 | --- | --- | --- | --- |
-| Account | `MobileAuthComposition`, `MobileRootAuthGate`, `AuthCoordinator` | OTP sign-in/encrypted token refresh coded; verified team membership and Settings selection implemented with login/team generation guards, HTTP cancellation and explicit token refresh tests; team creation/cache and live phone account QA remain open | Sign in with the Mac's cmux account/team; switch teams without stale authority; restore session; sign out |
+| Account | `MobileAuthComposition`, `MobileRootAuthGate`, `AuthCoordinator` | OTP sign-in/encrypted token refresh coded; verified team membership and Settings selection implemented with login/team generation guards, HTTP cancellation and explicit token refresh tests; team creation through the cmux backend and verified selection implemented; team caching, account deletion and live phone account QA remain open | Sign in with the Mac's cmux account/team; switch teams without stale authority; restore session; sign out |
 | Computers | `MobilePairedMac`, `MacComputerListSection`, `V2ControlService` | Saved-Mac list/select/forget coded; V2 account-session directory pagination, pushed changes/revocation, lease expiry and relay renewal implemented with local network fixtures; selected-team discovery now feeds a Computers screen and scoped saved locators; live account discovery remains unverified | Discover, choose, forget, and reconnect multiple Macs on the actual account |
 | Pairing | `MobileIrohV2InstallationStore`, `V2ControlService`, legacy `CmxPairingQRCode` | Scoped protected native identity verified on Pixel; signed V2 enrollment implemented with local network fixtures; legacy QR/deep-link codecs retained; actual account enrollment remains open | Enroll Android against current Mac/account, validate key/scope, admit and revoke; QR only for hosts exposing the legacy route |
 | Transport | `CmuxIrxTransport`, `MobileCoreRPCSession`, legacy `CmxNetworkByteTransport` | Iroh library, QUIC and admission verified on Pixel; V2 control service implemented; native endpoint owner and RPC control/event adapters compile, with stream isolation and RPC lifecycle JVM checks. Account owner/computer picker wiring and shared foreground/background RPC leases are implemented; control-stream replacement, read-only resend and whole-connection closure observation are implemented; lifecycle-aware diagnostic keepalive and positive silence evidence are implemented; real relay/repair/background verification and specialized lane consumers remain open. optional event-stream isolation and relay-preserving direct-path authorization now follow iOS. dedicated render-grid input stream integrated with lease lifecycle and readiness checks. dedicated duplex terminal output/input and replay barriers now integrated. native authorized artifact downloads integrated with before-byte fallback and EOF validation. Last full JVM checkpoint: 425 tests; combined main/test debug APKs built, native loopback methods not run. Subsequent HTTP-to-WebSocket restoration is implemented with 33 focused checks; not yet in that APK | Current Mac Irx connection with control/events/terminal/artifact lanes, reconnect without duplicate input |

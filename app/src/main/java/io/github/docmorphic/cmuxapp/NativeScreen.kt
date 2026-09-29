@@ -1128,6 +1128,16 @@ fun NativeScreen(
                             selectedTerminal = null; selectedWorkspace = null
                         } catch (failure: Exception) { if (failure is CancellationException) throw failure }
                     }
+                }, onCreate = { name ->
+                    try {
+                        accountTeams.create(name)
+                        client?.close(); client = null; code = ""
+                        selectedTerminal = null; selectedWorkspace = null
+                        true
+                    } catch (failure: Exception) {
+                        if (failure is CancellationException) throw failure
+                        accountTeams.state.value.createdTeam != null
+                    }
                 })
                 Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
                 pairedMacs.forEach { mac ->
@@ -2000,33 +2010,6 @@ private fun nativeConnectionFailure(failure: Throwable): String {
         else failure.message ?: "Could not connect to this Mac."
 }
 
-@Composable
-private fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh: () -> Unit, onSelect: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Text("ACCOUNT", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("Team", Modifier.weight(1f))
-        Box {
-            TextButton(onClick = { expanded = true }, enabled = !state.loading && state.teams.isNotEmpty()) {
-                Text(state.teams.firstOrNull { it.id == state.selectedTeamId }?.name
-                    ?: if (state.loading) "Loading…" else "No team")
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                state.teams.forEach { team ->
-                    DropdownMenuItem(text = { Text(team.name.ifBlank { "Unnamed team" }) },
-                        trailingIcon = { if (team.id == state.selectedTeamId) Text("✓") },
-                        onClick = { expanded = false; if (team.id != state.selectedTeamId) onSelect(team.id) })
-                }
-            }
-        }
-    }
-    state.error?.let { Text(it, Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = Color(0xFFFF9999), fontSize = 13.sp) }
-    if (!state.loading && state.userId != null && state.teams.isEmpty())
-        Text("Join or create a team in cmux on your Mac, then refresh.", Modifier.padding(horizontal = 22.dp), color = nativeMuted, fontSize = 13.sp)
-    TextButton(onClick = onRefresh, enabled = !state.loading, modifier = Modifier.padding(horizontal = 14.dp)) {
-        Text("Refresh account")
-    }
-}
 
 
 @Composable

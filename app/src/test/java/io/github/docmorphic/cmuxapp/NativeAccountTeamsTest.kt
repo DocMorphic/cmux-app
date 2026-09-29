@@ -25,6 +25,92 @@ class NativeAccountTeamsTest {
                            token: suspend (Boolean) -> String? = { "fixture-token" }) =
         NativeAccountTeams(token, { owner.get() }, server.url("/api/v1/"))
 
+    private fun creator(server: MockWebServer, owner: AtomicReference<String?> = AtomicReference("login")) =
+        NativeAccountTeams({ "fixture-access" }, { owner.get() }, server.url("/api/v1/"),
+            refreshCredential = { "fixture-refresh" }, backendOrigin = server.url("/"))
+    private fun created(id: String = "new") = JSONObject().put("team", JSONObject().put("id", id).put("name", "New team"))
+
+    @Test fun createsThroughCmuxThenVerifiesSelectionEvenWithLaggingMembership() = runBlocking<Unit> {
+        MockWebServer().use { server -> creator(server).use { account ->
+            server.profile(); val original = checkNotNull(account.refresh().scope)
+            server.takeRequest(); server.takeRequest()
+            server.reply(created()); server.reply(teams("one", "two")); server.reply(user("new"))
+            val result = account.create("  New team  ")
+            val post = server.takeRequest()
+            assertEquals("POST", post.method); assertEquals("/api/subrouter/teams", post.path)
+            assertEquals("Bearer fixture-access", post.getHeader("Authorization"))
+            assertEquals("fixture-refresh", post.getHeader("X-Stack-Refresh-Token"))
+            assertEquals("New team", JSONObject(post.body.readUtf8()).getString("displayName"))
+            assertEquals("/api/v1/teams?user_id=me", server.takeRequest().path)
+            assertEquals("PATCH", server.takeRequest().method)
+            assertEquals("new", result.selectedTeamId)
+            assertEquals(listOf("one", "two", "new"), result.teams.map { it.id })
+            assertEquals("new", result.createdTeam?.id)
+            assertFalse(account.isCurrent(original))
+        } }
+    }
+
+    @Test fun failedSelectionKeepsCreatedTeamAvailableWithoutAnotherPost() = runBlocking<Unit> {
+        MockWebServer().use { server -> creator(server).use { account ->
+            server.profile(); val original = checkNotNull(account.refresh().scope)
+            server.reply(created()); server.reply(teams("one", "new")); server.enqueue(MockResponse().setResponseCode(503))
+            assertTrue(runCatching { account.create("New team") }.isFailure)
+            assertTrue(account.isCurrent(original)); assertEquals("new", account.state.value.createdTeam?.id)
+            assertTrue(account.state.value.error!!.startsWith("Team created"))
+            server.reply(user("new")); assertEquals("new", account.select("new").selectedTeamId)
+            val methods = (1..server.requestCount).map { server.takeRequest().method }
+            assertEquals(1, methods.count { it == "POST" })
+        } }
+    }
+
+    @Test fun firstTeamRemainsSelectableAfterMembershipRefreshFailure() = runBlocking<Unit> {
+        MockWebServer().use { server -> creator(server).use { account ->
+            server.profile(null, *emptyArray()); account.refresh()
+            server.reply(created()); server.enqueue(MockResponse().setResponseCode(503))
+            assertTrue(runCatching { account.create("New team") }.isFailure)
+            assertNull(account.state.value.scope)
+            server.reply(user("new")); assertEquals("new", account.select("new").selectedTeamId)
+        } }
+    }
+
+    @Test fun invalidNamesAndUnverifiedSessionsNeverCreateTeams() = runBlocking<Unit> {
+        MockWebServer().use { server -> creator(server).use { account ->
+            for (name in listOf("", " \n", "x".repeat(121), "Requires verified account"))
+                assertTrue(runCatching { account.create(name) }.isFailure)
+            assertEquals(0, server.requestCount)
+        } }
+    }
+
+    @Test fun lostOrRejectedCreateResponseIsNeverRetried() = runBlocking<Unit> {
+        for (response in listOf(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST),
+            MockResponse().setResponseCode(401), MockResponse().setResponseCode(503),
+            MockResponse().setResponseCode(307).setHeader("Location", "/elsewhere"))) {
+            MockWebServer().use { server -> creator(server).use { account ->
+                server.profile(); account.refresh(); server.enqueue(response)
+                assertTrue(runCatching { account.create("New team") }.isFailure)
+                assertEquals(3, server.requestCount)
+                assertNull(account.state.value.createdTeam)
+                assertTrue(account.state.value.error!!.contains("not confirmed"))
+            } }
+        }
+    }
+
+    @Test fun changedLoginCannotPublishCreatedTeamOrContinueSelection() = runBlocking<Unit> {
+        MockWebServer().use { server ->
+            val owner = AtomicReference<String?>("login")
+            creator(server, owner).use { account ->
+                server.profile(); account.refresh(); server.takeRequest(); server.takeRequest()
+                server.enqueue(MockResponse().setBody(created().toString()).setBodyDelay(250, TimeUnit.MILLISECONDS))
+                val pending = async { runCatching { account.create("New team") } }
+                withContext(Dispatchers.IO) { assertEquals("POST", server.takeRequest(2, TimeUnit.SECONDS)?.method) }
+                owner.set("different-login")
+                assertTrue(pending.await().exceptionOrNull() is CancellationException)
+                assertEquals(3, server.requestCount); assertNull(account.state.value.createdTeam)
+                assertNull(account.state.value.scope)
+            }
+        }
+    }
+
     @Test fun loadsVerifiedMembershipAndKeepsScopeAcrossTokenRefresh() = runBlocking<Unit> {
         MockWebServer().use { server ->
             controller(server).use { account ->
