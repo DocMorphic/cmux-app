@@ -123,7 +123,7 @@ internal class TailscalePairingAuthority(
     private val current: () -> NativeTeamScope?,
     private val permits: (NativeTeamScope) -> Boolean,
     private val grants: TailscaleGrantStore,
-    private val resolve: suspend (PairingCode.Route) -> PairingCode.Route,
+    private val resolve: suspend (PairingCode.Route, () -> Boolean) -> PairingCode.Route,
     private val dial: suspend (PairingCode.Route, () -> Boolean, suspend () -> String?) -> MobileRpcClient,
     private val expected: (PairingCode.Tailscale) -> NativeCredentialStore.PairedMac? = { null },
     private val replacing: TailscaleSavedGrant? = null
@@ -178,7 +178,7 @@ internal class TailscalePairingAuthority(
             var candidate: MobileRpcClient? = null
             try {
                 // Saved reconnects use the captured numeric destination, never another DNS answer.
-                val route = if (consent == null) hint else consent.resolved[hint] ?: resolve(hint).let { resolved ->
+                val route = if (consent == null) hint else consent.resolved[hint] ?: resolve(hint, ::allowed).let { resolved ->
                     require(TailscalePeerAddress.canonical(resolved.host) == resolved.host && resolved.port == hint.port)
                     val numericHint = TailscalePeerAddress.canonical(hint.host)
                     require(numericHint == null || numericHint == resolved.host)
@@ -219,7 +219,7 @@ internal class TailscalePairingAuthority(
                 return client
             } catch (failure: Exception) {
                 candidate?.let { synchronized(lock) { clients.remove(it) }; it.close() }
-                if (failure is CancellationException) throw failure
+                if (failure is CancellationException || failure is TailscaleReadinessException) throw failure
                 lastError = failure
             }
         }

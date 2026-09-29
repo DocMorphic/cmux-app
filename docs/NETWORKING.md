@@ -275,3 +275,14 @@ the native Tailscale path’s dependency on Iroh startup/discovery and preserves
 shared sessions through broker failures. Current verified account/team scope is
 still required. Legacy QR identity unification and physical VPN/Mac acceptance
 remain necessary. This is not claimed as complete transport parity.
+
+
+## Tailscale startup readiness (2026-09-29)
+
+The route authority now waits up to ten seconds for a usable tunnel using ordered
+Android callback data. It carries one monitor and proof generation through DNS,
+connect and IO, and releases it on cancellation/closure. Missing VPN failures
+produce Tailscale-specific advice in Computer Details. Seventy-eight JVM checks
+pass; this checkpoint is compiled but not rebuilt into an APK or exercised on a
+physical VPN. See [TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md) for evidence
+and limits. Live TCP route/encryption diagnostics remain to be implemented.

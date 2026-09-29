@@ -133,7 +133,7 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                             val permits = { runtime.permitsAppearance(team) && store.taskSession() == team.login }
                             val account = NativeAccount(store)
                             TailscalePairingAuthority({ team }, { it == team && permits() }, grants,
-                                resolve = { route -> TailscaleRoute.resolvePeer(context.applicationContext, route) },
+                                resolve = { route, allowed -> TailscaleRoute.resolvePeer(context.applicationContext, route, allowed) },
                                 dial = { route, allowed, token -> MobileRpcClient(TailscaleRoute.resolve(context.applicationContext, route, allowed), token) },
                                 expected = { NativeCredentialStore.PairedMac("", target.deviceId, target.name, target.buildTag) },
                                 replacing = replacing).use { authority ->

@@ -18,6 +18,7 @@ class TailscalePairingAuthorityTest {
         val pairing = PairingCode.Tailscale(listOf(PairingCode.Route("mac.tail.ts.net", 58465)), "user")
         var numeric = PairingCode.Route("100.99.1.2", 58465)
         var resolves = 0
+        var resolveHook: suspend (() -> Boolean) -> Unit = {}
         var tokenCalls = 0
         var tokenHook: () -> Unit = {}
         var hostHook: () -> Unit = {}
@@ -28,7 +29,7 @@ class TailscalePairingAuthorityTest {
         var rejectWorkspace = false
         val transports = mutableListOf<Transport>()
         val authority = TailscalePairingAuthority({ scope }, { it == scope }, grants,
-            resolve = { resolves++; numeric },
+            resolve = { _, allowed -> check(allowed()); resolves++; resolveHook(allowed); numeric },
             dial = { route, allowed, token ->
                 val transport = Transport(route, allowed, this).also { transports += it }
                 MobileRpcClient(transport, token)
@@ -71,6 +72,28 @@ class TailscalePairingAuthorityTest {
         override fun close() { closed = true; replies.close() }
     }
 
+    @Test fun replacedConsentCancelsReadinessBeforeDialOrTokenAcquisition() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        val entered = CompletableDeferred<Unit>()
+        f.resolveHook = { allowed ->
+            entered.complete(Unit)
+            TailscaleReadiness.await(TailscaleObservations().state, f.numeric, allowed, 2000, 10)
+        }
+        val pending = async { runCatching { f.connect() } }
+        entered.await(); f.authorize()
+        assertTrue(withTimeout(500) { pending.await() }.isFailure)
+        assertEquals(0, f.tokenCalls); assertTrue(f.transports.isEmpty())
+        f.authority.close()
+    }
+    @Test fun readinessDeadlineStopsQrHintsWithoutStartingAnotherWait() = runBlocking<Unit> {
+        val f = Fixture()
+        val pairing = f.pairing.copy(routes = listOf(f.numeric, f.numeric.copy(host = "100.99.1.3")))
+        f.authority.authorize(pairing)
+        f.resolveHook = { throw TailscaleReadinessException() }
+        assertTrue(runCatching { f.authority.connect(pairing) { error("must not acquire token") } }
+            .exceptionOrNull() is TailscaleReadinessException)
+        assertEquals(1, f.resolves); assertTrue(f.transports.isEmpty()); f.authority.close()
+    }
     @Test fun savedQrWithoutGrantCannotDialOrRequestToken() = runBlocking<Unit> {
         val f = Fixture()
         assertFalse(f.authority.allowsSaved(f.pairing))

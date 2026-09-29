@@ -22,9 +22,9 @@ internal suspend fun NativeConnector.connectPairing(pairing: PairingCode, accoun
 internal class TailscaleConnector(context: Context, store: NativeCredentialStore, teams: NativeAccountTeams) : NativeConnector, AutoCloseable {
     private val authority = TailscalePairingAuthority({ teams.state.value.scope }, teams::isCurrent,
         TailscaleGrantStore(store::load, store::update),
-        resolve = { route -> withContext(Dispatchers.IO) { TailscaleRoute.resolvePeer(context, route) } },
+        resolve = { route, permits -> TailscaleRoute.resolvePeer(context, route, permits) },
         dial = { route, permits, token ->
-            val transport = withContext(Dispatchers.IO) { TailscaleRoute.resolve(context, route, permits) }
+            val transport = TailscaleRoute.resolve(context, route, permits)
             MobileRpcClient(transport, token)
         }, expected = { pairing -> store.pairedMacs().singleOrNull {
             PairingCodeParser.parse(it.code).getOrNull() == pairing

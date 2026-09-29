@@ -2,12 +2,10 @@ package io.github.docmorphic.cmuxapp
 
 import android.content.Context
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 /** Shared native-computer routing uses the same encrypted grants as the explicit QR flow. */
 internal class NativeTailscaleRoutes(private val context: Context, store: NativeCredentialStore,
@@ -16,15 +14,15 @@ internal class NativeTailscaleRoutes(private val context: Context, store: Native
     val revisions = store.revisions
     fun grants(target: NativeComputerTarget) = saved.computer(team, target)
     fun transport(grants: List<TailscaleSavedGrant>, permits: () -> Boolean): MobileRpcTransport =
-        TailscaleCandidateTransport(grants.map { it.route }, permits) { route ->
-            withContext(Dispatchers.IO) { TailscaleRoute.resolve(context, route, permits) }
+        TailscaleCandidateTransport(grants.map { it.route }, permits) { route, active ->
+            TailscaleRoute.resolve(context, route, active)
         }
 }
 
 /** Tries only the captured authorized TCP coordinates; never falls back to Iroh or the default network. */
 internal class TailscaleCandidateTransport(private val routes: List<PairingCode.Route>,
     private val permits: () -> Boolean,
-    private val create: suspend (PairingCode.Route) -> MobileRpcTransport) : MobileRpcTransport {
+    private val create: suspend (PairingCode.Route, () -> Boolean) -> MobileRpcTransport) : MobileRpcTransport {
     private val lock = Any()
     private val connecting = Mutex()
     private var candidate: MobileRpcTransport? = null
@@ -41,7 +39,7 @@ internal class TailscaleCandidateTransport(private val routes: List<PairingCode.
             check(permits()) { "The Tailscale authorization changed" }
             var transport: MobileRpcTransport? = null
             try {
-                transport = create(route)
+                transport = create(route) { synchronized(lock) { !closed } && permits() }
                 synchronized(lock) { check(!closed); candidate = transport }
                 check(permits()) { "The Tailscale authorization changed" }
                 transport.connect()
@@ -52,7 +50,7 @@ internal class TailscaleCandidateTransport(private val routes: List<PairingCode.
             } catch (failure: Exception) {
                 transport?.close()
                 synchronized(lock) { if (candidate === transport) candidate = null }
-                if (failure is CancellationException) throw failure
+                if (failure is CancellationException || failure is TailscaleReadinessException) throw failure
                 last = failure
             }
         }

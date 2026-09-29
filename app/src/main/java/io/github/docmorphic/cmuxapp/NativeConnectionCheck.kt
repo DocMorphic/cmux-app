@@ -15,6 +15,7 @@ internal data class NativeConnectionReport(
         IDENTITY("The Mac identity could not be verified. Reconnect to the intended Mac."),
         ACCOUNT("Confirm both devices use the same cmux account and team."),
         TIMEOUT("The Mac did not answer in time. Check your connection and try again."),
+        TAILSCALE("The Tailscale VPN did not become ready. Open Tailscale, connect this phone, then try again."),
         CONNECTION("Reconnect to your Mac, then run the check again.")
     }
     val route: String get() = when (transport?.route) {

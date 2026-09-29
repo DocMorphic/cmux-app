@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Tailscale tunnel readiness (2026-09-29):** startup now waits up to ten seconds
+for callback-proven VPN readiness; the same monitor survives through socket IO.
+Generation changes retire old proofs, cancellation/revoked consent stop pending
+preparation, and missing VPN failures carry actionable Tailscale advice in Details.
+All 78 focused JVM cases pass and production sources compile. This feature commit
+does not rebuild the APK or rerun instrumentation; Android VPN/Mac acceptance and
+live TCP route diagnostics remain open. See
+[TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md).
+
 **Independent saved Tailscale sessions (2026-09-29):** the native computer path
 now connects through a separate account/team-owned TCP pool before Iroh readiness.
 Simulated Iroh startup/broker failures leave shared Tailscale terminal/feed/check/

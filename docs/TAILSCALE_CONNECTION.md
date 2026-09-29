@@ -56,8 +56,9 @@ Platform references:
 [LinkProperties](https://developer.android.com/reference/android/net/LinkProperties),
 [ConnectivityManager.NetworkCallback](https://developer.android.com/reference/android/net/ConnectivityManager.NetworkCallback).
 The implementation retains fresh `allNetworks` snapshots despite that API's
-deprecation; callbacks provide loss/change invalidation. It does not yet implement
-iOS's bounded wait for tunnel readiness during startup.
+deprecation; callbacks provide loss/change invalidation. The later readiness
+checkpoint below adds the bounded startup wait and replaces synchronous queries
+inside callbacks with callback-provided observations.
 
 ## Verification and limits
 
@@ -273,13 +274,69 @@ service requirements. Nor does it prove real Android VPN callback behavior.
   power change occurred. Last installed Pixel checkpoint remains `f0dfc7f` and
   published signed build 157 remains unchanged.
 
+## Tunnel readiness and callback lifecycle (2026-09-29)
+
+`TailscaleReadiness` now gives the VPN up to ten seconds to become provable,
+matching the pinned iOS `CmxSystemTailscaleRouteAuthority` default. It waits through
+no tunnel, incomplete capability/link callbacks, ambiguous eligible tunnels and a
+blocked network. Invalid peer/port input and a route back to this phone fail
+without consuming the readiness deadline. A deadline failure tells the user to
+open Tailscale, connect the phone and retry. Computer Details preserves this
+specific suggested action in its address-free report. Multiple route hints do
+not restart the deadline when the VPN itself never became ready.
+
+The Android authority registers before waiting and owns that same monitor through
+DNS resolution, proof binding, socket connection and subsequent IO. Its callback
+cache combines capabilities, link properties, availability/loss and blocked
+status. It does not query synchronous ConnectivityManager properties inside
+callbacks; those calls can race the delivered callback data according to the
+[Android NetworkCallback reference](https://developer.android.com/reference/android/net/ConnectivityManager.NetworkCallback).
+Fresh synchronous checks remain at the socket IO boundary to catch a network
+change before its callback is delivered.
+
+Only usable-tunnel content changes advance the proof generation. Duplicate
+callbacks leave a connection intact; loss, blocking, changed interface/addresses
+or a second eligible tunnel invalidate it permanently, including a change back
+to the original configuration. Late link/capability events cannot resurrect a
+lost Network without a new availability event. The proof and Network token are
+captured from the same monitor, and DNS cannot outlive that generation.
+
+Readiness remains cancellable. While awaiting network events, captured consent,
+account/grant authority and transport closure are checked at most every 200 ms.
+The explicit QR resolver receives the actual attempt permission, so replacing its
+confirmation also stops a pending wait. Failed or cancelled preparation releases
+the callback registration, including cancellation during the IO dispatcher return.
+Successful peer-only resolution releases its temporary monitor; the socket owns
+and eventually closes the monitor for its own proof. No default-network fallback
+or credential transmission is introduced.
+
+### Readiness verification
+
+All **78 JVM cases passed** with no failures/errors/skips: 10 readiness/callback
+cache cases, 22 pairing authority, 7 saved candidate transport, 6 path proof,
+5 real local TCP authority, 13 independent saved runtime and 15 Computer Details
+checks. New cases exercise callback completion order, ambiguity, blocking,
+generation changes, missing tunnel timeout, caller cancellation, consent
+replacement, closure before socket creation, no repeated readiness wait across
+route hints, and the sanitized Details advice. The real TCP tests retain their
+injected authority observations; they do not establish Android VPN traversal.
+
+Production Android sources compile in the JVM run. No APK or instrumentation
+rerun was performed for this feature commit. The latest built APK remains the
+`1bfc378` checkpoint recorded above, while the Pixel still has `f0dfc7f` and signed
+published build 157 is unchanged. Logs/XML are retained locally in ignored
+`captures/runtime/tailscale-readiness/`. ADB still lists no physical Pixel; real
+VPN callback ordering, cold/warm startup and Mac reconnect acceptance remain open.
+The ten-second limit covers tunnel readiness, not a whole DNS/TCP/RPC exchange.
+
 ## Remaining integration and acceptance
 
 - Unify the legacy QR pairing entry point with native computer identity/method
   selection; targeted Details pairing now preserves identity, but the original
   QR screen still uses its legacy saved-row flow.
-- Add bounded tunnel-readiness waiting and Tailscale-specific route diagnostics;
-  current native check reports TCP transport details as Not Reported.
+- Add live Tailscale-specific route diagnostics; current native check reports TCP
+  transport details as Not Reported. Bounded readiness and actionable startup
+  failure advice are implemented above.
 - Verify Android VPN event ordering, real QR camera results, IPv4/IPv6/MagicDNS,
   edits/removal/reconnect during terminal and notification activity, and complete
   Mac/Pixel acceptance. Finish full iOS layout/interaction comparison.

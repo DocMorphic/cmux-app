@@ -158,6 +158,7 @@ internal class NativeIrohRuntime(
         currentCoroutineContext().ensureActive()
         val reason = when {
             failure is TimeoutCancellationException -> NativeConnectionReport.Failure.TIMEOUT
+            failure is TailscaleReadinessException -> NativeConnectionReport.Failure.TAILSCALE
             !isCurrent(team) || (failure is IrohV2ServerFailure &&
                 (failure.code in IrohV2Recovery.terminalCodes || failure.code in IrohV2Recovery.authenticationCodes)) ||
                 (failure is IrohV2HttpFailure && failure.status in setOf(401, 403)) -> NativeConnectionReport.Failure.ACCOUNT

@@ -24,6 +24,7 @@ class NativeSavedTailscaleRuntimeTest {
         val grants = MutableStateFlow(listOf(grant))
         val wires = CopyOnWriteArrayList<Wire>()
         @Volatile var badIdentity = false
+        @Volatile var transportFailure: Exception? = null
         @Volatile var tokenHook: suspend () -> Unit = {}
         @Volatile var hostGate: CompletableDeferred<Unit>? = null
         val hostEntered = Channel<Unit>(16)
@@ -33,7 +34,10 @@ class NativeSavedTailscaleRuntimeTest {
             local = NativeSavedTailscaleRuntime(teams, { teams.value.scope == it }, { tokenHook(); "fixture-token" }) { owner ->
                 NativeSavedTailscaleAccount(settings, revisions, { selected -> grants.value.filter {
                     it.user == owner.userId && it.team == owner.teamId && it.device == selected.deviceId && it.build == selected.buildTag
-                } }, { selected, allowed -> Wire(selected.first(), allowed, this).also { wires += it } })
+                } }, { selected, allowed ->
+                    transportFailure?.let { throw it }
+                    Wire(selected.first(), allowed, this).also { wires += it }
+                })
             }
         }
         fun pairing(target: NativeComputerTarget = this.target) = PairingCode.Iroh("unused-iroh-peer", target.deviceId,
@@ -87,6 +91,20 @@ class NativeSavedTailscaleRuntimeTest {
                 })
                 first.close(); assertFalse(f.wires.single().closed)
                 second.close(); assertTrue(f.wires.single().closed)
+            }
+        }
+    }
+
+    @Test fun unavailableVpnProducesTailscaleAdviceInComputerDetails() = runBlocking<Unit> {
+        Fixture().use { f ->
+            f.transportFailure = TailscaleReadinessException()
+            NativeIrohRuntime(f.teams, { f.teams.value.scope == it }, { "unused" },
+                { _, _ -> awaitCancellation() }, savedTailscale = f.local).use { facade ->
+                val report = withTimeout(2000) { facade.checkComputer(f.team, f.target) }
+                assertEquals(NativeConnectionReport.Failure.TAILSCALE, report.failure)
+                assertTrue(report.shareText().contains("Open Tailscale"))
+                assertFalse(report.shareText().contains(f.grant.route.host))
+                assertFalse(report.identity); assertFalse(report.accountAccess)
             }
         }
     }
