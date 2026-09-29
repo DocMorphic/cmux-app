@@ -80,6 +80,14 @@ class MobileRpcClient internal constructor(
 
     internal fun retire() = failConnection(EOFException("Computer access or account session changed"))
 
+    internal suspend fun transportDiagnostics(): io.github.docmorphic.cmuxapp.iroh.IrxConnectionDiagnostics? {
+        if (delegate != null) return borrowing { it.transportDiagnostics() }
+        return withContext(Dispatchers.IO) {
+            check(!isClosed)
+            transport.diagnostics().also { check(!isClosed) }
+        }
+    }
+
     /** Each consumer owns its subscriptions and cancellation, while one owner retains the wire. */
     internal fun lease(release: () -> Unit): MobileRpcClient {
         check(delegate == null && !isClosed) { "Cannot lease a closed or borrowed connection" }

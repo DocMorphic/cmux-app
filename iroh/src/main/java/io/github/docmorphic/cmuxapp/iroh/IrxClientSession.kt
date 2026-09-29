@@ -81,6 +81,13 @@ class IrxClientSession private constructor(
     fun connectionIsClosed(): Boolean = closed.get() || connection.closeReason() != null
     suspend fun awaitConnectionClosed() { connection.closed() }
 
+    fun diagnostics(): IrxConnectionDiagnostics {
+        check(!connectionIsClosed()) { "Irx session closed" }
+        val snapshot = IrxConnectionDiagnostics.fromPaths(connection.paths())
+        check(!connectionIsClosed()) { "Irx session closed" }
+        return snapshot
+    }
+
     /** The repair acknowledgement must be consumed before exposing any new RPC bytes. */
     suspend fun openControlReplacement(): IrxDuplexLane {
         val lane = openLane(IrxWire.Descriptor(IrxWire.Lane.CONTROL_REPAIR))

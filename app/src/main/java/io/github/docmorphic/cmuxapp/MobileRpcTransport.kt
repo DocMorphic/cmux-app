@@ -11,6 +11,7 @@ import javax.net.SocketFactory
 
 /** One connection incarnation. Independent events are complete, unframed JSON payloads. */
 internal interface MobileRpcTransport : AutoCloseable {
+    fun diagnostics(): io.github.docmorphic.cmuxapp.iroh.IrxConnectionDiagnostics? = null
     val independentEvents: Flow<ByteArray>? get() = null
     val surfaceEventLanes: Boolean get() = false
     val disconnections: Flow<Throwable>? get() = null

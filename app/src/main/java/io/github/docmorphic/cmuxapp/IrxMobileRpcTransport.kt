@@ -97,6 +97,10 @@ internal class IrxMobileRpcTransport(
     private data class Closing(val session: IrxClientSession?, val dial: Job?,
                                val control: IrxControlChannel?, val probes: IrxKeepalive?)
     override val surfaceEventLanes = true
+    override fun diagnostics(): io.github.docmorphic.cmuxapp.iroh.IrxConnectionDiagnostics {
+        requireAccess()
+        return active().diagnostics().also { requireAccess() }
+    }
     override suspend fun openTerminalInput(surfaceId: String): TerminalInputLane =
         IrxTerminalInputLane.open(openTerminalWire(surfaceId, IrxWire.Lane.TERMINAL_INPUT, null))
 

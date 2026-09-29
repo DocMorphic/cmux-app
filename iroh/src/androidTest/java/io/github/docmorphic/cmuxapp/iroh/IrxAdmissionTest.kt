@@ -43,6 +43,26 @@ class IrxAdmissionTest {
         }
     }
 
+    @Test fun reportsSelectedNativePathWithoutExposingItsAddress() = runBlocking {
+        fixture(server = { connection ->
+            IrxDuplexLane(connection.acceptBi()).use { control ->
+                control.readFrame(); control.readFrame()
+                control.writeFrame(JSONObject().put("v", 1).put("session", "diagnostic-fixture")
+                    .put("keepaliveIntervalMs", 5000).put("keepaliveDeadlineMs", 2000))
+                assertEquals("done", readRaw(control, 4).decodeToString())
+            }
+        }) { connection, expected ->
+            IrxClientSession.admit(connection, expected).use { session ->
+                val diagnostic = session.diagnostics()
+                assertEquals(IrxConnectionDiagnostics.Route.PRIVATE_NETWORK, diagnostic.route)
+                assertNotNull(diagnostic.roundTripMillis)
+                assertFalse(diagnostic.toString().contains("127.0.0.1"))
+                assertFalse(diagnostic.toString().contains("diagnostic-fixture"))
+                session.control.write("done".toByteArray())
+            }
+        }
+    }
+
     @Test fun remoteRevocationRemainsTerminalForAutomaticRedial() = runBlocking {
         fixture(server = { connection ->
             connection.acceptBi().use { stream ->

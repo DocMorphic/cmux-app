@@ -20,7 +20,7 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
     var submitting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val busy = state.loading || submitting
-    Text("ACCOUNT", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = Color(0xFF96989F), fontSize = 11.sp)
+    Text("ACCOUNT", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = Color(0xFF9B9FA8), fontSize = 11.sp)
     Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("Team", Modifier.weight(1f))
         Box {
