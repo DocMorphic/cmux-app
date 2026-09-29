@@ -4,6 +4,11 @@ package io.github.docmorphic.cmuxapp
 object TerminalKeyEncoding {
     fun encode(key: String, control: Boolean = false, alt: Boolean = false,
                shift: Boolean = false, applicationCursorKeys: Boolean = false): String {
+        if (alt && !control && !shift) when (key) {
+            "Left" -> return "\u001bb"
+            "Right" -> return "\u001bf"
+            "Delete" -> return "\u001b\u007f"
+        }
         val sequence = when (key) {
             "Esc" -> "\u001b"
             "Tab" -> if (shift) "\u001b[Z" else "\t"
@@ -43,7 +48,7 @@ object TerminalKeyEncoding {
                 '\\', '4' -> "\u001c"
                 ']', '5' -> "\u001d"
                 '^', '6' -> "\u001e"
-                '_', '7' -> "\u001f"
+                '_', '7', '/' -> "\u001f"
                 '?', '8' -> "\u007f"
                 else -> result
             }

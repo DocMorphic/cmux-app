@@ -7,8 +7,10 @@ import android.view.KeyCharacterMap
 class TerminalHardwareInput {
     private var accent = 0
     fun sequence(event: KeyEvent, applicationCursorKeys: Boolean = false,
-                 control: Boolean = false, alt: Boolean = false, shift: Boolean = false): String? {
-        if (event.action == KeyEvent.ACTION_MULTIPLE) return event.characters
+                 control: Boolean = false, alt: Boolean = false, shift: Boolean = false, command: Boolean = false): String? {
+        if (event.action == KeyEvent.ACTION_MULTIPLE) return event.characters?.let {
+            if (command) TerminalInputModifiers.commandText(it) else TerminalKeyEncoding.text(it, control, alt, shift)
+        }
         if (event.action != KeyEvent.ACTION_DOWN) return null
         val key = when (event.keyCode) {
             KeyEvent.KEYCODE_ESCAPE -> "Esc"
@@ -30,6 +32,7 @@ class TerminalHardwareInput {
         }
         if (key != null) {
             accent = 0
+            if (command) return TerminalInputModifiers(TerminalInputModifiers.Key.COMMAND).special(key, applicationCursorKeys)
             return TerminalKeyEncoding.encode(key, control || event.isCtrlPressed, alt || event.isAltPressed,
                 shift || event.isShiftPressed, applicationCursorKeys)
         }
@@ -47,6 +50,7 @@ class TerminalHardwareInput {
             accent = 0
             result
         } else String(Character.toChars(character))
-        return TerminalKeyEncoding.text(text, control || event.isCtrlPressed, alt || event.isAltPressed, shift)
+        return if (command) TerminalInputModifiers.commandText(text)
+            else TerminalKeyEncoding.text(text, control || event.isCtrlPressed, alt || event.isAltPressed, shift)
     }
 }

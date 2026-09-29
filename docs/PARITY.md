@@ -90,6 +90,35 @@ work. This follow-up has no new APK or live-device claim.
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
+## Terminal modifier follow-up (2026-09-29)
+
+The pinned iOS `TerminalInputModifierState`, `TerminalKeyEncoder`, and
+`TerminalInputTextView` define one active accessory modifier and a strict 400 ms
+double-tap window for locking it. Android now exposes Ctrl, Alt, Cmd and Shift
+with one-shot/locked states, a blue active fill and outlined lock, and accessibility
+state descriptions. Switching modifiers clears the previous lock. Terminal or
+client changes, opening the composer/Files, and pasting clear accessory state.
+
+Cmd text implements the iOS readline mappings (A/E/K/U/W/L/C/D), Cmd+Left/Right
+move to line boundaries, and Cmd+Backspace deletes to the start of the line.
+Alt+Left/Right use ESC-b/ESC-f and Ctrl+/ sends 0x1F. IME deletion batches encode
+each requested delete with the active modifier, then consume a one-shot state;
+editing uncommitted composition does not consume it. Hardware VT modifier
+combinations remain distinct from the iOS accessory special-key behavior.
+
+Seven focused JVM tests passed, including all four modifier states, the exact
+double-tap boundary, exclusivity, Command mappings, Unicode commits and special
+keys. Two Android 17 emulator cases passed together in 36.1 seconds: the new
+Compose/IME modifier workflow and the existing direct-input regression. They
+verify exact RPC bytes, repeated deletion, composition, locked-state persistence,
+composer/terminal reset, stale input-connection rejection and recovery after a
+rejected send. The locked-button screenshot was inspected with Gboard visible
+and no system dialog. Evidence: `captures/runtime/modifiers/` (Git-ignored).
+See [NATIVE_RUNTIME_CHECKPOINT.md](NATIVE_RUNTIME_CHECKPOINT.md) for current APK
+hashes. This does not close
+hardware-layout, complete terminal-mode, toolbar-customization or physical Pixel/
+Mac acceptance work.
+
 ## Direct keyboard images and clipboard attachments (2026-09-28)
 
 The pinned iOS `TerminalInputTextView` routes an image paste directly to

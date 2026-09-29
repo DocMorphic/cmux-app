@@ -540,6 +540,71 @@ class NativeFlowTest {
         } finally { photo.delete() }
     }
 
+    @Test fun modifierToolbarSupportsCommandStickyKeysAndResetsOnTerminalSwitch() {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                    .also { it.connect(); observedClients += it }
+            })
+        } } }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.onNodeWithText("Keyboard").performClick()
+        lateinit var connection: InputConnection
+        compose.runOnIdle { connection = findTerminalKeyboard(compose.activity.window.decorView)!!.onCreateInputConnection(EditorInfo())!! }
+        fun state(label: String, expected: String) = compose.onNodeWithText(label).assert(
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, expected))
+        compose.onNodeWithText("Cmd").performClick()
+        state("Cmd", "Armed")
+        compose.runOnIdle { connection.commitText("a", 1) }
+        state("Cmd", "Off")
+        compose.onNodeWithText("Cmd").performClick()
+        compose.runOnIdle { connection.deleteSurroundingText(2, 0) }
+        state("Cmd", "Off")
+        compose.onNodeWithText("Ctrl").performSemanticsAction(SemanticsActions.OnClick) { click -> click(); click() }
+        state("Ctrl", "Locked")
+        compose.runOnIdle { connection.commitText("c", 1) }
+        compose.runOnIdle { connection.commitText("d", 1) }
+        state("Ctrl", "Locked")
+        screenshot("terminal-sticky-control")
+        compose.onNodeWithText("Alt").performClick()
+        state("Ctrl", "Off")
+        compose.runOnIdle { connection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT)) }
+        state("Alt", "Off")
+        compose.onNodeWithText("Cmd").performClick()
+        compose.runOnIdle { connection.setComposingText("n", 1); connection.deleteSurroundingText(1, 0) }
+        state("Cmd", "Armed") // Editing an uncommitted candidate must not consume the modifier.
+        compose.runOnIdle { connection.commitText("e", 1) }
+        waitForTerminalFixture(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 6 }
+        assertEquals(listOf("\u0001", "\u0015\u0015", "\u0003", "\u0004", "\u001bb", "\u0005"),
+            peer.requests.filter { it.optString("method") == "terminal.input" }.map { it.getJSONObject("params").getString("text") })
+        compose.onNodeWithText("Ctrl").performSemanticsAction(SemanticsActions.OnClick) { click -> click(); click() }
+        state("Ctrl", "Locked")
+        compose.onNodeWithText("Compose").performClick()
+        state("Ctrl", "Off")
+        compose.onNodeWithText("Keyboard").performClick()
+        compose.runOnIdle {
+            connection = findTerminalKeyboard(compose.activity.window.decorView)!!.onCreateInputConnection(EditorInfo())!!
+        }
+        compose.onNodeWithText("Ctrl").performSemanticsAction(SemanticsActions.OnClick) { click -> click(); click() }
+        state("Ctrl", "Locked")
+        compose.onNodeWithContentDescription("Back to workspaces").performClick()
+        openReadProject()
+        waitForTerminalText()
+        state("Ctrl", "Off")
+        state("Cmd", "Off")
+        compose.onNodeWithText("Keyboard").performClick()
+        compose.runOnIdle {
+            assertTrue(!connection.commitText("stale", 1))
+            findTerminalKeyboard(compose.activity.window.decorView)!!.onCreateInputConnection(EditorInfo())!!.commitText("c", 1)
+        }
+        waitForTerminalFixture(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 7 }
+        val last = peer.requests.last { it.optString("method") == "terminal.input" }.getJSONObject("params")
+        assertEquals("c", last.getString("text"))
+        assertEquals("terminal-2", last.getString("surface_id"))
+    }
+
     @Test fun directKeyboardCompositionKeysPauseAndTargetSwitch() {
         compose.setContent {
             CmuxTheme {

@@ -118,3 +118,26 @@ The separate keyboard/input screenshot also shows terminal output above Gboard.
 Evidence is in `captures/runtime/resize-retention/`, excluded from Git: the
 before-fix failure, fixed run, APK/source hashes, JVM XML and screenshots. This
 follow-up does not establish physical keyboard behavior or full Ghostty fidelity.
+
+## Modifier follow-up — 2026-09-29
+
+The app now has the iOS one-shot/sticky Ctrl/Alt/Cmd/Shift behavior and readline
+shortcuts described in `PARITY.md`. Seven focused JVM checks passed. The new
+modifier workflow and the existing direct keyboard composition/rejection/switch
+regression passed together on the Android 17 emulator: **2 tests, 36.1 seconds**.
+The locked-control screenshot shows the blue active fill, lock outline, Cmd
+button and Gboard; it was visually inspected without an ANR overlay.
+
+Earlier build attempts were interrupted and emulator preflight found a System UI
+startup dialog. No runtime pass is attributed to those attempts. The final main/
+test build succeeded; the final emulator was awake on its normal launcher before
+the two-case run. This remains fixture evidence, not authenticated Mac/Pixel QA.
+
+| Artifact at this checkpoint | SHA-256 |
+| --- | --- |
+| Main debug APK | `ff831f70d863b8c3fdda70873ba053a0df1948e4aae36996acab9220e26372f1` |
+| App instrumentation APK | `69c5a41d8a9f9da1d2b4de59adf3cfde5cdc512da070906165dea16aa5376b05` |
+
+Local evidence: `captures/runtime/modifiers/receipt.json`, `runtime.txt`,
+`final-assembly.log`, `jvm/`, and `terminal-sticky-control.png`. Published signed
+release 157 is unchanged. Physical acceptance and full-app parity remain open.

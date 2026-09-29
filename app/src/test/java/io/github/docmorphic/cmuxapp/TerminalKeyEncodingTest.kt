@@ -10,11 +10,14 @@ class TerminalKeyEncodingTest {
         assertEquals("É", TerminalKeyEncoding.text("é", shift = true))
         assertEquals("\u001b[1;3H", TerminalKeyEncoding.encode("Home", alt = true))
         assertEquals("\u001b[6;5~", TerminalKeyEncoding.encode("PageDown", control = true))
-        assertEquals("\u001b[3;3~", TerminalKeyEncoding.encode("Delete", alt = true))
+        assertEquals("\u001b\u007f", TerminalKeyEncoding.encode("Delete", alt = true))
         assertEquals("\u001bOP", TerminalKeyEncoding.encode("F1"))
         assertEquals("\u001b[1;5P", TerminalKeyEncoding.encode("F1", control = true))
         assertEquals("\u001b[24;2~", TerminalKeyEncoding.encode("F12", shift = true))
         assertEquals("\u0000", TerminalKeyEncoding.encode("2", control = true))
+        assertEquals("\u001f", TerminalKeyEncoding.encode("/", control = true))
+        assertEquals("\u001bb", TerminalKeyEncoding.encode("Left", alt = true))
+        assertEquals("\u001bf", TerminalKeyEncoding.encode("Right", alt = true, applicationCursorKeys = true))
     }
 
     @Test fun modifierCombinationsProduceTerminalBytes() {

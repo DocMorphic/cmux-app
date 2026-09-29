@@ -418,9 +418,7 @@ fun NativeScreen(
         }
     }
 
-    var controlArmed by remember { mutableStateOf(false) }
-    var altArmed by remember { mutableStateOf(false) }
-    var shiftArmed by remember { mutableStateOf(false) }
+    var inputModifiers by remember(draftTarget, client) { mutableStateOf(TerminalInputModifiers()) }
     var directTyping by remember(draftTarget) { mutableStateOf(false) }
     var rawKeyboardView by remember(draftTarget) { mutableStateOf<TerminalKeyboardView?>(null) }
     LaunchedEffect(directTyping, rawKeyboardView) {
@@ -430,7 +428,7 @@ fun NativeScreen(
             view.showKeyboard()
         }
     }
-    val hardwareInput = remember(draftTarget) { TerminalHardwareInput() }
+    val hardwareInput = remember(draftTarget, client) { TerminalHardwareInput() }
     val inputClient = client
     val inputTarget = draftTarget
     var outputInput by remember(inputClient, inputTarget) { mutableStateOf<TerminalOutputLaneOwner?>(null) }
@@ -460,14 +458,22 @@ fun NativeScreen(
     }
     fun directText(value: String) {
         val text = value.replace("\r\n", "\r").replace('\n', '\r')
-        queueInput(TerminalKeyEncoding.text(text, controlArmed, altArmed, shiftArmed))
-        controlArmed = false; altArmed = false; shiftArmed = false
+        queueInput(inputModifiers.text(text))
+        inputModifiers = inputModifiers.consume()
+    }
+    fun directDelete(before: Int, after: Int) {
+        if (before == 0 && after == 0) return
+        queueInput(inputModifiers.special("Backspace").repeat(before) + inputModifiers.special("Delete").repeat(after))
+        inputModifiers = inputModifiers.consume()
     }
     fun directHardware(event: AndroidKeyEvent): Boolean {
-        val sequence = hardwareInput.sequence(event, grid.applicationCursorKeys, controlArmed, altArmed, shiftArmed) ?: return false
+        val armed = inputModifiers.armed
+        val sequence = hardwareInput.sequence(event, grid.applicationCursorKeys,
+            armed == TerminalInputModifiers.Key.CONTROL, armed == TerminalInputModifiers.Key.ALT,
+            armed == TerminalInputModifiers.Key.SHIFT, armed == TerminalInputModifiers.Key.COMMAND) ?: return false
         if (sequence.isNotEmpty()) {
             queueInput(sequence)
-            controlArmed = false; altArmed = false; shiftArmed = false
+            inputModifiers = inputModifiers.consume()
         }
         return true
     }
@@ -512,6 +518,7 @@ fun NativeScreen(
     }
 
     fun acceptTerminalPaste(content: TerminalPasteContent): Boolean {
+        inputModifiers = TerminalInputModifiers()
         val target = draftTarget ?: return false
         val active = client ?: return false
         if (preparingAttachments || terminalDraft.operation != null || inputStatus.error != null) return false
@@ -581,6 +588,7 @@ fun NativeScreen(
     }
 
     fun pasteClipboard() {
+        inputModifiers = TerminalInputModifiers()
         rawKeyboardView?.finishComposition()
         try {
             val clip = context.getSystemService(android.content.ClipboardManager::class.java).primaryClip ?: return
@@ -1307,12 +1315,14 @@ fun NativeScreen(
                                 terminalMenu = false; openTerminalText()
                             })
                             if ("terminal.artifact.v1" in hostCapabilities) DropdownMenuItem(text = { Text("Files") }, onClick = {
+                                inputModifiers = TerminalInputModifiers()
                                 terminalMenu = false; stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
                             }, enabled = connectionReady)
                         }
                     }
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = {
+                        inputModifiers = TerminalInputModifiers()
                         if (directTyping) rawKeyboardView?.finishComposition()
                         directTyping = !directTyping
                     }) { Text(if (directTyping) "Compose" else "Keyboard", color = nativeAccent, fontSize = 12.sp) }
@@ -1393,22 +1403,27 @@ fun NativeScreen(
                 }
                 artifactChipCount?.let { count ->
                     TerminalArtifactChip(count, Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = if (scrollOffset > 0) 62.dp else 10.dp)) {
+                        inputModifiers = TerminalInputModifiers()
                         stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
                     }
                 }
                 }
                 Row(Modifier.horizontalScroll(rememberScrollState()).background(nativePanel),
                     verticalAlignment = Alignment.CenterVertically) {
-                    listOf("Ctrl" to controlArmed, "Alt" to altArmed, "Shift" to shiftArmed)
-                        .forEach { (label, armed) ->
-                            TextButton(onClick = {
-                                when (label) {
-                                    "Ctrl" -> controlArmed = !controlArmed
-                                    "Alt" -> altArmed = !altArmed
-                                    else -> shiftArmed = !shiftArmed
-                                }
-                            }) { Text(label, color = if (armed) nativeAccent else nativeMuted) }
-                        }
+                    TerminalInputModifiers.Key.entries.forEach { key ->
+                        val armed = inputModifiers.armed == key
+                        val locked = armed && inputModifiers.sticky
+                        TextButton(onClick = {
+                            inputModifiers = inputModifiers.tap(key, android.os.SystemClock.uptimeMillis())
+                        }, modifier = Modifier.semantics {
+                            stateDescription = if (locked) "Locked" else if (armed) "Armed" else "Off"
+                        }, shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.textButtonColors(
+                                containerColor = if (armed) nativeAccent else Color.Transparent,
+                                contentColor = if (armed) Color.Black else nativeMuted),
+                            border = if (locked) androidx.compose.foundation.BorderStroke(2.dp, Color.White) else null
+                        ) { Text(key.label, fontWeight = if (locked) FontWeight.Bold else FontWeight.Normal) }
+                    }
                     if (!directTyping) TextButton(onClick = { sendComposer(submit = false) },
                         enabled = client != null && terminalDraft.operation == null && !preparingAttachments &&
                             (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty())) { Text("Insert", color = nativeMuted) }
@@ -1420,15 +1435,8 @@ fun NativeScreen(
                         .forEach { (label, key) ->
                             TextButton(onClick = {
                                 rawKeyboardView?.finishComposition()
-                                val sequence = when (key) {
-                                    "CtrlC" -> TerminalKeyEncoding.encode("c", control = true)
-                                    "CtrlD" -> TerminalKeyEncoding.encode("d", control = true)
-                                    "CtrlZ" -> TerminalKeyEncoding.encode("z", control = true)
-                                    "CtrlL" -> TerminalKeyEncoding.encode("l", control = true)
-                                    else -> TerminalKeyEncoding.encode(key, controlArmed, altArmed,
-                                        shiftArmed, currentGrid.applicationCursorKeys)
-                                }
-                                controlArmed = false; altArmed = false; shiftArmed = false
+                                val sequence = inputModifiers.special(key, currentGrid.applicationCursorKeys)
+                                inputModifiers = inputModifiers.consume()
                                 scrollOffset = 0
                                 queueInput(sequence)
                             }) { Text(label, color = nativeMuted) }
@@ -1453,6 +1461,7 @@ fun NativeScreen(
                             view.isEnabled = enabled
                             if (resumed) view.restartKeyboard()
                             view.onText = ::directText
+                            view.onDelete = ::directDelete
                             view.onKey = ::directHardware
                             view.onPaste = { queueInput(it, paste = true) }
                             view.onContent = ::acceptTerminalPaste
