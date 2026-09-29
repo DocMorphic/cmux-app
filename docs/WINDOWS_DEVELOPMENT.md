@@ -23,6 +23,7 @@ $env:ANDROID_HOME = 'C:\path\to\android-sdk'
 $env:Path = "$env:ANDROID_HOME\platform-tools;$env:Path"
 gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
 gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
+gh run download 36642877666 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
 .\gradlew.bat --no-daemon --max-workers=1 :app:testDebugUnitTest
 node --test bridge/*.test.mjs
 python scripts/verify-viewer-assets.py

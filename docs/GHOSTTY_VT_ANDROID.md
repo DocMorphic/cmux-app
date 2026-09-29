@@ -160,9 +160,15 @@ above, or the native artifact produced by the existing Android workflow's new
 `ghostty_only` option. That option does not publish a signed app or require release
 signing secrets. From a checkout with GitHub CLI access:
 
-The placeholder bridge needs a new core/JNI checkpoint. Earlier artifacts such
-as `36637832054` predate it and no longer match the source hashes. Build from the
-commands above or generate a new native CI artifact from this branch:
+The current GVI2/placeholder checkpoint is verified Linux run `36642877666`.
+Earlier checkpoints (including `36641031462`) lack GVI2 and do not match the
+current source. Download the verified artifact into a fresh directory:
+
+```sh
+gh run download 36642877666 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
+```
+
+If it expires, build from the commands above or generate a new native CI artifact:
 
 ```sh
 gh workflow run android.yml --repo DocMorphic/cmux-app --ref feature/local-mac-bridge -f ghostty_only=true
@@ -510,3 +516,29 @@ Verification:
 
 Large-image decode/upload and overall rendering performance, resource-limit
 parity, broader graphics comparisons and real Mac/Pixel acceptance remain open.
+
+
+## GVI2 Linux artifact verification (2026-09-30)
+
+[Run 36642877666](https://github.com/DocMorphic/cmux-app/actions/runs/36642877666)
+at `e6ba5e0` passed. All 29 downloaded JNI/notice hashes, three binding/bridge
+source hashes, the core receipt hash and GVI2 version were checked locally.
+The downloaded standalone Android test APK passes native LOAD/RELRO and ZIP
+16 KB alignment and all **18 runtime tests in 0.586 seconds** on the Android 17
+arm64 emulator (4 KiB runtime pages). This covers the Linux-produced binding's
+text, images, Unicode placeholders, cache reuse and profiling fixture. It does
+not publish or sign the main app or prove Pixel/Mac acceptance.
+
+- JNI SHA-256: `79e3a88f06f171f8756de992aa63994a9bd6a53289a2541f1162c8b8cff4fb6f`
+- Test APK SHA-256: `2e49c5112e4a7c3995807f7b3c0b4d58a3bc64c4d203292569457150155d35c0`
+- Runtime evidence: `captures/runtime/toolbar/ci-native-runtime.log` (ignored).
+
+The previous placeholder-only run `36641031462` also completed successfully,
+but its artifacts were not downloaded/runtime-verified here and are superseded.
+
+The same downloaded APK subsequently passed all **18 tests in 0.955 seconds**
+on Google's Android 17 arm64 **16 KiB-page kernel** (`cmux_api37_16k`).
+`getconf PAGE_SIZE` returned 16384 and package manager reported `pageSizeCompat=0`
+for the native test package. Evidence: `captures/runtime/toolbar/ci-native-runtime-16k.log`.
+This closes the current Linux native binding's 16 KiB kernel check, rather than
+relying only on static ELF alignment or the earlier binding's runtime result.
