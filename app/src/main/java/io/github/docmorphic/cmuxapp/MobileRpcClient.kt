@@ -387,10 +387,11 @@ class MobileRpcClient internal constructor(
         return request("mobile.terminal.scroll", params)
     }
 
-    suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int,
+    suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int, viewportGeneration: Long,
                        screenAnchor: Boolean = true, maxScrollbackRows: Int = 10_000): JSONObject {
         val params = JSONObject().put("workspace_id", workspaceId).put("surface_id", surfaceId)
             .put("client_id", clientId).put("viewport_columns", columns).put("viewport_rows", rows)
+            .put("viewport_generation", viewportGeneration)
         if (screenAnchor) params.put("anchor", "screen").put("max_scrollback_rows", maxScrollbackRows.coerceIn(0, 10_000))
         return request("mobile.terminal.replay", params)
     }

@@ -51,6 +51,33 @@ the user was asked to request a fresh code to verify the sign-in correction.
 
 Reference: [Android native alignment guidance](https://developer.android.com/guide/practices/page-sizes).
 
+## First live Mac terminal and viewport correction — 2026-09-29
+
+After the user signed in, the physical Pixel showed the Mac's existing workspaces.
+Using the Android app's New workspace action created a separate third workspace.
+The composer sent `echo cmux_android_live_20260929`; its command, output marker and
+next Mac shell prompt were visible on the Pixel. Existing user terminals were not
+used for test input. This is the first live account/workspace/terminal round trip,
+not just a local protocol fixture. Screenshots are retained locally under
+`captures/runtime/pixel-native-20260929` (`workspaces-current.png` and
+`live-input-first.png`); they are not committed.
+
+The same run exposed a persistent "Terminal viewport is still resizing" banner.
+Upstream `TerminalController.applyMobileViewportReport` rejects a generationless
+replay after a numbered dedicated viewport report. Android was doing exactly that.
+Replay now carries the same client, surface, viewport generation and original
+phone dimensions as its dedicated report. It must not replace the phone's natural
+dimensions with a smaller effective host cap. Genuine `viewport_transition`
+responses now wait for a full grid or a three-second watchdog, with two retries,
+matching the pinned iOS readiness/retry policy. Other errors and cancellation are
+not retried; this recovery helper is never used for terminal input.
+
+Six focused generation/recovery tests and ten existing terminal-mirror tests
+passed. The updated debug APK built, passed all native alignment checks and was
+installed without clearing account state. Live validation of the resize fix and
+reconnect is pending the phone being unlocked again. This does not establish full
+rendering, notifications, Files, background recovery or overall iOS parity.
+
 ## Physical Pixel native lanes — 2026-09-29
 
 Installed the debug app and app test APK from source `61a6bf7` on the Pixel 6a

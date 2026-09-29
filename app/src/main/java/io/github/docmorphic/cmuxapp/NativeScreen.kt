@@ -120,7 +120,6 @@ fun NativeScreen(
         terminalViewportPixels.width, terminalViewportPixels.height, terminalCells)
     val terminalColumns = terminalViewport?.columns ?: 0
     val terminalRows = terminalViewport?.rows ?: 0
-    var effectiveTerminalViewport by remember { mutableStateOf<TerminalViewport?>(null) }
     var viewportRequestGeneration by remember { mutableLongStateOf(0L) }
     val store = remember(context, sharedConnections) { sharedConnections?.store ?: NativeCredentialStore(context.applicationContext) }
     val account = remember(store) { sharedConnections?.account ?: NativeAccount(store) }
@@ -868,13 +867,14 @@ fun NativeScreen(
         val terminal = selectedTerminal ?: return@LaunchedEffect
         val requestedViewport = terminalViewport ?: return@LaunchedEffect
         val generation = ++replayGeneration
+        val viewportGeneration = ++viewportRequestGeneration
         val transport = terminalTransport
         val mirror = TerminalStreamMirror(terminal.id, transport, requestedViewport)
+        val replayRecovery = TerminalReplayRecovery()
         // Keep the last painted frame while this viewport gets a fresh replay.
         // The display state above resets for a different terminal or connection;
         // protocol cursors and parser state always belong to this new mirror.
         scrollOffset = 0
-        effectiveTerminalViewport = null
         var replayRunning = false
         var replayAgain = false
         var recoveryFailed = false
@@ -896,10 +896,13 @@ fun NativeScreen(
             try {
                 repeat(3) {
                     replayAgain = false
-                    val size = effectiveTerminalViewport ?: requestedViewport
-                    val snapshot = active.replay(workspace.id, terminal.id, size.columns, size.rows,
-                        screenAnchor = transport.screenAnchor,
-                        maxScrollbackRows = if (mirror.historyLineCount == 0) 10_000 else 0)
+                    // Replay also reports a viewport. Preserve this generation's
+                    // natural dimensions, rather than re-pinning to a host cap.
+                    val snapshot = replayRecovery.replay {
+                        active.replay(workspace.id, terminal.id, requestedViewport.columns, requestedViewport.rows,
+                            viewportGeneration = viewportGeneration, screenAnchor = transport.screenAnchor,
+                            maxScrollbackRows = if (mirror.historyLineCount == 0) 10_000 else 0)
+                    }
                     if (generation != replayGeneration || client !== active) return
                     val result = mirror.replay(snapshot)
                     publish()
@@ -932,6 +935,11 @@ fun NativeScreen(
                     lastDelivery = event.deliverySequence
                 }
                 if (event.streamId != null && event.streamId != subscriptionId) return@collect
+                if (event.topic == "terminal.render_grid") {
+                    val frame = event.payload.optJSONObject("render_grid") ?: event.payload
+                    if (frame.optString("surface_id") == terminal.id && frame.optBoolean("full", true) &&
+                        frame.optInt("columns") > 0 && frame.optInt("rows") > 0) replayRecovery.onFullGrid()
+                }
                 try {
                     val result = when (event.topic) {
                         "terminal.render_grid" -> mirror.grid(event.payload)
@@ -978,13 +986,8 @@ fun NativeScreen(
             }
             kotlin.coroutines.coroutineContext.ensureActive()
             viewportAttempted = true
-            val viewportGeneration = ++viewportRequestGeneration
             runCatching {
                 active.reportViewport(workspace.id, terminal.id, requestedViewport, viewportGeneration)
-            }.onSuccess { response ->
-                val columns = response.optInt("columns")
-                val rows = response.optInt("rows")
-                if (columns > 0 && rows > 0) effectiveTerminalViewport = TerminalViewport(columns, rows)
             }.onFailure {
                 if (it is CancellationException) throw it
                 error = it.message ?: "Terminal resize failed"
