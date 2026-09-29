@@ -1,7 +1,7 @@
 # Upstream Ghostty VT core on Android
 
-Checkpoint: 2026-09-29. This is a native engine prerequisite, **not an app
-renderer replacement or a completed terminal-parity milestone**. The installed
+Checkpoint: 2026-09-29. This is a native engine and Android binding prerequisite,
+**not an app renderer replacement or a completed terminal-parity milestone**. The installed
 app continues to use the authoritative Mac render grid and the existing Termux
 compatibility parser for byte/hybrid streams.
 
@@ -77,12 +77,12 @@ ELF alignment check remains necessary.
 
 ## Integration still required
 
-1. Add a small Android native binding with explicit terminal/render-state
-   ownership, serialized access and deterministic close on replay replacement,
-   surface switch and disposal. Never return borrowed C pointers to Compose.
-2. Use the render-state iterator API for drawing; upstream explicitly warns that
-   grid references are not intended for a frame-rate render loop. Copy bounded
-   grapheme/style/color/cursor snapshots, including history viewport geometry.
+1. Connect the implemented Android binding to production replay replacement,
+   surface switch and disposal. The binding has explicit ownership/close; the
+   app must invoke it at each lifecycle boundary before enabling the engine.
+2. Adapt the owned snapshots to the Compose painter, including full style and
+   history viewport geometry. The binding already uses render-state iterators;
+   upstream warns that grid references are unsuitable for a frame-rate loop.
 3. Replace the byte/hybrid compatibility engine behind `TerminalStreamMirror`
    while retaining its replay barrier, unsigned cursor, overlap trimming and
    authoritative-grid negotiation. Keep Mac PTY replies, clipboard operations and
@@ -97,3 +97,67 @@ ELF alignment check remains necessary.
 The C API is marked unstable upstream, so the exact source pin and matching
 headers are part of the binding contract. Building the library does not prove
 JNI correctness, Android UI performance, inline graphics or iOS feature parity.
+
+## Android binding checkpoint
+
+The new `:ghostty` Android library module owns the terminal, render state, row
+iterator and cell iterator together. Kotlin serializes each terminal's operations;
+the C registry uses monotonic IDs and a mutex to reject stale handles instead of
+dereferencing Java-provided pointers. Close is idempotent and frees all four native
+objects. Failed construction also unwinds partial allocations.
+
+Snapshots copy versioned, bounded binary data into JVM-owned values. They carry
+grapheme clusters and cell widths, resolved explicit/default colors, rich underline
+style/color, decorations, cursor, screen/modes and scrollback. Reading history
+restores the live viewport before subsequent bytes are parsed. No PTY reply or
+clipboard callbacks are installed; pinned upstream image storage defaults to
+direct payloads, with file/temp-file/shared-memory media disabled. Image decoding
+and painting are not exposed by this binding yet.
+
+The pinned C header labels `max_scrollback` as lines, but tracing through
+`c/terminal.zig` to `Screen.init` proves it is a **byte budget**, rounded up to
+storage pages. The binding therefore calls the option `scrollbackBytes` (16 MiB
+default, configurable 0–64 MiB) and reports the actual retained row count. It does
+not convert bytes into an assumed line limit. Zero disables history.
+
+Build after the core command above:
+
+```sh
+python3 scripts/build-ghostty-jni-android.py \
+  --core build/ghostty-vt-android \
+  --ndk /path/to/android-sdk/ndk/28.2.13676358
+./gradlew :ghostty:testDebugUnitTest :ghostty:assembleDebug :ghostty:assembleDebugAndroidTest
+```
+
+The JNI builder verifies core artifact hashes, links the static archive into
+`libcmux_ghostty.so`, strips debug information, checks alignment and records the
+binding source hash. Gradle refuses an outdated binding checkpoint. Upstream and
+downloaded dependency licenses/notices are included in the module's assets. The
+library needs only Android's libc/libm/libdl; no separate versioned Ghostty `.so`
+must be packaged.
+
+Verification on the final binding:
+
+- **3 JVM tests passed**: owned-data decoding; every truncated prefix, trailing
+  bytes and unknown versions; invalid dimensions/colors/widths/lengths.
+- **7 Android 17/API 37 emulator tests passed in 0.378 seconds**. Coverage includes
+  split Unicode/ANSI, combining and emoji clusters, wide-cell columns, RGB and
+  curly underline color/style, modes/alternate restore, OSC colors and erased
+  backgrounds, history/resize, copied snapshot independence, 100 create/close
+  cycles with handle-count checks, concurrent close, stale-ID rejection, invalid
+  input and 3,997 retained history rows. A zero-history terminal was also checked.
+- The earlier six-case run passed before the byte-budget correction. The final
+  seven-case run is the acceptance evidence for the corrected API.
+- The AAR and instrumentation APK build. Both pass ELF 16 KB alignment; the test
+  APK also passes ZIP 16 KB alignment. Runtime page size remains the emulator's
+  4 KB, so physical/16 KB runtime acceptance remains open.
+- JNI SHA-256: `03e65225bc3e804d40f7650dd00ca35ebf0b579985083ac79267e956523ef70a`.
+- Instrumentation APK SHA-256:
+  `22344d984876599fecc7f9655a8a5b59e453e8dc72d881931b497e913654d069`.
+- Evidence: ignored `captures/runtime/ghostty-jni/` and
+  `build/ghostty-vt-android/gradle-binding-final.log`. Emulator stopped afterward.
+
+The app has no dependency on `:ghostty` yet, so existing app CI tasks and the
+installed Pixel APK are unchanged. App dependency/CI native preparation,
+`TerminalDisplay` adaptation, actual replay/disposal ownership, images, rendering
+performance and Pixel/Mac acceptance remain required before shipping this engine.

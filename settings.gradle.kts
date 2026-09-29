@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 rootProject.name = "cmux-app"
 include(":app")
 include(":iroh")
+include(":ghostty")

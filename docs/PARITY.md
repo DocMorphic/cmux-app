@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Android Ghostty binding prerequisite (2026-09-29):** a separate native module
+now owns terminal/render resources, returns copied bounded snapshots and rejects
+stale handles. It preserves grapheme clusters, rich styles, modes and scrollback;
+history reads restore the live viewport. An upstream header/implementation unit
+mismatch was corrected in the binding's explicit byte-budget API. Three JVM and
+seven Android emulator cases pass; AAR/test APK build and 16 KB checks pass.
+The module is not yet wired into the app. Production renderer/replay lifecycle,
+images, CI preparation and physical acceptance remain open. See
+[GHOSTTY_VT_ANDROID.md](GHOSTTY_VT_ANDROID.md).
+
 **Upstream Android terminal-core prerequisite (2026-09-29):** the pinned Ghostty
 VT C library now has a reproducible Android arm64 build and synthetic runtime
 probe. The unmodified library failed RELRO alignment; an isolated common-page-size
