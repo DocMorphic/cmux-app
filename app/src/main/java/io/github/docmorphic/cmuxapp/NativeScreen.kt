@@ -107,6 +107,7 @@ fun NativeScreen(
     val displayPreferences = remember(context) {
         context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE)
     }
+    val toolbarStore = rememberTerminalToolbar(displayPreferences)
     var terminalScale by remember(displayPreferences) {
         mutableFloatStateOf(displayPreferences.getFloat("terminal_scale", 1f).coerceIn(0.75f, 1.5f))
     }
@@ -445,6 +446,8 @@ fun NativeScreen(
         }
     }
 
+    var showShortcuts by remember(draftTarget, client) { mutableStateOf(false) }
+    if (showShortcuts) TerminalToolbarSettings(toolbarStore) { showShortcuts = false }
     var inputModifiers by remember(draftTarget, client) { mutableStateOf(TerminalInputModifiers()) }
     var directTyping by remember(draftTarget) { mutableStateOf(false) }
     var rawKeyboardView by remember(draftTarget) { mutableStateOf<TerminalKeyboardView?>(null) }
@@ -1227,6 +1230,7 @@ fun NativeScreen(
                         modifier = Modifier.semantics { contentDescription = "Background notifications" })
                 }
                 NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences)
+                TextButton(onClick = { showShortcuts = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Terminal Shortcuts") }
                 TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
                 NativeNetworkingSettings(sharedConnections?.native, computerState)
                 NativeLegacyConnectionCheckSettings(client, pairedMacs, code, connectionReady)
@@ -1442,42 +1446,37 @@ fun NativeScreen(
                     }
                 }
                 }
-                Row(Modifier.horizontalScroll(rememberScrollState()).background(nativePanel),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    TerminalInputModifiers.Key.entries.forEach { key ->
-                        val armed = inputModifiers.armed == key
-                        val locked = armed && inputModifiers.sticky
-                        TextButton(onClick = {
-                            inputModifiers = inputModifiers.tap(key, android.os.SystemClock.uptimeMillis())
-                        }, modifier = Modifier.semantics {
-                            stateDescription = if (locked) "Locked" else if (armed) "Armed" else "Off"
-                        }, shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.textButtonColors(
-                                containerColor = if (armed) nativeAccent else Color.Transparent,
-                                contentColor = if (armed) Color.Black else nativeMuted),
-                            border = if (locked) androidx.compose.foundation.BorderStroke(2.dp, Color.White) else null
-                        ) { Text(key.label, fontWeight = if (locked) FontWeight.Bold else FontWeight.Normal) }
-                    }
-                    if (!directTyping) TextButton(onClick = { sendComposer(submit = false) },
-                        enabled = client != null && terminalDraft.operation == null && !preparingAttachments &&
-                            (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty())) { Text("Insert", color = nativeMuted) }
-                    listOf("Esc" to "Esc", "Tab" to "Tab", "⌫" to "Backspace",
-                        "⌦" to "Delete", "↵" to "Enter", "↑" to "Up", "↓" to "Down",
-                        "←" to "Left", "→" to "Right", "Home" to "Home", "End" to "End",
-                        "Pg↑" to "PageUp", "Pg↓" to "PageDown", "^C" to "CtrlC",
-                        "^D" to "CtrlD", "^Z" to "CtrlZ", "^L" to "CtrlL")
-                        .forEach { (label, key) ->
-                            TextButton(onClick = {
+                TerminalToolbarView(toolbarStore.layout, inputModifiers,
+                    canInput = connectionReady && client != null && inputStatus.error == null && terminalDraft.operation == null,
+                    filesEnabled = artifactsReady,
+                    onModifier = { inputModifiers = inputModifiers.tap(it, android.os.SystemClock.uptimeMillis()) },
+                    onButton = { button ->
+                        when (button) {
+                            TerminalToolbarButton.PASTE -> pasteClipboard()
+                            TerminalToolbarButton.FILES -> if (artifactsReady) {
+                                inputModifiers = TerminalInputModifiers()
+                                stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
+                            }
+                            TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT -> {
+                                terminalScale = (terminalScale + if (button == TerminalToolbarButton.ZOOM_IN) .05f else -.05f).coerceIn(.75f, 1.5f)
+                                displayPreferences.edit().putFloat("terminal_scale", terminalScale).apply()
+                            }
+                            else -> button.key?.let { key ->
                                 rawKeyboardView?.finishComposition()
                                 val sequence = inputModifiers.special(key, currentGrid.applicationCursorKeys)
                                 inputModifiers = inputModifiers.consume()
-                                scrollPosition = 0.0
                                 queueInput(sequence)
-                            }) { Text(label, color = nativeMuted) }
+                            }
                         }
-                    TextButton(onClick = ::pasteClipboard) { Text("Paste", color = nativeMuted) }
-
-                }
+                    }, onCustom = { action ->
+                        rawKeyboardView?.finishComposition()
+                        inputModifiers = TerminalInputModifiers()
+                        queueInput(action.output)
+                    }, onCustomize = {
+                        rawKeyboardView?.finishComposition(); inputModifiers = TerminalInputModifiers()
+                        softwareKeyboard?.hide(); showShortcuts = true
+                    }, insert = if (!directTyping && client != null && terminalDraft.operation == null && !preparingAttachments &&
+                        (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty())) ({ sendComposer(submit = false) }) else null)
                 inputStatus.error?.let { message ->
                     Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically) {

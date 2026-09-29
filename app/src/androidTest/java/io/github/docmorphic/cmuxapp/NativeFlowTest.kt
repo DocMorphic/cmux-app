@@ -32,6 +32,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -675,6 +676,132 @@ class NativeFlowTest {
         val last = peer.requests.last { it.optString("method") == "terminal.input" }.getJSONObject("params")
         assertEquals("c", last.getString("text"))
         assertEquals("terminal-2", last.getString("surface_id"))
+    }
+
+    @Test fun customToolbarActionPersistsEditsAndSendsExactBytesWithoutArmedModifiers() {
+        val preferences = context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE)
+        val previous = preferences.getString(TerminalToolbarLayout.PREFERENCE, null)
+        preferences.edit().remove(TerminalToolbarLayout.PREFERENCE).commit()
+        try {
+            compose.setContent {
+                CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                    NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                        MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                            .also { it.connect(); observedClients += it }
+                    })
+                } }
+            }
+            waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Claude Code task").performClick()
+            waitForTerminalText()
+            compose.onNodeWithContentDescription("Customize terminal shortcuts").performClick()
+            val listBounds = compose.onNodeWithTag("terminal-shortcut-list").fetchSemanticsNode().boundsInRoot
+            val ctrlBounds = compose.onNodeWithTag("shortcut-toggle-${TerminalToolbarButton.CONTROL.id}").fetchSemanticsNode().boundsInRoot
+            val altBounds = compose.onNodeWithTag("shortcut-toggle-${TerminalToolbarButton.ALT.id}").fetchSemanticsNode().boundsInRoot
+            compose.onNodeWithTag("terminal-shortcut-list").performTouchInput {
+                val x = width - 18f
+                down(androidx.compose.ui.geometry.Offset(x, ctrlBounds.center.y - listBounds.top))
+                advanceEventTime(700)
+                moveTo(androidx.compose.ui.geometry.Offset(x, altBounds.bottom - listBounds.top - 4f), delayMillis = 120)
+                up()
+            }
+            compose.runOnIdle {
+                assertEquals(listOf(TerminalToolbarButton.ALT.id, TerminalToolbarButton.CONTROL.id),
+                    TerminalToolbarStore(preferences).layout.order.take(2))
+            }
+            compose.onNodeWithTag("shortcut-toggle-${TerminalToolbarButton.COMMAND.id}").performClick()
+            compose.runOnIdle { assertFalse(TerminalToolbarButton.COMMAND.id in TerminalToolbarStore(preferences).layout.enabled) }
+            compose.onNodeWithText("Add Custom Action").performClick()
+            compose.onNodeWithTag("shortcut-action-title").performTextInput("Status")
+            compose.onNodeWithTag("shortcut-action-text").performTextInput("pwd")
+            compose.onNodeWithText("Save").performClick()
+            compose.onNodeWithText("Done").performClick()
+            val saved = TerminalToolbarLayout.decode(preferences.getString(TerminalToolbarLayout.PREFERENCE, null))
+            val custom = saved.actions.single()
+            assertEquals("pwd\n", custom.text)
+            assertTrue(peer.requests.none { it.optString("method") == "terminal.input" })
+            compose.onNodeWithText("Ctrl", useUnmergedTree = true).performClick()
+            revealToolbarShortcut(custom.itemId)
+            compose.onNodeWithTag("terminal-shortcut-${custom.itemId}").performClick()
+            waitForTerminalFixture(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 1 }
+            assertEquals("pwd\r", peer.requests.single { it.optString("method") == "terminal.input" }.getJSONObject("params").getString("text"))
+            revealToolbarShortcut(TerminalToolbarButton.CONTROL.id, left = false)
+            compose.onNodeWithTag("terminal-shortcut-${TerminalToolbarButton.CONTROL.id}")
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Off"))
+            compose.onNodeWithContentDescription("Customize terminal shortcuts").performClick()
+            revealShortcutEditorAction("Edit Status")
+            compose.onNodeWithContentDescription("Edit Status").performClick()
+            compose.onNodeWithTag("shortcut-action-text").performTextReplacement("echo 你好")
+            compose.onNodeWithContentDescription("Run after typing").performClick()
+            compose.onNodeWithText("Save").performClick()
+            compose.onNodeWithText("Done").performClick()
+            revealToolbarShortcut(custom.itemId)
+            compose.onNodeWithTag("terminal-shortcut-${custom.itemId}").performClick()
+            waitForTerminalFixture(10_000) { peer.requests.count { it.optString("method") == "terminal.input" } == 2 }
+            assertEquals(listOf("pwd\r", "echo 你好"), peer.requests.filter { it.optString("method") == "terminal.input" }
+                .map { it.getJSONObject("params").getString("text") })
+            val reloaded = TerminalToolbarStore(preferences).layout
+            assertEquals(custom.id, reloaded.actions.single().id)
+            assertEquals("echo 你好", reloaded.actions.single().text)
+            screenshot("terminal-custom-shortcut")
+            compose.onNodeWithContentDescription("Customize terminal shortcuts").performClick()
+            compose.onNodeWithText("Reset to Defaults").performClick()
+            compose.runOnIdle {
+                val reset = TerminalToolbarStore(preferences).layout
+                assertEquals(custom.itemId, reset.order.last())
+                assertTrue(custom.itemId in reset.enabled)
+                assertTrue(TerminalToolbarButton.COMMAND.id in reset.enabled)
+            }
+            revealShortcutEditorAction("Edit Status")
+            screenshot("terminal-shortcut-settings")
+            compose.onNodeWithContentDescription("Delete Status").performClick()
+            compose.runOnIdle { assertTrue(TerminalToolbarStore(preferences).layout.actions.isEmpty()) }
+        } catch (failure: Throwable) {
+            File(context.filesDir, "toolbar-test-failure.txt").writeText(failure.stackTraceToString())
+            compose.mainClock.autoAdvance = false
+            File(context.filesDir, "toolbar-test-tree.txt").writeText(compose.onAllNodes(isRoot()).printToString())
+            screenshot("terminal-shortcut-failure")
+            throw failure
+        } finally {
+            compose.mainClock.autoAdvance = false
+            preferences.edit().putString(TerminalToolbarLayout.PREFERENCE, previous).commit()
+        }
+    }
+
+    private fun revealShortcutEditorAction(description: String) {
+        val previousAutoAdvance = compose.mainClock.autoAdvance
+        compose.mainClock.autoAdvance = false
+        try {
+            // The dialog is a separate Android window. Pump its first composition
+            // after freezing the clock, before resolving lazy-list semantics.
+            compose.waitUntil(5_000) {
+                compose.mainClock.advanceTimeBy(32)
+                compose.onAllNodesWithTag("terminal-shortcut-list").fetchSemanticsNodes().isNotEmpty()
+            }
+            repeat(12) {
+                if (compose.onNodeWithContentDescription(description).isDisplayed()) return
+                compose.onNodeWithTag("terminal-shortcut-list").performTouchInput { swipeUp(durationMillis = 300) }
+                compose.mainClock.advanceTimeBy(1_000)
+                compose.waitForIdle()
+            }
+            compose.onNodeWithContentDescription(description).assertIsDisplayed()
+        } finally { compose.mainClock.autoAdvance = previousAutoAdvance }
+    }
+
+    private fun revealToolbarShortcut(id: String, left: Boolean = true) {
+        val previousAutoAdvance = compose.mainClock.autoAdvance
+        compose.mainClock.autoAdvance = false
+        try {
+            repeat(16) {
+                if (compose.onNodeWithTag("terminal-shortcut-$id").isDisplayed()) return
+                compose.onNodeWithTag("terminal-toolbar-scroll").performTouchInput {
+                    if (left) swipeLeft(durationMillis = 300) else swipeRight(durationMillis = 300)
+                }
+                compose.mainClock.advanceTimeBy(600)
+                compose.waitForIdle()
+            }
+            compose.onNodeWithTag("terminal-shortcut-$id").assertIsDisplayed()
+        } finally { compose.mainClock.autoAdvance = previousAutoAdvance }
     }
 
     @Test fun directKeyboardCompositionKeysPauseAndTargetSwitch() {
