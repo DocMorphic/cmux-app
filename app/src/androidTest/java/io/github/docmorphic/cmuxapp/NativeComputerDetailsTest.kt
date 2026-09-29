@@ -88,6 +88,30 @@ class NativeComputerDetailsTest {
         }
     }
 
+    @Test fun connectionDetailsFollowVerifiedSessionWithoutShowingStaleRole() {
+        val connection = androidx.compose.runtime.mutableStateOf(NativeComputerConnection())
+        compose.setContent { CmuxTheme { NativeComputerDetailsScreen(target, true, true,
+            check = { NativeConnectionReport() }, paths = { emptyList() }, changePaths = { emptyList() },
+            share = {}, onBack = {}, connection = connection.value) } }
+        compose.onNodeWithText("Available in this team").assertIsDisplayed()
+        compose.onNodeWithText("Not connected").assertIsDisplayed()
+        compose.onNodeWithText("—").assertIsDisplayed()
+        compose.onNodeWithText("Role").assertDoesNotExist()
+        compose.runOnIdle { connection.value = NativeComputerConnection(NativeFeedAvailability.CONNECTED, true, 12) }
+        compose.onNodeWithText("Connected").assertIsDisplayed()
+        compose.onNodeWithText("Active (foreground)").assertIsDisplayed()
+        compose.onNodeWithText("12").assertIsDisplayed()
+        capture("computer-connection-active")
+        compose.runOnIdle { connection.value = NativeComputerConnection(NativeFeedAvailability.CONNECTING, false, 12) }
+        compose.onNodeWithText("Reconnecting…").assertIsDisplayed()
+        compose.onNodeWithText("Role").assertDoesNotExist()
+        compose.onNodeWithText("12").assertIsDisplayed()
+        compose.runOnIdle { connection.value = NativeComputerConnection(NativeFeedAvailability.CONNECTED, false, 0) }
+        compose.onNodeWithText("Connected").assertIsDisplayed()
+        compose.onNodeWithText("Role").assertDoesNotExist()
+        compose.onNodeWithText("0").assertIsDisplayed()
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()

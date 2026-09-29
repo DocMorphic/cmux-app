@@ -6,9 +6,9 @@ Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`:
   ten symbols, ten emoji choices, custom emoji and independent Auto choices.
 - `MachineAvatarColors.swift`, `MacAvatarIcon.swift`, `MachineAvatarPalette.swift`:
   shared machine color, custom palette/RGB precedence and stable scalar hash.
-- `MobilePairedMacStore.swift` and `BackingUpPairedMacStore.swift`: exact account,
-  team and Mac/build customization; explicit customization updates are also
-  mirrored to account backup by iOS.
+- `MobilePairedMacStore.swift` and the active `CMUXMobileRootScene.swift`
+  composition: local storage scoped by build and selected team. The separately
+  implemented backup decorator is not instantiated by this pinned app.
 
 ## Local editing and presentation
 
@@ -94,19 +94,6 @@ the USB-awake setting remained `0`. Live acceptance is still pending.
 
 ## Open work toward full iOS parity
 
-- **Account backup/restore is not yet implemented.** These local customizations
-  currently stay on this Android installation. This is remaining implementation
-  work, not an unavoidable Android difference. Port the explicit customization
-  authority, exact-instance/account/team scope and tombstone rules from
-  `BackingUpPairedMacStore`/`PairedMacBackupClient`; routine discovery refresh must
-  not overwrite newer remote customizations or resurrect revoked Macs.
-  The reference client uses `GET`/`POST /v1/sync/paired-macs` on the presence
-  service, with captured-user Bearer authentication and `X-Cmux-Team-Id`.
-  `PairedMacBackupRecordWire` distinguishes omitted customization fields from
-  explicit null clears and carries `instanceTagWriteMode: preserve` for these
-  edits. Resolve the configured presence base URL, server team echo, revision
-  checks, route-disclosure policy and migration/tombstone handling before adding
-  a writer; do not assume the Iroh V2 enrollment base is the backup service.
 - Live Pixel/Mac acceptance, including rename during a live terminal session,
   background notification delivery, account/team switching and process restart.
 - Legacy Tailscale detail editing, keep-awake list indicators, complete connection
@@ -114,3 +101,31 @@ the USB-awake setting remained `0`. Live acceptance is still pending.
 - Full visual comparison with the running iOS app remains open. Native Android
   symbols, system emoji and the RGB picker provide corresponding controls;
   fixture screenshots alone do not establish complete iOS visual parity.
+
+## Source correction: inactive backup implementation (2026-09-29)
+
+The initial checkpoint incorrectly described account backup as active iOS behavior
+based on `BackingUpPairedMacStore` and `PairedMacBackupClient` alone. Following the
+production call chain changes that conclusion. At the pinned revision,
+`ios/cmuxPackage/Sources/cmuxFeature/CMUXMobileRootScene.swift`:
+
+- `openPairedMacStore` opens the local SQLite store.
+- `makeBackedUpPairedMacStore` (lines 332–350) applies build compatibility and
+  selected-team scoping, then returns `scopedStore`. Despite its name and stale
+  comment, it does **not** construct `BackingUpPairedMacStore`.
+- `makeStore` (lines 502–533) adds the demo overlay and passes this store directly
+  to `CMUXMobileShellStore`; there is no backup wrapper at that call site.
+
+Local-only customization is therefore consistent with the active pinned iOS
+composition. Cloud synchronization is not a verified parity requirement for this
+pin. Recheck composition when updating upstream before implementing any sync.
+This corrects the earlier source interpretation; it does not establish complete
+UI parity or physical-device acceptance.
+
+The dormant library still documents a possible future service contract:
+`GET`/`POST /v1/sync/paired-macs` on the presence service, captured-user Bearer
+authentication, `X-Cmux-Team-Id`, server team echo, revision comparisons and exact
+instance tombstones. Explicit customization updates distinguish omitted fields
+from null clears and use `instanceTagWriteMode: preserve`. These are research
+notes, **not authority to activate that endpoint**. No sync request was sent and
+no cloud writer was added.

@@ -38,15 +38,17 @@ internal data class NativeComputerTarget(val deviceId: String, val buildTag: Str
 
 @Composable
 internal fun NativeSavedComputerDetailsButton(runtime: NativeIrohRuntime?, state: NativeComputersState,
-    mac: NativeCredentialStore.PairedMac, colorIndex: Int? = null) {
+    mac: NativeCredentialStore.PairedMac, colorIndex: Int? = null,
+    connection: NativeComputerConnection = NativeComputerConnection()) {
     val team = state.account ?: return
     val target = NativeComputerTarget.from(mac, team) ?: return
-    NativeComputerDetailsButton(runtime, state, target, colorIndex)
+    NativeComputerDetailsButton(runtime, state, target, colorIndex, connection)
 }
 
 @Composable
 internal fun NativeComputerDetailsButton(runtime: NativeIrohRuntime?, state: NativeComputersState,
-    target: NativeComputerTarget, colorIndex: Int? = null) {
+    target: NativeComputerTarget, colorIndex: Int? = null,
+    connection: NativeComputerConnection = NativeComputerConnection()) {
     val team = state.account
     if (runtime == null || team == null) return
     key(runtime, team, target.deviceId, target.buildTag) {
@@ -69,7 +71,7 @@ internal fun NativeComputerDetailsButton(runtime: NativeIrohRuntime?, state: Nat
                         .putExtra(android.content.Intent.EXTRA_TEXT, report)
                     context.startActivity(android.content.Intent.createChooser(intent, "Share Connection Report"))
                 }, onBack = { open = false },
-                power = { NativeMacPowerSettings(runtime, team, target) }, displayName = title,
+                power = { NativeMacPowerSettings(runtime, team, target) }, displayName = title, connection = connection,
                 appearance = { NativeMacAppearanceSettings(team, target, colorIndex) { runtime.permitsAppearance(team) } })
         }
     }
@@ -80,7 +82,8 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
     check: suspend () -> NativeConnectionReport, paths: suspend () -> List<NativePrivatePath>,
     changePaths: suspend ((NativePrivatePathStore) -> Unit) -> List<NativePrivatePath>,
     share: (String) -> Unit, onBack: () -> Unit, power: @Composable () -> Unit = {},
-    displayName: String = target.name, appearance: @Composable () -> Unit = {}) {
+    displayName: String = target.name, appearance: @Composable () -> Unit = {},
+    connection: NativeComputerConnection = NativeComputerConnection()) {
     Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -95,6 +98,7 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
                     Text("App Build: ${target.buildTag}", fontSize = 13.sp, color = Color(0xFF9B9FA8))
                 }
                 appearance()
+                NativeComputerConnectionSection(connection)
                 NativeConnectionCheckSection(canCheck, check, share,
                     disabledMessage = "Wait for your account’s computer list, then try again.")
                 power()

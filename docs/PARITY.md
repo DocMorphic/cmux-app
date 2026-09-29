@@ -12,15 +12,25 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Computer connection presentation checkpoint (2026-09-29):** Details now shows
+this phone's connection status, the verified foreground role and workspace count,
+scoped to each saved Mac/build. Settings rows show their own connection status.
+Unknown counts remain unknown until a real snapshot arrives. Twenty-six JVM and
+eight emulator UI cases passed; a final Settings row layout adjustment has build
+and alignment verification but was not in that UI run. Physical acceptance is
+pending. See [COMPUTER_CONNECTION.md](COMPUTER_CONNECTION.md) for exact artifacts
+and coverage. Signed published build 157 is unchanged.
+
 **Local computer appearance checkpoint (2026-09-29):** Computer Details now edits
 name, palette/custom RGB color, computer/utility symbols and emoji, with independent
 Auto resets. Scoped atomic storage updates computer rows, the selector, workspace
 avatars/search, task options and notification labels without changing connection
 identity or dialing. Twenty-eight JVM cases and ten Android UI cases pass across
 two runs; an initial JUnit test-declaration failure was fixed and the four new
-cases rerun. Account backup/restore and physical acceptance remain open. See
+cases rerun. Physical acceptance remains open. Following the active iOS composition
+confirmed local storage; the dormant backup decorator is not wired into this pin. See
 [COMPUTER_APPEARANCE.md](COMPUTER_APPEARANCE.md) for evidence, Android icon/picker
-differences and the exact upstream backup contract. Signed build 157 is unchanged.
+differences and the correction to the initial backup interpretation. Signed build 157 is unchanged.
 
 **Mac Power checkpoint (2026-09-29):** Computer Details now has the iOS-style
 Keep Mac Awake control, gated by exact live Mac identity and `caffeine.control.v1`.

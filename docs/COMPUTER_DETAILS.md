@@ -80,13 +80,15 @@ checkpoint, and published signed build 157 remains unchanged.
 The subsequent [Mac Power checkpoint](MAC_POWER.md) implements the detail's
 capability-gated keep-awake status, mutation, reconciliation, events and retry.
 The [appearance checkpoint](COMPUTER_APPEARANCE.md) adds local name/color/icon
-editing and shared display across computer/workspace surfaces; account backup
-and physical-device acceptance remain open.
+editing and shared display across computer/workspace surfaces; physical-device
+acceptance remains open. The active pinned iOS composition also stores appearance
+locally; see the source correction in that checkpoint.
 
 - Physical Mac/Pixel acceptance of the new detail navigation and check-only lease
   flow, including a genuinely unavailable Mac and another app build.
-- Per-computer connection status, foreground role and workspace count.
-- Appearance account backup/restore, keep-awake indicators in the Computers list,
+- Physical acceptance of per-computer connection status, foreground role and
+  workspace count (implemented in [COMPUTER_CONNECTION.md](COMPUTER_CONNECTION.md)).
+- Keep-awake indicators in the Computers list,
   and live acceptance of appearance and the Mac Power control.
 - Per-computer connection-method selection, direct-only endpoint/address intents,
   route editing and remaining legacy Tailscale detail flows.
