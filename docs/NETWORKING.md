@@ -89,10 +89,34 @@ an existing terminal or notification lease. The UI states that changes take
 effect on the next connection. This is automatic routing with extra coordinates;
 a separate direct-only endpoint is not implemented by this checkpoint.
 
+## Live Networking screen
+
+Settings → Networking presents the active V2 runtime: automatic relay/direct
+preferences, native endpoint state, push versus polling discovery, current
+permission/expiry, directory revision, broker-provided relay URLs and credential
+expiry, and the endpoint's observed home relay. It does not infer a home relay
+from the first broker entry or confuse that relay with a Mac session's route.
+“Available” on a relay row means its broker credential is unexpired; it is not a
+reachability test. Closed native endpoints clear their reported home relay.
+
+The metadata reader is fenced by the current account/team owner before and after
+native reads or awaited refreshes. Its DTO excludes tokens, peer/device IDs and
+raw error bodies; credential-bearing or unexpected URL shapes are omitted.
+Refresh reads both the authenticated directory and current relay credentials.
+The page serializes refresh with two-second metadata reads, prevents duplicate
+refresh taps, applies a 15-second deadline, and cancels reads when the page stops
+or its account scope is replaced. Background metadata polling does not perform
+new network requests. Home-relay reads use the existing pinned native FFI without
+changing the generated bindings or native libraries.
+
+This Android page provides the active V2 configuration and status; unsupported
+legacy relay selectors are not presented as functional controls. Diagnostic logs,
+direct-only intents, debug constraints and per-computer navigation remain separate
+requirements below.
+
 ## Remaining active networking requirements
 
-- Active V2 runtime snapshot/status, credential relay attribution, directory
-  revision/permission expiry, refresh and applicable debug route constraints.
+- Applicable debug route constraints and remaining diagnostics navigation.
 - Separate direct-only endpoint/intents, preserving upstream admission and
   endpoint-wide relay-policy isolation.
 - Per-computer detail-screen placement and checks that discover/dial an offline
@@ -179,3 +203,50 @@ and route selection are **not established by these fixture tests**.
 | --- | --- |
 | Main debug APK | `5f1d6c4b4f59e2b54076771d0dc93386e8a4b672821ee59148f8b3d2a4722e60` |
 | App test APK | `91f2dfa218e3065f915d516f44324bb63bbf5f96b9d128e314cd6d5d3f86f4b1` |
+
+## Live Networking / Pixel checkpoint (2026-09-29)
+
+The combined main, app-test and native-test APK build passed. **19 JVM tests**
+passed with zero failures/errors/skips: six metadata projection cases and thirteen
+runtime/account cases, including wrong-team refresh rejection and late refresh
+results after account replacement. The native DTO excludes token/error contents,
+handles permission/credential expiry, rejects credential-bearing URLs and does
+not invent a home relay from directory credentials.
+
+On the user's **Pixel 6a / Android 17 / 4 KiB kernel**, **3 UI tests passed in
+5.084 seconds** (pending/duplicate refresh, safe errors/retry, page replacement
+cancellation) and **1 native endpoint test passed in 0.212 seconds**. The native
+case reads the real FFI while open and after shutdown, asserting no fabricated
+home relay for a direct-only fixture. Native ELF and 16 KiB ZIP alignment pass;
+this phone run is not an additional 16 KiB-kernel run.
+
+The real app then completed these acceptance checks against the connected Mac:
+
+- Upgrading the debug APK preserved sign-in and displayed the real workspaces.
+- Settings opened the new page. The endpoint was Active, discovery used Live
+  Updates, account permission was Current, and directory revision was 24.
+- Refresh completed without an error. Relay credential expiry advanced from
+  14:58:49 to 15:00:43 in the phone's displayed local time. The directory permission
+  expiry remained 15:28:48; no renewal of that permission is claimed.
+- Seven cmux relay rows were displayed. The observed endpoint home relay was
+  `https://euw4.relay.cmux.dev/`, rather than the first broker-list entry.
+- Back returned to Settings. A real Connection Check verified Mac identity,
+  account access and encrypted Iroh, reporting **LAN or Private VPN**, **14 ms**
+  transport RTT and **75 ms** authenticated RPC response duration. This does not
+  distinguish LAN from Tailscale or prove all possible route transitions.
+- Share opened Android's text chooser with only the safe connection report.
+  Nothing was sent. Back dismissed it and returned the app to Workspaces.
+- The notification foreground service was running after the upgrade. No new
+  notification-delivery claim is made by that service-state check.
+- The temporary USB stay-awake setting was restored to its original value **0**.
+
+Screenshots were visually inspected. Logs, UI hierarchy captures, original/restored
+phone settings, XML results and the receipt are in ignored
+`captures/runtime/networking-status/`. Native pairing/account settings were not
+changed; the phone now has this debug APK. Published signed build 157 is unchanged.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Installed main debug APK | `b09f49a705135f283638ee38dad5642a1b94a95ecd2db8cc35c204b1e225f454` |
+| App test APK | `1e641d15af885a13497ee8163b5dd226e5df061e78bcf186b36213789af60a2a` |
+| Native test APK | `3373c89bcd4159551efb3ea36902bd1d8956fa82d74a61bd22b7f165f24b49a1` |

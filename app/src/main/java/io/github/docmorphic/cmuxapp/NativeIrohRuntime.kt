@@ -106,6 +106,22 @@ internal class NativeIrohRuntime(
         }
     }
 
+    suspend fun networking(team: NativeTeamScope, refresh: Boolean = false): NativeNetworkingSnapshot =
+        withContext(Dispatchers.IO) {
+            val run = synchronized(lock) { owner } ?: error("Networking is not ready")
+            requireCurrent(run)
+            check(run.account == team) { "Account session changed" }
+            val service = synchronized(lock) { run.service } ?: error("Networking is not ready")
+            if (refresh) {
+                service.refreshNetworking()
+                requireCurrent(run)
+            }
+            val endpoint = service.endpointStatus()
+            val control = service.state.value
+            requireCurrent(run)
+            NativeNetworkingSnapshot.from(control, endpoint, now()).also { requireCurrent(run) }
+        }
+
     suspend fun privatePaths(team: NativeTeamScope, change: ((NativePrivatePathStore) -> Unit)? = null): List<NativePrivatePath> =
         withContext(Dispatchers.IO) {
             val run = synchronized(lock) { owner } ?: error("Account session changed")

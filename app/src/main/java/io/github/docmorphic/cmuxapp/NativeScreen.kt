@@ -1203,6 +1203,7 @@ fun NativeScreen(
                         modifier = Modifier.semantics { contentDescription = "Show Missing Files" })
                 }
                 TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
+                NativeNetworkingSettings(sharedConnections?.native, computerState)
                 NativeConnectionCheckSettings(client, pairedMacs, code, connectionReady)
                 NativePrivatePathsSettings(sharedConnections?.native, computerState)
                 Text("DISPLAY", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),

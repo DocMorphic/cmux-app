@@ -13,6 +13,8 @@ internal interface IrohAccountBackend : AutoCloseable {
     val state: StateFlow<IrohV2ControlState>
     suspend fun start()
     suspend fun refresh()
+    suspend fun refreshNetworking() { refresh() }
+    fun endpointStatus(): IrxEndpointStatus? = null
     fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport
     suspend fun awaitClosed() { }
     val privatePaths: NativePrivatePathStore? get() = null
@@ -34,6 +36,17 @@ internal class NativeIrohBackend private constructor(
     private var closed = false
     override val state get() = control.state
     override suspend fun refresh() { control.refreshDirectory() }
+    override suspend fun refreshNetworking() {
+        requireCurrent()
+        control.refreshDirectory()
+        requireCurrent()
+        control.refreshRelays()
+        requireCurrent()
+    }
+    override fun endpointStatus(): IrxEndpointStatus? = synchronized(lock) {
+        requireCurrent()
+        endpoint?.status()
+    }
 
     override suspend fun start() {
         control.connect()

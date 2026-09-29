@@ -92,6 +92,10 @@ class IrxEndpointRuntime private constructor(private val endpoint: Endpoint,
         } catch (failure: Throwable) { admitted.close(); throw failure }
     }
 
+    fun status(): IrxEndpointStatus = synchronized(lock) {
+        if (closed) IrxEndpointStatus(false, null) else IrxEndpointStatus.read(endpoint)
+    }
+
     private fun requireAuthority(permits: () -> Boolean) {
         if (!permits() || synchronized(lock) { closed }) throw CancellationException("Irx account or computer access changed")
     }

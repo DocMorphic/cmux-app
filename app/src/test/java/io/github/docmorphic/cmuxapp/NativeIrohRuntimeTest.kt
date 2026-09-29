@@ -21,6 +21,8 @@ class NativeIrohRuntimeTest {
         val transports = mutableListOf<PoolTestTransport>()
         var startAction: suspend () -> Unit = { }
         var dial: suspend () -> Unit = { }
+        var networkRefresh: suspend () -> Unit = { refreshes.incrementAndGet() }
+        override suspend fun refreshNetworking() { networkRefresh() }
         override suspend fun start() { startAction() }
         override suspend fun refresh() { refreshes.incrementAndGet() }
         override fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport {
@@ -33,6 +35,43 @@ class NativeIrohRuntimeTest {
         override fun close() { closes.incrementAndGet() }
     }
     private fun pairing(scope: NativeTeamScope = team) = PairingCodeParser.parse(PairingCodeParser.computer(mac, scope)).getOrThrow() as PairingCode.Iroh
+
+    @Test fun networkingRefreshUsesCurrentBackendAndRejectsWrongTeam() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
+        val backend = Backend()
+        backend.state.value = ready().copy(mode = "http", directoryRevision = 4)
+        backend.networkRefresh = {
+            backend.refreshes.incrementAndGet()
+            backend.state.value = ready().copy(mode = "websocket", directoryRevision = 5)
+        }
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "test-token" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            withTimeout(2000) { runtime.state.first { it.ready } }
+            assertEquals(4L, runtime.networking(team).revision)
+            assertEquals(0, backend.refreshes.get())
+            val refreshed = runtime.networking(team, true)
+            assertEquals(5L, refreshed.revision)
+            assertEquals(NativeNetworkingSnapshot.Discovery.PUSH, refreshed.discovery)
+            assertEquals(1, backend.refreshes.get())
+            assertTrue(runCatching { runtime.networking(team.copy(teamId = "other"), true) }.isFailure)
+            assertEquals(1, backend.refreshes.get())
+        }
+    }
+
+    @Test fun networkingDoesNotReturnLateRefreshAfterAccountChanges() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
+        val backend = Backend()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        backend.networkRefresh = { entered.complete(Unit); release.await() }
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "test-token" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            withTimeout(2000) { runtime.state.first { it.ready } }
+            val read = async { runCatching { runtime.networking(team, true) } }
+            withTimeout(2000) { entered.await() }
+            teams.value = NativeAccountTeamsState()
+            release.complete(Unit)
+            assertTrue(withTimeout(2000) { read.await() }.isFailure)
+        }
+    }
 
     @Test fun privatePathOperationsRejectWrongTeamAndRetiredLogin() = runBlocking<Unit> {
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
