@@ -12,6 +12,20 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Upstream Android terminal-core prerequisite (2026-09-29):** the pinned Ghostty
+VT C library now has a reproducible Android arm64 build and synthetic runtime
+probe. The unmodified library failed RELRO alignment; an isolated common-page-size
+patch fixes it. Both native artifacts pass 16 KB ELF checks, and 100 terminal
+lifecycles pass on the Android 17 emulator (4 KB runtime pages). The app still
+uses its existing renderer/parser; native binding, glyph/image integration and
+physical acceptance are unfinished. See [GHOSTTY_VT_ANDROID.md](GHOSTTY_VT_ANDROID.md).
+
+**Pixel installation checkpoint (2026-09-29):** debug app `5d24946` is installed
+in place, and the installed APK hash matches the tested artifact. The phone was
+then in use with another app open; no new UI acceptance was performed and its
+normal sleep setting remains unchanged. This supersedes older installation
+references to `f0dfc7f`. Published signed build 157 remains unchanged.
+
 **Local terminal pixel scrolling (2026-09-29):** screen-anchored primary
 terminals now retain fractional drag/fling motion, paint both partial edge rows,
 and share geometry with artifact taps. Verified row-space/history growth keeps
