@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Tailscale transport prerequisite (2026-09-29):** the existing QR/TCP path now
+validates numeric IPv4/IPv6 peers and one VPN with Tailscale interface addresses,
+checks both socket endpoints and revalidates before writes. Tunnel changes retire
+connections; invalid proof cannot transmit a payload. Twenty-five focused JVM
+cases pass. Android sources compile, but physical VPN behavior remains unverified
+and no APK was rebuilt for this feature commit. Tailscale-only selection and
+account/device-bound saved-route grants remain open. See
+[TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md).
+
 **Direct connection settings integration (2026-09-29):** Computer Details now
 has Iroh/Direct selection and labeled, individually enabled numeric addresses.
 Settings persist per account/team/device/build. Routing changes retire that Mac's

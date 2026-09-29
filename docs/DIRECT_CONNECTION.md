@@ -128,3 +128,6 @@ ADB detected no Pixel for installation. Its last installed checkpoint remains
 `f0dfc7f`, and published signed build 157 is unchanged. No real Mac registration,
 connection preference or phone power setting was changed. The emulator was stopped
 when verification ended.
+
+The separate Tailscale transport prerequisite and remaining authorization work
+are tracked in [TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md).

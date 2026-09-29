@@ -34,8 +34,14 @@ internal sealed interface MobileControlRepair {
 }
 
 /** Legacy TCP remains available for existing hosts and protocol fixtures. */
+internal interface MobileSocketAuthority : AutoCloseable {
+    fun start(onInvalidated: () -> Unit)
+    fun validate(socket: Socket? = null)
+}
+
 internal class SocketMobileRpcTransport(private val route: PairingCode.Route,
-                                       private val factory: SocketFactory) : MobileRpcTransport {
+                                       private val factory: SocketFactory,
+                                       private val authority: MobileSocketAuthority? = null) : MobileRpcTransport {
     private val lock = Any()
     private val connecting = Mutex()
     private var socket: Socket? = null
@@ -43,30 +49,45 @@ internal class SocketMobileRpcTransport(private val route: PairingCode.Route,
 
     override suspend fun connect() = connecting.withLock {
         withContext(Dispatchers.IO) {
-            val candidate = synchronized(lock) {
+            synchronized(lock) {
                 check(!closed) { "Connection closed" }
                 if (socket?.isConnected == true) return@withContext
-                factory.createSocket().also { socket = it }
             }
             try {
+                authority?.start(::close)
+                authority?.validate()
+                val candidate = synchronized(lock) {
+                    check(!closed) { "Connection closed" }
+                    factory.createSocket().also { socket = it }
+                }
                 candidate.connect(InetSocketAddress(route.host, route.port), 15_000)
                 candidate.tcpNoDelay = true
+                authority?.validate(candidate)
                 synchronized(lock) { check(!closed && socket === candidate) { "Connection closed" } }
             } catch (error: Throwable) { close(); throw error }
         }
     }
     override suspend fun read(): ByteArray? = withContext(Dispatchers.IO) {
-        val bytes = ByteArray(64 * 1024)
-        val count = active().getInputStream().read(bytes)
-        if (count < 0) null else bytes.copyOf(count)
+        try {
+            val current = active()
+            authority?.validate(current)
+            val bytes = ByteArray(64 * 1024)
+            val count = current.getInputStream().read(bytes)
+            authority?.validate(current)
+            if (count < 0) null else bytes.copyOf(count)
+        } catch (error: Throwable) { close(); throw error }
     }
     override suspend fun write(bytes: ByteArray) = withContext(Dispatchers.IO) {
-        active().getOutputStream().apply { write(bytes); flush() }
-        Unit
+        try {
+            val current = active()
+            authority?.validate(current)
+            current.getOutputStream().apply { write(bytes); flush() }
+            Unit
+        } catch (error: Throwable) { close(); throw error }
     }
     private fun active() = synchronized(lock) { check(!closed); checkNotNull(socket) { "Not connected" } }
     override fun close() {
         val previous = synchronized(lock) { closed = true; socket.also { socket = null } }
-        previous?.close()
+        try { previous?.close() } finally { authority?.close() }
     }
 }

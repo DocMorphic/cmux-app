@@ -25,14 +25,13 @@ class TailscaleConnector(private val context: Context) : NativeConnector {
         }
         var lastError: Throwable? = null
         for (route in pairing.routes) {
-            val target = try { withContext(Dispatchers.IO) { TailscaleRoute.resolve(context, route) } }
+            val transport = try { withContext(Dispatchers.IO) { TailscaleRoute.resolve(context, route) } }
                 catch (failure: Exception) {
                     if (failure is CancellationException) throw failure
                     lastError = failure
                     continue
                 }
-            val candidate = MobileRpcClient(target.route, account::accessToken,
-                socketFactory = target.socketFactory)
+            val candidate = MobileRpcClient(transport, account::accessToken)
             try {
                 candidate.connect()
                 return candidate
