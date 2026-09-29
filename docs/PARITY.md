@@ -90,6 +90,29 @@ work. This follow-up has no new APK or live-device claim.
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
+## First authenticated Pixel/Mac acceptance (2026-09-29)
+
+The top table contains cumulative implementation history. Its older “phone QA”
+notes are superseded **only for these bounded checks** by source `3ca2d22`:
+
+- Email sign-in and native account connection reached the real Mac workspace list.
+- Android created a separate workspace; composer input executed a shell command.
+- Actual Gboard key taps executed `pwd` and displayed the Mac result.
+- Keyboard show/hide and terminal reopen succeeded after the viewport generation
+  fix, with no persistent resizing banner.
+- Force-stop/relaunch retained sign-in; manually reopening the workspace recovered
+  terminal history. Automatic selected-screen restoration/network-outage recovery
+  were not established.
+- The detected-folder Files chip browsed the Mac repository and displayed an exact
+  116-byte `.gitignore` preview.
+- A Mac `cmux notify` appeared in the foreground notification feed with the expected
+  unread count; tapping it opened the corresponding test terminal.
+
+See [native runtime checkpoint](NATIVE_RUNTIME_CHECKPOINT.md) for artifact hashes,
+source comparison, evidence and limits. This does not close full terminal fidelity,
+all artifact formats/actions, background notifications, multiple-Mac/team behavior,
+or full iOS parity. Signed release build 157 remains unchanged.
+
 ## Terminal modifier follow-up (2026-09-29)
 
 The pinned iOS `TerminalInputModifierState`, `TerminalKeyEncoder`, and

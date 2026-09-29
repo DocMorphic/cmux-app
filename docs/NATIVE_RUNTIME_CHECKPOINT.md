@@ -1,8 +1,9 @@
 # Native transport and keyboard runtime checkpoint — 2026-09-28
 
-The sections below record separate Android 17 emulator and physical Pixel fixture
-checkpoints. **Authenticated Mac acceptance remains open.** Published signed build
-157 is unchanged.
+The sections below record Android 17 emulator, physical Pixel fixture and live
+authenticated Mac checkpoints. Native sign-in, terminal input/resize, restart
+reconnect and a remote file preview now have physical-device evidence. Broader
+acceptance remains open. Published signed build 157 is unchanged.
 
 ## Android 17 RELRO warning — fixed and checked on Pixel
 
@@ -74,9 +75,43 @@ not retried; this recovery helper is never used for terminal input.
 
 Six focused generation/recovery tests and ten existing terminal-mirror tests
 passed. The updated debug APK built, passed all native alignment checks and was
-installed without clearing account state. Live validation of the resize fix and
-reconnect is pending the phone being unlocked again. This does not establish full
-rendering, notifications, Files, background recovery or overall iOS parity.
+installed without clearing account state. On source `3ca2d22`, reopening the
+terminal showed the prior output without the resize error. Switching to direct
+keyboard input resized the terminal successfully. Actual Gboard key taps entered
+`pwd`, then the Gboard Enter key executed it; the correct Mac repository path and
+next prompt appeared. Hiding the keyboard also produced no resize error.
+
+A full force-stop/relaunch retained sign-in and reconnected to the Mac workspace
+list. Manually reopening the test workspace restored its terminal history,
+including both commands and their results. This checks reconnect and server
+terminal continuity, not automatic restoration of the selected terminal screen
+or recovery from a network outage.
+
+The detected-folder Files chip opened the real Mac repository folder. Browsing
+that folder and opening `.gitignore` displayed all 116 bytes matching the local
+file, with syntax coloring and line numbers. This verifies one live folder/text
+preview path, not every artifact format or file action. Evidence: `viewport-terminal.png`,
+`viewport-keyboard.png`, `direct-ime-pwd.png`, `viewport-keyboard-hidden.png`,
+`restart-list.png`, `restart-terminal.png`, `live-files.png`, `live-folder.png`,
+and `live-file-preview.png` in the same ignored capture directory. Full rendering,
+background recovery and overall iOS parity remain open.
+
+The test terminal then ran `cmux notify --title cmuxAndroidLive --body
+PixelNativeAcceptance` successfully. The Android Notifications tab received the
+correct workspace, title and body with one unread item. Tapping that notification
+opened the same test terminal with its matching command history, and returning
+to the feed confirmed the unread badge cleared. This establishes
+live foreground feed delivery and destination routing; Android system alerts,
+background delivery and server-push fallback are separate remaining gates. Evidence:
+`notification-sent.png`, `live-notifications.png`, `notification-destination.png`,
+`notification-read.png`.
+
+The installed debug APK for these live checks has SHA-256
+`d78ca499224058ec8bb0fabb8b76e9869ccaebaf5379429cea9cbce57fc5c235`.
+`live-acceptance-receipt.json` records source `3ca2d22` and scope. The app test APK
+was not rebuilt for this viewport change; the earlier four native-lane/graphics
+instrumentation checks belong to the preceding RELRO checkpoint.
+
 
 ## Physical Pixel native lanes — 2026-09-29
 
