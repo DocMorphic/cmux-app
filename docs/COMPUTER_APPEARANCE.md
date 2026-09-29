@@ -96,8 +96,9 @@ the USB-awake setting remained `0`. Live acceptance is still pending.
 
 - Live Pixel/Mac acceptance, including rename during a live terminal session,
   background notification delivery, account/team switching and process restart.
-- Legacy Tailscale detail editing, keep-awake list indicators, complete connection
-  roles/routes, and account-wide Forget/revoke remain tracked separately.
+- Legacy Tailscale detail editing, complete route controls and account-wide
+  Forget/revoke remain tracked separately. Connection role/count presentation and
+  keep-awake list indicators were implemented in subsequent checkpoints.
 - Full visual comparison with the running iOS app remains open. Native Android
   symbols, system emoji and the RGB picker provide corresponding controls;
   fixture screenshots alone do not establish complete iOS visual parity.

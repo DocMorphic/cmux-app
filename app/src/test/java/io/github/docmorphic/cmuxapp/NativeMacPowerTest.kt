@@ -55,6 +55,22 @@ class NativeMacPowerTest {
         return session to launch { session.run() }
     }
 
+    @Test fun feedObserverUnsubscribesWithoutClosingItsEnclosingClient() = runBlocking {
+        val wire = Wire()
+        MobileRpcClient(wire, { "token" }).use { client ->
+            client.connect()
+            val session = NativeMacPowerSession(client, target, { true }, Mutex(), closeClientOnExit = false)
+            val job = launch { session.run() }
+            ready(wire, session)
+            job.cancelAndJoin()
+            assertFalse(client.isClosed)
+            assertEquals(NativeMacPowerState(), session.state.value)
+            val read = async { client.hostStatus() }
+            wire.answer(wire.next("mobile.host.status"), host())
+            assertEquals("mac", read.await().getString("mac_device_id"))
+        }
+    }
+
     @Test fun gatesUnsupportedAndWrongIdentityBeforeAnyPowerRpc() = runBlocking {
         for (host in listOf(host(false), host(device = "other"), host(build = "other"))) {
             val wire = Wire()

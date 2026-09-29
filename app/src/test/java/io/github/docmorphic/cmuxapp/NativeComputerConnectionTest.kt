@@ -54,6 +54,17 @@ class NativeComputerConnectionTest {
         assertTrue(nativeComputerConnections(emptyList(), mapOf(mac.origin to source), mac.code, null, emptyList()).isEmpty())
     }
 
+    @Test fun awakeIndicatorRequiresCurrentConnectedCapableSourceEvenWhenForegroundIsLive() {
+        val source = NativeFeedSource(mac, availability = NativeFeedAvailability.CONNECTED,
+            capabilities = setOf("caffeine.control.v1"), keepAwake = true)
+        assertEquals(true, project(source).keepAwake)
+        assertEquals(false, project(source.copy(keepAwake = false)).keepAwake)
+        assertNull(project(source.copy(availability = NativeFeedAvailability.OFFLINE), active = mac.code).keepAwake)
+        assertNull(project(source.copy(availability = NativeFeedAvailability.CONNECTING)).keepAwake)
+        assertNull(project(source.copy(capabilities = emptySet())).keepAwake)
+        assertNull(project(source.copy(keepAwake = null)).keepAwake)
+    }
+
     @Test fun ambiguousIdentityDoesNotBorrowOneOfItsConnections() {
         val duplicate = mac.copy(code = "another-code")
         assertTrue(nativeComputerConnections(listOf(mac, duplicate), emptyMap(), mac.code, null, emptyList()).isEmpty())

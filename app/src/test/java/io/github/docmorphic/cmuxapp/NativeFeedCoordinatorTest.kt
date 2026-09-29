@@ -14,6 +14,127 @@ class NativeFeedCoordinatorTest {
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 
+    @Test fun keepAwakeIsSeededPerMacAndEventsNeverMutatePowerOrAnotherComputer() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            a.powerSupported = true; a.powerValue = true
+            b.powerSupported = true; b.powerValue = false
+            val first = mac("a").copy(instanceTag = "default")
+            val second = mac("b").copy(instanceTag = "default")
+            val coordinator = NativeFeedCoordinator(this, { if (it == first) a.connect() else b.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(first, second))
+                awaitState { coordinator.sources.value[first.origin]?.keepAwake == true &&
+                    coordinator.sources.value[second.origin]?.keepAwake == false }
+                a.powerEvent(false, "unowned-stream"); a.powerEvent("false")
+                delay(40)
+                assertEquals(true, coordinator.sources.value[first.origin]?.keepAwake)
+                a.powerEvent(false)
+                awaitState { coordinator.sources.value[first.origin]?.keepAwake == false }
+                assertEquals(false, coordinator.sources.value[second.origin]?.keepAwake)
+                b.powerEvent(true)
+                awaitState { coordinator.sources.value[second.origin]?.keepAwake == true }
+                assertEquals(false, coordinator.sources.value[first.origin]?.keepAwake)
+                assertTrue((a.requests + b.requests).none { it.optString("method") == "caffeine.set" })
+                coordinator.workspaceAction(first, "w", "rename", "Still connected")
+                assertEquals("Still connected", coordinator.sources.value[first.origin]?.workspaces?.single()?.title)
+                b.disconnect()
+                awaitState { coordinator.sources.value[second.origin]?.availability == NativeFeedAvailability.OFFLINE }
+                assertNull(coordinator.sources.value[second.origin]?.keepAwake)
+                coordinator.pause()
+                assertTrue(coordinator.sources.value.values.all { it.keepAwake == null })
+            } finally { coordinator.close() }
+        } }
+    }
+
+    @Test fun failedPowerReadDoesNotBreakFeedAndPausedSnapshotNeverKeepsCup() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.powerSupported = true; peer.powerValue = "true"
+            val paired = mac("a").copy(instanceTag = "default")
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(paired))
+                awaitState { coordinator.sources.value[paired.origin]?.availability == NativeFeedAvailability.CONNECTED &&
+                    peer.requests.any { it.optString("method") == "caffeine.status" } }
+                assertNull(coordinator.sources.value[paired.origin]?.keepAwake)
+                coordinator.workspaceAction(paired, "w", "rename", "Power is optional")
+                peer.powerEvent(true)
+                awaitState { coordinator.sources.value[paired.origin]?.keepAwake == true }
+                coordinator.pause()
+                assertNull(coordinator.sources.value[paired.origin]?.keepAwake)
+                val gate = java.util.concurrent.CountDownLatch(1)
+                peer.hostStatusGate = gate
+                try {
+                    coordinator.updateMacs(listOf(paired))
+                    assertNull(coordinator.sources.value[paired.origin]?.keepAwake)
+                    assertEquals(NativeFeedAvailability.CONNECTING, coordinator.sources.value[paired.origin]?.availability)
+                } finally { gate.countDown() }
+                coordinator.updateMacs(emptyList())
+                assertTrue(coordinator.sources.value.isEmpty())
+            } finally { coordinator.close() }
+        }
+    }
+
+    @Test fun repeatedPauseRemovesBothOwnedStreamsAndPreservesAnotherConsumersWire() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.powerSupported = true; peer.powerValue = true
+            val paired = mac("a").copy(instanceTag = "default")
+            peer.connect().use { retainedClient ->
+                val coordinator = NativeFeedCoordinator(this, { retainedClient.lease {} }, { true })
+                try {
+                    repeat(3) { cycle ->
+                        coordinator.updateMacs(listOf(paired))
+                        awaitState { coordinator.sources.value[paired.origin]?.let {
+                            it.keepAwake == true && it.availability == NativeFeedAvailability.CONNECTED
+                        } == true }
+                        val subscribed = peer.requests.filter { it.optString("method") == "mobile.events.subscribe" }
+                            .map { it.getJSONObject("params").getString("stream_id") }.toSet()
+                        assertEquals((cycle + 1) * 2, subscribed.size)
+                        coordinator.pause()
+                        assertNull(coordinator.sources.value[paired.origin]?.keepAwake)
+                        awaitState {
+                            peer.requests.filter { it.optString("method") == "mobile.events.unsubscribe" }
+                                .map { it.getJSONObject("params").getString("stream_id") }.toSet().containsAll(subscribed)
+                        }
+                        assertFalse(retainedClient.isClosed)
+                        assertEquals("a", retainedClient.hostStatus().getString("mac_device_id"))
+                    }
+                } finally { coordinator.close() }
+            }
+        }
+    }
+
+    @Test fun legacyPairingNeedsARealHostBuildBeforeObservingPower() = runBlocking {
+        for (build in listOf(JSONObject.NULL, 12, "", "default")) FeedPeer("a").use { peer ->
+            peer.powerSupported = true; peer.powerValue = true; peer.hostBuild = build
+            val paired = mac("a")
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(paired))
+                awaitState { coordinator.sources.value[paired.origin]?.availability == NativeFeedAvailability.CONNECTED }
+                if (build == "default") awaitState { coordinator.sources.value[paired.origin]?.keepAwake == true }
+                else {
+                    assertNull(coordinator.sources.value[paired.origin]?.keepAwake)
+                    assertTrue(peer.requests.none { it.optString("method").startsWith("caffeine.") })
+                }
+            } finally { coordinator.close() }
+        }
+    }
+
+    @Test fun unsupportedMacDoesNotReceivePowerSubscriptionOrRead() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val paired = mac("a").copy(instanceTag = "default")
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(paired))
+                awaitState { coordinator.sources.value[paired.origin]?.availability == NativeFeedAvailability.CONNECTED }
+                assertNull(coordinator.sources.value[paired.origin]?.keepAwake)
+                assertTrue(peer.requests.none { it.optString("method").startsWith("caffeine.") })
+                assertTrue(peer.requests.filter { it.optString("method") == "mobile.events.subscribe" }
+                    .none { it.getJSONObject("params").getJSONArray("topics").toString().contains("caffeine") })
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun workspaceActionsRefreshOnlyTheirOwnerEvenWithCollidingIdsAndRejectedWrites() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             val coordinator = NativeFeedCoordinator(this, { m -> (if (m.deviceId == "a") a else b).connect() }, { true })
@@ -216,6 +337,10 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     val mutationRevision = AtomicInteger(2)
     @Volatile var overrideFeedRevision: Int? = null
     @Volatile var forceUnread = false
+    @Volatile var powerSupported = false
+    @Volatile var hostBuild: Any = "default"
+    @Volatile var powerValue: Any = false
+    private val powerStreams = CopyOnWriteArrayList<Pair<Socket, String>>()
     @Volatile var hostStatusGate: java.util.concurrent.CountDownLatch? = null
     @Volatile var workspaceTitle = "Original"
     @Volatile var rejectWorkspaceAction = false
@@ -241,8 +366,20 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                 val request = JSONObject(String(input.readNBytes(size), Charsets.UTF_8)); requests += request
                 if (request.getString("method") == "mobile.host.status") hostStatusGate?.await(10, java.util.concurrent.TimeUnit.SECONDS)
                 val result = when (request.getString("method")) {
-                    "mobile.host.status" -> JSONObject().put("mac_device_id", id)
-                        .put("capabilities", JSONArray().put("workspace.group_actions.v1"))
+                    "mobile.host.status" -> JSONObject().put("mac_device_id", id).put("mac_instance_tag", hostBuild)
+                        .put("capabilities", JSONArray().put("workspace.group_actions.v1").also {
+                            if (powerSupported) it.put("caffeine.control.v1")
+                        })
+                    "caffeine.status" -> JSONObject().put("enabled", powerValue)
+                    "mobile.events.subscribe" -> JSONObject().also {
+                        val params = request.getJSONObject("params")
+                        if (params.getJSONArray("topics").toString().contains("caffeine.status.changed"))
+                            powerStreams += socket to params.getString("stream_id")
+                    }
+                    "mobile.events.unsubscribe" -> JSONObject().also {
+                        val stream = request.getJSONObject("params").getString("stream_id")
+                        powerStreams.removeAll { it.first === socket && it.second == stream }
+                    }
                     "mobile.workspace.list" -> JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w")
                         .put("window_id", "window-" + id).put("title", workspaceTitle)))
                         .put("groups", JSONArray().put(JSONObject().put("id", "g").put("name", "Group " + id)))
@@ -264,10 +401,18 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                 val response = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
                 if (rejected) response.put("error", JSONObject().put("code", "fixture_rejected").put("message", "Rejected by fixture"))
                 else response.put("result", result)
-                socket.getOutputStream().write(MobileFrameCodec.encode(response.toString().toByteArray()))
-                socket.getOutputStream().flush()
+                send(socket, response)
             }
         } } catch (_: Exception) { }
+    }
+    private fun send(socket: Socket, frame: JSONObject) = synchronized(socket) {
+        socket.getOutputStream().write(MobileFrameCodec.encode(frame.toString().toByteArray()))
+        socket.getOutputStream().flush()
+    }
+    fun powerEvent(value: Any, overrideStream: String? = null) {
+        powerStreams.forEach { (socket, stream) -> if (!socket.isClosed) send(socket,
+            JSONObject().put("kind", "event").put("stream_id", overrideStream ?: stream)
+                .put("topic", "caffeine.status.changed").put("payload", JSONObject().put("enabled", value))) }
     }
     fun disconnect() { sockets.forEach { runCatching { it.close() } } }
     override fun close() { closed = true; disconnect(); server.close() }

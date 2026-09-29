@@ -72,8 +72,10 @@ ignored `captures/runtime/mac-power/`.
 
 ## Remaining broader parity
 
-This implements the detail control. Keep-awake indicators on Computers rows and
-always-seeded state for every connected Mac are not implemented by this change.
-Computer appearance, full connection roles/counts, direct-only routing and
-account-wide Forget/revocation remain separate open work. See
+This checkpoint implements the detail control. The subsequent
+[computer indicators checkpoint](MAC_POWER_INDICATORS.md) seeds and observes
+keep-awake state for connected UI feeds and renders it in computer rows. Local
+appearance and connection role/count presentation are also implemented in later
+checkpoints. Live acceptance, direct-only routing and account-wide Forget/revocation
+remain open work. See
 [COMPUTER_DETAILS.md](COMPUTER_DETAILS.md) and [PARITY.md](PARITY.md).

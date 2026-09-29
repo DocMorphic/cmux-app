@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import org.json.JSONObject
+import java.util.UUID
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,18 +35,20 @@ internal class NativeFeedCoordinator(
             val handle = Handle(mac, revisions.getOrPut(origin) { NativeFeedRevision() })
             handles[origin] = handle
             publish(handle, (mutableSources.value[origin] ?: NativeFeedSource(mac))
-                .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null))
+                .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null, keepAwake = null))
             handle.job = scope.launch { monitor(handle) }
         }
     }
 
     fun pause() {
         handles.keys.toList().forEach(::remove)
-        mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE) }
+        mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE, keepAwake = null) }
     }
     override fun close() { pause(); mutableSources.value = emptyMap(); revisions.clear() }
     private fun remove(origin: String) {
-        handles.remove(origin)?.let { it.job?.cancel(); it.client?.close(); it.refresh.close() }
+        // The monitor's finally releases its client after bounded stream cleanup.
+        // Closing here would prevent unsubscribe while another consumer keeps the wire alive.
+        handles.remove(origin)?.let { it.job?.cancel(); it.refresh.close() }
     }
     private fun current(handle: Handle, client: MobileRpcClient? = handle.client) =
         handles[handle.mac.origin] === handle && handle.client === client && isAllowed(handle.mac)
@@ -69,9 +72,12 @@ internal class NativeFeedCoordinator(
                     (0 until values.length()).mapNotNull { values.optString(it).takeIf(String::isNotBlank) }.toSet()
                 }.orEmpty()
                 publish(handle, (mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac))
-                    .copy(capabilities = capabilities))
+                    .copy(capabilities = capabilities, keepAwake = null))
                 val client = active
                 coroutineScope {
+                    val build = handle.mac.instanceTag ?: (status.opt("mac_instance_tag") as? String)?.takeIf { it.isNotBlank() }
+                    val power = if ("caffeine.control.v1" in capabilities && build != null)
+                        launch { observePower(handle, client, build) } else null
                     val events = launch(start = CoroutineStart.UNDISPATCHED) {
                         client.events.collect { event ->
                             if (event.topic == "notification.feed.changed") {
@@ -83,20 +89,51 @@ internal class NativeFeedCoordinator(
                     val disconnect = launch(start = CoroutineStart.UNDISPATCHED) {
                         client.disconnected.collect { throw it }
                     }
+                    val stream = UUID.randomUUID().toString()
                     try {
-                        client.subscribe(FEED_TOPICS)
+                        client.subscribe(FEED_TOPICS, stream)
                         handle.refresh.run { fetch(handle, client) }
-                    } finally { events.cancel(); disconnect.cancel() }
+                    } finally {
+                        power?.cancel(); events.cancel(); disconnect.cancel()
+                        withContext(NonCancellable) {
+                            if (!client.isClosed) withTimeoutOrNull(750) { runCatching { client.unsubscribe(stream) } }
+                        }
+                    }
                 }
             } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
                 val source = mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac)
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
-                    error = failure.message ?: "Computer unavailable"))
+                    error = failure.message ?: "Computer unavailable", keepAwake = null))
             } finally { handle.verified = false; active?.close(); handle.client = null }
             handle.refresh.awaitRequest(10_000)
         }
     }
+    /** This observer shares the feed's existing lease and owns only its event stream.
+     * Status failure must not interrupt workspace/notification delivery.
+     */
+    private suspend fun observePower(handle: Handle, client: MobileRpcClient, build: String) = coroutineScope {
+        val session = NativeMacPowerSession(client,
+            NativeComputerTarget(handle.mac.deviceId, build, handle.mac.name),
+            permits = { current(handle, client) && handle.verified }, mutationGate = Mutex(),
+            closeClientOnExit = false)
+        val updates = launch(start = CoroutineStart.UNDISPATCHED) {
+            session.state.collect { power ->
+                if (current(handle, client) && handle.verified) {
+                    val source = mutableSources.value[handle.mac.origin] ?: return@collect
+                    publish(handle, source.copy(keepAwake = power.enabled.takeIf { power.connected && power.supported == true }))
+                }
+            }
+        }
+        try { session.run() }
+        finally {
+            updates.cancelAndJoin()
+            if (current(handle, client)) mutableSources.value[handle.mac.origin]?.let {
+                publish(handle, it.copy(keepAwake = null))
+            }
+        }
+    }
+
     private suspend fun ensureActiveSession(handle: Handle) {
         currentCoroutineContext().ensureActive()
         if (!current(handle)) throw CancellationException("Saved computer changed")

@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Keep-awake computer indicators checkpoint (2026-09-29):** connected computer
+rows and selector entries now show the iOS-style orange cup only for confirmed
+enabled state. Read-only observers reuse each UI feed connection and clear state
+on disconnect/pause. Feed and power subscriptions are explicitly removed before
+releasing a shared connection. Thirty-seven JVM and eight Android UI cases pass
+on the final build. The Pixel disconnected before installation, so it remains on
+`f0dfc7f`; physical acceptance is pending. See
+[MAC_POWER_INDICATORS.md](MAC_POWER_INDICATORS.md). Signed published build 157 is
+unchanged.
+
 **Computer connection presentation checkpoint (2026-09-29):** Details now shows
 this phone's connection status, the verified foreground role and workspace count,
 scoped to each saved Mac/build. Settings rows show their own connection status.

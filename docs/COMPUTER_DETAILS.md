@@ -88,8 +88,8 @@ locally; see the source correction in that checkpoint.
   flow, including a genuinely unavailable Mac and another app build.
 - Physical acceptance of per-computer connection status, foreground role and
   workspace count (implemented in [COMPUTER_CONNECTION.md](COMPUTER_CONNECTION.md)).
-- Keep-awake indicators in the Computers list,
-  and live acceptance of appearance and the Mac Power control.
+- Live acceptance of appearance, the Mac Power control and
+  [keep-awake row indicators](MAC_POWER_INDICATORS.md).
 - Per-computer connection-method selection, direct-only endpoint/address intents,
   route editing and remaining legacy Tailscale detail flows.
 - Compatibility/version-floor guidance and account-wide Forget/revocation. The

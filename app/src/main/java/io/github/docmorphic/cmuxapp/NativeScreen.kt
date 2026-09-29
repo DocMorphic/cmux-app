@@ -1590,7 +1590,7 @@ fun NativeScreen(
                     TextButton(onClick = { workspaceRoute = null; finishSearch(); showSettings = true }) {
                         Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
                     }
-                    NativeComputerSelector(pairedMacs, selectedComputer, appearances, machineColorIndices,
+                    NativeComputerSelector(pairedMacs, selectedComputer, appearances, machineColorIndices, computerConnections,
                         computerMenuOpen, { computerMenuOpen = it }, ::selectComputer,
                         onPair = { computerMenuOpen = false; code = "" })
                     Column(Modifier.weight(1f)) {
@@ -2039,8 +2039,9 @@ private fun NativeComputerPicker(
                         Text(appearances.get(mac.deviceId, mac.buildTag).displayName(mac.name), fontWeight = FontWeight.Medium)
                         Text("Available", color = nativeMuted, fontSize = 12.sp)
                     }
-                    NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.deviceId],
-                        connections[NativeMacIdentity(mac.deviceId, mac.buildTag)] ?: NativeComputerConnection())
+                    val connection = connections[NativeMacIdentity(mac.deviceId, mac.buildTag)] ?: NativeComputerConnection()
+                    NativeMacAwakeIndicator(connection)
+                    NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.deviceId], connection)
                     Text("›", color = nativeMuted, fontSize = 24.sp)
                 }
             }
@@ -2145,6 +2146,7 @@ private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>,
                 Text(appearances.name(mac))
                 Text(connection.phrase, color = nativeMuted, fontSize = 12.sp)
             }
+            NativeMacAwakeIndicator(connection)
             NativeSavedComputerDetailsButton(runtime, state, mac, colorIndices[mac.deviceId], connection)
         }
     }
@@ -2152,7 +2154,8 @@ private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>,
 
 @Composable
 private fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, selected: NativeCredentialStore.PairedMac?,
-    appearances: NativeMacAppearances, colorIndices: Map<String, Int>, open: Boolean, onOpen: (Boolean) -> Unit,
+    appearances: NativeMacAppearances, colorIndices: Map<String, Int>,
+    connections: Map<NativeMacIdentity, NativeComputerConnection>, open: Boolean, onOpen: (Boolean) -> Unit,
     onSelect: (NativeCredentialStore.PairedMac?) -> Unit, onPair: () -> Unit) {
     Box {
         IconButton(onClick = { onOpen(true) }, modifier = Modifier.semantics {
@@ -2168,7 +2171,8 @@ private fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, 
                 leadingIcon = { Text(if (selected == null) "✓" else " ") })
             macs.forEach { mac ->
                 DropdownMenuItem(text = { Text(appearances.name(mac)) }, onClick = { onSelect(mac) },
-                    leadingIcon = { Text(if (selected?.origin == mac.origin) "✓" else " ") })
+                    leadingIcon = { Text(if (selected?.origin == mac.origin) "✓" else " ") },
+                    trailingIcon = { NativeMacAwakeIndicator(connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()) })
             }
             DropdownMenuItem(text = { Text("Pair another Mac") }, onClick = onPair)
         }

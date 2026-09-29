@@ -62,6 +62,7 @@ remains a separate gate. Signed published build 157 is unchanged.
 
 ## Remaining work
 
-Keep-awake row indicators, method/direct-route controls, version compatibility
-and account-wide Forget/revocation remain separate parity work. This presentation
+Keep-awake row indicators are implemented by the subsequent
+[power indicators checkpoint](MAC_POWER_INDICATORS.md). Method/direct-route controls,
+version compatibility and account-wide Forget/revocation remain separate parity work. This presentation
 does not claim completion of the full computer-detail or companion goal.

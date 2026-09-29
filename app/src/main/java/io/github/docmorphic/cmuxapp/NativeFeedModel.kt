@@ -15,7 +15,8 @@ internal data class NativeFeedSource(
     val error: String? = null,
     val groups: List<NativeGroup> = emptyList(),
     val capabilities: Set<String> = emptySet(),
-    val hasWorkspaceSnapshot: Boolean = false
+    val hasWorkspaceSnapshot: Boolean = false,
+    val keepAwake: Boolean? = null
 )
 internal data class NativeFeedEntry(val source: NativeFeedSource, val notification: NativeNotification,
     val displayComputer: String? = null) {

@@ -14,6 +14,25 @@ import org.junit.Test
 class NativeMacPowerSectionTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
+    @Test fun rowIndicatorDisappearsImmediatelyWhenConnectionOrConfirmedPowerChanges() {
+        var connection by mutableStateOf(NativeComputerConnection())
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding()) {
+            Row { androidx.compose.material3.Text("Test Mac"); NativeMacAwakeIndicator(connection) }
+        } } }
+        compose.onNodeWithContentDescription("Keeping Mac awake").assertDoesNotExist()
+        compose.runOnIdle { connection = NativeComputerConnection(NativeFeedAvailability.CONNECTED, keepAwake = true) }
+        compose.onNodeWithContentDescription("Keeping Mac awake").assertIsDisplayed()
+        capture("mac-power-row-indicator")
+        compose.runOnIdle { connection = connection.copy(availability = NativeFeedAvailability.OFFLINE) }
+        compose.onNodeWithContentDescription("Keeping Mac awake").assertDoesNotExist()
+        compose.runOnIdle { connection = connection.copy(availability = NativeFeedAvailability.CONNECTING) }
+        compose.onNodeWithContentDescription("Keeping Mac awake").assertDoesNotExist()
+        compose.runOnIdle { connection = connection.copy(availability = NativeFeedAvailability.CONNECTED, keepAwake = false) }
+        compose.onNodeWithContentDescription("Keeping Mac awake").assertDoesNotExist()
+        compose.runOnIdle { connection = connection.copy(keepAwake = null) }
+        compose.onNodeWithContentDescription("Keeping Mac awake").assertDoesNotExist()
+    }
+
     @Test fun disconnectedAndUnsupportedMacCannotToggle() {
         var state by mutableStateOf(NativeMacPowerState())
         var changes = 0

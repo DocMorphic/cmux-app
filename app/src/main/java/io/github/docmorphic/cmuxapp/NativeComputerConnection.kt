@@ -3,7 +3,8 @@ package io.github.docmorphic.cmuxapp
 internal data class NativeComputerConnection(
     val availability: NativeFeedAvailability = NativeFeedAvailability.OFFLINE,
     val foreground: Boolean = false,
-    val workspaceCount: Int? = null
+    val workspaceCount: Int? = null,
+    val keepAwake: Boolean? = null
 ) {
     val phrase get() = when (availability) {
         NativeFeedAvailability.CONNECTED -> "Connected"
@@ -34,5 +35,8 @@ internal fun nativeComputerConnections(
             source?.hasWorkspaceSnapshot == true -> source.workspaces.size
             else -> null
         }
-        identity to NativeComputerConnection(availability, foreground, count)
+        val keepAwake = source?.keepAwake?.takeIf {
+            source.availability == NativeFeedAvailability.CONNECTED && "caffeine.control.v1" in source.capabilities
+        }
+        identity to NativeComputerConnection(availability, foreground, count, keepAwake)
     }.toMap()

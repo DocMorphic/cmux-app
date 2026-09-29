@@ -19,14 +19,18 @@ internal data class NativeMacPowerState(
     }
 }
 
-/** A visible detail page owns a lease, never a dial. No optimistic value survives this session. */
+/** Reads and optionally controls an existing verified connection; never dials.
+ * Detail pages own a lease. A feed observer borrows its enclosing session's client.
+ * No optimistic value survives this session.
+ */
 internal class NativeMacPowerSession(
     private val client: MobileRpcClient,
     private val target: NativeComputerTarget,
     private val permits: () -> Boolean,
     private val mutationGate: Mutex,
     private val timeoutMillis: Long = 5000,
-    private val pollMillis: Long = 10_000
+    private val pollMillis: Long = 10_000,
+    private val closeClientOnExit: Boolean = true
 ) {
     private val lock = Any()
     private val operation = Mutex()
@@ -80,7 +84,7 @@ internal class NativeMacPowerSession(
             try {
                 if (subscriptionAttempted && !client.isClosed)
                     withTimeoutOrNull(750) { runCatching { client.unsubscribe(stream) } }
-            } finally { client.close() }
+            } finally { if (closeClientOnExit) client.close() }
         }
     }
 
