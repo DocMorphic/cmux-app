@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Latest physical checkpoint (2026-09-29):** authenticated Mac/Pixel terminal,
+Files and notification checks are recorded below. A controlled 37.98-second
+network outage recovered automatically 28.0 seconds after restoration with all
+six output markers. Unsent draft retention was also verified in a separate run;
+input submitted during uncertain delivery remains unverified. The long-title
+header fix is installed and exercised on the Pixel, including Keyboard/Compose,
+menu and Back. Sign-in survived the upgrade and the background service restarted.
+Temporary phone network/sleep settings were restored. See
+[NATIVE_RUNTIME_CHECKPOINT.md](NATIVE_RUNTIME_CHECKPOINT.md) for exact scope and
+APK hashes. The goal remains active; signed build 157 is unchanged.
+
 **Terminal resize follow-up (2026-09-29):** the last painted frame now stays visible
 while a same-terminal resize waits for replay; changing terminal/client resets it.
 20 focused JVM checks and both new grid/byte pixel checks passed. The existing

@@ -172,6 +172,29 @@ class NativeFlowTest {
         terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(geometry.originX + geometry.cellWidth * column, geometry.originY + geometry.cellHeight * .5f)) }
     }
 
+    @Test fun longTerminalTitleKeepsKeyboardAndBackControlsVisible() {
+        val title = "clear; for i in 1 2 3 4 5 6; do echo cmux_net_\$i; sleep 10; done"
+        peer.customWorkspaceListing = JSONObject().put("workspaces", JSONArray().put(
+            JSONObject().put("id", "workspace-1").put("title", "Reconnect test")
+                .put("terminals", JSONArray().put(JSONObject().put("id", "terminal-1").put("title", title)))))
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Reconnect test").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Reconnect test").performClick()
+        waitForTerminalText()
+        compose.onNodeWithContentDescription("Back to workspaces").assertIsDisplayed()
+        compose.onNodeWithText("Keyboard").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Compose").assertIsDisplayed().performClick()
+        compose.onNodeWithText("$title ▾").performClick()
+        compose.onNodeWithText("View as Text").assertIsDisplayed()
+        androidx.test.espresso.Espresso.pressBack()
+        compose.onNodeWithContentDescription("Back to workspaces").performClick()
+        compose.onNodeWithText("Reconnect test").assertIsDisplayed()
+    }
+
     @Test fun workspaceFilterTerminalInputAndKeyboardResize() {
         compose.setContent {
             CmuxTheme {

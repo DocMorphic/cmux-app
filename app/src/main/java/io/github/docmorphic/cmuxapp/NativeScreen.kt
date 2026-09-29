@@ -1308,13 +1308,14 @@ fun NativeScreen(
                     TextButton(onClick = { selectedTerminal = null; selectedWorkspace = null }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
                         Text("‹  ${workspaces.size}", color = nativeAccent)
                     }
-                    Spacer(Modifier.weight(1f))
                     var terminalMenu by remember(terminal.id) { mutableStateOf(false) }
-                    Box {
+                    // Reserve both navigation controls before measuring a command/title.
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         Text(terminal.title.ifBlank { selectedWorkspace?.title ?: "Terminal" } + " ▾",
                             Modifier.clickable { terminalMenu = true }.background(nativePanel, RoundedCornerShape(18.dp))
                                 .padding(horizontal = 15.dp, vertical = 7.dp),
-                            fontWeight = FontWeight.Medium, fontSize = 13.sp, maxLines = 1)
+                            fontWeight = FontWeight.Medium, fontSize = 13.sp, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis)
                         DropdownMenu(expanded = terminalMenu, onDismissRequest = { terminalMenu = false }) {
                             DropdownMenuItem(text = { Text("View as Text") }, onClick = {
                                 terminalMenu = false; openTerminalText()
@@ -1325,7 +1326,6 @@ fun NativeScreen(
                             }, enabled = connectionReady)
                         }
                     }
-                    Spacer(Modifier.weight(1f))
                     TextButton(onClick = {
                         inputModifiers = TerminalInputModifiers()
                         if (directTyping) rawKeyboardView?.finishComposition()

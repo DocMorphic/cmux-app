@@ -174,6 +174,78 @@ boot recovery, network-outage recovery or delivery while the process is stopped.
 The official source at the pinned reference uses APNs for server push; Android
 server-push delivery needs separate infrastructure support.
 
+## Physical network outage recovery — 2026-09-29
+
+On the installed viewport APK (`3ca2d22`, SHA-256
+`d78ca499224058ec8bb0fabb8b76e9869ccaebaf5379429cea9cbce57fc5c235`), used only the
+separate test workspace to run six numbered output lines ten seconds apart.
+Wi-Fi and mobile data were initially enabled; airplane mode was off. Both network
+connections were disabled temporarily and then restored in a `finally` block.
+
+The first outage lasted 35 seconds. An unsent `echo cmux_after_network` draft
+survived. The terminal displayed a connection error after network restoration,
+and the phone subsequently slept. After unlock, terminal output recovered and the
+draft was sent once, producing one echoed command and one output marker. A manual
+Reconnect tap was attempted while the phone was asleep, so this first run does
+not establish a clean automatic-recovery timing result.
+
+For the second run, USB stay-awake was temporarily enabled. The measured outage
+lasted 37.98 seconds (including device-command overhead). Without tapping Retry,
+the terminal recovered **28.0 seconds after restoration**, displaying all six
+`cmux_awake_1` through `cmux_awake_6` lines exactly once and no connection error.
+That includes output generated while the phone was offline. Both Wi-Fi and mobile
+data were restored to enabled. This verifies one real outage/recovery scenario;
+it does not prove exactly-once handling of input submitted during an uncertain
+send, which this test did not attempt, or all network and lifecycle conditions.
+
+Ignored evidence in `captures/runtime/pixel-native-20260929`: `reconnect-outage.json`,
+`reconnect-offline.png`, `reconnect-unlocked.png`, `reconnect-post-send.png`,
+`reconnect-awake.json`, `reconnect-awake-offline.png`, `reconnect-awake-recovered.png`.
+The same run exposed a long terminal title hiding the Keyboard control; the UI
+correction constrains the title to the space remaining between navigation buttons.
+
+## Long terminal title and app upgrade — 2026-09-29
+
+The live outage check exposed a terminal header layout bug: a long running command
+could consume the row and hide Keyboard. The title now receives only the width
+remaining between Back and Keyboard/Compose, with single-line ellipsis.
+
+Installed the updated debug APK over the authenticated Pixel app. With a long
+`env CMUX_HEADER_ACCEPTANCE=… sleep 90` command running in the dedicated test
+workspace, verified Keyboard → Compose → Keyboard, the title menu (View as Text
+and Files), and Back to the workspace list. Screenshots were visually inspected;
+the long title and both navigation controls remain visible with Gboard open.
+The account stayed signed in. Android restarted `NativeNotificationService` on
+`MY_PACKAGE_REPLACED`; dumpsys confirms it is a foreground service. This checks
+listener restart, not a new notification delivery after this upgrade.
+
+The installed APK bytes match the local main APK. Native alignment checks pass.
+USB stay-awake was restored to its original value `0`; Wi-Fi and mobile data are
+both enabled and airplane mode remains off. No device data was erased.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Main debug APK | `de386e9ce21fe9f277be81ef688f0e76ab38b607d89e0fdd6da1b51f81262adc` |
+| Instrumentation APK | `8f76d175fcb873c51587006e5a1e58fc43f1244747f3a10ea9ff95c48773f36e` |
+
+The new automated header regression initially could not start on the 16 KiB
+emulator: both launcher and test-app startup ANRs were recorded. Instrumentation
+reported “Process crashed,” not a passing test. The passing native-library tests
+on that kernel documented earlier are separate evidence.
+The 4 KiB emulator retry first asserted before the asynchronous workspace route
+finished opening. The fixture now waits for terminal output before checking the
+header; assertions are unchanged. The final focused run passed **1 test in
+8.324 seconds**, covering visible/clickable navigation, keyboard mode switching,
+title menu and return to workspaces. Main APK unchanged; only the test APK was
+rebuilt for this synchronization correction. Initial failure logs are retained.
+
+Ignored evidence: `captures/runtime/pixel-native-20260929/header-receipt.json`,
+`header-keyboard-long.png`, `header-menu.png`, `header-back-confirmed.png`,
+`header-alignment.txt`, `header-build.log`, `header-runtime.txt`,
+`header-runtime-retry.txt`, and `header-runtime-final.txt`.
+The last published signed APK remains build 157; this update is installed debug
+acceptance, not full parity or a new signed release.
+
 ## Physical Pixel native lanes — 2026-09-29
 
 Installed the debug app and app test APK from source `61a6bf7` on the Pixel 6a
