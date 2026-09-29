@@ -1,7 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
 import android.content.Context
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -11,6 +10,8 @@ fun interface NativeConnector {
     suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount): MobileRpcClient =
         error("Native computer discovery is unavailable in this connection provider")
     fun allowsSaved(pairing: PairingCode): Boolean = true
+    /** Called only by the visible pairing confirmation, never by deep-link receipt or reconnect. */
+    fun authorizePairing(pairing: PairingCode.Tailscale) {}
 }
 
 internal suspend fun NativeConnector.connectPairing(pairing: PairingCode, account: NativeAccount): MobileRpcClient = when (pairing) {
@@ -18,29 +19,20 @@ internal suspend fun NativeConnector.connectPairing(pairing: PairingCode, accoun
     is PairingCode.Iroh -> connectIroh(pairing, account)
 }
 
-class TailscaleConnector(private val context: Context) : NativeConnector {
-    override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount): MobileRpcClient {
-        pairing.stackUserId?.let { expected ->
-            require(account.userId() == expected) { "This Mac is signed in to a different cmux account" }
-        }
-        var lastError: Throwable? = null
-        for (route in pairing.routes) {
-            val transport = try { withContext(Dispatchers.IO) { TailscaleRoute.resolve(context, route) } }
-                catch (failure: Exception) {
-                    if (failure is CancellationException) throw failure
-                    lastError = failure
-                    continue
-                }
-            val candidate = MobileRpcClient(transport, account::accessToken)
-            try {
-                candidate.connect()
-                return candidate
-            } catch (failure: Exception) {
-                candidate.close()
-                if (failure is CancellationException) throw failure
-                lastError = failure
-            }
-        }
-        throw lastError ?: IllegalStateException("No Tailscale route is reachable")
-    }
+internal class TailscaleConnector(context: Context, store: NativeCredentialStore, teams: NativeAccountTeams) : NativeConnector, AutoCloseable {
+    private val authority = TailscalePairingAuthority({ teams.state.value.scope }, teams::isCurrent,
+        TailscaleGrantStore(store::load, store::update),
+        resolve = { route -> withContext(Dispatchers.IO) { TailscaleRoute.resolvePeer(context, route) } },
+        dial = { route, permits, token ->
+            val transport = withContext(Dispatchers.IO) { TailscaleRoute.resolve(context, route, permits) }
+            MobileRpcClient(transport, token)
+        }, expected = { pairing -> store.pairedMacs().singleOrNull {
+            PairingCodeParser.parse(it.code).getOrNull() == pairing
+        } })
+    override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) =
+        withContext(Dispatchers.IO) { authority.connect(pairing, account::accessToken) }
+    override fun authorizePairing(pairing: PairingCode.Tailscale) = authority.authorize(pairing)
+    override fun allowsSaved(pairing: PairingCode) = pairing is PairingCode.Tailscale && authority.allowsSaved(pairing)
+    fun retireInvalid() = authority.retireInvalid()
+    override fun close() = authority.close()
 }

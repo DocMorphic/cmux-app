@@ -26,7 +26,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     data class PairedMac(val code: String, val deviceId: String, val name: String, val instanceTag: String? = null) {
         internal val origin = pairingOrigin(code, deviceId, instanceTag)
         fun requireMatchingHost(status: JSONObject) {
-            require(deviceId.isBlank() || status.optString("mac_device_id") == deviceId) {
+            require(deviceId.isBlank() || canonicalMacDeviceId(status.optString("mac_device_id")) == canonicalMacDeviceId(deviceId)) {
                 "This pairing now reaches a different Mac. Forget it and pair the intended Mac again."
             }
             require(instanceTag == null || status.optString("mac_instance_tag") == instanceTag) {
@@ -61,6 +61,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     }
 
     fun forgetMac(code: String) = update { state ->
+        TailscaleGrantStore.removeForCode(state, code)
         val previous = state.optJSONArray("pairings")
         val next = org.json.JSONArray()
         if (previous != null) for (index in 0 until previous.length()) {
@@ -71,8 +72,11 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         if (state.optString("pairing_code") == code) state.put("pairing_code", next.optJSONObject(0)?.optString("code").orEmpty())
     }
 
-    internal fun forgetCapturedNativeMac(team: NativeTeamScope, captured: List<PairedMac>) =
-        update { state -> NativeComputerForgetLocal.remove(state, team, captured) }
+    internal fun forgetCapturedNativeMac(team: NativeTeamScope, captured: List<PairedMac>, target: NativeComputerTarget) =
+        update { state ->
+            NativeComputerForgetLocal.remove(state, team, captured)
+            TailscaleGrantStore.removeComputer(state, team, target.deviceId, target.buildTag)
+        }
 
     fun load(): JSONObject? = synchronized(storageLock) { readState() }
 

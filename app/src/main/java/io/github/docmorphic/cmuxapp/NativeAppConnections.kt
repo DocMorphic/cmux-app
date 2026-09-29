@@ -17,12 +17,13 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     val native = NativeIrohRuntime(teams.state, teams::isCurrent, { account.accessToken() },
         { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) })
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val tailscale = TailscaleConnector(context)
+    private val tailscale = TailscaleConnector(context, store, teams)
     val connector = object : NativeConnector {
         override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = tailscale.connect(pairing, account)
         override suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount) = native.connect(pairing)
+        override fun authorizePairing(pairing: PairingCode.Tailscale) = tailscale.authorizePairing(pairing)
         override fun allowsSaved(pairing: PairingCode): Boolean {
-            if (pairing is PairingCode.Tailscale) return true
+            if (pairing is PairingCode.Tailscale) return tailscale.allowsSaved(pairing)
             pairing as PairingCode.Iroh
             val team = teams.state.value.scope ?: return false
             return teams.isCurrent(team) && (pairing.userId == null || pairing.userId == team.userId) &&
@@ -31,10 +32,12 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     }
 
     init {
+        scope.launch { teams.state.collect { tailscale.retireInvalid() } }
         scope.launch {
             var observedLogin: String? = null
             var nextRefresh = 0L
             while (isActive) {
+                tailscale.retireInvalid()
                 val login = store.taskSession()
                 if (login != observedLogin) {
                     teams.clear()
@@ -65,7 +68,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             activityOwners.clear()
             applicationActive.value = IrxProbeActivity(false, applicationActive.value.revision + 1)
         }
-        scope.cancel(); native.close(); teams.close()
+        scope.cancel(); tailscale.close(); native.close(); teams.close()
     }
 
     class Handle internal constructor(val connections: NativeAppConnections) : AutoCloseable {

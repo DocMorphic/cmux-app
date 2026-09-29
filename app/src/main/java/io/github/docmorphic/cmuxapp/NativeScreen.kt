@@ -1086,7 +1086,12 @@ fun NativeScreen(
 
     NativePairingConfirmation(if (signedIn) pendingPairingCode else null,
         onDismiss = { pendingPairingCode = null },
-        onConnect = { proposed -> code = proposed; pendingPairingCode = null })
+        onConnect = { proposed ->
+            try {
+                connection.authorizePairing(PairingCodeParser.parse(proposed).getOrThrow() as PairingCode.Tailscale)
+                code = proposed; pendingPairingCode = null; retry++
+            } catch (failure: Exception) { error = failure.message; pendingPairingCode = null }
+        })
     if (showCreateGroup) AlertDialog(
         onDismissRequest = { showCreateGroup = false },
         title = { Text("New group") },

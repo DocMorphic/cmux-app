@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Tailscale pairing authorization checkpoint (2026-09-29):** the production QR
+flow now requires visible confirmation or an encrypted, account/team/device/build
+scoped saved-route grant. A successful authenticated workspace request is required
+before saving permission. Numeric endpoints remain pinned across reconnects, and
+account/team or grant retirement fences tokens and sockets. Legacy unscoped QR
+rows require confirmation once. Fifty-four focused JVM cases pass; Android sources
+compile. No APK/device run was performed for this feature commit. Tailscale-only
+selection and merging routes into native computer identities remain open. See
+[TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md).
+
 **Tailscale transport prerequisite (2026-09-29):** the existing QR/TCP path now
 validates numeric IPv4/IPv6 peers and one VPN with Tailscale interface addresses,
 checks both socket endpoints and revalidates before writes. Tunnel changes retire

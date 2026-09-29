@@ -10,7 +10,17 @@ import java.net.Socket
 
 /** Resolve once on a proven tunnel; retain that numeric destination for this connection only. */
 internal object TailscaleRoute {
-    fun resolve(context: Context, route: PairingCode.Route): MobileRpcTransport {
+    private data class Prepared(val manager: ConnectivityManager, val network: Network, val proof: TailscalePathProof)
+    fun resolvePeer(context: Context, route: PairingCode.Route): PairingCode.Route = prepare(context, route).proof.route
+
+    fun resolve(context: Context, route: PairingCode.Route, permits: () -> Boolean = { true }): MobileRpcTransport {
+        check(permits()) { "The Tailscale authorization changed" }
+        val prepared = prepare(context, route)
+        return SocketMobileRpcTransport(prepared.proof.route, prepared.network.socketFactory,
+            AndroidTailscaleAuthority(prepared.manager, prepared.network, prepared.proof, permits))
+    }
+
+    private fun prepare(context: Context, route: PairingCode.Route): Prepared {
         val manager = context.getSystemService(ConnectivityManager::class.java)
         val tunnels = snapshots(manager)
         val tunnel = tunnels.singleOrNull() ?: error("Connect one Tailscale VPN on this phone first")
@@ -25,8 +35,7 @@ internal object TailscaleRoute {
             ?: error("The QR route did not resolve to a remote Tailscale peer")
         val proof = TailscalePathProof.prepare(tunnels, route.copy(host = peer))
         proof.validate(snapshots(manager)) // DNS must not outlive the selected network.
-        return SocketMobileRpcTransport(proof.route, network.socketFactory,
-            AndroidTailscaleAuthority(manager, network, proof))
+        return Prepared(manager, network, proof)
     }
 
     internal fun snapshots(manager: ConnectivityManager): List<TailscaleTunnel> = manager.allNetworks.mapNotNull { network ->
@@ -45,7 +54,8 @@ internal object TailscaleRoute {
 private class AndroidTailscaleAuthority(
     private val manager: ConnectivityManager,
     private val network: Network,
-    private val proof: TailscalePathProof
+    private val proof: TailscalePathProof,
+    private val permits: () -> Boolean
 ) : MobileSocketAuthority {
     private val lock = Any()
     private var registered = false
@@ -81,6 +91,7 @@ private class AndroidTailscaleAuthority(
 
     override fun validate(socket: Socket?) {
         try {
+            check(permits()) { "The Tailscale authorization changed. Pair this Mac again." }
             synchronized(lock) { check(!retired) { "The Tailscale connection changed. Reconnect to the Mac." } }
             proof.validate(TailscaleRoute.snapshots(manager), socket?.localAddress?.hostAddress,
                 socket?.inetAddress?.hostAddress, socket?.port)

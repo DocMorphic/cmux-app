@@ -83,17 +83,80 @@ pending. The Pixel's last installed checkpoint remains `f0dfc7f`; the latest
 previously built debug APK is `45ff44c`. Published signed build 157 is unchanged.
 No real Mac, pairing grant, VPN setting or phone power setting was changed.
 
+## Account and saved-route authorization checkpoint (2026-09-29)
+
+The production QR connector now uses `TailscalePairingAuthority`. The visible
+Connect confirmation creates an in-memory authorization captured to the current
+verified account/team/login generation. Receiving a deep link, reading a saved QR
+row, retrying or opening a background connection cannot create this authorization.
+A replacement confirmation invalidates an older pending attempt.
+
+After confirmation, numeric QR routes stay exact. For compatibility with existing
+Android `.ts.net` codes, the selected VPN resolves a hostname once per confirmed
+attempt. That numeric answer stays pinned across failed retries. Another visible
+confirmation is required to resolve it again. This DNS compatibility behavior is
+an Android extension to the numeric-only iOS authorization evidence; it must still
+be exercised on the physical VPN. Multiple QR route hints are tried independently,
+and only the successfully authenticated numeric route becomes a saved grant.
+
+Before promotion, the connector obtains host status, checks any previously known
+Mac/build identity, and successfully executes the authenticated workspace-list
+RPC. Host status alone never creates a grant. The grant stores exact user, team,
+canonical Mac device ID, build, numeric peer and TCP port, plus its source QR
+fingerprint and unique incarnation. It is stored within the existing Android
+Keystore-encrypted credential transaction. The login is checked inside that
+transaction; team/connection permission is checked outside the storage lock to
+avoid inversion with account refresh, then checked again before returning a
+session. A scope change during the commit cannot expose the connection to the new
+scope, even if the already-authorized old-scope record was committed.
+
+Reconnects require the matching saved grant and use its numeric coordinate without
+DNS. The token provider checks the captured authority before and after obtaining
+an access token. The socket authority checks it again at the write boundary and
+around reads. Account/team observations and periodic registry cleanup close retired
+clients, including blocked reads. Replacing/removing a grant cannot revive a
+connection carrying its previous incarnation. Same-user, same-team relogin may
+reuse persisted permission; a different user or team may not.
+
+Legacy saved QR rows have no trustworthy account/team authorization metadata and
+are deliberately not silently migrated. Those connections need one explicit
+scan/paste and Connect confirmation. The connection error explains this; native
+Iroh pairings are unaffected. Tailscale saved-list/background callers now filter
+through the same grant checks. The local pairing removal clears its source grant;
+confirmed native computer removal clears matching user/team/device/build grants
+in the same credential transaction as pairing cleanup. Shared host matching now
+normalizes UUID case only, retaining case sensitivity for opaque device IDs.
+
+### Authorization verification
+
+All **54 focused JVM cases passed**, including seventeen new authority cases,
+the preceding twenty-five transport/parser cases, and twelve existing computer
+removal cases. The authority fixture drives real `MobileRpcClient` framing/token
+attachment against a simulated Mac transport and an atomic in-memory credential
+store. It covers missing confirmation, consumed/retired consent, wrong account or
+team, token-acquisition races, authenticated promotion, pinned DNS retries,
+replacement confirmation, changed host/build, UUID aliases, failed storage,
+corrupt grants, scope changes during probing, grant removal and relogin isolation.
+It also verifies exact scope/build cleanup. No real token or Mac mutation is used.
+
+The initial thirteen new authority cases passed. Four additional regression cases
+were then added for pinned DNS retries, replacement confirmation, UUID aliases and
+scoped cleanup; the final 54-case run passed without failures/errors/skips.
+Production Android sources compile. This checkpoint did not build/install an APK
+or run Android instrumentation; encrypted-store and UI/device acceptance remain
+pending. Logs and XML are retained in `captures/runtime/tailscale-authorization/`.
+ADB still detected no Pixel. Published signed build 157 remains unchanged.
+
 ## Next integration work
 
-- Add explicit ephemeral pairing authorization and captured account/session
-  ownership; enforce authenticated expected-device/build identity.
-- Persist and migrate device/build/account/team-bound route grants. Existing
-  saved QR rows are not equivalent to those grants, and the legacy connector's
-  account/team lifecycle still needs that integration.
 - Present Tailscale Only, Add Connection, edit/remove route actions in Details;
-  preserve native Iroh identity while adding a Tailscale route to the same Mac.
-- Route UI, feed, notifications and checks through the same captured method and
-  authority; wake disconnected retry loops immediately on route/method changes.
-- Add readiness waiting and verify actual Android VPN event ordering on a phone.
+  bind a targeted scan to the expected native device/build, and preserve native
+  Iroh identity while adding a Tailscale route to the same Mac.
+- Unify route grants with the per-computer connection method used by the UI,
+  feed, notifications and checks. The present authority integration covers the
+  existing QR/TCP flow; it does not add Tailscale to the Iroh/Direct picker yet.
+- Wake disconnected retry loops immediately on route/method changes.
+- Add readiness waiting and verify Android VPN event ordering, Keystore grant
+  persistence, pairing UI and physical Mac/Pixel behavior.
 
 The Iroh/Direct selector therefore still exposes only those implemented modes.

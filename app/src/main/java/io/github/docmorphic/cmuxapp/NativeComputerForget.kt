@@ -131,6 +131,6 @@ internal fun nativeComputerForgetFlow(runtime: NativeIrohRuntime, team: NativeTe
         // Both stores are addressed by the captured owner, never the live display team.
         appearance.removeComputer(target) { store.taskSession() == team.login }
         connectionSettings.removeComputer(target) { store.taskSession() == team.login }
-        store.forgetCapturedNativeMac(team, rows)
+        store.forgetCapturedNativeMac(team, rows, target)
     } }
 )
