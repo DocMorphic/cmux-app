@@ -1,10 +1,11 @@
 # Upstream Ghostty VT core on Android
 
-Checkpoint: 2026-09-29. Ghostty is now integrated into the Android app's byte and
-hybrid terminal streams. Authoritative Mac grid delivery remains selected where
-negotiated. Full terminal parity, image rendering and physical acceptance are
-still unfinished. The core/binding-only sections below describe earlier steps;
-the app integration section records the current state.
+Checkpoint: 2026-09-30. Ghostty parses the Android app's byte/hybrid terminal
+streams, and the app paints ordinary Kitty image placements. Authoritative Mac
+grid delivery remains selected where negotiated. Unicode placeholder graphics,
+full terminal parity, performance and physical acceptance are unfinished. The
+core/binding sections describe earlier steps; the final rendering section records
+the latest implementation and evidence.
 
 ## Source and build
 
@@ -79,11 +80,12 @@ ELF alignment check remains necessary.
 ## Integration still required
 
 The binding, app adapter, replay ownership and native byte/hybrid selection are
-implemented below. Remaining work includes bounded image decoding/placement,
-remaining glyph/input-mode fidelity, performance measurement and actual Pixel/Mac
-TUI, resize, input, reconnect and scrolling acceptance. Exposed Kitty data is not
-yet Android image rendering; a text render-grid frame alone cannot reconstruct
-missing image payloads. PTY replies and clipboard effects stay with the Mac.
+implemented below, including bounded decoding and ordinary image painting.
+Remaining work includes Unicode placeholder images, remaining glyph/input-mode
+fidelity, performance measurement and actual Pixel/Mac TUI, resize, input,
+reconnect and scrolling acceptance. A text render-grid frame alone cannot
+reconstruct missing image payloads. PTY replies and clipboard effects stay with
+the Mac.
 
 The C API is marked unstable upstream, so the exact source pin and matching
 headers are part of the binding contract. Building the library does not prove
@@ -159,7 +161,7 @@ above, or the native artifact produced by the existing Android workflow's new
 signing secrets. From a checkout with GitHub CLI access:
 
 ```sh
-gh run download 36635864459 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
+gh run download 36637832054 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
 ```
 
 That reviewed Linux checkpoint passed the artifact and runtime checks below. If
@@ -286,8 +288,8 @@ decoder test will not establish that images appear in the negotiated app path.
 ## Android image data binding (2026-09-30)
 
 The JNI binding now installs a bounded Android PNG decoder and exposes owned
-`GhosttyGraphicsFrame` snapshots. This is the image-data step; the app painter
-still needs to consume these snapshots before inline images can appear.
+`GhosttyGraphicsFrame` snapshots. At this binding checkpoint (`b6ac57b`), the
+painter did not consume them yet; the rendering follow-up is recorded below.
 
 - PNG decoding checks the signature and decoded dimensions before allocation,
   limits decoded RGBA to 10,000,000 bytes and returns straight RGBA through the
@@ -303,8 +305,8 @@ still needs to consume these snapshots before inline images can appear.
   IDs, image references, crops and allocation bounds. History reads restore the
   live viewport, and no borrowed native pointer survives the call.
 - Virtual placements are identified, but resolving Unicode placeholders for
-  painting remains open. The painter also needs cell-metric synchronization,
-  per-generation bitmap caching, layer ordering and partial-row clipping.
+  painting remains open. Cell-metric synchronization, bitmap caching, layer
+  ordering and partial-row clipping were implemented in the rendering follow-up.
 - **5 JVM tests passed**, including truncation/length/identity/ownership checks.
   **11 Android 17 arm64 runtime tests passed in 0.563 seconds**, including four
   new graphics cases and seven existing lifecycle/terminal regressions. The
@@ -324,5 +326,61 @@ still needs to consume these snapshots before inline images can appear.
   `7cf8668abc322d61310eb9c6da23bc4f5a8baf902df8d41e776803df5e5ca0ff`.
 
 The previous CI artifact `36635864459` matches the earlier text-only binding.
-The current JNI source needs a fresh source build or replacement native CI
-artifact; Gradle rejects the older binding hash rather than loading stale JNI.
+Use the replacement artifact from successful [run 36637832054](https://github.com/DocMorphic/cmux-app/actions/runs/36637832054),
+which matches `b6ac57b` and the current JNI source. All 29 receipt files and the
+JNI inside its test APK were hash-verified. JNI SHA-256:
+`73ef5984bdd3bc98748f1d04b64494bf14deb6918f563956661fa16f5dc530eb`.
+The downloaded test APK passed all **11 native Android tests in 0.155 seconds**
+and ELF/ZIP 16 KB alignment checks. Evidence is under
+`captures/runtime/terminal-images/ci-native-runtime.log`. Gradle rejects the
+older binding hash rather than loading stale JNI.
+
+
+## Image rendering in the app (2026-09-30)
+
+`NativeScreen` initializes Ghostty cell pixel metrics before parsing replay bytes.
+Font-metric changes restart the terminal effect. `GhosttyVtTerminal` exposes
+bounded cached graphics snapshots, and `TerminalGridPainter` consumes them in the
+same live view used for text. Authoritative render-grid transport is unchanged.
+
+The painter follows the pinned upstream `renderer/generic.zig` and `image.zig`
+order: terminal background, images below cell backgrounds, explicit/inverse cell
+backgrounds, images below text, text/cursor, then images above text. Placements
+sort by z and unsigned image ID. It handles source cropping, alpha, pixel offsets,
+scaling, letterboxing and fractional history clipping, including the extra bottom
+row. The bitmap cache keys pixels by generation and crop and is bounded to 40 MB
+(the maximum RGBA expansion of the native 10 MB grayscale budget). Eviction drops
+references without recycling bitmaps that a hardware display list may still use;
+view disposal releases the cache.
+
+A pixel assertion caught Android filtering pixels from outside a source crop.
+The implementation now crops owned pixels before bitmap scaling. The final test
+checks a green translucent crop beside red source pixels and confirms no red
+bleed. Earlier failing evidence is retained in the ignored runtime directory.
+
+Verification:
+
+- **15 Android 17 arm64 app tests passed in 13.972 seconds**: five new image
+  rendering cases, four native-mirror regressions, three existing grid rendering
+  checks, and three existing app/RPC terminal interaction scenarios.
+- New checks cover PNG crop/alpha/offset/scale, all three z layers and default
+  background transparency, same-size image replacement/delete, painting cached
+  pixels after native close, fractional-history bottom clipping and byte-replay
+  reconstruction through the production mirror. Saved pixel images were viewed.
+- Main and test debug APKs build. Main APK native ELF LOAD/RELRO and ZIP alignment
+  pass 16 KB. Main SHA-256:
+  `aee6eae14a9051ad3a0eecb0760265bb08279a5bd4707001e41cae5efb909917`.
+  Test SHA-256:
+  `8c9537eab7a2808a3fb6cce5ca54a2766fbb8b623e51b5569490584f66b3d018`.
+- Evidence: ignored `captures/runtime/terminal-images/` and
+  `build/ghostty-vt-android/image-painter-*.log`. Emulator stopped after testing.
+  Its runtime uses 4 KiB pages. No Pixel install or live-Mac image claim is made;
+  the Pixel remains absent from adb and signed release 157 is unchanged.
+
+Unicode placeholder placement rendering is still missing: the pinned C API marks
+virtual placements but does not resolve their per-cell image fragments. The
+upstream renderer uses `graphics_unicode.zig` for that step; normal placement
+geometry must not be substituted. Image-heavy performance, hardware Canvas
+acceptance and complete graphics replay against a real payload-capable Mac
+remain open. The screen-anchored grid's missing image payload remains a separate
+shared-contract constraint, as described above.

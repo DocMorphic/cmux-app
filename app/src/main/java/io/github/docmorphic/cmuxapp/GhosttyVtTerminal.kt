@@ -4,10 +4,13 @@ import io.github.docmorphic.cmuxapp.ghostty.GhosttyFrame
 import io.github.docmorphic.cmuxapp.ghostty.GhosttyTerminal
 
 /** Android VT path. Cached owned frames can finish painting after native close. */
-class GhosttyVtTerminal(columns: Int, rows: Int) : ByteTerminal {
+class GhosttyVtTerminal(columns: Int, rows: Int) : ByteTerminal, TerminalGraphicsDisplay {
     private val engine = GhosttyTerminal(columns, rows)
     private var closed = false
     private var dirty = false
+    private var cellWidth = 0
+    private var cellHeight = 0
+    private val graphicsFrames = LinkedHashMap<Int, TerminalGraphicsDisplay.Snapshot>()
     private var live: GhosttyFrame
     private var liveLines: List<List<RenderGrid.Span>>
     init {
@@ -30,8 +33,30 @@ class GhosttyVtTerminal(columns: Int, rows: Int) : ByteTerminal {
 
     override fun append(bytes: ByteArray) {
         check(!closed) { "Ghostty terminal is closed" }
-        engine.append(bytes); dirty = true
+        engine.append(bytes); dirty = true; graphicsFrames.clear()
     }
+    fun setCellMetrics(cells: TerminalCellMetrics) {
+        require(cells.widthPx.isFinite() && cells.heightPx.isFinite())
+        val width = cells.widthPx.toInt().coerceIn(1, 4096)
+        val height = cells.heightPx.toInt().coerceIn(1, 4096)
+        if (closed || (width == cellWidth && height == cellHeight)) return
+        engine.resize(live.columns, live.rows, width, height)
+        cellWidth = width; cellHeight = height
+        graphicsFrames.clear()
+    }
+
+    override fun graphicsSnapshot(scrollOffset: Int, cells: TerminalCellMetrics): TerminalGraphicsDisplay.Snapshot? {
+        setCellMetrics(cells)
+        val offset = scrollOffset.coerceIn(0, frame.historyRows)
+        graphicsFrames[offset]?.let { return it }
+        if (closed) return null
+        val snapshot = TerminalGraphicsDisplay.Snapshot(engine.graphicsSnapshot(offset), cellWidth, cellHeight)
+        graphicsFrames[offset] = snapshot
+        // Fractional scrolling may ask for two neighboring viewports.
+        while (graphicsFrames.size > 2) graphicsFrames.remove(graphicsFrames.keys.first())
+        return snapshot
+    }
+
     override fun close() {
         if (closed) return
         closed = true

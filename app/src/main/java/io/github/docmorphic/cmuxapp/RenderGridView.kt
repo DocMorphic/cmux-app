@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +36,7 @@ fun RenderGridView(
     val plan = remember(lines) { TerminalGridPainter.plan(lines) }
     val accessibleText = remember(lines) { RenderGrid.plainText(lines) }
     val painter = remember { TerminalGridPainter() }
+    DisposableEffect(painter) { onDispose { painter.close() } }
     Box(modifier.background(Color(0xFF111316))) {
         Canvas(Modifier.fillMaxSize().clipToBounds().semantics { text = AnnotatedString(accessibleText) }) {
             drawIntoCanvas { painter.draw(it.nativeCanvas, size.width, size.height, grid, plan, cells, viewport.rowOffset, blinkVisible, viewport.topClipFraction) }
