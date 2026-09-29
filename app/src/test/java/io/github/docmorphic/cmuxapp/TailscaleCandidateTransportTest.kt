@@ -11,12 +11,27 @@ class TailscaleCandidateTransportTest {
         var closed = false
         val writes = mutableListOf<ByteArray>()
         var failConnect = false
+        var diagnosticHook: () -> Unit = {}
+        override fun diagnostics(): MobileTransportDiagnostics { diagnosticHook(); return MobileTransportDiagnostics.tailscale() }
         var gate: CompletableDeferred<Unit>? = null
         override suspend fun connect() { gate?.await(); check(!closed && !failConnect) }
         override suspend fun read(): ByteArray? = byteArrayOf(8)
         override suspend fun write(bytes: ByteArray) { check(!closed); writes += bytes }
         override fun close() { closed = true; gate?.cancel() }
     }
+    @Test fun diagnosticReadUsesActiveCandidateAndRejectsConcurrentGrantRetirement() = runBlocking<Unit> {
+        var allowed = true
+        val a = Wire().apply { failConnect = true }; val b = Wire()
+        TailscaleCandidateTransport(listOf(first, second), { allowed }) { route, _ -> if (route == first) a else b }.use { connection ->
+            connection.connect()
+            assertEquals(MobileTransportDiagnostics.Route.TAILSCALE, connection.diagnostics()?.route)
+            assertTrue(a.closed); assertFalse(b.closed)
+            b.diagnosticHook = { allowed = false }
+            assertTrue(runCatching { connection.diagnostics() }.isFailure)
+            assertTrue(b.closed)
+        }
+    }
+
     @Test fun unavailableTunnelDoesNotRestartDeadlineForEverySavedAddress() = runBlocking<Unit> {
         var attempts = 0
         TailscaleCandidateTransport(listOf(first, second), { true }) { _, _ ->

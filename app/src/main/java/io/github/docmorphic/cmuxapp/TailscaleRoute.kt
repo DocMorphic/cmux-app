@@ -136,6 +136,11 @@ private class AndroidTailscaleAuthority(
         validate()
     }
 
+    override fun diagnostics(socket: Socket): MobileTransportDiagnostics {
+        validate(socket)
+        return MobileTransportDiagnostics.tailscale()
+    }
+
     override fun validate(socket: Socket?) {
         try {
             check(permits()) { "The Tailscale authorization changed. Pair this Mac again." }

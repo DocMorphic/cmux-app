@@ -1,12 +1,11 @@
 package io.github.docmorphic.cmuxapp
 
-import io.github.docmorphic.cmuxapp.iroh.IrxConnectionDiagnostics
 import kotlinx.coroutines.*
 
 internal data class NativeConnectionReport(
     val identity: Boolean = false,
     val accountAccess: Boolean = false,
-    val transport: IrxConnectionDiagnostics? = null,
+    val transport: MobileTransportDiagnostics? = null,
     val responseMillis: Long? = null,
     val failure: Failure? = null
 ) {
@@ -18,15 +17,8 @@ internal data class NativeConnectionReport(
         TAILSCALE("The Tailscale VPN did not become ready. Open Tailscale, connect this phone, then try again."),
         CONNECTION("Reconnect to your Mac, then run the check again.")
     }
-    val route: String get() = when (transport?.route) {
-        IrxConnectionDiagnostics.Route.DIRECT -> "Direct Peer-to-Peer"
-        IrxConnectionDiagnostics.Route.PRIVATE_NETWORK -> "LAN or Private VPN"
-        IrxConnectionDiagnostics.Route.RELAY -> "Relay"
-        IrxConnectionDiagnostics.Route.UNAVAILABLE -> "No Live Route"
-        null -> "Not Reported"
-    }
-    val encryption: String get() = if (transport != null && transport.route != IrxConnectionDiagnostics.Route.UNAVAILABLE)
-        "Verified (Iroh QUIC)" else "Not Reported"
+    val route: String get() = transport?.route?.label ?: "Not Reported"
+    val encryption: String get() = transport?.encryption?.label ?: "Not Reported"
 
     /** Only fixed labels, booleans and durations. Never include host names, addresses, tokens or server errors. */
     fun shareText(): String = buildString {

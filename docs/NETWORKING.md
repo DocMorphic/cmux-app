@@ -286,3 +286,15 @@ produce Tailscale-specific advice in Computer Details. Seventy-eight JVM checks
 pass; this checkpoint is compiled but not rebuilt into an APK or exercised on a
 physical VPN. See [TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md) for evidence
 and limits. Live TCP route/encryption diagnostics remain to be implemented.
+
+
+## Live TCP/VPN report projection (2026-09-29)
+
+Connection Check now shows a Tailscale route only after revalidating the actual
+socket against its live tunnel authority. Its encryption label is Managed by VPN;
+Iroh routes retain Verified (Iroh QUIC), while ordinary TCP is Not Verified. TCP
+has no transport RTT field; RPC response time remains separate. Retired authority
+prevents stale results, and shared text continues to exclude private data.
+Forty-three focused JVM cases and four Android 17 emulator UI cases passed.
+Both APKs were rebuilt and passed native/ZIP 16 KB checks. These fixtures do not
+establish physical VPN traversal; see [TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md).

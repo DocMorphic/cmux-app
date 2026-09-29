@@ -80,7 +80,7 @@ class MobileRpcClient internal constructor(
 
     internal fun retire() = failConnection(EOFException("Computer access or account session changed"))
 
-    internal suspend fun transportDiagnostics(): io.github.docmorphic.cmuxapp.iroh.IrxConnectionDiagnostics? {
+    internal suspend fun transportDiagnostics(): MobileTransportDiagnostics? {
         if (delegate != null) return borrowing { it.transportDiagnostics() }
         return withContext(Dispatchers.IO) {
             check(!isClosed)

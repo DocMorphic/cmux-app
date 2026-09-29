@@ -61,6 +61,8 @@ internal class TailscaleCandidateTransport(private val routes: List<PairingCode.
         check(permits()) { "The Tailscale authorization changed" }
         return synchronized(lock) { check(!closed && connected); checkNotNull(candidate) }
     }
+    override fun diagnostics(): MobileTransportDiagnostics? = try { active().diagnostics().also { active() } }
+        catch (failure: Throwable) { close(); throw failure }
     override suspend fun read(): ByteArray? = try { active().read().also { active() } }
         catch (failure: Throwable) { close(); throw failure }
     override suspend fun write(bytes: ByteArray) = try { active().write(bytes) }

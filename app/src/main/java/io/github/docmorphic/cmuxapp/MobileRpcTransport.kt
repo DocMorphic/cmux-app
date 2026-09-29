@@ -11,7 +11,7 @@ import javax.net.SocketFactory
 
 /** One connection incarnation. Independent events are complete, unframed JSON payloads. */
 internal interface MobileRpcTransport : AutoCloseable {
-    fun diagnostics(): io.github.docmorphic.cmuxapp.iroh.IrxConnectionDiagnostics? = null
+    fun diagnostics(): MobileTransportDiagnostics? = null
     val independentEvents: Flow<ByteArray>? get() = null
     val surfaceEventLanes: Boolean get() = false
     val disconnections: Flow<Throwable>? get() = null
@@ -35,6 +35,7 @@ internal sealed interface MobileControlRepair {
 
 /** Legacy TCP remains available for existing hosts and protocol fixtures. */
 internal interface MobileSocketAuthority : AutoCloseable {
+    fun diagnostics(socket: Socket): MobileTransportDiagnostics? = null
     fun start(onInvalidated: () -> Unit)
     fun validate(socket: Socket? = null)
 }
@@ -46,6 +47,16 @@ internal class SocketMobileRpcTransport(private val route: PairingCode.Route,
     private val connecting = Mutex()
     private var socket: Socket? = null
     private var closed = false
+
+    override fun diagnostics(): MobileTransportDiagnostics = try {
+        val current = active()
+        check(current.isConnected && !current.isClosed) { "Not connected" }
+        authority?.validate(current)
+        val result = authority?.diagnostics(current) ?: MobileTransportDiagnostics.tcp()
+        authority?.validate(current)
+        synchronized(lock) { check(!closed && socket === current) { "Connection closed" } }
+        result
+    } catch (failure: Throwable) { close(); throw failure }
 
     override suspend fun connect() = connecting.withLock {
         withContext(Dispatchers.IO) {

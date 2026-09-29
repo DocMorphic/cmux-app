@@ -21,7 +21,7 @@ class NativeConnectionCheckSectionTest {
         var checks = 0
         var shared: String? = null
         val result = NativeConnectionReport(true, true,
-            IrxConnectionDiagnostics(IrxConnectionDiagnostics.Route.PRIVATE_NETWORK, 12), 20)
+            MobileTransportDiagnostics.fromIroh(IrxConnectionDiagnostics(IrxConnectionDiagnostics.Route.PRIVATE_NETWORK, 12)), 20)
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding()) {
             NativeConnectionCheckSection(true, { checks++; gate.await() }, { shared = it })
         } } }
@@ -33,6 +33,24 @@ class NativeConnectionCheckSectionTest {
         compose.onNodeWithText("LAN or Private VPN").assertIsDisplayed()
         compose.onNodeWithText("12 ms").assertIsDisplayed()
         capture("connection-check-private-route")
+        compose.onNodeWithText("Share Connection Report").performClick()
+        compose.runOnIdle { assertEquals(result.shareText(), shared) }
+    }
+
+    @Test fun tailscaleReportShowsVpnManagedEncryptionAndSharesTheDisplayedResult() {
+        val result = NativeConnectionReport(true, true, MobileTransportDiagnostics.tailscale(), 18)
+        var shared: String? = null
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding()) {
+            NativeConnectionCheckSection(true, { result }, { shared = it })
+        } } }
+        compose.onNodeWithText("Check Connection").performClick()
+        compose.onNodeWithText("Tailscale VPN (TCP)").assertIsDisplayed()
+        compose.onNodeWithText("Managed by VPN").assertIsDisplayed()
+        compose.onAllNodesWithText("Verified").assertCountEquals(2)
+        compose.onNodeWithText("Verified (Iroh QUIC)").assertDoesNotExist()
+        compose.onNodeWithText("Transport RTT").assertDoesNotExist()
+        compose.onNodeWithText("18 ms").assertIsDisplayed()
+        capture("connection-check-tailscale-route")
         compose.onNodeWithText("Share Connection Report").performClick()
         compose.runOnIdle { assertEquals(result.shareText(), shared) }
     }

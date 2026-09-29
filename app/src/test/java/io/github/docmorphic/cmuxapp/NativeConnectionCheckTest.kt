@@ -17,7 +17,7 @@ class NativeConnectionCheckTest {
         var host = "mac-id"
         var authFailure = false
         var stall = false
-        var diagnostics: IrxConnectionDiagnostics? = IrxConnectionDiagnostics(IrxConnectionDiagnostics.Route.RELAY, 42)
+        var diagnostics: MobileTransportDiagnostics? = MobileTransportDiagnostics.fromIroh(IrxConnectionDiagnostics(IrxConnectionDiagnostics.Route.RELAY, 42))
         override suspend fun connect() { }
         override suspend fun read() = input.receiveCatching().getOrNull()
         override fun diagnostics() = diagnostics
@@ -50,6 +50,35 @@ class NativeConnectionCheckTest {
             }
             assertFalse(base.isClosed)
         }
+    }
+
+    @Test fun tailscaleReportSeparatesVpnManagedEncryptionFromAuthenticatedMacAccess() = runBlocking<Unit> {
+        val wire = Wire().apply { diagnostics = MobileTransportDiagnostics.tailscale() }
+        MobileRpcClient(wire, { "fixture-token" }).use { client ->
+            client.connect(); val report = NativeConnectionCheck.run(client, mac)
+            assertEquals("Tailscale VPN (TCP)", report.route)
+            assertEquals("Managed by VPN", report.encryption)
+            assertTrue(report.identity); assertTrue(report.accountAccess)
+            assertNull(report.transport?.roundTripMillis); assertNotNull(report.responseMillis)
+            val text = report.shareText()
+            assertFalse(text.contains("Iroh")); assertFalse(text.contains("Transport RTT"))
+            for (secret in listOf("private-pairing", "Private Mac name", "mac-id", "instance", "SECRET", "fixture-token"))
+                assertFalse(text, text.contains(secret))
+        }
+    }
+
+    @Test fun transportProjectionRetainsIrohRoutesWithoutClaimingEncryptionForUnavailablePaths() {
+        for (route in IrxConnectionDiagnostics.Route.entries) {
+            val value = MobileTransportDiagnostics.fromIroh(IrxConnectionDiagnostics(route, 12))
+            if (route == IrxConnectionDiagnostics.Route.UNAVAILABLE) {
+                assertEquals(MobileTransportDiagnostics.Encryption.UNAVAILABLE, value.encryption)
+                assertNull(value.roundTripMillis)
+            } else {
+                assertEquals(MobileTransportDiagnostics.Encryption.IROH_QUIC, value.encryption)
+                assertEquals(12L, value.roundTripMillis)
+            }
+        }
+        assertNull(MobileTransportDiagnostics.fromIroh(IrxConnectionDiagnostics(IrxConnectionDiagnostics.Route.RELAY, -1)).roundTripMillis)
     }
 
     @Test fun mismatchedMacStopsBeforeAuthenticatedRead() = runBlocking<Unit> {

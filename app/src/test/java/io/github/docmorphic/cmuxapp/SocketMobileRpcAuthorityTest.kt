@@ -15,6 +15,10 @@ class SocketMobileRpcAuthorityTest {
         var established = 0
         var notify: () -> Unit = {}
         var rejectEstablished = false
+        var diagnosticHook: () -> Unit = {}
+        override fun diagnostics(socket: Socket): MobileTransportDiagnostics {
+            validate(socket); diagnosticHook(); return MobileTransportDiagnostics.tailscale()
+        }
         override fun start(onInvalidated: () -> Unit) { started++; notify = onInvalidated }
         override fun validate(socket: Socket?) {
             check(current && !closed)
@@ -25,6 +29,46 @@ class SocketMobileRpcAuthorityTest {
     }
     private fun transport(server: ServerSocket, authority: Authority) = SocketMobileRpcTransport(
         PairingCode.Route("127.0.0.1", server.localPort), SocketFactory.getDefault(), authority)
+
+    @Test fun liveSocketDiagnosticsRequireAuthorityAndDoNotInventTransportLatency() = runBlocking<Unit> {
+        ServerSocket(0).use { server ->
+            val authority = Authority()
+            transport(server, authority).use { connection ->
+                connection.connect()
+                server.accept().use {
+                    val report = connection.diagnostics()
+                    assertEquals(MobileTransportDiagnostics.Route.TAILSCALE, report.route)
+                    assertEquals(MobileTransportDiagnostics.Encryption.VPN_MANAGED, report.encryption)
+                    assertNull(report.roundTripMillis)
+                    assertFalse(report.toString().contains("127.0.0.1"))
+                }
+            }
+        }
+    }
+    @Test fun plainTcpSocketNeverClaimsVpnOrQuicEncryption() = runBlocking<Unit> {
+        ServerSocket(0).use { server ->
+            SocketMobileRpcTransport(PairingCode.Route("127.0.0.1", server.localPort), SocketFactory.getDefault()).use { connection ->
+                connection.connect()
+                server.accept().use {
+                    assertEquals(MobileTransportDiagnostics.Route.TCP, connection.diagnostics().route)
+                    assertEquals(MobileTransportDiagnostics.Encryption.UNVERIFIED, connection.diagnostics().encryption)
+                }
+            }
+        }
+    }
+    @Test fun authorityRetirementDuringDiagnosticReadClosesSocketInsteadOfPublishingStaleRoute() = runBlocking<Unit> {
+        ServerSocket(0).use { server ->
+            val authority = Authority().apply { diagnosticHook = { current = false } }
+            transport(server, authority).use { connection ->
+                connection.connect()
+                server.accept().use { peer ->
+                    assertTrue(runCatching { connection.diagnostics() }.isFailure)
+                    assertTrue(authority.closed)
+                    peer.soTimeout = 2000; assertEquals(-1, peer.getInputStream().read())
+                }
+            }
+        }
+    }
 
     @Test fun validConnectionExchangesBytesAndClosesObserver() = runBlocking<Unit> {
         ServerSocket(0).use { server ->

@@ -329,14 +329,64 @@ published build 157 is unchanged. Logs/XML are retained locally in ignored
 VPN callback ordering, cold/warm startup and Mac reconnect acceptance remain open.
 The ten-second limit covers tunnel readiness, not a whole DNS/TCP/RPC exchange.
 
+## Live Tailscale transport diagnostics (2026-09-29)
+
+`MobileTransportDiagnostics` now separates route, transport encryption and
+optional transport RTT. The Iroh adapter preserves its direct/private/relay
+classification and QUIC verification. The TCP socket reports Tailscale only when
+its live Android authority revalidates the tunnel generation, permission and
+actual socket endpoints. It reports **Tailscale VPN (TCP)** with encryption
+**Managed by VPN**. A socket without this authority reports TCP and Not Verified;
+it cannot infer a VPN or QUIC connection from an address range.
+
+This is deliberately not a claim that cmux verified the VPN application's
+identity or cipher. The authority proves network/interface/socket properties;
+VPN encryption is owned by the external VPN. Mac identity and authenticated
+account access remain separate checks. Tailscale TCP has no transport RTT value
+in this implementation; the measured RPC response time is still shown separately.
+No TCP latency estimate is relabeled as native QUIC RTT.
+
+Candidate transports forward diagnostics only from their active connection and
+recheck captured permission afterward. The socket checks authority before and
+after projecting diagnostics; retirement during the read closes the socket and
+rejects the result. Closed leases cannot read or share stale connection data.
+Reports contain only fixed labels, booleans and durations, with no coordinates,
+computer names, tokens, terminal content or server error text.
+
+### Diagnostic verification
+
+- **43 focused JVM cases passed**, with no failures/errors/skips: 10 connection
+  reports/projections, 15 Computer Details runtime checks, 8 real local TCP
+  authority, 8 candidate transport and 2 Iroh transport cases. New cases cover
+  TCP versus VPN/QUIC labels, absent TCP transport RTT, revoked authority during
+  projection, candidate forwarding, safe exports and unavailable Iroh routes.
+- Main and instrumentation debug APKs built together, also incorporating the
+  preceding VPN-readiness checkpoint. Native ELF LOAD/RELRO and APK ZIP 16 KB
+  checks passed. Main SHA-256:
+  `f64e63eb813b4e07a33dfef926a33eb8ca43e0c33551e8e4741407cca061aefb`.
+  Instrumentation SHA-256:
+  `f5bf13a922a034f16d176ea11c74f9f4e564c46d3a4b87087f6acbd9dfe7e260`.
+- All **4 Connection Check Android UI cases passed in 8.422 seconds** on the
+  Android 17 emulator. The new case verifies Tailscale/VPN labels, separate
+  identity/account results, no QUIC claim or transport RTT, and sharing exactly
+  the displayed report. Existing cases cover disabled/pending actions, failures,
+  late results after changing Macs and the Iroh private-route display.
+- The Tailscale report screenshot was inspected with no clipped labels. Its
+  white status bar belongs to the standalone test Activity, not the main app.
+  Report values are fixture data. These UI cases do not prove VPN traversal.
+- Evidence is retained in ignored `captures/runtime/tailscale-diagnostics/`.
+  The emulator was stopped afterward. ADB still detected no physical Pixel;
+  last Pixel install remains `f0dfc7f`, published signed build 157 is unchanged,
+  and real VPN/Mac diagnostic acceptance remains pending.
+
 ## Remaining integration and acceptance
 
 - Unify the legacy QR pairing entry point with native computer identity/method
   selection; targeted Details pairing now preserves identity, but the original
   QR screen still uses its legacy saved-row flow.
-- Add live Tailscale-specific route diagnostics; current native check reports TCP
-  transport details as Not Reported. Bounded readiness and actionable startup
-  failure advice are implemented above.
+- Exercise the implemented readiness, route diagnostics and failure advice on the
+  physical Pixel/Mac VPN. TCP transport RTT is not available; RPC response timing
+  is reported separately.
 - Verify Android VPN event ordering, real QR camera results, IPv4/IPv6/MagicDNS,
   edits/removal/reconnect during terminal and notification activity, and complete
   Mac/Pixel acceptance. Finish full iOS layout/interaction comparison.

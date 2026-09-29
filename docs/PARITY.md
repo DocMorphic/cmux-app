@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Live Tailscale diagnostics (2026-09-29):** Connection Check now projects a
+validated TCP/VPN route separately from Iroh route/encryption data. Tailscale
+shows “Managed by VPN”; raw TCP cannot claim VPN or QUIC encryption. Reports omit
+addresses and credentials, reject retired authority, and keep RPC timing separate
+from unavailable TCP transport RTT. All 43 focused JVM and 4 Android 17 emulator
+UI cases passed. Main/test APKs build with both readiness and diagnostics changes;
+native/ZIP 16 KB checks pass. The report screenshot was inspected; values are
+fixtures and physical VPN/Mac acceptance remains pending. See
+[TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md).
+
 **Tailscale tunnel readiness (2026-09-29):** startup now waits up to ten seconds
 for callback-proven VPN readiness; the same monitor survives through socket IO.
 Generation changes retire old proofs, cancellation/revoked consent stop pending
