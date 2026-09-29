@@ -106,6 +106,18 @@ internal class NativeIrohRuntime(
         }
     }
 
+    suspend fun privatePaths(team: NativeTeamScope, change: ((NativePrivatePathStore) -> Unit)? = null): List<NativePrivatePath> =
+        withContext(Dispatchers.IO) {
+            val run = synchronized(lock) { owner } ?: error("Account session changed")
+            requireCurrent(run)
+            check(run.account == team) { "Account session changed" }
+            val store = synchronized(lock) { run.service }?.privatePaths ?: error("Networking is not ready")
+            requireCurrent(run)
+            change?.invoke(store)
+            requireCurrent(run)
+            store.load().also { requireCurrent(run) }
+        }
+
     suspend fun connect(pairing: PairingCode.Iroh): MobileRpcClient = try {
         connectCurrent(pairing)
     } catch (failure: CancellationException) {

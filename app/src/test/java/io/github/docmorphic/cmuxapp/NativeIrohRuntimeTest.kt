@@ -14,6 +14,8 @@ class NativeIrohRuntimeTest {
     private fun ready() = IrohV2ControlState(ready = true, computers = listOf(mac), permissionExpiresAt = 2000)
     private inner class Backend : IrohAccountBackend {
         override val state = MutableStateFlow(ready())
+        var pathJson: String? = null
+        override val privatePaths = NativePrivatePathStore({ pathJson }, { pathJson = it })
         val closes = AtomicInteger()
         val refreshes = AtomicInteger()
         val transports = mutableListOf<PoolTestTransport>()
@@ -31,6 +33,25 @@ class NativeIrohRuntimeTest {
         override fun close() { closes.incrementAndGet() }
     }
     private fun pairing(scope: NativeTeamScope = team) = PairingCodeParser.parse(PairingCodeParser.computer(mac, scope)).getOrThrow() as PairingCode.Iroh
+
+    @Test fun privatePathOperationsRejectWrongTeamAndRetiredLogin() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
+        val backend = Backend()
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "test-token" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            withTimeout(2000) { runtime.state.first { it.ready } }
+            val path = NativePrivatePath(mac.deviceId, mac.buildTag, mac.name, listOf("10.0.0.2:58470"), true)
+            assertEquals(listOf(path), runtime.privatePaths(team) { it.upsert(path) })
+            var invoked = false
+            assertTrue(runCatching {
+                runtime.privatePaths(team.copy(teamId = "other")) { invoked = true; it.reset() }
+            }.isFailure)
+            assertFalse(invoked)
+            teams.value = NativeAccountTeamsState()
+            assertTrue(runCatching { runtime.privatePaths(team) { invoked = true; it.reset() } }.isFailure)
+            assertFalse(invoked)
+            assertTrue(backend.privatePaths.load().single().enabled)
+        }
+    }
 
     @Test fun oneScopedOwnerDiscoversAndSharesMacUntilLastConsumerReleasesIt() = runBlocking<Unit> {
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))

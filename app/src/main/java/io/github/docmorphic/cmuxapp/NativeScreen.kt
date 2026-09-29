@@ -1204,6 +1204,7 @@ fun NativeScreen(
                 }
                 TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
                 NativeConnectionCheckSettings(client, pairedMacs, code, connectionReady)
+                NativePrivatePathsSettings(sharedConnections?.native, computerState)
                 Text("DISPLAY", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                     color = nativeMuted, fontSize = 11.sp)
                 Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp),

@@ -15,6 +15,7 @@ internal interface IrohAccountBackend : AutoCloseable {
     suspend fun refresh()
     fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport
     suspend fun awaitClosed() { }
+    val privatePaths: NativePrivatePathStore? get() = null
 }
 
 /** Binds the enrolled key only when a computer is opened; discovery alone needs no QUIC endpoint. */
@@ -22,7 +23,8 @@ internal class NativeIrohBackend private constructor(
     private val key: IrohInstallationKey,
     private val control: IrohV2ControlSession,
     private val current: () -> Boolean,
-    private val applicationActive: StateFlow<IrxProbeActivity>
+    private val applicationActive: StateFlow<IrxProbeActivity>,
+    override val privatePaths: NativePrivatePathStore
 ) : IrohAccountBackend {
     private val lock = Any()
     private val endpointMutex = Mutex()
@@ -73,7 +75,9 @@ internal class NativeIrohBackend private constructor(
             // The directory provides the host's route; our relay credentials authenticate our endpoint.
             val relay = mac.relayUrls.firstOrNull() ?: state.value.directoryRelays.firstOrNull()
                 ?: error("This Mac has no relay address yet")
-            live.dial(mac.endpointId, relay, permits)
+            val direct = privatePaths.addresses(mac)
+            requireCurrent()
+            live.dial(mac.endpointId, relay, permits, direct)
         }, permits = { current() && !synchronized(lock) { closed } && permits() }, applicationActive = applicationActive)
 
     private fun requireCurrent() {
@@ -114,7 +118,8 @@ internal class NativeIrohBackend private constructor(
                     version, Build.MODEL.take(118).ifBlank { "Android" }, IrohMobileWireProfile.IOS_COMPATIBILITY)
                 val control = IrohV2ControlSession(IrohV2SignedRequests(descriptor, key::sign),
                     { force -> account.accessToken(force) ?: error("Sign in to cmux") }, current)
-                return NativeIrohBackend(key, control, current, applicationActive)
+                return NativeIrohBackend(key, control, current, applicationActive,
+                    NativePrivatePathStore.create(application, key.identity()))
             } catch (failure: Throwable) { key.close(); throw failure }
         }
     }

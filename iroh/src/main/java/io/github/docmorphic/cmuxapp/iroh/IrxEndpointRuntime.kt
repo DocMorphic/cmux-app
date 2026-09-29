@@ -52,14 +52,16 @@ class IrxEndpointRuntime private constructor(private val endpoint: Endpoint,
         }
     }
 
-    suspend fun dial(peerHex: String, relayUrl: String, permits: () -> Boolean): IrxClientSession {
+    suspend fun dial(peerHex: String, relayUrl: String, permits: () -> Boolean,
+                     directAddresses: List<String> = emptyList()): IrxClientSession {
+        require(directAddresses.size <= 8)
         require(peerHex.matches(Regex("[0-9a-f]{64}")))
         require(URI(relayUrl).scheme == "https")
         requireAuthority(permits)
         val peer = peerHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         val connection = withTimeout(20_000) {
             EndpointId.fromBytes(peer).use { id ->
-                EndpointAddr(id, relayUrl, emptyList()).use { address -> endpoint.connect(address, IrxWire.ALPN.toByteArray()) }
+                EndpointAddr(id, relayUrl, directAddresses).use { address -> endpoint.connect(address, IrxWire.ALPN.toByteArray()) }
             }
         }
         // Admission takes ownership of the connection, including failed admission cleanup.
