@@ -25,14 +25,14 @@ The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux
 ## Open the Android project
 
 Install Android Studio with Android SDK 36 and JDK 17. The app now includes its
-native Iroh, rebuilt graphics-path and Ghostty VT dependencies. Prepare Ghostty
-first using [the pinned build or native CI job](docs/GHOSTTY_VT_ANDROID.md#app-build-dependency).
-Obtain the other reviewed checkpoints below (requires GitHub CLI access), or
+native Iroh, rebuilt graphics-path and Ghostty VT dependencies.
+Obtain the three reviewed checkpoints below (requires GitHub CLI access), or
 reproduce them from pinned source as described in [IROH_V2.md](docs/IROH_V2.md#android-native-module):
 
 ```bash
 gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
 gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
+gh run download 36635864459 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
 ./gradlew :app:assembleDebug
 ```
 
@@ -40,6 +40,7 @@ Gradle verifies all three native receipts and every listed hash before compiling
 any older checkpoint directories aside before downloading these replacements.
 If artifacts expire, use reviewed new `native_only`, `graphics_only` and `ghostty_only` workflow
 runs or the documented source builds (see also
+[Ghostty build notes](docs/GHOSTTY_VT_ANDROID.md#app-build-dependency) and
 [graphics-path source notes](third_party/androidx-graphics-path/README.md)).
 These builds require 16 KiB LOAD and RELRO alignment. Current native APKs target **arm64**, including Pixel 6a;
 x86 emulator and other ABI support remains to be added. CI builds the pinned

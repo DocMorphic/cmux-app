@@ -10,10 +10,10 @@ the continuation scope. Windows support here means development and testing.
 Install JDK 17, Android SDK platform 36, build-tools 36.0.0 and platform-tools.
 Set the paths for the current machine; do not copy the handoff Mac paths:
 
-Before the commands below, download the Ghostty checkpoint from a successful
-`ghostty_only` CI run into `build/ghostty-vt-android`. See the exact workflow and
-download steps in [GHOSTTY_VT_ANDROID.md](GHOSTTY_VT_ANDROID.md#app-build-dependency).
-Windows builds consume that verified arm64 artifact; the native-source build
+The commands below download all three reviewed native dependencies, including
+Ghostty from successful CI run `36635864459`. See replacement workflow steps in
+[GHOSTTY_VT_ANDROID.md](GHOSTTY_VT_ANDROID.md#app-build-dependency).
+Windows builds consume the verified arm64 artifacts; the native-source build
 scripts currently run on Linux/macOS.
 
 ```powershell
@@ -22,6 +22,7 @@ $env:ANDROID_HOME = 'C:\path\to\android-sdk'
 $env:Path = "$env:ANDROID_HOME\platform-tools;$env:Path"
 gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
 gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
+gh run download 36635864459 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
 .\gradlew.bat --no-daemon --max-workers=1 :app:testDebugUnitTest
 node --test bridge/*.test.mjs
 python scripts/verify-viewer-assets.py

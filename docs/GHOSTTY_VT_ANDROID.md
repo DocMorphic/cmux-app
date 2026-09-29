@@ -159,6 +159,13 @@ above, or the native artifact produced by the existing Android workflow's new
 signing secrets. From a checkout with GitHub CLI access:
 
 ```sh
+gh run download 36635864459 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
+```
+
+That reviewed Linux checkpoint passed the artifact and runtime checks below. If
+it expires, build a replacement and inspect its result before downloading:
+
+```sh
 gh workflow run android.yml --repo DocMorphic/cmux-app --ref feature/local-mac-bridge -f ghostty_only=true
 gh run list --repo DocMorphic/cmux-app --workflow android.yml --branch feature/local-mac-bridge --limit 5
 # After the selected native run succeeds (replace RUN_ID):
@@ -216,8 +223,62 @@ Integrated verification:
   `1d6afae4acc63f27f5d7fcf6bb99648cee740c550548c245d3fdd84f6d82d9bc`.
 - Evidence is under ignored `captures/runtime/ghostty-integration/`. Underline,
   full-screen editor and scrollback screenshots were inspected; emulator stopped.
-- Workflow YAML and embedded shell blocks parse locally. The new Linux native CI
-  job still needs a successful remote run before its artifact can be recommended.
+- Linux native CI [run 36635864459](https://github.com/DocMorphic/cmux-app/actions/runs/36635864459)
+  succeeded at `cdfa0db`. All 29 files in the downloaded JNI receipt matched their
+  hashes; source revision and JNI binding hash matched this checkout. The test
+  APK contains exactly the published JNI library, SHA-256
+  `a2e4809c0fd3163ad805a80e81464cda724cba63c1c3f0d1d537f442cd53cf3e`.
+  Its ELF LOAD/RELRO and APK ZIP checks pass 16 KB alignment. The downloaded test
+  APK passed all **7 native runtime tests in 0.398 seconds** on the Android 17
+  arm64 emulator (4 KiB runtime pages). This verifies the Linux-produced artifact
+  on Android; it is not a physical 16 KiB runtime result or a Windows build run.
+  Evidence: `captures/runtime/ghostty-integration/ci-runtime.log` and
+  `ci-36635864459.log`. The emulator was stopped after testing. This native-only
+  workflow did not publish a signed main app.
 - The Pixel disconnected before this build could be installed; its last verified
   install remains `5d24946`. No phone/Mac setting was changed. Signed build 157 is
   unchanged; physical/performance/inline-image/full terminal acceptance is open.
+
+## Inline graphics transport audit
+
+The following source trace is at cmux pin
+`4c5272e9153eca2033c9f40ac749f0c3a5bcb291`, not an assumption based on desktop
+Ghostty's capabilities:
+
+- `Packages/iOS/CmuxMobileShell/.../TerminalOutputTransportSelection.swift`
+  selects render-grid when the host supports screen anchors. It explicitly
+  retains that choice for local pixel scrolling. Grid+bytes hosts without the
+  anchor use hybrid delivery, and older hosts can use raw bytes. Android follows
+  that selection; enabling an image decoder is not a reason to change it.
+- `Packages/Shared/CMUXMobileCore/.../MobileTerminalRenderGrid.swift` defines
+  text spans, styles, cursor, modes, themes, revision/row-space and history
+  metadata. The frame has no image pixel data or image placements.
+- `Packages/iOS/CmuxMobileShell/.../TerminalOutputDelivery.swift` turns grid
+  frames into `frame.vtPatchBytes()`. `MobileTerminalOutputSinking.swift` identifies
+  these as generated grid patches or compatibility raw PTY bytes. Sending a text
+  patch through Ghostty does not recover an image payload absent from that frame.
+- `Packages/iOS/CmuxMobileRPC/.../MobileTerminalReplayResponse.swift` defines a
+  preferred render-grid replay and VT snapshot/raw byte-tail fallbacks. This
+  response has no separate image attachment field.
+- The desktop/TUI SDK's `KittyGraphicsState` reports counts, byte totals, IDs and
+  replay cursor metadata; that type supplies no pixel payload for the mobile
+  renderer.
+
+Consequently, graphics acceptance must identify the negotiated transport and the
+actual bytes received. The verified screen-anchored mobile contract cannot supply
+inline images through its grid alone. This is a constraint of the pinned shared
+contract, not evidence of an Android platform restriction or a completed graphics
+feature. Byte/hybrid compatibility streams can carry Kitty commands and still
+need Android decoding, placement and painting support. Initial/recovery replay
+must also contain sufficient graphics state; a tail that omits an earlier image
+transmission cannot recreate it.
+
+The pinned Ghostty C API provides the required byte-path primitives:
+`GHOSTTY_SYS_OPT_DECODE_PNG`, owned allocator-compatible decoded RGBA data, image
+and placement iterators, per-image generations, source cropping, viewport-relative
+positions and z-layer classification. Stored images are already decompressed;
+PNG becomes RGBA. File/temp-file/shared-memory media remain disabled for the
+remote mirror. Remaining implementation checks should cover PNG/RGB/RGBA,
+chunking/compression, alpha, source cropping, scaling/offsets, z-order, image
+replacement/delete, alternate screens, history, resize and replay. A standalone
+decoder test will not establish that images appear in the negotiated app path.
