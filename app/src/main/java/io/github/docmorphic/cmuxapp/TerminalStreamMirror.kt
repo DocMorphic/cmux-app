@@ -5,8 +5,9 @@ import java.util.Base64
 
 /** One surface and one connection generation. All calls are serialized on the UI dispatcher. */
 class TerminalStreamMirror(
-    val surfaceId: String, val transport: TerminalTransport, private val viewport: TerminalViewport
-) {
+    val surfaceId: String, val transport: TerminalTransport, private val viewport: TerminalViewport,
+    private val terminalFactory: (Int, Int) -> ByteTerminal = ::VtTerminal
+) : AutoCloseable {
     enum class Result { APPLIED, IGNORED, REPLAY }
     private data class Chunk(val bytes: ByteArray, val sequence: ULong?) {
         val end get() = sequence?.let {
@@ -15,7 +16,12 @@ class TerminalStreamMirror(
         }
     }
     private var authoritative = RenderGrid()
-    private var raw = VtTerminal(viewport.columns, viewport.rows)
+    private var ownedRaw: ByteTerminal? = null
+    private val raw: ByteTerminal get() = ownedRaw ?: run {
+        checkOpen()
+        terminalFactory(viewport.columns, viewport.rows).also { ownedRaw = it }
+    }
+    private var closed = false
     private var hybridScreen = "primary"
     private var deliveredEnd: ULong? = null
     internal val nativeCursor: ULong? get() = deliveredEnd
@@ -30,9 +36,10 @@ class TerminalStreamMirror(
     val display: TerminalDisplay get() = if (transport.mode == TerminalOutputMode.GRID || usesAlternateGrid) authoritative else raw
     val historyLineCount get() = display.historyLineCount
 
-    fun beginReplay() { pending = true }
+    fun beginReplay() { checkOpen(); pending = true }
 
     fun bytes(payload: JSONObject): Result {
+        checkOpen()
         if (payload.optString("surface_id") != surfaceId || transport.mode == TerminalOutputMode.GRID ||
             usesAlternateGrid) return Result.IGNORED
         val chunk = Chunk(decode(payload.getString("data_b64")), sequence(payload, "seq"))
@@ -44,6 +51,7 @@ class TerminalStreamMirror(
 
     /** Native output shares the event cursor, so overlap is trimmed exactly once. */
     internal fun lane(frame: TerminalLaneProtocol.Output): Result {
+        checkOpen()
         if (transport.mode == TerminalOutputMode.GRID || usesAlternateGrid) return Result.IGNORED
         if (pending || deliveredEnd == null) return Result.REPLAY
         if (frame.bytes.isEmpty()) {
@@ -53,6 +61,7 @@ class TerminalStreamMirror(
     }
 
     fun grid(value: JSONObject): Result {
+        checkOpen()
         val frame = value.optJSONObject("render_grid") ?: value
         if (frame.optString("surface_id") != surfaceId || transport.mode == TerminalOutputMode.BYTES) return Result.IGNORED
         if (transport.mode == TerminalOutputMode.GRID) {
@@ -64,6 +73,7 @@ class TerminalStreamMirror(
 
     /** Installs a replay before releasing buffered output; overlap is trimmed in bytes, not UTF-16. */
     fun replay(value: JSONObject): Result {
+        checkOpen()
         val frame = value.optJSONObject("render_grid") ?: value.takeIf { it.optString("format") == "cmux.render-grid.v1" }
         require(frame == null || frame.optString("surface_id") == surfaceId) { "cmux returned a different terminal's replay" }
         if (transport.mode == TerminalOutputMode.GRID) {
@@ -82,7 +92,7 @@ class TerminalStreamMirror(
             require(snapshot != null || tail != null) { "cmux returned no terminal replay content" }
             val columns = value.optInt("columns", viewport.columns).coerceIn(2, 1000)
             val rows = value.optInt("rows", viewport.rows).coerceIn(2, 1000)
-            raw = VtTerminal(columns, rows).also { it.append(decode(snapshot ?: tail!!)) }
+            replaceRaw(columns, rows, decode(snapshot ?: tail!!))
             authoritative = RenderGrid()
             hybridScreen = raw.activeScreen
         }
@@ -130,7 +140,7 @@ class TerminalStreamMirror(
         require(frame.optBoolean("full", true)) { "A terminal baseline cannot be a delta" }
         val replacement = GridVtReplay.replacement(frame)
         val next = RenderGrid().also { require(it.apply(frame)) }
-        raw = VtTerminal(next.columns, next.rows).also { it.append(replacement) }
+        replaceRaw(next.columns, next.rows, replacement)
         authoritative = next
         hybridScreen = next.activeScreen
     }
@@ -149,6 +159,28 @@ class TerminalStreamMirror(
         } else raw.append(chunk.bytes)
         deliveredEnd = end // A sequence-less producer cannot establish an ordered byte baseline.
         return Result.APPLIED
+    }
+
+    private fun replaceRaw(columns: Int, rows: Int, bytes: ByteArray) {
+        val next = terminalFactory(columns, rows)
+        try {
+            next.append(bytes)
+            next.activeScreen // Materialize a lazy native snapshot before retiring the old owner.
+        } catch (failure: Throwable) {
+            next.close(); throw failure
+        }
+        val previous = ownedRaw
+        ownedRaw = next
+        previous?.close()
+    }
+
+    private fun checkOpen() = check(!closed) { "Terminal mirror is closed" }
+
+    override fun close() {
+        if (closed) return
+        closed = true
+        buffered.clear(); bufferedBytes = 0; pendingGrid = null
+        ownedRaw?.close()
     }
 
     private fun buffer(chunk: Chunk) {

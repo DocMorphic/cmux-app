@@ -80,6 +80,7 @@ android {
         jvmTarget = "17"
     }
     sourceSets.getByName("main").java.srcDir("../third_party/termux/terminal-emulator/src/main/java")
+    sourceSets.getByName("androidTest").assets.srcDir("src/test/resources/terminal")
 
     buildFeatures {
         compose = true
@@ -88,6 +89,7 @@ android {
 
 dependencies {
     implementation(project(":iroh"))
+    implementation(project(":ghostty"))
     val composeBom = platform("androidx.compose:compose-bom:2025.09.00")
     implementation(composeBom)
     implementation(files(graphicsRoot.file("graphics-path-1.1.0-relro.aar")))

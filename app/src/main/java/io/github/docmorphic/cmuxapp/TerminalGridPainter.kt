@@ -3,12 +3,14 @@ package io.github.docmorphic.cmuxapp
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Typeface
 
 /** Android canvas implementation shared by the live view and bitmap rendering checks. */
 class TerminalGridPainter {
     data class PlacedSpan(val span: RenderGrid.Span, val glyphs: List<TerminalGlyphLayout.Glyph>)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val decoration = Path()
     private val faces = (0..3).map { Typeface.create(Typeface.MONOSPACE, it) }
 
     fun draw(canvas: Canvas, width: Float, height: Float, grid: TerminalDisplay,
@@ -59,7 +61,13 @@ class TerminalGridPainter {
                         canvas.restoreToCount(saved)
                     }
                     val stroke = maxOf(1f, cellHeight / 16f)
-                    if (style.underline) canvas.drawRect(x, y + cellHeight - stroke, x + span.width * cellWidth, y + cellHeight, paint)
+                    if (style.underline) {
+                        paint.color = color(style.underlineColor, fg)
+                        paint.alpha = if (style.faint) 150 else 255
+                        underline(canvas, x, y, span.width * cellWidth, cellWidth, cellHeight, stroke, style.underlineStyle)
+                        paint.color = fg
+                        paint.alpha = if (style.faint) 150 else 255
+                    }
                     if (style.strikethrough) canvas.drawRect(x, y + cellHeight * 0.52f, x + span.width * cellWidth, y + cellHeight * 0.52f + stroke, paint)
                     if (style.overline) canvas.drawRect(x, y, x + span.width * cellWidth, y + stroke, paint)
                 }
@@ -77,10 +85,50 @@ class TerminalGridPainter {
             when (cursor.style) {
                 "bar" -> canvas.drawRect(x, y, x + stroke, y + cellHeight, paint)
                 "underline" -> canvas.drawRect(x, y + cellHeight - stroke, x + cursorWidth, y + cellHeight, paint)
+                "hollow" -> {
+                    paint.style = Paint.Style.STROKE; paint.strokeWidth = stroke
+                    canvas.drawRect(x + stroke / 2, y + stroke / 2,
+                        x + cursorWidth - stroke / 2, y + cellHeight - stroke / 2, paint)
+                    paint.style = Paint.Style.FILL
+                }
                 else -> canvas.drawRect(x, y, x + cursorWidth, y + cellHeight, paint)
             }
         }
         canvas.restoreToCount(clipped)
+    }
+
+    private fun underline(canvas: Canvas, x: Float, y: Float, width: Float, cellWidth: Float,
+                          cellHeight: Float, stroke: Float, style: Int) {
+        val bottom = y + cellHeight
+        when (style) {
+            2 -> {
+                canvas.drawRect(x, bottom - stroke, x + width, bottom, paint)
+                canvas.drawRect(x, bottom - 3 * stroke, x + width, bottom - 2 * stroke, paint)
+            }
+            3 -> {
+                val center = bottom - 2 * stroke
+                val half = maxOf(cellWidth / 2, stroke * 2)
+                decoration.reset(); decoration.moveTo(x, center)
+                var position = x; var direction = -1
+                while (position < x + width) {
+                    val end = minOf(position + half, x + width)
+                    decoration.quadTo((position + end) / 2, center + direction * stroke * 2, end, center)
+                    position = end; direction = -direction
+                }
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = stroke
+                canvas.drawPath(decoration, paint)
+                paint.style = Paint.Style.FILL
+            }
+            4, 5 -> {
+                val segment = if (style == 4) stroke else maxOf(cellWidth / 2, stroke * 2)
+                var position = x
+                while (position < x + width) {
+                    canvas.drawRect(position, bottom - stroke, minOf(position + segment, x + width), bottom, paint)
+                    position += segment + stroke
+                }
+            }
+            else -> canvas.drawRect(x, bottom - stroke, x + width, bottom, paint)
+        }
     }
 
     companion object {

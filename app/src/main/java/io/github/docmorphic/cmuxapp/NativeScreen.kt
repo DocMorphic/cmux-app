@@ -917,7 +917,7 @@ fun NativeScreen(
         val generation = ++replayGeneration
         val viewportGeneration = ++viewportRequestGeneration
         val transport = terminalTransport
-        val mirror = TerminalStreamMirror(terminal.id, transport, requestedViewport)
+        val mirror = TerminalStreamMirror(terminal.id, transport, requestedViewport, ::GhosttyVtTerminal)
         val replayRecovery = TerminalReplayRecovery()
         // Keep the last painted frame while this viewport gets a fresh replay.
         // The display state above resets for a different terminal or connection;
@@ -1093,6 +1093,7 @@ fun NativeScreen(
             scrollQueue.close()
             if (generation == replayGeneration) { terminalClick = null; terminalScroll = null; cancelQueuedScroll = null }
             eventJob.cancel()
+            mirror.close()
             // An old viewport effect must never clear a newer report on the same surface.
             if (viewportAttempted && (generation == replayGeneration ||
                 selectedTerminal?.id != terminal.id || client !== active)) withContext(NonCancellable) {

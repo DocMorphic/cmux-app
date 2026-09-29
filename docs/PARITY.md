@@ -12,6 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Ghostty app integration (2026-09-29):** Android byte/hybrid streams now use the
+pinned native Ghostty core. Replays materialize replacements before retiring old
+owners; disposal closes native state, and pure-grid sessions allocate no parser.
+Copied snapshots feed the Canvas painter, including five colored underline
+styles, faint decorations and hollow cursors. All 23 focused JVM and 10 Android
+emulator cases pass, including captured Vim and production raw-stream recovery/
+scrollback. APKs build and native/ZIP 16 KB checks pass; screenshots were inspected.
+CI native preparation and portable artifact generation are wired, with the first
+remote native job still pending. The Pixel disconnected before installation.
+Inline graphics, performance, remaining terminal fidelity and physical acceptance
+remain open. See [GHOSTTY_VT_ANDROID.md](GHOSTTY_VT_ANDROID.md).
+
 **Android Ghostty binding prerequisite (2026-09-29):** a separate native module
 now owns terminal/render resources, returns copied bounded snapshots and rejects
 stale handles. It preserves grapheme clusters, rich styles, modes and scrollback;

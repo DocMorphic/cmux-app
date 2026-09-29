@@ -10,6 +10,12 @@ the continuation scope. Windows support here means development and testing.
 Install JDK 17, Android SDK platform 36, build-tools 36.0.0 and platform-tools.
 Set the paths for the current machine; do not copy the handoff Mac paths:
 
+Before the commands below, download the Ghostty checkpoint from a successful
+`ghostty_only` CI run into `build/ghostty-vt-android`. See the exact workflow and
+download steps in [GHOSTTY_VT_ANDROID.md](GHOSTTY_VT_ANDROID.md#app-build-dependency).
+Windows builds consume that verified arm64 artifact; the native-source build
+scripts currently run on Linux/macOS.
+
 ```powershell
 $env:JAVA_HOME = 'C:\path\to\jdk-17'
 $env:ANDROID_HOME = 'C:\path\to\android-sdk'
@@ -30,7 +36,7 @@ No release signing configuration
 changes are needed. Use the existing GitHub workflow/secrets for signed milestones;
 local versionCode 2 is not an upgrade over published build 157.
 
-The app requires both pinned Iroh and rebuilt graphics-path dependencies. Move old
+The app requires pinned Iroh, rebuilt graphics-path and Ghostty dependencies. Move old
 checkpoint directories aside before downloading the replacements above. Gradle
 verifies their receipts and hashes, including the new 16 KiB RELRO build marker.
 See [IROH_V2.md](IROH_V2.md#android-native-module) and

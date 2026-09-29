@@ -63,7 +63,12 @@ def main():
         destination = notices / license_file.parent.name / license_file.name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(license_file, destination)
-    artifacts = [library, *(p for p in notices.rglob("*") if p.is_file())]
+    aggregate = core / "notices/licenses/Ghostty.txt"
+    aggregate.write_text("Ghostty VT and bundled dependency notices\n"
+                         f"Source: https://github.com/manaflow-ai/ghostty at {REVISION}\n\n" +
+                         "\n\n".join(str(p.relative_to(notices)) + "\n\n" + p.read_text(errors="replace")
+                                      for p in sorted(notices.rglob("*")) if p.is_file()))
+    artifacts = [library, aggregate, *(p for p in notices.rglob("*") if p.is_file())]
     manifest = {
         "sourceRevision": REVISION, "ndk": NDK_VERSION, "androidApi": 26,
         "abi": "arm64-v8a", "elfPageSize": 16384, "snapshotVersion": 1,

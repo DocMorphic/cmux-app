@@ -1,9 +1,10 @@
 # Upstream Ghostty VT core on Android
 
-Checkpoint: 2026-09-29. This is a native engine and Android binding prerequisite,
-**not an app renderer replacement or a completed terminal-parity milestone**. The installed
-app continues to use the authoritative Mac render grid and the existing Termux
-compatibility parser for byte/hybrid streams.
+Checkpoint: 2026-09-29. Ghostty is now integrated into the Android app's byte and
+hybrid terminal streams. Authoritative Mac grid delivery remains selected where
+negotiated. Full terminal parity, image rendering and physical acceptance are
+still unfinished. The core/binding-only sections below describe earlier steps;
+the app integration section records the current state.
 
 ## Source and build
 
@@ -37,8 +38,8 @@ python3 scripts/build-ghostty-vt-android.py \
 Use a new output directory. The script archives the exact commit, builds the
 static/shared libraries, compiles a synthetic Android smoke executable and checks
 ELF LOAD/RELRO alignment. `manifest.json` records source/tool versions and artifact
-hashes. Outputs and downloaded dependencies remain ignored; no new binary is
-packaged in the APK by this checkpoint. Retain upstream licenses and dependency
+hashes. Outputs and downloaded dependencies remain ignored; the separate JNI
+builder supplies the app's packaged library. Retain upstream licenses and dependency
 notices when eventually vendoring or distributing these artifacts.
 
 ## Runtime probe
@@ -77,22 +78,12 @@ ELF alignment check remains necessary.
 
 ## Integration still required
 
-1. Connect the implemented Android binding to production replay replacement,
-   surface switch and disposal. The binding has explicit ownership/close; the
-   app must invoke it at each lifecycle boundary before enabling the engine.
-2. Adapt the owned snapshots to the Compose painter, including full style and
-   history viewport geometry. The binding already uses render-state iterators;
-   upstream warns that grid references are unsuitable for a frame-rate loop.
-3. Replace the byte/hybrid compatibility engine behind `TerminalStreamMirror`
-   while retaining its replay barrier, unsigned cursor, overlap trimming and
-   authoritative-grid negotiation. Keep Mac PTY replies, clipboard operations and
-   other terminal effects disabled in this remote mirror.
-4. Add bounded image decoding/placement, glyph/style painting and input-mode
-   integration. Exposed Kitty data is not yet Android image rendering; a text
-   render-grid frame alone cannot reconstruct missing image payloads.
-5. Run parser/replay/lifecycle regression checks, rendered pixel comparisons,
-   Android 16 KB compatibility checks and actual Pixel/Mac TUI, resize, input,
-   reconnect and scrolling acceptance before selecting the new engine in the app.
+The binding, app adapter, replay ownership and native byte/hybrid selection are
+implemented below. Remaining work includes bounded image decoding/placement,
+remaining glyph/input-mode fidelity, performance measurement and actual Pixel/Mac
+TUI, resize, input, reconnect and scrolling acceptance. Exposed Kitty data is not
+yet Android image rendering; a text render-grid frame alone cannot reconstruct
+missing image payloads. PTY replies and clipboard effects stay with the Mac.
 
 The C API is marked unstable upstream, so the exact source pin and matching
 headers are part of the binding contract. Building the library does not prove
@@ -157,7 +148,76 @@ Verification on the final binding:
 - Evidence: ignored `captures/runtime/ghostty-jni/` and
   `build/ghostty-vt-android/gradle-binding-final.log`. Emulator stopped afterward.
 
-The app has no dependency on `:ghostty` yet, so existing app CI tasks and the
-installed Pixel APK are unchanged. App dependency/CI native preparation,
-`TerminalDisplay` adaptation, actual replay/disposal ownership, images, rendering
-performance and Pixel/Mac acceptance remain required before shipping this engine.
+At the binding-only checkpoint, the app had no dependency on `:ghostty` and the
+Pixel APK was unchanged. The integration below supersedes that state.
+
+## App build dependency
+
+The app now depends on `:ghostty`. A local build requires the core and JNI commands
+above, or the native artifact produced by the existing Android workflow's new
+`ghostty_only` option. That option does not publish a signed app or require release
+signing secrets. From a checkout with GitHub CLI access:
+
+```sh
+gh workflow run android.yml --repo DocMorphic/cmux-app --ref feature/local-mac-bridge -f ghostty_only=true
+gh run list --repo DocMorphic/cmux-app --workflow android.yml --branch feature/local-mac-bridge --limit 5
+# After the selected native run succeeds (replace RUN_ID):
+gh run download RUN_ID --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
+```
+
+Use a fresh download directory, or move an older checkpoint aside first. The
+artifact includes JNI, receipts and notices for Gradle builds on Windows/macOS/
+Linux; it does not contain the entire source/build cache. Rebuilding JNI locally
+requires a complete core source build. Normal app CI restores the reviewed native
+artifact cache or builds it from the exact source pin using SHA-verified Zig
+0.16.0 and NDK r28c, then validates the native receipts through Gradle.
+
+## App integration
+
+`NativeScreen` supplies `GhosttyVtTerminal` to `TerminalStreamMirror`. Pure grid
+sessions allocate no local VT core. Byte and hybrid sessions use Ghostty, while
+the existing replay barrier, sequence/overlap handling, gap recovery and alternate
+grid negotiation remain in place. The Termux implementation remains the JVM
+compatibility fixture through the injected `ByteTerminal` interface.
+
+A replay fully creates and materializes its candidate before closing the old
+owner. Failed candidates are closed while the prior frame survives. The terminal
+effect closes its mirror after cancelling output/event consumers; mirror close is
+idempotent and refuses later mutations. Cached copied frames can finish painting
+during viewport replacement without reopening or entering a closed native handle.
+
+The adapter retains explicit/default colors, glyph clusters, wide cells, cursor
+shape/blinking, modes and history. The Canvas painter now supports colored single,
+double, curly, dotted and dashed underlines, faint decorations and hollow cursors.
+Other image and glyph-fidelity work remains open. Upstream and dependency notices
+are packaged and accessible from the app's open-source licenses dialog.
+
+Integrated verification:
+
+- **23 focused JVM cases passed**: 10 stream/replay, 10 render-grid and 3 new
+  ownership cases. They cover retiring an old owner, retaining old content after
+  a candidate snapshot fails, idempotent close and avoiding native allocation in
+  grid/unopened sessions.
+- **10 Android 17 emulator cases passed in 26.357 seconds**: four native adapter/
+  mirror/bitmap cases, three existing font/grid rendering cases and three app/RPC
+  scenarios. The native cases include the captured Vim open/edit/exit bytes,
+  hybrid reseeding and byte-gap recovery, closed-frame painting data, rich
+  graphemes/styles and five distinct red underline patterns with faint shading.
+- The production `NativeScreen` byte path passed split UTF-8, duplicate output,
+  alternate restore, gap replay, scrollback/Latest and no unsolicited PTY reply.
+  Existing authoritative-grid primary scrolling and alternate mouse/wheel checks
+  also passed with the new lifecycle and painter.
+- The final main/test APKs build. All four packaged native libraries pass ELF
+  16 KB LOAD/RELRO checks; the main APK passes ZIP 16 KB alignment. Ghostty's
+  aggregated notices were found in the APK and the license dialog includes them.
+- Main APK SHA-256:
+  `e90dbfe9518edf46ef5b290e34fa7ee97b9cf5540bf797aebfe0fadc687de82f`.
+- Test APK SHA-256:
+  `1d6afae4acc63f27f5d7fcf6bb99648cee740c550548c245d3fdd84f6d82d9bc`.
+- Evidence is under ignored `captures/runtime/ghostty-integration/`. Underline,
+  full-screen editor and scrollback screenshots were inspected; emulator stopped.
+- Workflow YAML and embedded shell blocks parse locally. The new Linux native CI
+  job still needs a successful remote run before its artifact can be recommended.
+- The Pixel disconnected before this build could be installed; its last verified
+  install remains `5d24946`. No phone/Mac setting was changed. Signed build 157 is
+  unchanged; physical/performance/inline-image/full terminal acceptance is open.

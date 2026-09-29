@@ -19,7 +19,7 @@ fun OpenSourceLicensesDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val licenses = remember(context) {
         listOf("NOTICE.txt", "GPL-3.0.txt", "Apache-2.0.txt", "Lucide.txt", "Markdown.txt", "RawCode.txt",
-            "JNA.txt", "AndroidX-Graphics-Path.txt", "iroh/LICENSE-MIT", "iroh/LICENSE-APACHE").joinToString("\n\n") { name ->
+            "JNA.txt", "AndroidX-Graphics-Path.txt", "Ghostty.txt", "iroh/LICENSE-MIT", "iroh/LICENSE-APACHE").joinToString("\n\n") { name ->
             context.assets.open("licenses/$name").bufferedReader().use { it.readText() }
         }
     }

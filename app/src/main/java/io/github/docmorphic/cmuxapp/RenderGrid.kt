@@ -11,7 +11,8 @@ class RenderGrid : TerminalDisplay {
         val faint: Boolean = false, val strikethrough: Boolean = false,
         val overline: Boolean = false, val blink: Boolean = false,
         val foregroundSource: String? = null, val backgroundSource: String? = null,
-        val foregroundPaletteIndex: Int? = null, val backgroundPaletteIndex: Int? = null
+        val foregroundPaletteIndex: Int? = null, val backgroundPaletteIndex: Int? = null,
+        val underlineStyle: Int = if (underline) 1 else 0, val underlineColor: String? = null
     )
     data class Span(val column: Int, val width: Int, val text: String, val style: Style)
     data class Cursor(val row: Int, val column: Int, val visible: Boolean,

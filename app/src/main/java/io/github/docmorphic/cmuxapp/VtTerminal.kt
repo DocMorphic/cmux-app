@@ -8,7 +8,7 @@ import com.termux.terminal.TextStyle
 import com.termux.terminal.WcWidth
 
 /** Parser state survives byte boundaries; the Mac remains the sole owner of the PTY. */
-class VtTerminal(columns: Int, rows: Int) : TerminalDisplay {
+class VtTerminal(columns: Int, rows: Int) : ByteTerminal {
     private val output = object : TerminalOutput() {
         // Device replies belong to the Mac's Ghostty instance. Mirroring them back
         // would duplicate replies and could turn output into unsolicited input.
@@ -27,7 +27,8 @@ class VtTerminal(columns: Int, rows: Int) : TerminalDisplay {
         engine.mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND] = 0xff111316.toInt()
     }
 
-    fun append(bytes: ByteArray) { engine.append(bytes, bytes.size) }
+    override fun append(bytes: ByteArray) { engine.append(bytes, bytes.size) }
+    override fun close() = Unit
     override val columns get() = engine.columns
     override val rows get() = engine.rows
     override val foreground get() = hex(engine.mColors.mCurrentColors[TextStyle.COLOR_INDEX_FOREGROUND])

@@ -1,5 +1,14 @@
 # Attribution
 
+The Android byte/hybrid terminal path uses the Ghostty VT core from
+https://github.com/manaflow-ai/ghostty at
+`edefce7785c9f439966c68588db1edbd6b435203`, referenced by the pinned cmux source.
+Copyright (c) 2024 Mitchell Hashimoto, Ghostty contributors; MIT license.
+Changes: Android RELRO common-page-size build setting, an independently written
+JNI ownership/snapshot binding, and a Kotlin/Canvas adapter. Upstream and bundled
+dependency notices are packaged in the app's Ghostty license entry. See
+`docs/GHOSTTY_VT_ANDROID.md` for build provenance and verification.
+
 `IrohV2SigningCodec.kt` follows the canonical signing contract in cmux's
 `Packages/Shared/CmuxIrxTransport/Sources/CmuxIrxTransport/V2/V2WireSigningCodec.swift`
 at `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`. The unchanged public test vectors

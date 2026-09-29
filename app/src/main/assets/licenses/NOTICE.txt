@@ -7,6 +7,13 @@ Its public deterministic signing vectors are JVM test resources only and are
 not application identities or production app assets.
 This software is provided without warranty; redistribution and modification are permitted under its license.
 
+Ghostty VT terminal core
+Source: https://github.com/manaflow-ai/ghostty
+Revision: edefce7785c9f439966c68588db1edbd6b435203
+Copyright (c) 2024 Mitchell Hashimoto, Ghostty contributors; MIT license.
+Android adaptation: RELRO common-page-size setting, JNI ownership/snapshot binding,
+and Kotlin/Canvas adapter. Full bundled notices appear in the Ghostty entry.
+
 Termux terminal emulator
 Copyright its respective contributors.
 Source: https://github.com/termux/termux-app

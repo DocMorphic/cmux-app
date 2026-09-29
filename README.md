@@ -8,8 +8,9 @@ For the current physical device check, use the [Pixel 6a install guide](docs/PIX
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
 Android now wires Iroh/V2 discovery and admitted RPC connections into the app and
-background feeds. Actual account enrollment and Pixel-to-Mac traffic are not yet
-verified. Legacy Tailscale QR routes remain available for older hosts.
+background feeds. Earlier Pixel/Mac checks verified account enrollment and native
+traffic; newer terminal/settings work still needs physical acceptance. Legacy
+Tailscale QR routes remain available for older hosts.
 See [the connection migration](docs/IROH_V2.md).
 
 **Continuing on another laptop:** start with [HANDOFF.md](docs/HANDOFF.md) for the
@@ -24,9 +25,10 @@ The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux
 ## Open the Android project
 
 Install Android Studio with Android SDK 36 and JDK 17. The app now includes its
-native Iroh and rebuilt graphics-path dependencies. Obtain both reviewed checkpoints first (requires GitHub CLI
-access to this repository), or reproduce it from the pinned source as described
-in [IROH_V2.md](docs/IROH_V2.md#android-native-module):
+native Iroh, rebuilt graphics-path and Ghostty VT dependencies. Prepare Ghostty
+first using [the pinned build or native CI job](docs/GHOSTTY_VT_ANDROID.md#app-build-dependency).
+Obtain the other reviewed checkpoints below (requires GitHub CLI access), or
+reproduce them from pinned source as described in [IROH_V2.md](docs/IROH_V2.md#android-native-module):
 
 ```bash
 gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
@@ -34,9 +36,9 @@ gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path
 ./gradlew :app:assembleDebug
 ```
 
-Gradle verifies both native receipts and every listed hash before compiling. Move
+Gradle verifies all three native receipts and every listed hash before compiling. Move
 any older checkpoint directories aside before downloading these replacements.
-If artifacts expire, use reviewed new `native_only` and `graphics_only` workflow
+If artifacts expire, use reviewed new `native_only`, `graphics_only` and `ghostty_only` workflow
 runs or the documented source builds (see also
 [graphics-path source notes](third_party/androidx-graphics-path/README.md)).
 These builds require 16 KiB LOAD and RELRO alignment. Current native APKs target **arm64**, including Pixel 6a;
@@ -54,7 +56,7 @@ job; see [build cadence](docs/ANDROID_TESTING.md#build-cadence).
 
 ## Project choices
 
-- Kotlin and Jetpack Compose, with an app module and an isolated Iroh library module under development.
+- Kotlin and Jetpack Compose, with separate Iroh transport and Ghostty VT native modules.
 - `io.github.docmorphic.cmuxapp` is a temporary independent app ID.
 - The native path follows the cmux mobile RPC protocol and the optional Mac helper remains available during migration.
 - The optional Mac helper binds loopback by default; it requires an explicit flag to listen on Tailscale.
