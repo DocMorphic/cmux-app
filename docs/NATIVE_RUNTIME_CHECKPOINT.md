@@ -4,6 +4,53 @@ The sections below record separate Android 17 emulator and physical Pixel fixtur
 checkpoints. **Authenticated Mac acceptance remains open.** Published signed build
 157 is unchanged.
 
+## Android 17 RELRO warning — fixed and checked on Pixel
+
+The user reported "The app isn't 16 KB compatible. RELRO alignment check failed."
+on the Pixel. The phone currently uses 4096-byte kernel pages, but its package
+compatibility checker flags the same native layout defect relevant to 16 KiB
+devices. Inspecting the actual APK found misaligned RELRO ends in **all three**
+native libraries: Iroh, JNA 5.15.0 and AndroidX graphics-path. The earlier ZIP and
+LOAD alignment checks passed but did not validate RELRO; they were insufficient
+to establish full 16 KiB compatibility.
+
+The correction explicitly sets both maximum and common page size when linking
+Iroh, updates JNA to 5.17.0, and rebuilds graphics-path JNI from pinned, unchanged
+upstream source. Even the latest official graphics-path 1.1.0 AAR has a misaligned
+RELRO end, so a version bump alone did not solve it. Its Java classes/resources
+remain from the hash-verified official AAR. Gradle checks both native receipts.
+The new APK-wide verifier checks every library's LOAD and RELRO boundaries, and
+CI also runs ZIP alignment verification. No compatibility warning or RELRO
+protection is disabled.
+
+The original APK fails the new verifier for all three libraries (captured in
+`alignment-before.txt`). Both rebuild jobs succeeded: graphics-path `36539507313`
+and Iroh `36539047261`. The assembled APK passes LOAD/RELRO checks for all three
+libraries and `zipalign -c -P 16 4`. After updating the Pixel, package manager
+`pageSizeCompat` changed from **256 to 0** without overriding compatibility settings.
+
+The same replacement app passed **4 physical-device tests in 1.001 seconds**:
+native graphics JNI registration/conic conversion, two terminal input/output
+lane tests and native artifact transfer. The graphics check invokes the official
+Java binding's native conversion path even on API 34+, where ordinary path
+iteration could bypass that library. No account credentials were cleared.
+
+| Replacement artifact | SHA-256 |
+| --- | --- |
+| Debug APK | `803a41695a473f2c8b595cbc106cc2f59502153228065345958faf008005ff29` |
+| App test APK | `beeda3a7f0740642712c82b95b8b2fa6246561ddeab653741dbde9177d9365db` |
+| Iroh library | `303fb2060b36f15d41f8aaf08d51888e498ce0a940e07368d5100993db1452f3` |
+| Graphics library | `3db2b7620b0e27aa9d75884fa145e75af87b310865d96a9ed7b46ec980759863` |
+
+Evidence in `captures/runtime/pixel-native-20260929`: `alignment-after.txt`,
+`relro-build.log`, `relro-native-runtime.txt`, and `relro-receipt.json`. The Pixel
+still uses a **4 KiB kernel**: this verifies its package compatibility check and
+runtime, not execution on a 16 KiB kernel. A separate 16 KiB runtime target and
+authenticated Mac enrollment remain outstanding. The app was opened again and
+the user was asked to request a fresh code to verify the sign-in correction.
+
+Reference: [Android native alignment guidance](https://developer.android.com/guide/practices/page-sizes).
+
 ## Physical Pixel native lanes — 2026-09-29
 
 Installed the debug app and app test APK from source `61a6bf7` on the Pixel 6a

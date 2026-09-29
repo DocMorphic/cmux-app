@@ -161,7 +161,7 @@ the MIT and BSD licenses; raw-code/manifest.json records exact asset hashes.
 The app includes manaflow-ai/iroh-ffi at
 ee19f156667ca640b912108a45f8b5bb8d156fec, its matching generated Kotlin bindings
 and Android context initializer (MIT OR Apache-2.0). The original license texts
-and build receipt are included in licenses/iroh. Java Native Access 5.15.0 is
+and build receipt are included in licenses/iroh. Java Native Access 5.17.0 is
 used under Apache-2.0; JNA.txt preserves its license-choice notice.
 
 IrxWire, IrxClientSession, IrohInstallationStore, IrohV2ControlTransport,
@@ -170,3 +170,5 @@ Irx, V2 service and authenticated scope contracts at
 4c5272e9153eca2033c9f40ac749f0c3a5bcb291 and deployed Worker
 e0263f46a6698bf7d74e828b6200e4bfa963a3dc.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+
+AndroidX graphics-path 1.1.0: unchanged Java classes and resources; arm64 JNI rebuilt from pinned source with 16 KiB RELRO alignment. See AndroidX-Graphics-Path.txt for the combined upstream notices.

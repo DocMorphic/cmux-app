@@ -14,7 +14,8 @@ Set the paths for the current machine; do not copy the handoff Mac paths:
 $env:JAVA_HOME = 'C:\path\to\jdk-17'
 $env:ANDROID_HOME = 'C:\path\to\android-sdk'
 $env:Path = "$env:ANDROID_HOME\platform-tools;$env:Path"
-gh run download 36416151322 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
+gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
+gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
 .\gradlew.bat --no-daemon --max-workers=1 :app:testDebugUnitTest
 node --test bridge/*.test.mjs
 python scripts/verify-viewer-assets.py
@@ -29,9 +30,12 @@ No release signing configuration
 changes are needed. Use the existing GitHub workflow/secrets for signed milestones;
 local versionCode 2 is not an upgrade over published build 157.
 
-The app now requires the pinned Iroh dependency. Gradle verifies its receipt and
-hashes. See [IROH_V2.md](IROH_V2.md#android-native-module) to reproduce an expired
-checkpoint via Linux/macOS or the native CI job. The current native APK is arm64;
+The app requires both pinned Iroh and rebuilt graphics-path dependencies. Move old
+checkpoint directories aside before downloading the replacements above. Gradle
+verifies their receipts and hashes, including the new 16 KiB RELRO build marker.
+See [IROH_V2.md](IROH_V2.md#android-native-module) and
+[graphics-path](../third_party/androidx-graphics-path/README.md) to reproduce
+expired checkpoints via Linux/macOS or the native CI jobs. The current native APK is arm64;
 the older x86-64 emulator evidence below predates this dependency. Use the Pixel
 or an arm64 target for current runtime checks until x86-64 native support is built.
 

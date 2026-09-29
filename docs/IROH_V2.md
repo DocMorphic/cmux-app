@@ -117,11 +117,20 @@ own layer. A complete native connection has not been demonstrated.
 
 `:iroh` is now a dependency of `:app`; app builds require its checked native
 artifact. It uses the matching generated Kotlin
-bindings, JNA 5.15.0 **Android AAR**, JDK 17, API 26 minimum and arm64 only.
+bindings, JNA 5.17.0 **Android AAR**, JDK 17, API 26 minimum and arm64 only.
 `IrohRuntime.initialize` installs the application context once before endpoint
 creation. Library pre-build verifies the pin, NDK, ABI and every receipt hash;
 missing or mismatched artifacts fail instead of silently creating an unusable AAR.
 The AAR includes the upstream MIT/Apache notices and build receipt.
+
+**2026-09-29 alignment correction:** the original checkpoint below checked LOAD
+alignment only and failed the Pixel's RELRO compatibility check. The replacement
+from successful native run `36539047261` explicitly sets both maximum/common page
+size to 16384 and validates `(GNU_RELRO.p_vaddr + p_memsz) % 16384 == 0`.
+JNA 5.17.0 includes its 16 KiB fixes. Main app builds also need the separately
+rebuilt graphics-path checkpoint (`36539507313`), because the official 1.1.0
+binary still fails RELRO alignment. See `NATIVE_RUNTIME_CHECKPOINT.md` for current
+APK/device evidence; earlier hashes remain historical checkpoints.
 
 Reproduce the native artifact by dispatching `Android build` on the working
 branch with `native_only=true`, or running `scripts/build-iroh-android.py` with

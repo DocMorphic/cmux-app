@@ -162,7 +162,13 @@ ee19f156667ca640b912108a45f8b5bb8d156fec (MIT OR Apache-2.0), including its
 matching generated UniFFI Kotlin bindings and Android context initializer.
 Native build receipts record Cargo.lock and all delivered file hashes. The module
 packages upstream LICENSE-MIT and LICENSE-APACHE under assets/licenses/iroh.
-JNA 5.15.0 is used under Apache-2.0; its Android AAR retains upstream notices.
+JNA 5.17.0 is used under Apache-2.0; its Android AAR retains upstream notices.
+
+AndroidX graphics-path 1.1.0 retains its official Java classes and resources. Its
+arm64 JNI library is rebuilt from unchanged AndroidX source revision
+`7b1104d5e67bd061e736e8d576b539498b498be4` with 16 KiB RELRO alignment.
+Source attribution and combined Apache/BSD notices are in
+`third_party/androidx-graphics-path` and the app's open-source licenses.
 The main debug APK now includes Iroh/JNA for arm64. No updated signed release has been published.
 
 IrxWire, IrxClientSession, IrxEndpointRuntime and IrxMobileRpcTransport adapt the

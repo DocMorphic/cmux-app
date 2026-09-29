@@ -10,3 +10,4 @@ local.properties
 *.p12
 *.keystore
 captures/
+__pycache__/

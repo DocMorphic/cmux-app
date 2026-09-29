@@ -24,18 +24,22 @@ The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux
 ## Open the Android project
 
 Install Android Studio with Android SDK 36 and JDK 17. The app now includes its
-native Iroh dependency. Obtain the reviewed checkpoint first (requires GitHub CLI
+native Iroh and rebuilt graphics-path dependencies. Obtain both reviewed checkpoints first (requires GitHub CLI
 access to this repository), or reproduce it from the pinned source as described
 in [IROH_V2.md](docs/IROH_V2.md#android-native-module):
 
 ```bash
-gh run download 36416151322 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
+gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
+gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
 ./gradlew :app:assembleDebug
 ```
 
-Gradle verifies the native receipt and every listed hash before compiling. If the
-checkpoint has expired, use a reviewed new `native_only` workflow run or the
-documented source build. Current native APKs target **arm64**, including Pixel 6a;
+Gradle verifies both native receipts and every listed hash before compiling. Move
+any older checkpoint directories aside before downloading these replacements.
+If artifacts expire, use reviewed new `native_only` and `graphics_only` workflow
+runs or the documented source builds (see also
+[graphics-path source notes](third_party/androidx-graphics-path/README.md)).
+These builds require 16 KiB LOAD and RELRO alignment. Current native APKs target **arm64**, including Pixel 6a;
 x86 emulator and other ABI support remains to be added. CI builds the pinned
 native source on a cache miss and validates it again through Gradle.
 
