@@ -31,6 +31,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalFocusManager
@@ -108,20 +109,6 @@ fun NativeScreen(
         context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE)
     }
     val toolbarStore = rememberTerminalToolbar(displayPreferences)
-    var terminalScale by remember(displayPreferences) {
-        mutableFloatStateOf(displayPreferences.getFloat("terminal_scale", 1f).coerceIn(0.75f, 1.5f))
-    }
-    val terminalCells = remember(density, terminalScale) {
-        TerminalCellMetrics.fromFontSize(
-            with(density) { 14.sp.toPx() } * terminalScale,
-            with(density) { 2.dp.toPx() }
-        )
-    }
-    var terminalViewportPixels by remember { mutableStateOf(IntSize.Zero) }
-    val terminalViewport = TerminalViewport.fit(
-        terminalViewportPixels.width, terminalViewportPixels.height, terminalCells)
-    val terminalColumns = terminalViewport?.columns ?: 0
-    val terminalRows = terminalViewport?.rows ?: 0
     var viewportRequestGeneration by remember { mutableLongStateOf(0L) }
     val store = remember(context, sharedConnections) { sharedConnections?.store ?: NativeCredentialStore(context.applicationContext) }
     val account = remember(store) { sharedConnections?.account ?: NativeAccount(store) }
@@ -208,6 +195,14 @@ fun NativeScreen(
     var computerMenuOpen by remember { mutableStateOf(false) }
     var selectedWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
     var selectedTerminal by remember(code) { mutableStateOf<NativeTerminal?>(null) }
+    val terminalZoom = remember(code, selectedWorkspace?.id, selectedTerminal?.id) { TerminalZoomState() }
+    val terminalCells = remember(density, terminalZoom.size) {
+        TerminalCellMetrics.fromFontSize(with(density) { terminalZoom.size.sp.toPx() }, with(density) { 2.dp.toPx() })
+    }
+    var terminalViewportPixels by remember { mutableStateOf(IntSize.Zero) }
+    val terminalViewport = TerminalViewport.fit(terminalViewportPixels.width, terminalViewportPixels.height, terminalCells)
+    val terminalColumns = terminalViewport?.columns ?: 0
+    val terminalRows = terminalViewport?.rows ?: 0
     var selectedBrowser by remember(code) { mutableStateOf<NativeBrowser?>(null) }
     var selectedChangesWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
     var connectedCode by remember { mutableStateOf<String?>(null) }
@@ -992,6 +987,12 @@ fun NativeScreen(
                     lastDelivery = event.deliverySequence
                 }
                 if (event.streamId != null && event.streamId != subscriptionId) return@collect
+                if (event.topic == "terminal.set_font") {
+                    TerminalSetFont.decode(event.payload)?.takeIf { it.matches(workspace.id, terminal.id) }?.let {
+                        terminalZoom.apply(it.size)
+                    }
+                    return@collect
+                }
                 if (event.topic == "terminal.render_grid") {
                     val frame = event.payload.optJSONObject("render_grid") ?: event.payload
                     if (frame.optString("surface_id") == terminal.id && frame.optBoolean("full", true) &&
@@ -1234,10 +1235,6 @@ fun NativeScreen(
                 TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
                 NativeNetworkingSettings(sharedConnections?.native, computerState)
                 NativeLegacyConnectionCheckSettings(client, pairedMacs, code, connectionReady)
-                NativeTerminalScaleSettings(terminalScale) { next ->
-                    terminalScale = next
-                    displayPreferences.edit().putFloat("terminal_scale", next).apply()
-                }
                 Text("CONNECTION", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                     color = nativeMuted, fontSize = 11.sp)
                 Text("${pairedMacs.firstOrNull { it.code == code }?.let(appearances::name) ?: hostName} · ${if (client != null) "Connected" else "Disconnected"}",
@@ -1381,15 +1378,17 @@ fun NativeScreen(
                 val visibleArtifactScroll by rememberUpdatedState(scrollViewport)
                 Box(Modifier.fillMaxWidth().weight(1f)) {
                 RenderGridView(currentGrid, terminalCells, gridRevision,
-                    Modifier.fillMaxSize()
+                    Modifier.fillMaxSize().testTag("native-terminal")
                         .onSizeChanged { terminalViewportPixels = it }
                         .focusRequester(terminalFocusRequester)
                         .onPreviewKeyEvent { event -> directHardware(event.nativeKeyEvent) }
                         .focusable()
                         .semantics(mergeDescendants = true) {
+                            stateDescription = "Terminal font size ${terminalZoom.size}"
                             onClick("Open keyboard") { directTyping = true; rawKeyboardView?.showKeyboard(); true }
                             customActions = listOf(CustomAccessibilityAction("View as Text") { openTerminalText(); true })
                         }
+                        .terminalPinchZoom(terminalZoom)
                         .pointerInput(terminal.id, currentGrid, terminalCells, artifactRpc, artifactsReady, artifactTapController) {
                             detectTapGestures(onTap = { point ->
                                 artifactTapController.invalidate()
@@ -1439,12 +1438,16 @@ fun NativeScreen(
                     Text("Scrollback · $scrollOffset rows", color = nativeMuted, fontSize = 12.sp)
                     TextButton(onClick = { stopTerminalScrolling(); scrollPosition = 0.0 }) { Text("Latest") }
                 }
-                artifactChipCount?.let { count ->
+                artifactChipCount?.takeUnless { terminalZoom.overlayVisible }?.let { count ->
                     TerminalArtifactChip(count, Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = if (scrollOffset > 0) 62.dp else 10.dp)) {
                         inputModifiers = TerminalInputModifiers()
                         stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
                     }
                 }
+                TerminalZoomOverlay(terminalZoom, displayPreferences,
+                    foreground = runCatching { Color(android.graphics.Color.parseColor(currentGrid.foreground)) }.getOrDefault(Color.White),
+                    background = runCatching { Color(android.graphics.Color.parseColor(currentGrid.background)) }.getOrDefault(nativePanel),
+                    modifier = Modifier.align(Alignment.Center))
                 }
                 TerminalToolbarView(toolbarStore.layout, inputModifiers,
                     canInput = connectionReady && client != null && inputStatus.error == null && terminalDraft.operation == null,
@@ -1457,10 +1460,8 @@ fun NativeScreen(
                                 inputModifiers = TerminalInputModifiers()
                                 stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
                             }
-                            TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT -> {
-                                terminalScale = (terminalScale + if (button == TerminalToolbarButton.ZOOM_IN) .05f else -.05f).coerceIn(.75f, 1.5f)
-                                displayPreferences.edit().putFloat("terminal_scale", terminalScale).apply()
-                            }
+                            TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT ->
+                                terminalZoom.step(if (button == TerminalToolbarButton.ZOOM_IN) 1 else -1)
                             else -> button.key?.let { key ->
                                 rawKeyboardView?.finishComposition()
                                 val sequence = inputModifiers.special(key, currentGrid.applicationCursorKeys)
@@ -2228,16 +2229,5 @@ private fun NativeTerminalPreferenceSettings(folderTapEnabled: Boolean, showMiss
         }
         Switch(showMissingArtifacts, onCheckedChange = { artifactPreferences.edit().putBoolean("show-missing-files", it).apply() },
             modifier = Modifier.semantics { contentDescription = "Show Missing Files" })
-    }
-}
-
-@Composable
-private fun NativeTerminalScaleSettings(scale: Float, onChange: (Float) -> Unit) {
-    Text("DISPLAY", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("Terminal text size", Modifier.weight(1f))
-        TextButton(onClick = { onChange((scale - 0.125f).coerceAtLeast(0.75f)) }, enabled = scale > 0.75f) { Text("A−") }
-        Text("${(scale * 100).toInt()}%", color = nativeMuted, fontSize = 12.sp)
-        TextButton(onClick = { onChange((scale + 0.125f).coerceAtMost(1.5f)) }, enabled = scale < 1.5f) { Text("A+") }
     }
 }

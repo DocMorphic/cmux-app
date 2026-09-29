@@ -7,7 +7,7 @@ data class TerminalTransport(val mode: TerminalOutputMode, val screenAnchor: Boo
         TerminalOutputMode.GRID -> listOf("terminal.render_grid")
         TerminalOutputMode.HYBRID -> listOf("terminal.render_grid", "terminal.bytes")
         TerminalOutputMode.BYTES -> listOf("terminal.bytes")
-    } + listOf("workspace.updated")
+    } + listOf("workspace.updated", "terminal.set_font")
 
     companion object {
         /** Mirrors TerminalOutputTransportSelection.swift at the pinned cmux revision. */

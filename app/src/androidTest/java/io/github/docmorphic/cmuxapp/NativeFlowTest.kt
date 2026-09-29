@@ -107,7 +107,7 @@ class NativeFlowTest {
         compose.waitUntil(10_000) { compose.onAllNodesWithText("open notes.md", substring = true).fetchSemanticsNodes().isNotEmpty() }
         val viewport = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }.getJSONObject("params")
         val metrics = context.resources.displayMetrics
-        val cells = TerminalCellMetrics.fromFontSize(14f * metrics.scaledDensity, 2f * metrics.density)
+        val cells = TerminalCellMetrics.fromFontSize(TerminalFontSize.DEFAULT * metrics.scaledDensity, 2f * metrics.density)
         val bounds = terminal.fetchSemanticsNode().boundsInRoot
         val geometry = TerminalGeometry.fit(bounds.width, bounds.height, viewport.getInt("viewport_columns"), viewport.getInt("viewport_rows"), cells)!!
         terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(geometry.originX + geometry.cellWidth * 7.5f, geometry.originY + geometry.cellHeight * .5f)) }
@@ -167,7 +167,7 @@ class NativeFlowTest {
         val terminal = compose.onNodeWithText(text, substring = true)
         val viewport = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }.getJSONObject("params")
         val metrics = context.resources.displayMetrics
-        val cells = TerminalCellMetrics.fromFontSize(14f * metrics.scaledDensity, 2f * metrics.density)
+        val cells = TerminalCellMetrics.fromFontSize(TerminalFontSize.DEFAULT * metrics.scaledDensity, 2f * metrics.density)
         val bounds = terminal.fetchSemanticsNode().boundsInRoot
         val geometry = TerminalGeometry.fit(bounds.width, bounds.height, viewport.getInt("viewport_columns"), viewport.getInt("viewport_rows"), cells)!!
         terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(geometry.originX + geometry.cellWidth * column, geometry.originY + geometry.cellHeight * .5f)) }
@@ -451,6 +451,83 @@ class NativeFlowTest {
         runBlocking { repo.persistNow() }
         assertTrue(!File(context.noBackupFilesDir, "terminal-attachments/${attachment.id}").exists())
         file.delete(); photo.delete()
+    }
+
+    @Test fun terminalZoomPinchesReflowsAndScopesHostFontEvents() {
+        val preferences = context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE)
+        val previous = preferences.all[TerminalFontSize.SAVED_KEY] as? Float
+        preferences.edit().remove(TerminalFontSize.SAVED_KEY).commit()
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                    .also { it.connect(); observedClients += it }
+            })
+        } } }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.mainClock.autoAdvance = false
+        fun pump() { compose.mainClock.advanceTimeBy(160); compose.waitForIdle() }
+        fun sizeIs(size: Float): Boolean = compose.onAllNodes(SemanticsMatcher.expectValue(
+            SemanticsProperties.StateDescription, "Terminal font size $size")).fetchSemanticsNodes().isNotEmpty()
+        fun awaitSize(size: Float) = compose.waitUntil(10_000) { pump(); sizeIs(size) }
+        fun viewportColumns() = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }
+            .getJSONObject("params").getInt("viewport_columns")
+        fun push(size: Int, surface: String? = null, workspace: String? = null) {
+            peer.pushTerminalEvent("terminal.set_font", JSONObject().put("font_size", size)
+                .put("surface_id", surface).put("workspace_id", workspace))
+            pump()
+        }
+        try {
+            val initialColumns = viewportColumns()
+            assertTrue(sizeIs(10f))
+            push(18, surface = "other", workspace = "workspace-1")
+            assertTrue(sizeIs(10f))
+            push(18, workspace = "other")
+            assertTrue(sizeIs(10f))
+            push(18, surface = "terminal-1", workspace = "other")
+            awaitSize(18f)
+            compose.waitUntil(10_000) { pump(); viewportColumns() < initialColumns }
+            compose.onNodeWithTag("terminal-zoom-size").assertDoesNotExist()
+            // Pinch must continue over multiple resized/replayed frames, with no terminal click/scroll.
+            val scrolls = peer.requests.count { it.optString("method") == "mobile.terminal.scroll" }
+            val clicks = peer.requests.count { it.optString("method") == "mobile.terminal.mouse" }
+            compose.onNodeWithTag("native-terminal").performTouchInput {
+                down(0, androidx.compose.ui.geometry.Offset(centerX - width * .12f, centerY))
+                down(1, androidx.compose.ui.geometry.Offset(centerX + width * .12f, centerY))
+            }
+            // Keep the same two fingers down while each resized viewport composes.
+            for (distance in listOf(.15f, .18f, .21f, .24f, .27f, .3f)) {
+                compose.onNodeWithTag("native-terminal").performTouchInput {
+                    updatePointerTo(0, androidx.compose.ui.geometry.Offset(centerX - width * distance, centerY))
+                    updatePointerTo(1, androidx.compose.ui.geometry.Offset(centerX + width * distance, centerY))
+                    move(delayMillis = 50)
+                }
+                pump()
+            }
+            compose.onNodeWithTag("native-terminal").performTouchInput { up(0); up(1) }
+            pump()
+            compose.onNodeWithTag("terminal-zoom-size").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Set as default").performClick(); pump()
+            val saved = preferences.getFloat(TerminalFontSize.SAVED_KEY, 0f)
+            assertTrue("Pinch survives repeated viewport changes", saved > 19f)
+            assertEquals(scrolls, peer.requests.count { it.optString("method") == "mobile.terminal.scroll" })
+            assertEquals(clicks, peer.requests.count { it.optString("method") == "mobile.terminal.mouse" })
+            screenshot("terminal-zoom-controls")
+            push(12); awaitSize(12f)
+            compose.onNodeWithContentDescription("Reset to default").performClick(); pump(); assertTrue(sizeIs(saved))
+            compose.onNodeWithContentDescription("Restore built-in").performClick(); pump()
+            assertTrue(sizeIs(10f)); assertFalse(preferences.contains(TerminalFontSize.SAVED_KEY))
+            push(15, workspace = "workspace-1"); awaitSize(15f)
+            compose.mainClock.advanceTimeBy(3000); compose.waitForIdle()
+            compose.onNodeWithTag("terminal-zoom-size").assertDoesNotExist()
+            compose.onNodeWithContentDescription("Back to workspaces").performClick(); pump()
+            compose.onNodeWithText("Claude Code task").performClick(); awaitSize(10f)
+        } finally {
+            preferences.edit().apply { if (previous == null) remove(TerminalFontSize.SAVED_KEY)
+                else putFloat(TerminalFontSize.SAVED_KEY, previous) }.commit()
+            compose.mainClock.autoAdvance = false
+        }
     }
 
     @Test fun resizingRetainsPaintedFrameUntilReplayButAnotherTerminalStartsEmpty() {
@@ -1917,6 +1994,10 @@ internal class NativeFixturePeer : AutoCloseable {
     private fun send(socket: Socket, envelope: JSONObject) = synchronized(outputLock) {
         socket.getOutputStream().write(MobileFrameCodec.encode(envelope.toString().toByteArray()))
         socket.getOutputStream().flush()
+    }
+    fun pushTerminalEvent(topic: String, payload: JSONObject) {
+        val event = JSONObject().put("kind", "event").put("topic", topic).put("stream_id", terminalStreamId).put("payload", payload)
+        sockets.filter { !it.isClosed }.forEach { send(it, event) }
     }
     fun pushBytes(bytes: ByteArray, sequence: Long) {
         val event = JSONObject().put("kind", "event").put("topic", "terminal.bytes").put("stream_id", terminalStreamId)

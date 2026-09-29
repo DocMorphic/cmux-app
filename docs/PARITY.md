@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Terminal zoom (2026-09-30):** per-view live sizing, pinch and toolbar steps,
+saved-default/reset/restore controls, and scoped `terminal.set_font` events are
+implemented. Twelve focused JVM tests and five Android UI/RPC cases pass on the
+16 KiB Android 17 emulator, including held fingers across repeated resizes and
+no accidental remote mouse/scroll input. Native/ZIP alignment passes. Pixel
+acceptance and exact font/glass appearance remain open; this feature is not in
+the signed integration run at `3c80608`. See [TERMINAL_ZOOM.md](TERMINAL_ZOOM.md).
+
 **Terminal shortcut customization (2026-09-30):** the bar now follows the iOS
 configurable order and supports hiding/reordering all modifiers, navigation,
 paste, Files, zoom and launcher buttons. Custom text actions can be added,
