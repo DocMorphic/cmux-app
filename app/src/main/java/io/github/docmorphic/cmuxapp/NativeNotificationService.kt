@@ -19,6 +19,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
 
 /** One independently reconnecting feed per saved Mac, including when another Mac is on screen. */
 class NativeNotificationService : Service() {
@@ -51,21 +53,28 @@ class NativeNotificationService : Service() {
         val account = connections.account
         val connector = connections.connector
         val workers = mutableMapOf<NativeCredentialStore.PairedMac, Job>()
+        val workerRoutes = mutableMapOf<NativeCredentialStore.PairedMac, String?>()
         var previousOrigins: Set<String>? = null
         try {
             while (isActive && isEnabled(this@NativeNotificationService)) {
+                val routeKeys = connections.native.state.value.connectionKeys
+                fun routeKey(mac: NativeCredentialStore.PairedMac) =
+                    (PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh)?.endpointId?.let(routeKeys::get)
                 val paired = if (account.isSignedIn()) store.pairedMacs().filter {
                     it.deviceId.isNotBlank() && PairingCodeParser.parse(it.code).getOrNull()?.let(connector::allowsSaved) == true
                 }.toSet() else emptySet()
-                workers.keys.toList().filter { it !in paired || workers[it]?.isActive != true }.forEach {
+                workers.keys.toList().filter { it !in paired || workers[it]?.isActive != true || workerRoutes[it] != routeKey(it) }.forEach {
                     workers.remove(it)?.cancel()
+                    workerRoutes.remove(it)
                 }
                 val origins = paired.map { it.origin }.toSet()
                 if (origins != previousOrigins) {
                     delivery.prune(origins)
                     previousOrigins = origins
                 }
-                for (mac in paired) if (mac !in workers) workers[mac] = launch {
+                for (mac in paired) if (mac !in workers) {
+                    workerRoutes[mac] = routeKey(mac)
+                    workers[mac] = launch {
                     while (isActive) {
                         var client: MobileRpcClient? = null
                         try {
@@ -88,7 +97,8 @@ class NativeNotificationService : Service() {
                         delay(10_000)
                     }
                 }
-                delay(2_000)
+                }
+                withTimeoutOrNull(2_000) { connections.native.state.first { it.connectionKeys != routeKeys } }
             }
         } finally {
             workers.values.forEach { it.cancel() }

@@ -147,16 +147,95 @@ or run Android instrumentation; encrypted-store and UI/device acceptance remain
 pending. Logs and XML are retained in `captures/runtime/tailscale-authorization/`.
 ADB still detected no Pixel. Published signed build 157 remains unchanged.
 
-## Next integration work
+## Computer Details and shared routing integration (2026-09-29)
 
-- Present Tailscale Only, Add Connection, edit/remove route actions in Details;
-  bind a targeted scan to the expected native device/build, and preserve native
-  Iroh identity while adding a Tailscale route to the same Mac.
-- Unify route grants with the per-computer connection method used by the UI,
-  feed, notifications and checks. The present authority integration covers the
-  existing QR/TCP flow; it does not add Tailscale to the Iroh/Direct picker yet.
-- Wake disconnected retry loops immediately on route/method changes.
-- Add readiness waiting and verify Android VPN event ordering, Keystore grant
-  persistence, pairing UI and physical Mac/Pixel behavior.
+Computer Details now offers Iroh, Tailscale Only and Direct. Selecting Tailscale
+Only with no grant leaves that Mac disconnected and shows an Add Tailscale
+Connection action. It does not automatically launch a scanner or dialog. The
+Routes section preserves the native Iroh identity and lists distinct authorized
+Tailscale coordinates, with add, edit and confirmed removal actions. The optional
+automatic-Iroh private-address section is hidden in Direct and Tailscale modes.
 
-The Iroh/Direct selector therefore still exposes only those implemented modes.
+The pairing dialog accepts a QR scan, pasted Tailscale code or numeric IP/TCP-port
+entry. Its explicit Connect action verifies the selected Mac and exact build
+before saving. An edit must authenticate the replacement and atomically save it
+while removing the captured old route. Failed verification/commit retains the
+old route and editor. Stale edits and sibling-build replacements are rejected.
+Duplicate grant sources for the same coordinate are shown once and removed
+together. Adding or editing from Details never replaces the native pairing row or
+changes the chosen connection method. Pairing dismisses the keyboard on Connect.
+
+`NativeCredentialStore.revisions` shares change notifications across store
+instances. The backend reads exact account/team/device/build grants into the
+captured dial intent. Only Tailscale mode includes these grants in the connection
+key; changing unrelated credentials or adding routes while Iroh is selected does
+not replace a live Iroh session. Empty Tailscale intent fails before acquisition.
+Tailscale candidate transport tries only captured authorized coordinates over a
+validated VPN; it cannot fall back to Iroh, a relay or the default network. A
+candidate must complete host identity and authenticated workspace probes before
+the shared pool exposes its first lease. Revocation during this probe closes the
+candidate and prevents publication.
+
+Method/route changes publish per-Mac connection keys, retiring matching leases and
+pending handshakes. The foreground connection effect, feed handles and background
+notification workers observe those keys. A changed method wakes a disconnected
+Mac's retry instead of waiting through the old backoff; unrelated Macs retain
+workers and leases. Native checks and power consumers use the same pool/intent.
+
+### Integration verification
+
+- **86 JVM cases passed:** 18 runtime, 8 connection settings, 8 pooled connection,
+  20 authorization, 15 feed, 5 Tailscale candidate transport and 12 computer removal
+  cases. New coverage includes no-grant behavior, per-Mac route invalidation,
+  candidate admission/removal, immediate offline feed wakeup, captured route
+  fallback, atomic editing, duplicate deletion and numeric manual entry.
+- Debug and instrumentation APKs build. The first combined attempt failed on a
+  Kotlin test invocation of a function stored in a Java list. Explicit indexed
+  access fixed the test compilation. No production change was required.
+- The first **14-case Android 17 emulator run** passed 13 cases in 28.065 seconds.
+  Its one failure queried an unmerged text child for the button's disabled state.
+  Correcting that selector produced **4/4 Tailscale UI passes in 9.584 seconds**.
+- The screenshot showed keyboard/dismissal animation still in flight. Explicit
+  keyboard dismissal was added, and all **4 Tailscale UI cases passed again in
+  9.221 seconds** on that final application build. The other ten cases (two real
+  Keystore/persistence cases, four Direct UI and four Details cases) had passed in
+  the initial run and were not repeated for the isolated keyboard change.
+  The screenshot helper was then updated to wait for the window dismissal to
+  settle; its single targeted case passed in **3.868 seconds**. The resulting
+  screenshot was inspected with no keyboard or dialog overlay remaining.
+- The persistence fixture uses separate credential preferences and the real
+  Android Keystore: grants reload through another store instance, revisions
+  propagate, native pairing/selection survive route changes, changed-login commits
+  fail, and clearing notifies readers. UI connection callbacks and Mac responses
+  remain simulated; these runs do not establish physical VPN/Mac traversal.
+- Final main APK SHA-256:
+  `67d498948efae66f6a724224b579c6f2e236d245b881899b112120e7a997714d`.
+  Final instrumentation APK SHA-256:
+  `102c293f6a1fe8220437ac63fe4f824357f2246d58014394cc1a0cb805e22db1`.
+  Native ELF LOAD/RELRO and APK ZIP 16 KB alignment checks pass.
+- Logs, JVM XML, screenshots, APK receipts and alignment output are kept in ignored
+  `captures/runtime/tailscale-settings/`. Screenshots are from a standalone test
+  Activity; its system bars are not a full-app visual reference.
+
+ADB still detects no physical Pixel. Its last installed checkpoint remains
+`f0dfc7f`; signed published build 157 is unchanged. No real Mac route or phone
+power setting was changed. The emulator was stopped after verification.
+
+## Remaining integration and acceptance
+
+- **Remove the native Tailscale path's dependency on ready Iroh V2 discovery.**
+  The new per-computer path currently enters through `NativeIrohRuntime`, whose
+  discovery readiness and directory authority still gate acquisition. The existing
+  standalone QR connector does not have this dependency. Study the iOS stored
+  reconnect route/scope policy and unify these paths so a valid saved Tailscale
+  route can reconnect when Iroh discovery is unavailable, while still enforcing
+  account/team ownership and local removal. This is unfinished behavior, not an
+  unavoidable Android platform limitation.
+- Unify the legacy QR pairing entry point with native computer identity/method
+  selection; targeted Details pairing now preserves identity, but the original
+  QR screen still uses its legacy saved-row flow.
+- Add bounded tunnel-readiness waiting and Tailscale-specific route diagnostics;
+  current native check reports TCP transport details as Not Reported.
+- Verify Android VPN event ordering, real QR camera results, IPv4/IPv6/MagicDNS,
+  edits/removal/reconnect during terminal and notification activity, and complete
+  Mac/Pixel acceptance. Finish full iOS layout/interaction comparison.

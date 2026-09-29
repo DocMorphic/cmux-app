@@ -27,6 +27,30 @@ internal class PoolTestTransport : MobileRpcTransport {
 }
 
 class MobileRpcConnectionsTest {
+    @Test fun admissionProbeMustFinishBeforeAnyLeaseCanBeBorrowed() = runBlocking<Unit> {
+        val transport = PoolTestTransport()
+        MobileRpcConnections().use { pool ->
+            val pending = async { pool.acquire("mac", { true }, validate = { it.hostStatus() }) { MobileRpcClient(transport, { "fixture" }) } }
+            val request = withTimeout(2000) { transport.sent.receive() }
+            assertNull(pool.borrowIfConnected("mac", { true }))
+            transport.answer(request)
+            val lease = withTimeout(2000) { pending.await() }
+            assertNotNull(pool.borrowIfConnected("mac", { true })?.also { it.close() })
+            lease.close()
+        }
+    }
+
+    @Test fun revokedCandidateDuringHostProbeCannotPublishALease() = runBlocking<Unit> {
+        val transport = PoolTestTransport()
+        MobileRpcConnections().use { pool ->
+            val pending = async { runCatching { pool.acquire("mac", { true }, validate = { it.hostStatus() }) { MobileRpcClient(transport, { "fixture" }) } } }
+            withTimeout(2000) { transport.sent.receive() }
+            pool.retain(emptySet())
+            assertTrue(withTimeout(2000) { pending.await() }.isFailure)
+            assertNull(pool.borrowIfConnected("mac", { true }))
+            assertTrue(transport.closes.get() > 0)
+        }
+    }
     @Test fun settingsBorrowOnlyLiveAuthorizedWireAndReleaseIndependently() = runBlocking<Unit> {
         val transport = PoolTestTransport()
         MobileRpcConnections().use { pool ->

@@ -53,8 +53,8 @@ numeric IP/UDP-port entries, individual enable switches, add/edit/remove actions
 and a warning when no address is enabled. An edited address keeps its enabled
 state. Duplicate or invalid addresses retain the editor for correction. Failed
 writes leave the previous saved mode active; pending writes disable repeat input.
-Tailscale Only is not presented until its authorization and route management are
-implemented.
+The initial checkpoint exposed only Iroh/Direct; Tailscale Only and authorized
+route editing are now implemented in [TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md).
 
 The no-backup settings file is scoped by application, project, user and team; its
 entries use canonical UUID device identity plus exact build. Iroh and Direct
@@ -83,9 +83,9 @@ the captured pairing-store commit. Other Mac/build preferences remain.
 ## Remaining acceptance
 
 Physical LAN/VPN Mac and Pixel acceptance is pending, including switching modes
-while terminals and background notifications are active. Tailscale-only selection,
-authorized saved route editing, and full iOS visual/interaction comparison remain
-open. The full companion goal is active. The production direct-backend fixture
+while terminals and background notifications are active. Tailscale-only selection
+and authorized route editing now have implementation and focused evidence; its
+discovery-independent reconnect and full iOS visual/interaction comparison remain open. The full companion goal is active. The production direct-backend fixture
 uses local QUIC and simulated account authority; it is not proof of live server
 admission or physical network traversal.
 

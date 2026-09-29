@@ -9,7 +9,8 @@ internal data class NativeComputersState(
     val ready: Boolean = false,
     val loading: Boolean = false,
     val computers: List<IrohV2Computer> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val connectionKeys: Map<String, String> = emptyMap()
 )
 
 /** Account/team changes replace the complete discovery, endpoint and RPC owner. */
@@ -62,7 +63,8 @@ internal class NativeIrohRuntime(
                             currentCoroutineContext().ensureActive()
                             service.start()
                             val settings = service.connectionSettings?.state ?: MutableStateFlow(NativeMacConnectionPreferences())
-                            combine(service.state, settings) { snapshot, _ -> snapshot }.collect { snapshot ->
+                            val routes = service.routeRevisions ?: MutableStateFlow(0L)
+                            combine(service.state, settings, routes) { snapshot, _, _ -> snapshot }.collect { snapshot ->
                                 requireCurrent(run)
                                 publish(run, snapshot)
                                 if (!snapshot.ready) throw IOException(snapshot.failure ?: "Connection interrupted")
@@ -234,9 +236,10 @@ internal class NativeIrohRuntime(
         require(pairing.macDeviceId == null || canonicalMacDeviceId(pairing.macDeviceId) == canonicalMacDeviceId(mac.deviceId)) { "Mac identity changed" }
         require(pairing.buildTag == null || pairing.buildTag == mac.buildTag) { "Mac build changed" }
         val intent = dialIntent(run, mac)
-        check(intent.dialable) { "Direct mode needs an enabled address. Open Computer Details to add one." }
+        check(intent.dialable) { "This connection method needs an address. Open Computer Details to add one." }
         val permits = { authorized(run, mac, intent) }
-        return run.connections.acquire(connectionKey(mac, intent), permits) {
+        return run.connections.acquire(connectionKey(mac, intent), permits,
+            validate = { service.validateConnection(mac, intent, it) }) {
             MobileRpcClient(service.transport(mac, permits, intent), {
                 requireCurrent(run)
                 accessToken().also { requireCurrent(run) }
@@ -246,12 +249,15 @@ internal class NativeIrohRuntime(
 
     private fun publish(run: Owner, snapshot: IrohV2ControlState) {
         val computers = if (snapshot.ready && (snapshot.permissionExpiresAt ?: 0) > now()) snapshot.computers else emptyList()
+        val intents = computers.associateWith { mac -> runCatching { dialIntent(run, mac) }.getOrNull() }
+        val keys = intents.entries.associate { (mac, intent) -> mac.endpointId to (intent?.let { connectionKey(mac, it) } ?: "unavailable") }
         synchronized(lock) {
             requireCurrent(run)
-            mutableState.value = NativeComputersState(run.account, snapshot.ready, computers = computers, error = snapshot.failure)
+            mutableState.value = NativeComputersState(run.account, snapshot.ready, computers = computers, error = snapshot.failure,
+                connectionKeys = keys)
         }
-        run.connections.retain(computers.mapNotNull { mac ->
-            runCatching { dialIntent(run, mac).takeIf { it.dialable }?.let { connectionKey(mac, it) } }.getOrNull()
+        run.connections.retain(intents.entries.mapNotNull { (mac, intent) ->
+            intent?.takeIf { it.dialable }?.let { connectionKey(mac, it) }
         }.toSet())
     }
 
@@ -264,8 +270,8 @@ internal class NativeIrohRuntime(
     }
 
     private fun current(run: Owner) = synchronized(lock) { !closed && owner === run && isCurrent(run.account) }
-    private fun dialIntent(run: Owner, mac: IrohV2Computer) = synchronized(lock) { run.service }?.connectionSettings
-        ?.state?.value?.intent(mac) ?: NativeMacDialIntent()
+    private fun dialIntent(run: Owner, mac: IrohV2Computer) = synchronized(lock) { run.service }
+        ?.dialIntent(mac) ?: NativeMacDialIntent()
     private fun connectionKey(mac: IrohV2Computer, intent: NativeMacDialIntent) = org.json.JSONArray(listOf(
         mac.endpointId, mac.recordId, mac.deviceId, mac.buildTag, intent.key())).toString()
     private fun requireCurrent(run: Owner) { if (!current(run)) throw CancellationException("Account session changed") }

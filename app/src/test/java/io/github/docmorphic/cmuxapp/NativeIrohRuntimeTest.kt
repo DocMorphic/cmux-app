@@ -18,6 +18,13 @@ class NativeIrohRuntimeTest {
         override val privatePaths = NativePrivatePathStore({ pathJson }, { pathJson = it })
         var settingJson: String? = null
         override val connectionSettings = NativeMacConnectionStore({ settingJson }, { settingJson = it })
+        override val routeRevisions = MutableStateFlow(0L)
+        var grants = emptyList<TailscaleSavedGrant>()
+        override fun dialIntent(mac: IrohV2Computer): NativeMacDialIntent {
+            val intent = connectionSettings.state.value.intent(mac)
+            return if (intent.method == NativeMacConnectionMethod.TAILSCALE)
+                intent.copy(tailscale = grants.filter { it.device == mac.deviceId && it.build == mac.buildTag }) else intent
+        }
         val intents = java.util.concurrent.CopyOnWriteArrayList<NativeMacDialIntent>()
         val permissions = java.util.concurrent.CopyOnWriteArrayList<() -> Boolean>()
         override fun transport(mac: IrohV2Computer, permits: () -> Boolean, intent: NativeMacDialIntent): MobileRpcTransport {
@@ -43,6 +50,34 @@ class NativeIrohRuntimeTest {
         override fun close() { closes.incrementAndGet() }
     }
     private fun pairing(scope: NativeTeamScope = team) = PairingCodeParser.parse(PairingCodeParser.computer(mac, scope)).getOrThrow() as PairingCode.Iroh
+
+    @Test fun tailscaleRouteChangesWakeDisconnectedConsumersAndRetireOnlyTheirMac() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        val sibling = mac.copy(endpointId = "cd".repeat(32), recordId = "sibling", buildTag = "debug")
+        backend.state.value = ready().copy(computers = listOf(mac, sibling))
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            val other = runtime.connect(PairingCodeParser.parse(PairingCodeParser.computer(sibling, team)).getOrThrow() as PairingCode.Iroh)
+            backend.connectionSettings.update(NativeComputerTarget.from(mac), { true }) { it.copy(method = NativeMacConnectionMethod.TAILSCALE) }
+            assertTrue(runCatching { runtime.connect(pairing()) }.isFailure)
+            val blockedKey = withTimeout(2000) { runtime.state.first { it.connectionKeys[mac.endpointId]?.contains("TAILSCALE") == true } }.connectionKeys[mac.endpointId]
+            assertEquals(1, backend.intents.size)
+            backend.grants = listOf(TailscaleSavedGrant(java.util.UUID.randomUUID().toString(), team.userId, team.teamId,
+                "a".repeat(64), mac.deviceId, mac.buildTag, PairingCode.Route("100.99.1.2", 58465)))
+            backend.routeRevisions.value++
+            withTimeout(2000) { runtime.state.first { it.connectionKeys[mac.endpointId] != blockedKey } }
+            val active = runtime.connect(pairing())
+            assertEquals(NativeMacConnectionMethod.TAILSCALE, backend.intents.last().method)
+            assertEquals(backend.grants, backend.intents.last().tailscale)
+            val connectedKey = runtime.state.value.connectionKeys[mac.endpointId]
+            backend.grants = emptyList(); backend.routeRevisions.value++
+            assertFalse(backend.permissions[backend.permissions.size - 1]())
+            withTimeout(2000) { active.disconnected.first() }
+            assertNotEquals(connectedKey, runtime.state.value.connectionKeys[mac.endpointId])
+            assertFalse(other.isClosed)
+            assertTrue(runCatching { runtime.connect(pairing()) }.isFailure)
+            active.close(); other.close()
+        }
+    }
 
     @Test fun routingChangesRetireOnlyTargetAndDirectNeverFallsBackWithoutAddresses() = runBlocking<Unit> {
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()

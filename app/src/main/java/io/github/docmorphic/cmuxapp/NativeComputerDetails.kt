@@ -90,6 +90,12 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
         val connectionStore = remember(context, team) { NativeMacConnectionStore.create(context.applicationContext, team) }
         val connectionPreferences by connectionStore.state.collectAsState()
         val store = credentialStore ?: remember(context) { NativeCredentialStore(context.applicationContext) }
+        val credentialRevision by store.revisions.collectAsState()
+        var routeReload by remember { mutableIntStateOf(0) }
+        val grants = remember(store) { TailscaleGrantStore(store::load, store::update) }
+        val tailscale = remember(grants, credentialRevision, routeReload, team, target) {
+            runCatching { grants.computer(team, target) }.getOrNull()
+        }
         val latestCallbacks by rememberUpdatedState(forgetCallbacks)
         val forgetFlow = remember(runtime, team, target, store, appearanceStore, connectionStore) {
             nativeComputerForgetFlow(runtime, team, target, store, appearanceStore, connectionStore) {
@@ -120,8 +126,26 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         connectionStore.update(target, { runtime.permitsAppearance(team) }, change)
                     }
-                }, retry = { connectionStore.reload() }) },
+                }, retry = { connectionStore.reload() })
+                    NativeTailscaleSection(target, connectionPreferences.get(target).method, tailscale,
+                        pair = { input, replacing -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            val pairing = tailscalePairingInput(input)
+                            val permits = { runtime.permitsAppearance(team) && store.taskSession() == team.login }
+                            val account = NativeAccount(store)
+                            TailscalePairingAuthority({ team }, { it == team && permits() }, grants,
+                                resolve = { route -> TailscaleRoute.resolvePeer(context.applicationContext, route) },
+                                dial = { route, allowed, token -> MobileRpcClient(TailscaleRoute.resolve(context.applicationContext, route, allowed), token) },
+                                expected = { NativeCredentialStore.PairedMac("", target.deviceId, target.name, target.buildTag) },
+                                replacing = replacing).use { authority ->
+                                    authority.authorize(pairing)
+                                    authority.connect(pairing, account::accessToken).use { }
+                                }
+                        } }, remove = { grant -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            grants.removeRoute(team, target, grant) { runtime.permitsAppearance(team) }
+                        } }, reload = { routeReload++ }, enabled = !forgetting && state.ready)
+                },
                 power = { NativeMacPowerSettings(runtime, team, target) }, displayName = title, connection = connection,
+                showPrivateAddresses = connectionPreferences.get(target).method == NativeMacConnectionMethod.IROH,
                 appearance = { NativeMacAppearanceSettings(team, target, presentation.colorIndex) { runtime.permitsAppearance(team) } })
         }
     }
@@ -134,7 +158,8 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
     share: (String) -> Unit, onBack: () -> Unit, power: @Composable () -> Unit = {},
     displayName: String = target.name, appearance: @Composable () -> Unit = {},
     connection: NativeComputerConnection = NativeComputerConnection(),
-    backEnabled: Boolean = true, forget: @Composable () -> Unit = {}, connectionMethod: @Composable () -> Unit = {}) {
+    backEnabled: Boolean = true, forget: @Composable () -> Unit = {}, connectionMethod: @Composable () -> Unit = {},
+    showPrivateAddresses: Boolean = true) {
     Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -153,7 +178,7 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
                 NativeConnectionCheckSection(canCheck, check, share,
                     disabledMessage = "Wait for your account’s computer list, then try again.")
                 power()
-                NativePrivatePathsSection(
+                if (showPrivateAddresses) NativePrivatePathsSection(
                     computers = if (available) listOf(IrohV2Computer("", "", target.deviceId, target.buildTag, target.name, emptyList())) else emptyList(),
                     load = paths, change = changePaths, showReset = false,
                     emptyMessage = "This Mac is not currently available for new private addresses.")

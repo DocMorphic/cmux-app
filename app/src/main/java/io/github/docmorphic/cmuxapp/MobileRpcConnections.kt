@@ -23,6 +23,7 @@ internal class MobileRpcConnections : AutoCloseable {
     }
 
     suspend fun acquire(key: String, permits: () -> Boolean,
+                        validate: suspend (MobileRpcClient) -> Unit = {},
                         create: () -> MobileRpcClient): MobileRpcClient = admission.withLock {
         synchronized(lock) {
             check(!closed && permits()) { "Computer access changed" }
@@ -39,6 +40,7 @@ internal class MobileRpcConnections : AutoCloseable {
                 candidate = key to client
             }
             client.connect()
+            validate(client)
             currentCoroutineContext().ensureActive()
             synchronized(lock) {
                 check(!closed && permits() && candidate?.second === client && !client.isClosed) { "Computer access changed" }

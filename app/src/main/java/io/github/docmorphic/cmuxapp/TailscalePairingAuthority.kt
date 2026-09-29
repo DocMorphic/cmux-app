@@ -23,7 +23,25 @@ internal class TailscaleGrantStore(private val read: () -> JSONObject?,
     fun find(scope: NativeTeamScope, source: String): TailscaleSavedGrant? =
         decode(read()).singleOrNull { it.user == scope.userId && it.team == scope.teamId && it.source == source }
 
-    fun save(scope: NativeTeamScope, grant: TailscaleSavedGrant, permits: () -> Boolean) {
+    fun computer(scope: NativeTeamScope, target: NativeComputerTarget): List<TailscaleSavedGrant> = decode(read())
+        .filter { it.user == scope.userId && it.team == scope.teamId &&
+            it.device == canonicalMacDeviceId(target.deviceId) && it.build == target.buildTag }
+        .asReversed().distinctBy { it.route }
+
+    fun removeRoute(scope: NativeTeamScope, target: NativeComputerTarget, grant: TailscaleSavedGrant, permits: () -> Boolean) {
+        check(permits()) { "Account or team changed. Reopen Computer Details." }
+        update { state ->
+            check(state.optString("task_session") == scope.login && state.optString("refresh_token").isNotBlank())
+            val values = decode(state)
+            check(grant in values && grant.user == scope.userId && grant.team == scope.teamId &&
+                grant.device == canonicalMacDeviceId(target.deviceId) && grant.build == target.buildTag) { "The route changed. Reopen its menu." }
+            state.put(FIELD, encode(values.filterNot { it.user == grant.user && it.team == grant.team &&
+                it.device == grant.device && it.build == grant.build && it.route == grant.route }))
+        }
+    }
+
+    fun save(scope: NativeTeamScope, grant: TailscaleSavedGrant, replacing: TailscaleSavedGrant? = null,
+        permits: () -> Boolean) {
         check(permits()) { "Account or team changed. Pair this Mac again." }
         update { state ->
             // Check the login inside the atomic credential transaction. Do not acquire the
@@ -31,7 +49,14 @@ internal class TailscaleGrantStore(private val read: () -> JSONObject?,
             check(state.optString("task_session") == scope.login &&
                 state.optString("refresh_token").isNotBlank()) { "Account or team changed. Pair this Mac again." }
             require(grant.user == scope.userId && grant.team == scope.teamId)
-            val values = decode(state).filterNot { it.user == grant.user && it.team == grant.team && it.source == grant.source } + grant
+            val previous = decode(state)
+            if (replacing != null) check(replacing in previous && replacing.user == grant.user && replacing.team == grant.team &&
+                replacing.device == grant.device && replacing.build == grant.build) { "The route changed. Reopen its editor." }
+            val values = previous.filterNot { old ->
+                (old.user == grant.user && old.team == grant.team && old.source == grant.source) ||
+                    (replacing != null && old.user == replacing.user && old.team == replacing.team &&
+                        old.device == replacing.device && old.build == replacing.build && old.route == replacing.route)
+            } + grant
             require(values.size <= 256) { "Too many saved Tailscale connections" }
             val encoded = encode(values)
             decode(JSONObject().put(FIELD, encoded)) // Validate before the credential commit.
@@ -100,7 +125,8 @@ internal class TailscalePairingAuthority(
     private val grants: TailscaleGrantStore,
     private val resolve: suspend (PairingCode.Route) -> PairingCode.Route,
     private val dial: suspend (PairingCode.Route, () -> Boolean, suspend () -> String?) -> MobileRpcClient,
-    private val expected: (PairingCode.Tailscale) -> NativeCredentialStore.PairedMac? = { null }
+    private val expected: (PairingCode.Tailscale) -> NativeCredentialStore.PairedMac? = { null },
+    private val replacing: TailscaleSavedGrant? = null
 ) : AutoCloseable {
     private data class Consent(val scope: NativeTeamScope, val nonce: String = UUID.randomUUID().toString()) {
         val resolved = ConcurrentHashMap<PairingCode.Route, PairingCode.Route>()
@@ -185,7 +211,7 @@ internal class TailscalePairingAuthority(
                     val build = status.optString("mac_instance_tag").takeIf { !status.isNull("mac_instance_tag") && it.isNotBlank() }
                     val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId, source,
                         canonicalMacDeviceId(device), build, route)
-                    grants.save(owner, grant, ::allowed)
+                    grants.save(owner, grant, replacing, ::allowed)
                     promoted.set(grant)
                     synchronized(lock) { if (consents[source] == consent) consents.remove(source) }
                 }

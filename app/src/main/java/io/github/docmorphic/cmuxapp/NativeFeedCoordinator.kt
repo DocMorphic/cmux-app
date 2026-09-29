@@ -14,7 +14,7 @@ internal class NativeFeedCoordinator(
     private val connect: suspend (NativeCredentialStore.PairedMac) -> MobileRpcClient,
     private val isAllowed: (NativeCredentialStore.PairedMac) -> Boolean
 ) : AutoCloseable {
-    private class Handle(val mac: NativeCredentialStore.PairedMac, val revision: NativeFeedRevision) {
+    private class Handle(val mac: NativeCredentialStore.PairedMac, val revision: NativeFeedRevision, val routeKey: String?) {
         var client: MobileRpcClient? = null
         var verified = false
         var job: Job? = null
@@ -26,13 +26,16 @@ internal class NativeFeedCoordinator(
     private val mutableSources = MutableStateFlow<Map<String, NativeFeedSource>>(emptyMap())
     val sources = mutableSources.asStateFlow()
 
-    fun updateMacs(macs: List<NativeCredentialStore.PairedMac>) {
+    fun updateMacs(macs: List<NativeCredentialStore.PairedMac>, routeKeys: Map<String, String> = emptyMap()) {
+        fun routeKey(mac: NativeCredentialStore.PairedMac) =
+            (PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh)?.endpointId?.let(routeKeys::get)
         val allowed = macs.filter(isAllowed).associateBy { it.origin }
-        handles.keys.toList().filter { allowed[it] != handles[it]?.mac }.forEach { remove(it) }
+        handles.keys.toList().filter { origin -> allowed[origin] != handles[origin]?.mac ||
+            allowed[origin]?.let(::routeKey) != handles[origin]?.routeKey }.forEach { remove(it) }
         mutableSources.value = mutableSources.value.filterKeys { it in allowed }
         revisions.keys.retainAll(allowed.keys)
         for ((origin, mac) in allowed) if (origin !in handles) {
-            val handle = Handle(mac, revisions.getOrPut(origin) { NativeFeedRevision() })
+            val handle = Handle(mac, revisions.getOrPut(origin) { NativeFeedRevision() }, routeKey(mac))
             handles[origin] = handle
             publish(handle, (mutableSources.value[origin] ?: NativeFeedSource(mac))
                 .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null, keepAwake = null))

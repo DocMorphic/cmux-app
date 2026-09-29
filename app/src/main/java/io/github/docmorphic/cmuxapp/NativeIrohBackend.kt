@@ -22,6 +22,9 @@ internal interface IrohAccountBackend : AutoCloseable {
         return transport(mac, permits)
     }
     val connectionSettings: NativeMacConnectionStore? get() = null
+    val routeRevisions: StateFlow<Long>? get() = null
+    fun dialIntent(mac: IrohV2Computer) = connectionSettings?.state?.value?.intent(mac) ?: NativeMacDialIntent()
+    suspend fun validateConnection(mac: IrohV2Computer, intent: NativeMacDialIntent, client: MobileRpcClient) {}
     suspend fun awaitClosed() { }
     val privatePaths: NativePrivatePathStore? get() = null
 }
@@ -33,7 +36,8 @@ internal class NativeIrohBackend(
     private val current: () -> Boolean,
     private val applicationActive: StateFlow<IrxProbeActivity>,
     override val privatePaths: NativePrivatePathStore,
-    override val connectionSettings: NativeMacConnectionStore
+    override val connectionSettings: NativeMacConnectionStore,
+    private val tailscaleRoutes: NativeTailscaleRoutes? = null
 ) : IrohAccountBackend {
     private val lock = Any()
     private val endpointMutex = Mutex()
@@ -43,6 +47,19 @@ internal class NativeIrohBackend(
     private var closingEndpoints: List<IrxEndpointRuntime> = emptyList()
     private var closed = false
     override val state get() = control.state
+    override val routeRevisions get() = tailscaleRoutes?.revisions
+    override fun dialIntent(mac: IrohV2Computer): NativeMacDialIntent {
+        val intent = connectionSettings.state.value.intent(mac)
+        return if (intent.method == NativeMacConnectionMethod.TAILSCALE)
+            intent.copy(tailscale = tailscaleRoutes?.grants(NativeComputerTarget.from(mac)).orEmpty()) else intent
+    }
+    override suspend fun validateConnection(mac: IrohV2Computer, intent: NativeMacDialIntent, client: MobileRpcClient) {
+        if (intent.method == NativeMacConnectionMethod.TAILSCALE) {
+            val status = client.hostStatus()
+            check(intent.tailscale.all { it.matches(status) }) { "This Tailscale route reaches a different Mac or cmux installation." }
+            client.workspaces()
+        }
+    }
     override suspend fun refresh() { control.refreshDirectory() }
     override suspend fun revokeComputer(target: NativeComputerTarget) { requireCurrent(); control.revokeComputer(target); requireCurrent() }
     override suspend fun refreshNetworking() {
@@ -73,13 +90,15 @@ internal class NativeIrohBackend(
     }
 
     override fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport =
-        transport(mac, permits, connectionSettings.state.value.intent(mac))
+        transport(mac, permits, dialIntent(mac))
 
     override fun transport(mac: IrohV2Computer, permits: () -> Boolean, intent: NativeMacDialIntent): MobileRpcTransport {
-        check(intent.dialable) { "Direct mode needs an enabled address. Open Computer Details to add one." }
+        check(intent.dialable) { "This connection method needs an address. Open Computer Details to add one." }
         val directOnly = intent.method == NativeMacConnectionMethod.DIRECT
         val allowed = { current() && !synchronized(lock) { closed } && permits() &&
-            runCatching { connectionSettings.state.value.intent(mac) == intent }.getOrDefault(false) }
+            runCatching { dialIntent(mac) == intent }.getOrDefault(false) }
+        if (intent.method == NativeMacConnectionMethod.TAILSCALE)
+            return checkNotNull(tailscaleRoutes) { "Tailscale is unavailable" }.transport(intent.tailscale, allowed)
         return IrxMobileRpcTransport(establish = {
             check(allowed()) { "Computer connection settings changed" }
             val live = endpointMutex.withLock {
@@ -153,7 +172,8 @@ internal class NativeIrohBackend(
                 val control = IrohV2ControlSession(IrohV2SignedRequests(descriptor, key::sign),
                     { force -> account.accessToken(force) ?: error("Sign in to cmux") }, current)
                 return NativeIrohBackend(key, control, current, applicationActive,
-                    NativePrivatePathStore.create(application, key.identity()), NativeMacConnectionStore.create(application, team))
+                    NativePrivatePathStore.create(application, key.identity()), NativeMacConnectionStore.create(application, team),
+                    NativeTailscaleRoutes(application, NativeCredentialStore(application), team))
             } catch (failure: Throwable) { key.close(); throw failure }
         }
     }

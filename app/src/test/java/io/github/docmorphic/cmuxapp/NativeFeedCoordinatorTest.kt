@@ -14,6 +14,24 @@ class NativeFeedCoordinatorTest {
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 
+    @Test fun methodChangeWakesOnlyChangedMacWithoutWaitingForOfflineBackoff() = runBlocking<Unit> {
+        val a = mac("a").copy(code = "cmux-ios://attach?v=3&i=endpoint-a&d=a")
+        val b = mac("b").copy(code = "cmux-ios://attach?v=3&i=endpoint-b&d=b")
+        val attempts = mutableMapOf<String, Int>()
+        val coordinator = NativeFeedCoordinator(this, { mac ->
+            attempts[mac.deviceId] = (attempts[mac.deviceId] ?: 0) + 1
+            error("fixture offline")
+        }, { true })
+        try {
+            val initial = mapOf("endpoint-a" to "iroh", "endpoint-b" to "iroh")
+            coordinator.updateMacs(listOf(a, b), initial)
+            awaitState { attempts["a"] == 1 && attempts["b"] == 1 }
+            coordinator.updateMacs(listOf(a, b), initial + ("endpoint-a" to "tailscale"))
+            withTimeout(1000) { while (attempts["a"] != 2) delay(10) }
+            assertEquals(1, attempts["b"])
+        } finally { coordinator.close() }
+    }
+
     @Test fun keepAwakeIsSeededPerMacAndEventsNeverMutatePowerOrAnotherComputer() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             a.powerSupported = true; a.powerValue = true

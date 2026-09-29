@@ -91,8 +91,9 @@ locally; see the source correction in that checkpoint.
 - Live acceptance of appearance, the Mac Power control and
   [keep-awake row indicators](MAC_POWER_INDICATORS.md).
 - Physical acceptance of [Iroh/Direct selection and direct addresses](DIRECT_CONNECTION.md),
-  now implemented through the runtime and native backend. Tailscale-only selection,
-  authorized route editing and remaining legacy Tailscale detail flows are still open.
+  now implemented through the runtime and native backend. [Tailscale-only selection
+  and authorized route editing](TAILSCALE_CONNECTION.md) are also implemented;
+  discovery-independent reconnect, legacy route unification and physical checks remain open.
 - Compatibility/version-floor guidance and physical acceptance of the
   [confirmed Forget/local-cleanup flow](COMPUTER_REVOCATION.md). Confirmation,
   scoped server removal and durable local cleanup are implemented. Legacy or

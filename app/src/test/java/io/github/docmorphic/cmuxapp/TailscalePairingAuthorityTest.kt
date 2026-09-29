@@ -236,4 +236,42 @@ class TailscalePairingAuthorityTest {
         assertEquals(1, f.transports.size)
         f.authority.close()
     }
+
+    @Test fun replacingRouteCommitsAtomicallyAndRejectsStaleOrSiblingEdits() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize(); f.connect().close()
+        val original = f.grant()!!
+        val replacement = original.copy(id = java.util.UUID.randomUUID().toString(), source = "b".repeat(64),
+            route = PairingCode.Route("100.99.1.3", 58465))
+        f.failSave = true
+        assertTrue(runCatching { f.grants.save(f.scope!!, replacement, original) { true } }.isFailure)
+        assertEquals(original, f.grant())
+        f.failSave = false
+        assertTrue(runCatching { f.grants.save(f.scope!!, replacement.copy(build = "beta"), original) { true } }.isFailure)
+        f.grants.save(f.scope!!, replacement, original) { true }
+        assertNull(f.grant()); assertEquals(replacement, f.grants.find(f.scope!!, replacement.source))
+        assertTrue(runCatching { f.grants.save(f.scope!!, original, original) { true } }.isFailure)
+        f.authority.close()
+    }
+
+    @Test fun deletingOneDisplayedRouteAlsoRemovesItsDuplicateSourceGrants() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize(); f.connect().close()
+        val original = f.grant()!!
+        val duplicate = original.copy(id = java.util.UUID.randomUUID().toString(), source = "b".repeat(64))
+        val sibling = original.copy(id = java.util.UUID.randomUUID().toString(), source = "c".repeat(64), build = "beta")
+        f.grants.save(f.scope!!, duplicate) { true }; f.grants.save(f.scope!!, sibling) { true }
+        val target = NativeComputerTarget("mac", "default", "Mac")
+        assertEquals(listOf(duplicate), f.grants.computer(f.scope!!, target))
+        f.grants.removeRoute(f.scope!!, target, duplicate) { true }
+        assertNull(f.grant()); assertNull(f.grants.find(f.scope!!, duplicate.source))
+        assertEquals(sibling, f.grants.find(f.scope!!, sibling.source))
+        f.authority.close()
+    }
+
+    @Test fun manualRouteEntryAcceptsNumericPeersAndCannotPretendAnIrohCodeIsTailscale() {
+        assertEquals(PairingCode.Route("100.99.1.2", 58465), tailscalePairingInput("100.99.1.2:58465").routes.single())
+        assertEquals(PairingCode.Route("fd7a:115c:a1e0::2", 58465), tailscalePairingInput("[FD7A:115C:A1E0::2]:58465").routes.single())
+        listOf("mac.tail.ts.net:58465", "100.100.100.100:58465", "cmux-ios://attach?v=3&i=peer").forEach {
+            assertTrue(runCatching { tailscalePairingInput(it) }.isFailure)
+        }
+    }
 }

@@ -265,3 +265,11 @@ other computers using automatic Iroh retain their endpoint. Method/coordinate
 changes retire only affected sessions, and missing/unreadable settings cannot
 silently fall back to relays. Physical LAN/VPN acceptance and Tailscale-only route
 selection remain open.
+
+## Tailscale Details integration (2026-09-29)
+
+[TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md) records the third connection
+choice, targeted authenticated route editing/removal, shared-pool admission and
+per-Mac reconnect wakeup. The native path still depends on ready Iroh discovery;
+removing that dependency, unifying legacy QR identities, and physical VPN/Mac
+acceptance remain necessary. This is not claimed as complete transport parity.

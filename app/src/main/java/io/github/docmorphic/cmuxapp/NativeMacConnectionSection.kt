@@ -53,10 +53,15 @@ internal fun NativeMacConnectionSection(target: NativeComputerTarget, state: Nat
             Box {
                 TextButton(onClick = { menu = true }, enabled = !busy && !state.error,
                     modifier = Modifier.semantics { contentDescription = "Choose connection method" }) {
-                    Text(if (preference.method == NativeMacConnectionMethod.DIRECT) "Direct ▾" else "Iroh ▾")
+                    Text(when (preference.method) {
+                        NativeMacConnectionMethod.IROH -> "Iroh ▾"
+                        NativeMacConnectionMethod.TAILSCALE -> "Tailscale Only ▾"
+                        NativeMacConnectionMethod.DIRECT -> "Direct ▾"
+                    })
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    listOf(NativeMacConnectionMethod.IROH to "Iroh", NativeMacConnectionMethod.DIRECT to "Direct").forEach { (method, name) ->
+                    listOf(NativeMacConnectionMethod.IROH to "Iroh", NativeMacConnectionMethod.TAILSCALE to "Tailscale Only",
+                        NativeMacConnectionMethod.DIRECT to "Direct").forEach { (method, name) ->
                         DropdownMenuItem(text = { Text(name) }, onClick = {
                             menu = false
                             if (method != preference.method) change({ it.copy(method = method) })
@@ -69,9 +74,11 @@ internal fun NativeMacConnectionSection(target: NativeComputerTarget, state: Nat
             Text("Could not read connection settings. Connections stay blocked until these settings can be loaded.", color = Color(0xFFFFBC70))
             TextButton(onClick = retry, enabled = !busy) { Text("Retry connection settings") }
         } else {
-            Text(if (preference.method == NativeMacConnectionMethod.DIRECT)
-                "Connects to this Mac’s encrypted Iroh identity using only the enabled addresses below. Relays and automatic address discovery are disabled."
-            else "Connects automatically over an authenticated, end-to-end encrypted Iroh connection.", color = Color(0xFF9B9FA8), fontSize = 13.sp)
+            Text(when (preference.method) {
+                NativeMacConnectionMethod.DIRECT -> "Connects to this Mac’s encrypted Iroh identity using only the enabled addresses below. Relays and automatic address discovery are disabled."
+                NativeMacConnectionMethod.TAILSCALE -> "Uses only this Mac’s authorized Tailscale connections. Keep Tailscale connected on this phone."
+                NativeMacConnectionMethod.IROH -> "Connects automatically over an authenticated, end-to-end encrypted Iroh connection."
+            }, color = Color(0xFF9B9FA8), fontSize = 13.sp)
         }
         if (preference.method == NativeMacConnectionMethod.DIRECT && !state.error) {
             Text("DIRECT ADDRESSES", Modifier.padding(top = 20.dp, bottom = 8.dp), color = Color(0xFF9B9FA8), fontSize = 11.sp)

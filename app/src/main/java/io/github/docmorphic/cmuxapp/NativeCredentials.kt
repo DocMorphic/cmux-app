@@ -22,6 +22,10 @@ import javax.crypto.spec.GCMParameterSpec
 /** Android Keystore-backed storage for the official cmux pairing and account session. */
 class NativeCredentialStore(context: Context, storageName: String = "native_cmux") {
     private val preferences = context.getSharedPreferences(storageName, Context.MODE_PRIVATE)
+    private val changeState = synchronized(storageLock) {
+        changes.getOrPut(context.applicationInfo.dataDir + "/" + storageName) { kotlinx.coroutines.flow.MutableStateFlow(0L) }
+    }
+    internal val revisions: kotlinx.coroutines.flow.StateFlow<Long> get() = changeState
 
     data class PairedMac(val code: String, val deviceId: String, val name: String, val instanceTag: String? = null) {
         internal val origin = pairingOrigin(code, deviceId, instanceTag)
@@ -110,14 +114,16 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         cipher.init(Cipher.ENCRYPT_MODE, key())
         val encoded = Base64.encodeToString(cipher.iv + cipher.doFinal(value.toString().toByteArray()), Base64.NO_WRAP)
         check(preferences.edit().putString("state", encoded).commit()) { "Could not save account" }
+        changeState.value++
     }
 
-    fun clear(): Unit = synchronized(storageLock) { preferences.edit().remove("state").apply() }
+    fun clear(): Unit = synchronized(storageLock) { preferences.edit().remove("state").apply(); changeState.value++ }
 
     companion object {
         // Account refresh, the background service, and draft saves share the
         // Keystore key. Serialize read-modify-write and initial key creation.
         private val storageLock = Any()
+        private val changes = mutableMapOf<String, kotlinx.coroutines.flow.MutableStateFlow<Long>>()
     }
 
     private fun key(): SecretKey {

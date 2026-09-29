@@ -8,7 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-internal enum class NativeMacConnectionMethod { IROH, DIRECT }
+internal enum class NativeMacConnectionMethod { IROH, TAILSCALE, DIRECT }
 internal data class NativeDirectAddress(val address: String, val label: String? = null, val enabled: Boolean = true)
 internal data class NativeMacConnectionPreference(
     val method: NativeMacConnectionMethod = NativeMacConnectionMethod.IROH,
@@ -19,9 +19,15 @@ internal data class NativeMacConnectionPreference(
 
 /** A captured routing choice, including an epoch so A→B→A cannot revive an old lease. */
 internal data class NativeMacDialIntent(val method: NativeMacConnectionMethod = NativeMacConnectionMethod.IROH,
-    val addresses: List<String> = emptyList(), val revision: Long = 0, val recovery: Long = 0) {
-    val dialable get() = method != NativeMacConnectionMethod.DIRECT || addresses.isNotEmpty()
-    fun key() = JSONArray(listOf(method.name, JSONArray(addresses), revision, recovery)).toString()
+    val addresses: List<String> = emptyList(), val revision: Long = 0, val recovery: Long = 0,
+    val tailscale: List<TailscaleSavedGrant> = emptyList()) {
+    val dialable get() = when (method) {
+        NativeMacConnectionMethod.IROH -> true
+        NativeMacConnectionMethod.DIRECT -> addresses.isNotEmpty()
+        NativeMacConnectionMethod.TAILSCALE -> tailscale.isNotEmpty()
+    }
+    fun key() = JSONArray(listOf(method.name, JSONArray(addresses), revision, recovery,
+        JSONArray(tailscale.map { JSONArray(listOf(it.id, it.route.host, it.route.port)) }))).toString()
     override fun toString() = "NativeMacDialIntent(method=$method, addressCount=${addresses.size})"
 }
 

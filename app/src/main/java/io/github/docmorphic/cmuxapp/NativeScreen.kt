@@ -293,9 +293,9 @@ fun NativeScreen(
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer); sharedConnections?.setProbeActive(probeOwner, false) }
     }
-    LaunchedEffect(signedIn, pairedMacs, feedForeground) {
+    LaunchedEffect(signedIn, pairedMacs, feedForeground, computerState.connectionKeys) {
         if (!signedIn) feedSession.clear()
-        else if (feedForeground) feedCoordinator.updateMacs(pairedMacs)
+        else if (feedForeground) feedCoordinator.updateMacs(pairedMacs, computerState.connectionKeys)
         else feedCoordinator.pause()
     }
     DisposableEffect(feedCoordinator) { onDispose { feedCoordinator.pause() } }
@@ -800,7 +800,8 @@ fun NativeScreen(
         }
     }
 
-    LaunchedEffect(signedIn, code, retry) {
+    LaunchedEffect(signedIn, code, retry,
+        computerState.connectionKeys[(PairingCodeParser.parse(code).getOrNull() as? PairingCode.Iroh)?.endpointId]) {
         connectionReady = false
         client?.close(); client = null; connectedCode = null
         if (!signedIn || code.isBlank()) return@LaunchedEffect
