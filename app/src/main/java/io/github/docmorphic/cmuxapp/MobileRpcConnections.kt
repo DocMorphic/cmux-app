@@ -15,6 +15,13 @@ internal class MobileRpcConnections : AutoCloseable {
     private var candidate: Pair<String, MobileRpcClient>? = null
     private var closed = false
 
+    /** Inspect an already-live Mac without making opening a settings page dial it. */
+    fun borrowIfConnected(key: String, permits: () -> Boolean): MobileRpcClient? = synchronized(lock) {
+        if (closed || !permits()) return@synchronized null
+        val entry = entries[key]?.takeUnless { it.client.isClosed } ?: return@synchronized null
+        borrow(key, entry)
+    }
+
     suspend fun acquire(key: String, permits: () -> Boolean,
                         create: () -> MobileRpcClient): MobileRpcClient = admission.withLock {
         synchronized(lock) {

@@ -12,13 +12,23 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Mac Power checkpoint (2026-09-29):** Computer Details now has the iOS-style
+Keep Mac Awake control, gated by exact live Mac identity and `caffeine.control.v1`.
+It handles confirmed state/events, duplicate prevention and ambiguous mutations
+with read-only reconciliation. Thirty-eight focused JVM checks and six emulator
+UI cases pass; an initial emulator hang is documented. The verified debug APK is
+installed on the Pixel, but the phone remained asleep, so live Mac power
+acceptance is pending. No Mac power or phone sleep setting was changed. Row
+indicators, appearance and broader detail parity remain open. See
+[MAC_POWER.md](MAC_POWER.md). Signed build 157 is unchanged.
+
 **Per-computer detail checkpoint (2026-09-29):** native computer rows now have
 Details without changing the active workspace. Checks refresh discovery, resolve
 the exact Mac/build, borrow and release their own connection, and can run without
 opening that Mac first. Private-address editing is per computer; the all-computer
 reset moved to Networking. Thirty JVM checks and seven emulator UI cases pass
 (the final legacy-QR compatibility adjustment has JVM/build evidence). Appearance,
-Mac power, direct-only/route controls, account revoke and physical navigation
+direct-only/route controls, account revoke and physical navigation
 acceptance remain open; see [COMPUTER_DETAILS.md](COMPUTER_DETAILS.md).
 
 **Live Networking / Pixel checkpoint (2026-09-29):** Settings now has a

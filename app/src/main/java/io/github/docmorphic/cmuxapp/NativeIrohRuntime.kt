@@ -23,6 +23,7 @@ internal class NativeIrohRuntime(
 ) : AutoCloseable {
     private class Owner(val account: NativeTeamScope) {
         val connections = MobileRpcConnections()
+        val powerMutations = mutableMapOf<String, kotlinx.coroutines.sync.Mutex>()
         var service: IrohAccountBackend? = null
     }
     private val lock = Any()
@@ -137,6 +138,20 @@ internal class NativeIrohRuntime(
             else -> NativeConnectionReport.Failure.CONNECTION
         }
         NativeConnectionReport(failure = reason)
+    }
+
+    fun powerSession(team: NativeTeamScope, target: NativeComputerTarget): NativeMacPowerSession? {
+        val run = synchronized(lock) { owner } ?: return null
+        if (!current(run) || run.account != team) return null
+        val mac = synchronized(lock) { run.service }?.state?.value?.computers
+            ?.singleOrNull { target.matches(it) } ?: return null
+        val permits = { authorized(run, mac) }
+        val key = connectionKey(mac)
+        val lease = run.connections.borrowIfConnected(key, permits) ?: return null
+        val gate = synchronized(lock) {
+            run.powerMutations.getOrPut(key) { kotlinx.coroutines.sync.Mutex() }
+        }
+        return NativeMacPowerSession(lease, target, permits, gate)
     }
 
     suspend fun networking(team: NativeTeamScope, refresh: Boolean = false): NativeNetworkingSnapshot =

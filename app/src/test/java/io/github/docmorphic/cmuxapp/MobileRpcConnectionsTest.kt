@@ -27,6 +27,19 @@ internal class PoolTestTransport : MobileRpcTransport {
 }
 
 class MobileRpcConnectionsTest {
+    @Test fun settingsBorrowOnlyLiveAuthorizedWireAndReleaseIndependently() = runBlocking<Unit> {
+        val transport = PoolTestTransport()
+        MobileRpcConnections().use { pool ->
+            assertNull(pool.borrowIfConnected("mac", { true }))
+            val active = pool.acquire("mac", { true }) { MobileRpcClient(transport, { "token" }) }
+            assertNull(pool.borrowIfConnected("other", { true }))
+            assertNull(pool.borrowIfConnected("mac", { false }))
+            val settings = requireNotNull(pool.borrowIfConnected("mac", { true }))
+            settings.close(); assertFalse(active.isClosed); assertEquals(1, transport.connects.get())
+            pool.retain(emptySet()); assertNull(pool.borrowIfConnected("mac", { true }))
+            active.close()
+        }
+    }
     @Test fun consumersShareOneWireButOwnSubscriptionsAndCloseIndependently() = runBlocking<Unit> {
         val transport = PoolTestTransport()
         MobileRpcConnections().use { pool ->

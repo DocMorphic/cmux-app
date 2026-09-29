@@ -66,7 +66,8 @@ internal fun NativeComputerDetailsButton(runtime: NativeIrohRuntime?, state: Nat
                     val intent = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
                         .putExtra(android.content.Intent.EXTRA_TEXT, report)
                     context.startActivity(android.content.Intent.createChooser(intent, "Share Connection Report"))
-                }, onBack = { open = false })
+                }, onBack = { open = false },
+                power = { NativeMacPowerSettings(runtime, team, target) })
         }
     }
 }
@@ -75,7 +76,7 @@ internal fun NativeComputerDetailsButton(runtime: NativeIrohRuntime?, state: Nat
 internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available: Boolean, canCheck: Boolean,
     check: suspend () -> NativeConnectionReport, paths: suspend () -> List<NativePrivatePath>,
     changePaths: suspend ((NativePrivatePathStore) -> Unit) -> List<NativePrivatePath>,
-    share: (String) -> Unit, onBack: () -> Unit) {
+    share: (String) -> Unit, onBack: () -> Unit, power: @Composable () -> Unit = {}) {
     Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -91,6 +92,7 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
                 }
                 NativeConnectionCheckSection(canCheck, check, share,
                     disabledMessage = "Wait for your account’s computer list, then try again.")
+                power()
                 NativePrivatePathsSection(
                     computers = if (available) listOf(IrohV2Computer("", "", target.deviceId, target.buildTag, target.name, emptyList())) else emptyList(),
                     load = paths, change = changePaths, showReset = false,

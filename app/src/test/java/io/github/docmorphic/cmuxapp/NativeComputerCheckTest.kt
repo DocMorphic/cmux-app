@@ -62,6 +62,21 @@ class NativeComputerCheckTest {
         assertEquals(listOf("mobile.host.status", "mobile.workspace.list"), backend.wires.single().methods)
         assertEquals(1, backend.wires.single().closes.get())
     } }
+    @Test fun powerBorrowsOnlyExactLiveMacAndRequiresCurrentTeamAndDirectory() = runBlocking { fixture { runtime, backend, _ ->
+        assertNull(runtime.powerSession(team, target)); assertTrue(backend.wires.isEmpty())
+        val pairing = PairingCodeParser.parse(PairingCodeParser.computer(mac, team)).getOrThrow() as PairingCode.Iroh
+        runtime.connect(pairing).use { active ->
+            assertNull(runtime.powerSession(team.copy(teamId = "other"), target))
+            assertNull(runtime.powerSession(team, target.copy(buildTag = "other")))
+            val session = requireNotNull(runtime.powerSession(team, target))
+            val job = launch { session.run() }
+            withTimeout(2000) { session.state.first { it.supported == false && !it.busy } }
+            job.cancelAndJoin(); assertFalse(active.isClosed)
+            assertEquals(1, backend.wires.size)
+            backend.state.value = backend.state.value.copy(permissionExpiresAt = 999)
+            assertNull(runtime.powerSession(team, target))
+        }
+    } }
     @Test fun checkingAlreadyOpenMacDoesNotCloseItsOtherLease() = runBlocking { fixture { runtime, backend, _ ->
         val pairing = PairingCodeParser.parse(PairingCodeParser.computer(mac, team)).getOrThrow() as PairingCode.Iroh
         runtime.connect(pairing).use { active ->
