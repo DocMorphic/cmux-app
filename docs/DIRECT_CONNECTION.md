@@ -85,7 +85,9 @@ the captured pairing-store commit. Other Mac/build preferences remain.
 Physical LAN/VPN Mac and Pixel acceptance is pending, including switching modes
 while terminals and background notifications are active. Tailscale-only selection
 and authorized route editing now have implementation and focused evidence; its
-discovery-independent reconnect and full iOS visual/interaction comparison remain open. The full companion goal is active. The production direct-backend fixture
+saved reconnect now runs independently of Iroh discovery. Physical acceptance
+and full iOS visual/interaction comparison remain open. The full companion goal
+is active. The production direct-backend fixture
 uses local QUIC and simulated account authority; it is not proof of live server
 admission or physical network traversal.
 

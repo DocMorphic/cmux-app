@@ -10,8 +10,17 @@ internal data class NativeComputersState(
     val loading: Boolean = false,
     val computers: List<IrohV2Computer> = emptyList(),
     val error: String? = null,
-    val connectionKeys: Map<String, String> = emptyMap()
-)
+    val connectionKeys: Map<String, String> = emptyMap(),
+    val localConnectionKeys: Map<NativeMacIdentity, String> = emptyMap()
+) {
+    fun connectionKey(pairing: PairingCode.Iroh?): String? {
+        if (pairing == null) return null
+        val local = pairing.macDeviceId?.let { device -> pairing.buildTag?.let { build ->
+            localConnectionKeys[NativeMacIdentity(canonicalMacDeviceId(device), build)]
+        } }
+        return local ?: connectionKeys[pairing.endpointId]
+    }
+}
 
 /** Account/team changes replace the complete discovery, endpoint and RPC owner. */
 internal class NativeIrohRuntime(
@@ -20,7 +29,8 @@ internal class NativeIrohRuntime(
     private val accessToken: suspend () -> String?,
     private val backend: suspend (NativeTeamScope, () -> Boolean) -> IrohAccountBackend,
     private val now: () -> Long = { System.currentTimeMillis() / 1000 },
-    private val retryDelayMillis: Long = 2000
+    private val retryDelayMillis: Long = 2000,
+    private val savedTailscale: NativeSavedTailscaleRuntime? = null
 ) : AutoCloseable {
     private class Owner(val account: NativeTeamScope) {
         val connections = MobileRpcConnections()
@@ -32,7 +42,13 @@ internal class NativeIrohRuntime(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val retry = MutableStateFlow(0L)
     private val mutableState = MutableStateFlow(NativeComputersState())
-    val state = mutableState.asStateFlow()
+    val state: StateFlow<NativeComputersState> = savedTailscale?.let { saved ->
+        combine(mutableState, saved.state) { discovery, local ->
+            val desired = teams.value.scope
+            val base = discovery.takeIf { it.account == desired } ?: NativeComputersState(account = desired, loading = desired != null)
+            base.copy(localConnectionKeys = local.keys.takeIf { local.account == desired }.orEmpty())
+        }.stateIn(scope, SharingStarted.Eagerly, NativeComputersState())
+    } ?: mutableState.asStateFlow()
     private var owner: Owner? = null
     private var closed = false
 
@@ -115,6 +131,12 @@ internal class NativeIrohRuntime(
     suspend fun checkComputer(team: NativeTeamScope, target: NativeComputerTarget,
                               timeoutMillis: Long = 30_000): NativeConnectionReport = try {
         withTimeout(timeoutMillis) {
+            savedTailscale?.connectIfSelected(team, target)?.let { client ->
+                return@withTimeout client.use {
+                    NativeConnectionCheck.run(it, NativeCredentialStore.PairedMac("", target.deviceId, target.name, target.buildTag))
+                        .also { check(isCurrent(team)) { "Account session changed" } }
+                }
+            }
             val run = synchronized(lock) { owner } ?: error("Networking is not ready")
             requireCurrent(run)
             if (run.account != team) return@withTimeout NativeConnectionReport(failure = NativeConnectionReport.Failure.ACCOUNT)
@@ -166,6 +188,7 @@ internal class NativeIrohRuntime(
     }
 
     fun powerSession(team: NativeTeamScope, target: NativeComputerTarget): NativeMacPowerSession? {
+        if (savedTailscale?.selected(team, target) == true) return savedTailscale.powerSession(team, target)
         val run = synchronized(lock) { owner } ?: return null
         if (!current(run) || run.account != team) return null
         val mac = synchronized(lock) { run.service }?.state?.value?.computers
@@ -183,6 +206,7 @@ internal class NativeIrohRuntime(
 
     /** Local appearance may be edited offline, but never through a retired account/team page. */
     fun permitsAppearance(team: NativeTeamScope): Boolean = synchronized(lock) { !closed && isCurrent(team) }
+    fun usesSavedTailscale(team: NativeTeamScope, target: NativeComputerTarget) = savedTailscale?.selected(team, target) == true
 
     suspend fun networking(team: NativeTeamScope, refresh: Boolean = false): NativeNetworkingSnapshot =
         withContext(Dispatchers.IO) {
@@ -223,6 +247,7 @@ internal class NativeIrohRuntime(
     }
 
     private suspend fun connectCurrent(pairing: PairingCode.Iroh, expectedOwner: Owner? = null): MobileRpcClient {
+        savedTailscale?.connectIfSelected(pairing)?.let { return it }
         val available = withTimeout(30_000) { state.first { it.ready || (!it.loading && it.error != null) } }
         check(available.ready) { available.error ?: "Waiting for your computers" }
         val run = synchronized(lock) { owner } ?: error("Account session changed")
@@ -297,5 +322,6 @@ internal class NativeIrohRuntime(
         old?.connections?.close()
         old?.service?.close()
         scope.cancel()
+        savedTailscale?.close()
     }
 }

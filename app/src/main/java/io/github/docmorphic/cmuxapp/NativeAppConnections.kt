@@ -14,8 +14,21 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     private val activityLock = Any()
     private val activityOwners = mutableSetOf<Any>()
     private val applicationActive = MutableStateFlow(IrxProbeActivity(false))
+    private val savedTailscale = NativeSavedTailscaleRuntime(teams.state, teams::isCurrent, { account.accessToken() }) { team ->
+        val routes = NativeTailscaleRoutes(context.applicationContext, store, team)
+        NativeSavedTailscaleAccount(NativeMacConnectionStore.create(context.applicationContext, team), store.revisions,
+            routes::grants, routes::transport, resolve = { pairing ->
+                if (pairing.macDeviceId != null && pairing.buildTag != null)
+                    NativeComputerTarget(pairing.macDeviceId, pairing.buildTag, "Mac")
+                else store.pairedMacs().mapNotNull { row ->
+                    val saved = PairingCodeParser.parse(row.code).getOrNull() as? PairingCode.Iroh
+                    if (saved?.endpointId == pairing.endpointId) NativeComputerTarget.from(row, team) else null
+                }.distinctBy { canonicalMacDeviceId(it.deviceId) to it.buildTag }.singleOrNull()
+            })
+    }
     val native = NativeIrohRuntime(teams.state, teams::isCurrent, { account.accessToken() },
-        { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) })
+        { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) },
+        savedTailscale = savedTailscale)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val tailscale = TailscaleConnector(context, store, teams)
     val connector = object : NativeConnector {

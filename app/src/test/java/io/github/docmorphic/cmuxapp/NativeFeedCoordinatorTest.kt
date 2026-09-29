@@ -14,6 +14,26 @@ class NativeFeedCoordinatorTest {
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 
+    @Test fun savedRouteChangeWakesOnlyItsBuildWhileDiscoveryIsUnavailable() = runBlocking<Unit> {
+        val device = "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"
+        val a = mac(device).copy(code = "cmux-ios://attach?v=3&i=endpoint-a&d=$device&b=default", instanceTag = "default")
+        val b = a.copy(code = "cmux-ios://attach?v=3&i=endpoint-b&d=$device&b=debug", instanceTag = "debug")
+        val attempts = mutableMapOf<String, Int>()
+        val coordinator = NativeFeedCoordinator(this, { mac ->
+            attempts[mac.instanceTag!!] = (attempts[mac.instanceTag] ?: 0) + 1
+            error("fixture offline")
+        }, { true })
+        try {
+            val key = NativeMacIdentity(canonicalMacDeviceId(device), "default")
+            val initial = mapOf(key to "route-one", key.copy(buildTag = "debug") to "sibling-route")
+            coordinator.updateMacs(listOf(a, b), localRouteKeys = initial)
+            awaitState { attempts["default"] == 1 && attempts["debug"] == 1 }
+            coordinator.updateMacs(listOf(a, b), localRouteKeys = initial + (key to "route-two"))
+            withTimeout(1000) { while (attempts["default"] != 2) delay(10) }
+            assertEquals(1, attempts["debug"])
+        } finally { coordinator.close() }
+    }
+
     @Test fun methodChangeWakesOnlyChangedMacWithoutWaitingForOfflineBackoff() = runBlocking<Unit> {
         val a = mac("a").copy(code = "cmux-ios://attach?v=3&i=endpoint-a&d=a")
         val b = mac("b").copy(code = "cmux-ios://attach?v=3&i=endpoint-b&d=b")

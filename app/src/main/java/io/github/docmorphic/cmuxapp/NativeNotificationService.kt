@@ -58,8 +58,10 @@ class NativeNotificationService : Service() {
         try {
             while (isActive && isEnabled(this@NativeNotificationService)) {
                 val routeKeys = connections.native.state.value.connectionKeys
+                val localKeys = connections.native.state.value.localConnectionKeys
                 fun routeKey(mac: NativeCredentialStore.PairedMac) =
-                    (PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh)?.endpointId?.let(routeKeys::get)
+                    localKeys[NativeMacIdentity(canonicalMacDeviceId(mac.deviceId), mac.instanceTag)] ?:
+                        (PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh)?.endpointId?.let(routeKeys::get)
                 val paired = if (account.isSignedIn()) store.pairedMacs().filter {
                     it.deviceId.isNotBlank() && PairingCodeParser.parse(it.code).getOrNull()?.let(connector::allowsSaved) == true
                 }.toSet() else emptySet()
@@ -98,7 +100,7 @@ class NativeNotificationService : Service() {
                     }
                 }
                 }
-                withTimeoutOrNull(2_000) { connections.native.state.first { it.connectionKeys != routeKeys } }
+                withTimeoutOrNull(2_000) { connections.native.state.first { it.connectionKeys != routeKeys || it.localConnectionKeys != localKeys } }
             }
         } finally {
             workers.values.forEach { it.cancel() }

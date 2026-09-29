@@ -270,6 +270,8 @@ selection remain open.
 
 [TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md) records the third connection
 choice, targeted authenticated route editing/removal, shared-pool admission and
-per-Mac reconnect wakeup. The native path still depends on ready Iroh discovery;
-removing that dependency, unifying legacy QR identities, and physical VPN/Mac
-acceptance remain necessary. This is not claimed as complete transport parity.
+per-Mac reconnect wakeup. The subsequent independent saved-route owner removes
+the native Tailscale path’s dependency on Iroh startup/discovery and preserves
+shared sessions through broker failures. Current verified account/team scope is
+still required. Legacy QR identity unification and physical VPN/Mac acceptance
+remain necessary. This is not claimed as complete transport parity.

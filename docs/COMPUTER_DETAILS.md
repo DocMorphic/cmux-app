@@ -93,7 +93,8 @@ locally; see the source correction in that checkpoint.
 - Physical acceptance of [Iroh/Direct selection and direct addresses](DIRECT_CONNECTION.md),
   now implemented through the runtime and native backend. [Tailscale-only selection
   and authorized route editing](TAILSCALE_CONNECTION.md) are also implemented;
-  discovery-independent reconnect, legacy route unification and physical checks remain open.
+  saved Tailscale reconnect/checks now run independently of Iroh discovery.
+  Legacy route unification and physical checks remain open.
 - Compatibility/version-floor guidance and physical acceptance of the
   [confirmed Forget/local-cleanup flow](COMPUTER_REVOCATION.md). Confirmation,
   scoped server removal and durable local cleanup are implemented. Legacy or

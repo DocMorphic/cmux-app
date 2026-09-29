@@ -108,7 +108,7 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false,
                 dismissOnBackPress = !forgetting, dismissOnClickOutside = !forgetting)) {
             NativeComputerDetailsScreen(target, available = state.computers.any { target.matches(it) },
-                canCheck = state.ready,
+                canCheck = state.ready || runtime.usesSavedTailscale(team, target),
                 check = { runtime.checkComputer(team, target) },
                 paths = { runtime.privatePaths(team).filter { target.matches(it) } },
                 changePaths = { action -> runtime.privatePaths(team, action).filter { target.matches(it) } },
@@ -142,7 +142,7 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                                 }
                         } }, remove = { grant -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                             grants.removeRoute(team, target, grant) { runtime.permitsAppearance(team) }
-                        } }, reload = { routeReload++ }, enabled = !forgetting && state.ready)
+                        } }, reload = { routeReload++ }, enabled = !forgetting && runtime.permitsAppearance(team))
                 },
                 power = { NativeMacPowerSettings(runtime, team, target) }, displayName = title, connection = connection,
                 showPrivateAddresses = connectionPreferences.get(target).method == NativeMacConnectionMethod.IROH,

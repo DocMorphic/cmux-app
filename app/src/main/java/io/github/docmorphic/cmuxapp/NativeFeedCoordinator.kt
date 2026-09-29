@@ -26,9 +26,11 @@ internal class NativeFeedCoordinator(
     private val mutableSources = MutableStateFlow<Map<String, NativeFeedSource>>(emptyMap())
     val sources = mutableSources.asStateFlow()
 
-    fun updateMacs(macs: List<NativeCredentialStore.PairedMac>, routeKeys: Map<String, String> = emptyMap()) {
+    fun updateMacs(macs: List<NativeCredentialStore.PairedMac>, routeKeys: Map<String, String> = emptyMap(),
+        localRouteKeys: Map<NativeMacIdentity, String> = emptyMap()) {
         fun routeKey(mac: NativeCredentialStore.PairedMac) =
-            (PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh)?.endpointId?.let(routeKeys::get)
+            localRouteKeys[NativeMacIdentity(canonicalMacDeviceId(mac.deviceId), mac.instanceTag)] ?:
+                (PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh)?.endpointId?.let(routeKeys::get)
         val allowed = macs.filter(isAllowed).associateBy { it.origin }
         handles.keys.toList().filter { origin -> allowed[origin] != handles[origin]?.mac ||
             allowed[origin]?.let(::routeKey) != handles[origin]?.routeKey }.forEach { remove(it) }

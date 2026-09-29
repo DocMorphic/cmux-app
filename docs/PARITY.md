@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Independent saved Tailscale sessions (2026-09-29):** the native computer path
+now connects through a separate account/team-owned TCP pool before Iroh readiness.
+Simulated Iroh startup/broker failures leave shared Tailscale terminal/feed/check/
+power leases intact. Local route keys wake only affected Mac/build consumers;
+account, grant and method changes still retire stale connections. All 69 focused
+JVM cases pass; main/test APKs build and pass native/ZIP 16 KB alignment. Android
+instrumentation was not rerun for this checkpoint and ADB still sees no Pixel.
+Initial account/team verification remains required; fully offline cold start is
+not established. Legacy QR identity/method unification and physical VPN/Mac
+acceptance remain open. See [TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md).
+
 **Tailscale Details/routing integration (2026-09-29):** Computer Details now
 provides Tailscale Only plus targeted add/edit/remove routes, with no automatic
 fallback when a grant is absent. Successful pairing preserves native identity;
@@ -19,8 +30,8 @@ route edits are authenticated and atomically replace the old grant. UI/feed/serv
 reconnects wake on per-Mac route changes. Eighty-six JVM cases pass; fourteen
 Android UI/storage cases have passing evidence across the documented runs. Main
 and test APKs build, and native/ZIP 16 KB checks pass. Physical acceptance remains
-pending. The native route still depends on ready Iroh discovery, and legacy QR
-identity/method unification remains unfinished; see
+pending. The discovery dependency was subsequently removed in the checkpoint
+above; legacy QR identity/method unification remains unfinished. See
 [TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md).
 
 **Tailscale pairing authorization checkpoint (2026-09-29):** the production QR
@@ -244,7 +255,7 @@ work. This follow-up has no new APK or live-device claim.
 | Changes | `CmuxMobileChanges` | Collapsible directory tree, path-stable diff pager, numbered/wrapped hunks, grapheme-safe emphasis, line/hunk copy, persistent pinch font, refresh/retry and progressive 6,000→24,000→96,000-line loading coded; identity-checked hidden-context expansion and chunked content transfer coded; model/request checks passed; Before/After image, PDF, media and file-action previews coded; ten Changes cases passed in an Android 17 emulator run; rendered Markdown now shares the original cmux web assets; unified viewer/text controls coded; phone QA, raw syntax/streaming and document-format parity remain open | View changed files and diffs from the active workspace |
 | Terminal Files | `TerminalArtifactFilesSheet`, `ChatArtifactFolderView`, `ChatArtifactViewerDestination` | Scoped RPC/paging/search store, Session/In view sheet, filters/sort, list/three-column grid, thumbnails, folder navigation, swipe previews and file actions coded; terminal menu/counted chip and direct relative/absolute path taps capability gated; 285 JVM checks and all 12 combined Android 17 Files/shared-preview runtime cases passed; row Share, folder-tap preference and rendered Markdown have passing runtime evidence; unified viewer/text controls coded; raw syntax/streaming, remaining menu fidelity, broader document formats and physical acceptance remain open | Browse terminal/session files, folders and previews without crossing authorization scopes |
 | Tasks and agents | Task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
-| Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, connection status, Open Folders on Tap and Show Missing Files controls coded; local reset with confirmation, platform-owned erase and emulator acceptance implemented; live native route/RTT, Mac identity/account checks and address-free report sharing implemented; scoped private-address editing/reset and native dial hints implemented; active V2 status/home-relay/credential refresh and real-Pixel checks implemented; per-computer Iroh/Direct preferences, native endpoint selection and routing invalidation implemented; Tailscale-only route authorization/editing is implemented; discovery-independent reconnect, legacy route unification and physical acceptance remain open (see TAILSCALE_CONNECTION.md and NETWORKING.md) | Account, computers, notification, display, network, diagnostics, reset |
+| Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, connection status, Open Folders on Tap and Show Missing Files controls coded; local reset with confirmation, platform-owned erase and emulator acceptance implemented; live native route/RTT, Mac identity/account checks and address-free report sharing implemented; scoped private-address editing/reset and native dial hints implemented; active V2 status/home-relay/credential refresh and real-Pixel checks implemented; per-computer Iroh/Direct preferences, native endpoint selection and routing invalidation implemented; Tailscale-only route authorization/editing is implemented; discovery-independent saved reconnect is implemented; legacy route unification and physical acceptance remain open (see TAILSCALE_CONNECTION.md and NETWORKING.md) | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 

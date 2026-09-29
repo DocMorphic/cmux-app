@@ -221,16 +221,60 @@ ADB still detects no physical Pixel. Its last installed checkpoint remains
 `f0dfc7f`; signed published build 157 is unchanged. No real Mac route or phone
 power setting was changed. The emulator was stopped after verification.
 
+## Saved Tailscale sessions independent of Iroh (2026-09-29)
+
+The native saved-computer path now uses `NativeSavedTailscaleRuntime`, an
+account/team-owned TCP connection pool that starts independently of Iroh key
+loading, enrollment, broker discovery and endpoint readiness. The facade tries
+this owner before waiting for Iroh when the exact Mac/build selects Tailscale.
+Iroh and Direct retain their existing discovery path. The upstream reference is
+`MobileShellComposite+ReconnectRoutes.swift` at the pin above: explicit Tailscale
+selection resolves device-bound saved grants without an Iroh fallback.
+
+The owner requires a current verified account/team, exact Mac/build settings and
+matching encrypted numeric-route grants. It authenticates host identity and the
+workspace request before publishing a lease. Foreground, feed, notifications,
+Computer Details checks and Mac Power share those leases. Iroh startup failure or
+retry cannot retire them. Account changes, local route removal, method changes,
+corrupt settings and shutdown still invalidate them, including a pending host
+probe. Shutdown also interrupts a connection waiting for initial account scope.
+
+Independent per-device/build keys wake foreground/feed/notification reconnects
+when local routes change, even with an empty discovery directory. Changes to one
+build leave a sibling build's worker alone. Details route management and Check
+are available while Iroh is unavailable under the current account. No permission
+is inferred from directory failure, a QR's claimed identity or an absent grant.
+Older locators missing identity/build resolve only from one matching scoped saved
+computer. The separate legacy QR entry point still needs identity/method unification.
+
+This does **not** establish fully offline cold-start authentication: initial
+account/team verification and access-token refresh retain their existing account
+service requirements. Nor does it prove real Android VPN callback behavior.
+
+### Independent-owner verification
+
+- First regression run: **67 JVM cases passed**. A close-while-waiting case and an
+  exact-build feed wakeup case were then added; the final **69 cases passed**,
+  with zero failures, errors or skips: 12 independent owner, 18 existing runtime,
+  16 feed, 8 shared pool and 15 Computer Details checks.
+- Fixtures keep Iroh startup pending or repeatedly fail its broker while TCP RPC
+  framing and token attachment operate against a simulated Mac. They verify
+  shared leases/checks/power, no-grant rejection, scope/token races, probe
+  revocation, changed host, method round trips, corrupt storage and closure.
+- Main and instrumentation debug APKs built together. ELF LOAD/RELRO and APK ZIP
+  16 KB alignment checks passed. Main SHA-256:
+  `17144137e91334a850b12219c580b7bf0aa8dae9d59ac9f77cbde28385083127`.
+  Test SHA-256:
+  `2bcc914d36186d938550853d2f5cca4d67ebdeefab3488ab5d2ce97242e468eb`.
+- Logs, XML and APK/alignment receipts are in ignored
+  `captures/runtime/tailscale-independent/`. No Android instrumentation was rerun
+  for this runtime checkpoint. The prior UI/Keystore evidence is recorded above.
+- ADB still reports no Pixel. No physical install, Mac route mutation or phone
+  power change occurred. Last installed Pixel checkpoint remains `f0dfc7f` and
+  published signed build 157 remains unchanged.
+
 ## Remaining integration and acceptance
 
-- **Remove the native Tailscale path's dependency on ready Iroh V2 discovery.**
-  The new per-computer path currently enters through `NativeIrohRuntime`, whose
-  discovery readiness and directory authority still gate acquisition. The existing
-  standalone QR connector does not have this dependency. Study the iOS stored
-  reconnect route/scope policy and unify these paths so a valid saved Tailscale
-  route can reconnect when Iroh discovery is unavailable, while still enforcing
-  account/team ownership and local removal. This is unfinished behavior, not an
-  unavoidable Android platform limitation.
 - Unify the legacy QR pairing entry point with native computer identity/method
   selection; targeted Details pairing now preserves identity, but the original
   QR screen still uses its legacy saved-row flow.
