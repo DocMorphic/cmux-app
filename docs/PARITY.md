@@ -156,6 +156,16 @@ default without its explicit phase argument. Evidence is in ignored
 SHA-256 `580c33e5160ea1bcc111030aa27b24d803f12f5d1e8baeeac3c9183966e04231`.
 [Android reset contract](https://developer.android.com/reference/android/app/ActivityManager#clearApplicationUserData()).
 
+## Native 16 KiB runtime acceptance (2026-09-29)
+
+Source `8525b12` passed all four native graphics/terminal/artifact tests on Google's
+Android 17 arm64 16 KB system image, revision 7. The emulator kernel reports 16384
+bytes per page; package manager reports `pageSizeCompat=0`, and the app launches
+without the RELRO warning. APK LOAD, RELRO and ZIP alignment checks also pass.
+See [NATIVE_RUNTIME_CHECKPOINT.md](NATIVE_RUNTIME_CHECKPOINT.md) for hashes,
+evidence and the bounded acceptance scope. This closes the actual 16 KiB kernel
+check, beyond the earlier Pixel 4 KiB kernel's package-compatibility check.
+
 ## Terminal modifier follow-up (2026-09-29)
 
 The pinned iOS `TerminalInputModifierState`, `TerminalKeyEncoder`, and

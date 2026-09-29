@@ -46,11 +46,43 @@ iteration could bypass that library. No account credentials were cleared.
 Evidence in `captures/runtime/pixel-native-20260929`: `alignment-after.txt`,
 `relro-build.log`, `relro-native-runtime.txt`, and `relro-receipt.json`. The Pixel
 still uses a **4 KiB kernel**: this verifies its package compatibility check and
-runtime, not execution on a 16 KiB kernel. A separate 16 KiB runtime target and
-authenticated Mac enrollment remain outstanding. The app was opened again and
+runtime, not execution on a 16 KiB kernel. At that checkpoint, a separate 16 KiB runtime target and
+authenticated Mac enrollment were outstanding; both have later evidence below. The app was opened again and
 the user was asked to request a fresh code to verify the sign-in correction.
 
 Reference: [Android native alignment guidance](https://developer.android.com/guide/practices/page-sizes).
+
+## Actual 16 KiB kernel acceptance — 2026-09-29
+
+Installed Google’s Android 17 16 KB system image revision 7 (`android-37.0`,
+`google_apis_ps16k`, arm64-v8a) and created a separate disposable AVD,
+`cmux_api37_16k`. `adb shell getconf PAGE_SIZE` returned **16384**. Fingerprint:
+`google/sdk_gphone16k_arm64/emu64a16k:17/CE2A.260420.050/16231978:userdebug/dev-keys`.
+
+The debug APK from source `8525b12` and its test APK installed successfully. All
+**4 native tests passed in 1.675 seconds** on this kernel:
+
+- Graphics-path JNI registration and native conic conversion through the official Java binding.
+- Independent native terminal input while control RPC remains usable.
+- Native duplex terminal replay, chunks and input alongside control RPC.
+- Capability-authorized native file transfer with bounded size/EOF checks.
+
+The app then cold-launched to its sign-in screen without a compatibility dialog.
+Package manager reported `pageSizeCompat=0`. All three packaged native libraries
+passed LOAD/RELRO verification, and the APK passed `zipalign -c -P 16 4`.
+This closes the previously missing 16 KiB native-runtime check for the packaged
+arm64 libraries. It does not imply full app feature parity or additional ABI support.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Debug APK | `580c33e5160ea1bcc111030aa27b24d803f12f5d1e8baeeac3c9183966e04231` |
+| App test APK | `aff358d04257e2690e8b7cfda7c393cc50a3be61d6e6c59f629c2750352e572a` |
+
+Evidence is retained in ignored `captures/runtime/android17-16k`: `receipt.json`,
+`native-runtime.txt`, `alignment.txt`, and visually inspected `launch.png`.
+The Pixel still has the earlier live-tested viewport APK; this emulator check
+neither updates the phone nor publishes a signed release. Build 157 remains the
+last published signed APK.
 
 ## First live Mac terminal and viewport correction — 2026-09-29
 
