@@ -325,6 +325,55 @@ class NativeFlowTest {
         assertEquals("terminal-2", inserted.getString("surface_id"))
     }
 
+    @Test fun lostComposerAcknowledgementReconnectsWithoutResendingAndKeepsWarning() {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                    .also { it.connect(); observedClients += it }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        val command = "echo delivered_before_reply_was_lost"
+        compose.onNode(hasSetTextAction()).performTextInput(command)
+        peer.dropReplyAfterMethod = "terminal.paste"
+        val oldClients = observedClients.toList()
+        val oldReplays = peer.requests.count { it.optString("method") == "mobile.terminal.replay" }
+        compose.onNodeWithText("Send").performClick()
+        compose.waitUntil(15_000) {
+            TerminalDraftRepository.get(context).drafts.state.value.values.any {
+                it.text == command && it.error == TerminalDrafts.DELIVERY_UNCONFIRMED
+            }
+        }
+        // Wait for the real reconnect/handshake/replay path, not a manual Retry.
+        compose.waitUntil(20_000) {
+            observedClients.any { it !in oldClients && !it.isClosed } &&
+                peer.requests.count { it.optString("method") == "mobile.terminal.replay" } > oldReplays
+        }
+        waitForTerminalText()
+        assertDraft(command)
+        compose.onNodeWithText(TerminalDrafts.DELIVERY_UNCONFIRMED).assertIsDisplayed()
+        compose.waitUntil(10_000) {
+            TerminalDrafts(NativeCredentialStore(context, "native_terminal_drafts").load()?.optJSONArray("drafts"))
+                .state.value.values.any { it.text == command && it.error == TerminalDrafts.DELIVERY_UNCONFIRMED }
+        }
+        assertEquals(1, peer.requests.count { it.optString("method") == "terminal.paste" })
+        assertEquals(listOf("terminal.paste"), peer.lostReplies.toList())
+        screenshot("composer-lost-reply-reconnected")
+        // A new explicit action succeeds; the earlier uncertain command never returns.
+        compose.onNode(hasSetTextAction()).performTextReplacement("echo new_explicit_command")
+        compose.onNodeWithText("Send").performClick()
+        compose.waitUntil(10_000) {
+            peer.requests.count { it.optString("method") == "terminal.paste" } == 2 &&
+                TerminalDraftRepository.get(context).drafts.state.value.values.none { it.operation != null }
+        }
+        assertDraft("")
+        assertEquals(listOf(command, "echo new_explicit_command"), peer.requests
+            .filter { it.optString("method") == "terminal.paste" }.map { it.getJSONObject("params").getString("text") })
+        assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
     @Test fun attachmentPickerStagesEncryptsAndSendsAfterExplicitRetry() {
         compose.setContent {
             CmuxTheme {
@@ -1653,6 +1702,8 @@ internal class NativeFixturePeer : AutoCloseable {
     val port get() = server.localPort
     val requests = CopyOnWriteArrayList<JSONObject>()
     val failures = CopyOnWriteArrayList<String>()
+    @Volatile var dropReplyAfterMethod: String? = null
+    val lostReplies = CopyOnWriteArrayList<String>()
     val rejectNextPaste = AtomicBoolean(false)
     val rejectNextInput = AtomicBoolean(false)
     @Volatile var releaseNextInput: CountDownLatch? = null
@@ -1763,6 +1814,13 @@ internal class NativeFixturePeer : AutoCloseable {
                         }
                         val taskError = if (request.optString("method") == "workspace.create") nextTaskCreateError.getAndSet(null) else null
                         val result = if (taskError != null) JSONObject() else response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
+                        // Execute/record the request, then lose only its reply. socket.use
+                        // closes this connection; the listener accepts the app's reconnect.
+                        if (request.optString("method") == dropReplyAfterMethod) {
+                            dropReplyAfterMethod = null
+                            lostReplies += request.getString("method")
+                            return
+                        }
                         val modelError = taskModelErrorCode.takeIf { request.optString("method") == "mobile.task.models.list" }
                         val directoryError = directoryErrorCode.takeIf { request.optString("method").startsWith("mobile.directory.") }
                         val changesError = changesErrorCode.takeIf { request.optString("method").startsWith("mobile.workspace.changes.") }

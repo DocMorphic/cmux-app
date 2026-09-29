@@ -73,6 +73,43 @@ class IrxTerminalInputLaneTest {
         TerminalInputLaneOwner(this) { false }.use { unsupported -> yield(); assertFalse(unsupported.send("legacy")) }
     }
 
+    @Test fun repairedNativeLaneDoesNotReplayUncertainOrQueuedKeysThroughRpc() = runBlocking<Unit> {
+        val first = Wire().apply { incoming.send(terminalEnvelope()); failWrite = true }
+        val replacement = Wire().apply { incoming.send(terminalEnvelope()) }
+        var openings = 0
+        val replacementReady = CompletableDeferred<Unit>()
+        val owner = TerminalInputLaneOwner(this) { use ->
+            val wire = if (openings++ == 0) first else replacement
+            IrxTerminalInputLane.open(wire).use { lane ->
+                if (wire === replacement) replacementReady.complete(Unit)
+                use(lane)
+            }
+            true
+        }
+        val rpcFallback = mutableListOf<String>()
+        val queue = TerminalInputQueue(this) { entry ->
+            if (!owner.send(entry.text)) rpcFallback += entry.text
+        }
+        try {
+            withTimeout(2000) { owner.ready.first { it } }
+            assertTrue(queue.offer("possibly delivered"))
+            assertTrue(queue.offer("queued behind failed input"))
+            withTimeout(2000) { queue.status.first { it.error != null } }
+            withTimeout(2000) { replacementReady.await(); owner.ready.first { it } }
+            assertArrayEquals(TerminalLaneProtocol.input("possibly delivered"), first.writes.receive())
+            assertTrue(first.writes.tryReceive().isFailure)
+            assertTrue(replacement.writes.tryReceive().isFailure)
+            assertTrue(rpcFallback.isEmpty())
+            assertFalse(queue.offer("while paused"))
+            assertTrue(queue.resume())
+            assertTrue(queue.offer("new explicit input"))
+            withTimeout(2000) { queue.awaitIdle() }
+            assertArrayEquals(TerminalLaneProtocol.input("new explicit input"), replacement.writes.receive())
+            assertTrue(replacement.writes.tryReceive().isFailure)
+            assertTrue(rpcFallback.isEmpty())
+        } finally { queue.close(); owner.close() }
+    }
+
     @Test fun cancellingBeforeBaselineRetiresOnlyTheCandidate() = runBlocking<Unit> {
         val wire = Wire()
         val opening = launch(start = CoroutineStart.UNDISPATCHED) { IrxTerminalInputLane.open(wire) }

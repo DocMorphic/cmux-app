@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Uncertain-input checkpoint (2026-09-29):** 26 focused JVM checks and one
+Android 17 UI case passed. The controlled host loses a composer acknowledgement;
+the app automatically reconnects without resending, preserves the draft/warning,
+and accepts a new explicit command. The native input queue also preserves its
+no-replay/explicit-resume behavior after lane repair. These are fixture checks;
+real-Mac uncertain-send timing remains open. See the runtime checkpoint for exact
+evidence and the initial emulator startup failure.
+
 **Latest physical checkpoint (2026-09-29):** authenticated Mac/Pixel terminal,
 Files and notification checks are recorded below. A controlled 37.98-second
 network outage recovered automatically 28.0 seconds after restoration with all

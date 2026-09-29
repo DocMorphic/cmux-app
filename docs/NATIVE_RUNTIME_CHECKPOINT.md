@@ -246,6 +246,43 @@ Ignored evidence: `captures/runtime/pixel-native-20260929/header-receipt.json`,
 The last published signed APK remains build 157; this update is installed debug
 acceptance, not full parity or a new signed release.
 
+## Uncertain terminal delivery acceptance — 2026-09-29
+
+Added a lost-reply fixture that executes/records `terminal.paste`, then closes that
+socket before returning its acknowledgement. Its listener remains available for
+the real screen's automatic reconnect. The UI check requires the original draft
+and delivery-unconfirmed warning after reconnect/replay, a persisted warning,
+exactly one original command, and successful delivery of a different explicit
+command. This exercises application behavior with a controlled host; it does not
+establish the same failure timing against the physical Mac.
+
+A separate native-lane integration check injects a partial native write, repairs
+the lane, and verifies the input queue discards the uncertain/queued keys without
+RPC fallback. The queue stays paused until explicit resume, after which only new
+input reaches the replacement lane. **26 focused JVM tests passed**, zero
+failures/errors/skips: 8 native-input-lane, 9 input-queue and 9 control-repair cases.
+
+The first UI attempt ended in a test-app startup ANR before any test executed.
+Launcher/System UI stalls and high emulator CPU contention were also recorded;
+it is not a test pass. Retried after stopping that emulator and booting the same
+AVD with `-gpu host`; preflight showed the normal sign-in screen without an ANR
+overlay. The full lost-reply UI case passed **1 test in 7.286 seconds**. Its
+reconnected screenshot was visually inspected: terminal output, retained command,
+Gboard and the unconfirmed-delivery warning are visible.
+
+Main APK is unchanged from the preceding Pixel header checkpoint (`de386e9…`).
+The instrumentation APK SHA-256 is
+`e28484bd7d4ba0a3a370e84fb82301f90c312df4c21f67f3941a024690187bfb`.
+Ignored evidence: `captures/runtime/pixel-native-20260929/lost-reply-receipt.json`,
+`lost-reply-runtime.txt` (startup failure), `lost-reply-runtime-host.txt` (pass),
+`lost-reply-jvm/`, and `composer-lost-reply-reconnected.png`. Use the host renderer
+as the next emulator preflight choice on this Mac; one successful retry does not
+establish that every startup ANR was caused by software graphics.
+
+The physical phone was not used or changed. This closes the controlled UI/native
+queue scenarios, while real-Mac uncertain-send timing and broader lifecycle
+acceptance remain open. No new signed APK was published.
+
 ## Physical Pixel native lanes — 2026-09-29
 
 Installed the debug app and app test APK from source `61a6bf7` on the Pixel 6a
