@@ -1,8 +1,35 @@
+import groovy.json.JsonSlurper
+import java.security.MessageDigest
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Keep official Java/resources, with the pinned JNI library rebuilt for RELRO.
+val graphicsRoot = rootProject.layout.projectDirectory.dir("build/graphics-path-android")
+val verifyGraphicsNative by tasks.registering {
+    inputs.files(fileTree(graphicsRoot))
+    doLast {
+        val root = graphicsRoot.asFile
+        val manifest = root.resolve("manifest.json")
+        check(manifest.isFile) { "Missing graphics-path native checkpoint. See third_party/androidx-graphics-path/README.md" }
+        val receipt = JsonSlurper().parse(manifest) as Map<*, *>
+        check(receipt["sourceRevision"] == "7b1104d5e67bd061e736e8d576b539498b498be4")
+        check(receipt["elfPageSize"] == 16384 && receipt["abi"] == "arm64-v8a")
+        val files = receipt["files"] as Map<*, *>
+        check(files.containsKey("graphics-path-1.1.0-relro.aar"))
+        files.forEach { (relative, expected) ->
+            val file = root.resolve(relative as String).canonicalFile
+            check(file.toPath().startsWith(root.canonicalFile.toPath()) && file.isFile)
+            val digest = MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
+            check(digest == expected) { "Graphics checkpoint hash mismatch: $relative" }
+        }
+    }
+}
+tasks.named("preBuild").configure { dependsOn(verifyGraphicsNative) }
+configurations.configureEach { exclude(group = "androidx.graphics", module = "graphics-path") }
 
 android {
     namespace = "io.github.docmorphic.cmuxapp"
@@ -63,6 +90,10 @@ dependencies {
     implementation(project(":iroh"))
     val composeBom = platform("androidx.compose:compose-bom:2025.09.00")
     implementation(composeBom)
+    implementation(files(graphicsRoot.file("graphics-path-1.1.0-relro.aar")))
+    // Local AARs do not carry their Maven transitive dependencies.
+    implementation("androidx.core:core:1.12.0")
+    implementation("androidx.collection:collection:1.5.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.compose.material3:material3")
