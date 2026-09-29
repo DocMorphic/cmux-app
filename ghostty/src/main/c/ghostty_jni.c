@@ -46,6 +46,69 @@ static void dispose(Terminal *entry) {
     ghostty_terminal_free(entry->terminal);
     free(entry);
 }
+// Cached at library load so callbacks from any Java thread use the correct
+// application class loader. No borrowed Java or native pixel buffer escapes.
+static JavaVM *java_vm;
+static jclass png_decoder;
+static jmethodID png_decode;
+#define IMAGE_BYTES 10000000u
+#define IMAGE_COUNT 1024u
+#define PLACEMENT_COUNT 4096u
+
+static uint32_t read_u32(const uint8_t *p) {
+    return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3];
+}
+static bool decode_png(void *userdata, const GhosttyAllocator *allocator,
+        const uint8_t *data, size_t length, GhosttySysImage *out) {
+    (void)userdata;
+    // Parsing only runs synchronously inside nativeAppend on an attached thread.
+    JNIEnv *env = NULL;
+    if (length > IMAGE_BYTES || (*java_vm)->GetEnv(java_vm, (void **)&env, JNI_VERSION_1_6) != JNI_OK ||
+        (*env)->ExceptionCheck(env)) return false;
+    jbyteArray input = (*env)->NewByteArray(env, length);
+    if (!input) return false;
+    (*env)->SetByteArrayRegion(env, input, 0, length, (const jbyte *)data);
+    jbyteArray decoded = NULL;
+    if (!(*env)->ExceptionCheck(env))
+        decoded = (*env)->CallStaticObjectMethod(env, png_decoder, png_decode, input);
+    (*env)->DeleteLocalRef(env, input);
+    if ((*env)->ExceptionCheck(env) || !decoded) return false;
+    jsize size = (*env)->GetArrayLength(env, decoded);
+    uint8_t header[8];
+    bool success = false;
+    if (size < 8 || (uint32_t)size > IMAGE_BYTES + 8) goto done;
+    (*env)->GetByteArrayRegion(env, decoded, 0, 8, (jbyte *)header);
+    uint32_t width = read_u32(header), height = read_u32(header + 4);
+    if (!width || !height || width > 10000 || height > 10000 ||
+        (uint64_t)width * height * 4 != (uint32_t)size - 8) goto done;
+    uint8_t *pixels = ghostty_alloc(allocator, size - 8);
+    if (!pixels) goto done;
+    (*env)->GetByteArrayRegion(env, decoded, 8, size - 8, (jbyte *)pixels);
+    if ((*env)->ExceptionCheck(env)) { ghostty_free(allocator, pixels, size - 8); goto done; }
+    *out = (GhosttySysImage){.width = width, .height = height, .data = pixels, .data_len = size - 8};
+    success = true;
+done:
+    (*env)->DeleteLocalRef(env, decoded);
+    return success;
+}
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
+    (void)reserved;
+    JNIEnv *env;
+    if ((*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6) != JNI_OK) return JNI_ERR;
+    jclass cls = (*env)->FindClass(env, "io/github/docmorphic/cmuxapp/ghostty/GhosttyPngDecoder");
+    if (!cls) return JNI_ERR;
+    png_decode = (*env)->GetStaticMethodID(env, cls, "decode", "([B)[B");
+    if (!png_decode) { (*env)->DeleteLocalRef(env, cls); return JNI_ERR; }
+    png_decoder = (*env)->NewGlobalRef(env, cls);
+    (*env)->DeleteLocalRef(env, cls);
+    if (!png_decoder) return JNI_ERR;
+    java_vm = vm;
+    if (ghostty_sys_set(GHOSTTY_SYS_OPT_DECODE_PNG, decode_png) != GHOSTTY_SUCCESS) {
+        (*env)->DeleteGlobalRef(env, png_decoder); png_decoder = NULL; return JNI_ERR;
+    }
+    return JNI_VERSION_1_6;
+}
+
 static bool dimensions(JNIEnv *env, jint cols, jint rows) {
     if (cols >= 2 && cols <= 1000 && rows >= 2 && rows <= 1000) return true;
     fail(env, "java/lang/IllegalArgumentException", "Invalid Ghostty dimensions");
@@ -76,6 +139,14 @@ JNIEXPORT jlong JNICALL JNI_METHOD(nativeCreate)(JNIEnv *env, jobject self, jint
     GhosttyColorRgb bg = {.r = 0x11, .g = 0x13, .b = 0x16};
     if (!ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_COLOR_FOREGROUND, &fg)) ||
         !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_COLOR_BACKGROUND, &bg))) goto done;
+    uint64_t image_bytes = IMAGE_BYTES, image_count = IMAGE_COUNT, placement_count = PLACEMENT_COUNT;
+    bool disabled = false;
+    if (!ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_STORAGE_LIMIT, &image_bytes)) ||
+        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_COUNT_LIMIT, &image_count)) ||
+        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_PLACEMENT_COUNT_LIMIT, &placement_count)) ||
+        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_FILE, &disabled)) ||
+        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_TEMP_FILE, &disabled)) ||
+        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_SHARED_MEM, &disabled))) goto done;
     // No PTY, clipboard, title, filesystem or other effect callbacks are installed.
     id = entry->id = next_id++;
     entry->next = terminals; terminals = entry; active_count++;
@@ -259,6 +330,102 @@ JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeSnapshot)(JNIEnv *env, jobject sel
     if (result) (*env)->SetByteArrayRegion(env, result, 0, output.length, (const jbyte *)output.data);
 done:
     // A read of history must not change how the next live byte chunk is parsed.
+    if (entry) ghostty_terminal_scroll_viewport(entry->terminal,
+        (GhosttyTerminalScrollViewport){.tag = GHOSTTY_SCROLL_VIEWPORT_BOTTOM});
+    free(output.data);
+    pthread_mutex_unlock(&lock);
+    return result;
+}
+
+JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeGraphicsSnapshot)(JNIEnv *env, jobject self, jlong id, jint offset) {
+    (void)self;
+    if (offset < 0) { fail(env, "java/lang/IllegalArgumentException", "Negative scroll offset"); return NULL; }
+    pthread_mutex_lock(&lock);
+    Terminal *entry = lookup(env, id);
+    GhosttyKittyGraphicsImageIterator images = NULL;
+    GhosttyKittyGraphicsPlacementIterator placements = NULL;
+    Buffer output = {0};
+    jbyteArray result = NULL;
+    if (!entry) goto done;
+    size_t history = 0;
+    GhosttyTerminalScreen screen;
+    if (!ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_SCROLLBACK_ROWS, &history)) ||
+        !ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_ACTIVE_SCREEN, &screen))) goto done;
+    if (screen == GHOSTTY_TERMINAL_SCREEN_ALTERNATE) history = 0;
+    size_t actual_offset = (size_t)offset < history ? (size_t)offset : history;
+    ghostty_terminal_scroll_viewport(entry->terminal,
+        (GhosttyTerminalScrollViewport){.tag = GHOSTTY_SCROLL_VIEWPORT_ROW, .value.row = history - actual_offset});
+    GhosttyKittyGraphics graphics;
+    uint64_t generation;
+    if (!ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_KITTY_GRAPHICS, &graphics)) ||
+        !ok(env, ghostty_kitty_graphics_get(graphics, GHOSTTY_KITTY_GRAPHICS_DATA_GENERATION, &generation)) ||
+        !ok(env, ghostty_kitty_graphics_image_iterator_new(NULL, graphics, &images)) ||
+        !ok(env, ghostty_kitty_graphics_placement_iterator_new(NULL, &placements)) ||
+        !ok(env, ghostty_kitty_graphics_get(graphics, GHOSTTY_KITTY_GRAPHICS_DATA_PLACEMENT_ITERATOR, &placements))) goto done;
+    integer(&output, 0x47564931); // GVI1: owned images and viewport-relative placements.
+    integer(&output, generation >> 32); integer(&output, generation);
+    integer(&output, actual_offset); integer(&output, 0); integer(&output, 0);
+    uint32_t image_count = 0, placement_count = 0;
+    size_t image_bytes = 0;
+    GhosttyKittyGraphicsImage image;
+    while ((image = ghostty_kitty_graphics_image_next(images))) {
+        uint32_t image_id, width, height;
+        uint64_t stamp;
+        GhosttyKittyImageFormat format;
+        size_t length;
+        const uint8_t *data;
+#define IMAGE_GET(key, value) if (!ok(env, ghostty_kitty_graphics_image_get(image, key, &(value)))) goto done
+        IMAGE_GET(GHOSTTY_KITTY_IMAGE_DATA_ID, image_id);
+        IMAGE_GET(GHOSTTY_KITTY_IMAGE_DATA_WIDTH, width);
+        IMAGE_GET(GHOSTTY_KITTY_IMAGE_DATA_HEIGHT, height);
+        IMAGE_GET(GHOSTTY_KITTY_IMAGE_DATA_FORMAT, format);
+        IMAGE_GET(GHOSTTY_KITTY_IMAGE_DATA_GENERATION, stamp);
+        IMAGE_GET(GHOSTTY_KITTY_IMAGE_DATA_DATA_LEN, length);
+        IMAGE_GET(GHOSTTY_KITTY_IMAGE_DATA_DATA_PTR, data);
+#undef IMAGE_GET
+        if (++image_count > IMAGE_COUNT || length > IMAGE_BYTES - image_bytes) {
+            fail(env, "java/lang/IllegalStateException", "Ghostty image snapshot exceeds limits"); goto done;
+        }
+        image_bytes += length;
+        integer(&output, image_id); integer(&output, stamp >> 32); integer(&output, stamp);
+        integer(&output, width); integer(&output, height); integer(&output, format); integer(&output, length);
+        bytes(&output, data, length);
+    }
+    while (ghostty_kitty_graphics_placement_next(placements)) {
+        uint32_t image_id, placement_id, x_offset, y_offset;
+        int32_t z;
+        bool virtual, internal;
+#define PLACE_GET(key, value) if (!ok(env, ghostty_kitty_graphics_placement_get(placements, key, &(value)))) goto done
+        PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_IMAGE_ID, image_id);
+        PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_PLACEMENT_ID, placement_id);
+        PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_X_OFFSET, x_offset);
+        PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_Y_OFFSET, y_offset);
+        PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_Z, z);
+        PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_IS_VIRTUAL, virtual);
+        PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_IS_INTERNAL, internal);
+#undef PLACE_GET
+        image = ghostty_kitty_graphics_image(graphics, image_id);
+        GhosttyKittyGraphicsPlacementRenderInfo info = GHOSTTY_INIT_SIZED(GhosttyKittyGraphicsPlacementRenderInfo);
+        if (!ok(env, ghostty_kitty_graphics_placement_render_info(placements, image, entry->terminal, &info))) goto done;
+        if (++placement_count > PLACEMENT_COUNT) {
+            fail(env, "java/lang/IllegalStateException", "Ghostty placement snapshot exceeds limits"); goto done;
+        }
+        integer(&output, image_id); integer(&output, placement_id); integer(&output, z);
+        integer(&output, virtual | (internal << 1) | (info.viewport_visible << 2));
+        integer(&output, x_offset); integer(&output, y_offset);
+        integer(&output, info.viewport_col); integer(&output, info.viewport_row);
+        integer(&output, info.pixel_width); integer(&output, info.pixel_height);
+        integer(&output, info.grid_cols); integer(&output, info.grid_rows);
+        integer(&output, info.source_x); integer(&output, info.source_y);
+        integer(&output, info.source_width); integer(&output, info.source_height);
+    }
+    set_integer(&output, 16, image_count); set_integer(&output, 20, placement_count);
+    if (output.failed) { fail(env, "java/lang/IllegalStateException", "Ghostty graphics snapshot exceeds limits"); goto done; }
+    result = (*env)->NewByteArray(env, output.length);
+    if (result) (*env)->SetByteArrayRegion(env, result, 0, output.length, (const jbyte *)output.data);
+done:
+    ghostty_kitty_graphics_image_iterator_free(images);
+    ghostty_kitty_graphics_placement_iterator_free(placements);
     if (entry) ghostty_terminal_scroll_viewport(entry->terminal,
         (GhosttyTerminalScrollViewport){.tag = GHOSTTY_SCROLL_VIEWPORT_BOTTOM});
     free(output.data);

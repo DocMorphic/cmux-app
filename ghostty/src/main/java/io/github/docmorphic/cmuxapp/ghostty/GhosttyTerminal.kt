@@ -32,6 +32,13 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
         return GhosttyFrame.decode(nativeSnapshot(handle, scrollOffset))
     }
 
+    /** Owned pixels and geometry; reading history does not move the live viewport. */
+    @Synchronized fun graphicsSnapshot(scrollOffset: Int = 0): GhosttyGraphicsFrame {
+        check(handle != 0L) { "Ghostty terminal is closed" }
+        require(scrollOffset >= 0)
+        return GhosttyGraphicsFrame.decode(nativeGraphicsSnapshot(handle, scrollOffset))
+    }
+
     @Synchronized override fun close() {
         val owned = handle
         handle = 0L
@@ -43,6 +50,7 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
     private external fun nativeAppend(handle: Long, bytes: ByteArray)
     private external fun nativeResize(handle: Long, columns: Int, rows: Int, cellWidth: Int, cellHeight: Int)
     private external fun nativeSnapshot(handle: Long, scrollOffset: Int): ByteArray
+    private external fun nativeGraphicsSnapshot(handle: Long, scrollOffset: Int): ByteArray
     private external fun nativeDestroy(handle: Long)
     private external fun nativeActiveHandles(): Int
 

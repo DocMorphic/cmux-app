@@ -282,3 +282,47 @@ remote mirror. Remaining implementation checks should cover PNG/RGB/RGBA,
 chunking/compression, alpha, source cropping, scaling/offsets, z-order, image
 replacement/delete, alternate screens, history, resize and replay. A standalone
 decoder test will not establish that images appear in the negotiated app path.
+
+## Android image data binding (2026-09-30)
+
+The JNI binding now installs a bounded Android PNG decoder and exposes owned
+`GhosttyGraphicsFrame` snapshots. This is the image-data step; the app painter
+still needs to consume these snapshots before inline images can appear.
+
+- PNG decoding checks the signature and decoded dimensions before allocation,
+  limits decoded RGBA to 10,000,000 bytes and returns straight RGBA through the
+  allocator supplied by Ghostty. Native callbacks retain no Java pixel buffers.
+  Class/method lookup happens at library load and has a consumer keep rule.
+- Terminal image storage is bounded to 10,000,000 bytes, 1,024 images and 4,096
+  placements per screen. File, temporary-file and shared-memory media are
+  explicitly disabled. RGB/RGBA and compressed/chunked payloads are parsed by
+  the pinned native core. PNG is decoded to RGBA before storage.
+- Snapshots copy image IDs, unique generations, formats and pixels once per
+  image, plus resolved crop, offset, scale, z, visibility, virtual/internal
+  identity and viewport-relative geometry per placement. They validate lengths,
+  IDs, image references, crops and allocation bounds. History reads restore the
+  live viewport, and no borrowed native pointer survives the call.
+- Virtual placements are identified, but resolving Unicode placeholders for
+  painting remains open. The painter also needs cell-metric synchronization,
+  per-generation bitmap caching, layer ordering and partial-row clipping.
+- **5 JVM tests passed**, including truncation/length/identity/ownership checks.
+  **11 Android 17 arm64 runtime tests passed in 0.563 seconds**, including four
+  new graphics cases and seven existing lifecycle/terminal regressions. The
+  graphics cases exercised PNG alpha and byte-by-byte input, crop/offset/scale,
+  resize, compressed chunks, unsigned image IDs, generation invalidation,
+  deletion, alternate/virtual placements, history and disabled file media.
+  The owned snapshot remains readable after native close. This emulator uses
+  4 KiB runtime pages; test APK ELF LOAD/RELRO and ZIP alignment pass 16 KB.
+- Evidence: ignored `captures/runtime/ghostty-graphics/` and
+  `build/ghostty-vt-android/graphics-{jni,gradle}.log`. Emulator stopped afterward.
+  No Pixel or live-Mac graphics result is claimed.
+- The main debug APK builds with this binding; all four native libraries pass
+  ELF 16 KB LOAD/RELRO checks and the APK passes ZIP 16 KB alignment.
+  Main APK SHA-256:
+  `20c90fe689596cee7676953dab6eb259ddced26bcfcdcdea98fecf57ae960f07`.
+  Native test APK SHA-256:
+  `7cf8668abc322d61310eb9c6da23bc4f5a8baf902df8d41e776803df5e5ca0ff`.
+
+The previous CI artifact `36635864459` matches the earlier text-only binding.
+The current JNI source needs a fresh source build or replacement native CI
+artifact; Gradle rejects the older binding hash rather than loading stale JNI.
