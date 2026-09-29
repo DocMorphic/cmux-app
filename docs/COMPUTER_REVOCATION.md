@@ -73,37 +73,79 @@ an owner-scoped read after removal instead of relying on that revision gate. The
 full 65-case rerun passed. Both build logs and final XML are retained in ignored
 `captures/runtime/computer-forget/`.
 
-Only local fake transports/servers received revocations. No live cmux registration
-was removed. No APK was assembled or installed for this backend-only checkpoint;
-the latest APK remains the preceding indicator build, and the last installed
-Pixel checkpoint remains `f0dfc7f`. No Android UI test or real Mac removal is
-claimed here.
+The integrated build passes 85 focused JVM cases: the preceding 65 backend cases,
+eight appearance cases and twelve new confirmation/local-cleanup cases. The new
+cases cover operation ordering, duplicate admission, remote failure, local-only
+retry, cancellation, account changes, pending unsaved foreground handshakes,
+exact captured-code selection, duplicate stored rows, UUID aliases and failed appearance persistence.
+Debug and instrumentation APKs assembled successfully. The first two integration
+builds hit Kotlin's method-size limit in `NativeScreen`; extracting existing
+pairing and preference components resolved it. Native ELF LOAD/RELRO and APK ZIP
+16 KB alignment checks passed.
 
-## Remaining integration and acceptance
+## Confirmation and durable local cleanup
 
-This checkpoint provides the server/runtime operation. The user-facing Forget
-confirmation and durable local cleanup are still to be wired; the existing
-Android “Forget current Mac” remains local-only until that work is complete.
+Computer Details now offers **Forget This Computer** with a selected-team,
+exact-build confirmation and a warning that an online Mac may register again.
+Cancel sends nothing. The confirmation, back navigation and repeat submission are
+disabled while pending. The presentation is owned above directory rows, so removing
+a row from discovery cannot dispose an operation before local cleanup finishes.
 
-Next integration must:
+The flow captures the owning login/account/team, target and saved native pairing
+codes before mutation. It stops only that computer's foreground handshake or
+reconnect, including a discovered computer that has not saved its first pairing
+row yet. Unrelated foreground computers remain connected. Denied/unconfirmed
+removal retains the saved rows and offers an explicit retry using fresh discovery.
 
-- Capture the target, owning account/team and exact saved pairing codes before
-  starting. Confirm the selected-team registration removal and explain that an
-  online Mac may reappear when it registers again.
-- Prevent duplicate submissions and dismissal while a removal is pending.
-- Stop the foreground reconnect for the confirmed target before mutation, so a
-  late handshake cannot re-save a pairing during cleanup. Other Macs remain live.
-- Retain local rows on denied or unconfirmed removal. Explain partial/unknown
-  outcomes; retries must resolve fresh authority rather than blindly resend.
-- After confirmed server removal, atomically remove only captured native rows
-  from their captured login/account/team. Clear affected selection and appearance
-  metadata without deleting other builds/accounts or user task drafts/files.
-- If local cleanup fails after remote confirmation, offer a local-only retry in
-  that open flow, without revoking a newly re-registered Mac again.
-- Refresh discovery after cleanup and allow new registrations to reappear.
-- Exercise confirmation/cancel, double-tap, account/team flips, offline/denied
-  errors, storage failure and restart/reconnect before the physical Mac/Pixel
-  acceptance test. Do not revoke the user's live Mac merely to run a fixture.
+After confirmed server removal, the captured appearance store removes that
+computer's UUID aliases for the exact build. A single encrypted credential-store
+commit then removes only captured rows still matching their original code,
+device/build and native account/team scope, and clears affected selections.
+Rotated/new pairing codes, sibling builds, other accounts/teams, credentials,
+task drafts and files are preserved. Appearance is saved first; failure in either
+store leaves the flow retryable. The two files are not a global transaction.
+A failed save is never published as successful.
 
-The full companion goal remains active. A final APK build/installation is deferred
-until this UI/local-storage integration is ready, consistent with batching builds.
+A local-only retry in the same open Details flow retains the confirmed server
+phase and never sends another revocation. Closing Details or restarting discards
+that in-memory phase: a later confirmation is a new explicit request, using fresh
+directory authority. No background mutation is replayed across process death.
+After cleanup, the list reloads and discovery refreshes; newly registered Macs may
+reappear. Account/team changes retire the old dialog and fence stale operations.
+
+Legacy or incomplete pairings without a resolvable native detail retain an
+explicitly labeled **Remove local pairing** action. This action does not imply
+server revocation.
+
+## Acceptance still required
+
+Only fake transports/servers are used for automated revocation checks. Do not
+revoke the user's live Mac merely to run a fixture. A real disposable registration
+and physical Mac/Pixel workflow remain an acceptance gate, as do process restart
+and reconnect with actual server registration behavior. The full companion goal
+remains active.
+
+## Final APK and Android UI evidence
+
+The final debug APK passes all twelve Android 17 emulator cases: four Forget UI
+cases, four existing Details cases and four existing Appearance cases
+(`OK (12 tests)`, 41.172 seconds). They exercise cancel, blocked repeated submit
+and Back while pending, explicit server retry, local-only retry after cancel and
+reopen, and a captured Details presentation surviving discovery removal until
+real encrypted fixture-store cleanup commits. The fixture verifies sibling-build
+pairing and draft preservation without opening a Mac transport. Final confirmation
+and local-retry screenshots were visually inspected; the standalone retry fixture
+is not a full-app layout reference. An earlier 12-case run also passed, but its
+confirmation screenshot caught the Android window fade. The final capture waits
+for that animation and is opaque/readable.
+
+- Main APK SHA-256: `bef8fc84d8dbe21fcae039c96e5848c04676a6350a444cdd2aaa49cb19556860`.
+- Test APK SHA-256: `eca6ff0fff0e6a36e6da136fead3c5c2fba37cd6f5e207d79c168ad15ae6b706`.
+- Final build log, JVM XML, instrumentation output, alignment logs, APK receipts
+  and screenshots are retained locally in ignored `captures/runtime/computer-forget/`.
+
+ADB saw only the emulator throughout this integration; no physical Pixel was
+available for installation. The last installed Pixel checkpoint remains `f0dfc7f`;
+published signed build 157 is unchanged. No real registration was revoked, phone
+power setting changed or real account fixture created. The emulator was stopped
+after verification. Physical testing and signed release acceptance remain open.

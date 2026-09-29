@@ -71,6 +71,9 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         if (state.optString("pairing_code") == code) state.put("pairing_code", next.optJSONObject(0)?.optString("code").orEmpty())
     }
 
+    internal fun forgetCapturedNativeMac(team: NativeTeamScope, captured: List<PairedMac>) =
+        update { state -> NativeComputerForgetLocal.remove(state, team, captured) }
+
     fun load(): JSONObject? = synchronized(storageLock) { readState() }
 
     /** A login incarnation, independent of access-token refresh and Activity recreation. */

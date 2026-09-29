@@ -245,6 +245,16 @@ fun NativeScreen(
         workspaceRoute = null
         computerMenuOpen = false
     }
+    var computerDetails by remember { mutableStateOf<NativeComputerDetailsPresentation?>(null) }
+    val forgetCallbacks = NativeComputerForgetCallbacks(started = { owner, target, rows ->
+        if (teamState.scope == owner && NativeComputerForgetLocal.ownsForeground(code, owner, target, rows)) {
+            // Stop this foreground handshake/reconnect before remote removal, so it
+            // cannot persist the old pairing after the confirmed cleanup commits.
+            code = ""; connectionReady = false; client?.close(); client = null; connectedCode = null
+            selectedTerminal = null; selectedWorkspace = null; selectedBrowser = null; selectedChangesWorkspace = null
+            workspaceRoute = null
+        }
+    }, finished = { savedPairedMacs = store.pairedMacs() })
     fun newTaskDraft() {
         taskDraftRepository?.templates?.state?.value?.lastOrigin?.let { origin ->
             pairedMacs.firstOrNull { it.origin == origin }?.let(::selectComputer)
@@ -262,6 +272,9 @@ fun NativeScreen(
         activeCode = connectedCode.takeIf { connectionReady && client != null && it == code },
         pendingCode = code.takeIf { signedIn && it.isNotBlank() && !connectionReady && busy },
         foregroundWorkspaces = workspaces)
+    NativeComputerDetailsPresentationHost(sharedConnections?.native, computerState, computerDetails,
+        computerDetails?.target?.let { computerConnections[NativeMacIdentity(it.deviceId, it.buildTag)] } ?: NativeComputerConnection(),
+        forgetCallbacks) { computerDetails = null }
     val scopedFeedSources = remember(feedSources, selectedOrigin) {
         feedSources.values.filter { selectedOrigin == null || it.mac.origin == selectedOrigin }
     }
@@ -1071,31 +1084,9 @@ fun NativeScreen(
 
     if (showLicenses) OpenSourceLicensesDialog { showLicenses = false }
 
-    val proposedCode = pendingPairingCode
-    if (signedIn && proposedCode != null) {
-        val proposed = PairingCodeParser.parse(proposedCode).getOrNull() as? PairingCode.Tailscale
-        if (proposed != null) AlertDialog(
-            onDismissRequest = { pendingPairingCode = null },
-            title = { Text("Connect to this Mac?") },
-            text = {
-                Column {
-                    Text("cmux will send your account session to this Mac over Tailscale.")
-                    Spacer(Modifier.height(10.dp))
-                    proposed.routes.forEach { route ->
-                        Text("${route.host}:${route.port}", color = nativeAccent)
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    Text("Continue only if this address came from your Mac’s pairing QR.",
-                        color = nativeMuted)
-                }
-            },
-            confirmButton = { TextButton(onClick = {
-                code = proposedCode
-                pendingPairingCode = null
-            }) { Text("Connect") } },
-            dismissButton = { TextButton(onClick = { pendingPairingCode = null }) { Text("Cancel") } }
-        )
-    }
+    NativePairingConfirmation(if (signedIn) pendingPairingCode else null,
+        onDismiss = { pendingPairingCode = null },
+        onConnect = { proposed -> code = proposed; pendingPairingCode = null })
     if (showCreateGroup) AlertDialog(
         onDismissRequest = { showCreateGroup = false },
         title = { Text("New group") },
@@ -1149,16 +1140,17 @@ fun NativeScreen(
                 })
                 Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
                 NativeSavedComputerRows(pairedMacs, appearances, machineColorIndices, sharedConnections?.native,
-                    computerState, computerConnections) { mac -> code = mac.code; showSettings = false }
+                    computerState, computerConnections, forgetCallbacks, { computerDetails = it }) { mac -> code = mac.code; showSettings = false }
                 TextButton(onClick = {
                     code = ""; showSettings = false; selectedTerminal = null; selectedWorkspace = null
                 }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Find another Mac") }
-                if (code.isNotBlank()) TextButton(onClick = {
+                if (code.isNotBlank() && (PairingCodeParser.parse(code).getOrNull() !is PairingCode.Iroh ||
+                    pairedMacs.none { it.code == code && computerState.account?.let { team -> NativeComputerTarget.from(it, team) } != null })) TextButton(onClick = {
                     store.forgetMac(code)
                     savedPairedMacs = store.pairedMacs()
                     code = store.load()?.optString("pairing_code").orEmpty()
                     showSettings = false
-                }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Forget current Mac", color = Color(0xFFFF9999)) }
+                }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Remove local pairing", color = Color(0xFFFF9999)) }
                 Spacer(Modifier.height(24.dp))
                 TextButton(onClick = {
                     NativeNotificationService.setEnabled(context, false)
@@ -1189,37 +1181,13 @@ fun NativeScreen(
                     }, enabled = signedIn && code.isNotBlank(),
                         modifier = Modifier.semantics { contentDescription = "Background notifications" })
                 }
-                Text("TERMINAL", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
-                Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Open Folders on Tap", Modifier.weight(1f))
-                    Switch(folderTapEnabled, onCheckedChange = { artifactPreferences.edit().putBoolean("terminal-folder-tap", it).apply() },
-                        modifier = Modifier.semantics { contentDescription = "Open Folders on Tap" })
-                }
-                Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Show Missing Files")
-                        Text("Keep files that were deleted or moved in the Files list", color = nativeMuted, fontSize = 12.sp)
-                    }
-                    Switch(showMissingArtifacts, onCheckedChange = { artifactPreferences.edit().putBoolean("show-missing-files", it).apply() },
-                        modifier = Modifier.semantics { contentDescription = "Show Missing Files" })
-                }
+                NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences)
                 TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
                 NativeNetworkingSettings(sharedConnections?.native, computerState)
                 NativeLegacyConnectionCheckSettings(client, pairedMacs, code, connectionReady)
-                Text("DISPLAY", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
-                    color = nativeMuted, fontSize = 11.sp)
-                Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Text("Terminal text size", Modifier.weight(1f))
-                    TextButton(onClick = {
-                        terminalScale = (terminalScale - 0.125f).coerceAtLeast(0.75f)
-                        displayPreferences.edit().putFloat("terminal_scale", terminalScale).apply()
-                    }, enabled = terminalScale > 0.75f) { Text("A−") }
-                    Text("${(terminalScale * 100).toInt()}%", color = nativeMuted, fontSize = 12.sp)
-                    TextButton(onClick = {
-                        terminalScale = (terminalScale + 0.125f).coerceAtMost(1.5f)
-                        displayPreferences.edit().putFloat("terminal_scale", terminalScale).apply()
-                    }, enabled = terminalScale < 1.5f) { Text("A+") }
+                NativeTerminalScaleSettings(terminalScale) { next ->
+                    terminalScale = next
+                    displayPreferences.edit().putFloat("terminal_scale", next).apply()
                 }
                 Text("CONNECTION", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                     color = nativeMuted, fontSize = 11.sp)
@@ -1308,7 +1276,8 @@ fun NativeScreen(
                 }
             }
             code.isBlank() -> NativeComputerPicker(teamState, computerState, runtime = sharedConnections?.native,
-                colorIndices = machineColorIndices, connections = computerConnections,
+                colorIndices = machineColorIndices, connections = computerConnections, forgetCallbacks = forgetCallbacks,
+                presentDetails = { computerDetails = it },
                 hasSavedComputers = pairedMacs.isNotEmpty(),
                 onSelect = { mac -> computerState.account?.let { code = PairingCodeParser.computer(mac, it) } },
                 onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
@@ -2002,6 +1971,8 @@ private fun NativeComputerPicker(
     teamState: NativeAccountTeamsState, computerState: NativeComputersState, runtime: NativeIrohRuntime? = null,
     colorIndices: Map<String, Int> = emptyMap(),
     connections: Map<NativeMacIdentity, NativeComputerConnection> = emptyMap(),
+    forgetCallbacks: NativeComputerForgetCallbacks = NativeComputerForgetCallbacks(),
+    presentDetails: ((NativeComputerDetailsPresentation) -> Unit)? = null,
     hasSavedComputers: Boolean, onSelect: (IrohV2Computer) -> Unit, onSettings: () -> Unit,
     onRefresh: () -> Unit, onPairing: (String) -> Unit, onNewTask: () -> Unit,
     onUseHelper: () -> Unit, onLicenses: () -> Unit, onError: (String?) -> Unit
@@ -2041,7 +2012,7 @@ private fun NativeComputerPicker(
                     }
                     val connection = connections[NativeMacIdentity(mac.deviceId, mac.buildTag)] ?: NativeComputerConnection()
                     NativeMacAwakeIndicator(connection)
-                    NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.deviceId], connection)
+                    NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.deviceId], connection, forgetCallbacks, presentDetails)
                     Text("›", color = nativeMuted, fontSize = 24.sp)
                 }
             }
@@ -2135,7 +2106,8 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
 @Composable
 private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>, appearances: NativeMacAppearances,
     colorIndices: Map<String, Int>, runtime: NativeIrohRuntime?, state: NativeComputersState,
-    connections: Map<NativeMacIdentity, NativeComputerConnection>, onSelect: (NativeCredentialStore.PairedMac) -> Unit) {
+    connections: Map<NativeMacIdentity, NativeComputerConnection>, forgetCallbacks: NativeComputerForgetCallbacks,
+    presentDetails: (NativeComputerDetailsPresentation) -> Unit, onSelect: (NativeCredentialStore.PairedMac) -> Unit) {
     macs.forEach { mac ->
         Row(Modifier.fillMaxWidth().clickable { onSelect(mac) }
             .padding(horizontal = 22.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -2147,7 +2119,7 @@ private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>,
                 Text(connection.phrase, color = nativeMuted, fontSize = 12.sp)
             }
             NativeMacAwakeIndicator(connection)
-            NativeSavedComputerDetailsButton(runtime, state, mac, colorIndices[mac.deviceId], connection)
+            NativeSavedComputerDetailsButton(runtime, state, mac, colorIndices[mac.deviceId], connection, forgetCallbacks, presentDetails)
         }
     }
 }
@@ -2176,5 +2148,52 @@ private fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, 
             }
             DropdownMenuItem(text = { Text("Pair another Mac") }, onClick = onPair)
         }
+    }
+}
+
+@Composable
+private fun NativePairingConfirmation(code: String?, onDismiss: () -> Unit, onConnect: (String) -> Unit) {
+    if (code == null) return
+    val proposed = PairingCodeParser.parse(code).getOrNull() as? PairingCode.Tailscale ?: return
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text("Connect to this Mac?") },
+        text = { Column {
+            Text("cmux will send your account session to this Mac over Tailscale.")
+            Spacer(Modifier.height(10.dp))
+            proposed.routes.forEach { route -> Text("${route.host}:${route.port}", color = nativeAccent) }
+            Spacer(Modifier.height(10.dp))
+            Text("Continue only if this address came from your Mac’s pairing QR.", color = nativeMuted)
+        } },
+        confirmButton = { TextButton(onClick = { onConnect(code) }) { Text("Connect") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
+}
+
+@Composable
+private fun NativeTerminalPreferenceSettings(folderTapEnabled: Boolean, showMissingArtifacts: Boolean,
+    artifactPreferences: android.content.SharedPreferences) {
+    Text("TERMINAL", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
+    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("Open Folders on Tap", Modifier.weight(1f))
+        Switch(folderTapEnabled, onCheckedChange = { artifactPreferences.edit().putBoolean("terminal-folder-tap", it).apply() },
+            modifier = Modifier.semantics { contentDescription = "Open Folders on Tap" })
+    }
+    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("Show Missing Files")
+            Text("Keep files that were deleted or moved in the Files list", color = nativeMuted, fontSize = 12.sp)
+        }
+        Switch(showMissingArtifacts, onCheckedChange = { artifactPreferences.edit().putBoolean("show-missing-files", it).apply() },
+            modifier = Modifier.semantics { contentDescription = "Show Missing Files" })
+    }
+}
+
+@Composable
+private fun NativeTerminalScaleSettings(scale: Float, onChange: (Float) -> Unit) {
+    Text("DISPLAY", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
+    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("Terminal text size", Modifier.weight(1f))
+        TextButton(onClick = { onChange((scale - 0.125f).coerceAtLeast(0.75f)) }, enabled = scale > 0.75f) { Text("A−") }
+        Text("${(scale * 100).toInt()}%", color = nativeMuted, fontSize = 12.sp)
+        TextButton(onClick = { onChange((scale + 0.125f).coerceAtMost(1.5f)) }, enabled = scale < 1.5f) { Text("A+") }
     }
 }

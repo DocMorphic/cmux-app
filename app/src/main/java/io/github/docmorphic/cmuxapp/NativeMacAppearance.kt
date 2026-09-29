@@ -73,6 +73,19 @@ internal class NativeMacAppearanceStore(private val read: () -> String?, private
         if (validated == NativeMacAppearance()) values.remove(identity) else values[identity] = validated
         require(values.size <= 128) { "Too many saved computer appearances." }
         check(permits()) { "Account or team changed. Reopen Computer Details." }
+        save(values)
+    }
+
+    fun removeComputer(target: NativeComputerTarget, permits: () -> Boolean) = synchronized(lock) {
+        check(permits()) { "Account session changed" }
+        val values = load().filterKeys {
+            canonicalMacDeviceId(it.deviceId) != canonicalMacDeviceId(target.deviceId) || it.buildTag != target.buildTag
+        }
+        check(permits()) { "Account session changed" }
+        save(values)
+    }
+
+    private fun save(values: Map<NativeMacIdentity, NativeMacAppearance>) {
         write(JSONArray(values.map { (key, value) -> JSONObject().put("deviceId", key.deviceId)
             .put("buildTag", key.buildTag ?: JSONObject.NULL).put("name", value.name ?: JSONObject.NULL)
             .put("color", value.color ?: JSONObject.NULL).put("icon", value.icon ?: JSONObject.NULL) }).toString())

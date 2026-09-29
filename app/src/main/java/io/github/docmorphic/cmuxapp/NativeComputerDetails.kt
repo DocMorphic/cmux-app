@@ -29,38 +29,76 @@ internal data class NativeComputerTarget(val deviceId: String, val buildTag: Str
             // Older native QR codes omit scope hints. They are never authority: the check
             // refreshes this team's directory and resolves the exact device/build before dialing.
             if ((code.userId != null && code.userId != team.userId) || (code.teamId != null && code.teamId != team.teamId) ||
-                (code.macDeviceId != null && code.macDeviceId != mac.deviceId) ||
+                (code.macDeviceId != null && canonicalMacDeviceId(code.macDeviceId) != canonicalMacDeviceId(mac.deviceId)) ||
                 (code.buildTag != null && code.buildTag != mac.instanceTag) || mac.instanceTag == null || mac.deviceId.isBlank()) return null
             return NativeComputerTarget(mac.deviceId, mac.instanceTag, mac.name)
         }
     }
 }
 
+internal data class NativeComputerDetailsPresentation(
+    val team: NativeTeamScope, val target: NativeComputerTarget, val colorIndex: Int? = null
+)
+
 @Composable
 internal fun NativeSavedComputerDetailsButton(runtime: NativeIrohRuntime?, state: NativeComputersState,
     mac: NativeCredentialStore.PairedMac, colorIndex: Int? = null,
-    connection: NativeComputerConnection = NativeComputerConnection()) {
+    connection: NativeComputerConnection = NativeComputerConnection(),
+    forgetCallbacks: NativeComputerForgetCallbacks = NativeComputerForgetCallbacks(),
+    present: ((NativeComputerDetailsPresentation) -> Unit)? = null) {
     val team = state.account ?: return
     val target = NativeComputerTarget.from(mac, team) ?: return
-    NativeComputerDetailsButton(runtime, state, target, colorIndex, connection)
+    NativeComputerDetailsButton(runtime, state, target, colorIndex, connection, forgetCallbacks, present)
 }
 
 @Composable
 internal fun NativeComputerDetailsButton(runtime: NativeIrohRuntime?, state: NativeComputersState,
     target: NativeComputerTarget, colorIndex: Int? = null,
-    connection: NativeComputerConnection = NativeComputerConnection()) {
+    connection: NativeComputerConnection = NativeComputerConnection(),
+    forgetCallbacks: NativeComputerForgetCallbacks = NativeComputerForgetCallbacks(),
+    present: ((NativeComputerDetailsPresentation) -> Unit)? = null) {
     val team = state.account
     if (runtime == null || team == null) return
+    var localPresentation by remember { mutableStateOf<NativeComputerDetailsPresentation?>(null) }
+    val appearances = rememberNativeAppearanceStore(team)?.state?.collectAsState()?.value ?: NativeMacAppearances()
+    val title = appearances.get(target.deviceId, target.buildTag).displayName(target.name)
+    TextButton(onClick = {
+        val captured = NativeComputerDetailsPresentation(team, target, colorIndex)
+        if (present != null) present(captured) else localPresentation = captured
+    }, modifier = Modifier.semantics { contentDescription = "Details for $title (${target.buildTag})" }) { Text("Details") }
+    NativeComputerDetailsPresentationHost(runtime, state, localPresentation, connection, forgetCallbacks) { localPresentation = null }
+}
+
+/** Lives above computer rows so a successful revoke cannot dispose local cleanup
+ * when discovery removes that row. The presentation captures its original owner.
+ */
+@Composable
+internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, state: NativeComputersState,
+    presentation: NativeComputerDetailsPresentation?, connection: NativeComputerConnection,
+    forgetCallbacks: NativeComputerForgetCallbacks, credentialStore: NativeCredentialStore? = null, onDismiss: () -> Unit) {
+    if (runtime == null || presentation == null) return
+    val team = presentation.team
+    if (state.account != team) {
+        LaunchedEffect(presentation, state.account) { onDismiss() }
+        return
+    }
+    val target = presentation.target
     key(runtime, team, target.deviceId, target.buildTag) {
-        var open by remember { mutableStateOf(false) }
         val context = LocalContext.current
-        val appearances = rememberNativeAppearanceStore(team)?.state?.collectAsState()?.value ?: NativeMacAppearances()
+        val appearanceStore = checkNotNull(rememberNativeAppearanceStore(team))
+        val appearances = appearanceStore.state.collectAsState().value
+        val store = credentialStore ?: remember(context) { NativeCredentialStore(context.applicationContext) }
+        val latestCallbacks by rememberUpdatedState(forgetCallbacks)
+        val forgetFlow = remember(runtime, team, target, store, appearanceStore) {
+            nativeComputerForgetFlow(runtime, team, target, store, appearanceStore) {
+                latestCallbacks.started(team, target, it)
+            }
+        }
+        val forgetting = forgetFlow.state.collectAsState().value.busy
         val title = appearances.get(target.deviceId, target.buildTag).displayName(target.name)
-        TextButton(onClick = { open = true }, modifier = Modifier.semantics {
-            contentDescription = "Details for $title (${target.buildTag})"
-        }) { Text("Details") }
-        if (open) Dialog(onDismissRequest = { open = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        Dialog(onDismissRequest = { if (!forgetting) onDismiss() },
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false,
+                dismissOnBackPress = !forgetting, dismissOnClickOutside = !forgetting)) {
             NativeComputerDetailsScreen(target, available = state.computers.any { target.matches(it) },
                 canCheck = state.ready,
                 check = { runtime.checkComputer(team, target) },
@@ -70,9 +108,14 @@ internal fun NativeComputerDetailsButton(runtime: NativeIrohRuntime?, state: Nat
                     val intent = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
                         .putExtra(android.content.Intent.EXTRA_TEXT, report)
                     context.startActivity(android.content.Intent.createChooser(intent, "Share Connection Report"))
-                }, onBack = { open = false },
+                }, onBack = { if (!forgetting) onDismiss() }, backEnabled = !forgetting,
+                forget = { NativeComputerForgetSection(title, target.buildTag, forgetFlow, enabled = state.ready) {
+                    latestCallbacks.finished()
+                    onDismiss()
+                    if (runtime.permitsAppearance(team)) runtime.refresh()
+                } },
                 power = { NativeMacPowerSettings(runtime, team, target) }, displayName = title, connection = connection,
-                appearance = { NativeMacAppearanceSettings(team, target, colorIndex) { runtime.permitsAppearance(team) } })
+                appearance = { NativeMacAppearanceSettings(team, target, presentation.colorIndex) { runtime.permitsAppearance(team) } })
         }
     }
 }
@@ -83,11 +126,12 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
     changePaths: suspend ((NativePrivatePathStore) -> Unit) -> List<NativePrivatePath>,
     share: (String) -> Unit, onBack: () -> Unit, power: @Composable () -> Unit = {},
     displayName: String = target.name, appearance: @Composable () -> Unit = {},
-    connection: NativeComputerConnection = NativeComputerConnection()) {
+    connection: NativeComputerConnection = NativeComputerConnection(),
+    backEnabled: Boolean = true, forget: @Composable () -> Unit = {}) {
     Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text("‹  Back") }
+                TextButton(onClick = onBack, enabled = backEnabled) { Text("‹  Back") }
                 Text(displayName.ifBlank { "Mac" }, Modifier.weight(1f).padding(end = 16.dp),
                     fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -111,6 +155,7 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
                     Text("Device ID", Modifier.padding(top = 12.dp), fontSize = 13.sp)
                     SelectionContainer { Text(target.deviceId, fontSize = 13.sp, color = Color(0xFF9B9FA8)) }
                 }
+                forget()
             }
         }
     }
