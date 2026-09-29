@@ -26,13 +26,13 @@ The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux
 
 Install Android Studio with Android SDK 36 and JDK 17. The app now includes its
 native Iroh, rebuilt graphics-path and Ghostty VT dependencies.
-Obtain the three reviewed checkpoints below (requires GitHub CLI access), or
+Prepare Ghostty with [the current source build or native CI workflow](docs/GHOSTTY_VT_ANDROID.md#app-build-dependency).
+Obtain the other two reviewed checkpoints below (requires GitHub CLI access), or
 reproduce them from pinned source as described in [IROH_V2.md](docs/IROH_V2.md#android-native-module):
 
 ```bash
 gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
 gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
-gh run download 36637832054 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
 ./gradlew :app:assembleDebug
 ```
 

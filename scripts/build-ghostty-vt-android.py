@@ -61,6 +61,18 @@ def main():
         raise SystemExit("Upstream Android linker block changed; review the patch")
     build_file.write_text(before.replace(anchor,
         anchor + "\n        lib.link_z_common_page_size = 16384; // Android RELRO"))
+    # Export only a synchronous adapter to Ghostty's own Unicode resolver. This
+    # avoids copying the placeholder/diacritic/layout algorithms into Kotlin.
+    bridge_source = ROOT / "ghostty/src/main/zig/virtual_placements.zig"
+    bridge = checkout / "src/terminal/c/cmux_virtual_placements.zig"
+    bridge.write_bytes(bridge_source.read_bytes())
+    export_file = checkout / "src/lib_vt.zig"
+    export_before = export_file.read_text()
+    export_anchor = '        @export(&c.kitty_graphics_placement_render_info, .{ .name = "ghostty_kitty_graphics_placement_render_info" });'
+    if export_before.count(export_anchor) != 1:
+        raise SystemExit("Upstream graphics export changed; review the bridge")
+    export_file.write_text(export_before.replace(export_anchor, export_anchor +
+        '\n        @export(&@import("terminal/c/cmux_virtual_placements.zig").visit, .{ .name = "cmux_ghostty_virtual_placements" });'))
     env = dict(os.environ, ANDROID_NDK_HOME=str(ndk),
                PATH=str(zig.parent) + os.pathsep + os.environ.get("PATH", ""))
     prefix = output / "android"
@@ -94,6 +106,11 @@ def main():
         "patch": {"path": "src/build/GhosttyLibVt.zig",
                   "originalSha256": hashlib.sha256(before.encode()).hexdigest(),
                   "patchedSha256": digest(build_file)},
+        "virtualPlacementBridge": {"sourceSha256": digest(bridge_source),
+            "path": "src/terminal/c/cmux_virtual_placements.zig",
+            "exportPath": "src/lib_vt.zig",
+            "exportOriginalSha256": hashlib.sha256(export_before.encode()).hexdigest(),
+            "exportPatchedSha256": digest(export_file)},
         "smokeSourceSha256": digest(smoke_source),
         "files": {str(p.relative_to(prefix)): digest(p)
                   for p in [shared, prefix / "lib/libghostty-vt.a", smoke]},

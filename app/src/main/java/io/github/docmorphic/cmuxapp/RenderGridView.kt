@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -36,9 +37,13 @@ fun RenderGridView(
     val plan = remember(lines) { TerminalGridPainter.plan(lines) }
     val accessibleText = remember(lines) { RenderGrid.plainText(lines) }
     val painter = remember { TerminalGridPainter() }
+    val drawRevision = rememberUpdatedState(revision)
     DisposableEffect(painter) { onDispose { painter.close() } }
     Box(modifier.background(Color(0xFF111316))) {
         Canvas(Modifier.fillMaxSize().clipToBounds().semantics { text = AnnotatedString(accessibleText) }) {
+            // Image-only or cursor-only updates can leave the text plan equal.
+            // Read revision state in the draw scope to invalidate the display list.
+            drawRevision.value
             drawIntoCanvas { painter.draw(it.nativeCanvas, size.width, size.height, grid, plan, cells, viewport.rowOffset, blinkVisible, viewport.topClipFraction) }
         }
     }

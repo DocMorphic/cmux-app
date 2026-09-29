@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <ghostty/vt.h>
+#include "virtual_placements.h"
 #include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -54,6 +55,8 @@ static jmethodID png_decode;
 #define IMAGE_BYTES 10000000u
 #define IMAGE_COUNT 1024u
 #define PLACEMENT_COUNT 4096u
+#define SNAPSHOT_PLACEMENTS 65536u
+_Static_assert(sizeof(CmuxVirtualPlacement) == 56, "Virtual placement ABI changed");
 
 static uint32_t read_u32(const uint8_t *p) {
     return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3];
@@ -337,6 +340,23 @@ done:
     return result;
 }
 
+typedef struct { Buffer *output; uint32_t *count; uint16_t rows; } VirtualContext;
+static bool append_virtual_placement(void *context, const CmuxVirtualPlacement *p) {
+    VirtualContext *state = context;
+    if (*state->count >= SNAPSHOT_PLACEMENTS) return false;
+    Buffer *output = state->output;
+    integer(output, p->image_id); integer(output, p->placement_id); integer(output, (uint32_t)-1);
+    integer(output, 8 | ((p->row >= 0 && p->row < state->rows) ? 4 : 0));
+    integer(output, p->offset_x); integer(output, p->offset_y);
+    integer(output, p->column); integer(output, p->row);
+    integer(output, p->pixel_width); integer(output, p->pixel_height);
+    integer(output, p->grid_columns); integer(output, p->grid_rows);
+    integer(output, p->source_x); integer(output, p->source_y);
+    integer(output, p->source_width); integer(output, p->source_height);
+    (*state->count)++;
+    return !output->failed;
+}
+
 JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeGraphicsSnapshot)(JNIEnv *env, jobject self, jlong id, jint offset) {
     (void)self;
     if (offset < 0) { fail(env, "java/lang/IllegalArgumentException", "Negative scroll offset"); return NULL; }
@@ -366,6 +386,7 @@ JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeGraphicsSnapshot)(JNIEnv *env, job
     integer(&output, generation >> 32); integer(&output, generation);
     integer(&output, actual_offset); integer(&output, 0); integer(&output, 0);
     uint32_t image_count = 0, placement_count = 0;
+    bool has_virtual = false;
     size_t image_bytes = 0;
     GhosttyKittyGraphicsImage image;
     while ((image = ghostty_kitty_graphics_image_next(images))) {
@@ -402,6 +423,7 @@ JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeGraphicsSnapshot)(JNIEnv *env, job
         PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_Y_OFFSET, y_offset);
         PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_Z, z);
         PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_IS_VIRTUAL, virtual);
+        has_virtual |= virtual;
         PLACE_GET(GHOSTTY_KITTY_GRAPHICS_PLACEMENT_DATA_IS_INTERNAL, internal);
 #undef PLACE_GET
         image = ghostty_kitty_graphics_image(graphics, image_id);
@@ -419,6 +441,11 @@ JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeGraphicsSnapshot)(JNIEnv *env, job
         integer(&output, info.source_x); integer(&output, info.source_y);
         integer(&output, info.source_width); integer(&output, info.source_height);
     }
+    uint16_t viewport_rows;
+    if (!ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_ROWS, &viewport_rows))) goto done;
+    VirtualContext virtual = {.output = &output, .count = &placement_count, .rows = viewport_rows};
+    // Ghostty scans placeholder cells only when a virtual placement exists.
+    if (has_virtual && !ok(env, cmux_ghostty_virtual_placements(entry->terminal, &virtual, append_virtual_placement))) goto done;
     set_integer(&output, 16, image_count); set_integer(&output, 20, placement_count);
     if (output.failed) { fail(env, "java/lang/IllegalStateException", "Ghostty graphics snapshot exceeds limits"); goto done; }
     result = (*env)->NewByteArray(env, output.length);

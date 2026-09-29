@@ -1,9 +1,9 @@
 # Upstream Ghostty VT core on Android
 
 Checkpoint: 2026-09-30. Ghostty parses the Android app's byte/hybrid terminal
-streams, and the app paints ordinary Kitty image placements. Authoritative Mac
-grid delivery remains selected where negotiated. Unicode placeholder graphics,
-full terminal parity, performance and physical acceptance are unfinished. The
+streams, and the app paints ordinary and Unicode placeholder Kitty placements.
+Authoritative Mac grid delivery remains selected where negotiated. Full terminal
+parity, performance and physical acceptance are unfinished. The
 core/binding sections describe earlier steps; the final rendering section records
 the latest implementation and evidence.
 
@@ -81,7 +81,7 @@ ELF alignment check remains necessary.
 
 The binding, app adapter, replay ownership and native byte/hybrid selection are
 implemented below, including bounded decoding and ordinary image painting.
-Remaining work includes Unicode placeholder images, remaining glyph/input-mode
+Remaining work includes broader graphics and glyph/input-mode
 fidelity, performance measurement and actual Pixel/Mac TUI, resize, input,
 reconnect and scrolling acceptance. A text render-grid frame alone cannot
 reconstruct missing image payloads. PTY replies and clipboard effects stay with
@@ -160,12 +160,9 @@ above, or the native artifact produced by the existing Android workflow's new
 `ghostty_only` option. That option does not publish a signed app or require release
 signing secrets. From a checkout with GitHub CLI access:
 
-```sh
-gh run download 36637832054 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
-```
-
-That reviewed Linux checkpoint passed the artifact and runtime checks below. If
-it expires, build a replacement and inspect its result before downloading:
+The placeholder bridge needs a new core/JNI checkpoint. Earlier artifacts such
+as `36637832054` predate it and no longer match the source hashes. Build from the
+commands above or generate a new native CI artifact from this branch:
 
 ```sh
 gh workflow run android.yml --repo DocMorphic/cmux-app --ref feature/local-mac-bridge -f ghostty_only=true
@@ -327,7 +324,7 @@ painter did not consume them yet; the rendering follow-up is recorded below.
 
 The previous CI artifact `36635864459` matches the earlier text-only binding.
 Use the replacement artifact from successful [run 36637832054](https://github.com/DocMorphic/cmux-app/actions/runs/36637832054),
-which matches `b6ac57b` and the current JNI source. All 29 receipt files and the
+which matches the `b6ac57b` checkpoint before the placeholder bridge. All 29 receipt files and the
 JNI inside its test APK were hash-verified. JNI SHA-256:
 `73ef5984bdd3bc98748f1d04b64494bf14deb6918f563956661fa16f5dc530eb`.
 The downloaded test APK passed all **11 native Android tests in 0.155 seconds**
@@ -377,10 +374,76 @@ Verification:
   Its runtime uses 4 KiB pages. No Pixel install or live-Mac image claim is made;
   the Pixel remains absent from adb and signed release 157 is unchanged.
 
-Unicode placeholder placement rendering is still missing: the pinned C API marks
-virtual placements but does not resolve their per-cell image fragments. The
-upstream renderer uses `graphics_unicode.zig` for that step; normal placement
-geometry must not be substituted. Image-heavy performance, hardware Canvas
-acceptance and complete graphics replay against a real payload-capable Mac
-remain open. The screen-anchored grid's missing image payload remains a separate
+At this ordinary-placement checkpoint, Unicode placeholders were still missing.
+The pinned C API marks virtual placements but does not resolve their per-cell
+fragments; the follow-up below exposes the upstream `graphics_unicode.zig`
+resolver and adds hardware Canvas checks. Image-heavy performance and complete
+graphics replay against a real payload-capable Mac remain open. The screen-anchored grid's missing image payload remains a separate
 shared-contract constraint, as described above.
+
+
+## Native Unicode placeholder rendering (2026-09-30)
+
+The exported core now includes the project's small
+`ghostty/src/main/zig/virtual_placements.zig` C bridge. It calls upstream
+`placementIterator` and `renderPlacement` directly, preserving encoded high-byte
+and palette image IDs, placement IDs, continuation runs and aspect-ratio rules.
+The JNI caller matches the renderer's guard: it scans placeholders only when
+virtual placements exist. Missing images/placements are skipped by the resolver.
+The viewport scan includes the following row for fractional bottom-edge paint.
+
+The core builder adds one export to `src/lib_vt.zig` and copies the bridge into
+its isolated source export. It records the original/patched export hashes and
+bridge hash; it never patches the input checkout. The JNI builder requires that
+bridge hash and records the C header hash. Gradle and the CI cache include both
+bridge sources, so an older core/JNI artifact cannot silently satisfy the build.
+The C bridge's 56-byte record ABI is asserted at compile time and exercised by
+native Android tests. Callbacks run synchronously under the terminal owner's lock
+and copy values; they retain no borrowed pointers and install no terminal effects.
+
+Snapshots retain stored virtual-placement metadata and add resolved fragment
+records. The combined snapshot has a 65,536-placement bound inside the existing
+16 MiB byte limit; the underlying protocol still has its separate 4,096 stored
+placement limit. Placeholder fragments use Ghostty's resolved coordinates with
+an edge-clamped bitmap shader, including independently rounded/zero-sized source
+extents for tiny images split across larger grids. A sub-texel epsilon avoids a
+singular Android shader transform. Ordinary image crops retain their separate
+crop-before-scale behavior. Placeholder text shapes as blanks, while the original
+characters remain available to copy/accessibility.
+
+Hardware testing exposed a second bug: image-only replacement left an equal text
+plan and did not immediately invalidate Compose's draw list. `RenderGridView`
+now observes the output revision in the draw scope, also covering cursor-only
+updates. The hardware test verifies native replacement pixels first, then checks
+the captured live view without waiting for the blink timer.
+
+Verification:
+
+- **5 JVM decoder tests passed.**
+- **15 native Android tests passed in 0.137 seconds**, including four new
+  placeholder cases: high IDs and continuation runs; palette IDs/history/extra
+  bottom row; missing/deleted/alternate state; and regular placements alone.
+- **17 app Android tests passed in 3.156 seconds**: four new placeholder pixel
+  cases, one hardware Canvas test, five ordinary-image regressions, four native
+  mirror checks and three grid/glyph checks. They cover all image fragments,
+  text-only geometry changes, deletion without fallback glyphs, fractional
+  scrolling, one-pixel images across larger grids and hardware image replacement.
+  The saved software and hardware render images were inspected.
+- Main, app-test and native-test APKs build. Native ELF LOAD/RELRO and main/native
+  test APK ZIP alignment pass 16 KB. Runtime is the API 37 arm64 emulator with
+  4 KiB pages; no physical 16 KiB runtime claim is made.
+- Main APK SHA-256:
+  `28e05f67da0b16439f394c333845baf80c591ac05022508203ac190f81df9b8b`.
+  App test SHA-256:
+  `10cfa25e249a355f2b397099c7ad16a97266d2c50146b1ec505d5b20bbc7d26d`.
+  Native test SHA-256:
+  `9d5c30e126bf0366f421afa5b5c917b65867e5944277fd65bbba69ec600ab5ba`.
+- Evidence: ignored `captures/runtime/terminal-placeholders/` and
+  `build/ghostty-vt-android/virtual-*.log`; the earlier hardware failure is retained.
+  Emulator stopped after testing. The Pixel is still absent from adb. Signed
+  release 157 and the Pixel's installed checkpoint are unchanged.
+
+A new Linux CI artifact remains to be verified for this bridge. Image-heavy
+performance/resource-budget parity, wider graphics corpus comparison and real
+Mac/Pixel replay/input/resize/reconnect acceptance remain open. Screen-anchored
+render-grid delivery still cannot reconstruct images absent from its payload.

@@ -68,6 +68,9 @@ class TerminalGridPainter : AutoCloseable {
                         paint.typeface = faces[(if (style.bold) Typeface.BOLD else 0) or (if (style.italic) Typeface.ITALIC else 0)]
                         paint.color = fg; paint.alpha = if (style.faint) 150 else 255
                         for (glyph in glyphs) {
+                            // Ghostty shapes Kitty placeholders as blanks; the image resolver
+                            // paints their fragments. Keep original text for copy/accessibility.
+                            if (glyph.text.isNotEmpty() && glyph.text.codePointAt(0) == 0x10EEEE) continue
                             val glyphX = originX + glyph.column * cellWidth
                             val allocated = glyph.width * cellWidth
                             paint.textScaleX = 1f

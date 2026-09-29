@@ -92,7 +92,7 @@ jobs:
             build/ghostty-vt-android/jni-manifest.json
             build/ghostty-vt-android/jniLibs
             build/ghostty-vt-android/notices
-          key: ${{ runner.os }}-ghostty-edefce77-ndk28-api26-arm64-${{ hashFiles('scripts/build-ghostty-vt-android.py', 'scripts/build-ghostty-jni-android.py', 'scripts/verify-native-alignment.py', 'ghostty/src/main/c/**') }}
+          key: ${{ runner.os }}-ghostty-edefce77-ndk28-api26-arm64-${{ hashFiles('scripts/build-ghostty-vt-android.py', 'scripts/build-ghostty-jni-android.py', 'scripts/verify-native-alignment.py', 'ghostty/src/main/c/**', 'ghostty/src/main/zig/**') }}
       - uses: actions/checkout@v4
         if: steps.ghostty-cache.outputs.cache-hit != 'true'
         with:

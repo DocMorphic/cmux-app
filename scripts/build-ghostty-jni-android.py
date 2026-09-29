@@ -33,6 +33,10 @@ def main():
         artifact = (core / "android" / relative).resolve()
         if not artifact.is_relative_to(core / "android") or digest(artifact) != expected:
             raise SystemExit(f"Core artifact changed: {relative}")
+    bridge = ROOT / "ghostty/src/main/zig/virtual_placements.zig"
+    header = ROOT / "ghostty/src/main/c/virtual_placements.h"
+    if receipt.get("virtualPlacementBridge", {}).get("sourceSha256") != digest(bridge):
+        raise SystemExit("Rebuild the core with the current virtual placement bridge")
     host = {"Darwin": "darwin-x86_64", "Linux": "linux-x86_64"}[platform.system()]
     toolchain = ndk / "toolchains/llvm/prebuilt" / host / "bin"
     source = ROOT / "ghostty/src/main/c/ghostty_jni.c"
@@ -73,6 +77,8 @@ def main():
         "sourceRevision": REVISION, "ndk": NDK_VERSION, "androidApi": 26,
         "abi": "arm64-v8a", "elfPageSize": 16384, "snapshotVersion": 1,
         "bindingSourceSha256": digest(source),
+        "virtualPlacementBridgeSha256": digest(bridge),
+        "virtualPlacementHeaderSha256": digest(header),
         "coreManifestSha256": digest(core / "manifest.json"),
         "files": {str(p.relative_to(core)): digest(p) for p in artifacts},
     }

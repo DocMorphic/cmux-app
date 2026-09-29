@@ -11,6 +11,8 @@ val verifyNative by tasks.registering {
     inputs.file(nativeRoot.file("jni-manifest.json"))
     inputs.dir(nativeRoot.dir("jniLibs"))
     inputs.file("src/main/c/ghostty_jni.c")
+    inputs.file("src/main/c/virtual_placements.h")
+    inputs.file("src/main/zig/virtual_placements.zig")
     doLast {
         val root = nativeRoot.asFile
         val receipt = JsonSlurper().parse(root.resolve("jni-manifest.json")) as Map<*, *>
@@ -20,6 +22,8 @@ val verifyNative by tasks.registering {
         fun digest(file: File) = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
             .joinToString("") { "%02x".format(it) }
         check(digest(file("src/main/c/ghostty_jni.c")) == receipt["bindingSourceSha256"]) { "Rebuild Ghostty JNI after editing the binding" }
+        check(digest(file("src/main/c/virtual_placements.h")) == receipt["virtualPlacementHeaderSha256"])
+        check(digest(file("src/main/zig/virtual_placements.zig")) == receipt["virtualPlacementBridgeSha256"])
         val files = receipt["files"] as Map<*, *>
         check(files.keys.contains("jniLibs/arm64-v8a/libcmux_ghostty.so"))
         files.forEach { (path, hash) ->

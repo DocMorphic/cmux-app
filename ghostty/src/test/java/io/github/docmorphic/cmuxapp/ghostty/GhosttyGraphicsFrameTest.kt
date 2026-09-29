@@ -27,7 +27,7 @@ class GhosttyGraphicsFrameTest {
         val bytes = frame()
         bytes.indices.forEach { end -> assertThrows(IllegalArgumentException::class.java) { GhosttyGraphicsFrame.decode(bytes.copyOf(end)) } }
         assertThrows(IllegalArgumentException::class.java) { GhosttyGraphicsFrame.decode(bytes + 0) }
-        listOf(0 to 0, 12 to -1, 16 to 1025, 20 to 4097, 36 to 10001, 48 to Int.MAX_VALUE, 56 to 3, 104 to 2).forEach { (offset, value) ->
+        listOf(0 to 0, 12 to -1, 16 to 1025, 20 to 65537, 36 to 10001, 48 to Int.MAX_VALUE, 56 to 3, 104 to 2).forEach { (offset, value) ->
             val invalid = bytes.copyOf().also { ByteBuffer.wrap(it).putInt(offset, value) }
             assertThrows("offset=$offset", IllegalArgumentException::class.java) { GhosttyGraphicsFrame.decode(invalid) }
         }
