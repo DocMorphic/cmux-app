@@ -98,12 +98,14 @@ row yet. Unrelated foreground computers remain connected. Denied/unconfirmed
 removal retains the saved rows and offers an explicit retry using fresh discovery.
 
 After confirmed server removal, the captured appearance store removes that
-computer's UUID aliases for the exact build. A single encrypted credential-store
+computer's UUID aliases for the exact build. The subsequent Direct settings
+integration also clears that target's method and direct addresses from its scoped
+connection-preference file. A single encrypted credential-store
 commit then removes only captured rows still matching their original code,
 device/build and native account/team scope, and clears affected selections.
 Rotated/new pairing codes, sibling builds, other accounts/teams, credentials,
 task drafts and files are preserved. Appearance is saved first; failure in either
-store leaves the flow retryable. The two files are not a global transaction.
+store leaves the flow retryable. The metadata files and credential file are not a global transaction.
 A failed save is never published as successful.
 
 A local-only retry in the same open Details flow retains the confirmed server

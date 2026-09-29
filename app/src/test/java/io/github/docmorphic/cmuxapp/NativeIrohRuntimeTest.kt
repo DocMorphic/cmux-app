@@ -16,6 +16,14 @@ class NativeIrohRuntimeTest {
         override val state = MutableStateFlow(ready())
         var pathJson: String? = null
         override val privatePaths = NativePrivatePathStore({ pathJson }, { pathJson = it })
+        var settingJson: String? = null
+        override val connectionSettings = NativeMacConnectionStore({ settingJson }, { settingJson = it })
+        val intents = java.util.concurrent.CopyOnWriteArrayList<NativeMacDialIntent>()
+        val permissions = java.util.concurrent.CopyOnWriteArrayList<() -> Boolean>()
+        override fun transport(mac: IrohV2Computer, permits: () -> Boolean, intent: NativeMacDialIntent): MobileRpcTransport {
+            intents += intent; permissions += permits
+            return transport(mac, permits)
+        }
         val closes = AtomicInteger()
         val refreshes = AtomicInteger()
         val transports = mutableListOf<PoolTestTransport>()
@@ -35,6 +43,77 @@ class NativeIrohRuntimeTest {
         override fun close() { closes.incrementAndGet() }
     }
     private fun pairing(scope: NativeTeamScope = team) = PairingCodeParser.parse(PairingCodeParser.computer(mac, scope)).getOrThrow() as PairingCode.Iroh
+
+    @Test fun routingChangesRetireOnlyTargetAndDirectNeverFallsBackWithoutAddresses() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        val sibling = mac.copy(endpointId = "cd".repeat(32), recordId = "sibling", buildTag = "debug")
+        backend.state.value = ready().copy(computers = listOf(mac, sibling))
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            val original = runtime.connect(pairing())
+            val other = runtime.connect(PairingCodeParser.parse(PairingCodeParser.computer(sibling, team)).getOrThrow() as PairingCode.Iroh)
+            val target = NativeComputerTarget.from(mac)
+            backend.connectionSettings.update(target, { true }) { it.copy(method = NativeMacConnectionMethod.DIRECT) }
+            assertFalse(backend.permissions[0]())
+            withTimeout(2000) { original.disconnected.first() }
+            assertFalse(other.isClosed)
+            assertTrue(runCatching { runtime.connect(pairing()) }.isFailure)
+            assertEquals(2, backend.intents.size)
+            backend.connectionSettings.update(target, { true }) { it.copy(addresses = listOf(NativeDirectAddress("10.1.0.2:58470"))) }
+            val direct = runtime.connect(pairing())
+            assertEquals(NativeMacConnectionMethod.DIRECT, backend.intents.last().method)
+            assertEquals(listOf("10.1.0.2:58470"), backend.intents.last().addresses)
+            backend.connectionSettings.update(target, { true }) { it.copy(addresses = it.addresses.map { row -> row.copy(label = "Desk") }) }
+            runtime.connect(pairing()).close()
+            assertEquals(3, backend.intents.size)
+            assertFalse(direct.isClosed); assertFalse(other.isClosed)
+            direct.close(); other.close(); original.close()
+        }
+    }
+
+    @Test fun rapidModeRoundTripCannotReuseOldAutomaticLease() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            val old = runtime.connect(pairing()); val oldPermission = backend.permissions.single()
+            val target = NativeComputerTarget.from(mac)
+            backend.connectionSettings.update(target, { true }) { it.copy(method = NativeMacConnectionMethod.DIRECT) }
+            backend.connectionSettings.update(target, { true }) { it.copy(method = NativeMacConnectionMethod.IROH) }
+            assertFalse(oldPermission())
+            withTimeout(2000) { old.disconnected.first() }
+            runtime.connect(pairing()).close()
+            assertEquals(2, backend.intents.size); assertNotEquals(backend.intents[0], backend.intents[1])
+            old.close()
+        }
+    }
+
+    @Test fun settingsChangedDuringHandshakeCannotPublishStaleCandidate() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        backend.dial = { entered.complete(Unit); release.await() }
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            val pending = async { runCatching { runtime.connect(pairing()) } }
+            entered.await()
+            backend.connectionSettings.update(NativeComputerTarget.from(mac), { true }) { it.copy(method = NativeMacConnectionMethod.DIRECT) }
+            assertFalse(backend.permissions.single().invoke())
+            release.complete(Unit)
+            assertTrue(withTimeout(2000) { pending.await() }.isFailure)
+            assertTrue(backend.transports.single().closes.get() > 0)
+        }
+    }
+
+    @Test fun corruptedSettingsRetireConnectionsAndRecoveryRequiresNewLease() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            val old = runtime.connect(pairing())
+            backend.settingJson = "not json"; backend.connectionSettings.reload()
+            assertFalse(backend.permissions.single().invoke())
+            withTimeout(2000) { old.disconnected.first() }
+            assertTrue(runCatching { runtime.connect(pairing()) }.isFailure)
+            backend.settingJson = "[]"; backend.connectionSettings.reload()
+            runtime.connect(pairing()).close()
+            assertEquals(2, backend.intents.size)
+            old.close()
+        }
+    }
 
     @Test fun networkingRefreshUsesCurrentBackendAndRejectsWrongTeam() = runBlocking<Unit> {
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))

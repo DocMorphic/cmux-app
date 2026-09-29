@@ -12,12 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-**Direct transport prerequisite (2026-09-29):** the native runtime now supports a
-separate relay-disabled endpoint with the same enrolled key, explicit address
-requirements and normal identity/admission checks. All eighteen native Android
-cases and thirty-six JVM regressions pass. The per-computer preference, backend
-selection and UI integration remain open; no Direct selector is exposed yet.
-See [DIRECT_CONNECTION.md](DIRECT_CONNECTION.md).
+**Direct connection settings integration (2026-09-29):** Computer Details now
+has Iroh/Direct selection and labeled, individually enabled numeric addresses.
+Settings persist per account/team/device/build. Routing changes retire that Mac's
+old leases and pending handshakes; empty or unreadable Direct settings cannot fall
+back to relays. The backend uses a separate relay-disabled endpoint with the same
+enrolled key. Fifty-eight focused JVM and seventeen Android cases pass, with a
+five-case rerun after the final isolated toggle styling change. The production
+backend fixture uses real local QUIC with simulated account authority. Physical
+acceptance remains pending; evidence is in [DIRECT_CONNECTION.md](DIRECT_CONNECTION.md).
+Tailscale-only selection and authorized saved route management remain open.
 
 **Native computer removal integration (2026-09-29):** Details now confirms
 selected-team, exact-build removal through the active V2 control path, then
@@ -210,7 +214,7 @@ work. This follow-up has no new APK or live-device claim.
 | Changes | `CmuxMobileChanges` | Collapsible directory tree, path-stable diff pager, numbered/wrapped hunks, grapheme-safe emphasis, line/hunk copy, persistent pinch font, refresh/retry and progressive 6,000→24,000→96,000-line loading coded; identity-checked hidden-context expansion and chunked content transfer coded; model/request checks passed; Before/After image, PDF, media and file-action previews coded; ten Changes cases passed in an Android 17 emulator run; rendered Markdown now shares the original cmux web assets; unified viewer/text controls coded; phone QA, raw syntax/streaming and document-format parity remain open | View changed files and diffs from the active workspace |
 | Terminal Files | `TerminalArtifactFilesSheet`, `ChatArtifactFolderView`, `ChatArtifactViewerDestination` | Scoped RPC/paging/search store, Session/In view sheet, filters/sort, list/three-column grid, thumbnails, folder navigation, swipe previews and file actions coded; terminal menu/counted chip and direct relative/absolute path taps capability gated; 285 JVM checks and all 12 combined Android 17 Files/shared-preview runtime cases passed; row Share, folder-tap preference and rendered Markdown have passing runtime evidence; unified viewer/text controls coded; raw syntax/streaming, remaining menu fidelity, broader document formats and physical acceptance remain open | Browse terminal/session files, folders and previews without crossing authorization scopes |
 | Tasks and agents | Task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
-| Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, connection status, Open Folders on Tap and Show Missing Files controls coded; local reset with confirmation, platform-owned erase and emulator acceptance implemented; live native route/RTT, Mac identity/account checks and address-free report sharing implemented; scoped private-address editing/reset and native dial hints implemented; active V2 status/home-relay/credential refresh and real-Pixel checks implemented; direct-only intents and broader diagnostics remain open (see NETWORKING.md for legacy-control correction) | Account, computers, notification, display, network, diagnostics, reset |
+| Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, connection status, Open Folders on Tap and Show Missing Files controls coded; local reset with confirmation, platform-owned erase and emulator acceptance implemented; live native route/RTT, Mac identity/account checks and address-free report sharing implemented; scoped private-address editing/reset and native dial hints implemented; active V2 status/home-relay/credential refresh and real-Pixel checks implemented; per-computer Iroh/Direct preferences, native endpoint selection and routing invalidation implemented; Tailscale-only route authorization and broader diagnostics remain open (see DIRECT_CONNECTION.md and NETWORKING.md) | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 

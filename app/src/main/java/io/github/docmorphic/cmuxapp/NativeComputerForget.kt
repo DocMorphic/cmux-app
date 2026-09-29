@@ -117,6 +117,7 @@ internal data class NativeComputerForgetCallbacks(
 
 internal fun nativeComputerForgetFlow(runtime: NativeIrohRuntime, team: NativeTeamScope,
     target: NativeComputerTarget, store: NativeCredentialStore, appearance: NativeMacAppearanceStore,
+    connectionSettings: NativeMacConnectionStore,
     prepare: (List<NativeCredentialStore.PairedMac>) -> Unit): NativeComputerForgetFlow = NativeComputerForgetFlow(
     permits = { runtime.permitsAppearance(team) },
     capture = { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -129,6 +130,7 @@ internal fun nativeComputerForgetFlow(runtime: NativeIrohRuntime, team: NativeTe
         // Clear metadata first. A failed pairing commit leaves a retryable saved row.
         // Both stores are addressed by the captured owner, never the live display team.
         appearance.removeComputer(target) { store.taskSession() == team.login }
+        connectionSettings.removeComputer(target) { store.taskSession() == team.login }
         store.forgetCapturedNativeMac(team, rows)
     } }
 )

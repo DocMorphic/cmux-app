@@ -46,19 +46,85 @@ and eight private-address cases. The native instrumentation APK passed ELF
 LOAD/RELRO and ZIP 16 KB alignment checks. Evidence and the APK hash are retained
 locally in ignored `captures/iroh/direct-endpoint/`.
 
-## Remaining wiring and acceptance
+## Android settings and connection ownership
 
-This checkpoint is the native transport prerequisite, not an exposed Direct
-selector. The production backend still uses its automatic endpoint. Integration
-must add per-account/team/device/build method and address storage, a separate
-backend endpoint sharing the enrolled key, intent-aware connection reuse and
-invalidation, and the iOS-style method/address controls. A save must not reuse an
-old automatic lease after selecting Direct or silently fall back when its address
-list is empty/unreadable. Tailscale authorization and saved route management also
-remain separate work.
+Computer Details now exposes Iroh and Direct choices. Direct provides labeled
+numeric IP/UDP-port entries, individual enable switches, add/edit/remove actions,
+and a warning when no address is enabled. An edited address keeps its enabled
+state. Duplicate or invalid addresses retain the editor for correction. Failed
+writes leave the previous saved mode active; pending writes disable repeat input.
+Tailscale Only is not presented until its authorization and route management are
+implemented.
 
-Real LAN/VPN Mac and Pixel acceptance is pending. ADB detected no physical phone;
-no account, Mac setting or native registration changed. No full app APK was
-assembled for this transport-only checkpoint. The last app APK is the Forget
-integration (`41ac206`), the last Pixel installation remains `f0dfc7f`, and the
-published signed APK remains build 157. The emulator was stopped after testing.
+The no-backup settings file is scoped by application, project, user and team; its
+entries use canonical UUID device identity plus exact build. Iroh and Direct
+addresses remain separate from optional automatic-mode private-address hints.
+Settings persist across process restart, while routing epochs are local to the
+current process. Read failure blocks dialing, including existing leases, rather
+than silently choosing Iroh. Explicit reload is available from Details.
+
+The backend owns separate automatic and direct native endpoints using the same
+enrolled key. Direct ignores relay metadata and credentials, while Iroh retains
+its authenticated relay and optional private-address behavior. Both endpoints
+close on account-owner retirement. The runtime includes each Mac's captured method,
+enabled coordinates and routing epoch in its connection key and permission fence.
+Changing one Mac's effective route retires only its leases and pending handshake;
+changing an address label leaves sessions intact. An A→B→A change cannot revive
+an old lease, even if state-flow delivery skips the intermediate value. A corrupt
+file/recovery boundary retires all affected settings-owner leases.
+
+The normal UI, feed, notifications and connection-check callers share this same
+runtime path, so their next acquisition uses the saved method. No-address Direct
+fails before endpoint acquisition, with no Iroh fallback. An existing foreground
+session follows the existing disconnect/retry path after retirement. Forget now
+clears this Mac/build's method and direct addresses alongside appearance before
+the captured pairing-store commit. Other Mac/build preferences remain.
+
+## Remaining acceptance
+
+Physical LAN/VPN Mac and Pixel acceptance is pending, including switching modes
+while terminals and background notifications are active. Tailscale-only selection,
+authorized saved route editing, and full iOS visual/interaction comparison remain
+open. The full companion goal is active. The production direct-backend fixture
+uses local QUIC and simulated account authority; it is not proof of live server
+admission or physical network traversal.
+
+
+## Settings integration verification (2026-09-29)
+
+Fifty-eight focused JVM cases pass: eight settings/persistence, seventeen runtime
+(including four new routing cases), fifteen computer actions, twelve Forget flow
+and six shared-connection cases. Coverage includes per-build isolation, save/read
+failure, unknown methods, address validation, duplicate/size limits, UUID aliases,
+rapid method changes, canceled pending handshakes, label-only edits and recovery
+without reviving stale connections.
+
+Seventeen Android 17 emulator cases passed in **35.133 seconds**: one production
+backend/local QUIC fixture, four new connection-settings UI cases and twelve
+existing Details/Appearance/Forget cases. The backend uses an isolated encrypted
+identity with no relay metadata or credentials and a local native server. It
+verifies framed duplex control traffic and rejection after an intent change.
+The first run passed sixteen cases and failed one fixture assumption that the
+server exposed a single socket; it exposes IPv4 and IPv6. Selecting the fixture's
+explicit IPv4 listener fixed the test. No production routing change was needed.
+
+After that run, the toggle's touch highlight was clipped to its circular shape.
+The final APK passed all five Direct backend/settings cases in **10.828 seconds**.
+The preceding twelve existing UI cases were not repeated for this isolated visual
+adjustment. Screenshots of the final section were inspected; its standalone test
+Activity's white system bars are not a full-app layout reference.
+
+The first two build attempts exposed test-source compilation issues (a Kotlin
+collection/function invocation and use of a module-internal test helper). Both
+were fixed; main and instrumentation APK builds now pass. Native ELF LOAD/RELRO
+and APK ZIP 16 KB checks pass. No native library was rebuilt in this integration.
+
+- Final main APK SHA-256: `c2eb9d026bdc4bffc11b90d9fd1921ecdc8b76ff3cfeb858af4d9d7678e82596`.
+- Test APK SHA-256: `ae52c00691431d230f75400af5810392ce1cb6188f41699b86d07e3d986481ac`.
+- Build logs, JVM XML, instrumentation output, screenshots, alignment reports and
+  receipts are retained in ignored `captures/runtime/direct-settings/`.
+
+ADB detected no Pixel for installation. Its last installed checkpoint remains
+`f0dfc7f`, and published signed build 157 is unchanged. No real Mac registration,
+connection preference or phone power setting was changed. The emulator was stopped
+when verification ended.

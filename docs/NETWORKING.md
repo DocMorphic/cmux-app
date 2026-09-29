@@ -253,3 +253,15 @@ changed; the phone now has this debug APK. Published signed build 157 is unchang
 | Installed main debug APK | `b09f49a705135f283638ee38dad5642a1b94a95ecd2db8cc35c204b1e225f454` |
 | App test APK | `1e641d15af885a13497ee8163b5dd226e5df061e78bcf186b36213789af60a2a` |
 | Native test APK | `3373c89bcd4159551efb3ea36902bd1d8956fa82d74a61bd22b7f165f24b49a1` |
+
+
+## Per-computer Direct mode (2026-09-29)
+
+[Direct connection settings](DIRECT_CONNECTION.md) now provide the separate
+explicit-address path described above. This is local to the selected computer
+and build, distinct from automatic-mode private hints and from a global relay
+policy. It uses a second relay-disabled endpoint under the same enrolled key;
+other computers using automatic Iroh retain their endpoint. Method/coordinate
+changes retire only affected sessions, and missing/unreadable settings cannot
+silently fall back to relays. Physical LAN/VPN acceptance and Tailscale-only route
+selection remain open.

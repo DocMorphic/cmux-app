@@ -17,23 +17,30 @@ internal interface IrohAccountBackend : AutoCloseable {
     suspend fun refreshNetworking() { refresh() }
     fun endpointStatus(): IrxEndpointStatus? = null
     fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport
+    fun transport(mac: IrohV2Computer, permits: () -> Boolean, intent: NativeMacDialIntent): MobileRpcTransport {
+        check(intent.method == NativeMacConnectionMethod.IROH) { "Direct connections are unavailable" }
+        return transport(mac, permits)
+    }
+    val connectionSettings: NativeMacConnectionStore? get() = null
     suspend fun awaitClosed() { }
     val privatePaths: NativePrivatePathStore? get() = null
 }
 
 /** Binds the enrolled key only when a computer is opened; discovery alone needs no QUIC endpoint. */
-internal class NativeIrohBackend private constructor(
+internal class NativeIrohBackend(
     private val key: IrohInstallationKey,
     private val control: IrohV2ControlSession,
     private val current: () -> Boolean,
     private val applicationActive: StateFlow<IrxProbeActivity>,
-    override val privatePaths: NativePrivatePathStore
+    override val privatePaths: NativePrivatePathStore,
+    override val connectionSettings: NativeMacConnectionStore
 ) : IrohAccountBackend {
     private val lock = Any()
     private val endpointMutex = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var endpoint: IrxEndpointRuntime? = null
-    private var closingEndpoint: IrxEndpointRuntime? = null
+    private var directEndpoint: IrxEndpointRuntime? = null
+    private var closingEndpoints: List<IrxEndpointRuntime> = emptyList()
     private var closed = false
     override val state get() = control.state
     override suspend fun refresh() { control.refreshDirectory() }
@@ -47,7 +54,7 @@ internal class NativeIrohBackend private constructor(
     }
     override fun endpointStatus(): IrxEndpointStatus? = synchronized(lock) {
         requireCurrent()
-        endpoint?.status()
+        (endpoint ?: directEndpoint)?.status()
     }
 
     override suspend fun start() {
@@ -66,17 +73,29 @@ internal class NativeIrohBackend private constructor(
     }
 
     override fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport =
-        IrxMobileRpcTransport(establish = {
+        transport(mac, permits, connectionSettings.state.value.intent(mac))
+
+    override fun transport(mac: IrohV2Computer, permits: () -> Boolean, intent: NativeMacDialIntent): MobileRpcTransport {
+        check(intent.dialable) { "Direct mode needs an enabled address. Open Computer Details to add one." }
+        val directOnly = intent.method == NativeMacConnectionMethod.DIRECT
+        val allowed = { current() && !synchronized(lock) { closed } && permits() &&
+            runCatching { connectionSettings.state.value.intent(mac) == intent }.getOrDefault(false) }
+        return IrxMobileRpcTransport(establish = {
+            check(allowed()) { "Computer connection settings changed" }
             val live = endpointMutex.withLock {
                 requireCurrent()
-                synchronized(lock) { endpoint } ?: run {
-                    val bound = IrxEndpointRuntime.bind(key, state.value.credentials())
+                check(allowed()) { "Computer connection settings changed" }
+                synchronized(lock) { if (directOnly) directEndpoint else endpoint } ?: run {
+                    val bound = IrxEndpointRuntime.bind(key,
+                        if (directOnly) emptyList() else state.value.credentials(),
+                        pathMode = if (directOnly) IrxEndpointPathMode.DIRECT_ONLY else IrxEndpointPathMode.AUTOMATIC)
                     try {
                         currentCoroutineContext().ensureActive()
                         requireCurrent()
+                        check(allowed()) { "Computer connection settings changed" }
                         synchronized(lock) {
                             check(!closed)
-                            endpoint = bound
+                            if (directOnly) directEndpoint = bound else endpoint = bound
                         }
                         bound
                     } catch (failure: Throwable) {
@@ -87,13 +106,13 @@ internal class NativeIrohBackend private constructor(
                 }
             }
             requireCurrent()
-            // The directory provides the host's route; our relay credentials authenticate our endpoint.
-            val relay = mac.relayUrls.firstOrNull() ?: state.value.directoryRelays.firstOrNull()
-                ?: error("This Mac has no relay address yet")
-            val direct = privatePaths.addresses(mac)
-            requireCurrent()
-            live.dial(mac.endpointId, relay, permits, direct)
-        }, permits = { current() && !synchronized(lock) { closed } && permits() }, applicationActive = applicationActive)
+            val relay = if (directOnly) null else (mac.relayUrls.firstOrNull() ?: state.value.directoryRelays.firstOrNull()
+                ?: error("This Mac has no relay address yet"))
+            val direct = if (directOnly) intent.addresses else privatePaths.addresses(mac)
+            check(allowed()) { "Computer connection settings changed" }
+            live.dial(mac.endpointId, relay, allowed, direct)
+        }, permits = allowed, applicationActive = applicationActive)
+    }
 
     private fun requireCurrent() {
         if (!current() || synchronized(lock) { closed }) throw CancellationException("Account session changed")
@@ -103,18 +122,18 @@ internal class NativeIrohBackend private constructor(
         val old = synchronized(lock) {
             if (closed) return
             closed = true
-            endpoint.also { closingEndpoint = it; endpoint = null }
+            listOfNotNull(endpoint, directEndpoint).also { closingEndpoints = it; endpoint = null; directEndpoint = null }
         }
         control.close()
         scope.cancel()
-        old?.close()
+        old.forEach { it.close() }
         key.close()
     }
 
     override suspend fun awaitClosed() {
         // Also wait for a bind that was in flight when close invalidated its owner.
         endpointMutex.withLock { }
-        synchronized(lock) { closingEndpoint }?.awaitClosed()
+        synchronized(lock) { closingEndpoints }.forEach { it.awaitClosed() }
     }
 
     private fun IrohV2ControlState.credentials() = relays.map { IrxRelayCredential(it.url, it.token, it.expiresAt) }
@@ -134,7 +153,7 @@ internal class NativeIrohBackend private constructor(
                 val control = IrohV2ControlSession(IrohV2SignedRequests(descriptor, key::sign),
                     { force -> account.accessToken(force) ?: error("Sign in to cmux") }, current)
                 return NativeIrohBackend(key, control, current, applicationActive,
-                    NativePrivatePathStore.create(application, key.identity()))
+                    NativePrivatePathStore.create(application, key.identity()), NativeMacConnectionStore.create(application, team))
             } catch (failure: Throwable) { key.close(); throw failure }
         }
     }

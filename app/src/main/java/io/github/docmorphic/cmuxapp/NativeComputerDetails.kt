@@ -87,10 +87,12 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
         val context = LocalContext.current
         val appearanceStore = checkNotNull(rememberNativeAppearanceStore(team))
         val appearances = appearanceStore.state.collectAsState().value
+        val connectionStore = remember(context, team) { NativeMacConnectionStore.create(context.applicationContext, team) }
+        val connectionPreferences by connectionStore.state.collectAsState()
         val store = credentialStore ?: remember(context) { NativeCredentialStore(context.applicationContext) }
         val latestCallbacks by rememberUpdatedState(forgetCallbacks)
-        val forgetFlow = remember(runtime, team, target, store, appearanceStore) {
-            nativeComputerForgetFlow(runtime, team, target, store, appearanceStore) {
+        val forgetFlow = remember(runtime, team, target, store, appearanceStore, connectionStore) {
+            nativeComputerForgetFlow(runtime, team, target, store, appearanceStore, connectionStore) {
                 latestCallbacks.started(team, target, it)
             }
         }
@@ -114,6 +116,11 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                     onDismiss()
                     if (runtime.permitsAppearance(team)) runtime.refresh()
                 } },
+                connectionMethod = { NativeMacConnectionSection(target, connectionPreferences, save = { change ->
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        connectionStore.update(target, { runtime.permitsAppearance(team) }, change)
+                    }
+                }, retry = { connectionStore.reload() }) },
                 power = { NativeMacPowerSettings(runtime, team, target) }, displayName = title, connection = connection,
                 appearance = { NativeMacAppearanceSettings(team, target, presentation.colorIndex) { runtime.permitsAppearance(team) } })
         }
@@ -127,7 +134,7 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
     share: (String) -> Unit, onBack: () -> Unit, power: @Composable () -> Unit = {},
     displayName: String = target.name, appearance: @Composable () -> Unit = {},
     connection: NativeComputerConnection = NativeComputerConnection(),
-    backEnabled: Boolean = true, forget: @Composable () -> Unit = {}) {
+    backEnabled: Boolean = true, forget: @Composable () -> Unit = {}, connectionMethod: @Composable () -> Unit = {}) {
     Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -138,9 +145,9 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 Column(Modifier.fillMaxWidth().padding(22.dp)) {
                     Text(if (available) "Available in this team" else "Not currently discovered", color = Color(0xFF9B9FA8))
-                    Text("Connection Method: Automatic", Modifier.padding(top = 12.dp))
                     Text("App Build: ${target.buildTag}", fontSize = 13.sp, color = Color(0xFF9B9FA8))
                 }
+                connectionMethod()
                 appearance()
                 NativeComputerConnectionSection(connection)
                 NativeConnectionCheckSection(canCheck, check, share,

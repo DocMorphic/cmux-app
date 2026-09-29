@@ -90,8 +90,9 @@ locally; see the source correction in that checkpoint.
   workspace count (implemented in [COMPUTER_CONNECTION.md](COMPUTER_CONNECTION.md)).
 - Live acceptance of appearance, the Mac Power control and
   [keep-awake row indicators](MAC_POWER_INDICATORS.md).
-- Per-computer connection-method selection, direct-only endpoint/address intents,
-  route editing and remaining legacy Tailscale detail flows.
+- Physical acceptance of [Iroh/Direct selection and direct addresses](DIRECT_CONNECTION.md),
+  now implemented through the runtime and native backend. Tailscale-only selection,
+  authorized route editing and remaining legacy Tailscale detail flows are still open.
 - Compatibility/version-floor guidance and physical acceptance of the
   [confirmed Forget/local-cleanup flow](COMPUTER_REVOCATION.md). Confirmation,
   scoped server removal and durable local cleanup are implemented. Legacy or
