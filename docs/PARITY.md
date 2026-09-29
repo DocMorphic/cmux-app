@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**QR attachment preserves native identity (2026-09-29):** an authenticated generic
+Tailscale scan now retains an existing scoped native Mac/build row and its chosen
+connection method, selection and draft/notification origin. A matching route grant
+is required; other owners/builds survive and ambiguous/unscoped rows are not
+replaced. All 45 focused JVM cases pass and production sources compile. No APK
+or Android instrumentation run was performed for this feature commit. Standalone
+legacy QR record/alias migration and physical acceptance remain open. See
+[TAILSCALE_CONNECTION.md](TAILSCALE_CONNECTION.md).
+
 **Live Tailscale diagnostics (2026-09-29):** Connection Check now projects a
 validated TCP/VPN route separately from Iroh route/encryption data. Tailscale
 shows “Managed by VPN”; raw TCP cannot claim VPN or QUIC encryption. Reports omit

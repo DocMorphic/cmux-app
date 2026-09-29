@@ -379,11 +379,56 @@ computer names, tokens, terminal content or server error text.
   last Pixel install remains `f0dfc7f`, published signed build 157 is unchanged,
   and real VPN/Mac diagnostic acceptance remains pending.
 
+## Generic QR pairing preserves an existing native computer (2026-09-29)
+
+The foreground QR flow previously called `rememberMac`, which replaced any saved
+row with the same device/build. A successful Tailscale scan could therefore erase
+the native locator even though the new route grant had been saved correctly.
+`NativePairingPersistence` now handles the authenticated write under a captured
+account/team scope. It verifies the login inside the credential transaction and
+requires a matching saved QR grant for the reported canonical device/exact build.
+
+If exactly one fully scoped native row already owns that Mac/build, the write
+retains its code, name and origin, leaving the saved selection and draft/
+notification references intact. It selects that existing locator instead of
+writing a new QR row. The foreground closes its temporary QR connection and
+reconnects through the retained computer's chosen connection method. Adding a
+route does not change that method. The route remains in the encrypted grant store.
+This follows the pinned iOS persistence model's exact-scope/build matching and
+retention of existing reconnect routes when authority is unchanged.
+
+Native rows from another user/team and sibling builds are retained. UUID spelling
+is canonicalized for comparison; opaque device IDs remain case-sensitive. An
+unscoped or internally inconsistent native row is not guessed or overwritten;
+the UI asks to reconnect that native computer and add its route from Details.
+Multiple matching native rows also reject the merge. Account/team permission is
+checked before and after the encrypted write, outside the credential lock to
+avoid inversion with account refresh.
+
+All **45 focused JVM cases passed**: 11 new pairing-persistence cases, 22 route
+authorization cases and 12 computer-removal cases. Coverage includes native
+identity/name/origin preservation, selection, retained grants, UUID aliases,
+other owners/builds, absent/mismatched grants, changed login, ambiguous/unscoped
+rows, inconsistent native locators and standalone QR update behavior. The first
+compile attempt exposed a missing Flow `first` import in the foreground effect;
+adding it produced the passing final run. Production Android sources compile.
+Logs/XML are retained in ignored `captures/runtime/tailscale-pairing-merge/`.
+No APK or Android instrumentation was run for this feature commit. The last APK
+remains the `67702b0` diagnostics checkpoint above; the Pixel still has `f0dfc7f`
+and signed published build 157 remains unchanged. No physical Pixel was detected.
+
+This checkpoint fixes QR attachment to an existing scoped native computer. It is
+not full paired-computer storage unification: standalone legacy QR rows still
+need scoped records, stable identity when later upgraded to native discovery,
+and alias handling for their existing drafts/notifications. That work and
+physical QR/reconnect acceptance remain open.
+
 ## Remaining integration and acceptance
 
-- Unify the legacy QR pairing entry point with native computer identity/method
-  selection; targeted Details pairing now preserves identity, but the original
-  QR screen still uses its legacy saved-row flow.
+- Finish standalone legacy QR storage unification: scoped computer records,
+  identity retained when later upgraded to native discovery, and draft/notification
+  aliases. Generic QR attachment now preserves an existing scoped native row;
+  targeted Details pairing also preserves identity and method.
 - Exercise the implemented readiness, route diagnostics and failure advice on the
   physical Pixel/Mac VPN. TCP transport RTT is not available; RPC response timing
   is reported separately.

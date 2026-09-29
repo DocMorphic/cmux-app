@@ -52,16 +52,17 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     }
 
     fun rememberMac(code: String, deviceId: String, name: String, instanceTag: String? = null) = update { state ->
-        val previous = state.optJSONArray("pairings")
-        val next = org.json.JSONArray()
-        if (previous != null) for (index in 0 until previous.length()) {
-            val item = previous.optJSONObject(index) ?: continue
-            if (item.optString("code") != code &&
-                (deviceId.isBlank() || item.optString("device_id") != deviceId ||
-                    item.optString("instance_tag").takeIf { !item.isNull("instance_tag") && it.isNotBlank() } != instanceTag)) next.put(item)
-        }
-        next.put(JSONObject().put("code", code).put("device_id", deviceId).put("name", name).put("instance_tag", instanceTag))
-        state.put("pairings", next).put("pairing_code", code)
+        NativePairingPersistence.remember(state, PairedMac(code, deviceId, name, instanceTag))
+    }
+
+    internal fun rememberAuthenticatedMac(incoming: PairedMac, team: NativeTeamScope,
+                                         permits: () -> Boolean): PairedMac {
+        check(permits()) { "Account or team changed. Reconnect to the Mac." }
+        var remembered: PairedMac? = null
+        update { state -> remembered = NativePairingPersistence.remember(state, incoming, team) }
+        // Keep the account/team lock outside the credential transaction, like grant storage.
+        check(permits()) { "Account or team changed. Reconnect to the Mac." }
+        return checkNotNull(remembered)
     }
 
     fun forgetMac(code: String) = update { state ->

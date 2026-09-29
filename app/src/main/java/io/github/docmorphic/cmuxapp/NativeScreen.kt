@@ -75,6 +75,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 
 private val nativePage = Color(0xFF0B0C0E)
@@ -809,6 +810,10 @@ fun NativeScreen(
         busy = true
         try {
             val pairing = PairingCodeParser.parse(requestedCode).getOrThrow()
+            val pairingOwner = if (sharedConnections != null) kotlinx.coroutines.withTimeout(30_000) {
+                accountTeams.state.first { it.scope != null || it.error != null }.scope
+                    ?: error("Refresh your account teams before connecting.")
+            } else null
             val active = connection.connectPairing(pairing, account)
             try {
                 val status = active.hostStatus()
@@ -828,8 +833,21 @@ fun NativeScreen(
                     }
                 ensureActive()
                 if (code != requestedCode || !signedIn) throw CancellationException("Connection changed")
-                store.rememberMac(requestedCode, status.optString("mac_device_id"), displayName,
+                val verified = NativeCredentialStore.PairedMac(requestedCode, status.optString("mac_device_id"), displayName,
                     status.optString("mac_instance_tag").takeIf { !status.isNull("mac_instance_tag") && it.isNotBlank() })
+                val remembered = if (pairingOwner != null) store.rememberAuthenticatedMac(verified, pairingOwner) {
+                    accountTeams.isCurrent(pairingOwner) && signedIn && code == requestedCode
+                } else {
+                    store.rememberMac(verified.code, verified.deviceId, verified.name, verified.instanceTag)
+                    verified
+                }
+                if (remembered.code != requestedCode) {
+                    active.close()
+                    savedPairedMacs = store.pairedMacs()
+                    code = remembered.code
+                    connectionError = null; retryDelay = 2_000; busy = false
+                    return@LaunchedEffect
+                }
                 hostName = displayName; hostCapabilities = capabilities
                 terminalTransport = TerminalTransport.resolve(capabilities, status.optString("terminal_fidelity"))
                 applyListing(listing); notifications = feed
