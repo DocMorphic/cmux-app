@@ -12,6 +12,13 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Direct transport prerequisite (2026-09-29):** the native runtime now supports a
+separate relay-disabled endpoint with the same enrolled key, explicit address
+requirements and normal identity/admission checks. All eighteen native Android
+cases and thirty-six JVM regressions pass. The per-computer preference, backend
+selection and UI integration remain open; no Direct selector is exposed yet.
+See [DIRECT_CONNECTION.md](DIRECT_CONNECTION.md).
+
 **Native computer removal integration (2026-09-29):** Details now confirms
 selected-team, exact-build removal through the active V2 control path, then
 clears captured local pairing/selection and appearance state. Local save failures

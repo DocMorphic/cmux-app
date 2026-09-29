@@ -23,10 +23,14 @@ class IrxRelayCredential(val url: String, val token: String, val expiresAt: Long
     override fun toString() = "IrxRelayCredential(url=$url, expiresAt=$expiresAt)"
 }
 
+/** Relay policy belongs to an endpoint, so Direct uses a separate endpoint for the same enrolled key. */
+enum class IrxEndpointPathMode { AUTOMATIC, DIRECT_ONLY }
+
 /** One endpoint for one enrolled installation. Mobile clients advertise no initial remote streams. */
 class IrxEndpointRuntime private constructor(private val endpoint: Endpoint,
                                            credentials: List<IrxRelayCredential>,
-                                           private val now: () -> Long) : AutoCloseable {
+                                           private val now: () -> Long,
+                                           val pathMode: IrxEndpointPathMode) : AutoCloseable {
     private val lock = Any()
     private val relays = Mutex()
     private var closed = false
@@ -37,6 +41,8 @@ class IrxEndpointRuntime private constructor(private val endpoint: Endpoint,
     /** Upsert changed tokens before retiring expired URLs; live relay links survive token rotation. */
     suspend fun updateCredentials(credentials: List<IrxRelayCredential>) = relays.withLock {
         synchronized(lock) { check(!closed) { "Irx endpoint closed" } }
+        // Credential rotation must never turn a direct endpoint into an automatic one.
+        if (pathMode == IrxEndpointPathMode.DIRECT_ONLY) return@withLock
         val usable = credentials.filter { it.expiresAt > now() }
         for (credential in usable) {
             if (installed[credential.url]?.token != credential.token) {
@@ -52,16 +58,20 @@ class IrxEndpointRuntime private constructor(private val endpoint: Endpoint,
         }
     }
 
-    suspend fun dial(peerHex: String, relayUrl: String, permits: () -> Boolean,
+    suspend fun dial(peerHex: String, relayUrl: String?, permits: () -> Boolean,
                      directAddresses: List<String> = emptyList()): IrxClientSession {
-        require(directAddresses.size <= 8)
+        val directOnly = pathMode == IrxEndpointPathMode.DIRECT_ONLY
+        require(directAddresses.size <= if (directOnly) 16 else 8)
+        require(!directOnly || directAddresses.isNotEmpty()) { "Direct mode needs an enabled address" }
         require(peerHex.matches(Regex("[0-9a-f]{64}")))
-        require(URI(relayUrl).scheme == "https")
+        val relay = if (directOnly) null else relayUrl.also {
+            require(it != null && URI(it).scheme == "https")
+        }
         requireAuthority(permits)
         val peer = peerHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         val connection = withTimeout(20_000) {
             EndpointId.fromBytes(peer).use { id ->
-                EndpointAddr(id, relayUrl, directAddresses).use { address -> endpoint.connect(address, IrxWire.ALPN.toByteArray()) }
+                EndpointAddr(id, relay, directAddresses).use { address -> endpoint.connect(address, IrxWire.ALPN.toByteArray()) }
             }
         }
         // Admission takes ownership of the connection, including failed admission cleanup.
@@ -80,7 +90,9 @@ class IrxEndpointRuntime private constructor(private val endpoint: Endpoint,
         }
         try {
             requireAuthority(permits)
-            admitted.authorizeDirectPaths()
+            // Explicit Direct candidates are already known. Upstream only enables
+            // automatic NAT discovery after admission on the automatic endpoint.
+            if (!directOnly) admitted.authorizeDirectPaths()
             requireAuthority(permits)
             synchronized(lock) {
                 check(!closed)
@@ -118,15 +130,17 @@ class IrxEndpointRuntime private constructor(private val endpoint: Endpoint,
         private val cleanup = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         suspend fun bind(key: IrohInstallationKey, credentials: List<IrxRelayCredential>,
-                         now: () -> Long = { System.currentTimeMillis() / 1000 }): IrxEndpointRuntime {
-            val usable = credentials.filter { it.expiresAt > now() }
-            if (usable.isEmpty()) throw IOException("No valid Iroh relay credentials")
+                         now: () -> Long = { System.currentTimeMillis() / 1000 },
+                         pathMode: IrxEndpointPathMode = IrxEndpointPathMode.AUTOMATIC): IrxEndpointRuntime {
+            val directOnly = pathMode == IrxEndpointPathMode.DIRECT_ONLY
+            val usable = if (directOnly) emptyList() else credentials.filter { it.expiresAt > now() }
+            if (!directOnly && usable.isEmpty()) throw IOException("No valid Iroh relay credentials")
             require(usable.size <= 16 && usable.map { it.url }.distinct().size == usable.size)
             val seed = key.seedForEndpoint()
             val bound = try {
                 RelayMap.empty().use { map ->
                     usable.forEach { map.insert(RelayConfig(it.url, authToken = it.token)) }
-                    RelayMode.custom(map).use { mode ->
+                    (if (directOnly) RelayMode.disabled() else RelayMode.custom(map)).use { mode ->
                         Endpoint.bind(EndpointOptions(preset = presetMinimal(), secretKey = seed,
                             alpns = listOf(IrxWire.ALPN.toByteArray()), relayMode = mode,
                             portMappingEnabled = false, deferNatTraversalUntilAuthorized = true,
@@ -135,8 +149,10 @@ class IrxEndpointRuntime private constructor(private val endpoint: Endpoint,
                 }
             } finally { seed.fill(0) }
             try {
-                withTimeout(20_000) { bound.online() }
-                return IrxEndpointRuntime(bound, usable, now)
+                // online() is relay readiness and cannot be awaited for a relay-disabled endpoint.
+                if (!directOnly) withTimeout(20_000) { bound.online() }
+                currentCoroutineContext().ensureActive()
+                return IrxEndpointRuntime(bound, usable, now, pathMode)
             } catch (failure: Throwable) {
                 withContext(NonCancellable) { try { bound.shutdown() } finally { bound.close() } }
                 throw failure
