@@ -31,7 +31,8 @@ internal fun NativePrivatePathsSettings(runtime: NativeIrohRuntime?, state: Nati
 @Composable
 internal fun NativePrivatePathsSection(computers: List<IrohV2Computer>,
     load: suspend () -> List<NativePrivatePath>,
-    change: suspend ((NativePrivatePathStore) -> Unit) -> List<NativePrivatePath>) {
+    change: suspend ((NativePrivatePathStore) -> Unit) -> List<NativePrivatePath>,
+    showReset: Boolean = true, emptyMessage: String = "No Macs available in this team.") {
     var paths by remember { mutableStateOf(emptyList<NativePrivatePath>()) }
     var pending by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -75,8 +76,8 @@ internal fun NativePrivatePathsSection(computers: List<IrohV2Computer>,
                 editor = NativePrivatePath(mac.deviceId, mac.buildTag, mac.name, emptyList())
             }) { Text("Add addresses for ${mac.name}" + if (mac.buildTag != "default") " (${mac.buildTag})" else "") }
         }
-        if (paths.isEmpty() && computers.isEmpty()) Text("No Macs available in this team.", fontSize = 13.sp)
-        if (paths.any { it.enabled }) TextButton(enabled = !pending, onClick = { error = null; resetting = true }) { Text("Reset Private Addresses") }
+        if (paths.isEmpty() && computers.isEmpty()) Text(emptyMessage, fontSize = 13.sp)
+        if (showReset && paths.any { it.enabled }) TextButton(enabled = !pending, onClick = { error = null; resetting = true }) { Text("Reset Private Addresses") }
         error?.let { Text(it, color = Color(0xFFFFC170), fontSize = 13.sp) }
         Text("Addresses stay on this Android device and are not included in connection reports.", fontSize = 12.sp, color = Color(0xFF9B9FA8))
     }

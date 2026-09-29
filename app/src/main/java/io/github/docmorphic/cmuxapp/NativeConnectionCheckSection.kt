@@ -10,6 +10,13 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
 @Composable
+internal fun NativeLegacyConnectionCheckSettings(client: MobileRpcClient?, macs: List<NativeCredentialStore.PairedMac>,
+                                                code: String, ready: Boolean) {
+    if (PairingCodeParser.parse(code).getOrNull() is PairingCode.Tailscale)
+        NativeConnectionCheckSettings(client, macs, code, ready)
+}
+
+@Composable
 internal fun NativeConnectionCheckSettings(client: MobileRpcClient?, macs: List<NativeCredentialStore.PairedMac>,
                                           code: String, ready: Boolean) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -27,7 +34,8 @@ internal fun NativeConnectionCheckSettings(client: MobileRpcClient?, macs: List<
 
 @Composable
 internal fun NativeConnectionCheckSection(enabled: Boolean, run: suspend () -> NativeConnectionReport,
-                                         share: (String) -> Unit) {
+                                         share: (String) -> Unit,
+                                         disabledMessage: String = "Connect to a Mac to run a check.") {
     var running by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf<NativeConnectionReport?>(null) }
     val scope = rememberCoroutineScope()
@@ -39,7 +47,7 @@ internal fun NativeConnectionCheckSection(enabled: Boolean, run: suspend () -> N
                 scope.launch { try { report = run() } finally { running = false } }
             }
         }) { Text(if (running) "Checking…" else "Check Connection") }
-        if (!enabled) Text("Connect to a Mac to run a check.", fontSize = 13.sp, color = Color(0xFF9B9FA8))
+        if (!enabled) Text(disabledMessage, fontSize = 13.sp, color = Color(0xFF9B9FA8))
         report?.let { result ->
             CheckRow("Active Route", result.route)
             CheckRow("Encrypted Transport", result.encryption)

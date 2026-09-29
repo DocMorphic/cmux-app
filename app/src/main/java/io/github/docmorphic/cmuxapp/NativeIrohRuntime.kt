@@ -106,6 +106,39 @@ internal class NativeIrohRuntime(
         }
     }
 
+    /** Refresh and check a specific Mac without selecting it or retaining a new UI/service lease. */
+    suspend fun checkComputer(team: NativeTeamScope, target: NativeComputerTarget,
+                              timeoutMillis: Long = 30_000): NativeConnectionReport = try {
+        withTimeout(timeoutMillis) {
+            val run = synchronized(lock) { owner } ?: error("Networking is not ready")
+            requireCurrent(run)
+            if (run.account != team) return@withTimeout NativeConnectionReport(failure = NativeConnectionReport.Failure.ACCOUNT)
+            val service = synchronized(lock) { run.service } ?: error("Networking is not ready")
+            service.refresh()
+            requireCurrent(run)
+            val snapshot = service.state.value
+            val mac = snapshot.computers.singleOrNull { target.matches(it) }
+            if (!snapshot.ready || (snapshot.permissionExpiresAt ?: 0) <= now() || mac == null)
+                return@withTimeout NativeConnectionReport(failure = NativeConnectionReport.Failure.DISCOVERY)
+            val locator = PairingCodeParser.computer(mac, team)
+            val pairing = PairingCodeParser.parse(locator).getOrThrow() as PairingCode.Iroh
+            connectCurrent(pairing, run).use { lease ->
+                val savedIdentity = NativeCredentialStore.PairedMac(locator, mac.deviceId, mac.name, mac.buildTag)
+                NativeConnectionCheck.run(lease, savedIdentity).also { requireCurrent(run) }
+            }
+        }
+    } catch (failure: Exception) {
+        currentCoroutineContext().ensureActive()
+        val reason = when {
+            failure is TimeoutCancellationException -> NativeConnectionReport.Failure.TIMEOUT
+            !isCurrent(team) || (failure is IrohV2ServerFailure &&
+                (failure.code in IrohV2Recovery.terminalCodes || failure.code in IrohV2Recovery.authenticationCodes)) ||
+                (failure is IrohV2HttpFailure && failure.status in setOf(401, 403)) -> NativeConnectionReport.Failure.ACCOUNT
+            else -> NativeConnectionReport.Failure.CONNECTION
+        }
+        NativeConnectionReport(failure = reason)
+    }
+
     suspend fun networking(team: NativeTeamScope, refresh: Boolean = false): NativeNetworkingSnapshot =
         withContext(Dispatchers.IO) {
             val run = synchronized(lock) { owner } ?: error("Networking is not ready")
@@ -144,11 +177,12 @@ internal class NativeIrohRuntime(
             else "The Mac connection changed. Reconnecting…", failure)
     }
 
-    private suspend fun connectCurrent(pairing: PairingCode.Iroh): MobileRpcClient {
+    private suspend fun connectCurrent(pairing: PairingCode.Iroh, expectedOwner: Owner? = null): MobileRpcClient {
         val available = withTimeout(30_000) { state.first { it.ready || (!it.loading && it.error != null) } }
         check(available.ready) { available.error ?: "Waiting for your computers" }
         val run = synchronized(lock) { owner } ?: error("Account session changed")
         requireCurrent(run)
+        check(expectedOwner == null || expectedOwner === run) { "Account session changed" }
         require(pairing.userId == null || pairing.userId == run.account.userId) { "This computer belongs to another account" }
         require(pairing.teamId == null || pairing.teamId == run.account.teamId) { "Select this computer's team first" }
         val service = synchronized(lock) { run.service } ?: error("Account session changed")

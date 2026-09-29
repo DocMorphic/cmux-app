@@ -76,6 +76,28 @@ class NativeNetworkingScreenTest {
         compose.onNodeWithText("9", substring = false).assertExists()
     }
 
+    @Test fun networkingResetConfirmsAndRetainsDisabledPrivateAddresses() {
+        var json: String? = null
+        val store = NativePrivatePathStore({ json }, { json = it })
+        val path = NativePrivatePath("fixture-mac", "default", "Test Mac", listOf("10.0.0.8:58470"), true)
+        store.upsert(path)
+        val gate = CompletableDeferred<Unit>()
+        var calls = 0
+        compose.setContent { CmuxTheme { NativeNetworkingScreen(load = { snapshot() }, onBack = {}, pollMillis = 60_000,
+            reset = { calls++; gate.await(); store.reset() }) } }
+        compose.onNodeWithContentDescription("Reset Networking Settings").performClick()
+        compose.onNodeWithText("Cancel").performClick()
+        assertEquals(0, calls); assertTrue(store.load().single().enabled)
+        compose.onNodeWithContentDescription("Reset Networking Settings").performClick()
+        compose.onNodeWithText("Reset to Defaults").performClick()
+        compose.onNodeWithText("Resetting…").assertIsNotEnabled().performClick()
+        compose.onNodeWithText("Cancel").assertIsNotEnabled()
+        compose.runOnIdle { assertEquals(1, calls); gate.complete(Unit) }
+        compose.waitUntil(5000) { !store.load().single().enabled }
+        assertEquals(path.addresses, store.load().single().addresses)
+        compose.onNodeWithText("Reset Networking Settings?").assertDoesNotExist()
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()

@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,7 +34,8 @@ internal fun NativeNetworkingSettings(runtime: NativeIrohRuntime?, state: Native
         TextButton(onClick = { open = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Networking  ›") }
         if (open) Dialog(onDismissRequest = { open = false },
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-            NativeNetworkingScreen(load = { refresh -> runtime.networking(team, refresh) }, onBack = { open = false })
+            NativeNetworkingScreen(load = { refresh -> runtime.networking(team, refresh) }, onBack = { open = false },
+                reset = { runtime.privatePaths(team) { it.reset() }; Unit })
         }
     }
 }
@@ -41,7 +44,8 @@ internal fun NativeNetworkingSettings(runtime: NativeIrohRuntime?, state: Native
 @OptIn(ExperimentalCoroutinesApi::class)
 @Composable
 internal fun NativeNetworkingScreen(load: suspend (Boolean) -> NativeNetworkingSnapshot, onBack: () -> Unit,
-    pollMillis: Long = 2000, timeoutMillis: Long = 15_000) {
+    pollMillis: Long = 2000, timeoutMillis: Long = 15_000, reset: (suspend () -> Unit)? = null) {
+    var resetPending by remember { mutableStateOf(false) }
     var snapshot by remember { mutableStateOf<NativeNetworkingSnapshot?>(null) }
     var pending by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -85,7 +89,8 @@ internal fun NativeNetworkingScreen(load: suspend (Boolean) -> NativeNetworkingS
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onBack) { Text("‹  Back") }
-                Text("Networking", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                Text("Networking", Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                if (reset != null) NativeNetworkingResetButton(reset, !pending) { resetPending = it }
             }
             Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
                 .padding(horizontal = 22.dp, vertical = 12.dp)) {
@@ -94,8 +99,8 @@ internal fun NativeNetworkingScreen(load: suspend (Boolean) -> NativeNetworkingS
                 NetworkingRow("Direct Connections", "Automatic")
                 Text("Direct peer-to-peer stays enabled. cmux supplies the relay addresses for your account.",
                     fontSize = 13.sp, color = muted)
-                TextButton(enabled = !pending, onClick = {
-                    if (!pending) { pending = true; requests.trySend(Unit) }
+                TextButton(enabled = !pending && !resetPending, onClick = {
+                    if (!pending && !resetPending) { pending = true; requests.trySend(Unit) }
                 }) { Text(if (pending) "Refreshing…" else "Refresh Networking") }
                 error?.let { Text(it, color = Color(0xFFFFC170), fontSize = 13.sp) }
                 snapshot?.let { value ->
@@ -157,3 +162,32 @@ private val muted = Color(0xFF9B9FA8)
 internal fun networkingDate(seconds: Long): String = runCatching {
     DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM).format(Date(Math.multiplyExact(seconds, 1000)))
 }.getOrDefault("Unavailable")
+
+@Composable
+private fun NativeNetworkingResetButton(reset: suspend () -> Unit, enabled: Boolean, busyChanged: (Boolean) -> Unit) {
+    var confirm by remember { mutableStateOf(false) }
+    var pending by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    TextButton(enabled = enabled && !pending, onClick = { error = false; confirm = true },
+        modifier = Modifier.semantics { contentDescription = "Reset Networking Settings" }) { Text("Reset") }
+    if (confirm) AlertDialog(onDismissRequest = { if (!pending) confirm = false },
+        title = { Text("Reset Networking Settings?") },
+        text = { Column {
+            Text("Disable all private addresses in this team. Saved addresses will remain so you can enable them again.")
+            if (error) Text("Could not reset networking. Try again.", color = Color(0xFFFFC170))
+        } },
+        confirmButton = { TextButton(enabled = !pending, onClick = {
+            if (!pending) {
+                pending = true; error = false; busyChanged(true)
+                scope.launch {
+                    try { withTimeout(15_000) { reset() }; confirm = false }
+                    catch (_: TimeoutCancellationException) { error = true }
+                    catch (cancel: CancellationException) { throw cancel }
+                    catch (_: Exception) { error = true }
+                    finally { pending = false; busyChanged(false) }
+                }
+            }
+        }) { Text(if (pending) "Resetting…" else "Reset to Defaults") } },
+        dismissButton = { TextButton(enabled = !pending, onClick = { confirm = false }) { Text("Cancel") } })
+}

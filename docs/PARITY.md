@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Per-computer detail checkpoint (2026-09-29):** native computer rows now have
+Details without changing the active workspace. Checks refresh discovery, resolve
+the exact Mac/build, borrow and release their own connection, and can run without
+opening that Mac first. Private-address editing is per computer; the all-computer
+reset moved to Networking. Thirty JVM checks and seven emulator UI cases pass
+(the final legacy-QR compatibility adjustment has JVM/build evidence). Appearance,
+Mac power, direct-only/route controls, account revoke and physical navigation
+acceptance remain open; see [COMPUTER_DETAILS.md](COMPUTER_DETAILS.md).
+
 **Live Networking / Pixel checkpoint (2026-09-29):** Settings now has a
 Networking page with actual endpoint/home-relay state, broker relay metadata,
 directory permission/revision and authenticated refresh. Nineteen JVM checks,

@@ -1146,6 +1146,7 @@ fun NativeScreen(
                         Text("◉", color = nativeAccent, fontSize = 20.sp)
                         Spacer(Modifier.width(14.dp))
                         Text(mac.name.ifBlank { "cmux" }, Modifier.weight(1f))
+                        NativeSavedComputerDetailsButton(sharedConnections?.native, computerState, mac)
                         if (code == mac.code) Text(if (client != null) "Connected" else "Selected", color = nativeAccent, fontSize = 12.sp)
                     }
                 }
@@ -1204,8 +1205,7 @@ fun NativeScreen(
                 }
                 TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
                 NativeNetworkingSettings(sharedConnections?.native, computerState)
-                NativeConnectionCheckSettings(client, pairedMacs, code, connectionReady)
-                NativePrivatePathsSettings(sharedConnections?.native, computerState)
+                NativeLegacyConnectionCheckSettings(client, pairedMacs, code, connectionReady)
                 Text("DISPLAY", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                     color = nativeMuted, fontSize = 11.sp)
                 Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp),
@@ -1306,7 +1306,7 @@ fun NativeScreen(
                     if (taskDraftLoadError != null) TextButton(onClick = { taskDraftLoadAttempt++ }) { Text("Retry") }
                 }
             }
-            code.isBlank() -> NativeComputerPicker(teamState, computerState,
+            code.isBlank() -> NativeComputerPicker(teamState, computerState, runtime = sharedConnections?.native,
                 hasSavedComputers = pairedMacs.isNotEmpty(),
                 onSelect = { mac -> computerState.account?.let { code = PairingCodeParser.computer(mac, it) } },
                 onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
@@ -2017,7 +2017,7 @@ private fun nativeConnectionFailure(failure: Throwable): String {
 
 @Composable
 private fun NativeComputerPicker(
-    teamState: NativeAccountTeamsState, computerState: NativeComputersState,
+    teamState: NativeAccountTeamsState, computerState: NativeComputersState, runtime: NativeIrohRuntime? = null,
     hasSavedComputers: Boolean, onSelect: (IrohV2Computer) -> Unit, onSettings: () -> Unit,
     onRefresh: () -> Unit, onPairing: (String) -> Unit, onNewTask: () -> Unit,
     onUseHelper: () -> Unit, onLicenses: () -> Unit, onError: (String?) -> Unit
@@ -2053,6 +2053,7 @@ private fun NativeComputerPicker(
                         Text(mac.name.ifBlank { "Mac" }, fontWeight = FontWeight.Medium)
                         Text("Available", color = nativeMuted, fontSize = 12.sp)
                     }
+                    NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac))
                     Text("›", color = nativeMuted, fontSize = 24.sp)
                 }
             }

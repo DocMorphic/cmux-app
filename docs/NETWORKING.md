@@ -12,7 +12,9 @@ Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`:
 
 ## Connection Check
 
-Settings now exposes a bounded check against the selected, connected Mac. It
+The original Settings entry exposed a bounded check against the selected, connected Mac.
+Native checks now also have an independent per-computer detail flow; see
+[COMPUTER_DETAILS.md](COMPUTER_DETAILS.md). It
 verifies the saved Mac device/instance identity through `mobile.host.status`, then
 performs an authenticated `mobile.workspace.list` read. It sends no terminal input
 or workspace mutation. A ten-second overall deadline bounds the check; ordinary
@@ -63,7 +65,8 @@ connection checks from the goal.
 
 ## Per-Mac private addresses
 
-Settings supports add/edit, enable/disable, confirmed remove and confirmed reset.
+Computer Details supports add/edit, enable/disable and confirmed remove.
+Networking provides the confirmed all-computer reset (see COMPUTER_DETAILS.md).
 Reset disables all paths in the current scope while retaining their addresses,
 matching the active iOS adapter. The editor accepts one numeric IP and UDP port
 per line (up to eight); it rejects DNS names, missing/invalid ports, loopback,
@@ -119,8 +122,8 @@ requirements below.
 - Applicable debug route constraints and remaining diagnostics navigation.
 - Separate direct-only endpoint/intents, preserving upstream admission and
   endpoint-wide relay-policy isolation.
-- Per-computer detail-screen placement and checks that discover/dial an offline
-  or unselected Mac. The existing Connection Check checks the connected Mac.
+- Physical acceptance of the new per-computer details and discovery/dial checks,
+  plus remaining computer-detail controls tracked in [COMPUTER_DETAILS.md](COMPUTER_DETAILS.md).
 - Applicable reachability stages, diagnostic log export/clear, and shared IT
   allowlist. Do not claim tests for stages the active adapter reports unavailable.
 - Real-Mac custom-address reachability and route transitions, physical Pixel

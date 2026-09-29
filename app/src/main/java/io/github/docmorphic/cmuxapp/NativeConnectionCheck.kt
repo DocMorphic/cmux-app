@@ -11,6 +11,7 @@ internal data class NativeConnectionReport(
     val failure: Failure? = null
 ) {
     enum class Failure(val advice: String) {
+        DISCOVERY("This Mac is not available in your team. Open cmux on the Mac and enable mobile pairing, then try again."),
         IDENTITY("The Mac identity could not be verified. Reconnect to the intended Mac."),
         ACCOUNT("Confirm both devices use the same cmux account and team."),
         TIMEOUT("The Mac did not answer in time. Check your connection and try again."),
