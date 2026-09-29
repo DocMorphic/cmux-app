@@ -86,7 +86,7 @@ work. This follow-up has no new APK or live-device claim.
 | Changes | `CmuxMobileChanges` | Collapsible directory tree, path-stable diff pager, numbered/wrapped hunks, grapheme-safe emphasis, line/hunk copy, persistent pinch font, refresh/retry and progressive 6,000→24,000→96,000-line loading coded; identity-checked hidden-context expansion and chunked content transfer coded; model/request checks passed; Before/After image, PDF, media and file-action previews coded; ten Changes cases passed in an Android 17 emulator run; rendered Markdown now shares the original cmux web assets; unified viewer/text controls coded; phone QA, raw syntax/streaming and document-format parity remain open | View changed files and diffs from the active workspace |
 | Terminal Files | `TerminalArtifactFilesSheet`, `ChatArtifactFolderView`, `ChatArtifactViewerDestination` | Scoped RPC/paging/search store, Session/In view sheet, filters/sort, list/three-column grid, thumbnails, folder navigation, swipe previews and file actions coded; terminal menu/counted chip and direct relative/absolute path taps capability gated; 285 JVM checks and all 12 combined Android 17 Files/shared-preview runtime cases passed; row Share, folder-tap preference and rendered Markdown have passing runtime evidence; unified viewer/text controls coded; raw syntax/streaming, remaining menu fidelity, broader document formats and physical acceptance remain open | Browse terminal/session files, folders and previews without crossing authorization scopes |
 | Tasks and agents | Task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
-| Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, connection status, Open Folders on Tap and Show Missing Files controls coded; full network diagnostics and reset missing | Account, computers, notification, display, network, diagnostics, reset |
+| Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, connection status, Open Folders on Tap and Show Missing Files controls coded; local reset with confirmation, platform-owned erase and emulator acceptance implemented; full network diagnostics missing | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
 | Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
@@ -122,6 +122,39 @@ notification route on Android 17. The user’s notification permission and backg
 setting are enabled. Doze, boot and network recovery, plus server push while the
 app process is stopped, remain separate open gates. Details and evidence are in
 [NATIVE_RUNTIME_CHECKPOINT.md](NATIVE_RUNTIME_CHECKPOINT.md).
+
+## Local reset parity (2026-09-29)
+
+Settings now includes **Erase All Data on This Device**, following the pinned iOS
+`MobileSettingsResetSection`: an explicit destructive confirmation, a description
+of local data removal and preservation of remote account/computer data. Android's
+`ActivityManager.clearApplicationUserData()` handles the process stop and complete
+app-data reset; workers cannot repopulate a manually emptied credential store.
+The row prevents a second request while reset is pending, reports rejection, and
+requires fresh confirmation for a retry. Android also resets runtime permissions
+and URI grants; the dialog explains the app closure and permission reset.
+
+Three Android 17 UI tests passed for cancel, single confirmed request, and false/
+throwing platform failures. A separate emulator-only acceptance runner seeded an
+encrypted account, Android Keystore key, notification setting, internal/cache/
+external files and notification permission, then pressed the real confirmation.
+Android terminated the process. A new instrumentation process verified every seed
+was absent, the key was removed and notification permission was revoked (**1 test
+passed**). The interrupted erase process itself is not counted as a passing test.
+No physical-device account data was reset.
+
+Reproduce on an explicitly selected disposable Google emulator after installing
+both APKs:
+
+```sh
+python3 scripts/check-local-reset.py --serial emulator-5554 --adb "$ANDROID_HOME/platform-tools/adb"
+```
+
+The runner and test both reject physical devices, and the platform test skips by
+default without its explicit phase argument. Evidence is in ignored
+`captures/local-reset/20260929T103259Z` (receipt and both process logs); debug APK
+SHA-256 `580c33e5160ea1bcc111030aa27b24d803f12f5d1e8baeeac3c9183966e04231`.
+[Android reset contract](https://developer.android.com/reference/android/app/ActivityManager#clearApplicationUserData()).
 
 ## Terminal modifier follow-up (2026-09-29)
 

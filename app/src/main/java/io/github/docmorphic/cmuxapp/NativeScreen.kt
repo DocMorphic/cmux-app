@@ -1175,7 +1175,8 @@ fun NativeScreen(
                         } else runCatching { NativeNotificationService.setEnabled(context, false) }
                             .onSuccess { backgroundNotifications = false; error = null }
                             .onFailure { error = it.message }
-                    }, enabled = signedIn && code.isNotBlank())
+                    }, enabled = signedIn && code.isNotBlank(),
+                        modifier = Modifier.semantics { contentDescription = "Background notifications" })
                 }
                 Text("TERMINAL", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
                 Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1214,6 +1215,7 @@ fun NativeScreen(
                 TextButton(onClick = onUseHelper, modifier = Modifier.padding(horizontal = 14.dp)) {
                     Text("Use existing helper connection", color = nativeMuted)
                 }
+                NativeLocalResetSection()
                 }
             }
             showTaskComposer -> {
