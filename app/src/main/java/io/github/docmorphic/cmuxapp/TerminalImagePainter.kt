@@ -93,9 +93,8 @@ internal class TerminalImagePainter : AutoCloseable {
     // Crop before scaling. Canvas filtering of a source subrect can otherwise
     // sample neighboring pixels outside the requested Kitty source rectangle.
     private fun bitmap(image: GhosttyGraphicsFrame.Image, crop: Crop): Bitmap {
-        val bytes = image.pixels
         var index = 0
-        fun byte() = bytes[index++].toInt() and 255
+        fun byte() = image.byteAt(index++)
         val bpp = when (image.format) { 0 -> 3; 1 -> 4; 3 -> 2; 4 -> 1; else -> error("Unexpected pixel format") }
         val colors = IntArray(crop.width * crop.height) { position ->
             index = ((crop.y + position / crop.width) * image.width + crop.x + position % crop.width) * bpp

@@ -447,3 +447,66 @@ A new Linux CI artifact remains to be verified for this bridge. Image-heavy
 performance/resource-budget parity, wider graphics corpus comparison and real
 Mac/Pixel replay/input/resize/reconnect acceptance remain open. Screen-anchored
 render-grid delivery still cannot reconstruct images absent from its payload.
+
+## Reusing unchanged image pixels (2026-09-30)
+
+Graphics snapshots now use `GVI2`. The JNI caller supplies generations for the
+immutable images it already owns; matching native images emit metadata and a
+reference marker instead of resending their pixels. The decoder verifies ID,
+generation, dimensions and format before reusing an image. Every snapshot still
+recomputes placement geometry and Unicode fragments, including when only text or
+the viewport changed. Replacements with identical dimensions receive new pixels.
+Deletion, screen changes and close release the owner's unused cache references.
+
+Image data is private: the `pixels` getter returns a defensive copy, and the
+painter uses unsigned `byteAt` reads without cloning whole images for each crop.
+Maps/lists returned by the decoder are unmodifiable. Reference packets retain
+all decoded-byte/count limits; missing or mismatched generations are rejected.
+The JNI manifest and Gradle gate require graphics snapshot version 2. Older JNI
+artifacts are incompatible, even if they already contain the placeholder bridge.
+
+The same synthetic workload was measured before and after this change: one
+1,048,576-byte RGBA image, 20 warmup updates, then 200 one-character text updates
+with graphics snapshots. Both runs used the API 37 arm64 emulator with two cores
+and 1,536 MiB RAM. The benchmark measures this snapshot path, not full UI frame
+rate; ART allocation/GC counters are process-wide. These are individual local
+runs, not physical Pixel or production performance claims.
+
+| Measurement | Before | After |
+| --- | ---: | ---: |
+| Median update/snapshot | 2.686 ms | 0.0286 ms |
+| 95th percentile | 28.127 ms | 0.0985 ms |
+| Thread CPU across 200 updates | 366.739 ms | 6.558 ms |
+| Java bytes allocated across 200 updates | 421,494,784 | 163,840 |
+| GC count | 4 | 0 |
+| Updates sharing the immutable image object | 0 | 200 |
+
+`GhosttyGraphicsProfileTest` accepts a `profile_label` instrumentation argument
+and writes JSON under the test package's external `files/profiles` directory.
+The baseline test APK is preserved locally under ignored
+`build/ghostty-profile-baseline/`. Raw measurements and runtime logs are in
+`captures/runtime/graphics-profile/`.
+
+Verification:
+
+- **7 JVM tests passed**, including reference-packet truncation, metadata
+  mismatches, missing cached pixels, defensive copies and deletion.
+- **18 native Android tests passed in 0.360 seconds**, including the profile,
+  pixel reuse with changing scroll/resize geometry, replacement/alternate-screen
+  isolation, and all prior terminal/graphics/placeholder cases.
+- **17 app rendering tests passed in 2.791 seconds**, including the hardware
+  image-replacement test and text-only placeholder geometry changes. The app
+  test APK is unchanged from the previous checkpoint, SHA-256
+  `10cfa25e249a355f2b397099c7ad16a97266d2c50146b1ec505d5b20bbc7d26d`.
+- Main and native-test APKs build and pass ELF LOAD/RELRO and ZIP 16 KB alignment.
+  Main SHA-256:
+  `0ebe10105a94723ce2055e9bd6a76a8d6f07262d51ce28fb316fcd40c804fd0a`.
+  Native-test SHA-256:
+  `7843caca90388f011edc924e5aea6423d849f944eb8486fdb153b1b934f2a44a`.
+- Emulator stopped after checks; no Pixel/Mac setting or signed release changed.
+  Linux run `36641031462` for the preceding placeholder commit was still building
+  its core at this checkpoint, and GitHub did not yet expose its logs. A current
+  GVI2 Linux artifact still needs a successful build and verification.
+
+Large-image decode/upload and overall rendering performance, resource-limit
+parity, broader graphics comparisons and real Mac/Pixel acceptance remain open.

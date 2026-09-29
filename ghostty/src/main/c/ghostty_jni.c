@@ -357,9 +357,25 @@ static bool append_virtual_placement(void *context, const CmuxVirtualPlacement *
     return !output->failed;
 }
 
-JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeGraphicsSnapshot)(JNIEnv *env, jobject self, jlong id, jint offset) {
+static int compare_generation(const void *left, const void *right) {
+    uint64_t a = *(const uint64_t *)left, b = *(const uint64_t *)right;
+    return (a > b) - (a < b);
+}
+JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeGraphicsSnapshot)(JNIEnv *env, jobject self, jlong id,
+        jint offset, jlongArray cached) {
     (void)self;
     if (offset < 0) { fail(env, "java/lang/IllegalArgumentException", "Negative scroll offset"); return NULL; }
+    if (!cached) { fail(env, "java/lang/IllegalArgumentException", "Missing image generations"); return NULL; }
+    jsize known_count = (*env)->GetArrayLength(env, cached);
+    if ((uint32_t)known_count > IMAGE_COUNT) {
+        fail(env, "java/lang/IllegalArgumentException", "Too many cached image generations"); return NULL;
+    }
+    jlong java_generations[IMAGE_COUNT];
+    uint64_t known[IMAGE_COUNT];
+    (*env)->GetLongArrayRegion(env, cached, 0, known_count, java_generations);
+    if ((*env)->ExceptionCheck(env)) return NULL;
+    for (jsize i = 0; i < known_count; i++) known[i] = (uint64_t)java_generations[i];
+    qsort(known, known_count, sizeof(*known), compare_generation);
     pthread_mutex_lock(&lock);
     Terminal *entry = lookup(env, id);
     GhosttyKittyGraphicsImageIterator images = NULL;
@@ -382,7 +398,7 @@ JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeGraphicsSnapshot)(JNIEnv *env, job
         !ok(env, ghostty_kitty_graphics_image_iterator_new(NULL, graphics, &images)) ||
         !ok(env, ghostty_kitty_graphics_placement_iterator_new(NULL, &placements)) ||
         !ok(env, ghostty_kitty_graphics_get(graphics, GHOSTTY_KITTY_GRAPHICS_DATA_PLACEMENT_ITERATOR, &placements))) goto done;
-    integer(&output, 0x47564931); // GVI1: owned images and viewport-relative placements.
+    integer(&output, 0x47564932); // GVI2: generation references plus viewport-relative placements.
     integer(&output, generation >> 32); integer(&output, generation);
     integer(&output, actual_offset); integer(&output, 0); integer(&output, 0);
     uint32_t image_count = 0, placement_count = 0;
@@ -409,8 +425,10 @@ JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeGraphicsSnapshot)(JNIEnv *env, job
         }
         image_bytes += length;
         integer(&output, image_id); integer(&output, stamp >> 32); integer(&output, stamp);
-        integer(&output, width); integer(&output, height); integer(&output, format); integer(&output, length);
-        bytes(&output, data, length);
+        bool reuse = bsearch(&stamp, known, known_count, sizeof(*known), compare_generation) != NULL;
+        integer(&output, width); integer(&output, height); integer(&output, format);
+        integer(&output, reuse ? UINT32_MAX : (uint32_t)length);
+        if (!reuse) bytes(&output, data, length);
     }
     while (ghostty_kitty_graphics_placement_next(placements)) {
         uint32_t image_id, placement_id, x_offset, y_offset;

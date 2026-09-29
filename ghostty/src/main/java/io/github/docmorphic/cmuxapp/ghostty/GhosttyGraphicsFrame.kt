@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp.ghostty
 
 import java.nio.ByteBuffer
+import java.util.Collections
 
 /** Copies of core-owned pixels and placements, valid after updates and close. */
 data class GhosttyGraphicsFrame(
@@ -9,8 +10,13 @@ data class GhosttyGraphicsFrame(
     val images: Map<Long, Image>,
     val placements: List<Placement>,
 ) {
-    data class Image(val id: Long, val generation: Long, val width: Int, val height: Int,
-                     val format: Int, val pixels: ByteArray)
+    class Image internal constructor(val id: Long, val generation: Long, val width: Int, val height: Int,
+                                     val format: Int, private val data: ByteArray) {
+        /** A defensive copy. Cached generations never share mutable pixel buffers with callers. */
+        val pixels: ByteArray get() = data.copyOf()
+        /** Unsigned read access for the painter, without copying an entire image per crop. */
+        fun byteAt(index: Int): Int = data[index].toInt() and 255
+    }
     data class Placement(val imageId: Long, val placementId: Long, val z: Int,
                          val virtual: Boolean, val internal: Boolean, val visible: Boolean,
                          val xOffset: Long, val yOffset: Long, val column: Int, val row: Int,
@@ -19,13 +25,13 @@ data class GhosttyGraphicsFrame(
                          val placeholder: Boolean = false)
 
     companion object {
-        internal fun decode(bytes: ByteArray): GhosttyGraphicsFrame {
+        internal fun decode(bytes: ByteArray, previous: Map<Long, Image> = emptyMap()): GhosttyGraphicsFrame {
             require(bytes.size in 24..16 * 1024 * 1024) { "Invalid graphics snapshot size" }
             val input = ByteBuffer.wrap(bytes)
             fun int(): Int { require(input.remaining() >= 4); return input.int }
             fun uint(): Long = int().toLong() and 0xffffffffL
             fun stamp(): Long = (uint() shl 32) or uint()
-            require(int() == 0x47564931) { "Unknown graphics snapshot" }
+            require(int() == 0x47564932) { "Unknown graphics snapshot" }
             val generation = stamp()
             val offset = int().also { require(it >= 0) }
             val imageCount = int().also { require(it in 0..1024) }
@@ -40,11 +46,20 @@ data class GhosttyGraphicsFrame(
                 val format = int()
                 val bpp = when (format) { 0 -> 3; 1 -> 4; 3 -> 2; 4 -> 1; else -> throw IllegalArgumentException("Unknown decoded pixel format") }
                 val length = int()
-                require(length.toLong() == width.toLong() * height * bpp && length <= input.remaining())
-                totalBytes += length
+                val expected = width.toLong() * height * bpp
+                totalBytes += expected
                 require(totalBytes <= 10_000_000)
-                val pixels = ByteArray(length).also { input.get(it) }
-                images[id] = Image(id, imageGeneration, width, height, format, pixels)
+                images[id] = if (length == -1) {
+                    val cached = requireNotNull(previous[id]) { "Missing image generation" }
+                    require(cached.generation == imageGeneration && cached.width == width && cached.height == height && cached.format == format) {
+                        "Mismatched image generation"
+                    }
+                    cached
+                } else {
+                    require(length.toLong() == expected && length <= input.remaining())
+                    val pixels = ByteArray(length).also { input.get(it) }
+                    Image(id, imageGeneration, width, height, format, pixels)
+                }
             }
             val placements = ArrayList<Placement>(placementCount)
             repeat(placementCount) {
@@ -70,7 +85,7 @@ data class GhosttyGraphicsFrame(
                     xOffset, yOffset, column, row, pixelWidth, pixelHeight, gridColumns, gridRows, x, y, width, height, flags and 8 != 0)
             }
             require(!input.hasRemaining()) { "Trailing graphics data" }
-            return GhosttyGraphicsFrame(generation, offset, images, placements)
+            return GhosttyGraphicsFrame(generation, offset, Collections.unmodifiableMap(images), Collections.unmodifiableList(placements))
         }
     }
 }

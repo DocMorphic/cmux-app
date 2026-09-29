@@ -3,6 +3,7 @@ package io.github.docmorphic.cmuxapp.ghostty
 /** Owns native state. Callers must close it on replay replacement and disposal. */
 class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 * 1024) : AutoCloseable {
     private var handle: Long
+    private var imageCache: Map<Long, GhosttyGraphicsFrame.Image> = emptyMap()
 
     init {
         require(columns in 2..1000 && rows in 2..1000)
@@ -36,12 +37,16 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
     @Synchronized fun graphicsSnapshot(scrollOffset: Int = 0): GhosttyGraphicsFrame {
         check(handle != 0L) { "Ghostty terminal is closed" }
         require(scrollOffset >= 0)
-        return GhosttyGraphicsFrame.decode(nativeGraphicsSnapshot(handle, scrollOffset))
+        val known = imageCache.values.map { it.generation }.toLongArray()
+        val frame = GhosttyGraphicsFrame.decode(nativeGraphicsSnapshot(handle, scrollOffset, known), imageCache)
+        imageCache = frame.images // Deleted images and previous screens are released.
+        return frame
     }
 
     @Synchronized override fun close() {
         val owned = handle
         handle = 0L
+        imageCache = emptyMap()
         if (owned != 0L) nativeDestroy(owned)
     }
 
@@ -50,7 +55,7 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
     private external fun nativeAppend(handle: Long, bytes: ByteArray)
     private external fun nativeResize(handle: Long, columns: Int, rows: Int, cellWidth: Int, cellHeight: Int)
     private external fun nativeSnapshot(handle: Long, scrollOffset: Int): ByteArray
-    private external fun nativeGraphicsSnapshot(handle: Long, scrollOffset: Int): ByteArray
+    private external fun nativeGraphicsSnapshot(handle: Long, scrollOffset: Int, cachedGenerations: LongArray): ByteArray
     private external fun nativeDestroy(handle: Long)
     private external fun nativeActiveHandles(): Int
 

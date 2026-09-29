@@ -18,7 +18,7 @@ val verifyNative by tasks.registering {
         val receipt = JsonSlurper().parse(root.resolve("jni-manifest.json")) as Map<*, *>
         check(receipt["sourceRevision"] == "edefce7785c9f439966c68588db1edbd6b435203")
         check(receipt["abi"] == "arm64-v8a" && receipt["androidApi"] == 26 && receipt["elfPageSize"] == 16384)
-        check(receipt["ndk"] == "28.2.13676358" && receipt["snapshotVersion"] == 1)
+        check(receipt["ndk"] == "28.2.13676358" && receipt["snapshotVersion"] == 1 && receipt["graphicsSnapshotVersion"] == 2)
         fun digest(file: File) = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
             .joinToString("") { "%02x".format(it) }
         check(digest(file("src/main/c/ghostty_jni.c")) == receipt["bindingSourceSha256"]) { "Rebuild Ghostty JNI after editing the binding" }

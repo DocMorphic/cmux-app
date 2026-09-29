@@ -75,7 +75,7 @@ def main():
     artifacts = [library, aggregate, *(p for p in notices.rglob("*") if p.is_file())]
     manifest = {
         "sourceRevision": REVISION, "ndk": NDK_VERSION, "androidApi": 26,
-        "abi": "arm64-v8a", "elfPageSize": 16384, "snapshotVersion": 1,
+        "abi": "arm64-v8a", "elfPageSize": 16384, "snapshotVersion": 1, "graphicsSnapshotVersion": 2,
         "bindingSourceSha256": digest(source),
         "virtualPlacementBridgeSha256": digest(bridge),
         "virtualPlacementHeaderSha256": digest(header),
