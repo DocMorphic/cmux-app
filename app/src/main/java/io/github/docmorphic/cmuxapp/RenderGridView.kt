@@ -24,19 +24,20 @@ import kotlinx.coroutines.delay
 @Composable
 fun RenderGridView(
     grid: TerminalDisplay, cells: TerminalCellMetrics, revision: Int,
-    modifier: Modifier = Modifier, scrollOffset: Int = 0
+    modifier: Modifier = Modifier, scrollOffset: Int = 0, scrollPosition: Double = scrollOffset.toDouble()
 ) {
     var blinkVisible by remember(grid) { mutableStateOf(true) }
     LaunchedEffect(grid) {
         while (true) { delay(600); blinkVisible = !blinkVisible }
     }
-    val lines = remember(grid, revision, scrollOffset) { grid.visibleLines(scrollOffset) }
+    val viewport = TerminalScrollViewport.at(scrollPosition, grid.historyLineCount, grid.activeScreen)
+    val lines = remember(grid, revision, viewport.rowOffset, viewport.topClipFraction > 0) { viewport.lines(grid) }
     val plan = remember(lines) { TerminalGridPainter.plan(lines) }
     val accessibleText = remember(lines) { RenderGrid.plainText(lines) }
     val painter = remember { TerminalGridPainter() }
     Box(modifier.background(Color(0xFF111316))) {
         Canvas(Modifier.fillMaxSize().clipToBounds().semantics { text = AnnotatedString(accessibleText) }) {
-            drawIntoCanvas { painter.draw(it.nativeCanvas, size.width, size.height, grid, plan, cells, scrollOffset, blinkVisible) }
+            drawIntoCanvas { painter.draw(it.nativeCanvas, size.width, size.height, grid, plan, cells, viewport.rowOffset, blinkVisible, viewport.topClipFraction) }
         }
     }
 }

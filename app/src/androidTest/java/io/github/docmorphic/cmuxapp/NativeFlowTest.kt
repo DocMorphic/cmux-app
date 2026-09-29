@@ -920,6 +920,48 @@ class NativeFlowTest {
         assertTrue(peer.failures.toString(), peer.failures.isEmpty())
     }
 
+    @Test fun localPrimaryScrollKeepsMacViewportStillAndHistoryTapsDoNotClickLiveTerminal() {
+        peer.gridHistoryRows = 20
+        compose.setContent {
+            CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                })
+            } }
+        }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        fun scrollIntoHistory() {
+            compose.onNodeWithText("cmux Android terminal", substring = true).performTouchInput {
+                down(center); moveBy(androidx.compose.ui.geometry.Offset(0f, 180.5f), 100)
+                advanceEventTime(400); up()
+            }
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("Scrollback ·", substring = true).fetchSemanticsNodes().isNotEmpty() }
+            assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.scroll" })
+        }
+        scrollIntoHistory()
+        // Semantics can settle before the Android compositor presents its frame.
+        // Distinct history backgrounds prove that scrollback was actually painted.
+        compose.waitUntil(5_000) {
+            val bitmap = compose.onNodeWithText("History", substring = true).captureToImage().asAndroidBitmap()
+            var historyPixels = 0
+            for (y in 0 until bitmap.height step 4) for (x in 0 until bitmap.width step 4)
+                if (bitmap.getPixel(x, y) == android.graphics.Color.rgb(18, 52, 86)) historyPixels++
+            historyPixels > 50
+        }
+        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+        val directory = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        File(directory, "terminal-local-pixel-scrollback.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        compose.onNodeWithText("Latest").performClick()
+        compose.onAllNodesWithText("Scrollback ·", substring = true).assertCountEquals(0)
+        scrollIntoHistory()
+        compose.onNodeWithText("History", substring = true).performTouchInput { click(center) }
+        compose.waitForIdle()
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.mouse" })
+        assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
     @Test fun viewportAnchoredScrollAppliesReturnedHostGrid() {
         peer.screenAnchor = false
         compose.setContent {
@@ -1736,6 +1778,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var releaseReplays: CountDownLatch? = null
     val blockedReplaySurfaces = CopyOnWriteArrayList<String>()
     @Volatile var screenAnchor = true
+    @Volatile var gridHistoryRows = 0
     @Volatile var alternateScreen = false
     @Volatile var gridFirstLine = "cmux Android terminal"
     private var viewportColumns = 40
@@ -1953,7 +1996,17 @@ internal class NativeFixturePeer : AutoCloseable {
                 .put("surface_id", params.getString("surface_id")).put("columns", columns).put("rows", rows)
                 .put("render_epoch", "fixture").put("render_revision", ++revision).put("full", true)
                 .put("active_screen", if (alternateScreen) "alternate" else "primary")
-                .put("row_spans", spans).put("styles", JSONArray())
+                .put("row_spans", spans).put("styles", JSONArray()).apply {
+                    if (gridHistoryRows > 0) {
+                        put("anchor", "screen"); put("history_rows", gridHistoryRows); put("row_space_revision", 1)
+                        put("scrollback_rows", gridHistoryRows)
+                        put("styles", JSONArray().put(JSONObject().put("id", 1).put("background", "#123456")))
+                        put("scrollback_spans", JSONArray((0 until gridHistoryRows).map { row ->
+                            val text = "History $row".take(columns)
+                            JSONObject().put("row", row).put("column", 0).put("text", text).put("cell_width", text.length).put("style_id", 1)
+                        }))
+                    }
+                }
                 .put("cursor", JSONObject().put("row", 4.coerceAtMost(rows - 1)).put("column", 0)
                     .put("visible", true).put("style", "block")))
         }

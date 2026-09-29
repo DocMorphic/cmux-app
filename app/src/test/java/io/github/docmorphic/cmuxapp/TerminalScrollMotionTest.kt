@@ -55,4 +55,20 @@ class TerminalScrollMotionTest {
         assertEquals(before + 1, delivered)
         motion.stop()
     }
+    @Test fun pixelPathDeliversSubCellMotionWhileRemoteWheelPathKeepsWholeRows() = runBlocking<Unit> {
+        val motion = TerminalScrollMotion(this, exponentialDecay(), 50f, 8000f)
+        val cell = TerminalGeometry.Cell(1, 2)
+        val received = mutableListOf<Double>()
+        fun move(pixels: Float, linePath: Boolean) = motion.move(pixels, 20f, cell, linePath) { delta, at ->
+            assertEquals(cell, at); received += delta; true
+        }
+        assertTrue(move(3f, false)); assertTrue(move(-1f, false))
+        assertEquals(listOf(.15, -.05), received)
+        motion.stop(); received.clear()
+        assertTrue(move(3f, true)); assertTrue(move(16f, true)); assertTrue(received.isEmpty())
+        assertTrue(move(2f, true)); assertEquals(listOf(1.0), received)
+        assertFalse(motion.move(Float.NaN, 20f, cell, false) { _, _ -> error("Invalid input was delivered") })
+        motion.stop()
+    }
+
 }

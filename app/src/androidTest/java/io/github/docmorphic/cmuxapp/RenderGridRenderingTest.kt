@@ -16,6 +16,33 @@ import java.io.File
 /** Exercises the device's actual ICU grapheme tables, font shaping and production painter. */
 @OptIn(ExperimentalTestApi::class)
 class RenderGridRenderingTest {
+    @Test fun fractionalScrollPaintsBothPartialEdgesAndClipsToLetterboxedViewport() {
+        val frame = base().put("columns", 2).put("rows", 2).put("scrollback_rows", 1)
+            .put("scrollback_spans", JSONArray().put(span(0, 0, "  ", 2, 1)))
+            .put("row_spans", JSONArray().put(span(0, 0, "  ", 2, 2)).put(span(1, 0, "  ", 2, 3)))
+            .put("styles", JSONArray().put(JSONObject().put("id", 1).put("background", "#ff0000"))
+                .put(JSONObject().put("id", 2).put("background", "#00ff00"))
+                .put(JSONObject().put("id", 3).put("background", "#0000ff")))
+            .put("terminal_cursor_color", "#ffffff")
+            .put("cursor", JSONObject().put("row", 0).put("column", 0).put("visible", true))
+        val grid = RenderGrid(); assertTrue(grid.apply(frame))
+        val viewport = TerminalScrollViewport.at(.25, grid.historyLineCount)
+        val bitmap = Bitmap.createBitmap(60, 60, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        TerminalGridPainter().draw(canvas, 60f, 60f, grid, TerminalGridPainter.plan(viewport.lines(grid)),
+            TerminalCellMetrics(20f, 20f, 12f), viewport.rowOffset, true, viewport.topClipFraction)
+        assertEquals(Color.RED, bitmap.getPixel(20, 12))
+        assertEquals(Color.GREEN, bitmap.getPixel(20, 20))
+        assertEquals(Color.BLUE, bitmap.getPixel(20, 45))
+        assertEquals(Color.BLACK, bitmap.getPixel(20, 5))
+        assertEquals(Color.BLACK, bitmap.getPixel(20, 55))
+        assertEquals(Color.BLACK, bitmap.getPixel(5, 20))
+        assertEquals(1, canvas.saveCount)
+        val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        File(directory, "terminal-fractional-scroll.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
+    }
+
     @Test fun unicodeClustersStayInAuthoritativeCells() {
         val text = "A中e\u0301👩🏽‍💻B"
         val glyphs = TerminalGlyphLayout.layout(text, 0, 7)

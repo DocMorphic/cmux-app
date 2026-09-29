@@ -12,7 +12,8 @@ class TerminalGridPainter {
     private val faces = (0..3).map { Typeface.create(Typeface.MONOSPACE, it) }
 
     fun draw(canvas: Canvas, width: Float, height: Float, grid: TerminalDisplay,
-             lines: List<List<PlacedSpan>>, cells: TerminalCellMetrics, scrollOffset: Int, blinkVisible: Boolean) {
+             lines: List<List<PlacedSpan>>, cells: TerminalCellMetrics, scrollOffset: Int, blinkVisible: Boolean,
+             topClipFraction: Float = 0f) {
         val background = color(if (grid.reverseVideo) grid.foreground else grid.background, Color.rgb(17, 19, 22))
         canvas.drawColor(background)
         if (grid.columns <= 0 || grid.rows <= 0) return
@@ -21,7 +22,12 @@ class TerminalGridPainter {
         val geometry = TerminalGeometry.fit(width, height, grid.columns, grid.rows, cells) ?: return
         val scale = geometry.scale
         val cellWidth = geometry.cellWidth; val cellHeight = geometry.cellHeight
-        val originX = geometry.originX; val originY = geometry.originY
+        val clipped = canvas.save()
+        canvas.clipRect(geometry.originX, geometry.originY, geometry.originX + grid.columns * cellWidth,
+            geometry.originY + grid.rows * cellHeight)
+        val originX = geometry.originX
+        val fraction = if (topClipFraction.isFinite()) topClipFraction.coerceIn(0f, 1f) else 0f
+        val originY = geometry.originY - fraction * cellHeight
         val foreground = color(if (grid.reverseVideo) grid.background else grid.foreground, Color.rgb(224, 229, 235))
         paint.typeface = faces[0]
         paint.textSize = cells.fontSizePx * scale
@@ -74,6 +80,7 @@ class TerminalGridPainter {
                 else -> canvas.drawRect(x, y, x + cursorWidth, y + cellHeight, paint)
             }
         }
+        canvas.restoreToCount(clipped)
     }
 
     companion object {

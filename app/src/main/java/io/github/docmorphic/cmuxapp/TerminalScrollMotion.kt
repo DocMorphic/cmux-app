@@ -38,10 +38,12 @@ internal class TerminalScrollMotion(private val scope: CoroutineScope, private v
     private var generation = 0L
     private val remainder = TerminalScrollRemainder()
     fun stop() { generation++; job?.cancel(); job = null; remainder.reset() }
-    fun move(pixels: Float, height: Float, cell: TerminalGeometry.Cell, send: (Double, TerminalGeometry.Cell) -> Boolean): Boolean {
-        val rows = remainder.take(pixels, height)
-        if (rows == 0) return true
-        if (send(rows.toDouble(), cell)) return true
+    fun move(pixels: Float, height: Float, cell: TerminalGeometry.Cell, linePath: Boolean = true,
+        send: (Double, TerminalGeometry.Cell) -> Boolean): Boolean {
+        if (!pixels.isFinite() || !height.isFinite() || height <= 0) { stop(); return false }
+        val rows = if (linePath) remainder.take(pixels, height).toDouble() else pixels.toDouble() / height
+        if (rows == 0.0) return true
+        if (send(rows, cell)) return true
         stop(); return false
     }
     fun fling(velocity: Float, height: Float, cell: TerminalGeometry.Cell, linePath: Boolean,
@@ -58,7 +60,7 @@ internal class TerminalScrollMotion(private val scope: CoroutineScope, private v
                     cancelAnimation()
                 } else {
                     val delta = value - previous; previous = value
-                    if (!move(delta, height, cell, send)) cancelAnimation()
+                    if (!move(delta, height, cell, linePath, send)) cancelAnimation()
                 }
             }
             if (generation == token) remainder.reset()
@@ -115,7 +117,7 @@ internal fun Modifier.terminalScrollGestures(motion: TerminalScrollMotion, geome
                         geometry.cellHeight, cell, linePath) { rows, at -> latestSend(rows, at) }
                 }, onVerticalDrag = { change, pixels ->
                     if (enabled && !multiTouch && geometry != null) {
-                        motion.move(pixels, geometry.cellHeight, geometry.cell(change.position.x, change.position.y)) { rows, at -> latestSend(rows, at) }
+                        motion.move(pixels, geometry.cellHeight, geometry.cell(change.position.x, change.position.y), linePath) { rows, at -> latestSend(rows, at) }
                         change.consume()
                     }
                 })

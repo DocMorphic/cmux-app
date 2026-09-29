@@ -46,6 +46,7 @@ class NativeTerminalMomentumTest {
     @Test fun flingContinuesAfterReleaseAndExplicitInputStopEndsIt() {
         show(); flick(); val released = total()
         assertTrue(released > 0)
+        assertTrue("Local drag must retain fractions of a cell", rows.any { it != it.toLong().toDouble() })
         compose.mainClock.advanceTimeBy(160); compose.waitForIdle()
         assertTrue("The real touch release must produce additional momentum rows", total() > released)
         compose.runOnUiThread { motion.stop() }
@@ -55,6 +56,7 @@ class NativeTerminalMomentumTest {
     }
     @Test fun linePathCapsMomentumAndNewTouchStopsASecondFling() {
         show(linePath = true); flick()
+        assertTrue("Remote wheel events must stay whole rows", rows.all { it == it.toLong().toDouble() })
         compose.mainClock.advanceTimeBy(480); compose.waitForIdle()
         val capped = total()
         compose.mainClock.advanceTimeBy(800); compose.waitForIdle()

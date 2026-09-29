@@ -51,6 +51,7 @@ class RenderGrid : TerminalDisplay {
     private val history = mutableListOf<MutableList<Span>>()
     private var historyRows: Long? = null
     private var rowSpaceRevision: Long? = null
+    internal val scrollAnchor get() = TerminalScrollAnchor(surfaceId, epoch, columns, rows, activeScreen, rowSpaceRevision, historyRows)
 
     /** Copy only the rows the viewport displays, including its local scroll position. */
     override fun visibleLines(scrollOffset: Int): List<List<Span>> {

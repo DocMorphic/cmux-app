@@ -388,7 +388,9 @@ fun NativeScreen(
     var gridRevision by remember { mutableIntStateOf(0) }
     var replayGeneration by remember { mutableIntStateOf(0) }
     var terminalTransport by remember { mutableStateOf(TerminalTransport.resolve(emptySet())) }
-    var scrollOffset by remember { mutableIntStateOf(0) }
+    var scrollPosition by remember { mutableDoubleStateOf(0.0) }
+    val scrollViewport = TerminalScrollViewport.at(scrollPosition, grid.historyLineCount, grid.activeScreen)
+    val scrollOffset = scrollViewport.rowOffset
     var terminalClick by remember { mutableStateOf<((TerminalGeometry.Cell) -> Unit)?>(null) }
     var terminalScroll by remember { mutableStateOf<((Double, TerminalGeometry.Cell) -> Boolean)?>(null) }
     var cancelQueuedScroll by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -420,8 +422,12 @@ fun NativeScreen(
     DisposableEffect(artifactController) { onDispose { artifactController?.close() } }
     LaunchedEffect(artifactController) {
         val controller = artifactController ?: return@LaunchedEffect
-        snapshotFlow { gridRevision to scrollOffset }.collectLatest {
-            controller.observe(RenderGrid.plainText(grid.visibleLines(scrollOffset)))
+        snapshotFlow {
+            val viewport = TerminalScrollViewport.at(scrollPosition, grid.historyLineCount, grid.activeScreen)
+            Triple(gridRevision, viewport.rowOffset, viewport.topClipFraction > 0)
+        }.collectLatest {
+            val viewport = TerminalScrollViewport.at(scrollPosition, grid.historyLineCount, grid.activeScreen)
+            controller.observe(RenderGrid.plainText(viewport.lines(grid)))
         }
     }
     val artifactTapController = remember(artifactRpc, draftTarget, grid, artifactsReady, folderTapEnabled) { TerminalArtifactTapController(scope) }
@@ -474,7 +480,7 @@ fun NativeScreen(
     fun queueInput(value: String, paste: Boolean = false): Boolean {
         val target = draftTarget ?: return false
         if (client == null || drafts.state.value[target]?.operation != null) return false
-        stopTerminalScrolling(); scrollOffset = 0
+        stopTerminalScrolling(); scrollPosition = 0.0
         return inputQueue.offer(value, paste)
     }
     fun directText(value: String) {
@@ -562,7 +568,7 @@ fun NativeScreen(
             }
         }
         if (directTyping) {
-            stopTerminalScrolling(); scrollOffset = 0
+            stopTerminalScrolling(); scrollPosition = 0.0
             val accepted = inputQueue.offerAction(release = content::close) {
                 for (item in items) {
                     checkTarget()
@@ -626,7 +632,7 @@ fun NativeScreen(
         if (preparingAttachments) return
         val send = drafts.begin(target) ?: return
         val supportsFiles = ComposerAttachment.FILE_CAPABILITY in hostCapabilities
-        stopTerminalScrolling(); scrollOffset = 0
+        stopTerminalScrolling(); scrollPosition = 0.0
         scope.launch {
             try {
                 inputQueue.awaitIdle()
@@ -637,7 +643,7 @@ fun NativeScreen(
                     isCurrent = { client === active && signedIn && code == target.pairing })
                 drafts.finish(send, deliveredFiles = deliveredFiles)
                 draftRepository.persistNow()
-                if (selectedTerminal?.id == target.surface) scrollOffset = 0
+                if (selectedTerminal?.id == target.surface) scrollPosition = 0.0
             } catch (failure: Exception) {
                 drafts.finish(send, TerminalDrafts.DELIVERY_UNCONFIRMED)
                 if (failure is CancellationException) throw failure
@@ -916,19 +922,25 @@ fun NativeScreen(
         // Keep the last painted frame while this viewport gets a fresh replay.
         // The display state above resets for a different terminal or connection;
         // protocol cursors and parser state always belong to this new mirror.
-        scrollOffset = 0
+        scrollPosition = 0.0
         var replayRunning = false
         var replayAgain = false
         var recoveryFailed = false
         var subscriptionReady = false
         var nativeOutput: TerminalOutputLaneOwner? = null
         val subscriptionId = java.util.UUID.randomUUID().toString()
+        var previousScrollAnchor: TerminalScrollAnchor? = null
         fun publish() {
             val next = mirror.display
             if (next.columns <= 0 || next.rows <= 0) return
+            val anchor = (next as? RenderGrid)?.scrollAnchor
+            if (anchor != null && previousScrollAnchor?.let { !anchor.sameSpace(it) } == true) terminalMotion.stop()
+            if (transport.screenAnchor && anchor != null)
+                scrollPosition = anchor.rebase(scrollPosition, previousScrollAnchor, next.historyLineCount)
+            else scrollPosition = TerminalScrollViewport.at(scrollPosition, next.historyLineCount, next.activeScreen).position
+            previousScrollAnchor = anchor
             grid = next
             gridRevision++
-            if (grid.activeScreen == "alternate") scrollOffset = 0
         }
         suspend fun replayTerminal() {
             if (replayRunning || recoveryFailed) return
@@ -1048,7 +1060,7 @@ fun NativeScreen(
                     nativeOutput?.resume()
                 }
                 terminalClick = { cell ->
-                    if (isCurrent() && scrollOffset == 0) launch {
+                    if (isCurrent() && scrollPosition == 0.0) launch {
                         try { if (isCurrent()) active.terminalClick(workspace.id, terminal.id, cell) }
                         catch (failure: Exception) {
                             if (failure is CancellationException) throw failure
@@ -1064,8 +1076,8 @@ fun NativeScreen(
                         // instead receive the Mac's viewport after the scroll RPC.
                         var moved = false
                         if (primary && (transport.screenAnchor || transport.mode != TerminalOutputMode.GRID)) {
-                            val next = (scrollOffset.toLong() + lines.toLong()).coerceIn(0, mirror.historyLineCount.toLong()).toInt()
-                            moved = next != scrollOffset; scrollOffset = next
+                            val next = TerminalScrollViewport.at(scrollPosition + lines, mirror.historyLineCount).position
+                            moved = next != scrollPosition; scrollPosition = next
                         }
                         if (transport.screenAnchor && primary) moved else scrollQueue.offer(lines, cell)
                     }
@@ -1361,7 +1373,7 @@ fun NativeScreen(
                     }
                 }
                 val currentGrid = grid
-                val visibleArtifactScroll by rememberUpdatedState(scrollOffset)
+                val visibleArtifactScroll by rememberUpdatedState(scrollViewport)
                 Box(Modifier.fillMaxWidth().weight(1f)) {
                 RenderGridView(currentGrid, terminalCells, gridRevision,
                     Modifier.fillMaxSize()
@@ -1379,9 +1391,9 @@ fun NativeScreen(
                                 var handlingArtifact = false
                                 TerminalGeometry.fit(size.width.toFloat(), size.height.toFloat(),
                                     currentGrid.columns, currentGrid.rows, terminalCells)?.let { geometry ->
-                                    val cell = geometry.cell(point.x, point.y)
+                                    val cell = visibleArtifactScroll.cell(geometry, point.x, point.y)
                                     val path = if (artifactsReady && geometry.contains(point.x, point.y)) TerminalArtifactHitTest.path(
-                                        RenderGrid.plainText(currentGrid.visibleLines(visibleArtifactScroll)), cell.column, cell.row, currentGrid.columns) else null
+                                        RenderGrid.plainText(visibleArtifactScroll.lines(currentGrid)), cell.column, cell.row, currentGrid.columns) else null
                                     if (path != null) {
                                         handlingArtifact = true
                                         val authorization = ArtifactAuthorization.Terminal(draftTarget!!.workspace, draftTarget.surface)
@@ -1394,7 +1406,7 @@ fun NativeScreen(
                                             },
                                             stillMatches = {
                                                 currentGrid.columns == columns && currentGrid.rows == rows &&
-                                                    TerminalArtifactHitTest.path(RenderGrid.plainText(currentGrid.visibleLines(visibleArtifactScroll)), cell.column, cell.row, columns) == path
+                                                    TerminalArtifactHitTest.path(RenderGrid.plainText(visibleArtifactScroll.lines(currentGrid)), cell.column, cell.row, columns) == path
                                             },
                                             open = {
                                                 stopTerminalScrolling(); directTyping = false; softwareKeyboard?.hide()
@@ -1415,12 +1427,12 @@ fun NativeScreen(
                             replayGeneration, currentGrid.activeScreen,
                             linePath = !(terminalTransport.screenAnchor && currentGrid.activeScreen == "primary"),
                             enabled = terminalScroll != null,
-                            onScroll = { lines, cell -> terminalScroll?.invoke(lines, cell) ?: false }), scrollOffset = scrollOffset.coerceAtMost(currentGrid.historyLineCount))
+                            onScroll = { lines, cell -> terminalScroll?.invoke(lines, cell) ?: false }), scrollPosition = scrollPosition)
                 if (scrollOffset > 0) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp)
                     .background(nativePanel, RoundedCornerShape(14.dp)).padding(start = 12.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text("Scrollback · $scrollOffset rows", color = nativeMuted, fontSize = 12.sp)
-                    TextButton(onClick = { stopTerminalScrolling(); scrollOffset = 0 }) { Text("Latest") }
+                    TextButton(onClick = { stopTerminalScrolling(); scrollPosition = 0.0 }) { Text("Latest") }
                 }
                 artifactChipCount?.let { count ->
                     TerminalArtifactChip(count, Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = if (scrollOffset > 0) 62.dp else 10.dp)) {
@@ -1458,7 +1470,7 @@ fun NativeScreen(
                                 rawKeyboardView?.finishComposition()
                                 val sequence = inputModifiers.special(key, currentGrid.applicationCursorKeys)
                                 inputModifiers = inputModifiers.consume()
-                                scrollOffset = 0
+                                scrollPosition = 0.0
                                 queueInput(sequence)
                             }) { Text(label, color = nativeMuted) }
                         }
