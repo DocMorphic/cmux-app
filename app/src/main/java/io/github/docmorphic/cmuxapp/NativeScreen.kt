@@ -1104,8 +1104,8 @@ fun NativeScreen(
 
     Column(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding()) {
         when {
-            !signedIn -> NativeSignIn(account, onUseHelper,
-                onLicenses = { showLicenses = true }, onSignedIn = { signedIn = true }, onError = { error = it })
+            !signedIn -> NativeSignIn(account::sendCode, account::signIn, onUseHelper,
+                onLicenses = { showLicenses = true }, onSignedIn = { signedIn = true; error = null })
             showSettings -> {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1805,7 +1805,7 @@ fun NativeScreen(
             }
         }
         val visibleError = error ?: connectionError.takeIf { selectedTerminal != null || selectedBrowser != null || workspaceSources.isEmpty() }
-        if (visibleError != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),
+        if (signedIn && visibleError != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Text(visibleError, Modifier.weight(1f).padding(vertical = 12.dp), color = Color(0xFFFFAAAA))
             if (selectedTerminal != null) TextButton(onClick = { retryDelay = 2_000; retry++ }) { Text("Reconnect") }
@@ -2099,34 +2099,54 @@ private fun NativeComputerPicker(
 
 
 @Composable
-private fun NativeSignIn(account: NativeAccount, onUseHelper: () -> Unit, onLicenses: () -> Unit,
-                         onSignedIn: () -> Unit, onError: (String?) -> Unit) {
+internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (String) -> Unit,
+                         onUseHelper: () -> Unit, onLicenses: () -> Unit, onSignedIn: () -> Unit) {
     val scope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
     var codeSent by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+    var signInError by remember { mutableStateOf<String?>(null) }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
     NativeHeader("Sign in to cmux")
     Column(Modifier.fillMaxWidth().padding(24.dp)) {
         Text("Use the same cmux account as your Mac.", color = nativeMuted)
         Spacer(Modifier.height(24.dp))
-        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("Email") }, singleLine = true)
+        OutlinedTextField(email, { email = it; codeSent = false; otp = ""; signInError = null },
+            Modifier.fillMaxWidth(), label = { Text("Email") }, singleLine = true, enabled = !busy,
+            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email))
         Spacer(Modifier.height(12.dp))
         Button(onClick = {
-            scope.launch { busy = true; runCatching { account.sendCode(email) }
-                .onSuccess { codeSent = true; onError(null) }
-                .onFailure { if (it is CancellationException) throw it; onError(it.message) }; busy = false }
-        }, enabled = !busy && email.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Email me a sign-in code") }
+            scope.launch {
+                busy = true; signInError = null; codeSent = false; otp = ""
+                try { sendCode(email); codeSent = true }
+                catch (failure: Exception) {
+                    if (failure is CancellationException) throw failure
+                    signInError = failure.message ?: "Could not send the code. Please try again."
+                } finally { busy = false }
+            }
+        }, enabled = !busy && email.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+            Text(if (busy && !codeSent) "Sending code…" else if (codeSent) "Send a new code" else "Email me a sign-in code")
+        }
+        signInError?.let { Text(it, Modifier.fillMaxWidth().padding(vertical = 12.dp), color = Color(0xFFFFAAAA)) }
         if (codeSent) {
             Spacer(Modifier.height(16.dp))
-            OutlinedTextField(otp, { otp = it }, Modifier.fillMaxWidth(), label = { Text("Code or link code") })
+            OutlinedTextField(otp, { otp = it.filter { char -> char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' }.take(6) },
+                Modifier.fillMaxWidth(), label = { Text("Six-character code") }, singleLine = true, enabled = !busy,
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false))
             Button(onClick = {
-                scope.launch { busy = true; runCatching { account.signIn(otp) }
-                    .onSuccess { onSignedIn(); onError(null) }
-                    .onFailure { if (it is CancellationException) throw it; onError(it.message) }; busy = false }
-            }, enabled = !busy && otp.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Sign in") }
+                scope.launch {
+                    busy = true; signInError = null
+                    try { signIn(otp); onSignedIn() }
+                    catch (failure: Exception) {
+                        if (failure is CancellationException) throw failure
+                        signInError = failure.message ?: "Could not sign in. Please try again."
+                    } finally { busy = false }
+                }
+            }, enabled = !busy && otp.length == 6, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "Signing in…" else "Sign in") }
         }
         TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
         TextButton(onClick = onLicenses) { Text("Open-source licenses") }
     }
+}
 }

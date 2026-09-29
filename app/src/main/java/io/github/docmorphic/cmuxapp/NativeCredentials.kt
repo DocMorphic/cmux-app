@@ -131,25 +131,16 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
 /** The same production Stack project and OTP endpoints used by cmux iOS. */
 class NativeAccount(private val store: NativeCredentialStore, private val refreshOverride: ((String) -> String)? = null) {
     private val refreshMutex = Mutex()
-
-    suspend fun sendCode(email: String): Unit = withContext(Dispatchers.IO) {
-        require(email.contains('@') && email.length <= 254) { "Enter a valid email address" }
-        request("/auth/otp/send-sign-in-code", JSONObject()
-            .put("email", email.trim())
-            .put("callback_url", "https://cmux.com/auth/callback"))
-        Unit
-    }
-
-    suspend fun signIn(code: String): Unit = withContext(Dispatchers.IO) {
-        require(code.isNotBlank()) { "Enter the code from your email" }
-        val result = request("/auth/otp/sign-in", JSONObject().put("code", code.trim()))
-        val access = result.getString("access_token")
-        val refresh = result.getString("refresh_token")
+    private val emailSignIn = NativeEmailSignIn(::request) { access, refresh ->
         store.update {
             it.put("access_token", access).put("refresh_token", refresh).put("task_session", UUID.randomUUID().toString())
             it.remove("task_drafts")
         }
     }
+
+    suspend fun sendCode(email: String): Unit = withContext(Dispatchers.IO) { emailSignIn.sendCode(email) }
+
+    suspend fun signIn(code: String): Unit = withContext(Dispatchers.IO) { emailSignIn.signIn(code) }
 
     suspend fun accessToken(forceRefresh: Boolean = false): String? = refreshMutex.withLock {
         val state = store.load() ?: return@withLock null
@@ -202,6 +193,7 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
     }
 
     fun signOut() {
+        emailSignIn.clear()
         store.update {
             it.put("access_token", "").put("refresh_token", "")
             it.remove("task_session"); it.remove("task_drafts")
@@ -256,8 +248,10 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
             connection.setRequestProperty("x-stack-override-error-status", "true")
             connection.setRequestProperty("x-stack-random-nonce", UUID.randomUUID().toString())
             connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-            val status = connection.getHeaderField("x-stack-actual-status")?.toIntOrNull() ?: connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val httpStatus = connection.responseCode
+            val status = connection.getHeaderField("x-stack-actual-status")?.toIntOrNull() ?: httpStatus
+            // Stack can carry an application error in an HTTP 200 response.
+            val stream = if (httpStatus in 200..299) connection.inputStream else connection.errorStream
             val result = JSONObject(stream?.bufferedReader()?.use { it.readText() }.orEmpty().ifBlank { "{}" })
             if (status !in 200..299) error(result.optString("message").ifBlank { "Account request failed: HTTP $status" })
             return result

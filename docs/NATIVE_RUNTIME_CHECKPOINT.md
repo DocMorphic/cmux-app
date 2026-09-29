@@ -1,9 +1,60 @@
 # Native transport and keyboard runtime checkpoint — 2026-09-28
 
-This is Android 17 **emulator fixture evidence**, not physical Pixel or authenticated
-Mac acceptance. The Pixel can remain disconnected during independent development;
-the physical workflow still needs a later device session. Published signed build
-157 is unchanged. The sections below record separate checkpoints.
+The sections below record separate Android 17 emulator and physical Pixel fixture
+checkpoints. **Authenticated Mac acceptance remains open.** Published signed build
+157 is unchanged.
+
+## Physical Pixel native lanes — 2026-09-29
+
+Installed the debug app and app test APK from source `61a6bf7` on the Pixel 6a
+running Android 17 (`google/bluejay/bluejay:17/CP3A.260905.009/16091614:user/release-keys`).
+The existing installation was updated without clearing account data.
+
+One instrumentation run passed **3 tests in 1.056 seconds**:
+
+- Native duplex terminal replay/chunks/input alongside the control stream.
+- Independent native terminal input while control RPC remains usable.
+- Capability-based raw file transfer with exact size/EOF validation and usable control.
+
+These tests use real native Iroh/QUIC endpoints on the phone's loopback interface.
+They do not exercise the Mac, external discovery, account enrollment or visual
+terminal behavior, and do not read or clear saved account credentials.
+
+APK SHA-256 values:
+
+- App: `ff831f70d863b8c3fdda70873ba053a0df1948e4aae36996acab9220e26372f1`
+- App tests: `69c5a41d8a9f9da1d2b4de59adf3cfde5cdc512da070906165dea16aa5376b05`
+
+Local evidence: `captures/runtime/pixel-native-20260929/native-lanes.txt` and
+`receipt.json` (ignored). The phone was unlocked again and reached native sign-in.
+Mac UI capture failed with ScreenCaptureKit error -3811; the cmux CLI also rejects
+this external process under its existing socket access policy. Neither result
+establishes the native listener's current readiness, so the user was asked to
+check Mobile settings. No access policy was changed.
+
+### Live email sign-in failure found
+
+The user received an email code, but verification failed. Comparing our request
+with upstream `AuthCoordinator.verifyCode` and `CMUXAuthMagicLinkCode` at
+`4c5272e9153eca2033c9f40ac749f0c3a5bcb291` revealed that Android discarded the
+send-code response's nonce and sent only the visible code. The required payload
+is the lowercased six-character code followed by the unchanged opaque nonce.
+
+`NativeEmailSignIn` now retains the challenge in memory, composes that exact
+payload, permits invalid-code retries, rejects missing/incomplete responses,
+and fences late responses after resend, cancellation or sign-out. Successful
+verification consumes the challenge. Account tokens still use the existing
+encrypted store. A fresh email request is required after installing this fix.
+
+The sign-in form now scrolls above the IME, displays errors inside the form,
+restricts entry to the six-character email code and shows request progress.
+Stack errors returned via an HTTP 200 envelope now read the actual response body.
+Seven focused JVM regression tests passed, the debug APK built successfully and
+was installed on the Pixel without clearing data. Its SHA-256 is
+`179ae3166da18f84cbb6476134dab169e359eeeeb74afdf8f654c074eb059ea1`.
+Evidence is in `signin-build.log`, `signin-jvm.xml` and `signin-receipt.json` in
+the same ignored directory. Authenticated live acceptance of the replacement APK
+is pending.
 
 ## Failure found and fixed
 
@@ -64,8 +115,8 @@ the source base, exact RPC source hash, APK hashes and emulator fingerprint.
 
 ## Next acceptance work
 
-1. Install the prepared debug/native test packages on the unlocked Pixel and run
-   the native transport and keyboard checks before account enrollment. UI fixtures
+1. The current app and three native lane checks have now passed on the Pixel as
+   recorded above. Physical keyboard acceptance remains open. UI fixtures
    in `NativeFlowTest` and `NativeTaskAttachmentsTest` clear debug credentials;
    do not run those over an authenticated session without arranging restoration.
 2. Verify actual account enrollment/discovery against the already enabled cmux
