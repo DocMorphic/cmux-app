@@ -119,4 +119,36 @@ class NativeNotificationDeliveryTest {
         waitFor { manager.activeNotifications.none { it.notification.channelId == "cmux_connection" } }
         assertFalse(NativeNotificationService.isEnabled(context))
     }
+    @Test fun nativeDuplicateRepairKeepsPostedIntentsAndDoesNotAlertOldItemsAgain() {
+        val store = NativeCredentialStore(context)
+        val team = NativeTeamScope("fixture-login", "fixture-user", "fixture-team", 1)
+        fun mac(peer: String) = NativeCredentialStore.PairedMac(PairingCodeParser.computer(
+            IrohV2Computer("record", peer.repeat(64), "fixture-mac", "default", "Fixture Mac", emptyList()), team),
+            "fixture-mac", "Fixture Mac", "default")
+        val first = mac("a"); val second = mac("b")
+        store.update { it.put("task_session", team.login).put("refresh_token", "fixture-refresh")
+            .put("pairings", org.json.JSONArray(listOf(first, second).map(NativePairingRecords::encode))) }
+        val delivery = NativeNotificationDelivery(context)
+        delivery.refresh(first.origin, first.name, emptyList()) { true }
+        delivery.refresh(second.origin, second.name, emptyList()) { true }
+        delivery.refresh(first.origin, first.name, listOf(item("shared"))) { true }
+        delivery.refresh(second.origin, second.name, listOf(item("shared"))) { true }
+        waitFor { alerts().size == 2 }
+        val oldRoutes = NativeCredentialStore(context, "native_notification_state").load()!!
+            .let { NativeNotificationLedger(it).destinations() }
+        val oldIntents = alerts().map { it.notification.contentIntent }.toSet()
+        val repaired = store.rememberAuthenticatedMac(mac("c"), team) { true }
+        assertEquals(setOf(first.origin, second.origin), NativeCredentialStore(context).pairedMacs().single().origins)
+        delivery.prune(setOf(repaired.origin))
+        oldRoutes.forEach { assertEquals(it.copy(origin = repaired.origin), delivery.destination(it.routeId)) }
+        delivery.refresh(repaired.origin, repaired.name, listOf(item("shared"), item("new"))) { true }
+        waitFor { alerts().size == 3 }
+        assertTrue(alerts().map { it.notification.contentIntent }.containsAll(oldIntents))
+        delivery.refresh(repaired.origin, repaired.name, listOf(item("shared", true), item("new"))) { true }
+        waitFor { alerts().size == 1 }
+        store.forgetMac(repaired.code, team) { true }
+        delivery.prune(emptySet())
+        waitFor { alerts().isEmpty() }
+    }
+
 }

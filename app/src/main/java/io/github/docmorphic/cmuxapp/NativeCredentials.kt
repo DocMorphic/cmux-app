@@ -28,8 +28,11 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     internal val revisions: kotlinx.coroutines.flow.StateFlow<Long> get() = changeState
 
     data class PairedMac(val code: String, val deviceId: String, val name: String, val instanceTag: String? = null,
-                         val accountUserId: String? = null, val accountTeamId: String? = null, val stableOrigin: String? = null) {
+                         val accountUserId: String? = null, val accountTeamId: String? = null, val stableOrigin: String? = null,
+                         val previousOrigins: Set<String> = emptySet()) {
         internal val origin = stableOrigin ?: pairingOrigin(code, deviceId, instanceTag)
+        internal val origins get() = previousOrigins + origin
+        internal fun ownsOrigin(value: String?) = value != null && value in origins
         fun requireMatchingHost(status: JSONObject) {
             require(deviceId.isBlank() || canonicalMacDeviceId(status.optString("mac_device_id")) == canonicalMacDeviceId(deviceId)) {
                 "This pairing now reaches a different Mac. Forget it and pair the intended Mac again."

@@ -211,4 +211,67 @@ class NativePairingPersistenceTest {
         assertEquals(listOf(qr), codes(state))
         assertEquals(incoming.name, state.getJSONArray("pairings").getJSONObject(0).getString("name"))
     }
+    @Test fun verifiedNativeReconnectCoalescesExactOwnedRowsAndPreservesAllDraftOrigins() {
+        val first = native(endpoint = "old-peer")
+        val second = native(endpoint = "other-peer")
+        val sibling = native(build = "debug")
+        val other = native(scope.copy(teamId = "another-team"))
+        val state = state(sibling, first, other, second).put("computer_selection", second.origin)
+        val drafts = TaskDrafts()
+        val ids = listOf(first, second).map { row ->
+            UUID.randomUUID().toString().also { id ->
+                val editor = drafts.begin(id, row.origin, row.name, "/tmp")
+                drafts.edit(editor) { it.copy(prompt = "Keep " + row.origin, groupId = "group") }
+            }
+        }
+        val result = NativePairingPersistence.remember(state, native(endpoint = "verified-peer"), scope)
+        assertEquals(listOf(sibling.code, result.code, other.code), codes(state))
+        assertEquals(first.origin, result.origin)
+        assertEquals(setOf(first.origin, second.origin), result.origins)
+        assertTrue(result.ownsOrigin(state.getString("computer_selection")))
+        assertFalse(result.ownsOrigin(sibling.origin)); assertFalse(result.ownsOrigin(other.origin))
+        val restored = TaskDrafts(drafts.saved())
+        ids.forEach { id ->
+            val draft = restored.state.value.getValue(id)
+            assertTrue(result.ownsOrigin(draft.origin))
+            restored.begin(id, draft.origin, result.name, "/tmp")
+            assertEquals("Keep " + draft.origin, draft.prompt); assertEquals("group", draft.groupId)
+        }
+        val reloaded = NativePairingRecords.decode(state.getJSONArray("pairings").getJSONObject(1))!!
+        assertEquals(result, reloaded)
+        val newer = NativePairingPersistence.remember(state, native(endpoint = "newer-peer"), scope)
+        assertEquals(result.origins, newer.origins)
+        NativePairingRecords.removeLocal(state, newer.code, scope)
+        assertEquals("", state.getString("computer_selection"))
+        assertEquals(listOf(sibling.code, other.code), codes(state))
+    }
+
+    @Test fun qrCanConsolidateItsOldRowsWhileKeepingSingleNativeAuthority() {
+        val native = native()
+        val state = state(incoming, native); grant(state)
+        val result = NativePairingPersistence.remember(state, incoming, scope)
+        assertEquals(native.code, result.code); assertEquals(native.name, result.name)
+        assertEquals(setOf(incoming.origin, native.origin), result.origins)
+        assertEquals(listOf(native.code), codes(state))
+    }
+
+    @Test fun originCollisionWithDifferentOwnerRejectsWithoutMutation() {
+        val current = NativePairingRecords.scoped(native(), scope)
+        val other = NativePairingRecords.scoped(native(scope.copy(teamId = "other")), scope.copy(teamId = "other"))
+            .copy(previousOrigins = setOf(current.origin))
+        val state = state(current, other); val before = state.toString()
+        assertTrue(runCatching { NativePairingPersistence.remember(state, native(), scope) }.isFailure)
+        assertEquals(before, state.toString())
+    }
+
+    @Test fun aliasMetadataNeedsCompleteOwnerAndValidOrigins() {
+        val scoped = NativePairingRecords.scoped(native(), scope)
+        for (raw in listOf(
+            NativePairingRecords.encode(native()).put("previous_origins", JSONArray(listOf(scoped.origin))),
+            NativePairingRecords.encode(scoped).put("previous_origins", JSONArray(listOf("bad"))),
+            NativePairingRecords.encode(scoped).put("previous_origins", JSONArray(listOf(42))),
+            NativePairingRecords.encode(scoped).put("previous_origins", "not-an-array")
+        )) assertNull(NativePairingRecords.decode(raw))
+    }
+
 }

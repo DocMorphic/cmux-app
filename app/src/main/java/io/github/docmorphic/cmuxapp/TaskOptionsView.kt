@@ -54,13 +54,13 @@ internal fun TaskOptionsView(draft: TaskDraft, macs: List<NativeCredentialStore.
                 Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1C1E)) {
                 Column(Modifier.padding(vertical = 4.dp)) {
                 Box {
-                    TaskOptionRouteRow("Machine", macs.firstOrNull { it.origin == draft.origin }?.let(computerName) ?: draft.macName, R.drawable.ic_feed_computer, "Task Mac",
+                    TaskOptionRouteRow("Machine", macs.firstOrNull { it.ownsOrigin(draft.origin) }?.let(computerName) ?: draft.macName, R.drawable.ic_feed_computer, "Task Mac",
                         enabled && macs.isNotEmpty(), menu = true, onClick = { macMenu = true })
                     DropdownMenu(macMenu, { macMenu = false }) {
                         macs.forEach { mac -> DropdownMenuItem(text = { Text(computerName(mac)) },
                             modifier = Modifier.semantics { contentDescription = "Task Mac: ${computerName(mac)}" },
-                            trailingIcon = { if (mac.origin == draft.origin) Text("✓") },
-                            onClick = { macMenu = false; onMac(mac.origin) }) }
+                            trailingIcon = { if (mac.ownsOrigin(draft.origin)) Text("✓") },
+                            onClick = { macMenu = false; if (!mac.ownsOrigin(draft.origin)) onMac(mac.origin) }) }
                     }
                 }
                 HorizontalDivider(Modifier.padding(start = 60.dp), color = Color(0xFF34363B))

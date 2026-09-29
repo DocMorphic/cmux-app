@@ -26,8 +26,10 @@ internal class NativeNotificationDelivery(private val context: Context) {
         var baseline = false
         var pending = emptyList<NativeNotification>()
         var readRoutes = emptyList<String>()
+        val mac = NativeCredentialStore(context).pairedMacs().singleOrNull { it.origin == origin }
         store.update {
             val ledger = NativeNotificationLedger(it)
+            mac?.let { ledger.coalesce(it.origin, it.previousOrigins) }
             baseline = ledger.baseline(origin, feed)
             val readIds = feed.filter { item -> item.isRead }.map { item -> item.id }
             ledger.acknowledge(origin, readIds)
@@ -54,9 +56,14 @@ internal class NativeNotificationDelivery(private val context: Context) {
 
     fun prune(validOrigins: Set<String>) = synchronized(lock) {
         val state = store.load()
-        val originCount = state?.optJSONObject("origins")?.length()
+        val before = state?.toString()
+        val paired = NativeCredentialStore(context).pairedMacs()
+        if (state != null) {
+            val ledger = NativeNotificationLedger(state)
+            paired.filter { it.origin in validOrigins }.forEach { ledger.coalesce(it.origin, it.previousOrigins) }
+        }
         val removed = state?.let { NativeNotificationLedger(it).prune(validOrigins) }.orEmpty()
-        if (state != null && (removed.isNotEmpty() || originCount != state.optJSONObject("origins")?.length())) {
+        if (state != null && state.toString() != before) {
             store.update { it.put("origins", state.getJSONObject("origins")).put("routes", state.getJSONObject("routes")) }
         }
         removed.forEach(::cancel)

@@ -14,8 +14,15 @@ internal object NativePairingRecords {
         require((user == null) == (team == null))
         val origin = optional("stable_origin")
         require(origin == null || (user != null && origin.length == 64 && origin.all { it in "0123456789abcdef" }))
+        val aliases = if (!item.has("previous_origins")) emptySet() else {
+            require(user != null && origin != null)
+            val values = item.getJSONArray("previous_origins")
+            (0 until values.length()).map { values.get(it) as String }.toSet().also { entries ->
+                require(entries.all { it.length == 64 && it.all { c -> c in "0123456789abcdef" } })
+            }
+        }
         NativeCredentialStore.PairedMac(item.getString("code").also { require(it.isNotBlank()) }, item.optString("device_id"),
-            item.optString("name", "cmux"), optional("instance_tag"), user, team, origin)
+            item.optString("name", "cmux"), optional("instance_tag"), user, team, origin, aliases.filterNot { it == origin }.toSet())
     }.getOrNull()
 
     fun encode(row: NativeCredentialStore.PairedMac): JSONObject = JSONObject().put("code", row.code)
@@ -23,6 +30,7 @@ internal object NativePairingRecords {
             row.accountUserId?.let { put("owner_user", it) }
             row.accountTeamId?.let { put("owner_team", it) }
             row.stableOrigin?.let { put("stable_origin", it) }
+            if (row.previousOrigins.isNotEmpty()) put("previous_origins", JSONArray(row.previousOrigins.sorted()))
         }
 
     fun owner(row: NativeCredentialStore.PairedMac, grants: TailscaleGrantStore): Pair<String, String>? {
@@ -69,7 +77,7 @@ internal object NativePairingRecords {
         TailscaleGrantStore.removeForCode(state, code, team)
         state.put("pairings", next)
         if (removed.any { it.code == state.optString("pairing_code") }) state.put("pairing_code", "")
-        if (removed.any { it.origin == state.optString("computer_selection") }) state.put("computer_selection", "")
+        if (removed.any { it.ownsOrigin(state.optString("computer_selection")) }) state.put("computer_selection", "")
     }
 
     fun scoped(row: NativeCredentialStore.PairedMac, team: NativeTeamScope, retainedOrigin: String? = null) = row.copy(

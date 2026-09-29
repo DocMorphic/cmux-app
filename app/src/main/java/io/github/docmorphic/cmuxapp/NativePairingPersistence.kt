@@ -38,8 +38,13 @@ internal object NativePairingPersistence {
         val owned = decoded.filter { NativePairingRecords.owner(it.second, grants) == owner }
         check(owned.none { it.second.code == incoming.code && !sameIdentity(it.second) }) { "This pairing reaches a different Mac or installation." }
         val matches = owned.filter { sameIdentity(it.second) }
-        check(matches.size <= 1) { "Multiple pairings match this Mac. Resolve them in Computers before reconnecting." }
-        val existing = matches.singleOrNull()
+        // A fresh authenticated native reconnect supplies authority. A QR must not
+        // choose arbitrarily between old native routes (these records have no dates).
+        val nativeMatches = matches.filter { PairingCodeParser.parse(it.second.code).getOrNull() is PairingCode.Iroh }
+        check(pairing !is PairingCode.Tailscale || nativeMatches.map { it.second.code }.distinct().size <= 1) {
+            "Reconnect this computer from Computers first, then add its Tailscale route."
+        }
+        val existing = matches.firstOrNull()
         if (pairing is PairingCode.Tailscale) {
             // Historical native hints without sufficient scope must not be erased by a QR scan.
             val ambiguous = decoded.any { (_, row) ->
@@ -50,13 +55,22 @@ internal object NativePairingPersistence {
             }
             check(!ambiguous) { "Reconnect this native computer first, then add its route from Computer Details." }
         }
-        val keepNative = pairing is PairingCode.Tailscale && existing?.second?.let {
-            PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Iroh
-        } == true
-        val remembered = NativePairingRecords.scoped(if (keepNative) existing!!.second else incoming, team, existing?.second?.origin)
+        val routeOwner = if (pairing is PairingCode.Tailscale) nativeMatches.firstOrNull()?.second ?: incoming else incoming
+        val scoped = NativePairingRecords.scoped(routeOwner, team, existing?.second?.origin)
+        val aliases = matches.flatMap { it.second.origins }.toSet() - scoped.origin
+        // An origin shared with an unresolved or differently scoped record cannot
+        // become an alias: its old drafts/notifications have ambiguous ownership.
+        val retained = aliases + scoped.origin
+        check(decoded.none { it !in matches && it.second.origins.any(retained::contains) }) {
+            "Saved computer history has conflicting ownership. Remove the conflicting pairing before reconnecting."
+        }
+        val remembered = scoped.copy(previousOrigins = aliases)
         val next = JSONArray()
-        for (index in 0 until previous.length()) next.put(if (index == existing?.first)
-            NativePairingRecords.encode(remembered) else previous.get(index))
+        val replaced = matches.map { it.first }.toSet()
+        for (index in 0 until previous.length()) {
+            if (index == existing?.first) next.put(NativePairingRecords.encode(remembered))
+            else if (index !in replaced) next.put(previous.get(index))
+        }
         if (existing == null) next.put(NativePairingRecords.encode(remembered))
         state.put("pairings", next).put("pairing_code", remembered.code)
         return remembered

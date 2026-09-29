@@ -85,4 +85,34 @@ class NativeNotificationLedgerTest {
         assertEquals("surface", result.surfaceId)
         assertTrue(result.retargetsToLiveSurfaceOwner)
     }
+    @Test fun mergedPairingsKeepBothPendingIntentsAndUnionAcknowledgementsAcrossRestart() {
+        val state = JSONObject(); val ledger = NativeNotificationLedger(state)
+        ledger.baseline("first", listOf(item("old-a")))
+        ledger.baseline("second", listOf(item("old-b")))
+        val a = ledger.stage("first", item("shared"))
+        val b = ledger.stage("second", item("shared"))
+        val foreign = ledger.stage("other-team", item("shared"))
+        ledger.acknowledge("second", listOf("shared"))
+        ledger.coalesce("first", setOf("second"))
+        val restarted = NativeNotificationLedger(JSONObject(state.toString()))
+        restarted.coalesce("first", setOf("second"))
+        assertTrue(restarted.prune(setOf("first", "other-team")).isEmpty())
+        assertEquals(a, restarted.destination(a.routeId))
+        assertEquals(b.copy(origin = "first"), restarted.destination(b.routeId))
+        assertEquals(foreign, restarted.destination(foreign.routeId))
+        assertEquals(listOf("new"), restarted.unseen("first", listOf("old-a", "old-b", "shared", "new").map { item(it) }).map { it.id })
+        assertFalse(restarted.baseline("first", emptyList()))
+        assertEquals(setOf(a.routeId, b.routeId), restarted.prune(setOf("other-team")).toSet())
+    }
+
+    @Test fun absentPrimaryInheritsOnlyExistingAliasBaseline() {
+        val ledger = NativeNotificationLedger(JSONObject())
+        ledger.coalesce("primary", setOf("missing"))
+        assertTrue(ledger.baseline("primary", emptyList()))
+        ledger.baseline("old", listOf(item("seen")))
+        ledger.coalesce("new", setOf("old"))
+        assertFalse(ledger.baseline("new", emptyList()))
+        assertTrue(ledger.unseen("new", listOf(item("seen"))).isEmpty())
+    }
+
 }

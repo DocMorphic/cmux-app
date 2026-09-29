@@ -108,7 +108,7 @@ internal object NativeComputerForgetLocal {
         }
         state.put("pairings", next)
         if (removed.any { it.code == state.optString("pairing_code") }) state.put("pairing_code", "")
-        if (removed.any { it.origin == state.optString("computer_selection") }) state.put("computer_selection", "")
+        if (removed.any { it.ownsOrigin(state.optString("computer_selection")) }) state.put("computer_selection", "")
     }
 }
 

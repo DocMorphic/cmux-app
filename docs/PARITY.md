@@ -12,13 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Historical pairing repair (2026-09-29):** a verified native reconnect now
+consolidates exact account/team/device/build duplicates while keeping old draft,
+selection and notification references. Notification history is combined before
+pruning, and posted Android pending intents retain their UUIDs. A QR cannot choose
+between conflicting old native routes. All 70 focused JVM and 9 Android 17
+emulator tests passed; main/test APKs build and native/ZIP 16 KB checks pass.
+Cross-device endpoint presentation aliases and physical acceptance remain open.
+See [PAIRED_COMPUTER_RECORDS.md](PAIRED_COMPUTER_RECORDS.md).
+
 **Scoped pairing records and stable upgrades (2026-09-29):** authenticated rows
 now store account/team ownership and a stable origin. A standalone QR-to-native
 upgrade preserves drafts, notification links/unread history and selection;
 identical QR codes saved by two teams remain isolated. Saved dialing carries its
 captured owner, and local removal preserves another team's row/grant. All 75
 focused JVM and 8 Android 17 emulator tests passed on the final checkpoint; APKs
-build and native/ZIP 16 KB checks pass. Historical duplicate coalescing, standalone
+build and native/ZIP 16 KB checks pass. Broader historical presentation aliases, standalone
 QR-only Details parity and physical acceptance remain open. See
 [PAIRED_COMPUTER_RECORDS.md](PAIRED_COMPUTER_RECORDS.md).
 

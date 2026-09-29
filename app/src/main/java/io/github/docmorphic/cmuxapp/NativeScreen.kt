@@ -237,7 +237,7 @@ fun NativeScreen(
     var selectedComputerOrigin by rememberSaveable(signedIn) {
         mutableStateOf(store.load()?.optString("computer_selection").orEmpty())
     }
-    val selectedComputer = pairedMacs.firstOrNull { it.origin == selectedComputerOrigin }
+    val selectedComputer = pairedMacs.firstOrNull { it.ownsOrigin(selectedComputerOrigin) }
     val selectedOrigin = selectedComputer?.origin
     fun selectComputer(mac: NativeCredentialStore.PairedMac?) {
         selectedComputerOrigin = mac?.origin.orEmpty()
@@ -258,13 +258,13 @@ fun NativeScreen(
     }, finished = { savedPairedMacs = store.pairedMacs() })
     fun newTaskDraft() {
         taskDraftRepository?.templates?.state?.value?.lastOrigin?.let { origin ->
-            pairedMacs.firstOrNull { it.origin == origin }?.let(::selectComputer)
+            pairedMacs.firstOrNull { it.ownsOrigin(origin) }?.let(::selectComputer)
         }
         taskDraftId = java.util.UUID.randomUUID().toString()
         showTaskComposer = true
     }
     LaunchedEffect(pairedMacs, selectedComputerOrigin) {
-        feedSession.taskModels.retainOrigins(pairedMacs.map { it.origin }.toSet())
+        feedSession.taskModels.retainOrigins(pairedMacs.flatMap { it.origins }.toSet())
         if (selectedComputerOrigin.isNotBlank() && selectedComputer == null) selectComputer(null)
     }
     val canCreateOnCurrentMac = connectionReady && client != null && connectedCode == code &&
@@ -700,7 +700,7 @@ fun NativeScreen(
         }
         if (!routeSignedIn || currentIncomingRoute != routeId) return@LaunchedEffect
         val route = if (openedFromFeed) routeInAppNotification else notificationDelivery.destination(routeId)
-        val mac = store.pairedMacs().singleOrNull { it.origin == route?.origin && connection.allowsSaved(it) }
+        val mac = store.pairedMacs().singleOrNull { it.ownsOrigin(route?.origin) && connection.allowsSaved(it) }
         if (route == null || mac == null) {
             error = "This notification's saved Mac is no longer available."
             consumeRoute()
@@ -760,7 +760,7 @@ fun NativeScreen(
     LaunchedEffect(capturedWorkspaceRoute?.id, routeSignedIn, routePairingCode, routeConnectedCode, routeClient) {
         val route = capturedWorkspaceRoute ?: return@LaunchedEffect
         if (!routeSignedIn) { workspaceRoute = null; return@LaunchedEffect }
-        val mac = store.pairedMacs().singleOrNull { it.origin == route.origin && connection.allowsSaved(it) }
+        val mac = store.pairedMacs().singleOrNull { it.ownsOrigin(route.origin) && connection.allowsSaved(it) }
         if (mac == null) {
             error = "This workspace's saved Mac is no longer available."
             workspaceRoute = null
@@ -1234,17 +1234,17 @@ fun NativeScreen(
             showTaskComposer -> {
                 val repository = taskDraftRepository
                 val restored = taskDraftEntries[taskDraftId]
-                val restoredMac = restored?.let { draft -> pairedMacs.firstOrNull { it.origin == draft.origin } }
+                val restoredMac = restored?.let { draft -> pairedMacs.firstOrNull { it.ownsOrigin(draft.origin) } }
                 LaunchedEffect(restored?.origin, pairedMacs) {
                     if (restoredMac != null && code != restoredMac.code) selectComputer(restoredMac)
                 }
                 val taskMac = pairedMacs.firstOrNull { it.code == code }
                 val taskOrigin = restored?.origin ?: taskMac?.origin ?: pairingOrigin(code)
-                val selectedTaskMac = pairedMacs.firstOrNull { it.origin == taskOrigin }
+                val selectedTaskMac = pairedMacs.firstOrNull { it.ownsOrigin(taskOrigin) }
                 val taskCode = selectedTaskMac?.code
                 val taskConnected = connectionReady && taskCode != null && connectedCode == taskCode && code == taskCode
                 val active = client.takeIf { taskConnected }
-                val taskWorkspaces = if (taskMac?.origin == taskOrigin) workspaces else emptyList()
+                val taskWorkspaces = if (taskMac?.ownsOrigin(taskOrigin) == true) workspaces else emptyList()
                 if (repository != null) key(taskDraftId, repository.session) {
                 NativeTaskComposerView(active,
                     directories = preferredTaskDirectories(taskWorkspaces, selectedWorkspace?.id),
@@ -1270,28 +1270,28 @@ fun NativeScreen(
                     hasSelectedMac = selectedTaskMac != null,
                     resolvedMacOrigin = taskMac?.origin.takeIf { selectedTaskMac == null && taskOrigin == pairingOrigin(code) },
                     savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
-                    attachmentRepository = repository, supportsAttachments = taskMac?.origin == taskOrigin && ComposerAttachment.FILE_CAPABILITY in hostCapabilities,
-                    macs = pairedMacs, workspaceGroups = if (taskMac?.origin == taskOrigin) groups else emptyList(),
+                    attachmentRepository = repository, supportsAttachments = taskMac?.ownsOrigin(taskOrigin) == true && ComposerAttachment.FILE_CAPABILITY in hostCapabilities,
+                    macs = pairedMacs, workspaceGroups = if (taskMac?.ownsOrigin(taskOrigin) == true) groups else emptyList(),
                     supportsGroups = if (taskConnected) "workspace.create_in_group.v1" in hostCapabilities else null,
                     groupsLoaded = taskConnected && taskGroupsLoaded,
                     groupIsCurrent = { group -> group == null || (connectionReady && connectedCode == taskCode && code == taskCode && "workspace.create_in_group.v1" in hostCapabilities &&
                         taskGroupsLoaded && groups.count { it.id == group } == 1) },
                     directoryWorkspaces = taskWorkspaces, selectedWorkspaceId = selectedWorkspace?.id,
                     selectMac = { editor, nextOrigin ->
-                        val target = requireNotNull(pairedMacs.singleOrNull { it.origin == nextOrigin }) { "This Mac is no longer paired" }
+                        val target = requireNotNull(pairedMacs.singleOrNull { it.ownsOrigin(nextOrigin) }) { "This Mac is no longer paired" }
                         val snapshot = workspaceSources.firstOrNull { it.mac.origin == nextOrigin && it.availability == NativeFeedAvailability.CONNECTED }
                         val currentDraft = checkNotNull(repository.drafts.state.value[editor.id])
                         val templates = repository.templates.state.value
                         val nextDirectory = templates.suggestedDirectory(templates.selected(currentDraft.templateId), nextOrigin,
                             snapshot?.let { preferredTaskDirectories(it.workspaces, null).firstOrNull() })
                         repository.selectMac(editor, nextOrigin, target.name, nextDirectory)
-                        check(signedIn && taskDraftRepository === repository && pairedMacs.any { it.origin == nextOrigin }) { "Task account or Mac changed" }
+                        check(signedIn && taskDraftRepository === repository && pairedMacs.any { it.ownsOrigin(nextOrigin) }) { "Task account or Mac changed" }
                         selectComputer(target)
                     },
                     persistDrafts = repository::persistNow, flushDrafts = repository::flush,
                     onResumeDraft = { draft ->
                         taskDraftId = draft.id
-                        pairedMacs.firstOrNull { it.origin == draft.origin }?.let(::selectComputer)
+                        pairedMacs.firstOrNull { it.ownsOrigin(draft.origin) }?.let(::selectComputer)
                     }, onNewDraft = { newTaskDraft() },
                     supportsTaskCreation = if (taskConnected) "workspace.task_create.v1" in hostCapabilities else null,
                     refreshWorkspaces = {

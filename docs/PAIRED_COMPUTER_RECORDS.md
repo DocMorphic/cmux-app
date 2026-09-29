@@ -49,7 +49,63 @@ captured owner/origin metadata before removing a row, so a stale captured record
 cannot remove a replacement with a different scope or durable identity. Actual
 server revocation is unchanged and was not exercised against a real Mac.
 
-## Verification
+## Historical duplicate repair (2026-09-29)
+
+A successful authenticated native reconnect now consolidates stored rows belonging
+to the same user, team, canonical device ID and exact build tag. The fresh verified
+native record supplies the route and name. The first row's position and primary
+origin are retained, and the other rows' origins become encrypted `previous_origins`.
+Existing aliases survive subsequent reconnects. No address/name match grants
+identity authority, and other teams, builds and opaque case-sensitive IDs remain
+separate. A collision with another record's origin rejects before changing storage.
+
+A QR reconnect may consolidate old QR rows and a single unambiguous native route.
+Multiple different native codes still require a native reconnect first: these old
+Android records have no timestamps from which to select the freshest authority.
+The implementation intentionally does not infer route freshness from array order.
+
+Drafts keep their original origins, contents, attachments and task recovery state.
+Computer selection, composer lookup/options, workspace links and notification
+navigation accept retained origins; active feeds still use one primary origin.
+Selecting the same Mac through its old draft origin does not retarget/reset the
+draft. Local removal recognizes a selection stored under an old origin.
+
+The notification ledger idempotently combines seen IDs (within its existing 4096
+entry bound) and retargets encrypted destinations while retaining every existing
+route UUID. Android pending intents therefore survive repair. Both old alerts for
+the same notification are cancelled when it is read. Repair happens before pruning
+and before establishing the next feed baseline, and does not mix another Mac's
+history. Draft migration and notification repair do not require a server revocation.
+
+Reference: pinned upstream `MobileShellComposite+PairedMacCoalescing.swift` and
+`MobileShellComposite+PairedMacAliases.swift` under
+`Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/`. Upstream separates exact
+canonical-device authority from presentation/endpoint aliases and keeps build
+boundaries. Android now handles the exact-identity repair described above; the
+broader historical cross-device endpoint presentation model is still pending.
+
+### Repair verification
+
+- 70 focused JVM cases passed: 21 pairing persistence, 9 notification ledger,
+  12 task draft, 12 computer removal and 16 feed coordinator cases.
+- Both main and instrumentation APKs built together. ELF LOAD/RELRO and ZIP
+  alignment verification pass at 16 KB. An initial compile found a nullable
+  set-subtraction type mismatch in the decoder; explicit filtering fixed it
+  before these tests and APKs were produced.
+- Main APK SHA-256: `7c8064a8344081ed0722663619fa66df15127c95de89865fe148e8c3e938fd9b`.
+- Test APK SHA-256: `3c7eaf1050ead2aef8706be12f73a5ffb1ea10116bf870d42a46993e1c298a4b`.
+- Nine Android 17 emulator tests passed in **8.643 seconds**: five notification
+  delivery/service cases and four encrypted grant/persistence cases. The new
+  runtime fixture posts two real Android alerts, consolidates the records through
+  `rememberAuthenticatedMac`, reloads their encrypted aliases, preserves both
+  pending intents/route UUIDs, adds only the new alert, cancels both old alerts on
+  read, and removes the remaining alert after local removal.
+- Local evidence: ignored `captures/runtime/pairing-aliases/`. The emulator was
+  stopped afterward. No physical Pixel was detected by ADB; its last installed
+  checkpoint remains `f0dfc7f`, and published signed build 157 is unchanged.
+  These fixtures do not prove physical Mac/Tailscale or Pixel acceptance.
+
+## Scoped records checkpoint verification
 
 - **75 focused JVM cases passed** with no failures/errors/skips: 17 pairing
   persistence, 23 route authorization, 16 feed, 7 notification ledger and 12
@@ -82,10 +138,10 @@ server revocation is unchanged and was not exercised against a real Mac.
 
 ## Remaining acceptance and integration
 
-- Already duplicated historical rows with multiple origins are not automatically
-  coalesced. Multiple owned rows for one exact Mac/build currently reject an
-  ambiguous merge. A resolution flow must retain old draft/notification aliases
-  without guessing ownership or revoking a real Mac to clean up local duplicates.
+- Exact-identity duplicates now consolidate after a verified reconnect. Broader
+  presentation aliases across historical device IDs sharing an endpoint, as used
+  by iOS, still need implementation with owner/build boundaries. Duplicate rows
+  are not proactively repaired before authentication.
 - Unresolved native hints lacking scope need explicit reconnect/migration rather
   than automatic adoption of their previous owner's data.
 - Standalone QR-only records still use the legacy connector and settings entry

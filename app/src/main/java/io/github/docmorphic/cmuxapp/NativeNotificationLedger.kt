@@ -38,6 +38,19 @@ internal class NativeNotificationLedger(private val state: JSONObject) {
     }
     fun destinations(): List<NotificationDestination> = routes.keys().asSequence().mapNotNull(::destination).toList()
 
+    /** Idempotent repair; existing Android pending intents retain their route UUIDs. */
+    fun coalesce(origin: String, aliases: Set<String>) {
+        val previous = aliases - origin
+        if (previous.isEmpty()) return
+        if (origins.has(origin) || previous.any(origins::has)) {
+            origins.put(origin, JSONArray((seen(origin) + previous.sorted().flatMap(::seen)).distinct().take(SEEN_LIMIT)))
+        }
+        previous.forEach(origins::remove)
+        routes.keys().asSequence().toList().forEach { id ->
+            routes.optJSONObject(id)?.takeIf { it.optString("origin") in previous }?.put("origin", origin)
+        }
+    }
+
     /** First observation establishes a quiet baseline, separately for each paired Mac. */
     fun baseline(origin: String, feed: List<NativeNotification>): Boolean {
         if (origins.has(origin)) return false
