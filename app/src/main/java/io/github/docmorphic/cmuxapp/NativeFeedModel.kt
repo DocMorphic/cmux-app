@@ -17,18 +17,20 @@ internal data class NativeFeedSource(
     val capabilities: Set<String> = emptySet(),
     val hasWorkspaceSnapshot: Boolean = false
 )
-internal data class NativeFeedEntry(val source: NativeFeedSource, val notification: NativeNotification) {
+internal data class NativeFeedEntry(val source: NativeFeedSource, val notification: NativeNotification,
+    val displayComputer: String? = null) {
     val id = source.mac.origin + ":" + notification.id
-    val computer get() = source.mac.name.ifBlank { "cmux" }
+    val computer get() = displayComputer ?: source.mac.name.ifBlank { "cmux" }
     fun presentation(locale: Locale) = notification.presentation(source.workspaces, computer, locale)
     fun searchFields() = notification.searchFields(source.workspaces, computer)
 }
 
 /** Scope and live destinations precede the cap; retained source snapshots remain untouched. */
-internal fun aggregateNativeFeed(sources: Collection<NativeFeedSource>, selectedOrigin: String? = null): List<NativeFeedEntry> =
+internal fun aggregateNativeFeed(sources: Collection<NativeFeedSource>, selectedOrigin: String? = null,
+    computerName: (NativeCredentialStore.PairedMac) -> String? = { null }): List<NativeFeedEntry> =
     sources.filter { selectedOrigin == null || it.mac.origin == selectedOrigin }
         .flatMap { source -> source.items.filter { it.destination(source.workspaces) != null }
-            .map { NativeFeedEntry(source, it) } }
+            .map { NativeFeedEntry(source, it, computerName(source.mac)) } }
         .sortedWith(compareByDescending<NativeFeedEntry> { it.notification.createdAt ?: Double.NEGATIVE_INFINITY }
             .thenBy { it.source.mac.deviceId }.thenBy { it.source.mac.instanceTag.orEmpty() }
             .thenBy { it.notification.id }.thenBy { it.source.mac.origin })

@@ -64,7 +64,8 @@ internal fun NativeTaskComposerView(
     groupIsCurrent: ((String?) -> Boolean)? = null,
     attachmentRepository: TaskDraftRepository? = null, supportsAttachments: Boolean = false,
     hasSelectedMac: Boolean = true,
-    resolvedMacOrigin: String? = null
+    resolvedMacOrigin: String? = null,
+    appearances: NativeMacAppearances = NativeMacAppearances()
 ) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
@@ -319,7 +320,7 @@ internal fun NativeTaskComposerView(
         return
     }
     if (showOptions) {
-        TaskOptionsView(draft, macs, groupSelection, canEdit, error,
+        TaskOptionsView(draft, macs, groupSelection, canEdit, error, computerName = appearances::name,
             onName = { name -> edit { it.copy(workspaceName = name) } },
             onMac = { next ->
                 if (next != origin && selectMac != null && canEdit) {

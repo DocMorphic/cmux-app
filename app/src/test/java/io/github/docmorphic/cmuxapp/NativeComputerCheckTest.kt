@@ -77,6 +77,14 @@ class NativeComputerCheckTest {
             assertNull(runtime.powerSession(team, target))
         }
     } }
+    @Test fun localAppearanceWorksOfflineButRetiredAccountPageCannotEdit() = runBlocking { fixture { runtime, backend, teams ->
+        backend.state.value = backend.state.value.copy(permissionExpiresAt = 999, computers = emptyList())
+        assertTrue(runtime.permitsAppearance(team))
+        assertFalse(runtime.permitsAppearance(team.copy(teamId = "other")))
+        teams.value = NativeAccountTeamsState()
+        assertFalse(runtime.permitsAppearance(team))
+        assertTrue(backend.wires.isEmpty())
+    } }
     @Test fun checkingAlreadyOpenMacDoesNotCloseItsOtherLease() = runBlocking { fixture { runtime, backend, _ ->
         val pairing = PairingCodeParser.parse(PairingCodeParser.computer(mac, team)).getOrThrow() as PairingCode.Iroh
         runtime.connect(pairing).use { active ->

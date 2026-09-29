@@ -128,6 +128,7 @@ fun NativeScreen(
     var signedIn by remember { mutableStateOf(account.isSignedIn()) }
     val accountTeams = remember(account, store) { sharedConnections?.teams ?: NativeAccountTeams(account, store) }
     val teamState by accountTeams.state.collectAsState()
+    val appearances = nativeMacAppearances(teamState.scope)
     DisposableEffect(accountTeams) { onDispose { if (sharedConnections == null) accountTeams.close() } }
     LaunchedEffect(signedIn, accountTeams) {
         if (!signedIn) accountTeams.clear()
@@ -147,6 +148,7 @@ fun NativeScreen(
     val pairedMacs = savedPairedMacs.filter {
         PairingCodeParser.parse(it.code).getOrNull()?.let(connection::allowsSaved) == true
     }
+    val machineColorIndices = nativeMacColorIndices(pairedMacs, computerState.computers)
     var showSettings by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
     var showTaskComposer by rememberSaveable(signedIn) { mutableStateOf(false) }
@@ -259,7 +261,9 @@ fun NativeScreen(
     val scopedFeedSources = remember(feedSources, selectedOrigin) {
         feedSources.values.filter { selectedOrigin == null || it.mac.origin == selectedOrigin }
     }
-    val feedEntries = remember(feedSources, selectedOrigin) { aggregateNativeFeed(feedSources.values, selectedOrigin) }
+    val feedEntries = remember(feedSources, selectedOrigin, appearances) {
+        aggregateNativeFeed(feedSources.values, selectedOrigin, appearances::name)
+    }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var feedForeground by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
     DisposableEffect(lifecycle, sharedConnections) {
@@ -338,12 +342,12 @@ fun NativeScreen(
             else snapshot ?: NativeFeedSource(mac)
         }
     }
-    val workspaceSearch = remember(workspaceSources, searchLocale) {
+    val workspaceSearch = remember(workspaceSources, searchLocale, appearances) {
         NativeSearchIndex(workspaceSources.flatMap { source ->
             val groupNames = source.groups.associate { it.id to it.name }
             source.workspaces.map { workspace -> workspaceSearchId(source, workspace) to
                 (listOf(workspace.title, workspace.description, workspace.directory, workspace.preview,
-                    source.mac.name, groupNames[workspace.groupId]) + workspace.terminals.map { it.title }) }
+                    source.mac.name, appearances.name(source.mac), groupNames[workspace.groupId]) + workspace.terminals.map { it.title }) }
         }, searchLocale)
     }
     val notificationSearch = remember(feedEntries, searchLocale) {
@@ -1140,16 +1144,8 @@ fun NativeScreen(
                     }
                 })
                 Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
-                pairedMacs.forEach { mac ->
-                    Row(Modifier.fillMaxWidth().clickable { code = mac.code; showSettings = false }
-                        .padding(horizontal = 22.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("◉", color = nativeAccent, fontSize = 20.sp)
-                        Spacer(Modifier.width(14.dp))
-                        Text(mac.name.ifBlank { "cmux" }, Modifier.weight(1f))
-                        NativeSavedComputerDetailsButton(sharedConnections?.native, computerState, mac)
-                        if (code == mac.code) Text(if (client != null) "Connected" else "Selected", color = nativeAccent, fontSize = 12.sp)
-                    }
-                }
+                NativeSavedComputerRows(pairedMacs, appearances, machineColorIndices, sharedConnections?.native,
+                    computerState, code, client != null) { mac -> code = mac.code; showSettings = false }
                 TextButton(onClick = {
                     code = ""; showSettings = false; selectedTerminal = null; selectedWorkspace = null
                 }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Find another Mac") }
@@ -1223,7 +1219,7 @@ fun NativeScreen(
                 }
                 Text("CONNECTION", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                     color = nativeMuted, fontSize = 11.sp)
-                Text("$hostName · ${if (client != null) "Connected" else "Disconnected"}",
+                Text("${pairedMacs.firstOrNull { it.code == code }?.let(appearances::name) ?: hostName} · ${if (client != null) "Connected" else "Disconnected"}",
                     Modifier.padding(horizontal = 22.dp), color = nativeMuted, fontSize = 13.sp)
                 TextButton(onClick = onUseHelper, modifier = Modifier.padding(horizontal = 14.dp)) {
                     Text("Use existing helper connection", color = nativeMuted)
@@ -1265,7 +1261,8 @@ fun NativeScreen(
                     }, onBack = { showTaskComposer = false },
                     isCurrent = { signedIn && taskDraftRepository === repository },
                     savedDrafts = repository.drafts, draftId = taskDraftId,
-                    macName = selectedTaskMac?.name ?: restored?.macName ?: "Choose a Mac",
+                    macName = selectedTaskMac?.let(appearances::name) ?: restored?.macName ?: "Choose a Mac",
+                    appearances = appearances,
                     hasSelectedMac = selectedTaskMac != null,
                     resolvedMacOrigin = taskMac?.origin.takeIf { selectedTaskMac == null && taskOrigin == pairingOrigin(code) },
                     savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
@@ -1307,6 +1304,7 @@ fun NativeScreen(
                 }
             }
             code.isBlank() -> NativeComputerPicker(teamState, computerState, runtime = sharedConnections?.native,
+                colorIndices = machineColorIndices,
                 hasSavedComputers = pairedMacs.isNotEmpty(),
                 onSelect = { mac -> computerState.account?.let { code = PairingCodeParser.computer(mac, it) } },
                 onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
@@ -1588,39 +1586,20 @@ fun NativeScreen(
                     TextButton(onClick = { workspaceRoute = null; finishSearch(); showSettings = true }) {
                         Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
                     }
-                    Box {
-                        IconButton(onClick = { computerMenuOpen = true }, modifier = Modifier.semantics {
-                            stateDescription = selectedComputer?.name ?: "All Computers"
-                        }) {
-                            Icon(painterResource(R.drawable.ic_feed_computer), "Computer filter",
-                                tint = if (selectedComputer == null) nativeMuted else nativeAccent,
-                                modifier = Modifier.size(22.dp))
-                        }
-                        DropdownMenu(computerMenuOpen, onDismissRequest = { computerMenuOpen = false }) {
-                            DropdownMenuItem(text = { Text("All Computers") },
-                                onClick = { selectComputer(null) },
-                                leadingIcon = { Text(if (selectedComputer == null) "✓" else " ") })
-                            pairedMacs.forEach { mac ->
-                                DropdownMenuItem(text = { Text(mac.name.ifBlank { "cmux" }) }, onClick = {
-                                    selectComputer(mac)
-                                }, leadingIcon = { Text(if (selectedOrigin == mac.origin) "✓" else " ") })
-                            }
-                            DropdownMenuItem(text = { Text("Pair another Mac") }, onClick = {
-                                computerMenuOpen = false; code = ""
-                            })
-                        }
-                    }
+                    NativeComputerSelector(pairedMacs, selectedComputer, appearances, machineColorIndices,
+                        computerMenuOpen, { computerMenuOpen = it }, ::selectComputer,
+                        onPair = { computerMenuOpen = false; code = "" })
                     Column(Modifier.weight(1f)) {
                         Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
                             fontSize = 17.sp)
-                        Text(selectedComputer?.name ?: "All Computers", color = nativeMuted,
+                        Text(selectedComputer?.let(appearances::name) ?: "All Computers", color = nativeMuted,
                             fontSize = 11.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                     if (notificationTab) {
                         if (feedEntries.any { !it.notification.isRead }) IconButton(
                             onClick = {
                                 pendingReadAllOrigin = selectedOrigin
-                                pendingReadAllComputer = selectedComputer?.name ?: "All Computers"
+                                pendingReadAllComputer = selectedComputer?.let(appearances::name) ?: "All Computers"
                                 confirmReadAll = true
                             }, enabled = !readAllBusy) {
                             Icon(painterResource(R.drawable.ic_feed_read_all), "Mark All Read",
@@ -1728,7 +1707,7 @@ fun NativeScreen(
                         workspaceSources.filter { it.availability != NativeFeedAvailability.CONNECTED }.forEach { source ->
                             item("status:" + source.mac.origin) {
                                 Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text("${source.mac.name} · ${if (source.availability == NativeFeedAvailability.CONNECTING) "Connecting…" else "Unavailable"}",
+                                    Text("${appearances.name(source.mac)} · ${if (source.availability == NativeFeedAvailability.CONNECTING) "Connecting…" else "Unavailable"}",
                                         Modifier.weight(1f), color = nativeMuted, fontSize = 12.sp)
                                     TextButton(onClick = { refreshFeed() }) { Text("Retry") }
                                 }
@@ -1768,10 +1747,12 @@ fun NativeScreen(
                                 workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, workspace.id, terminalId, browserId, changes)
                             }
                             Column(Modifier.padding(start = if (entry.indented) 18.dp else 0.dp)
-                                .semantics { contentDescription = "${workspace.title} on ${owner.mac.name}" }) {
+                                .semantics { contentDescription = "${workspace.title} on ${appearances.name(owner.mac)}" }) {
                             NativeWorkspaceRow(
                                 workspace = workspace, groups = owner.groups,
-                                computer = owner.mac.name.takeIf { selectedOrigin == null && pairedMacs.size > 1 },
+                                computer = appearances.name(owner.mac).takeIf { selectedOrigin == null && pairedMacs.size > 1 },
+                                appearance = appearances.get(owner.mac), machineId = owner.mac.deviceId,
+                                machineColorIndex = machineColorIndices[owner.mac.deviceId],
                                 canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
                                 onOpen = { open() },
                                 onAction = { action, title ->
@@ -1921,6 +1902,7 @@ private fun NativeWorkspaceRow(
     groups: List<NativeGroup>,
     canMove: Boolean,
     computer: String? = null,
+    appearance: NativeMacAppearance = NativeMacAppearance(), machineId: String? = null, machineColorIndex: Int? = null,
     onOpen: () -> Unit,
     onAction: (String, String?) -> Unit
 ) {
@@ -1934,11 +1916,7 @@ private fun NativeWorkspaceRow(
                 workspace.unreadState.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
         }.padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
         NativeUnreadGutter(workspace.unreadState)
-        val colors = listOf(Color(0xFFFFB52E), Color(0xFF58CFA2), Color(0xFF83B9FF), Color(0xFFFF8E80))
-        val accent = runCatching { android.graphics.Color.parseColor(workspace.color) }
-            .getOrNull()?.let { Color(it) } ?: colors[(workspace.id.hashCode() and Int.MAX_VALUE) % colors.size]
-        Box(Modifier.size(37.dp).background(accent, CircleShape),
-            contentAlignment = Alignment.Center) { Text("›", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold) }
+        NativeMacAvatar(appearance, machineId ?: workspace.id, index = machineColorIndex, defaultSymbol = "terminal")
         Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
             computer?.let { Text(it, color = nativeMuted, fontSize = 10.sp, maxLines = 1) }
@@ -2018,11 +1996,13 @@ private fun nativeConnectionFailure(failure: Throwable): String {
 @Composable
 private fun NativeComputerPicker(
     teamState: NativeAccountTeamsState, computerState: NativeComputersState, runtime: NativeIrohRuntime? = null,
+    colorIndices: Map<String, Int> = emptyMap(),
     hasSavedComputers: Boolean, onSelect: (IrohV2Computer) -> Unit, onSettings: () -> Unit,
     onRefresh: () -> Unit, onPairing: (String) -> Unit, onNewTask: () -> Unit,
     onUseHelper: () -> Unit, onLicenses: () -> Unit, onError: (String?) -> Unit
 ) {
     val context = LocalContext.current
+    val appearances = nativeMacAppearances(computerState.account)
     var pairingText by remember { mutableStateOf("") }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f)) { NativeHeader("Computers") }
@@ -2048,12 +2028,13 @@ private fun NativeComputerPicker(
                 onSelect(mac)
             }, shape = RoundedCornerShape(14.dp), color = nativePanel) {
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("◉", color = nativeAccent, fontSize = 22.sp)
+                    NativeMacAvatar(appearances.get(mac.deviceId, mac.buildTag), mac.deviceId,
+                        index = colorIndices[mac.deviceId])
                     Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                        Text(mac.name.ifBlank { "Mac" }, fontWeight = FontWeight.Medium)
+                        Text(appearances.get(mac.deviceId, mac.buildTag).displayName(mac.name), fontWeight = FontWeight.Medium)
                         Text("Available", color = nativeMuted, fontSize = 12.sp)
                     }
-                    NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac))
+                    NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.deviceId])
                     Text("›", color = nativeMuted, fontSize = 24.sp)
                 }
             }
@@ -2141,4 +2122,46 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
         TextButton(onClick = onLicenses) { Text("Open-source licenses") }
     }
 }
+}
+
+
+@Composable
+private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>, appearances: NativeMacAppearances,
+    colorIndices: Map<String, Int>, runtime: NativeIrohRuntime?, state: NativeComputersState,
+    selectedCode: String, connected: Boolean, onSelect: (NativeCredentialStore.PairedMac) -> Unit) {
+    macs.forEach { mac ->
+        Row(Modifier.fillMaxWidth().clickable { onSelect(mac) }
+            .padding(horizontal = 22.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            NativeMacAvatar(appearances.get(mac), mac.deviceId, index = colorIndices[mac.deviceId])
+            Spacer(Modifier.width(14.dp))
+            Text(appearances.name(mac), Modifier.weight(1f))
+            NativeSavedComputerDetailsButton(runtime, state, mac, colorIndices[mac.deviceId])
+            if (selectedCode == mac.code) Text(if (connected) "Connected" else "Selected", color = nativeAccent, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, selected: NativeCredentialStore.PairedMac?,
+    appearances: NativeMacAppearances, colorIndices: Map<String, Int>, open: Boolean, onOpen: (Boolean) -> Unit,
+    onSelect: (NativeCredentialStore.PairedMac?) -> Unit, onPair: () -> Unit) {
+    Box {
+        IconButton(onClick = { onOpen(true) }, modifier = Modifier.semantics {
+            contentDescription = "Computer filter"
+            stateDescription = selected?.let(appearances::name) ?: "All Computers"
+        }) {
+            if (selected == null) Icon(painterResource(R.drawable.ic_feed_computer), null,
+                tint = nativeMuted, modifier = Modifier.size(22.dp))
+            else NativeMacAvatar(appearances.get(selected), selected.deviceId, Modifier.size(28.dp), colorIndices[selected.deviceId])
+        }
+        DropdownMenu(open, onDismissRequest = { onOpen(false) }) {
+            DropdownMenuItem(text = { Text("All Computers") }, onClick = { onSelect(null) },
+                leadingIcon = { Text(if (selected == null) "✓" else " ") })
+            macs.forEach { mac ->
+                DropdownMenuItem(text = { Text(appearances.name(mac)) }, onClick = { onSelect(mac) },
+                    leadingIcon = { Text(if (selected?.origin == mac.origin) "✓" else " ") })
+            }
+            DropdownMenuItem(text = { Text("Pair another Mac") }, onClick = onPair)
+        }
+    }
 }

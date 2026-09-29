@@ -32,7 +32,8 @@ internal data class TaskGroupSelection(val id: String?, val groups: List<NativeG
 @Composable
 internal fun TaskOptionsView(draft: TaskDraft, macs: List<NativeCredentialStore.PairedMac>, groups: TaskGroupSelection,
     enabled: Boolean, error: String?, onName: (String) -> Unit, onMac: (String) -> Unit,
-    onGroup: (String?) -> Unit, onDirectory: () -> Unit, onRefreshGroups: () -> Unit, onDismiss: () -> Unit) {
+    onGroup: (String?) -> Unit, onDirectory: () -> Unit, onRefreshGroups: () -> Unit, onDismiss: () -> Unit,
+    computerName: (NativeCredentialStore.PairedMac) -> String = { it.name }) {
     var macMenu by remember { mutableStateOf(false) }
     var groupMenu by remember { mutableStateOf(false) }
     BackHandler(enabled) { onDismiss() }
@@ -53,11 +54,11 @@ internal fun TaskOptionsView(draft: TaskDraft, macs: List<NativeCredentialStore.
                 Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1B1C1E)) {
                 Column(Modifier.padding(vertical = 4.dp)) {
                 Box {
-                    TaskOptionRouteRow("Machine", draft.macName, R.drawable.ic_feed_computer, "Task Mac",
+                    TaskOptionRouteRow("Machine", macs.firstOrNull { it.origin == draft.origin }?.let(computerName) ?: draft.macName, R.drawable.ic_feed_computer, "Task Mac",
                         enabled && macs.isNotEmpty(), menu = true, onClick = { macMenu = true })
                     DropdownMenu(macMenu, { macMenu = false }) {
-                        macs.forEach { mac -> DropdownMenuItem(text = { Text(mac.name) },
-                            modifier = Modifier.semantics { contentDescription = "Task Mac: ${mac.name}" },
+                        macs.forEach { mac -> DropdownMenuItem(text = { Text(computerName(mac)) },
+                            modifier = Modifier.semantics { contentDescription = "Task Mac: ${computerName(mac)}" },
                             trailingIcon = { if (mac.origin == draft.origin) Text("✓") },
                             onClick = { macMenu = false; onMac(mac.origin) }) }
                     }

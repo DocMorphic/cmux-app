@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Local computer appearance checkpoint (2026-09-29):** Computer Details now edits
+name, palette/custom RGB color, computer/utility symbols and emoji, with independent
+Auto resets. Scoped atomic storage updates computer rows, the selector, workspace
+avatars/search, task options and notification labels without changing connection
+identity or dialing. Twenty-eight JVM cases and ten Android UI cases pass across
+two runs; an initial JUnit test-declaration failure was fixed and the four new
+cases rerun. Account backup/restore and physical acceptance remain open. See
+[COMPUTER_APPEARANCE.md](COMPUTER_APPEARANCE.md) for evidence, Android icon/picker
+differences and the exact upstream backup contract. Signed build 157 is unchanged.
+
 **Mac Power checkpoint (2026-09-29):** Computer Details now has the iOS-style
 Keep Mac Awake control, gated by exact live Mac identity and `caffeine.control.v1`.
 It handles confirmed state/events, duplicate prevention and ambiguous mutations

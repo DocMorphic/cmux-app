@@ -38,22 +38,24 @@ internal data class NativeComputerTarget(val deviceId: String, val buildTag: Str
 
 @Composable
 internal fun NativeSavedComputerDetailsButton(runtime: NativeIrohRuntime?, state: NativeComputersState,
-    mac: NativeCredentialStore.PairedMac) {
+    mac: NativeCredentialStore.PairedMac, colorIndex: Int? = null) {
     val team = state.account ?: return
     val target = NativeComputerTarget.from(mac, team) ?: return
-    NativeComputerDetailsButton(runtime, state, target)
+    NativeComputerDetailsButton(runtime, state, target, colorIndex)
 }
 
 @Composable
 internal fun NativeComputerDetailsButton(runtime: NativeIrohRuntime?, state: NativeComputersState,
-    target: NativeComputerTarget) {
+    target: NativeComputerTarget, colorIndex: Int? = null) {
     val team = state.account
     if (runtime == null || team == null) return
     key(runtime, team, target.deviceId, target.buildTag) {
         var open by remember { mutableStateOf(false) }
         val context = LocalContext.current
+        val appearances = rememberNativeAppearanceStore(team)?.state?.collectAsState()?.value ?: NativeMacAppearances()
+        val title = appearances.get(target.deviceId, target.buildTag).displayName(target.name)
         TextButton(onClick = { open = true }, modifier = Modifier.semantics {
-            contentDescription = "Details for ${target.name} (${target.buildTag})"
+            contentDescription = "Details for $title (${target.buildTag})"
         }) { Text("Details") }
         if (open) Dialog(onDismissRequest = { open = false },
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
@@ -67,7 +69,8 @@ internal fun NativeComputerDetailsButton(runtime: NativeIrohRuntime?, state: Nat
                         .putExtra(android.content.Intent.EXTRA_TEXT, report)
                     context.startActivity(android.content.Intent.createChooser(intent, "Share Connection Report"))
                 }, onBack = { open = false },
-                power = { NativeMacPowerSettings(runtime, team, target) })
+                power = { NativeMacPowerSettings(runtime, team, target) }, displayName = title,
+                appearance = { NativeMacAppearanceSettings(team, target, colorIndex) { runtime.permitsAppearance(team) } })
         }
     }
 }
@@ -76,12 +79,13 @@ internal fun NativeComputerDetailsButton(runtime: NativeIrohRuntime?, state: Nat
 internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available: Boolean, canCheck: Boolean,
     check: suspend () -> NativeConnectionReport, paths: suspend () -> List<NativePrivatePath>,
     changePaths: suspend ((NativePrivatePathStore) -> Unit) -> List<NativePrivatePath>,
-    share: (String) -> Unit, onBack: () -> Unit, power: @Composable () -> Unit = {}) {
+    share: (String) -> Unit, onBack: () -> Unit, power: @Composable () -> Unit = {},
+    displayName: String = target.name, appearance: @Composable () -> Unit = {}) {
     Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onBack) { Text("‹  Back") }
-                Text(target.name.ifBlank { "Mac" }, Modifier.weight(1f).padding(end = 16.dp),
+                Text(displayName.ifBlank { "Mac" }, Modifier.weight(1f).padding(end = 16.dp),
                     fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -90,6 +94,7 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
                     Text("Connection Method: Automatic", Modifier.padding(top = 12.dp))
                     Text("App Build: ${target.buildTag}", fontSize = 13.sp, color = Color(0xFF9B9FA8))
                 }
+                appearance()
                 NativeConnectionCheckSection(canCheck, check, share,
                     disabledMessage = "Wait for your account’s computer list, then try again.")
                 power()

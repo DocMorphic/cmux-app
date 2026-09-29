@@ -74,7 +74,10 @@ class NativeNotificationService : Service() {
                             val active = client
                             mac.requireMatchingHost(active.hostStatus())
                             monitorNativeNotificationFeed(active) { feed ->
-                                delivery.refresh(mac.origin, mac.name, feed) {
+                                val team = connections.teams.state.value.scope?.takeIf(connections.teams::isCurrent)
+                                val displayName = team?.let { NativeMacAppearanceStore.create(this@NativeNotificationService, it)
+                                    .state.value.name(mac) } ?: mac.name
+                                delivery.refresh(mac.origin, displayName, feed) {
                                     isEnabled(this@NativeNotificationService) && account.isSignedIn() &&
                                         store.pairedMacs().contains(mac) && connector.allowsSaved(pairing)
                                 }

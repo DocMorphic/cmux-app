@@ -154,6 +154,9 @@ internal class NativeIrohRuntime(
         return NativeMacPowerSession(lease, target, permits, gate)
     }
 
+    /** Local appearance may be edited offline, but never through a retired account/team page. */
+    fun permitsAppearance(team: NativeTeamScope): Boolean = synchronized(lock) { !closed && isCurrent(team) }
+
     suspend fun networking(team: NativeTeamScope, refresh: Boolean = false): NativeNetworkingSnapshot =
         withContext(Dispatchers.IO) {
             val run = synchronized(lock) { owner } ?: error("Networking is not ready")
