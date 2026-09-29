@@ -14,9 +14,7 @@ class NativePairingPersistenceTest {
         NativeCredentialStore.PairedMac(PairingCodeParser.computer(IrohV2Computer("record", endpoint, device, build, "Native name", emptyList()), team),
             device, "Native name", build)
     private fun state(vararg rows: NativeCredentialStore.PairedMac) = JSONObject().put("task_session", scope.login)
-        .put("refresh_token", "fixture-refresh").put("pairings", JSONArray(rows.map { row ->
-            JSONObject().put("code", row.code).put("device_id", row.deviceId).put("name", row.name).put("instance_tag", row.instanceTag)
-        }))
+        .put("refresh_token", "fixture-refresh").put("pairings", JSONArray(rows.map(NativePairingRecords::encode)))
     private fun grant(state: JSONObject, row: NativeCredentialStore.PairedMac = incoming, team: NativeTeamScope = scope): TailscaleSavedGrant {
         val pairing = PairingCodeParser.parse(row.code).getOrThrow() as PairingCode.Tailscale
         val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), team.userId, team.teamId, TailscaleGrantStore.source(pairing),
@@ -28,14 +26,103 @@ class NativePairingPersistenceTest {
         (0 until rows.length()).map { rows.getJSONObject(it).getString("code") }
     }
 
+    @Test fun standaloneQrUpgradeRetainsDraftNotificationAndSelectionOrigin() {
+        val state = state(); grant(state)
+        val first = NativePairingPersistence.remember(state, incoming, scope)
+        assertNotEquals(incoming.origin, first.origin)
+        state.put("computer_selection", first.origin)
+        val drafts = TaskDrafts()
+        val draftId = UUID.randomUUID().toString()
+        val editor = drafts.begin(draftId, first.origin, first.name, "/tmp")
+        drafts.edit(editor) { it.copy(prompt = "Preserved task") }
+        val ledgerState = JSONObject(); val ledger = NativeNotificationLedger(ledgerState)
+        val notification = NativeNotification("n", "w", "s", "Ready", "Done", false)
+        ledger.baseline(first.origin, emptyList())
+        val destination = ledger.stage(first.origin, notification)
+        ledger.acknowledge(first.origin, listOf(notification.id))
+        val upgraded = NativePairingPersistence.remember(state, native(), scope)
+        assertEquals(first.origin, upgraded.origin)
+        val restored = TaskDrafts(drafts.saved())
+        restored.begin(draftId, upgraded.origin, upgraded.name, "/tmp")
+        assertEquals("Preserved task", restored.state.value[draftId]?.prompt)
+        val restartedLedger = NativeNotificationLedger(JSONObject(ledgerState.toString()))
+        assertTrue(restartedLedger.prune(setOf(upgraded.origin)).isEmpty())
+        assertEquals(destination, restartedLedger.destination(destination.routeId))
+        assertEquals(destination.routeId, restartedLedger.stage(upgraded.origin, notification).routeId)
+        assertTrue(restartedLedger.unseen(upgraded.origin, listOf(notification)).isEmpty())
+        assertEquals(native().code, upgraded.code)
+        assertEquals(first.origin, state.getString("computer_selection"))
+        assertEquals(listOf(upgraded.code), codes(state))
+        val reloaded = NativePairingRecords.decode(state.getJSONArray("pairings").getJSONObject(0))!!
+        assertEquals(upgraded, reloaded)
+        assertEquals(scope.userId to scope.teamId, NativePairingRecords.owner(reloaded, TailscaleGrantStore({ state }, { error("read only") })))
+        val reattached = NativePairingPersistence.remember(state, incoming, scope)
+        assertEquals(upgraded, reattached)
+    }
+
+    @Test fun historicalQrWithOneGrantOwnerRetainsItsExistingOriginOnUpgrade() {
+        val state = state(incoming); grant(state)
+        val upgraded = NativePairingPersistence.remember(state, native(), scope)
+        assertEquals(incoming.origin, upgraded.origin)
+        assertEquals(native().code, upgraded.code)
+        assertEquals(1, codes(state).size)
+    }
+
+    @Test fun sameQrSavedByTwoTeamsHasSeparateRecordsOriginsAndRemoval() {
+        val other = scope.copy(teamId = "other")
+        val state = state(); grant(state)
+        val a = NativePairingPersistence.remember(state, incoming, scope)
+        grant(state, team = other)
+        val b = NativePairingPersistence.remember(state, incoming, other)
+        assertNotEquals(a.origin, b.origin); assertEquals(2, codes(state).size)
+        val grants = TailscaleGrantStore({ state }, { error("read only") })
+        assertTrue(NativePairingRecords.usable(a, scope, grants))
+        assertFalse(NativePairingRecords.usable(a, other, grants))
+        assertTrue(NativePairingRecords.usable(b, other, grants))
+        state.put("computer_selection", a.origin)
+        NativePairingRecords.removeLocal(state, qr, scope)
+        val rows = state.getJSONArray("pairings")
+        assertEquals(1, rows.length()); assertEquals(b, NativePairingRecords.decode(rows.getJSONObject(0)))
+        assertNull(grants.find(scope, TailscaleGrantStore.source(PairingCodeParser.parse(qr).getOrThrow() as PairingCode.Tailscale)))
+        assertTrue(NativePairingRecords.usable(b, other, grants))
+        assertEquals("", state.getString("computer_selection"))
+    }
+
+    @Test fun ambiguousHistoricalQrDoesNotDonateItsOriginToAnotherOwner() {
+        val state = state(incoming); grant(state); grant(state, team = scope.copy(teamId = "other"))
+        val grants = TailscaleGrantStore({ state }, { error("read only") })
+        assertNull(NativePairingRecords.owner(incoming, grants))
+        assertFalse(NativePairingRecords.usable(incoming, scope, grants))
+        val scoped = NativePairingPersistence.remember(state, incoming, scope)
+        assertNotEquals(incoming.origin, scoped.origin)
+        assertEquals(2, codes(state).size)
+    }
+
+    @Test fun invalidOwnerMetadataCannotLoadOrRedirectAStoredOrigin() {
+        for (item in listOf(
+            NativePairingRecords.encode(incoming).put("owner_user", "user"),
+            NativePairingRecords.encode(incoming).put("stable_origin", "a".repeat(64)),
+            NativePairingRecords.encode(NativePairingRecords.scoped(incoming, scope)).put("stable_origin", "bad")
+        )) assertNull(NativePairingRecords.decode(item))
+        val grants = TailscaleGrantStore({ state() }, { error("read only") })
+        assertNull(NativePairingRecords.owner(native().copy(accountUserId = "other", accountTeamId = scope.teamId), grants))
+    }
+
+    @Test fun changedGrantTargetDoesNotAuthorizeAStoredRowFromItsOldMac() {
+        val state = state(); grant(state)
+        val stored = NativePairingPersistence.remember(state, incoming, scope)
+        grant(state, incoming.copy(deviceId = "different-mac"))
+        assertFalse(NativePairingRecords.usable(stored, scope, TailscaleGrantStore({ state }, { error("read only") })))
+    }
+
     @Test fun authenticatedQrPreservesNativeIdentityNameOriginAndSelection() {
         val native = native(); val sibling = native(build = "debug", endpoint = "other-peer")
         val state = state(native, sibling).put("computer_selection", native.origin)
         val grant = grant(state)
-        val rowsBefore = state.getJSONArray("pairings").toString()
         val result = NativePairingPersistence.remember(state, incoming, scope)
-        assertEquals(native, result); assertEquals(native.origin, result.origin)
-        assertEquals(rowsBefore, state.getJSONArray("pairings").toString())
+        assertEquals(native.code, result.code); assertEquals(native.name, result.name); assertEquals(native.origin, result.origin)
+        assertEquals(scope.userId, result.accountUserId); assertEquals(scope.teamId, result.accountTeamId)
+        assertEquals(listOf(native.code, sibling.code), codes(state))
         assertEquals(native.code, state.getString("pairing_code"))
         assertEquals(native.origin, state.getString("computer_selection"))
         assertEquals(grant, TailscaleGrantStore({ state }, { error("read only") }).find(scope, grant.source))
@@ -46,9 +133,9 @@ class NativePairingPersistenceTest {
         val native = native(device = device)
         val row = incoming.copy(deviceId = device.lowercase())
         val state = state(native); grant(state, row)
-        assertEquals(native, NativePairingPersistence.remember(state, row, scope))
+        assertEquals(native.origin, NativePairingPersistence.remember(state, row, scope).origin)
         val opaque = state(native(device = "MAC")); grant(opaque)
-        assertEquals(incoming, NativePairingPersistence.remember(opaque, incoming, scope))
+        assertEquals(incoming.code, NativePairingPersistence.remember(opaque, incoming, scope).code)
         assertEquals(2, codes(opaque).size)
     }
 
@@ -56,7 +143,7 @@ class NativePairingPersistenceTest {
         for (owner in listOf(scope.copy(userId = "other"), scope.copy(teamId = "other"))) {
             val other = native(owner)
             val state = state(other); grant(state)
-            assertEquals(incoming, NativePairingPersistence.remember(state, incoming, scope))
+            assertEquals(incoming.code, NativePairingPersistence.remember(state, incoming, scope).code)
             assertEquals(listOf(other.code, incoming.code), codes(state))
         }
     }
@@ -66,7 +153,7 @@ class NativePairingPersistenceTest {
         for (build in listOf("debug", null)) {
             val row = incoming.copy(instanceTag = build)
             val state = state(native); grant(state, row)
-            assertEquals(row, NativePairingPersistence.remember(state, row, scope))
+            assertEquals(row.code, NativePairingPersistence.remember(state, row, scope).code)
             assertEquals(listOf(native.code, qr), codes(state))
         }
     }
@@ -114,13 +201,13 @@ class NativePairingPersistenceTest {
     @Test fun nativeReconnectDoesNotEraseAnotherTeamsSamePhysicalMac() {
         val other = native(scope.copy(teamId = "other")); val current = native()
         val state = state(other)
-        assertEquals(current, NativePairingPersistence.remember(state, current, scope))
+        assertEquals(current.code, NativePairingPersistence.remember(state, current, scope).code)
         assertEquals(listOf(other.code, current.code), codes(state))
     }
 
     @Test fun existingStandaloneQrRowStillUpdatesWithoutCreatingDuplicates() {
         val state = state(incoming.copy(name = "Before")); grant(state)
-        assertEquals(incoming, NativePairingPersistence.remember(state, incoming, scope))
+        assertEquals(incoming.code, NativePairingPersistence.remember(state, incoming, scope).code)
         assertEquals(listOf(qr), codes(state))
         assertEquals(incoming.name, state.getJSONArray("pairings").getJSONObject(0).getString("name"))
     }

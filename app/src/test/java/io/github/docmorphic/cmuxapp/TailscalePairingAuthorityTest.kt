@@ -72,6 +72,16 @@ class TailscalePairingAuthorityTest {
         override fun close() { closed = true; replies.close() }
     }
 
+    @Test fun savedRowScopeCapturedBeforeDispatchCannotDialAfterTeamSwitch() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize(); f.connect().close()
+        val captured = checkNotNull(f.scope)
+        f.switch(captured.copy(teamId = "other", generation = 2))
+        f.authorize()
+        val before = f.transports.size
+        assertTrue(runCatching { f.authority.connect(f.pairing, captured) { error("must not request token") } }.isFailure)
+        assertEquals(before, f.transports.size); f.authority.close()
+    }
+
     @Test fun replacedConsentCancelsReadinessBeforeDialOrTokenAcquisition() = runBlocking<Unit> {
         val f = Fixture(); f.authorize()
         val entered = CompletableDeferred<Unit>()

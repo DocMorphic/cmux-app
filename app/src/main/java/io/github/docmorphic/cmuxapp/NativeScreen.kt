@@ -147,7 +147,7 @@ fun NativeScreen(
     var hostCapabilities by remember(code) { mutableStateOf<Set<String>>(emptySet()) }
     var savedPairedMacs by remember { mutableStateOf(store.pairedMacs()) }
     val pairedMacs = savedPairedMacs.filter {
-        PairingCodeParser.parse(it.code).getOrNull()?.let(connection::allowsSaved) == true
+        connection.allowsSaved(it)
     }
     val machineColorIndices = nativeMacColorIndices(pairedMacs, computerState.computers)
     var showSettings by remember { mutableStateOf(false) }
@@ -700,7 +700,7 @@ fun NativeScreen(
         }
         if (!routeSignedIn || currentIncomingRoute != routeId) return@LaunchedEffect
         val route = if (openedFromFeed) routeInAppNotification else notificationDelivery.destination(routeId)
-        val mac = store.pairedMacs().singleOrNull { it.origin == route?.origin }
+        val mac = store.pairedMacs().singleOrNull { it.origin == route?.origin && connection.allowsSaved(it) }
         if (route == null || mac == null) {
             error = "This notification's saved Mac is no longer available."
             consumeRoute()
@@ -717,7 +717,7 @@ fun NativeScreen(
         val active = routeClient ?: return@LaunchedEffect
         if (routeConnectedCode != mac.code) return@LaunchedEffect
         fun isCurrent() = currentIncomingRoute == routeId && client === active && code == mac.code &&
-            signedIn && store.pairedMacs().contains(mac)
+            signedIn && store.pairedMacs().contains(mac) && connection.allowsSaved(mac)
         try {
             val listing = active.workspaces()
             val feed = parseNotifications(active.notifications())
@@ -760,7 +760,7 @@ fun NativeScreen(
     LaunchedEffect(capturedWorkspaceRoute?.id, routeSignedIn, routePairingCode, routeConnectedCode, routeClient) {
         val route = capturedWorkspaceRoute ?: return@LaunchedEffect
         if (!routeSignedIn) { workspaceRoute = null; return@LaunchedEffect }
-        val mac = store.pairedMacs().singleOrNull { it.origin == route.origin }
+        val mac = store.pairedMacs().singleOrNull { it.origin == route.origin && connection.allowsSaved(it) }
         if (mac == null) {
             error = "This workspace's saved Mac is no longer available."
             workspaceRoute = null
@@ -775,7 +775,7 @@ fun NativeScreen(
         val active = routeClient ?: return@LaunchedEffect
         if (routeConnectedCode != mac.code) return@LaunchedEffect
         fun isCurrent() = workspaceRoute?.id == route.id && signedIn && client === active && code == mac.code &&
-            store.pairedMacs().contains(mac)
+            store.pairedMacs().contains(mac) && connection.allowsSaved(mac)
         try {
             val listing = active.workspaces()
             if (!isCurrent()) return@LaunchedEffect
@@ -814,11 +814,13 @@ fun NativeScreen(
                 accountTeams.state.first { it.scope != null || it.error != null }.scope
                     ?: error("Refresh your account teams before connecting.")
             } else null
-            val active = connection.connectPairing(pairing, account)
+            val saved = store.pairedMacs().singleOrNull { it.code == requestedCode && connection.allowsSaved(it) }
+            if (pairingOwner != null) check(accountTeams.isCurrent(pairingOwner)) { "Account or team changed. Reconnect to the Mac." }
+            val active = if (saved != null) connection.connectSaved(saved, account) else connection.connectPairing(pairing, account)
             try {
                 val status = active.hostStatus()
                 require(status.optString("mac_device_id").isNotBlank()) { "The Mac did not provide its device identity." }
-                store.pairedMacs().firstOrNull { it.code == requestedCode }?.requireMatchingHost(status)
+                store.pairedMacs().singleOrNull { it.code == requestedCode && connection.allowsSaved(it) }?.requireMatchingHost(status)
                 val displayName = status.optString("mac_display_name").ifBlank { "cmux" }
                 val capabilities = status.optJSONArray("capabilities")?.let { values ->
                     (0 until values.length()).mapNotNull { index ->
@@ -1170,10 +1172,16 @@ fun NativeScreen(
                 }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Find another Mac") }
                 if (code.isNotBlank() && (PairingCodeParser.parse(code).getOrNull() !is PairingCode.Iroh ||
                     pairedMacs.none { it.code == code && computerState.account?.let { team -> NativeComputerTarget.from(it, team) } != null })) TextButton(onClick = {
-                    store.forgetMac(code)
-                    savedPairedMacs = store.pairedMacs()
-                    code = store.load()?.optString("pairing_code").orEmpty()
-                    showSettings = false
+                    runCatching {
+                        val owner = teamState.scope
+                        if (sharedConnections != null) {
+                            checkNotNull(owner) { "Refresh your account teams first" }
+                            store.forgetMac(code, owner) { accountTeams.isCurrent(owner) }
+                        } else store.forgetMac(code)
+                        savedPairedMacs = store.pairedMacs()
+                        code = store.load()?.optString("pairing_code").orEmpty()
+                        showSettings = false
+                    }.onFailure { error = it.message }
                 }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Remove local pairing", color = Color(0xFFFF9999)) }
                 Spacer(Modifier.height(24.dp))
                 TextButton(onClick = {

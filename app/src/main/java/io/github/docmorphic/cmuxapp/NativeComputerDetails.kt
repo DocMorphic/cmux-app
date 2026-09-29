@@ -25,6 +25,8 @@ internal data class NativeComputerTarget(val deviceId: String, val buildTag: Str
     companion object {
         fun from(mac: IrohV2Computer) = NativeComputerTarget(mac.deviceId, mac.buildTag, mac.name)
         fun from(mac: NativeCredentialStore.PairedMac, team: NativeTeamScope): NativeComputerTarget? {
+            if ((mac.accountUserId != null && mac.accountUserId != team.userId) ||
+                (mac.accountTeamId != null && mac.accountTeamId != team.teamId)) return null
             val code = PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh ?: return null
             // Older native QR codes omit scope hints. They are never authority: the check
             // refreshes this team's directory and resolves the exact device/build before dialing.
@@ -138,7 +140,7 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                                 expected = { NativeCredentialStore.PairedMac("", target.deviceId, target.name, target.buildTag) },
                                 replacing = replacing).use { authority ->
                                     authority.authorize(pairing)
-                                    authority.connect(pairing, account::accessToken).use { }
+                                    authority.connect(pairing, token = account::accessToken).use { }
                                 }
                         } }, remove = { grant -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                             grants.removeRoute(team, target, grant) { runtime.permitsAppearance(team) }

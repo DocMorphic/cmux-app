@@ -35,6 +35,26 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = tailscale.connect(pairing, account)
         override suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount) = native.connect(pairing)
         override fun authorizePairing(pairing: PairingCode.Tailscale) = tailscale.authorizePairing(pairing)
+        override suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient {
+            val team = checkNotNull(teams.state.value.scope) { "Refresh your account teams before connecting." }
+            check(teams.isCurrent(team) && allowsSaved(mac)) { "This computer belongs to another account or team." }
+            val pairing = PairingCodeParser.parse(mac.code).getOrThrow()
+            val client = when (pairing) {
+                is PairingCode.Tailscale -> tailscale.connectSaved(pairing, account, team)
+                is PairingCode.Iroh -> native.connect(pairing.copy(userId = team.userId, teamId = team.teamId))
+            }
+            try {
+                check(teams.isCurrent(team) && allowsSaved(mac)) { "Account or team changed. Reconnect to the Mac." }
+                return client
+            } catch (failure: Throwable) { client.close(); throw failure }
+        }
+        override fun allowsSaved(mac: NativeCredentialStore.PairedMac): Boolean {
+            val team = teams.state.value.scope ?: return false
+            return teams.isCurrent(team) && runCatching {
+                NativePairingRecords.usable(mac, team, TailscaleGrantStore(store::load, store::update)) &&
+                    PairingCodeParser.parse(mac.code).getOrNull()?.let(::allowsSaved) == true
+            }.getOrDefault(false)
+        }
         override fun allowsSaved(pairing: PairingCode): Boolean {
             if (pairing is PairingCode.Tailscale) return tailscale.allowsSaved(pairing)
             pairing as PairingCode.Iroh

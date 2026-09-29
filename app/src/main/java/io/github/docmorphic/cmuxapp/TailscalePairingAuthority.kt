@@ -23,6 +23,10 @@ internal class TailscaleGrantStore(private val read: () -> JSONObject?,
     fun find(scope: NativeTeamScope, source: String): TailscaleSavedGrant? =
         decode(read()).singleOrNull { it.user == scope.userId && it.team == scope.teamId && it.source == source }
 
+    fun owners(source: String, device: String, build: String?): Set<Pair<String, String>> = decode(read())
+        .filter { it.source == source && it.device == canonicalMacDeviceId(device) && it.build == build }
+        .map { it.user to it.team }.toSet()
+
     fun computer(scope: NativeTeamScope, target: NativeComputerTarget): List<TailscaleSavedGrant> = decode(read())
         .filter { it.user == scope.userId && it.team == scope.teamId &&
             it.device == canonicalMacDeviceId(target.deviceId) && it.build == target.buildTag }
@@ -79,10 +83,11 @@ internal class TailscaleGrantStore(private val read: () -> JSONObject?,
             val bytes = JSONArray(listOf(pairing.stackUserId, JSONArray(routes))).toString().toByteArray()
             return MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         }
-        fun removeForCode(state: JSONObject, code: String) {
+        fun removeForCode(state: JSONObject, code: String, scope: NativeTeamScope? = null) {
             val pairing = PairingCodeParser.parse(code).getOrNull() as? PairingCode.Tailscale ?: return
             val key = source(pairing)
-            state.put(FIELD, encode(decode(state).filterNot { it.source == key }))
+            state.put(FIELD, encode(decode(state).filterNot { it.source == key &&
+                (scope == null || (it.user == scope.userId && it.team == scope.teamId)) }))
         }
         fun removeComputer(state: JSONObject, scope: NativeTeamScope, device: String, build: String?) {
             state.put(FIELD, encode(decode(state).filterNot { it.user == scope.userId && it.team == scope.teamId &&
@@ -157,8 +162,9 @@ internal class TailscalePairingAuthority(
         return owner
     }
 
-    suspend fun connect(pairing: PairingCode.Tailscale, token: suspend () -> String?): MobileRpcClient {
+    suspend fun connect(pairing: PairingCode.Tailscale, expectedScope: NativeTeamScope? = null, token: suspend () -> String?): MobileRpcClient {
         val owner = owner(pairing)
+        check(expectedScope == null || expectedScope == owner) { "Account or team changed. Reconnect to the Mac." }
         val source = TailscaleGrantStore.source(pairing)
         val consent = synchronized(lock) { check(!closed); consents[source]?.takeIf { it.scope == owner } }
         val saved = grants.find(owner, source)

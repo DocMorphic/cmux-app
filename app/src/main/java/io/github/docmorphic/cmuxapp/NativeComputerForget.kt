@@ -100,7 +100,9 @@ internal object NativeComputerForgetLocal {
             val code = item.optString("code")
             val device = item.optString("device_id")
             val tag = (item.opt("instance_tag") as? String)?.takeIf { it.isNotBlank() }
-            val row = captured.firstOrNull { it.code == code && it.deviceId == device && it.instanceTag == tag }
+            val decoded = NativePairingRecords.decode(item)
+            val row = captured.firstOrNull { decoded != null && it.code == code && it.deviceId == device && it.instanceTag == tag &&
+                it.accountUserId == decoded.accountUserId && it.accountTeamId == decoded.accountTeamId && it.origin == decoded.origin }
             // The captured row must itself still be native and in its owning scope.
             if (row != null && NativeComputerTarget.from(row, team) != null) removed += row else next.put(item)
         }

@@ -63,7 +63,7 @@ class NativeNotificationService : Service() {
                     localKeys[NativeMacIdentity(canonicalMacDeviceId(mac.deviceId), mac.instanceTag)] ?:
                         (PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh)?.endpointId?.let(routeKeys::get)
                 val paired = if (account.isSignedIn()) store.pairedMacs().filter {
-                    it.deviceId.isNotBlank() && PairingCodeParser.parse(it.code).getOrNull()?.let(connector::allowsSaved) == true
+                    it.deviceId.isNotBlank() && connector.allowsSaved(it)
                 }.toSet() else emptySet()
                 workers.keys.toList().filter { it !in paired || workers[it]?.isActive != true || workerRoutes[it] != routeKey(it) }.forEach {
                     workers.remove(it)?.cancel()
@@ -80,8 +80,7 @@ class NativeNotificationService : Service() {
                     while (isActive) {
                         var client: MobileRpcClient? = null
                         try {
-                            val pairing = PairingCodeParser.parse(mac.code).getOrThrow()
-                            client = connector.connectPairing(pairing, account)
+                            client = connector.connectSaved(mac, account)
                             val active = client
                             mac.requireMatchingHost(active.hostStatus())
                             monitorNativeNotificationFeed(active) { feed ->
@@ -90,7 +89,7 @@ class NativeNotificationService : Service() {
                                     .state.value.name(mac) } ?: mac.name
                                 delivery.refresh(mac.origin, displayName, feed) {
                                     isEnabled(this@NativeNotificationService) && account.isSignedIn() &&
-                                        store.pairedMacs().contains(mac) && connector.allowsSaved(pairing)
+                                        store.pairedMacs().contains(mac) && connector.allowsSaved(mac)
                                 }
                             }
                         } catch (failure: Exception) {

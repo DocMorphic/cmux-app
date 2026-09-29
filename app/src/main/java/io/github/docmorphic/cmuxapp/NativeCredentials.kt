@@ -27,8 +27,9 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     }
     internal val revisions: kotlinx.coroutines.flow.StateFlow<Long> get() = changeState
 
-    data class PairedMac(val code: String, val deviceId: String, val name: String, val instanceTag: String? = null) {
-        internal val origin = pairingOrigin(code, deviceId, instanceTag)
+    data class PairedMac(val code: String, val deviceId: String, val name: String, val instanceTag: String? = null,
+                         val accountUserId: String? = null, val accountTeamId: String? = null, val stableOrigin: String? = null) {
+        internal val origin = stableOrigin ?: pairingOrigin(code, deviceId, instanceTag)
         fun requireMatchingHost(status: JSONObject) {
             require(deviceId.isBlank() || canonicalMacDeviceId(status.optString("mac_device_id")) == canonicalMacDeviceId(deviceId)) {
                 "This pairing now reaches a different Mac. Forget it and pair the intended Mac again."
@@ -44,9 +45,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         return buildList {
             for (index in 0 until array.length()) {
                 val item = array.optJSONObject(index) ?: continue
-                val code = item.optString("code")
-                if (code.isNotBlank()) add(PairedMac(code, item.optString("device_id"), item.optString("name", "cmux"),
-                    item.optString("instance_tag").takeIf { !item.isNull("instance_tag") && it.isNotBlank() }))
+                NativePairingRecords.decode(item)?.let(::add)
             }
         }
     }
@@ -65,16 +64,11 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         return checkNotNull(remembered)
     }
 
-    fun forgetMac(code: String) = update { state ->
-        TailscaleGrantStore.removeForCode(state, code)
-        val previous = state.optJSONArray("pairings")
-        val next = org.json.JSONArray()
-        if (previous != null) for (index in 0 until previous.length()) {
-            val item = previous.optJSONObject(index) ?: continue
-            if (item.optString("code") != code) next.put(item)
-        }
-        state.put("pairings", next)
-        if (state.optString("pairing_code") == code) state.put("pairing_code", next.optJSONObject(0)?.optString("code").orEmpty())
+    fun forgetMac(code: String) = update { NativePairingRecords.removeLocal(it, code) }
+
+    internal fun forgetMac(code: String, team: NativeTeamScope, permits: () -> Boolean) {
+        check(permits()) { "Account or team changed" }
+        update { NativePairingRecords.removeLocal(it, code, team) }
     }
 
     internal fun forgetCapturedNativeMac(team: NativeTeamScope, captured: List<PairedMac>, target: NativeComputerTarget) =

@@ -423,12 +423,23 @@ need scoped records, stable identity when later upgraded to native discovery,
 and alias handling for their existing drafts/notifications. That work and
 physical QR/reconnect acceptance remain open.
 
+## Scoped records and QR-to-native upgrades (2026-09-29)
+
+[PAIRED_COMPUTER_RECORDS.md](PAIRED_COMPUTER_RECORDS.md) implements explicit owner
+metadata and stable origins for standalone QR records. Authenticated native
+upgrades preserve the draft and notification namespace. UI/feed/service access,
+saved dialing and local removal enforce the row's owner, including two teams
+saving the same QR. Seventy-five JVM and eight Android emulator cases pass on the
+final checkpoint; both APKs build and pass native/ZIP 16 KB checks. Physical
+acceptance, ambiguous historical coalescing and standalone QR-only Details remain
+open; this is not a claim of completed companion parity.
+
 ## Remaining integration and acceptance
 
-- Finish standalone legacy QR storage unification: scoped computer records,
-  identity retained when later upgraded to native discovery, and draft/notification
-  aliases. Generic QR attachment now preserves an existing scoped native row;
-  targeted Details pairing also preserves identity and method.
+- Finish ambiguous historical row coalescing with draft/notification alias
+  preservation, and compare standalone QR-only Details/method behavior with iOS.
+  Normal scoped QR-to-native upgrades now retain their existing origin; generic
+  QR attachment and targeted Details pairing preserve native identity/method.
 - Exercise the implemented readiness, route diagnostics and failure advice on the
   physical Pixel/Mac VPN. TCP transport RTT is not available; RPC response timing
   is reported separately.

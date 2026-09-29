@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Scoped pairing records and stable upgrades (2026-09-29):** authenticated rows
+now store account/team ownership and a stable origin. A standalone QR-to-native
+upgrade preserves drafts, notification links/unread history and selection;
+identical QR codes saved by two teams remain isolated. Saved dialing carries its
+captured owner, and local removal preserves another team's row/grant. All 75
+focused JVM and 8 Android 17 emulator tests passed on the final checkpoint; APKs
+build and native/ZIP 16 KB checks pass. Historical duplicate coalescing, standalone
+QR-only Details parity and physical acceptance remain open. See
+[PAIRED_COMPUTER_RECORDS.md](PAIRED_COMPUTER_RECORDS.md).
+
 **QR attachment preserves native identity (2026-09-29):** an authenticated generic
 Tailscale scan now retains an existing scoped native Mac/build row and its chosen
 connection method, selection and draft/notification origin. A matching route grant

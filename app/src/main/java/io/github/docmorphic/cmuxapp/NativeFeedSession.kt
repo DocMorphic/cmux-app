@@ -16,9 +16,9 @@ internal class NativeFeedSession(
 ) : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val coordinator = NativeFeedCoordinator(scope, connect = { mac ->
-        connector.connectPairing(PairingCodeParser.parse(mac.code).getOrThrow(), account)
+        connector.connectSaved(mac, account)
     }, isAllowed = { mac -> account.isSignedIn() && store.pairedMacs().contains(mac) &&
-        PairingCodeParser.parse(mac.code).getOrNull()?.let(connector::allowsSaved) == true })
+        connector.allowsSaved(mac) })
 
     val workspaceMoves = NativeWorkspaceMoves(scope, coordinator)
     val taskModels = TaskModelRepository()
