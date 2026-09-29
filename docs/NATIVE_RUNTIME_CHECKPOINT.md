@@ -113,6 +113,35 @@ was not rebuilt for this viewport change; the earlier four native-lane/graphics
 instrumentation checks belong to the preceding RELRO checkpoint.
 
 
+## Live Android background notification — 2026-09-29
+
+On the same installed `3ca2d22` debug APK, enabled Background notifications through
+Settings and accepted Android's notification permission dialog. Android reported
+`NativeNotificationService` as an active foreground service with the persistent
+connection notification. No battery optimization exemption was requested.
+
+The dedicated test terminal ran a delayed `cmux notify` command. The phone returned
+to its launcher before the 12-second delay elapsed. Android's notification service
+then showed an alert on `cmux_alerts` with the exact `cmuxAndroidBackground` title
+and `PixelBackgroundAcceptance` body while the launcher remained the resumed
+activity. The first alert was no longer present when the notification shade was
+inspected later; its dismissal cause was not established.
+
+A second six-second delayed notification, `cmuxBackgroundTap` / `PixelTapAcceptance`,
+arrived while the app was backgrounded. Its visible system notification was tapped
+and reopened the correct test terminal, with the matching command and successful
+Mac notification response in the terminal history. The listener remained running.
+Background notifications were left enabled for the user.
+
+Ignored evidence: `background-settings-before.png`, `background-settings-enabled.png`,
+`background-start.json`, `background-alert-record.json`, `background-system-tap.png`.
+Only this app's notification records were retained; other apps' notification data
+was not saved. These checks prove delivery while the Activity is backgrounded with
+a live foreground service. They do not establish long-term battery/Doze behavior,
+boot recovery, network-outage recovery or delivery while the process is stopped.
+The official source at the pinned reference uses APNs for server push; Android
+server-push delivery needs separate infrastructure support.
+
 ## Physical Pixel native lanes — 2026-09-29
 
 Installed the debug app and app test APK from source `61a6bf7` on the Pixel 6a

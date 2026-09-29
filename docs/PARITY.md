@@ -110,8 +110,18 @@ notes are superseded **only for these bounded checks** by source `3ca2d22`:
 
 See [native runtime checkpoint](NATIVE_RUNTIME_CHECKPOINT.md) for artifact hashes,
 source comparison, evidence and limits. This does not close full terminal fidelity,
-all artifact formats/actions, background notifications, multiple-Mac/team behavior,
+all artifact formats/actions, long-term background/Doze behavior, server push, multiple-Mac/team behavior,
 or full iOS parity. Signed release build 157 remains unchanged.
+
+## Background notification acceptance (2026-09-29)
+
+The Pixel received a real Mac notification as an Android system alert while cmux
+was backgrounded on the launcher. Tapping a second delayed alert reopened the
+correct native terminal. This verifies the opt-in foreground service and system
+notification route on Android 17. The user’s notification permission and background
+setting are enabled. Doze, boot and network recovery, plus server push while the
+app process is stopped, remain separate open gates. Details and evidence are in
+[NATIVE_RUNTIME_CHECKPOINT.md](NATIVE_RUNTIME_CHECKPOINT.md).
 
 ## Terminal modifier follow-up (2026-09-29)
 
