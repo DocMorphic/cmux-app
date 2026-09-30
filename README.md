@@ -6,12 +6,13 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 261 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36664427496/artifacts/11075149281)
-includes both Simulator streaming paths and controls at `9753083`, alongside
-Ghostty rendering, configurable shortcuts, terminal zoom, file/Markdown panels
-and Todo. Signature, 16 KB packaging and emulator launch are verified;
-physical acceptance and full parity remain pending. See the
-install guide for source, checksums and package identity.
+**Signed download:** [build 274 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36681430449/artifacts/11082157032)
+from `1d5958f` includes terminal rendering, browser/Simulator viewers, file panels,
+and workspace/process recovery. Signature, 16 KB packaging and emulator launch
+are verified. The same source's debug app passed live Pixel/Mac composer input,
+direct typing after process recovery, and Markdown file preview. The signed
+package's account workflow and full parity remain pending. See the
+[install guide](docs/PIXEL_INSTALL.md) for exact evidence, checksums and identity.
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
 Android now wires Iroh/V2 discovery and admitted RPC connections into the app and

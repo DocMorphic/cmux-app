@@ -10,13 +10,42 @@ After signed 274 verification, the Pixel appeared in ADB again. Debug app
 The installed `base.apk` SHA-256 matches the tested local build:
 `e62b09d6cf6c5272e2ab6326b6fbc50cb6031e12416949f94571451dc7859c4d`.
 Install/hash evidence is in ignored `captures/runtime/pixel-1d5958f/`.
-The phone was locked/dozing at installation, so a new unlock request is pending
-before native UI acceptance. Its plugged-in stay-awake setting remains `0`.
+The phone was subsequently unlocked and passed the native checks below. Its
+plugged-in stay-awake setting was temporarily set to `2`, then restored to `0`.
 This installs the debug package; the signed 274 package below remains separate.
 
 The Android Iroh/V2 connection is implemented and earlier checkpoints have real
 Pixel/Mac evidence; see [IROH_V2.md](IROH_V2.md) and [NETWORKING.md](NETWORKING.md).
 This replaces the old statement that Iroh integration was unfinished.
+
+## Physical native recovery check — 2026-09-30
+
+The installed debug `1d5958f` connected to cmux 0.64.25 on the Mac using the
+existing account and loaded all three workspaces. In the existing acceptance
+workspace (identified by `PixelTapAcceptance`), the composer submitted
+`echo cmux_pixel_recovery_20260930`; its output and the next shell prompt were
+visually verified.
+
+After backgrounding the app, `am kill` left its process alive. Killing only the
+debug app's own PID through `run-as` changed PID **20855 → 27776** on relaunch.
+The existing task displayed Restoring workspace, then automatically returned to
+the same terminal and history without signing in again. The launch command
+reported COLD, 734 ms; this measures Activity launch, not completed reconnection.
+Direct keyboard input then executed `echo cmux_pixel_direct_after_recovery` and
+showed its result. The original marker still appeared once as output; this is
+visual recovery evidence, not proof of exactly-once delivery during packet loss.
+
+An absolute README path printed in that terminal was detected as one file.
+Files showed `README.md`, fetched its 5,644 bytes from the Mac, and visibly
+rendered its Markdown. No account-clearing instrumentation was used, no personal
+terminal received input, and no Mac workspace was created or removed. The app
+was returned to the test terminal; plugged-in stay-awake was restored to `0`.
+Screenshots are retained locally in ignored
+`captures/runtime/pixel-1d5958f/live/`.
+
+These checks cover the debug APK's live input, process recovery and one Markdown
+file. They do not verify signed 274's account workflow, the newer input delivery
+foundation, all file formats, full notifications, or complete iOS parity.
 
 ## Signed integration build 274 — 2026-09-30
 
