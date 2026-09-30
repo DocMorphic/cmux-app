@@ -1,7 +1,7 @@
 # Phone-local browser parity audit
 
-Status: resolver and state foundation implemented 2026-09-30;
-**WebView, UI/navigation integration and acceptance remain open**.
+Status: resolver, state foundation and WebView pane implemented 2026-09-30;
+**workspace navigation integration and physical acceptance remain open**.
 Reference revision: `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 
 The authoritative module is
@@ -96,7 +96,52 @@ Verification:
 - Debug APK SHA-256: `21fed74887c73f0c25ea5de803135fd74dd93c6738b3cf269bc50a4331717031`.
 - Test APK SHA-256: `865279272ab136199c4c05a905742f8a8f3b0a2225a3b209acec95eeadd4de1f`.
 
-No visible local browser is enabled by this checkpoint. The current signed
-Simulator milestone (build 257) predates it. Next: WebView ownership/settings and
-callback adapter, chrome, creation/fallback routing, actual page fixtures and
-physical acceptance from the steps above.
+## WebView and chrome checkpoint (2026-09-30)
+
+`LocalBrowserWebHost` owns and disposes one WebView per mounted pane. It applies
+pending commands once and fences callbacks by WebView identity and surface
+attachment. It enables JavaScript, DOM storage, persistent cookies and pinch zoom,
+with no JavaScript bridge or file/content URL access. TLS errors are cancelled;
+page failures offer Retry. Renderer termination destroys the affected view and
+Reload constructs a fresh one with the last URL. Lifecycle changes pause/resume
+only the owned view, without globally pausing other WebView timers.
+
+`LocalBrowserPane` adds address/search, Back/Forward, Reload/Stop, Close and loading
+progress. Redirects preserve active address edits; Go dismisses input focus and
+the keyboard. File selection uses the Android picker, single/multiple content
+URIs, cancellation and an outstanding-result reservation across surface changes
+and Activity recreation. Selection results from retired views are discarded.
+
+Android's [WebSettings multiple-window contract](https://developer.android.com/reference/android/webkit/WebSettings)
+allows new-window links and user-initiated `window.open()` to replace this page
+when multiple-window support is disabled. Runtime tests verify both, and verify
+that a POST form with `target="_blank"` retains its method and request body.
+File selection uses the [WebChromeClient API](https://developer.android.com/reference/android/webkit/WebChromeClient);
+renderer cleanup follows [WebViewClient](https://developer.android.com/reference/android/webkit/WebViewClient).
+
+Verification:
+
+- Debug and instrumentation APKs build successfully.
+- **Seven Android 17 / 16 KiB tests passed in 16.438 seconds**: rendered navigation,
+  Back/Forward/reload/close callbacks; popup links/script/POST; cookies/localStorage
+  and URL restoration with a fresh view/history; redirect while editing and Go;
+  Stop/network failure/Retry/settings; stale/cancelled file-result ownership;
+  actual renderer termination and fresh-view recovery.
+- Painted red/green/blue page regions were checked in screenshots. The first-page
+  and recovered-page screenshots were also inspected. Fixture Activity system
+  bars differ from the main app; this is not full-app theme or physical acceptance.
+- The original network-error fixture used a pre-request disconnect policy that
+  the dispatcher did not trigger. It was corrected to disconnect after receiving
+  the request, and the complete seven-test class passed with real WebView errors.
+- File-result state is exercised, but an end-to-end system picker upload remains
+  an acceptance item. No Pixel account/data was touched; ADB still listed no
+  physical device after the user reported a USB connection. Owned emulator stopped.
+- Debug APK SHA-256: `c143be95581511911f86ac52e01fcc690eba3dc58726e221092416833ec8aab2`.
+- Test APK SHA-256: `41113f9f5d24365768e4507ee4553b232a3fbe8e41d9f7d62f8068e5c2400aa5`.
+- Ignored evidence: `captures/runtime/local-browser-pane/`; build/runtime logs in
+  `/tmp/cmux-local-browser-pane-build.log` and `/tmp/cmux-local-browser-view-runtime.log`.
+
+No local browser is exposed through the main app yet. Signed Simulator build 257
+predates both checkpoints. Next: `New Browser` remote creation/local fallback,
+stale-request cancellation, account/team/Mac/workspace routing and close-to-terminal,
+followed by physical acceptance. The goal remains incomplete.

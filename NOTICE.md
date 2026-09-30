@@ -1,7 +1,8 @@
 # Attribution
 
-`LocalBrowserAddress.kt` and `LocalBrowserState.kt` follow cmux's
-`Packages/iOS/CmuxMobileBrowser` resolver and surface/store behavior at revision
+`LocalBrowserAddress.kt`, `LocalBrowserState.kt`, `LocalBrowserPane.kt` and
+`LocalBrowserWebHost.kt` follow cmux's `Packages/iOS/CmuxMobileBrowser`
+resolver, surface/store and pane behavior at revision
 `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`. Copyright (c) 2024-present
 Manaflow, Inc.; GPL-3.0-or-later. Android adds platform ICU domain conversion,
 view-attachment callback fencing and account/team/Mac/workspace scoping.

@@ -12,12 +12,19 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Phone-local browser pane (2026-09-30):** a separate WebView now implements the
+iOS-style address/history/reload/stop/close controls, same-pane popup/form handling,
+persistent cookies/storage, remount and renderer/network recovery. Seven Android
+17/16 KiB tests passed with painted page pixels. Workspace creation/fallback routing
+is still pending, so this checkpoint does not expose the pane in the main app.
+Signed build 257 predates this work. See [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
+
 **Phone-local browser foundation (2026-09-30):** Android's resolver matches 103
 cases exported from the unmodified pinned Swift implementation, on both JVM and
 Android 17/16 KiB. Local surface/store state now has scoped identity, once-consumed
 commands and stale-view fencing. Ten JVM tests and the complete Android runtime resolver
-corpus pass. WebView/UI/routing are still missing; this does not expose a browser
-pane yet. See [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
+corpus pass. The pane checkpoint above adds WebView/UI; routing remains open.
+See [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
 
 **Signed build 257 (2026-09-30):** the accumulated Simulator milestone passed full
 integration CI at `9753083`. The downloaded APK's stable certificate, all five
