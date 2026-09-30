@@ -444,6 +444,31 @@ class MobileRpcClient internal constructor(
         }
     }
 
+    internal val supportsBrowserTunnels: Boolean get() = !isClosed && transport.supportsBrowserTunnels
+
+    /** Call only after negotiating browser.tunnel.v1 for this admitted Mac. */
+    internal suspend fun useBrowserTunnel(host: String, port: Int, use: suspend (BrowserTunnelLane) -> Unit): Boolean {
+        if (delegate != null) return borrowing { it.useBrowserTunnel(host, port, use) }
+        synchronized(stateLock) { check(!closed && connected) }
+        BrowserTunnelProtocol.connect(host, port) // Validate even when the route has no lanes.
+        val lane = transport.openBrowserTunnel(host, port) ?: return false
+        try {
+            currentCoroutineContext().ensureActive()
+            synchronized(stateLock) { check(!closed && connected) }
+            use(lane)
+            return true
+        } finally { lane.close() }
+    }
+
+    internal suspend fun browserListeningPorts(): BrowserTunnelProtocol.ListeningPorts? {
+        if (delegate != null) return borrowing { it.browserListeningPorts() }
+        synchronized(stateLock) { check(!closed && connected) }
+        val listing = transport.browserListeningPorts()
+        currentCoroutineContext().ensureActive()
+        synchronized(stateLock) { check(!closed && connected) }
+        return listing
+    }
+
     /** The caller's lease owns cancellation; a simulator never borrows terminal/control bytes. */
     internal suspend fun useSimulatorLane(panelId: String, use: suspend (SimStreamLane) -> Unit): Boolean {
         if (delegate != null) return borrowing { it.useSimulatorLane(panelId, use) }

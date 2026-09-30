@@ -108,6 +108,20 @@ native-disconnection propagation after optional EOF. Neither this policy change
 nor the scope filter is in signed 284. Native/physical event-lane acceptance and
 broader event/replay/connection review remain open.
 
+## Third reviewed contract: Mac browser networking
+
+The candidate's tunnel wire, native client/host, destination policy, iOS lane
+adapter, Mac network/router and per-computer browser route were inspected.
+Android now implements the native framed handshake/raw byte client, listing,
+half-close and lease-scoped lifetime. **33 focused JVM tests passed**, including
+ten tunnel cases using fixtures compiled from unchanged pinned Swift wire files.
+See [BROWSER_TUNNEL.md](BROWSER_TUNNEL.md) for exact sources and behavior.
+
+SOCKS routing, production capability/owner binding, isolated WebView networking
+and per-computer ephemeral storage remain open. The current phone-local browser
+still uses phone networking. This foundation is source/JVM evidence only and
+postdates signed 284. The broad upstream reference has not been advanced.
+
 ## Current delivery boundary
 
 Signed build 284 is from Android commit

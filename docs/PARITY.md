@@ -164,6 +164,13 @@ The production debug APK is unchanged by this test-only follow-up. Physical
 Pixel/Mac and remaining parity work are still open. See [PIXEL_INSTALL.md](PIXEL_INSTALL.md)
 and [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
 
+**Mac browser tunnel foundation (2026-09-30):** reviewed the newer `204a11d`
+contract and implemented native connection/listing lanes, raw transfer, half-close
+and lease cleanup. 33 focused JVM tests pass with unchanged Swift wire fixtures.
+This is not yet connected to the WebView; owner-bound routing, isolated network
+and ephemeral storage, runtime and physical acceptance remain open. See
+[BROWSER_TUNNEL.md](BROWSER_TUNNEL.md). Signed 284 predates this source work.
+
 **Phone-local browser navigation (2026-09-30):** `New Browser` is now integrated
 into workspace actions and terminal/Mac-surface pickers. Connected, capable Macs
 receive one create request; offline/unsupported/rejected/unknown outcomes open the

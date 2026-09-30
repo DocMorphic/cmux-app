@@ -139,6 +139,25 @@ internal class IrxMobileRpcTransport(
 
     override val supportsArtifactLanes = true
     override val supportsSimulatorLanes = true
+    override val supportsBrowserTunnels = true
+    override suspend fun openBrowserTunnel(host: String, port: Int): BrowserTunnelLane =
+        IrxBrowserTunnel.open(browserWire(BrowserTunnelProtocol.connect(host, port)), { requireAccess(); active(); Unit })
+    override suspend fun browserListeningPorts(): BrowserTunnelProtocol.ListeningPorts =
+        IrxBrowserTunnel.listeningPorts(browserWire(IrxWire.Descriptor(IrxWire.Lane.LISTENING_PORTS)),
+            { requireAccess(); active(); Unit })
+
+    private suspend fun browserWire(descriptor: IrxWire.Descriptor): BrowserTunnelWire {
+        val lane = openFeatureLane(descriptor)
+        return object : BrowserTunnelWire {
+            private val closed = java.util.concurrent.atomic.AtomicBoolean()
+            override suspend fun read(maximumBytes: Int) = lane.read(maximumBytes)
+            override suspend fun write(bytes: ByteArray) = lane.write(bytes)
+            override suspend fun finishSending() = lane.finishSending()
+            override fun close() {
+                if (closed.compareAndSet(false, true)) browserCleanup.launch { runCatching { lane.retire(3uL) } }
+            }
+        }
+    }
     override suspend fun openSimulator(panelId: String): SimStreamLane {
         val descriptor = simulatorLaneDescriptor(panelId)
         val lane = openFeatureLane(descriptor)
@@ -249,4 +268,5 @@ internal class IrxMobileRpcTransport(
         old.control?.close()
         old.session?.close()
     }
+    companion object { private val browserCleanup = CoroutineScope(SupervisorJob() + Dispatchers.IO) }
 }

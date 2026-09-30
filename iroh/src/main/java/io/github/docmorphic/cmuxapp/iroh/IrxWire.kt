@@ -17,16 +17,18 @@ object IrxWire {
     enum class Lane(val wire: String) {
         CONTROL("control"), KEEPALIVE("keepalive"), EVENTS("events"), TERMINAL("terminal"),
         TERMINAL_INPUT("terminal_input"), ARTIFACT("artifact"), SIMULATOR_STREAM("simulator_stream"),
-        CONTROL_REPAIR("control_repair")
+        CONTROL_REPAIR("control_repair"), TCP_CONNECT("tcp_connect"), LISTENING_PORTS("listening_ports")
     }
 
     data class Descriptor(val lane: Lane, val resource: String? = null, val cursor: ULong? = null,
-                          val offset: ULong? = null) {
+                          val offset: ULong? = null, val host: String? = null, val port: Int? = null) {
         fun json(): JSONObject = JSONObject().put("v", 1).put("lane", lane.wire).apply {
             resource?.let { put("resource", it) }
             // UInt64 cursors must remain JSON integers, including above signed Long.MAX_VALUE.
             cursor?.let { put("cursor", BigInteger(it.toString())) }
             offset?.let { put("offset", BigInteger(it.toString())) }
+            host?.let { put("host", it) }
+            port?.let { put("port", it) }
         }
     }
 

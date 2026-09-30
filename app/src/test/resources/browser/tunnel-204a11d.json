@@ -1,0 +1,78 @@
+{
+  "capability": "browser.tunnel.v1",
+  "descriptors": [
+    {
+      "host": "localhost",
+      "lane": "tcp_connect",
+      "port": 3000,
+      "v": 1
+    },
+    {
+      "host": "::1",
+      "lane": "tcp_connect",
+      "port": 65535,
+      "v": 1
+    },
+    {
+      "lane": "listening_ports",
+      "v": 1
+    }
+  ],
+  "listing": {
+    "allowsNonLoopbackHosts": true,
+    "ports": [
+      {
+        "address": "127.0.0.1",
+        "port": 80
+      },
+      {
+        "address": "::1",
+        "port": 3000
+      },
+      {
+        "address": "127.9.8.7",
+        "port": 3000
+      }
+    ],
+    "v": 1
+  },
+  "replies": [
+    {
+      "status": "connected",
+      "v": 1
+    },
+    {
+      "status": "denied",
+      "v": 1
+    },
+    {
+      "status": "refused",
+      "v": 1
+    },
+    {
+      "status": "host_unreachable",
+      "v": 1
+    },
+    {
+      "status": "network_unreachable",
+      "v": 1
+    },
+    {
+      "status": "timed_out",
+      "v": 1
+    },
+    {
+      "status": "unresolved",
+      "v": 1
+    },
+    {
+      "status": "busy",
+      "v": 1
+    },
+    {
+      "status": "failed",
+      "v": 1
+    }
+  ],
+  "source": "204a11dfcc76280205e50406ab94270a1c152155"
+}

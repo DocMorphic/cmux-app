@@ -26,10 +26,17 @@ class IrxDuplexLane internal constructor(private val stream: BiStream, private v
     private val writeMutex = Mutex()
     private val readMutex = Mutex()
     private val closed = AtomicBoolean(false)
+    private var sendingFinished = false // Confined to writeMutex; reading remains independent.
 
     suspend fun write(bytes: ByteArray) = writeMutex.withLock {
         check(!closed.get()) { "Irx lane closed" }
+        check(!sendingFinished) { "Irx sending side finished" }
         send.writeAll(bytes)
+    }
+    /** Send TCP/QUIC EOF without discarding a response still arriving on the other half. */
+    suspend fun finishSending() = writeMutex.withLock {
+        check(!closed.get()) { "Irx lane closed" }
+        if (!sendingFinished) { sendingFinished = true; send.finish() }
     }
     suspend fun writeFrame(value: JSONObject) = write(IrxWire.encode(value))
     suspend fun readFrame(): JSONObject? = readMutex.withLock {
