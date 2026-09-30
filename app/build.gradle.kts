@@ -109,6 +109,7 @@ android {
     sourceSets.getByName("main").jniLibs.srcDir(simulatorNativeRoot.dir("jniLibs"))
     sourceSets.getByName("main").assets.srcDir(simulatorNativeRoot.dir("notices"))
     sourceSets.getByName("androidTest").assets.srcDir("src/test/resources/terminal")
+    sourceSets.getByName("androidTest").assets.srcDir("src/test/resources/browser")
 
     buildFeatures {
         compose = true
@@ -140,5 +141,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation("org.json:json:20240303")
+    // JVM counterpart of Android's built-in ICU; never packaged in the APK.
+    testImplementation("com.ibm.icu:icu4j:77.1")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

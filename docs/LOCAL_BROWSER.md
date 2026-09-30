@@ -1,6 +1,7 @@
 # Phone-local browser parity audit
 
-Status: audited 2026-09-30; **implementation and acceptance remain open**.
+Status: resolver and state foundation implemented 2026-09-30;
+**WebView, UI/navigation integration and acceptance remain open**.
 Reference revision: `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 
 The authoritative module is
@@ -61,5 +62,41 @@ implements the latter and cannot establish parity for the local pane.
    remount URL restoration, close-to-terminal, inventory refresh and cross-Mac
    identity isolation. Then perform real Pixel/Mac workflow acceptance.
 
-No local browser is implemented by this audit. The Simulator milestone APK does
-not include it.
+## Resolver and state foundation (2026-09-30)
+
+`LocalBrowserAddress` implements the audited address policy. The reproducible
+`scripts/generate-local-browser-fixtures.py` runs the pinned, unmodified Swift
+resolver and records its SHA-256. Its **103 reference cases** cover the upstream
+test scenarios plus Unicode/IDNA, IPv6, authority boundaries, control/wrapped
+characters, ports and percent encoding. Android matches every exported string.
+International hosts use Android's built-in nontransitional UTS 46 IDNA processing
+instead of mapping distinct domains such as `faß.de` and `fass.de` together;
+see the [Android IDNA API](https://developer.android.com/reference/android/icu/text/IDNA).
+The desktop tests use ICU4J 77.1 as the counterpart; it is not packaged in the app.
+
+`LocalBrowserSurface` holds address editing, committed URL/title, navigation and
+loading state, once-consumed load/command requests and a per-attachment callback
+token. Remount restores the URL and resets old history flags; detached/closed
+views cannot overwrite a new attachment. `LocalBrowserStore` keeps one surface
+per account/team/Mac/workspace, preserves it across unrelated inventory refreshes,
+supports one-shot restore intent and retires state on account/team changes.
+Neither class performs Mac RPC or holds a WebView.
+
+Verification:
+
+- **10 JVM tests passed**: three resolver tests (including the complete Swift
+  corpus) and seven state/store tests covering consumption, redirects during
+  editing, remount, stale callbacks, navigation state and identity isolation.
+- **One Android 17 / 16 KiB instrumentation test passed in 0.048 seconds**, running
+  all 103 cases through the production resolver with Android's actual URI/ICU
+  implementations. This is resolver runtime evidence, not page-loading/UI evidence.
+- The production debug APK contains neither the golden corpus nor ICU4J test
+  classes. Emulator stopped after the check; ignored evidence is under
+  `captures/runtime/local-browser-foundation/`.
+- Debug APK SHA-256: `21fed74887c73f0c25ea5de803135fd74dd93c6738b3cf269bc50a4331717031`.
+- Test APK SHA-256: `865279272ab136199c4c05a905742f8a8f3b0a2225a3b209acec95eeadd4de1f`.
+
+No visible local browser is enabled by this checkpoint. The current signed
+Simulator milestone (build 257) predates it. Next: WebView ownership/settings and
+callback adapter, chrome, creation/fallback routing, actual page fixtures and
+physical acceptance from the steps above.

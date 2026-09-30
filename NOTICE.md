@@ -1,5 +1,14 @@
 # Attribution
 
+`LocalBrowserAddress.kt` and `LocalBrowserState.kt` follow cmux's
+`Packages/iOS/CmuxMobileBrowser` resolver and surface/store behavior at revision
+`4c5272e9153eca2033c9f40ac749f0c3a5bcb291`. Copyright (c) 2024-present
+Manaflow, Inc.; GPL-3.0-or-later. Android adds platform ICU domain conversion,
+view-attachment callback fencing and account/team/Mac/workspace scoping.
+`scripts/generate-local-browser-fixtures.py` runs the unmodified Swift resolver
+and records its source hash with the reference address corpus. ICU4J 77.1 is a
+JVM test-only dependency; Android uses its built-in ICU implementation.
+
 The Android byte/hybrid terminal path uses the Ghostty VT core from
 https://github.com/manaflow-ai/ghostty at
 `edefce7785c9f439966c68588db1edbd6b435203`, referenced by the pinned cmux source.
