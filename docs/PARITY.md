@@ -12,12 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Native Todo checklist (2026-09-30):** add/edit, three item states, drag ordering,
+swipe deletion, automatic/manual status, progress and offline read-only display
+are implemented from the pinned iOS model. Eight Todo JVM tests and four Android
+17 16 KiB UI/RPC tests pass, including rejected-delete rollback and lost-add-reply
+reconnect without resending. Final screenshots and native/ZIP alignment were
+checked. This is fixture evidence; physical Mac/Pixel acceptance remains open.
+See [TODO.md](TODO.md).
+
 **Mac surface inventory and panels (2026-09-30):** nonterminal descriptors are
 preserved and navigable, panel-only workspaces open, file/Markdown panels use the
 separate exact-file `panel.artifact.v1` scope, and fallback cards can focus their
 surface on the owning Mac. Eleven focused JVM and three 16 KiB Android UI/RPC
-tests pass, including painted Markdown and multi-Mac routing. Todo controls,
-simulator streaming and the additional iOS browser-stream path remain missing or
+tests pass, including painted Markdown and multi-Mac routing. Todo controls were
+added in the later checkpoint above. Simulator streaming and the additional iOS
+browser-stream path remain missing or
 unaudited; they are required work, not unavoidable Android differences. See
 [MAC_SURFACES.md](MAC_SURFACES.md).
 

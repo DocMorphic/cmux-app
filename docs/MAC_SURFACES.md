@@ -36,7 +36,8 @@ a panel from the terminal menu retains that terminal's state owner and draft,
 stops direct input and motion, and hides the keyboard. Creating a new task clears
 the previous surface selection.
 
-Other kinds have a card and capability-gated `mobile.surface.focus` action.
+Todo surfaces now have native checklist/status controls; see [TODO.md](TODO.md).
+Other unsupported kinds have a card and capability-gated `mobile.surface.focus` action.
 Focusing requires a tap, preserves the exact workspace/surface IDs, displays
 pending/error state, and cancels with the card's lifecycle. No Mac focus action
 is sent just because a card opens.
@@ -70,17 +71,9 @@ is sent just because a card opens.
 This audit exposed missing implementations; these are **not Android platform
 limitations**, and a fallback card does not satisfy their native iOS behavior.
 
-1. **Todo**: the payload is retained but currently displays the fallback card.
-   Build native checklist/status controls from `TodoSurfaceView`,
-   `TodoSurfaceRowView`, `TodoSurfaceModel`, and `TodoStatusMenu`. The wire uses
-   `todo.v1`, a maximum of 50 items and 500-character normalized text. Item states
-   are `pending`, `in_progress`, `completed`; statuses are `todo`, `working`,
-   `needs-attention`, `review`, `done`. Implement add/edit/state/move/remove,
-   automatic/manual status, completion-partition ordering, optimistic updates,
-   deferred authoritative snapshots, rollback, drag, swipe deletion and offline
-   read-only state. `MobileCoreRPCClient+Todo` and `MobileShellComposite+Todo`
-   define exact methods and refresh behavior. No mutation may target a fallback
-   workspace or be automatically retried after an uncertain write.
+1. **Todo acceptance**: native controls and recovery are implemented and verified
+   against the framed RPC fixture. Real Mac/Pixel behavior, touch feel, accessibility
+   and visual comparison still need acceptance; see [TODO.md](TODO.md).
 2. **Simulator streaming**: pinned `WorkspaceDetailView+Surfaces` has legacy and
    V2 simulator paths, device switching and recovery. Android has no corresponding
    surface UI/runtime. Audit exact protocols before implementation.

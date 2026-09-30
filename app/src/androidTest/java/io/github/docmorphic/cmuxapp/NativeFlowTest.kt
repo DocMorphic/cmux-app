@@ -453,6 +453,128 @@ class NativeFlowTest {
         file.delete(); photo.delete()
     }
 
+    private fun showTodoFixture() {
+        peer.todoSupported = true
+        peer.customWorkspaceListing = JSONObject("""{"workspaces":[{"id":"todo-workspace","title":"Checklist workspace","terminals":[],"surfaces":[
+            {"surface_id":"todo-panel","kind":"todo","title":"Todo","todo":{"status":"working","status_hidden":false,"items":[
+                {"id":"a","text":"First","state":"pending","origin":"user"},
+                {"id":"b","text":"Second","state":"in_progress","origin":"agent"},
+                {"id":"c","text":"Completed","state":"completed","origin":"agent"}
+            ]}}
+        ]}]}""")
+        peer.todoResponse = { method, params ->
+            check(params.getString("workspace_id") == "todo-workspace")
+            check(!params.has("surface_id"))
+            val listing = JSONObject(peer.customWorkspaceListing.toString())
+            val todo = listing.getJSONArray("workspaces").getJSONObject(0).getJSONArray("surfaces").getJSONObject(0).getJSONObject("todo")
+            val rows = todo.getJSONArray("items").let { a -> (0 until a.length()).map { a.getJSONObject(it) }.toMutableList() }
+            when (method) {
+                "mobile.todo.add" -> rows.add(rows.indexOfFirst { it.getString("state") == "completed" }.let { if (it < 0) rows.size else it },
+                    JSONObject().put("id", "mac-added").put("text", params.getString("text")).put("state", "pending").put("origin", "user"))
+                "mobile.todo.set_state" -> {
+                    val row = rows.single { it.getString("id") == params.getString("id") }
+                    row.put("state", params.getString("state"))
+                    if (row.getString("state") == "completed") { rows.remove(row); rows.add(row) }
+                }
+                "mobile.todo.edit" -> rows.single { it.getString("id") == params.getString("id") }.put("text", params.getString("text"))
+                "mobile.todo.move" -> {
+                    val row = rows.single { it.getString("id") == params.getString("id") }; rows.remove(row)
+                    rows.add(params.getInt("to_index").coerceIn(0, rows.size), row)
+                }
+                "mobile.todo.remove" -> rows.removeAll { it.getString("id") == params.getString("id") }
+                "mobile.status.set" -> todo.put("status", params.getString("status").let { if (it == "auto") "working" else it })
+                else -> error("Unexpected Todo mutation $method")
+            }
+            todo.put("items", JSONArray(rows)); peer.customWorkspaceListing = listing
+            JSONObject()
+        }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                    .also { it.connect(); observedClients += it }
+            })
+        } } }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Checklist workspace").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Checklist workspace").performClick()
+        waitForTerminalFixture(10_000) { compose.onAllNodesWithText("1 of 3 done").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("1 of 3 done").assertIsDisplayed()
+    }
+
+    @Test fun todoLostAddReplyReconcilesHostSnapshotWithoutResending() {
+        try {
+            showTodoFixture()
+            val connectionsBefore = observedClients.size
+            peer.dropReplyAfterMethod = "mobile.todo.add"
+            compose.onNodeWithTag("todo-new-item").performTextInput("Added exactly once")
+            compose.onNodeWithContentDescription("Add checklist item").performClick()
+            compose.waitUntil(15_000) { "mobile.todo.add" in peer.lostReplies }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Couldn’t Update Checklist").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("OK").performClick()
+            compose.waitUntil(20_000) { observedClients.size > connectionsBefore &&
+                compose.onAllNodesWithTag("todo-row-mac-added").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Added exactly once").assertIsDisplayed()
+            assertEquals(1, peer.requests.count { it.optString("method") == "mobile.todo.add" })
+            screenshot("todo-reconnected")
+        } catch (failure: Throwable) { screenshot("todo-reconnect-failure"); throw failure }
+    }
+
+    @Test fun todoPanelEditsOrdersStatusesAndRollsBackRejectedDeleteThroughNativeRpc() {
+        try {
+            showTodoFixture()
+        fun waitControl(label: String) = compose.waitUntil(10_000) {
+            compose.onAllNodesWithContentDescription(label).fetchSemanticsNodes().any { !it.config.contains(SemanticsProperties.Disabled) }
+        }
+        compose.onNodeWithContentDescription("Mark First as in progress").performClick()
+        waitControl("Mark First as completed")
+        compose.onNodeWithContentDescription("Mark First as completed").performClick()
+        waitControl("Mark First as pending")
+        compose.onNodeWithText("2 of 3 done").assertIsDisplayed()
+        compose.onNodeWithText("Second").performClick()
+        compose.onNodeWithTag("todo-edit-b").performTextReplacement("Edited second")
+        compose.onNodeWithTag("todo-edit-b").performImeAction()
+        waitControl("Mark Edited second as completed")
+        compose.onNodeWithTag("todo-new-item").performTextInput("Ship 你好")
+        compose.onNodeWithContentDescription("Add checklist item").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithTag("todo-row-mac-added").fetchSemanticsNodes().isNotEmpty() }
+        waitControl("Mark Ship 你好 as in progress")
+        // Dismiss the real IME before dragging the whole checklist.
+        compose.runOnUiThread { (compose.activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+            .hideSoftInputFromWindow(compose.activity.window.decorView.windowToken, 0) }
+        compose.mainClock.advanceTimeBy(500); compose.waitForIdle()
+        val bounds = compose.onNodeWithTag("todo-list").fetchSemanticsNode().boundsInRoot
+        val from = compose.onNodeWithTag("todo-row-mac-added").fetchSemanticsNode().boundsInRoot
+        val to = compose.onNodeWithTag("todo-row-b").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("todo-list").performTouchInput {
+            val x = width - 12f
+            down(androidx.compose.ui.geometry.Offset(x, from.center.y - bounds.top)); advanceEventTime(700)
+            moveTo(androidx.compose.ui.geometry.Offset(x, to.center.y - bounds.top), delayMillis = 150); up()
+        }
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.todo.move" } }
+        waitControl("Mark Ship 你好 as in progress")
+        val moved = peer.requests.last { it.optString("method") == "mobile.todo.move" }.getJSONObject("params")
+        assertEquals("mac-added", moved.getString("id")); assertEquals(0, moved.getInt("to_index"))
+        compose.onNodeWithContentDescription("Choose status").performClick()
+        compose.onNodeWithText("Review").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Review")).fetchSemanticsNodes().isNotEmpty() }
+        waitControl("Choose status")
+        screenshot("todo-checklist")
+        compose.onNodeWithContentDescription("Choose status").performClick()
+        compose.onNodeWithText("Automatic").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodes(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Working")).fetchSemanticsNodes().isNotEmpty() }
+        waitControl("Choose status")
+        peer.rejectNextTodo.set(true)
+        compose.onNodeWithTag("todo-row-a").performTouchInput { swipeLeft() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Couldn’t Update Checklist").fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(1, peer.requests.count { it.optString("method") == "mobile.todo.remove" })
+        compose.onNodeWithText("OK").performClick()
+        compose.onNodeWithText("First").assertIsDisplayed()
+        compose.onNodeWithTag("todo-row-mac-added").performTouchInput { swipeLeft() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Ship 你好").fetchSemanticsNodes().isEmpty() }
+        assertEquals("mac-added", peer.requests.last { it.optString("method") == "mobile.todo.remove" }.getJSONObject("params").getString("id"))
+        assertTrue(peer.requests.none { it.optString("method").startsWith("mobile.terminal.") || it.optString("method") == "mobile.surface.focus" })
+        } catch (failure: Throwable) { screenshot("todo-flow-failure"); throw failure }
+    }
+
     @Test fun panelOnlyWorkspacePreviewsExactFileAndMarkdownAndFocusesUnknownSurface() {
         peer.panelArtifactsSupported = true
         peer.customWorkspaceListing = JSONObject("""{"workspaces":[{"id":"panels","title":"Panel workspace","terminals":[],"surfaces":[
@@ -2057,6 +2179,9 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var taskGroupsSupported = false
     @Volatile var browserResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var changesResponse: ((String, JSONObject) -> JSONObject)? = null
+    @Volatile var todoSupported = false
+    val rejectNextTodo = AtomicBoolean(false)
+    @Volatile var todoResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var panelArtifactsSupported = false
     @Volatile var artifactResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var artifactsSupported = false
@@ -2149,7 +2274,8 @@ internal class NativeFixturePeer : AutoCloseable {
                             }
                         }
                         val taskError = if (request.optString("method") == "workspace.create") nextTaskCreateError.getAndSet(null) else null
-                        val result = if (taskError != null) JSONObject() else response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
+                        val todoRejected = (request.optString("method").startsWith("mobile.todo.") || request.optString("method").startsWith("mobile.status.")) && rejectNextTodo.getAndSet(false)
+                        val result = if (taskError != null || todoRejected) JSONObject() else response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
                         // Execute/record the request, then lose only its reply. socket.use
                         // closes this connection; the listener accepts the app's reconnect.
                         if (request.optString("method") == dropReplyAfterMethod) {
@@ -2160,7 +2286,7 @@ internal class NativeFixturePeer : AutoCloseable {
                         val modelError = taskModelErrorCode.takeIf { request.optString("method") == "mobile.task.models.list" }
                         val directoryError = directoryErrorCode.takeIf { request.optString("method").startsWith("mobile.directory.") }
                         val changesError = changesErrorCode.takeIf { request.optString("method").startsWith("mobile.workspace.changes.") }
-                        val rejected = taskError != null || modelError != null || directoryError != null || changesError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
+                        val rejected = todoRejected || taskError != null || modelError != null || directoryError != null || changesError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
                             (request.optString("method") == "terminal.input" && rejectNextInput.getAndSet(false))
                         val envelope = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
                         if (rejected) envelope.put("error", JSONObject().put("code", taskError ?: modelError ?: directoryError ?: changesError ?: "surface_unavailable")
@@ -2196,6 +2322,7 @@ internal class NativeFixturePeer : AutoCloseable {
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
             .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
+                if (todoSupported) it.put("todo.v1")
                 if (panelArtifactsSupported) it.put("panel.artifact.v1").put("surface.focus.v1")
                 if (artifactsSupported) it.put("terminal.artifact.v1").put("chat.artifact.gallery.v1").put("terminal.artifact.list.v1")
                 if (rawTerminal) it.put("terminal.bytes.v1")
@@ -2307,6 +2434,7 @@ internal class NativeFixturePeer : AutoCloseable {
         else -> when {
             method.startsWith("mobile.browser.") -> browserResponse?.invoke(method, params) ?: JSONObject()
             method.startsWith("mobile.workspace.changes.") -> changesResponse?.invoke(method, params) ?: JSONObject()
+            method.startsWith("mobile.todo.") || method.startsWith("mobile.status.") -> todoResponse?.invoke(method, params) ?: JSONObject()
             method.startsWith("mobile.terminal.artifact.") || method.startsWith("mobile.chat.artifact.") || method.startsWith("mobile.panel.artifact.") -> artifactResponse?.invoke(method, params) ?: JSONObject()
             else -> JSONObject()
         }

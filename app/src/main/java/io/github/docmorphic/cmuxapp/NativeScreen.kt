@@ -1343,7 +1343,8 @@ fun NativeScreen(
                     onBack = { selectedSurface = null; selectedTerminal = null; selectedBrowser = null; selectedWorkspace = null },
                     onSurface = { selectedSurface = it },
                     onTerminal = { selectedSurface = null; selectedBrowser = null; selectedTerminal = it },
-                    onBrowser = { selectedSurface = null; selectedTerminal = null; selectedBrowser = it })
+                    onBrowser = { selectedSurface = null; selectedTerminal = null; selectedBrowser = it },
+                    onListing = ::applyListing)
             }
             selectedTerminal != null -> {
                 val terminal = selectedTerminal!!
