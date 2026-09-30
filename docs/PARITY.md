@@ -12,14 +12,25 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Simulator v2 pane (2026-09-30):** the video decoder, connection owner, workspace
+simulator inventory/routing, aspect-fit touch, text/buttons, persistent quality,
+device selection and recovery overlays are now integrated. The Linux decoder
+artifact passes real 16 KiB runtime checks. Twenty focused JVM checks and three
+final Android pane tests pass, including actual pixels and a borrowed RPC route.
+A UI-dispatcher startup race was found and fixed with an explicit publication
+gate. The legacy simulator path, dynamic rotation/accessibility/theme acceptance
+and real Mac/Pixel verification remain required; see
+[SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md). Signed build 248 does not include
+these simulator changes.
+
 **Simulator video decoder (2026-09-30):** the production presenter now renders
 AVC/HEVC into an Android Surface, using low-latency hardware where supported and
 a pinned native software fallback. The initial MediaCodec-only emulator test
 exposed buffering incompatible with the host's two-frame credit window; the
 fallback fixes that without acknowledging unseen frames. Seventeen focused JVM
 and four Android 17 16 KiB tests pass, including actual frame pixels and the
-first-frame flow-control boundary. The pane/lifecycle integration, legacy path,
-Linux-native verification and physical Mac/Pixel checks remain open. See
+first-frame flow-control boundary. Later checkpoints above add pane/lifecycle
+integration and Linux verification; legacy and physical acceptance remain open. See
 [SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md).
 
 **Signed build 248 (2026-09-30):** the combined zoom/panels/Todo milestone
@@ -31,8 +42,8 @@ native workflow acceptance remain open; see [PIXEL_INSTALL.md](PIXEL_INSTALL.md)
 **Simulator streaming prerequisite (2026-09-30):** v2 binary wire, admitted
 Iroh lane, presentation/input session and pure lifecycle policy are implemented.
 22 focused JVM checks pass, including byte-for-byte comparison with fixtures
-exported by the unmodified upstream Swift codec. No simulator viewer, production
-video presenter, legacy path or physical acceptance exists yet; see
+exported by the unmodified upstream Swift codec. This protocol-only checkpoint
+preceded the viewer/decoder work above; legacy and physical acceptance remain open. See
 [SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md). The browser audit also clarified
 that the existing Android remote browser implements the iOS `.browserStream`
 RPC path; the separate phone-local `.browser` WebView mode remains missing.
@@ -50,8 +61,9 @@ preserved and navigable, panel-only workspaces open, file/Markdown panels use th
 separate exact-file `panel.artifact.v1` scope, and fallback cards can focus their
 surface on the owning Mac. Eleven focused JVM and three 16 KiB Android UI/RPC
 tests pass, including painted Markdown and multi-Mac routing. Todo controls were
-added in the later checkpoint above. Simulator streaming and the additional iOS
-phone-local browser path remain missing; they are required work, not unavoidable Android differences. See
+added in the later checkpoint above. The simulator v2 pane is now implemented;
+its legacy path and the additional iOS phone-local browser path remain missing.
+They are required work, not unavoidable Android differences. See
 [MAC_SURFACES.md](MAC_SURFACES.md).
 
 **Signed build 244 (2026-09-30):** integration CI passed at `3c80608`, the signed

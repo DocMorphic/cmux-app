@@ -27,6 +27,7 @@ internal data class SimViewerState(
     val scale: Float = 1f,
     val orientation: SimOrientation = SimOrientation.PORTRAIT,
     val presentedFrames: ULong = 0u,
+    val attachment: ULong = 0u,
     val quality: SimQuality = SimQuality.HIGH,
 ) {
     val reconnecting: Boolean get() = phase == SimViewerLifecycle.Phase.RETRYING ||
@@ -153,6 +154,7 @@ internal class SimViewerController(
         check(attempt == null)
         check(epoch != ULong.MAX_VALUE) { "Simulator attachment sequence exhausted" }
         epoch++
+        mutableState.value = state.value.copy(attachment = epoch)
         lateinit var current: Attempt
         val session = SimStreamSession(presenter, epoch, state.value.quality.maximumLongSide, codecs) { event ->
             currentCoroutineContext().ensureActive()
@@ -160,12 +162,14 @@ internal class SimViewerController(
         }
         current = Attempt(session)
         val predecessor = lastAttemptJob
+        val published = CompletableDeferred<Unit>()
         current.job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             var ownsPresenter = false
             try {
                 // Enter the cleanup-protected region before publishing the job.
-                // Even an immediate refresh must preserve the predecessor barrier.
-                yield()
+                // Unlike yield(), this gate MUST suspend on immediate/UI dispatchers,
+                // so a synchronous opener cannot observe an unpublished attempt.
+                published.await()
                 predecessor?.join()
                 ensureActive()
                 ownsPresenter = true
@@ -196,6 +200,7 @@ internal class SimViewerController(
         }
         attempt = current
         lastAttemptJob = current.job
+        published.complete(Unit)
     }
 
     private fun receive(current: Attempt, event: SimViewerEvent) {

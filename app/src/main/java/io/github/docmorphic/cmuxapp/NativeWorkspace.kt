@@ -7,10 +7,18 @@ internal data class NativeWorkspace(
     val directory: String?, val hasUnread: Boolean, val lastActivityAt: Double?,
     val windowId: String?, val isPinned: Boolean, val browsers: List<NativeBrowser>,
     val groupId: String?, val preview: String?, val color: String?, val description: String? = null,
-    val unreadCount: Long? = null, val surfaces: List<NativeSurface> = emptyList()
+    val unreadCount: Long? = null, val surfaces: List<NativeSurface> = emptyList(),
+    val simulators: List<NativeSimulator> = emptyList()
 ) {
     val unreadState get() = NativeWorkspaceUnread(hasUnread, unreadCount ?: if (hasUnread) null else 0L)
-    val macSurfaces get() = surfaces.filter { it.kind != "terminal" && it.kind != "browser" }
+    // Simulator descriptors have their own host inventory, not an invented wire surface kind.
+    // Adapt them only for this app's existing navigation/picker, preserving host IDs.
+    val macSurfaces get(): List<NativeSurface> {
+        val regular = surfaces.filter { it.kind != "terminal" && it.kind != "browser" }
+        return regular.map { item -> simulators.firstOrNull { it.panelId == item.id }?.let {
+            it.surface().copy(isFocused = item.isFocused)
+        } ?: item } + simulators.filter { sim -> surfaces.none { it.id == sim.panelId } }.map { it.surface() }
+    }
     val hasPanes get() = terminals.isNotEmpty() || browsers.isNotEmpty() || macSurfaces.isNotEmpty()
 }
 internal data class NativeGroup(
@@ -74,6 +82,11 @@ internal fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                     if (surfaceId.isNotBlank()) browsers += NativeBrowser(surfaceId, surface.optString("title"))
                 }
             }
+            val simulatorItems = workspace.optJSONArray("simulators")
+            val simulators = if (simulatorItems == null) emptyList() else
+                (0 until simulatorItems.length()).mapNotNull { i -> simulatorItems.optJSONObject(i)?.let {
+                    NativeSimulator.read(it, id)
+                } }.distinctBy { it.panelId }
             add(NativeWorkspace(
                 id, workspace.optString("title", "Workspace"), terminals,
                 workspace.optString("current_directory").takeIf { it.isNotBlank() && it != "null" },
@@ -85,7 +98,7 @@ internal fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 workspace.optString("preview").takeIf { it.isNotBlank() && it != "null" },
                 workspace.optString("custom_color").takeIf { it.startsWith('#') },
                 workspace.optString("description").takeIf { it.isNotBlank() && it != "null" },
-                workspace.optString("unread_count").toLongOrNull()?.takeIf { it >= 0 }, inventory
+                workspace.optString("unread_count").toLongOrNull()?.takeIf { it >= 0 }, inventory, simulators
             ))
         }
     }

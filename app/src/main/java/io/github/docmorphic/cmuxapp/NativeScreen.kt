@@ -1820,11 +1820,7 @@ fun NativeScreen(
                                 }
                             )
                             workspace.macSurfaces.forEach { surface ->
-                                Text("▤  ${surface.displayTitle}",
-                                    Modifier.fillMaxWidth().clickable { open(surfaceId = surface.id) }
-                                        .semantics { contentDescription = "Open ${surface.displayTitle}" }
-                                        .padding(start = 80.dp, top = 4.dp, bottom = 12.dp),
-                                    color = nativeAccent, fontSize = 12.sp)
+                                NativeSurfaceShortcut(surface, nativeAccent) { open(surfaceId = surface.id) }
                             }
                             workspace.browsers.forEach { browser ->
                                 Text("▣  ${browser.title.ifBlank { "Browser" }}",

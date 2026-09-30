@@ -21,6 +21,17 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
+internal fun NativeSurfaceShortcut(surface: NativeSurface, color: Color, onOpen: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).semantics { contentDescription = "Open ${surface.displayTitle}" }
+        .padding(start = 80.dp, top = 4.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (surface.simulator != null) SimulatorGlyph("phone", color, Modifier.size(14.dp))
+        else Text("▤", color = color, fontSize = 12.sp)
+        Spacer(Modifier.width(6.dp))
+        Text(surface.displayTitle, color = color, fontSize = 12.sp)
+    }
+}
+
+@Composable
 internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurface, client: MobileRpcClient?,
     capabilities: Set<String>, ready: Boolean, onBack: () -> Unit, onSurface: (NativeSurface) -> Unit,
     onTerminal: (NativeTerminal) -> Unit, onBrowser: (NativeBrowser) -> Unit, onListing: (org.json.JSONObject) -> Unit) {
@@ -42,7 +53,10 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
         }
     }
     var supportedPanel by remember(workspace.id, surface.id) { mutableStateOf(false) }
+    var supportedSimulator by remember(workspace.id, surface.id) { mutableStateOf(false) }
     if ("panel.artifact.v1" in capabilities) SideEffect { supportedPanel = true }
+    val simulatorReady = ready && SimStreamWire.CAPABILITY in capabilities && client?.supportsSimulatorLanes == true
+    if (ready) SideEffect { supportedSimulator = simulatorReady }
     Column(Modifier.fillMaxSize()) {
         var picker by remember { mutableStateOf(false) }
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -62,7 +76,9 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
             }
         }
         if (!ready) Text("Reconnecting to your Mac…", Modifier.padding(horizontal = 16.dp))
-        if (surface.kind == "todo" && todo != null) key(workspace.id, surface.id) {
+        if (surface.simulator != null && (simulatorReady || supportedSimulator)) key(workspace.id, surface.id) {
+            NativeSimulatorView(surface.simulator, client, capabilities, ready)
+        } else if (surface.kind == "todo" && todo != null) key(workspace.id, surface.id) {
             NativeTodoView(todo, ready && "todo.v1" in capabilities) { mutation ->
                 val active = checkNotNull(currentClient) { "Mac disconnected." }
                 check(currentReady && "todo.v1" in currentCapabilities) { "Your Mac isn't ready to update this checklist." }

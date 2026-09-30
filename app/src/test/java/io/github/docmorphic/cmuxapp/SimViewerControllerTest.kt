@@ -44,6 +44,17 @@ class SimViewerControllerTest {
     private fun TestScope.controller(presenter: Presenter = Presenter(), parent: CoroutineScope = this) =
         SimViewerController(parent, presenter, nowMillis = { testScheduler.currentTime })
 
+    @Test fun immediatelyExecutingDispatcherCannotOpenBeforeAttemptPublication() = runBlocking<Unit> {
+        val source = Source()
+        val owner = SimViewerController(CoroutineScope(coroutineContext + Dispatchers.Unconfined), Presenter())
+        try {
+            owner.bindSource(source); owner.activate()
+            withTimeout(2000) { while (source.lanes.firstOrNull()?.sent?.isEmpty() != false) yield() }
+            assertEquals(SimMessage.Start(1u, 2000, listOf(SimCodec.HEVC, SimCodec.H264)), source.lanes.single().sent.single())
+            assertFalse(source.lanes.single().closed)
+        } finally { owner.awaitClosed() }
+    }
+
     @Test fun hostRecoveryStaysOnOneLaneAndClosedRequiresExplicitRefresh() = runTest {
         val presenter = Presenter(); val source = Source(); val owner = controller(presenter)
         try {

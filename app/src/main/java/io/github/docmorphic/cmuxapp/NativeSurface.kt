@@ -4,10 +4,12 @@ import org.json.JSONObject
 
 /** Preserve the open wire kind and host identity, including kinds newer than this client. */
 internal data class NativeSurface(val id: String, val kind: String, val title: String,
-    val isFocused: Boolean = false, val filePath: String? = null, val todoJson: String? = null) {
+    val isFocused: Boolean = false, val filePath: String? = null, val todoJson: String? = null,
+    val simulator: NativeSimulator? = null) {
     val label get() = when (kind) {
         "terminal" -> "Terminal"
         "browser" -> "Browser"
+        "simulatorStream" -> "Simulator"
         "markdown" -> "Markdown"
         "filePreview" -> "File Preview"
         "todo" -> "Todo"
@@ -29,6 +31,7 @@ internal data class NativeSurface(val id: String, val kind: String, val title: S
         "extensionBrowser" -> "This extension view opens in cmux on your Mac."
         "cloudVMLoading" -> "This Cloud VM is still starting up on your Mac."
         "todo" -> "This checklist is open in cmux on your Mac."
+        "simulatorStream" -> "This Simulator is running in cmux on your Mac."
         "filePreview", "markdown" -> "This view is rendered by cmux on your Mac."
         else -> "This surface is open in cmux on your Mac."
     }

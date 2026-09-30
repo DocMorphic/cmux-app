@@ -2,13 +2,16 @@
 
 Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 This is a required feature, not an Android platform exception. The current
-checkpoint has a tested video presenter and transport infrastructure; **there is no usable simulator viewer yet**.
+checkpoint includes the v2 video pane, controls, lifecycle and workspace routing,
+verified against framed fixtures with real Android decoding. **The legacy path
+and real Mac/Pixel acceptance remain incomplete.**
 
 ## Source contract
 
 `WorkspaceDetailView+Surfaces.swift` selects v2 when `simulator.stream.v2`, an
-Iroh route and lane provider are available. It stops legacy streaming when v2
-mounts. Other supported hosts use the legacy simulator RPC/frame path. Device
+Iroh route and lane provider are available. On v2 mount it stops a legacy stream
+only if this client previously started one (`startedMobileSimulatorPanelIDs`).
+Other supported hosts use the legacy simulator RPC/frame path. Device
 listing/switching and worker recovery have separate capability gates.
 
 The v2 provider in `MobileIrxRuntimeComposition+Streams.swift` opens an independent
@@ -61,7 +64,7 @@ starts fresh; old input and partial messages must not transfer to another lane.
   resolution caps. Live renegotiation stays on the current lane; the latest choice
   also applies to later attaches. Persisting the choice belongs to the pending pane.
 
-These components are not yet mounted by the production surface UI.
+These components are now mounted by the production v2 pane, described below.
 
 ## Verification — 2026-09-30
 
@@ -193,7 +196,7 @@ signed app was published; build 248 remains the last signed milestone.
 
 Reference: pinned `SimulatorStreamV2Store`, `SimStreamViewerEngine` and
 `SimStreamQualityPreset`. The controller is implemented and tested with the real
-decoder; the production simulator pane is still pending.
+decoder; the production pane was added in the later checkpoint below.
 
 - **25 focused JVM tests pass**: 13 wire/session/lane, five lifecycle, and seven
   controller tests. Virtual time checks the eight-second watchdog, 250/500 ms
@@ -223,6 +226,73 @@ decoder; the production simulator pane is still pending.
 These checks use framed lane fixtures and real Android decoding, not a native Mac
 simulator session. The Pixel remained absent from ADB. No signed application was
 published at this feature commit; build 248 remains the signed milestone.
+
+### V2 pane, controls and workspace routing — 2026-09-30
+
+The pinned host's workspace payload has a separate `simulators` array, not a new
+`MobileSurfaceKind`. `NativeWorkspace` now preserves those descriptors and adapts
+them for the existing navigation/picker using their original panel/workspace IDs.
+Simulator-only workspaces are navigable, simulator rows have a phone glyph, and
+notification retargeting/search includes their identity/title. Malformed UUIDs,
+wrong-workspace descriptors and invalid required types are rejected.
+
+`NativeSurfaceView` mounts `NativeSimulatorView` when the host advertises
+`simulator.stream.v2` and the client supports the admitted simulator lane. The
+view remains mounted through transport recovery. `SimulatorVideoView` owns the
+Surface, aspect-fits the video, rejects letterbox touch-downs, clamps moves/up,
+tracks one pointer as host pointer 0, and drops unfinished gestures across attach
+generations. Coordinates already follow the frame orientation; there is no extra
+rotation transform. The per-Surface controller and decoder close on disposal;
+the borrowed/shared RPC client remains open.
+
+The pane follows `SimulatorStreamV2Pane`: neutral rounded bottom bar, text/IME
+send, Home, Lock, App Switcher, Volume Up/Down and Siri; persistent High/Balanced/
+Data Saver preferences; device inventory/selection with selected checkmarks;
+manual refresh/recovery; and waiting/reconnecting/unavailable/recovery overlays.
+Refresh appears after five seconds of continuous waiting despite retry phase
+changes. Host detail tokens map to known copy; arbitrary host text is never shown.
+Recovery and device selection are independently capability-gated, scoped to the
+exact panel/workspace, bound to the current client before/after the RPC, and not
+automatically resent. Refresh requests host recovery when supported, then rebuilds
+the viewer. Device switching lets the Mac's config/state flow report completion.
+
+Verification:
+
+- **20 focused JVM tests pass across the pane-model and controller runs**: seven
+  descriptor/RPC/geometry/pointer tests, five existing surface tests, and eight
+  controller tests. These include simulator-only navigation and moved-notification
+  routing, ownership merge policy for later legacy integration, strict scope and
+  capability guards, letterbox/edge/single-pointer behavior, and cancellation.
+- The first UI run found an actual controller startup race: `yield()` did not
+  guarantee suspension on the UI dispatcher, allowing a synchronous opener to
+  inspect an unpublished attempt. An explicit `CompletableDeferred` publication
+  gate replaces that assumption; an immediate-dispatcher JVM regression and the
+  real Compose runtime both exercise the fix. Initial failure logs are retained.
+- **Three final Android 17 UI tests pass on the 16 KiB emulator in 11.091 seconds**.
+  They verify actual green/red decoded pixels, touch and button wire events,
+  Unicode text/IME send, same-lane quality change, persistence through pane remount,
+  device selection/recovery RPCs, fresh-lane reconnect with no stale input replay,
+  and disabled input while disconnected. A route test mounts `NativeSurfaceView`
+  and opens the exact panel through `MobileSimLaneSource` and a borrowed
+  `MobileRpcClient`, then verifies navigation teardown leaves the client open.
+- The intermediate UI run reached all controls but failed an assertion that
+  combined the empty field's placeholder with its editable value. The final
+  assertion checks the editable value specifically; the sent Unicode payload is
+  independently asserted on the wire.
+- Workspace-route, streaming, quality, device-menu, recovery and reconnect
+  screenshots were captured; representative route/device/recovery captures were
+  inspected. They use synthetic red/green video and a test Activity, not a real
+  Mac simulator or full-app system-bar/theme acceptance. Local ignored evidence:
+  `captures/runtime/simulator-pane/`. Emulator stopped after the run.
+- Debug APK SHA-256: `19d5bfdbbc02325e31fc3a63c8015d1ce0504b6db8f02002ef9cc32c4eeab6a4`.
+- Test APK SHA-256: `1615f476a649ac1536c42b5027143f342a4b8e525b796962e7d825e4c630260b`.
+
+The Pixel was still absent from ADB. No signed app was published at this feature
+commit; signed build 248 predates all simulator work. Dynamic host rotation,
+large-text/landscape accessibility, hardware decoder performance, live Mac device
+switching and full physical acceptance are still required. Older supported hosts
+currently reach the fallback card: implementing their legacy image/RPC path is
+mandatory, not an accepted platform difference.
 
 ### Reproduce the native dependency
 
@@ -254,17 +324,13 @@ python3 scripts/generate-simulator-video-fixtures.py
 1. Complete physical acceptance and performance checks for the implemented video
    presenter, including the Pixel hardware path and real Mac-generated frames.
    Linux-built native artifact runtime checks passed as recorded above.
-2. Mount the implemented lifecycle owner with the view-owned Surface and current
-   RPC lease. Persist quality and connect Android foreground/background/disposal.
-   Stop legacy streaming when mounting v2, as in the pinned surface routing.
-3. Parse simulator descriptors and wire surface selection. Build the pane with
-   aspect-fit touch mapping, hardware buttons, text/key input, quality controls,
-   device switcher and recovery. Audit `SimulatorStreamV2Pane`,
-   `SimStreamTouchMapping`, `MobileSimulatorRPCDTOs`, and simulator RPC methods.
-4. Implement the legacy RPC/image path required for hosts without v2. Audit
+2. Implement the legacy RPC/image path required for hosts without v2. Audit
    `MobileShellComposite+SimulatorStream`, `SimulatorStreamPane`, coordinate,
    presentation/staleness policies, stop behavior and separate capability gates.
-5. Exercise both paths against framed/native lane fixtures, then a dedicated real
+   Track started legacy streams and stop only those when transitioning to v2.
+3. Check dynamic host rotation, large text, landscape, TalkBack and full-app theme
+   behavior for the implemented v2 pane; fixture screenshots are not full acceptance.
+4. Exercise both paths against framed/native lane fixtures, then a dedicated real
    Mac simulator and the Pixel. Verify reconnect/background, rotation, input
    ordering, device switching, worker recovery, quality and UI parity.
 

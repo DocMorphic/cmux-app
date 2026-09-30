@@ -75,9 +75,11 @@ limitations**, and a fallback card does not satisfy their native iOS behavior.
    against the framed RPC fixture. Real Mac/Pixel behavior, touch feel, accessibility
    and visual comparison still need acceptance; see [TODO.md](TODO.md).
 2. **Simulator streaming**: pinned `WorkspaceDetailView+Surfaces` has legacy and
-   V2 simulator paths, device switching and recovery. Android has no corresponding
-   surface UI/runtime yet. The v2 wire, Iroh lane, input/presentation session and
-   lifecycle prerequisite is implemented; see [SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md).
+   V2 simulator paths, device switching and recovery. Android now implements the
+   v2 pane, inventory/navigation, decoder, touch/text/buttons, quality, device
+   selection and recovery. Framed/real-decoder UI checks pass. The legacy path,
+   dynamic rotation/accessibility/theme checks and real Mac/Pixel acceptance
+   remain required; see [SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md).
 3. **Browser modes**: source comparison now confirms Android's image/RPC browser
    implements the `.browserStream` path (`mobile.browser.stream.start`, viewport,
    frame ack and input/dialog methods). The separate `.browser` path hosts a local
