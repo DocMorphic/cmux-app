@@ -197,6 +197,11 @@ tunneling requires a newer compatible host; the official nightly candidate is no
 signature-verified, staged separately and launched, with its live account/pairing
 and capability still unverified. See
 [BROWSER_TUNNEL.md](BROWSER_TUNNEL.md). Signed 284 predates this source work.
+The routed browser's rotation reload/state-loss regression is now fixed: a clean
+three-case API 37/16 KiB batch verifies page-local state and history across both
+rotations, workspace return/reopen/pane selection, and owner-retirement cleanup.
+This is emulator evidence; physical rotation, chooser and process-death checks
+remain open.
 
 **Phone-local browser navigation (2026-09-30):** `New Browser` is now integrated
 into workspace actions and terminal/Mac-surface pickers. Connected, capable Macs

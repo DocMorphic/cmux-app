@@ -404,9 +404,44 @@ See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the installed checkpoint. The expli
 live check performs only host reads through normal authenticated app connections,
 and exports no credential, host identifier, address or workspace contents.
 
+## Browser rotation retention — 2026-09-30
+
+The routed browser Activity now handles orientation, screen-size/layout and
+keyboard configuration changes in place. Its existing WebView redraws instead
+of being destroyed and loading the current URL again. This follows Android's
+[WebView state guidance](https://developer.android.com/develop/adaptive-apps/cookbook/webview-state).
+The change is limited to the dedicated routed browser Activity; it does not
+claim preservation through process death or every Activity recreation.
+
+Before the fix, the regression lost its page-local draft flag on landscape
+rotation and displayed the original `Next` title. The fixed APK passes a clean
+**three-test presentation batch in 44.040 s** on API 37 / 16 KiB pages:
+
+- A page-local JavaScript draft flag survives portrait → landscape → portrait.
+  Its resize handler changes the browser title, proving the retained page sees
+  the new viewport. The server receives no second `/next` request during rotation.
+  Back/Forward history remains usable and the host lease stays held until return,
+  then releases once. The landscape screenshot was visually inspected.
+- The existing workspace return/reopen/terminal-pane test passes.
+- Owner retirement still closes the presentation and removes its own storage.
+
+Earlier attempts include a System UI ANR, an accessibility-query issue in the
+first fixture, and a snapshot-restored emulator run interrupted after system
+service failures. A later attempt was stopped at the user's pause request.
+Those interrupted runs are not passes or startup/performance evidence. The final
+batch used a cold-booted emulator and the corrected title-based fixture.
+
+- Debug APK SHA-256: `47f149051072568a6809e3b91dfeeb883917c7da9a820ec1bae604eef72639a6`.
+- Test APK SHA-256: `a6c736d87519b66cb20c9492c94091e6a2ae296209d4efd3aeb09ddbd09e5f27`.
+- Evidence: ignored `captures/runtime/browser-webview/rotation-*`, particularly
+  `rotation-baseline2-test.txt`, `rotation-resume-test.txt` and
+  `rotation-resume-landscape.png`.
+- Pixel installation and signed release 284 are unchanged. The owned emulator
+  was stopped after verification.
+
 ## Remaining integration
 
-Exercise a real Mac/Pixel website (HTTP/HTTPS, reconnect and account retirement). Verify physical keyboard/IME, file picking, rotation,
+Exercise a real Mac/Pixel website (HTTP/HTTPS, reconnect and account retirement). Verify physical keyboard/IME, file picking, physical rotation,
 process-death return and lifecycle races with live feed holds. The earlier
 isolated adapter tests use generated TCP hosts and do not prove real native-lane
 acceptance. API 26 WebView startup compatibility is still unverified.

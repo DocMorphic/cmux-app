@@ -57,7 +57,7 @@ class RoutedBrowserPresentationTest {
                     paths += request.path!!
                     val next = request.path!!.startsWith("/next")
                     return MockResponse().setHeader("Content-Type", "text/html").setHeader("Cache-Control", "no-store")
-                        .setBody("""<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>${if(next) "Next" else "Routed fixture"}</title><body style="background:#164f3b;color:white;font:24px sans-serif"><h1>Mac route fixture</h1><a style="color:white" href="/next">Open next page</a><script>document.body.dataset.cookie=document.cookie;document.cookie='presentation=kept;path=/'</script>""")
+                        .setBody("""<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>${if(next) "Next" else "Routed fixture"}</title><body style="background:#164f3b;color:white;font:24px sans-serif"><h1>Mac route fixture</h1><a style="color:white" href="/next">Open next page</a><p><button onclick="window.draft=true;renderDraft()">Keep draft</button></p><script>function renderDraft(){if(window.draft)document.title='Draft '+(innerWidth>innerHeight?'landscape':'portrait')}addEventListener('resize',renderDraft);document.body.dataset.cookie=document.cookie;document.cookie='presentation=kept;path=/'</script>""")
                 }
             }; start()
         }
@@ -122,5 +122,31 @@ class RoutedBrowserPresentationTest {
         assertEquals(1, releases.get())
         assertEquals(false, probes.last())
         assertTrue(network.retired.isCompleted)
+    }
+    @Test fun rotationKeepsUnsubmittedPageStateHistoryAndHostLease() {
+        device.setOrientationNatural()
+        try {
+            browser("Routed fixture ▾")
+            text("Open next page").click(); text("Next ▾")
+            text("Keep draft").click(); text("Draft portrait ▾")
+            val loaded = paths.count { it == "/next" }
+            assertEquals(1, loaded)
+            device.setOrientationLeft()
+            until { device.displayRotation != 0 }
+            text("Draft landscape ▾")
+            val shots = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+            assertTrue(device.takeScreenshot(File(shots, "routed-browser-landscape.png")))
+            assertEquals(loaded, paths.count { it == "/next" })
+            assertEquals(1, holds.get()); assertEquals(0, releases.get())
+            device.setOrientationNatural()
+            until { device.displayRotation == 0 }
+            text("Draft portrait ▾")
+            assertEquals(loaded, paths.count { it == "/next" })
+            desc("Browser Back").click(); text("Routed fixture ▾")
+            desc("Browser Forward").click(); text("Next ▾")
+            desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+            until { holds.get() == 0 }
+            assertEquals(1, releases.get())
+        } finally { device.setOrientationNatural(); device.unfreezeRotation() }
     }
 }

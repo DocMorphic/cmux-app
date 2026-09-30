@@ -2,6 +2,7 @@ package io.github.docmorphic.cmuxapp
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
@@ -158,6 +159,12 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
         }
     }
     fun foreground(active: Boolean) { browser?.let { if (active) it.onResume() else it.onPause() } }
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // The routed Activity retains this view through resize/rotation so drafts and
+        // history survive. Redraw the existing renderer instead of loading its URL again.
+        browser?.invalidate()
+    }
     fun release() {
         if (released) return
         released = true; surface.detach(token)

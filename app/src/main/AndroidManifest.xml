@@ -25,6 +25,7 @@
             android:foregroundServiceType="remoteMessaging" />
         <service android:name=".RoutedBrowserHostService" android:exported="false" />
         <activity android:name=".RoutedBrowserActivity" android:exported="false"
+            android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize"
             android:process=":browser" android:windowSoftInputMode="adjustResize" />
         <receiver android:name=".NativeNotificationRestartReceiver"
             android:exported="true">
