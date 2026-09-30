@@ -16,13 +16,47 @@ The Android Iroh/V2 connection is implemented and earlier checkpoints have real
 Pixel/Mac evidence; see [IROH_V2.md](IROH_V2.md) and [NETWORKING.md](NETWORKING.md).
 This replaces the old statement that Iroh integration was unfinished.
 
+## Signed integration build 257 — 2026-09-30
+
+[Build 257](https://github.com/DocMorphic/cmux-app/actions/runs/36659644624)
+passed from `9753083aa8b825f886a3c6ad83e186ddc823d0a7`. Download the
+[cmux-app-stable-signed-apk artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36659644624/artifacts/11073628314)
+and extract `app-release.apk` (repository access required). This supersedes 248
+as the most recent verified signed build.
+
+- Package `io.github.docmorphic.cmuxapp`, version code `257`, version `0.2.0`.
+- SHA-256: `1cc38dab71c2a2ac1f1189170bcd33e04d65de95dac6930e94f3d7767c684e49`.
+- Certificate SHA-256:
+  `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+  It matches builds 157/244/248; signing settings are unchanged.
+- Adds both Simulator modes: native AVC/HEVC streaming with quality/device/
+  recovery controls, and legacy PNG/JPEG streaming with ownership and input.
+  Includes serialized lifecycle/mode transitions and workspace navigation.
+- The full app/Ghostty JVM suites, four helper tests, pinned viewer hashes, APK
+  builds, signature and native/ZIP alignment gates passed in CI. The local
+  Simulator milestone passed 35 focused JVM tests and eight Android 17/16 KiB
+  runtime tests; see [SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md).
+- The downloaded APK independently passes `apksigner`, all five native libraries'
+  LOAD/RELRO checks and `zipalign -c -P 16`. Its certificate and version were
+  checked on this Mac.
+- Installed and launched on the Android 17 16 KiB emulator; version 257 and
+  `pageSizeCompat=0` confirmed. Sign-in screen visually inspected without a
+  compatibility warning. This verifies launch, not signed native-account or
+  live Simulator acceptance. Ignored evidence: `captures/runtime/signed257/`.
+- The Pixel remains absent from ADB. No physical install or settings changes.
+  Phone-local browser fallback, full push/Doze behavior and remaining physical
+  and UI acceptance are still open; this is not the completed parity release.
+
+Local verified download: `build/signed-run-36659644624/app-release.apk` (ignored).
+Stable and debug packages have separate app data and logins.
+
 ## Signed integration build 248 — 2026-09-30
 
 [Build 248](https://github.com/DocMorphic/cmux-app/actions/runs/36650296593)
 passed from `ecdccb0710e661862365fcf7ed979653f406f44e`. Download the
 [cmux-app-stable-signed-apk artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36650296593/artifacts/11069984729)
 and extract `app-release.apk` (repository access required). This supersedes 244
-as the most recent verified signed build.
+at that checkpoint; build 257 above is now newer.
 
 - Package `io.github.docmorphic.cmuxapp`, version code `248`, version `0.2.0`.
 - SHA-256: `40c4f83a375b93aa438bfd8bd8bbfeee88cf17adabefb31376bfe104e7519193`.
@@ -41,8 +75,8 @@ as the most recent verified signed build.
   acceptance. Local evidence: `captures/runtime/signed248/launch.png`.
 - No Pixel installation: ADB still shows no physical phone. The debug app and
   stay-awake setting on the Pixel remain unchanged.
-- Does not include the later simulator protocol prerequisite; no usable simulator
-  viewer exists yet. Full parity remains incomplete.
+- Does not include the later Simulator work. Build 257 above includes both
+  Simulator viewers; full parity remains incomplete.
 
 Local download: `build/signed-run-36650296593/app-release.apk` (ignored).
 Stable and debug packages have separate app data and logins.

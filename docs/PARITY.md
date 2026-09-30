@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Signed build 257 (2026-09-30):** the accumulated Simulator milestone passed full
+integration CI at `9753083`. The downloaded APK's stable certificate, all five
+native libraries, ZIP alignment and Android 17/16 KiB launch were independently
+verified. This supersedes signed build 248; both Simulator viewers are included.
+The physical Pixel remains unavailable to ADB. Full parity is incomplete; the
+next phone-local browser work is audited in [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
+Download/checksum details: [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
+
 **Legacy Simulator pane (2026-09-30):** the image/RPC session is now integrated
 with workspace navigation, ownership indicators, touch/text/hardware controls,
 background/reconnect handling and a serialized transition to v2. Thirty-five
@@ -70,9 +78,8 @@ preserved and navigable, panel-only workspaces open, file/Markdown panels use th
 separate exact-file `panel.artifact.v1` scope, and fallback cards can focus their
 surface on the owning Mac. Eleven focused JVM and three 16 KiB Android UI/RPC
 tests pass, including painted Markdown and multi-Mac routing. Todo controls were
-added in the later checkpoint above. The simulator v2 pane is now implemented;
-its legacy path and the additional iOS phone-local browser path remain missing.
-They are required work, not unavoidable Android differences. See
+added in the later checkpoint above. Both simulator panes are now implemented;
+the additional iOS phone-local browser path remains missing and required. See
 [MAC_SURFACES.md](MAC_SURFACES.md).
 
 **Signed build 244 (2026-09-30):** integration CI passed at `3c80608`, the signed

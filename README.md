@@ -6,10 +6,11 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 248 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36650296593/artifacts/11069984729)
-includes native Ghostty rendering, configurable shortcuts, terminal zoom, file/
-Markdown panels and Todo controls at `ecdccb0`. Signature, 16 KB packaging and
-emulator launch are verified; physical acceptance remains pending. See the
+**Signed download:** [build 257 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36659644624/artifacts/11073628314)
+includes both Simulator streaming paths and controls at `9753083`, alongside
+Ghostty rendering, configurable shortcuts, terminal zoom, file/Markdown panels
+and Todo. Signature, 16 KB packaging and emulator launch are verified;
+physical acceptance and full parity remain pending. See the
 install guide for source, checksums and package identity.
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
