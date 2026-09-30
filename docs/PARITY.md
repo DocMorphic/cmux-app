@@ -174,7 +174,10 @@ draft retention also passes. Physical retest and signed delivery remain open; se
 **Mac browser tunnel foundation (2026-09-30):** reviewed the newer `204a11d`
 contract and implemented native connection/listing lanes, raw transfer, half-close
 and lease cleanup. 33 focused JVM tests pass with unchanged Swift wire fixtures.
-This is not yet connected to the WebView; owner-bound routing, isolated network
+The SOCKS/router follow-up passes 18 JVM tests (including 69 Swift loopback
+classifications) and an Android 17 / 16 KiB asynchronous socket round trip with
+half-close. This is not yet connected to the WebView; production owner binding,
+policy refresh, isolated network
 and ephemeral storage, runtime and physical acceptance remain open. See
 [BROWSER_TUNNEL.md](BROWSER_TUNNEL.md). Signed 284 predates this source work.
 

@@ -8,7 +8,16 @@ import tempfile
 
 PIN = "204a11dfcc76280205e50406ab94270a1c152155"
 ROOT = "Packages/Shared/CmuxIrxTransport/Sources/CmuxIrxTransport/"
-SOURCES = [ROOT + "IrxProtocol.swift", ROOT + "Tunnel/IrxTunnelWire.swift"]
+SOURCES = [ROOT + "IrxProtocol.swift", ROOT + "Tunnel/IrxTunnelWire.swift",
+           "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxLoopbackHost.swift"]
+# Unused route/endpoint overloads need these type declarations. The matcher itself is unchanged.
+STUBS = '''public enum CmxAttachEndpoint { case hostPort(host: String, port: Int), unused }
+public struct CmxAttachRoute {
+    public enum Kind { case debugLoopback, tailscale }
+    public var kind: Kind
+    public var endpoint: CmxAttachEndpoint
+}
+'''
 MAIN = r'''
 import Foundation
 let encoder = JSONEncoder()
@@ -29,7 +38,26 @@ let listing = try json(IrxListeningPortsReply(ports: [
 ], allowsNonLoopbackHosts: true))
 let result: [String: Any] = ["source": "204a11dfcc76280205e50406ab94270a1c152155",
     "capability": IrxTunnelCapability.current.identifier,
-    "descriptors": descriptors, "replies": replies, "listing": listing]
+    "descriptors": descriptors, "replies": replies, "listing": listing,
+    "loopback": [
+        "127.0.0.1", " 127.0.0.1 ", "127.0.0.2", "127.255.255.255",
+        "localhost", "LocalHost", "dev.localhost", "localhost.", "dev.localhost.",
+        "::1", "[::1]", "::ffff:127.0.0.1", "[::ffff:127.0.0.1]",
+        "0:0:0:0:0:0:0:1", "[0:0:0:0:0:0:0:1]", "[::1%lo0]",
+        "::ffff:7f00:1", "::127.0.0.1", "127.1", "127.0.1", "2130706433",
+        "0x7f.0.0.1", "0177.0.0.1", "0.0.0.0", "0", "::", "127.0.0",
+        "100.64.0.5", "128.0.0.1", "126.255.255.255", "10.0.0.1",
+        "lawrences-mac.tail1234.ts.net", "localhost.example.com", "fd7a:115c:a1e0::1",
+        "::ffff:100.64.0.5", "127.0.0.0.1", "", "128.1", "1681915909",
+        "127.0.0.01", "0x7fffffff", "017777777777", "0x100000000", "4294967296",
+        "127.16777215", "127.16777216", "127..1", "127.0.0.09", "+127.0.0.1",
+        "localhost..", ".localhost", "[::ffff:0.8.7.6]", "::ffff:8080:1",
+        "127.0.0.1.", "0:0:0:0:0:0:7f00:1", "[::1%en0]", "::gggg",
+        "0.255.255.255", "1.0.0.0", "\u{00a0}localhost\u{00a0}",
+        "4294967423.1", "127.4294967297", "18446744073709551616",
+        "0x100000000000000007f", "99999999999999999999999999999",
+        "0x", "0x.1", "127.0.0.1x", "127.0.0.1 x"
+    ].map { ["host": $0, "matches": CmxLoopbackHost().matches($0)] as [String: Any] }]
 print(String(data: try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys, .prettyPrinted]), encoding: .utf8)!)
 '''
 
@@ -49,8 +77,10 @@ def main():
             sources.append(str(target))
         entry = directory / "main.swift"
         entry.write_text(MAIN)
+        stubs = directory / "AttachTypes.swift"
+        stubs.write_text(STUBS)
         binary = directory / "fixtures"
-        subprocess.run(["xcrun", "swiftc", *sources, str(entry), "-o", str(binary)], check=True)
+        subprocess.run(["xcrun", "swiftc", *sources, str(stubs), str(entry), "-o", str(binary)], check=True)
         result = json.loads(subprocess.check_output([str(binary)], text=True))
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
