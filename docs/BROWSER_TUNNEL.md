@@ -2,8 +2,9 @@
 
 Status: native tunnel client and SOCKS/router implemented, with JVM and Android
 socket checks. The phone-local WebView does **not yet route through the Mac**.
-Session owner/capability wiring and policy refresh are implemented. Isolated
-WebView networking/storage and physical browser acceptance remain open.
+Session owner/capability wiring and policy refresh are implemented. A dedicated
+WebView process adapter passes isolated browser runtime checks. Production
+presentation, storage retirement and physical browser acceptance remain open.
 Signed 284 predates this work.
 
 ## Audited upstream contract
@@ -178,7 +179,79 @@ or install a new APK. The connected Pixel's app, account and sleep settings rema
 unchanged. Neither WebView behavior nor live Mac browser traffic is established
 by these checks.
 
-## Next integration decisions
+## Dedicated WebView process
+
+`RoutedBrowserEnvironment` configures an immutable network/storage binding in
+the app's `:browser` process. It refuses configuration in the main process,
+changing the owner/storage key, or changing the proxy port in an initialized
+process. A replacement owner requires a new process. Initialization failure
+also requires process restart, rather than creating a partly configured WebView.
+
+The opaque 32-hex storage ID becomes a validated directory suffix before loading
+WebView. The future presentation owner must generate and retain one ID per Mac
+for the current app session, and retire/delete those directories at session end.
+No account identifier or credential is part of the directory name.
+`ProcessGlobalConfig`'s startup support is checked first; unsupported WebViews
+report an update requirement. Runtime proxy support is checked afterward.
+
+The environment installs a SOCKS rule, removes implicit localhost/link-local
+bypass, and waits for the completion callback before allowing a WebView to load.
+There is no browser-side DIRECT fallback. The existing Mac router remains the
+only authority for choosing Mac versus phone exits. This uses
+[`androidx.webkit:webkit:1.17.1`](https://developer.android.com/jetpack/androidx/releases/webkit#1.17.1),
+whose published AAR metadata was checked against the project's compile SDK.
+The API 26 startup-compatibility branch remains unverified on an API 26 device.
+
+`RoutedBrowserTestActivity` is a non-exported, debug-only emulator fixture in the
+dedicated process. It exercises the production environment and kills its own
+process after destroying its WebView, so browser services cannot survive into
+another owner's configuration. It never reads account stores or real Mac data.
+Its IPC copies message metadata before suspension because Android recycles
+handled messages. This test Activity is not the production browser presentation.
+
+**Two Android 17 / API 37 / 16 KiB tests passed in 34.056 seconds**, with WebView
+145.0.7632.218. These use real WebViews and TCP sockets with generated local
+servers standing in for two Macs; they do not use real Iroh/QUIC lanes or a Mac.
+The checks establish:
+
+- SOCKS routing of localhost, IPv4/IPv6 loopback, `app.localhost` and a hostname
+  which the phone cannot resolve. A separate server at the original phone port
+  receives no routed requests, including after the owner proxy stops.
+- HTTP redirects, fetch, WebSocket exchange and a service worker's own fetch all
+  reach the selected simulated Mac.
+- Cookies, localStorage, Cache Storage and service-worker registrations are
+  isolated between A and B at the same URL. Restarting A's process with A's
+  existing storage ID restores its data; a new app-session storage ID starts empty.
+- An initialized process rejects a different owner/proxy binding. A main-process
+  WebView retains its phone network and does not receive either routed owner's
+  cookie or localStorage item. Pre-existing phone-only fixture cookies are allowed.
+- HTTPS bytes pass through SOCKS. The debug fixture accepts only its generated
+  server certificate's exact fingerprint; a separate process without that pin
+  cancels the TLS error and sends no HTTP request to the server. This is a tunnel
+  test, not a public-PKI trust-chain test. Production TLS-error handling remains
+  unchanged and never uses the fixture's pin exception.
+
+Earlier runs found and fixed recycled IPC-message metadata, an incorrect empty
+phone-cookie assumption, missing WebSocket close-handshake handling, and the test
+waiting for a generic error callback after explicit TLS cancellation. Later
+host-GPU runs timed out on a blank page; another was interrupted when host memory
+pressure made the emulator unresponsive. Those blank-page timeouts have not been
+proved to have a single cause. A software-graphics cold boot then had System UI
+and application startup ANRs, before any test began. After the emulator recovered
+and its System UI dialog was dismissed, the same final APKs passed both tests.
+Failure/interruption logs are preserved; no broader stability claim is made.
+
+The passing emulator used `-gpu swiftshader -feature -Vulkan -memory 1536 -cores 2`
+and was stopped afterward. Recheck stability during production presentation
+integration and on the Pixel; do not launch tests while emulator startup is still
+unresponsive.
+
+- Debug APK SHA-256: `53849d279c5a747d7cf96ced2214b90fd1340f8f5cc47ad5569b2b2f696487f3`.
+- Test APK SHA-256: `9a1824627d4644066136131d965cfa95eaf24a5958c77eeec00a08f4774d95f5`.
+- Evidence: ignored `captures/runtime/browser-webview/`.
+- Pixel installation/account and signed 284 are unchanged.
+
+## Remaining integration
 
 Android's [ProxyController](https://developer.android.com/reference/androidx/webkit/ProxyController)
 override applies to all WebViews in a process. Its completion callback must
@@ -188,10 +261,11 @@ iOS's same-port mirrors, but it needs runtime proof with HTTP, HTTPS, WebSocket,
 redirects and service workers.
 
 A global proxy switch in the current main process is insufficient: retained
-pages or service workers could reach the wrong computer. Establish process or
-equivalent network isolation together with per-computer session storage before
-wiring the routed WebView. Android WebView profiles alone do not establish
-per-profile proxy isolation. Preserve existing artifact viewers' network scope.
+pages or service workers could reach the wrong computer. The dedicated-process
+adapter above establishes a tested separation primitive; production presentation
+must enforce retirement before switching owners, manage per-app-session storage
+IDs/cleanup, and preserve existing artifact viewers' network scope. Android
+WebView profiles alone do not establish per-profile proxy isolation.
 
 Connect the owner-bound network to availability UI and navigation, profile
 lifecycle and real browser acceptance. A separate browser Activity/process must

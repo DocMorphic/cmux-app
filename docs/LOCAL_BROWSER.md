@@ -7,7 +7,9 @@ Reference revision: `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 The newer `204a11d` candidate adds per-computer Mac routing and ephemeral website
 storage. Its native tunnel and SOCKS/router pass JVM and Android socket checks;
 session owner binding and policy refresh also pass 40 focused JVM checks. They
-are not yet connected to this WebView. See [BROWSER_TUNNEL.md](BROWSER_TUNNEL.md) for the
+are not yet connected to this WebView. A separate-process adapter passes two
+Android checks for routing and storage isolation, but production presentation and
+session retirement remain open. See [BROWSER_TUNNEL.md](BROWSER_TUNNEL.md) for the
 reviewed contract, Android isolation requirements and remaining implementation.
 
 The authoritative module is

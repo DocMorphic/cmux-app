@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <activity android:name=".RoutedBrowserTestActivity" android:exported="false"
+            android:process=":browser" android:taskAffinity="${applicationId}.browsertest" />
         <activity android:name=".NativeLifecycleTestActivity" android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".NativeProcessRestoreTestActivity" android:exported="false"
