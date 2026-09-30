@@ -88,7 +88,7 @@ private val nativeMuted = Color(0xFF9B9FA8)
 @Composable
 fun NativeScreen(
     onUseHelper: () -> Unit, incomingCode: String? = null, incomingNotificationRoute: String? = null,
-    onNotificationHandled: (String) -> Unit = {},
+    onNotificationHandled: (String) -> Unit = {}, onPairingHandled: (String) -> Unit = {},
     connector: NativeConnector? = null
 ) {
     val context = LocalContext.current
@@ -128,7 +128,7 @@ fun NativeScreen(
         if (!signedIn) accountTeams.clear()
     }
     var code by remember { mutableStateOf(store.load()?.optString("pairing_code").orEmpty()) }
-    var pendingPairingCode by remember { mutableStateOf<String?>(null) }
+    var pendingPairingCode by rememberSaveable(signedIn) { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var connectionError by remember(code) { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -261,7 +261,7 @@ fun NativeScreen(
             terminalStartup.observe(displayedTab?.first, selectedTerminal?.id)
         }
         if (workspaceRoute == null && !creatingTerminal && localBrowserState.creating == null) {
-            val destination = if (showSettings || showTaskComposer || currentIncomingRoute != null) null else
+            val destination = if (showSettings || showTaskComposer || currentIncomingRoute != null || pendingPairingCode != null) null else
                 workspaceTabDisplay(browserLogin, teamState.scope, pairedMacs, code,
                     selectedChangesWorkspace ?: selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, localBrowser)
             screenResume.observe(destination?.let { (key, tab) ->
@@ -277,7 +277,7 @@ fun NativeScreen(
     NativeScreenResumeEffect(screenResume, browserLogin, teamState.scope, savedPairedMacs, pairedMacs,
         admissionReady = connector != null || teamState.scope != null,
         hasRetainedPane = selectedWorkspace != null || localBrowser != null || selectedChangesWorkspace != null,
-        newerNavigation = showSettings || showTaskComposer || currentIncomingRoute != null || incomingCode != null ||
+        newerNavigation = showSettings || showTaskComposer || currentIncomingRoute != null || incomingCode != null || pendingPairingCode != null ||
             (workspaceRoute != null && workspaceRoute?.resume == null)) { route ->
         if (route != null || workspaceRoute?.resume != null) workspaceRoute = route
     }
@@ -847,27 +847,43 @@ fun NativeScreen(
         )
     }
 
-    LaunchedEffect(incomingCode) {
-        if (incomingCode != null && incomingCode != code) proposePairing(incomingCode)
+    val handlePairing by rememberUpdatedState(onPairingHandled)
+    LaunchedEffect(incomingCode, signedIn, code, pairedMacs, teamState.scope, computerState) {
+        val incoming = incomingCode ?: return@LaunchedEffect
+        pendingPairingCode = null
+        val action = incomingPairingAction(incoming, signedIn,
+            alreadySelected = incoming == code && pairedMacs.any { it.code == code }, teamState.scope, computerState)
+        when (action) {
+            NativePairingLinkAction.Wait -> return@LaunchedEffect
+            NativePairingLinkAction.Consumed -> Unit
+            NativePairingLinkAction.Confirm -> { pendingPairingCode = incoming; error = null }
+            NativePairingLinkAction.Unavailable -> error = "This Mac is not available in your selected team. Check its Mobile settings and refresh Computers."
+            is NativePairingLinkAction.Select -> {
+                if (connection.allowsSaved(PairingCodeParser.parse(action.code).getOrThrow())) {
+                    pendingPairingCode = null; code = action.code; error = null
+                } else error = "This Mac is not available in your selected team."
+            }
+        }
+        handlePairing(incoming)
     }
     LaunchedEffect(currentIncomingRoute, showSettings, showTaskComposer) {
         if (currentIncomingRoute != null || showSettings || showTaskComposer) localBrowsers.leave(close = false)
     }
-    LaunchedEffect(incomingNotificationRoute) { if (incomingNotificationRoute != null) { inAppNotification = null; workspaceRoute = null } }
+    LaunchedEffect(incomingNotificationRoute) { if (incomingNotificationRoute != null) { pendingPairingCode = null; inAppNotification = null; workspaceRoute = null } }
     val routeClient = client
     val routeConnectedCode = connectedCode
     val routePairingCode = code
     val routeSignedIn = signedIn
     val routeInAppNotification = inAppNotification
     LaunchedEffect(incomingNotificationRoute, routeInAppNotification?.routeId, routeSignedIn,
-        routePairingCode, routeConnectedCode, routeClient) {
+        routePairingCode, routeConnectedCode, routeClient, teamState.scope, pairedMacs) {
         val routeId = incomingNotificationRoute ?: routeInAppNotification?.routeId ?: return@LaunchedEffect
         val openedFromFeed = incomingNotificationRoute == null
         fun consumeRoute() {
             if (openedFromFeed) { if (inAppNotification?.routeId == routeId) inAppNotification = null }
             else handleNotification(routeId)
         }
-        if (!routeSignedIn || currentIncomingRoute != routeId) return@LaunchedEffect
+        if (!routeSignedIn || currentIncomingRoute != routeId || (connector == null && teamState.scope == null)) return@LaunchedEffect
         val route = if (openedFromFeed) routeInAppNotification else notificationDelivery.destination(routeId)
         val mac = store.pairedMacs().singleOrNull { it.ownsOrigin(route?.origin) && connection.allowsSaved(it) }
         if (route == null || mac == null) {

@@ -12,6 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Pairing/notification entry lifetime (2026-09-30):** pending and consumed entry
+routes now survive Android task restoration without rereading the original pairing
+link. Confirmation survives process death; newer links and notification taps take
+priority. Signed-out links wait for sign-in, Iroh lookup waits for the current
+account directory, and notification routing waits for initial saved-Mac admission.
+The installed manifest now also registers the Android scheme and fixed iOS dev
+scheme. **24 JVM tests passed; 22 Android lifecycle/delivery tests passed**, then
+**three resolver tests passed after the manifest-only change**. Real UI-process
+replacement and restored OS bundles were verified through MainActivity. Physical
+URL/directory/system-shade acceptance remains open. See
+[ENTRY_ROUTES.md](ENTRY_ROUTES.md). Signed build 261 predates this checkpoint.
+
 **Android task process recovery (2026-09-30):** saved-instance state now restores
 workspace/pane or Changes after actual UI-process death, after account/Mac/build
 admission and fresh inventory. Startup tickets retain their original deadline;
@@ -20,8 +32,8 @@ restoration never repeats creation. Back cancels pending reconnect routing.
 final legacy cached-owner adjustment; **all twelve process tests passed again on
 the final APKs in 113.162 seconds**. Restored OS bundles and changed UI PIDs were
 verified, and the restore screenshot was inspected. Nested details/overlays,
-unacknowledged creation, consumed deep-link lifecycle and physical acceptance
-remain open. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). The Pixel is
+unacknowledged creation and physical acceptance remain open; entry-route lifetime
+is covered by the subsequent checkpoint above. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). The Pixel is
 still unavailable to ADB; signed build **261** is unchanged.
 
 **Workspace/pane Activity recreation (2026-09-30):** the selected workspace,

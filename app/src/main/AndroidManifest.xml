@@ -43,6 +43,8 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cmux-android" android:host="attach" />
+                <data android:scheme="cmux-ios-dev.cmux.ios" android:host="attach" />
                 <data android:scheme="cmux-ios" android:host="attach" />
                 <data android:scheme="cmux-ios-dev" android:host="attach" />
                 <data android:scheme="cmux-ios-com.cmux.app" android:host="attach" />

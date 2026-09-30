@@ -12,15 +12,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
 
-class MainActivity : ComponentActivity() {
-    private var incomingPairing by mutableStateOf<String?>(null)
-    private var incomingNotificationRoute by mutableStateOf<String?>(null)
+open class MainActivity : ComponentActivity() {
+    private var launchRoutes by mutableStateOf(NativeLaunchRoutes())
+    internal open fun screenConnector(): NativeConnector? = null
+    private fun routes(intent: Intent?) = NativeLaunchRoutes.incoming(intent?.dataString,
+        NativeNotificationDelivery.routeFromIntent(this, intent))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        incomingPairing = intent?.dataString?.takeIf { PairingCodeParser.parse(it).isSuccess }
-        incomingNotificationRoute = if (savedInstanceState != null) savedInstanceState.getString("notification_route")
-            else NativeNotificationDelivery.routeFromIntent(this, intent)
+        launchRoutes = when {
+            savedInstanceState?.containsKey(NativeLaunchRoutes.STATE_KEY) == true ->
+                NativeLaunchRoutes.decode(savedInstanceState.getString(NativeLaunchRoutes.STATE_KEY))
+            savedInstanceState != null -> NativeLaunchRoutes.incoming(null, savedInstanceState.getString("notification_route"))
+            else -> routes(intent)
+        }
         if (NativeNotificationService.isEnabled(this)) {
             runCatching { startForegroundService(Intent(this, NativeNotificationService::class.java)) }
         }
@@ -28,16 +33,19 @@ class MainActivity : ComponentActivity() {
             CmuxTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var nativeMode by remember { mutableStateOf(true) }
-                    LaunchedEffect(incomingPairing, incomingNotificationRoute) {
-                        if (incomingPairing != null || incomingNotificationRoute != null) nativeMode = true
+                    LaunchedEffect(launchRoutes) {
+                        if (launchRoutes.pairing != null || launchRoutes.notification != null) nativeMode = true
                     }
                     if (nativeMode) NativeScreen(onUseHelper = { nativeMode = false },
-                        incomingCode = incomingPairing, incomingNotificationRoute = incomingNotificationRoute,
-                        onNotificationHandled = { route ->
-                            if (incomingNotificationRoute == route) {
-                                incomingNotificationRoute = null
-                                intent?.data = null
-                            }
+                        incomingCode = launchRoutes.pairing, incomingNotificationRoute = launchRoutes.notification,
+                        connector = screenConnector(),
+                        onPairingHandled = { value ->
+                            launchRoutes = launchRoutes.handledPairing(value)
+                            if (intent?.dataString == value) intent?.data = null
+                        },
+                        onNotificationHandled = { value ->
+                            launchRoutes = launchRoutes.handledNotification(value)
+                            if (NativeNotificationDelivery.routeFromIntent(this, intent) == value) intent?.data = null
                         })
                     else BridgeScreen(onUseNative = { nativeMode = true })
                 }
@@ -46,15 +54,16 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString("notification_route", incomingNotificationRoute)
+        outState.putString(NativeLaunchRoutes.STATE_KEY, launchRoutes.encode())
         super.onSaveInstanceState(outState)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        incomingPairing = intent.dataString?.takeIf { PairingCodeParser.parse(it).isSuccess }
-        incomingNotificationRoute = NativeNotificationDelivery.routeFromIntent(this, intent)
+        val next = routes(intent)
+        // Launcher reentry and unrelated intents must not discard a link awaiting sign-in.
+        if (next.pairing != null || next.notification != null) launchRoutes = next
     }
 }
 

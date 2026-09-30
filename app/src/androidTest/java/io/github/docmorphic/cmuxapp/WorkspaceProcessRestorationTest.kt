@@ -39,6 +39,8 @@ class WorkspaceProcessRestorationTest {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk")) { "Emulator-only fixture" }
         retireChild()
         listOf("status", "stopped", "saved").forEach { marker(it).delete() }
+        NativeNotificationService.setEnabled(context, false)
+        NativeCredentialStore(context, "native_notification_state").clear()
         store = NativeCredentialStore(context); store.clear()
         store.update { it.put("refresh_token", "process-pane-fixture").put("pairing_code", code) }
         store.rememberMac(code, "fixture-mac", "Fixture Mac"); store.taskSession()
@@ -55,8 +57,13 @@ class WorkspaceProcessRestorationTest {
     private fun listing(terminals: String = """[{"id":"terminal-1","title":"First shell"},{"id":"terminal-2","title":"Focused shell","is_focused":true}]""", surfaces: String = "[]") {
         peer.customWorkspaceListing = JSONObject("""{"workspaces":[{"id":"workspace-1","title":"Process workspace","terminals":$terminals,"surfaces":$surfaces}]}""")
     }
-    private fun launch(open: Boolean = true) {
-        context.startActivity(Intent(context, activity).putExtra("fixturePort", peer.port).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    private fun start(link: String? = null) {
+        context.startActivity(Intent(context, activity).putExtra("fixturePort", peer.port)
+            .setData(link?.let(android.net.Uri::parse))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+    }
+    private fun launch(open: Boolean = true, link: String? = null) {
+        start(link)
         val row = text("Process workspace"); if (open) row.click()
     }
     private fun calls(method: String) = peer.requests.filter { it.optString("method") == method }
@@ -193,5 +200,52 @@ class WorkspaceProcessRestorationTest {
         peer.pushTerminalEvent("workspace.updated", JSONObject())
         waitUntil { calls("mobile.terminal.replay").any { it.getJSONObject("params").optString("surface_id") == "new-terminal" } }
         assertEquals(1, calls("terminal.create").size)
+    }
+
+    @Test fun consumedOriginalPairingLinkDoesNotCancelRestoredTerminal() {
+        launch(link = code); text("Focused shell ▾"); text("First shell").click(); text("First shell ▾")
+        killAndRestore(); text("First shell ▾")
+        assertFalse(device.hasObject(By.text("Connect to this Mac?")))
+        assertTrue(calls("terminal.create").isEmpty())
+    }
+    @Test fun pendingPairingConfirmationSurvivesDeathAndDismissalStaysConsumed() {
+        start(code.replace(".1:", ".2:")); text("Connect to this Mac?")
+        killAndRestore(); text("Connect to this Mac?"); text("Cancel").click()
+        text("Process workspace").click(); text("Focused shell ▾")
+        killAndRestore(); text("Focused shell ▾")
+        assertFalse(device.hasObject(By.text("Connect to this Mac?")))
+    }
+    @Test fun newLinkReplacesOldConfirmationAndSameLinkCanBeOpenedAgain() {
+        start(code.replace(".1:", ".2:")); text("Connect to this Mac?"); text("100.64.0.2:58465")
+        val before = childPid()
+        start(code.replace(".1:", ".3:")); text("100.64.0.3:58465"); assertEquals(before, childPid())
+        text("Cancel").click(); text("Process workspace")
+        start(code.replace(".1:", ".3:")); text("100.64.0.3:58465"); text("Cancel").click()
+        assertEquals(before, childPid())
+        start(code.replace(".1:", ".2:")); text("100.64.0.2:58465")
+        start(code); waitUntil { !device.hasObject(By.text("Connect to this Mac?")) }
+        assertEquals(before, childPid())
+    }
+    @Test fun signedOutPairingSurvivesProcessDeathAndLauncherReentry() {
+        store.clear(); start(code.replace(".1:", ".2:")); text("Sign in to cmux")
+        start(); text("Sign in to cmux")
+        killAndRestore {
+            store.update { it.put("refresh_token", "entry-fixture").put("pairing_code", code) }
+            store.rememberMac(code, "fixture-mac", "Fixture Mac"); store.taskSession()
+        }
+        text("Connect to this Mac?"); text("100.64.0.2:58465"); text("Cancel").click()
+    }
+    @Test fun newNotificationSupersedesPairingThenStaysConsumedAfterDeath() {
+        lateinit var route: NotificationDestination
+        NativeCredentialStore(context, "native_notification_state").update {
+            route = NativeNotificationLedger(it).stage(store.pairedMacs().single().origin,
+                NativeNotification("entry-notification", "workspace-1", "terminal-1", "Ready", "Fixture", false))
+        }
+        start(code.replace(".1:", ".2:")); text("Connect to this Mac?")
+        start(NativeNotificationDelivery.launchIntent(context, route.routeId).dataString)
+        text("First shell ▾"); assertFalse(device.hasObject(By.text("Connect to this Mac?")))
+        text("Focused shell").click(); text("Focused shell ▾")
+        killAndRestore(); text("Focused shell ▾")
+        assertFalse(device.hasObject(By.text("Connect to this Mac?")))
     }
 }

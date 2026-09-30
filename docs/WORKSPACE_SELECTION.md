@@ -90,7 +90,7 @@ retains the selected workspace/pane in the existing session. Android task saved
 state now restores that destination after process death, as recorded below. An
 unacknowledged creation interrupted by destruction remains unresolved.
 
-Continue with detail views/overlays, consumed deep-link lifecycle, interrupted
+Continue with detail views/overlays, physical deep-link acceptance, interrupted
 creation recovery and physical Macs/builds. Keep additions outside the large `NativeScreen` method,
 which has already hit Kotlin's JVM bytecode size limit. Follow with Pixel/Mac
 acceptance.
@@ -546,7 +546,7 @@ Verification:
 - Final test APK SHA-256: `82da3a5713c2880401737193fc18059071d63782be7c9e1c39dabb5595139847`.
 
 Nested Files/Changes detail, scroll/zoom/overlay state, unacknowledged ordinary
-creation, consumed pairing/deep-link priority and physical Mac/Pixel workflows
-remain follow-up work. The legacy pairing intent retained by MainActivity needs
-an entry-route lifecycle audit; this checkpoint does not claim all launch paths.
+creation and physical Mac/Pixel workflows remain follow-up work. The retained pairing intent was subsequently fixed and
+covered by the entry-route checkpoint in [ENTRY_ROUTES.md](ENTRY_ROUTES.md);
+physical account/URL acceptance is still required.
 Signed build **261** is unchanged and predates this work.
