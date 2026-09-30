@@ -71,6 +71,34 @@ The candidate's `MobileTerminalInputFrame.swift` diff and full
   JVM and Android runtime checks; see the same document.
   Preserve legacy behavior for hosts without the capability.
 
+## Second reviewed contract: terminal event-lane scope
+
+Inspected the candidate’s `MobileEventLaneScope.swift`, its four Swift tests,
+`MobileCoreRPCSession+IndependentEvents.swift`, and `IrxServerEventLaneHub.swift`.
+iOS stamps a phone-local binary marker before every merged terminal event frame,
+then requires that event’s `payload.surface_id` to match the native lane. Markers
+never cross the network and cannot be established by received payload bytes.
+
+Android already decodes complete frames independently per native lane. It now
+captures the `terminal:<UUID>` resource from `IrxIncomingEvents`, validates each
+scoped frame before merging, and refuses wrong/missing terminal IDs, non-event
+objects, malformed JSON and forged binary markers. UUID case and surrounding
+whitespace follow the reviewed Swift scope semantics. Shared/non-UUID resources
+retain their previous unscoped behavior. No marker protocol was added to the wire.
+
+**19 focused JVM tests passed**, including two new scope cases plus existing
+fragmentation, overlapping-reader, reader-limit, cleanup and control/event-client
+checks. Tests use the native descriptor’s `terminal:` prefix; parsing a bare
+resource UUID would not exercise the real transport. This is source/JVM evidence;
+no new APK, native QUIC runtime or physical scope check is claimed. The source
+fix postdates the signed milestone being built from `0db3c17`.
+
+One related discrepancy remains: iOS’s optional independent-event decoder skips
+malformed payloads without closing control RPC. Android’s shared/unscoped path
+still fails the full client on malformed JSON/non-event payloads. Review that
+failure policy and its control fallback separately before claiming event-lane
+parity. Broader event/replay/connection changes remain unaudited.
+
 ## Current delivery boundary
 
 Signed build 274 is from Android commit

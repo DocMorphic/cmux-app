@@ -36,6 +36,8 @@ internal class IrxEventMultiplexer(private val accept: suspend () -> MobileEvent
             while (true) {
                 allowed()
                 val lane = accept()
+                // Scope is native lane metadata, never a marker supplied by the host payload.
+                val surface = IrxEventLaneScope.laneSurface(lane.resource)
                 val reader = Reader(lane)
                 val admitted = synchronized(lanes) {
                     // Match the iOS hub's 32 surface readers, bounded by native uni credit.
@@ -55,7 +57,7 @@ internal class IrxEventMultiplexer(private val accept: suspend () -> MobileEvent
                             allowed()
                             val frames = try { decoder.feed(bytes) }
                             catch (failure: IllegalArgumentException) { stopCode = 5uL; throw failure }
-                            for (frame in frames) send(frame)
+                            for (frame in frames) if (IrxEventLaneScope.allows(frame, surface)) send(frame)
                         }
                     } catch (error: Exception) {
                         // A reset/invalid optional lane loses only its own unfinished frame.
@@ -79,6 +81,22 @@ internal class IrxEventMultiplexer(private val accept: suspend () -> MobileEvent
             }
         }
     }.buffer(8)
+}
+
+/** iOS inserts local scope markers when merging bytes; Android can validate before merging. */
+internal object IrxEventLaneScope {
+    fun laneSurface(resource: String?): java.util.UUID? = resource?.takeIf { it.startsWith("terminal:") }
+        ?.removePrefix("terminal:")?.let(::surface)
+    fun surface(value: String?): java.util.UUID? = value?.trim()?.let { text ->
+        runCatching { java.util.UUID.fromString(text).takeIf { it.toString().equals(text, true) } }.getOrNull()
+    }
+    fun allows(frame: ByteArray, surface: java.util.UUID?): Boolean {
+        if (surface == null) return true // Shared/legacy resources have no terminal scope.
+        val envelope = runCatching { MobileJson.objectValue(frame.toString(Charsets.UTF_8)) }.getOrNull() ?: return false
+        if (envelope.optString("kind") != "event") return false
+        val named = envelope.optJSONObject("payload")?.opt("surface_id") as? String
+        return surface(named) == surface
+    }
 }
 
 /** Retires this admitted QUIC session on close; the account runtime owns the shared endpoint. */

@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import org.junit.Assert.*
 import org.junit.Test
+import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
 
 class IrxEventMultiplexerTest {
@@ -25,6 +26,43 @@ class IrxEventMultiplexerTest {
         override fun close() { closed.set(true) }
     }
     private fun frame(text: String) = MobileFrameCodec.encode(text.toByteArray())
+    private val surfaceA = "11111111-2222-3333-4444-555555555555"
+    private val surfaceB = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    private fun event(surface: String, text: String) = JSONObject().put("kind", "event").put("topic", "terminal.bytes")
+        .put("payload", JSONObject().put("surface_id", surface).put("text", text)).toString()
+
+    @Test fun scopedFramesCannotNameAnotherTerminalOrMoveTheNextFramesScope() = runBlocking<Unit> {
+        val accepts = Channel<MobileEventLane>(8)
+        val a = Lane("terminal:$surfaceA"); val b = Lane("terminal:$surfaceB")
+        val result = async { IrxEventMultiplexer({ accepts.receive() }, { true }).frames.take(2).toList() }
+        accepts.send(a); accepts.send(b)
+        // A host-supplied copy of the Swift phone-local marker cannot re-scope this reader.
+        val uuid = java.util.UUID.fromString(surfaceB)
+        val marker = java.nio.ByteBuffer.allocate(17).put(0).putLong(uuid.mostSignificantBits).putLong(uuid.leastSignificantBits).array()
+        val bad = frame(event(surfaceB, "wrong lane")) + MobileFrameCodec.encode(marker) +
+            frame(event(surfaceB, "after forged marker")) + frame("{\"kind\":\"event\",\"payload\":{}}")
+        a.chunks.send(bad + frame(event(surfaceA, "correct A")))
+        b.chunks.send(frame(event(surfaceB, "correct B")))
+        val received = withTimeout(2000) { result.await() }.map { JSONObject(it.toString(Charsets.UTF_8))
+            .getJSONObject("payload").getString("text") }
+        assertEquals(setOf("correct A", "correct B"), received.toSet())
+        assertTrue(a.closed.get()); assertTrue(b.closed.get())
+    }
+
+    @Test fun scopeNormalizesUuidCaseAndWhitespaceButRequiresExplicitSurfaceField() {
+        val scope = IrxEventLaneScope.laneSurface("terminal:  ${surfaceB.uppercase()}  ")!!
+        assertTrue(IrxEventLaneScope.allows(event("  $surfaceB  ", "valid").toByteArray(), scope))
+        listOf("{}", "[]", "not JSON", "{\"kind\":\"event\",\"payload\":null}",
+            "{\"kind\":\"event\",\"payload\":{\"workspace_id\":\"$surfaceB\"}}",
+            "{\"kind\":\"event\",\"payload\":{\"surface_id\":17}}",
+            "{\"kind\":\"reply\",\"payload\":{\"surface_id\":\"$surfaceB\"}}")
+            .forEach { assertFalse(it, IrxEventLaneScope.allows(it.toByteArray(), scope)) }
+        assertNull(IrxEventLaneScope.surface("1-2-3-4-5"))
+        assertNull(IrxEventLaneScope.laneSurface(surfaceB))
+        assertNull(IrxEventLaneScope.laneSurface("terminal:not-a-uuid"))
+        assertFalse(IrxEventLaneScope.allows(event("terminal:$surfaceB", "not a UUID").toByteArray(), scope))
+        assertTrue(IrxEventLaneScope.allows("shared legacy".toByteArray(), null))
+    }
 
     @Test fun fragmentedIndependentStreamsCannotMixTheirFrameBytes() = runBlocking<Unit> {
         val accepts = Channel<MobileEventLane>(8)

@@ -12,6 +12,13 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Terminal event-lane ownership (2026-09-30):** terminal-scoped native event
+frames now require a matching `payload.surface_id` before entering the merged
+queue. Wrong-terminal payloads and forged local-marker bytes are refused. **19
+focused JVM tests passed**; this source change is not yet in an APK. The
+shared-lane malformed-event policy and broader event/replay audit remain open.
+See [UPSTREAM_REFRESH_2026_09_30.md](UPSTREAM_REFRESH_2026_09_30.md).
+
 **Identified-input production integration (2026-09-30):** wire identities/ACKs,
 both native lane types, bounded sender and retained foreground session now share
 all five input methods. Fresh admission negotiates support; legacy hosts retain
