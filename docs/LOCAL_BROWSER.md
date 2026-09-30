@@ -201,8 +201,42 @@ Verification:
   `/tmp/cmux-local-browser-routing-final-build.log`, runtime log
   `/tmp/cmux-local-browser-routing-runtime.log`. Owned emulator stopped afterward.
 
-Remaining acceptance: real Pixel/Mac creation and offline fallback, system picker
-upload, Activity rotation and settled IME, TalkBack/large text, and cross-Mac
-physical use. Review workspace deletion during an outstanding create and
-longer-lived last-opened-tab restoration in the broader navigation audit. The
-full Android parity goal remains incomplete.
+## System picker and Activity recreation acceptance (2026-09-30)
+
+**Three Android 17 / 16 KiB tests passed in 15.325 seconds**, using the production
+screen in the existing debug-only Activity host:
+
+- A generated text file was selected through Android's real document picker.
+  Submitting the HTML form sent a multipart POST to the local fixture server;
+  the filename and exact UTF-8 file bytes were verified in the received request.
+- Recreating the Activity retained the local workspace tab and URL, mounted a
+  different WebView, and reloaded the page from the local server.
+- Recreating behind an open system picker discarded the old selection rather
+  than attaching it to the new WebView. A second selection and byte-verified
+  upload then succeeded, proving the outstanding-result reservation clears.
+
+Each test also waited for the actual Android IME inset to become hidden after
+address submission. The fixtures refuse physical devices, use only generated
+files and credentials, and delete their own content-provider files afterward.
+Picker, restored-page and upload screenshots are under ignored
+`captures/runtime/local-browser-lifecycle/`; the uploaded-page screenshot was
+inspected. It captures a return transition and a debug fixture Activity, not a
+settled full-app theme/accessibility acceptance result. The emulator was stopped.
+
+UI interaction uses the documented [UI Automator APIs](https://developer.android.com/training/testing/other-components/ui-automator-legacy).
+The generated file is inserted through [MediaStore.Downloads](https://developer.android.com/reference/android/provider/MediaStore.Downloads).
+UI Automator is an instrumentation-only dependency and is not packaged in the app.
+
+- Production debug APK remains byte-for-byte unchanged:
+  `a79f241df6bc7b986abaeedf358d18470f30516fb909c68a9a1d6756051b1153`.
+- Test APK: `c6c458a61de19496f9829e01320c70189424d35bda3de74f68ddc28caf0a74f4`.
+- Logs: `/tmp/cmux-local-browser-lifecycle-build.log` and
+  `/tmp/cmux-local-browser-lifecycle-runtime.log`.
+- Signed build **261** at `3b0f6fd` passed full integration CI, signature/native/ZIP
+  verification and 16 KiB Android 17 launch. It includes the production browser
+  milestone; see [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for download and hashes.
+
+Remaining acceptance: real Pixel/Mac creation and offline fallback, physical
+picker/rotation, landscape/TalkBack/large text and cross-Mac use. Review workspace
+deletion during an outstanding create and longer-lived last-opened-tab restoration
+in the broader navigation audit. The full Android parity goal remains incomplete.

@@ -12,14 +12,24 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Signed build 261 and browser lifecycle acceptance (2026-09-30):** the browser
+milestone passed full CI at `3b0f6fd`. Its downloaded APK passes stable-signature,
+native/ZIP 16 KiB checks and Android 17 emulator launch. Three further emulator
+tests verify actual system-picker selection and multipart upload bytes, local-tab
+Activity recreation, and stale-picker-result disposal followed by a successful
+new selection. Settled keyboard dismissal is checked through Android insets.
+The production debug APK is unchanged by this test-only follow-up. Physical
+Pixel/Mac and remaining parity work are still open. See [PIXEL_INSTALL.md](PIXEL_INSTALL.md)
+and [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
+
 **Phone-local browser navigation (2026-09-30):** `New Browser` is now integrated
 into workspace actions and terminal/Mac-surface pickers. Connected, capable Macs
 receive one create request; offline/unsupported/rejected/unknown outcomes open the
 local pane. Request cancellation, scoped ownership, Back/restore, Close-to-terminal
 and empty-workspace reopening are implemented. **17 JVM tests and five full
-NativeScreen/RPC Android 17/16 KiB tests passed**. Physical Pixel/Mac, actual system
-file-picker upload, Activity rotation and broader accessibility acceptance remain
-open. Signed build 257 predates this milestone. See [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
+NativeScreen/RPC Android 17/16 KiB tests passed**. Later picker/recreation evidence
+is recorded above. Physical Pixel/Mac, landscape and broader accessibility
+acceptance remain open. Signed build 261 includes this milestone. See [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
 
 **Phone-local browser pane (2026-09-30):** a separate WebView now implements the
 iOS-style address/history/reload/stop/close controls, same-pane popup/form handling,
