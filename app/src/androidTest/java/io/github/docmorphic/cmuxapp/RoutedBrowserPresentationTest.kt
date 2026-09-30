@@ -1,7 +1,10 @@
 package io.github.docmorphic.cmuxapp
 
+import android.app.ActivityManager
 import android.content.ContentValues
+import android.content.Context
 import android.os.Build
+import android.os.Process
 import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +34,7 @@ class RoutedBrowserPresentationTest {
     private val device get() = UiDevice.getInstance(instrumentation)
     private val owner = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val paths = CopyOnWriteArrayList<String>()
+    private val visits = CopyOnWriteArrayList<RecordedRequest>()
     private val uploads = CopyOnWriteArrayList<RecordedRequest>()
     private val targets = CopyOnWriteArrayList<String>()
     private val holds = AtomicInteger()
@@ -59,6 +63,7 @@ class RoutedBrowserPresentationTest {
             dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest): MockResponse {
                     paths += request.path!!
+                    visits += request
                     if (request.path == "/upload") {
                         uploads += request
                         return MockResponse().setHeader("Content-Type", "text/html; charset=utf-8")
@@ -235,5 +240,34 @@ class RoutedBrowserPresentationTest {
             until { holds.get() == 0 }
             assertEquals(1, releases.get())
         } finally { resolver.delete(document, null, null) }
+    }
+    @Test fun browserProcessDeathReturnsAndReopensCommittedPageWithItsOwnCookies() {
+        fun browserPid(): Int? = (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager)
+            .runningAppProcesses.orEmpty().singleOrNull {
+                it.uid == Process.myUid() && it.processName == context.packageName + RoutedBrowserEnvironment.PROCESS
+            }?.pid
+        browser("Routed fixture ▾")
+        text("Open next page").click(); text("Next ▾")
+        until { main { surface.state.value.url?.endsWith("/next") == true && !surface.state.value.loading } }
+        assertTrue(visits.last { it.path == "/next" }.getHeader("Cookie").orEmpty().contains("presentation=kept"))
+        val killed = checkNotNull(browserPid())
+        assertNotEquals(Process.myPid(), killed)
+        assertEquals(1, holds.get())
+        Process.killProcess(killed)
+        compose.waitUntil(15_000) { navigation.state.value.local == null }
+        compose.waitForIdle()
+        text("Reopen fixture")
+        until { holds.get() == 0 && browserPid() == null }
+        assertEquals(1, releases.get()); assertEquals(false, probes.last())
+        assertFalse(main { surface.state.value.closed })
+        val before = visits.count { it.path == "/next" }
+        compose.onNodeWithText("Reopen fixture").performClick(); browser("Next ▾")
+        assertNotEquals(killed, checkNotNull(browserPid()))
+        until { visits.count { it.path == "/next" } > before }
+        assertTrue(visits.last { it.path == "/next" }.getHeader("Cookie").orEmpty().contains("presentation=kept"))
+        assertEquals(1, holds.get())
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
+        assertEquals(2, releases.get())
     }
 }

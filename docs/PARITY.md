@@ -206,6 +206,10 @@ Two additional routed presentation checks pass on API 37/16 KiB: real Android
 document-picker cancel/reopen, complete multipart file upload through the proxy,
 connection-hold lifecycle, and address entry. They use a generated host; physical
 Mac/Pixel and native Iroh upload acceptance remain open.
+A focused browser-subprocess kill/reopen check also passes: the old connection
+hold releases, the parent returns, and a new process restores the committed URL
+and same-owner cookie. Whole-app process death and live physical feed-hold races
+are still unverified; this does not claim recovery of unsaved DOM/history.
 
 **Phone-local browser navigation (2026-09-30):** `New Browser` is now integrated
 into workspace actions and terminal/Mac-surface pickers. Connected, capable Macs

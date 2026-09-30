@@ -468,9 +468,36 @@ Ignored evidence: `captures/runtime/browser-webview/chooser-*` and
 Mac/Pixel upload or native Iroh interoperability acceptance. The emulator was
 stopped afterward; Pixel and signed release 284 remain unchanged.
 
+## Browser subprocess death — 2026-09-30
+
+A focused presentation test passes in **24.661 s** on API 37 / 16 KiB pages.
+It navigates to a second page, waits for its committed snapshot, then kills only
+the app-owned `:browser` process (with explicit UID/name/PID checks). The main
+process survives, the old host hold releases once, and the workspace can reopen
+the retained tab. The new browser PID loads the committed URL and sends that
+same owner's saved cookie. Returning releases the new hold once as well.
+This uses the production Activity/service/proxy with a generated host; no new
+production code was needed. The first attempt missed a parent Compose test-clock
+advance after the Activity result. Adding the existing return-test idle barrier
+made the full check pass; the failed attempt is retained as evidence.
+
+The expected scope agrees with upstream source at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
+[MobileBrowserView](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileBrowser/Sources/CmuxMobileBrowser/MobileBrowserView.swift)
+restores the committed URL when its view remounts, while
+[BrowserServerRoute](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileBrowser/Sources/CmuxMobileBrowser/BrowserServerRoute.swift)
+uses a computer-private, non-persistent store lasting for the app session.
+This check does not claim retention of unsaved DOM/history across process death,
+or durable routed cookies after the entire app quits.
+
+Production APK is unchanged from the rotation checkpoint. Test APK SHA-256:
+`339d46924b99df195e5fe2e4411b7c2962fd11dd4bfadb008f932f7a04a16b6d`.
+Ignored evidence: `captures/runtime/browser-webview/process-death-*`.
+The emulator was stopped; Pixel installation and signed release 284 are unchanged.
+
 ## Remaining integration
 
 Exercise a real Mac/Pixel website (HTTP/HTTPS, reconnect and account retirement). Verify physical keyboard/IME, physical file picking/rotation,
-process-death return and lifecycle races with live feed holds. The earlier
+whole-app process-death return and lifecycle races with live feed holds. The earlier
 isolated adapter tests use generated TCP hosts and do not prove real native-lane
 acceptance. API 26 WebView startup compatibility is still unverified.
