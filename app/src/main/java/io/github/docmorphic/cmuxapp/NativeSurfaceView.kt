@@ -1,0 +1,102 @@
+package io.github.docmorphic.cmuxapp
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+
+@Composable
+internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurface, client: MobileRpcClient?,
+    capabilities: Set<String>, ready: Boolean, onBack: () -> Unit, onSurface: (NativeSurface) -> Unit,
+    onTerminal: (NativeTerminal) -> Unit, onBrowser: (NativeBrowser) -> Unit) {
+    BackHandler(onBack = onBack)
+    val currentClient by rememberUpdatedState(client)
+    val currentReady by rememberUpdatedState(ready)
+    val currentCapabilities by rememberUpdatedState(capabilities)
+    // Keep downloaded content mounted across a reconnect. Any new request rechecks
+    // this exact view's current connection; no captured dead client can supply data.
+    val rpc = remember(workspace.id, surface.id) {
+        ArtifactRpc(ArtifactCapabilities(false, false, false, false, panel = true)) { method, params ->
+            val active = checkNotNull(currentClient) { "Mac disconnected. Reconnect and try again." }
+            check(currentReady && "panel.artifact.v1" in currentCapabilities) { "Your Mac isn't ready to preview this panel." }
+            active.request(method, params).also {
+                check(currentClient === active && currentReady) { "Connection changed while loading this panel." }
+            }
+        }
+    }
+    var supportedPanel by remember(workspace.id, surface.id) { mutableStateOf(false) }
+    if ("panel.artifact.v1" in capabilities) SideEffect { supportedPanel = true }
+    Column(Modifier.fillMaxSize()) {
+        var picker by remember { mutableStateOf(false) }
+        Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Text(surface.displayTitle + " ▾", Modifier.clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xFF191B1F)).clickable { picker = true }.padding(horizontal = 15.dp, vertical = 7.dp),
+                    fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                DropdownMenu(picker, onDismissRequest = { picker = false }) {
+                    workspace.terminals.forEach { item -> DropdownMenuItem(text = { Text(item.title.ifBlank { "Terminal" }) },
+                        onClick = { picker = false; onTerminal(item) }) }
+                    workspace.browsers.forEach { item -> DropdownMenuItem(text = { Text(item.title.ifBlank { "Browser" }) },
+                        onClick = { picker = false; onBrowser(item) }) }
+                    workspace.macSurfaces.forEach { item -> DropdownMenuItem(text = { Text(item.displayTitle) },
+                        onClick = { picker = false; onSurface(item) }) }
+                }
+            }
+        }
+        if (!ready) Text("Reconnecting to your Mac…", Modifier.padding(horizontal = 16.dp))
+        if (supportedPanel && surface.isPanelFile) {
+            val path = requireNotNull(surface.filePath)
+            key(workspace.id, surface.id, surface.title, path) {
+                ArtifactPreviewPage(rpc, ArtifactAuthorization.Panel(workspace.id, surface.id, path), path,
+                    forceMarkdown = surface.kind == "markdown")
+            }
+        } else key(workspace.id, surface.id, client) {
+            NativeSurfaceCard(workspace, surface, ready && "surface.focus.v1" in capabilities) {
+                val active = checkNotNull(currentClient)
+                check(currentReady && "surface.focus.v1" in currentCapabilities)
+                active.request("mobile.surface.focus", org.json.JSONObject().put("workspace_id", workspace.id).put("surface_id", surface.id))
+                check(currentClient === active && currentReady) { "Connection changed." }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NativeSurfaceCard(workspace: NativeWorkspace, surface: NativeSurface, enabled: Boolean, focus: suspend () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var pending by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(surface.displayTitle, style = MaterialTheme.typography.titleLarge)
+        Text("${surface.label} · In “${workspace.title}”", Modifier.padding(vertical = 12.dp), textAlign = TextAlign.Center)
+        Text(surface.explainer, textAlign = TextAlign.Center)
+        Button(onClick = {
+            pending = true; failed = false
+            scope.launch {
+                try { focus() }
+                catch (error: Exception) { if (error is CancellationException) throw error; failed = true }
+                finally { pending = false }
+            }
+        }, enabled = enabled && !pending, modifier = Modifier.padding(top = 24.dp)) {
+            Text(if (pending) "Opening…" else "Open on Mac")
+        }
+        if (failed) Text("Couldn't reach your Mac. Try again.", color = MaterialTheme.colorScheme.error)
+    }
+}

@@ -34,16 +34,18 @@ internal fun ArtifactFilePreview(rpc: ArtifactRpc, selection: ArtifactDestinatio
 private data class ArtifactPreviewLoad(val identity: Any? = null, val artifact: LocalFilePreview? = null, val total: Long? = null,
     val received: Long = 0, val error: String? = null)
 @Composable
-private fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthorization, path: String) {
+internal fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthorization, path: String, forceMarkdown: Boolean = false) {
     val context = LocalContext.current
     var retry by remember { mutableIntStateOf(0) }
-    val identity = remember(rpc, authorization, path, retry) { Any() }
+    val identity = remember(rpc, authorization, path, retry, forceMarkdown) { Any() }
     val produced by produceState(ArtifactPreviewLoad(), identity) {
         value = ArtifactPreviewLoad(identity)
         val transfer = ArtifactContentTransfer(rpc, authorization)
         val files = ArtifactPreviewFiles(File(context.cacheDir, "artifact-previews"), transfer)
         try {
-            val metadata = transfer.metadata(path)
+            val metadata = transfer.metadata(path).let {
+                if (forceMarkdown) it.copy(kind = ArtifactKind.TEXT, mime = "text/markdown") else it
+            }
             value = value.copy(total = metadata.size)
             val artifact = files.download(path, metadata) { received, total ->
                 withContext(Dispatchers.Main) { value = value.copy(received = received, total = total) }

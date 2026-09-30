@@ -195,6 +195,7 @@ fun NativeScreen(
     var computerMenuOpen by remember { mutableStateOf(false) }
     var selectedWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
     var selectedTerminal by remember(code) { mutableStateOf<NativeTerminal?>(null) }
+    var selectedSurface by remember(code) { mutableStateOf<NativeSurface?>(null) }
     val terminalZoom = remember(code, selectedWorkspace?.id, selectedTerminal?.id) { TerminalZoomState() }
     val terminalCells = remember(density, terminalZoom.size) {
         TerminalCellMetrics.fromFontSize(with(density) { terminalZoom.size.sp.toPx() }, with(density) { 2.dp.toPx() })
@@ -210,7 +211,7 @@ fun NativeScreen(
         val pairing = PairingCodeParser.parse(code).getOrNull()
         if (pairing is PairingCode.Iroh && (!signedIn || (teamState.scope != null && !connection.allowsSaved(pairing)))) {
             client?.close(); client = null; code = ""
-            selectedTerminal = null; selectedWorkspace = null; selectedBrowser = null
+            selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null
         }
     }
     val notificationDelivery = remember(context) { NativeNotificationDelivery(context.applicationContext) }
@@ -248,7 +249,7 @@ fun NativeScreen(
             // Stop this foreground handshake/reconnect before remote removal, so it
             // cannot persist the old pairing after the confirmed cleanup commits.
             code = ""; connectionReady = false; client?.close(); client = null; connectedCode = null
-            selectedTerminal = null; selectedWorkspace = null; selectedBrowser = null; selectedChangesWorkspace = null
+            selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null; selectedChangesWorkspace = null
             workspaceRoute = null
         }
     }, finished = { savedPairedMacs = store.pairedMacs() })
@@ -662,6 +663,7 @@ fun NativeScreen(
             selectedBrowser = selectedBrowser?.let { browser ->
                 current?.browsers?.firstOrNull { it.id == browser.id }
             }
+            selectedSurface = selectedSurface?.let { surface -> current?.macSurfaces?.firstOrNull { it.id == surface.id } }
         }
     }
 
@@ -712,7 +714,7 @@ fun NativeScreen(
         }
         if (routePairingCode != mac.code) {
             store.update { it.put("pairing_code", mac.code) }
-            showSettings = false; selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null
+            showSettings = false; selectedWorkspace = null; selectedSurface = null; selectedTerminal = null; selectedBrowser = null
             code = mac.code
             return@LaunchedEffect
         }
@@ -730,10 +732,11 @@ fun NativeScreen(
             val available = parseWorkspaces(listing)
             val workspace = notification.destination(available)
             val exactBrowser = workspace?.browsers?.firstOrNull { it.id == notification.surfaceId }
+            val surface = workspace?.macSurfaces?.firstOrNull { it.id == notification.surfaceId }
             val terminal = workspace?.terminals?.firstOrNull { it.id == notification.surfaceId }
-                ?: if (exactBrowser == null) workspace?.terminals?.firstOrNull() else null
-            val browser = exactBrowser ?: if (terminal == null) workspace?.browsers?.firstOrNull() else null
-            check(workspace != null && (terminal != null || browser != null)) {
+                ?: if (exactBrowser == null && surface == null) workspace?.terminals?.firstOrNull() else null
+            val browser = exactBrowser ?: if (terminal == null && surface == null) workspace?.browsers?.firstOrNull() else null
+            check(workspace != null && (terminal != null || browser != null || surface != null)) {
                 "This notification's workspace is no longer available."
             }
             val opened = withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
@@ -741,7 +744,7 @@ fun NativeScreen(
                     applyListing(listing); notifications = feed
                     finishSearch(); notificationTab = openedFromFeed; showSettings = false; showTaskComposer = false
                     showCreateGroup = false; showLicenses = false; selectedChangesWorkspace = null
-                    selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser
+                    selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser; selectedSurface = surface
                     notificationDelivery.cancel(routeId)
                     true
                 }
@@ -772,7 +775,7 @@ fun NativeScreen(
         }
         if (routePairingCode != mac.code) {
             store.update { it.put("pairing_code", mac.code) }
-            selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null; selectedChangesWorkspace = null
+            selectedWorkspace = null; selectedSurface = null; selectedTerminal = null; selectedBrowser = null; selectedChangesWorkspace = null
             code = mac.code
             return@LaunchedEffect
         }
@@ -785,16 +788,19 @@ fun NativeScreen(
             if (!isCurrent()) return@LaunchedEffect
             val workspace = parseWorkspaces(listing).singleOrNull { it.id == route.workspaceId }
                 ?: error("This workspace is no longer available on ${mac.name}.")
-            val terminal = if (route.browserId != null || route.changes) null else if (route.terminalId != null)
+            val terminal = if (route.browserId != null || route.surfaceId != null || route.changes) null else if (route.terminalId != null)
                 workspace.terminals.singleOrNull { it.id == route.terminalId } else workspace.terminals.firstOrNull()
-            val browser = if (route.changes || route.terminalId != null) null else if (route.browserId != null)
+            val browser = if (route.changes || route.terminalId != null || route.surfaceId != null) null else if (route.browserId != null)
                 workspace.browsers.singleOrNull { it.id == route.browserId } else if (terminal == null) workspace.browsers.firstOrNull() else null
-            check(route.changes || terminal != null || browser != null) { "This workspace pane is no longer available." }
+            val surface = if (route.changes || route.terminalId != null || route.browserId != null) null
+                else if (route.surfaceId != null) workspace.macSurfaces.singleOrNull { it.id == route.surfaceId }
+                else if (terminal == null && browser == null) workspace.macSurfaces.firstOrNull() else null
+            check(route.changes || terminal != null || browser != null || surface != null) { "This workspace pane is no longer available." }
             withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
                 if (isCurrent()) {
                     applyListing(listing); finishSearch(); notificationTab = false
                     showSettings = false; showTaskComposer = false
-                    selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser
+                    selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser; selectedSurface = surface
                     selectedChangesWorkspace = if (route.changes) workspace else null
                     error = null; workspaceRoute = null
                 }
@@ -895,9 +901,9 @@ fun NativeScreen(
         }
     }
 
-    LaunchedEffect(client, selectedTerminal) {
+    LaunchedEffect(client, selectedTerminal, selectedSurface?.id) {
         val active = client ?: return@LaunchedEffect
-        if (selectedTerminal != null) return@LaunchedEffect
+        if (selectedTerminal != null && selectedSurface == null) return@LaunchedEffect
         while (true) {
             runCatching { active.workspaces() }.onSuccess { applyListing(it); connectionError = null }
                 .onFailure { connectionError = nativeConnectionFailure(it) }
@@ -1115,9 +1121,9 @@ fun NativeScreen(
     }
     BackHandler(enabled = signedIn && code.isNotBlank() && searchState.active != null && selectedTerminal == null &&
         selectedBrowser == null && selectedChangesWorkspace == null && !showSettings && !showTaskComposer) { finishSearch(cancel = true) }
-    BackHandler(enabled = workspaceRoute != null && selectedTerminal == null && selectedBrowser == null) { workspaceRoute = null }
-    BackHandler(enabled = selectedTerminal != null) { selectedTerminal = null; selectedWorkspace = null }
-    BackHandler(enabled = selectedBrowser != null) { selectedBrowser = null; selectedWorkspace = null }
+    BackHandler(enabled = workspaceRoute != null && selectedTerminal == null && selectedBrowser == null && selectedSurface == null) { workspaceRoute = null }
+    BackHandler(enabled = selectedTerminal != null && selectedSurface == null) { selectedTerminal = null; selectedWorkspace = null; selectedSurface = null }
+    BackHandler(enabled = selectedBrowser != null) { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }
     BackHandler(enabled = showSettings && selectedTerminal == null) { showSettings = false }
 
     if (showLicenses) OpenSourceLicensesDialog { showLicenses = false }
@@ -1167,14 +1173,14 @@ fun NativeScreen(
                         try {
                             accountTeams.select(id)
                             client?.close(); client = null; code = ""
-                            selectedTerminal = null; selectedWorkspace = null
+                            selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
                         } catch (failure: Exception) { if (failure is CancellationException) throw failure }
                     }
                 }, onCreate = { name ->
                     try {
                         accountTeams.create(name)
                         client?.close(); client = null; code = ""
-                        selectedTerminal = null; selectedWorkspace = null
+                        selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
                         true
                     } catch (failure: Exception) {
                         if (failure is CancellationException) throw failure
@@ -1185,7 +1191,7 @@ fun NativeScreen(
                 NativeSavedComputerRows(pairedMacs, appearances, machineColorIndices, sharedConnections?.native,
                     computerState, computerConnections, forgetCallbacks, { computerDetails = it }) { mac -> code = mac.code; showSettings = false }
                 TextButton(onClick = {
-                    code = ""; showSettings = false; selectedTerminal = null; selectedWorkspace = null
+                    code = ""; showSettings = false; selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
                 }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Find another Mac") }
                 if (code.isNotBlank() && (PairingCodeParser.parse(code).getOrNull() !is PairingCode.Iroh ||
                     pairedMacs.none { it.code == code && computerState.account?.let { team -> NativeComputerTarget.from(it, team) } != null })) TextButton(onClick = {
@@ -1271,7 +1277,7 @@ fun NativeScreen(
                         refreshFeed()
                         val created = result.created
                         showTaskComposer = false
-                        selectedWorkspace = created
+                        selectedSurface = null; selectedBrowser = null; selectedWorkspace = created
                         selectedBrowser = null
                         selectedTerminal = created.terminals.firstOrNull {
                             it.id == response.optString("created_terminal_id")
@@ -1332,10 +1338,17 @@ fun NativeScreen(
                     catch (failure: Exception) { if (failure is CancellationException) throw failure }
                 } }, onPairing = ::proposePairing, onNewTask = ::newTaskDraft,
                 onUseHelper = onUseHelper, onLicenses = { showLicenses = true }, onError = { error = it })
+            selectedSurface != null && selectedWorkspace != null -> {
+                NativeSurfaceView(selectedWorkspace!!, selectedSurface!!, client, hostCapabilities, connectionReady,
+                    onBack = { selectedSurface = null; selectedTerminal = null; selectedBrowser = null; selectedWorkspace = null },
+                    onSurface = { selectedSurface = it },
+                    onTerminal = { selectedSurface = null; selectedBrowser = null; selectedTerminal = it },
+                    onBrowser = { selectedSurface = null; selectedTerminal = null; selectedBrowser = it })
+            }
             selectedTerminal != null -> {
                 val terminal = selectedTerminal!!
                 Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { selectedTerminal = null; selectedWorkspace = null }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
+                    TextButton(onClick = { selectedTerminal = null; selectedWorkspace = null; selectedSurface = null }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
                         Text("‹  ${workspaces.size}", color = nativeAccent)
                     }
                     var terminalMenu by remember(terminal.id) { mutableStateOf(false) }
@@ -1347,6 +1360,13 @@ fun NativeScreen(
                             fontWeight = FontWeight.Medium, fontSize = 13.sp, maxLines = 1,
                             overflow = TextOverflow.Ellipsis)
                         DropdownMenu(expanded = terminalMenu, onDismissRequest = { terminalMenu = false }) {
+                            selectedWorkspace?.macSurfaces?.forEach { surface ->
+                                DropdownMenuItem(text = { Text(surface.displayTitle) }, onClick = {
+                                    terminalMenu = false; rawKeyboardView?.finishComposition(); directTyping = false
+                                    inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
+                                    selectedSurface = surface
+                                })
+                            }
                             DropdownMenuItem(text = { Text("View as Text") }, onClick = {
                                 terminalMenu = false; openTerminalText()
                             })
@@ -1569,12 +1589,12 @@ fun NativeScreen(
                 val browser = selectedBrowser!!
                 if (active != null) NativeBrowserView(
                     client = active, panelId = browser.id, title = browser.title,
-                    onBack = { selectedBrowser = null; selectedWorkspace = null }
+                    onBack = { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }
                 )
                 else {
-                    BackHandler { selectedBrowser = null; selectedWorkspace = null }
+                    BackHandler { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }
                     Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(onClick = { selectedBrowser = null; selectedWorkspace = null }) { Text("‹  Workspaces") }
+                        TextButton(onClick = { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }) { Text("‹  Workspaces") }
                         Text(browser.title.ifBlank { "Browser" }, style = MaterialTheme.typography.titleMedium)
                         Text(if (busy) "Reconnecting to your Mac…" else "Browser disconnected", color = nativeMuted)
                         connectionError?.let { Text(it, color = Color(0xFFFF9999)) }
@@ -1669,7 +1689,7 @@ fun NativeScreen(
                                                 it.id == response.optString("created_workspace_id")
                                             }
                                             if (created != null) {
-                                                selectedWorkspace = created
+                                                selectedSurface = null; selectedBrowser = null; selectedWorkspace = created
                                                 selectedTerminal = created.terminals.firstOrNull {
                                                     it.id == response.optString("created_terminal_id")
                                                 } ?: created.terminals.firstOrNull()
@@ -1760,9 +1780,9 @@ fun NativeScreen(
                                 Spacer(Modifier.fillMaxWidth().height(16.dp).semantics { contentDescription = "End of ${entry.group.name}" })
                             } else {
                             val workspace = (entry as WorkspaceListEntry.Workspace).workspace
-                            fun open(terminalId: String? = null, browserId: String? = null, changes: Boolean = false) {
+                            fun open(terminalId: String? = null, browserId: String? = null, changes: Boolean = false, surfaceId: String? = null) {
                                 inAppNotification = null
-                                workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, workspace.id, terminalId, browserId, changes)
+                                workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, workspace.id, terminalId, browserId, changes, surfaceId = surfaceId)
                             }
                             Column(Modifier.padding(start = if (entry.indented) 18.dp else 0.dp)
                                 .semantics { contentDescription = "${workspace.title} on ${appearances.name(owner.mac)}" }) {
@@ -1798,6 +1818,13 @@ fun NativeScreen(
                                     }
                                 }
                             )
+                            workspace.macSurfaces.forEach { surface ->
+                                Text("▤  ${surface.displayTitle}",
+                                    Modifier.fillMaxWidth().clickable { open(surfaceId = surface.id) }
+                                        .semantics { contentDescription = "Open ${surface.displayTitle}" }
+                                        .padding(start = 80.dp, top = 4.dp, bottom = 12.dp),
+                                    color = nativeAccent, fontSize = 12.sp)
+                            }
                             workspace.browsers.forEach { browser ->
                                 Text("▣  ${browser.title.ifBlank { "Browser" }}",
                                     Modifier.fillMaxWidth().clickable { open(browserId = browser.id) }
@@ -1928,7 +1955,7 @@ private fun NativeWorkspaceRow(
     var rename by remember { mutableStateOf(false) }
     var confirmClose by remember { mutableStateOf(false) }
     var title by remember(workspace.id) { mutableStateOf(workspace.title) }
-    Row(Modifier.fillMaxWidth().clickable(enabled = workspace.terminals.isNotEmpty() || workspace.browsers.isNotEmpty(), onClick = onOpen)
+    Row(Modifier.fillMaxWidth().clickable(enabled = workspace.hasPanes, onClick = onOpen)
         .semantics {
             stateDescription = listOfNotNull("Pinned".takeIf { workspace.isPinned },
                 workspace.unreadState.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")

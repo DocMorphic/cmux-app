@@ -11,13 +11,13 @@ internal data class NativeNotification(
 ) {
     fun destination(workspaces: List<NativeWorkspace>): NativeWorkspace? =
         if (retargetsToLiveSurfaceOwner && surfaceId != null) {
-            workspaces.singleOrNull { workspace -> workspace.terminals.any { it.id == surfaceId } }
+            workspaces.singleOrNull { workspace -> workspace.terminals.any { it.id == surfaceId } || workspace.surfaces.any { it.id == surfaceId } }
         } else workspaces.singleOrNull { it.id == workspaceId }
 
     fun searchFields(workspaces: List<NativeWorkspace>, computer: String): List<String?> {
         val target = destination(workspaces)
         return listOf(workspaceTitle, surfaceTitle, computer, title, subtitle, body,
-            target?.title, target?.terminals?.firstOrNull { it.id == surfaceId }?.title)
+            target?.title, target?.terminals?.firstOrNull { it.id == surfaceId }?.title, target?.surfaces?.firstOrNull { it.id == surfaceId }?.title)
     }
     fun headline(workspaces: List<NativeWorkspace>) = workspaceTitle ?: destination(workspaces)?.title
         ?: title.takeIf { it.isNotBlank() } ?: "Unknown workspace"

@@ -6,6 +6,12 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
+**Signed download:** [build 244 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36645287501/artifacts/11068798967)
+contains the native Ghostty renderer and configurable toolbar at `3c80608`.
+Signature, 16 KB packaging and emulator launch are verified; Pixel acceptance is
+pending. Newer zoom and panel work is on the feature branch. See the install guide
+for the exact source, checksums, and package identity.
+
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
 Android now wires Iroh/V2 discovery and admitted RPC connections into the app and
 background feeds. Earlier Pixel/Mac checks verified account enrollment and native

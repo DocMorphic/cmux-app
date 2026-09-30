@@ -5,14 +5,19 @@ import kotlinx.coroutines.ensureActive
 import org.json.JSONObject
 import java.util.UUID
 
-internal data class ArtifactCapabilities(val terminal: Boolean, val gallery: Boolean, val sessionFolders: Boolean, val terminalFolders: Boolean) {
+internal data class ArtifactCapabilities(val terminal: Boolean, val gallery: Boolean, val sessionFolders: Boolean, val terminalFolders: Boolean,
+    val panel: Boolean = false) {
     companion object {
         fun read(capabilities: Set<String>) = ArtifactCapabilities("terminal.artifact.v1" in capabilities,
             "chat.artifact.gallery.v1" in capabilities, "chat.artifact.folders.v1" in capabilities,
-            "terminal.artifact.list.v1" in capabilities)
+            "terminal.artifact.list.v1" in capabilities, "panel.artifact.v1" in capabilities)
     }
 }
 internal sealed interface ArtifactAuthorization {
+    /** A panel grants access to its displayed file only, never a browsable directory. */
+    data class Panel(val workspaceId: String, val surfaceId: String, val displayedPath: String) : ArtifactAuthorization {
+        init { require(workspaceId.isNotBlank() && surfaceId.isNotBlank() && validArtifactPath(displayedPath)) }
+    }
     data class Terminal(val workspaceId: String, val surfaceId: String) : ArtifactAuthorization {
         init { require(workspaceId.isNotBlank() && surfaceId.isNotBlank()) }
     }
@@ -57,6 +62,7 @@ internal class ArtifactRpc(
         check(when (scope) {
             is ArtifactAuthorization.Terminal -> capabilities.terminalFolders
             is ArtifactAuthorization.Session -> capabilities.sessionFolders
+            is ArtifactAuthorization.Panel -> false
         }) { "Update cmux on your Mac to browse folders." }
         val params = pathParams(scope, path)
         if (scope is ArtifactAuthorization.Terminal) params.put("trace_id", UUID.randomUUID().toString())
@@ -95,14 +101,26 @@ internal class ArtifactRpc(
         require(maxDimension > 0)
         return call(method(scope, "thumbnail"), pathParams(scope, path).put("max_dimension", maxDimension))
     }
-    private fun method(scope: ArtifactAuthorization, operation: String) =
-        "mobile.${if (scope is ArtifactAuthorization.Terminal) "terminal" else "chat"}.artifact.$operation"
+    private fun method(scope: ArtifactAuthorization, operation: String): String {
+        val type = when (scope) {
+            is ArtifactAuthorization.Terminal -> "terminal"
+            is ArtifactAuthorization.Session -> "chat"
+            is ArtifactAuthorization.Panel -> {
+                check(capabilities.panel) { "Update cmux on your Mac to preview panels." }
+                require(operation in setOf("stat", "fetch", "thumbnail"))
+                "panel"
+            }
+        }
+        return "mobile.$type.artifact.$operation"
+    }
     private fun pathParams(scope: ArtifactAuthorization, path: String): JSONObject {
         require(if (scope is ArtifactAuthorization.Terminal) validTerminalArtifactPath(path) else validArtifactPath(path)) { "Invalid Mac file path." }
+        if (scope is ArtifactAuthorization.Panel) require(path == scope.displayedPath) { "This file isn't displayed by the selected panel." }
         return params(scope).put("path", path)
     }
     private fun params(scope: ArtifactAuthorization): JSONObject = when (scope) {
         is ArtifactAuthorization.Terminal -> JSONObject().put("workspace_id", scope.workspaceId).put("surface_id", scope.surfaceId)
         is ArtifactAuthorization.Session -> JSONObject().put("session_id", scope.sessionId)
+        is ArtifactAuthorization.Panel -> JSONObject().put("workspace_id", scope.workspaceId).put("surface_id", scope.surfaceId)
     }
 }

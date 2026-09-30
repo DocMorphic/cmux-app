@@ -453,6 +453,90 @@ class NativeFlowTest {
         file.delete(); photo.delete()
     }
 
+    @Test fun panelOnlyWorkspacePreviewsExactFileAndMarkdownAndFocusesUnknownSurface() {
+        peer.panelArtifactsSupported = true
+        peer.customWorkspaceListing = JSONObject("""{"workspaces":[{"id":"panels","title":"Panel workspace","terminals":[],"surfaces":[
+            {"surface_id":"file","kind":"filePreview","title":"Text panel","file_path":"/fixture/notes.txt"},
+            {"surface_id":"markdown","kind":"markdown","title":"Markdown panel","file_path":"/fixture/extensionless"},
+            {"surface_id":"canvas","kind":"future.canvas","title":"Canvas panel","is_focused":true}
+        ]}]}""")
+        val text = "Panel-scoped text preview"
+        val markdown = "# Panel Markdown\n\n**Rendered on Android** through the panel RPC."
+        peer.artifactResponse = { method, params ->
+            check(method.startsWith("mobile.panel.artifact."))
+            check(params.getString("workspace_id") == "panels")
+            val surface = params.getString("surface_id")
+            val path = if (surface == "file") "/fixture/notes.txt" else "/fixture/extensionless"
+            check(params.getString("path") == path)
+            val data = (if (surface == "file") text else markdown).toByteArray()
+            if (method.endsWith("stat")) JSONObject().put("exists", true).put("is_directory", false).put("kind", "text").put("size", data.size)
+            else JSONObject().put("offset", 0).put("total_size", data.size).put("eof", true)
+                .put("data_b64", java.util.Base64.getEncoder().encodeToString(data))
+        }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                    .also { it.connect(); observedClients += it }
+            })
+        } } }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Panel workspace").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Panel workspace").performClick()
+        compose.waitUntil(10_000) {
+            var loaded = false
+            compose.runOnUiThread { loaded = findArtifactTextInWindows()?.textView?.text?.toString() == text }
+            loaded
+        }
+        screenshot("panel-file-preview")
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.surface.focus" })
+        compose.onNodeWithText("Text panel ▾").performClick()
+        compose.onNodeWithText("Canvas panel").performClick()
+        compose.onNodeWithText("Other Surface · In “Panel workspace”").assertIsDisplayed()
+        compose.onNodeWithText("Open on Mac").performClick()
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.surface.focus" } }
+        val focus = peer.requests.last { it.optString("method") == "mobile.surface.focus" }.getJSONObject("params")
+        assertEquals("panels", focus.getString("workspace_id")); assertEquals("canvas", focus.getString("surface_id"))
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Open on Mac").fetchSemanticsNodes().isNotEmpty() }
+        screenshot("panel-unknown-surface")
+        compose.onNodeWithText("Canvas panel ▾").performClick()
+        compose.onNodeWithText("Markdown panel").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Rendered Markdown").fetchSemanticsNodes().isNotEmpty() }
+        fun findPanelWeb(view: View): android.webkit.WebView? = when (view) {
+            is android.webkit.WebView -> view
+            is ViewGroup -> (0 until view.childCount).firstNotNullOfOrNull { findPanelWeb(view.getChildAt(it)) }
+            else -> null
+        }
+        compose.waitUntil(15_000) {
+            val done = CountDownLatch(1)
+            val rendered = AtomicBoolean(false)
+            compose.runOnUiThread {
+                val web = findPanelWeb(compose.activity.window.decorView)
+                if (web == null) done.countDown() else web.evaluateJavascript(
+                    "document.querySelector('h1')?.textContent === 'Panel Markdown'") { rendered.set(it == "true"); done.countDown() }
+            }
+            done.await(3, TimeUnit.SECONDS) && rendered.get()
+        }
+        compose.waitUntil(15_000) {
+            val bitmap = compose.onNodeWithContentDescription("Rendered Markdown").captureToImage().asAndroidBitmap()
+            var ink = 0
+            for (y in 0 until bitmap.height) for (x in 0 until bitmap.width) {
+                val color = bitmap.getPixel(x, y)
+                if (minOf(android.graphics.Color.red(color), android.graphics.Color.green(color), android.graphics.Color.blue(color)) > 140) ink++
+            }
+            ink > 500
+        }
+        screenshot("panel-markdown-preview")
+        compose.onNodeWithContentDescription("Viewer actions").performClick()
+        compose.onNodeWithText("Raw").performScrollTo().performClick()
+        compose.waitUntil(10_000) {
+            var loaded = false
+            compose.runOnUiThread { loaded = findArtifactTextInWindows()?.textView?.text?.toString() == markdown }
+            loaded
+        }
+        assertTrue(peer.requests.none { it.optString("method").startsWith("mobile.terminal.") || it.optString("method").startsWith("mobile.chat.artifact.") })
+        compose.onNodeWithContentDescription("Back to workspaces").performClick()
+        compose.onNodeWithContentDescription("Open Markdown panel").assertIsDisplayed()
+    }
+
     @Test fun terminalZoomPinchesReflowsAndScopesHostFontEvents() {
         val preferences = context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE)
         val previous = preferences.all[TerminalFontSize.SAVED_KEY] as? Float
@@ -1973,6 +2057,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var taskGroupsSupported = false
     @Volatile var browserResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var changesResponse: ((String, JSONObject) -> JSONObject)? = null
+    @Volatile var panelArtifactsSupported = false
     @Volatile var artifactResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var artifactsSupported = false
     @Volatile var changesErrorCode: String? = null
@@ -2111,6 +2196,7 @@ internal class NativeFixturePeer : AutoCloseable {
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
             .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
+                if (panelArtifactsSupported) it.put("panel.artifact.v1").put("surface.focus.v1")
                 if (artifactsSupported) it.put("terminal.artifact.v1").put("chat.artifact.gallery.v1").put("terminal.artifact.list.v1")
                 if (rawTerminal) it.put("terminal.bytes.v1")
                 else { it.put("terminal.render_grid.v1"); if (screenAnchor) it.put("terminal.render_grid.screen_anchor.v1") }
@@ -2221,7 +2307,7 @@ internal class NativeFixturePeer : AutoCloseable {
         else -> when {
             method.startsWith("mobile.browser.") -> browserResponse?.invoke(method, params) ?: JSONObject()
             method.startsWith("mobile.workspace.changes.") -> changesResponse?.invoke(method, params) ?: JSONObject()
-            method.startsWith("mobile.terminal.artifact.") || method.startsWith("mobile.chat.artifact.") -> artifactResponse?.invoke(method, params) ?: JSONObject()
+            method.startsWith("mobile.terminal.artifact.") || method.startsWith("mobile.chat.artifact.") || method.startsWith("mobile.panel.artifact.") -> artifactResponse?.invoke(method, params) ?: JSONObject()
             else -> JSONObject()
         }
     }

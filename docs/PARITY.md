@@ -12,6 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Mac surface inventory and panels (2026-09-30):** nonterminal descriptors are
+preserved and navigable, panel-only workspaces open, file/Markdown panels use the
+separate exact-file `panel.artifact.v1` scope, and fallback cards can focus their
+surface on the owning Mac. Eleven focused JVM and three 16 KiB Android UI/RPC
+tests pass, including painted Markdown and multi-Mac routing. Todo controls,
+simulator streaming and the additional iOS browser-stream path remain missing or
+unaudited; they are required work, not unavoidable Android differences. See
+[MAC_SURFACES.md](MAC_SURFACES.md).
+
+**Signed build 244 (2026-09-30):** integration CI passed at `3c80608`, the signed
+artifact was downloaded, its certificate matches the stable key, and native/ZIP
+16 KB alignment and Android 17 16 KiB emulator launch were independently checked.
+This supersedes older build-157 delivery statements. It does not include later
+zoom/panel work and is not installed on the Pixel. See
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md#signed-integration-build-244--2026-09-30).
+
 **Terminal zoom (2026-09-30):** per-view live sizing, pinch and toolbar steps,
 saved-default/reset/restore controls, and scoped `terminal.set_font` events are
 implemented. Twelve focused JVM tests and five Android UI/RPC cases pass on the
