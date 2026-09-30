@@ -180,9 +180,14 @@ half-close. Session owner binding, fresh capability/route admission, ten-second
 policy refresh and independent cancellation now pass 40 focused JVM checks.
 A dedicated-process WebView adapter now passes two Android runtime checks for
 SOCKS/localhost/HTTPS/WebSocket/service-worker routing and per-owner storage,
-including process restart. This is not yet connected to the production browser
-pane; presentation, storage retirement, browser foreground connection lifetime,
-stability and physical acceptance remain open. See
+including process restart. Production navigation now opens the isolated browser
+through a bound main-process service, with owner-specific feed/connection holds
+and storage retirement. Sixteen focused JVM checks pass. Four distinct Android
+checks have passing evidence across runs: presentation/Back/reopen/pane selection,
+retirement/cleanup, and two existing browser regressions. The four-case batch had
+one System UI ANR interruption; its focused rerun passes with the same APKs.
+Generated TCP hosts and instrumented lease callbacks do not prove live
+NativeFeedSession/JNI/Iroh lifetime, startup stability or physical acceptance. See
 [BROWSER_TUNNEL.md](BROWSER_TUNNEL.md). Signed 284 predates this source work.
 
 **Phone-local browser navigation (2026-09-30):** `New Browser` is now integrated

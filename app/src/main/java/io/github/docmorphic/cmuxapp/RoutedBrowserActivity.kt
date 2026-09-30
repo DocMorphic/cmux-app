@@ -1,0 +1,184 @@
+package io.github.docmorphic.cmuxapp
+
+import android.app.Application
+import android.content.*
+import android.os.*
+import android.webkit.CookieManager
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+internal data class RoutedBrowserUi(val surface: LocalBrowserSurface? = null,
+    val panes: List<RoutedBrowserProtocol.Pane> = emptyList(), val error: String? = null,
+    val retired: Boolean = false, val restart: Boolean = false)
+
+internal class RoutedBrowserController(application: Application) : AndroidViewModel(application) {
+    private val app = application.applicationContext
+    private val mutable = MutableStateFlow(RoutedBrowserUi())
+    val state = mutable.asStateFlow()
+    private val replies = mutableMapOf<Int, CompletableDeferred<Bundle>>()
+    private var ticket = 0
+    private var requestId: String? = null
+    private var service: Messenger? = null
+    private var bound = false
+    private var foreground = false
+    private var binding: RoutedBrowserBinding? = null
+    private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
+        when (message.what) {
+            RoutedBrowserProtocol.RETIRE -> mutable.value = state.value.copy(retired = true)
+            RoutedBrowserProtocol.CONTEXT -> mutable.value = state.value.copy(panes = RoutedBrowserProtocol.panes(message.data))
+            else -> replies.remove(message.arg1)?.complete(Bundle(message.data))
+        }
+        true
+    })
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+            service = Messenger(binder)
+            viewModelScope.launch {
+                try {
+                    val response = request(RoutedBrowserProtocol.OPEN)
+                    val configured = RoutedBrowserBinding(checkNotNull(response.getString("storage")), response.getInt("port"))
+                    RoutedBrowserEnvironment.prepare(app, configured)
+                    RoutedBrowserEnvironment.requireReady(configured)
+                    binding = configured
+                    val surface = LocalBrowserSurface(checkNotNull(response.getString("surface")), response.getString("url"))
+                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(response))
+                    publishForeground()
+                    surface.state.collect { snapshot ->
+                        request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(snapshot))
+                    }
+                } catch (failure: Exception) {
+                    currentCoroutineContext().ensureActive()
+                    mutable.value = state.value.copy(error = failure.message ?: "Could not open browser")
+                }
+            }
+        }
+        override fun onServiceDisconnected(name: ComponentName) { disconnected() }
+        override fun onBindingDied(name: ComponentName) { disconnected() }
+        override fun onNullBinding(name: ComponentName) { disconnected() }
+    }
+    fun begin(id: String) {
+        if (requestId != null) { check(requestId == id); return }
+        requestId = id
+        bound = app.bindService(Intent(app, RoutedBrowserHostService::class.java), connection, Context.BIND_AUTO_CREATE)
+        if (!bound) disconnected()
+    }
+    private fun disconnected() {
+        service = null
+        replies.values.forEach { it.completeExceptionally(IllegalStateException("Browser connection ended")) }; replies.clear()
+        mutable.value = state.value.copy(retired = true)
+    }
+    private suspend fun request(kind: Int, args: Bundle = Bundle()): Bundle {
+        val peer = checkNotNull(service) { "Browser connection ended" }
+        val serial = ++ticket
+        val answer = CompletableDeferred<Bundle>(); replies[serial] = answer
+        args.putString(RoutedBrowserProtocol.EXTRA, requestId)
+        try {
+            peer.send(Message.obtain(null, kind).apply { arg1 = serial; data = args; replyTo = endpoint })
+            return withTimeout(20_000) { answer.await() }.also {
+                it.getString("failure")?.let { message -> throw IllegalStateException(message) }
+            }
+        } finally { replies.remove(serial) }
+    }
+    suspend fun prepare(url: String?) {
+        val ready = checkNotNull(binding)
+        val port = request(RoutedBrowserProtocol.PREPARE, Bundle().apply { putString("url", url) }).getInt("port")
+        if (port != ready.proxyPort) {
+            mutable.value = state.value.copy(restart = true)
+            throw CancellationException("Browser proxy restarted")
+        }
+        RoutedBrowserEnvironment.requireReady(ready)
+    }
+    fun foreground(active: Boolean) {
+        foreground = active
+        if (binding != null) viewModelScope.launch { runCatching { publishForeground() } }
+    }
+    private suspend fun publishForeground() = request(RoutedBrowserProtocol.FOREGROUND, Bundle().apply { putBoolean("active", foreground) })
+    suspend fun flush() {
+        state.value.surface?.let { request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(it.state.value)) }
+        if (binding != null) CookieManager.getInstance().flush()
+    }
+    override fun onCleared() {
+        if (bound) { app.unbindService(connection); bound = false }
+        disconnected()
+    }
+}
+
+/** Credential-free browser presentation; every request uses the main process's bound network. */
+class RoutedBrowserActivity : ComponentActivity() {
+    private lateinit var controller: RoutedBrowserController
+    private var leaving = false
+    private fun leave(action: String, pane: RoutedBrowserProtocol.Pane? = null) {
+        if (leaving) return
+        leaving = true
+        lifecycleScope.launch {
+            withTimeoutOrNull(2_000) { runCatching { controller.flush() } }
+            setResult(RESULT_OK, Intent().putExtra(RoutedBrowserProtocol.EXTRA, intent.getStringExtra(RoutedBrowserProtocol.EXTRA))
+                .putExtra("action", action).putExtra("kind", pane?.kind).putExtra("pane", pane?.id))
+            finish()
+        }
+    }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val id = intent.getStringExtra(RoutedBrowserProtocol.EXTRA)
+        if (id == null) { finish(); return }
+        controller = ViewModelProvider(this)[RoutedBrowserController::class.java]
+        controller.begin(id)
+        setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            val ui by controller.state.collectAsState()
+            BackHandler { leave("back") }
+            LaunchedEffect(ui.retired, ui.restart) {
+                if (ui.retired) leave("retired") else if (ui.restart) leave("restart")
+            }
+            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+                val page = ui.surface?.state?.collectAsState()?.value
+                var menu by remember { mutableStateOf(false) }
+                Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { leave("back") }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Text((page?.title ?: "Browser") + " ▾", Modifier.clip(RoundedCornerShape(18.dp)).background(Color(0xFF191B1F))
+                            .clickable { menu = true }.padding(horizontal = 15.dp, vertical = 7.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                            ui.panes.forEach { pane -> DropdownMenuItem(text = { Text(pane.title) }, onClick = { menu = false; leave("pane", pane) }) }
+                            DropdownMenuItem(text = { Text("✓  New Browser") }, onClick = { menu = false })
+                        }
+                    }
+                }
+                when {
+                    ui.error != null -> Column(Modifier.padding(20.dp)) {
+                        Text(checkNotNull(ui.error)); TextButton(onClick = { leave("restart") }) { Text("Retry") }
+                    }
+                    ui.surface == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                    else -> LocalBrowserPane(checkNotNull(ui.surface), beforeNavigation = controller::prepare) { leave("close") }
+                }
+            }
+        } } }
+    }
+    override fun onStart() { super.onStart(); if (::controller.isInitialized) controller.foreground(true) }
+    override fun onStop() { if (::controller.isInitialized) controller.foreground(false); super.onStop() }
+    override fun onDestroy() {
+        super.onDestroy()
+        if (!isChangingConfigurations) Handler(Looper.getMainLooper()).post { Process.killProcess(Process.myPid()) }
+    }
+}

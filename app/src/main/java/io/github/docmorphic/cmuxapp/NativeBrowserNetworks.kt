@@ -20,6 +20,9 @@ internal class NativeMacBrowserNetwork(ownerScope: CoroutineScope, private val a
     direct: BrowserTunnelBackend = NioBrowserSocket.direct,
     private val now: () -> Long = System::nanoTime
 ) : AutoCloseable {
+    val storageId: String = java.util.UUID.randomUUID().toString().replace("-", "")
+    private val retirement = CompletableDeferred<Unit>()
+    val retired: Deferred<Unit> get() = retirement
     private val scope = CoroutineScope(ownerScope.coroutineContext + SupervisorJob(ownerScope.coroutineContext[Job]))
     private val preparing = Mutex()
     private val router = MacBrowserRouter(MacBrowserLaneBackend(access), direct)
@@ -30,7 +33,20 @@ internal class NativeMacBrowserNetwork(ownerScope: CoroutineScope, private val a
     var listing: BrowserTunnelProtocol.ListeningPorts? = null
         private set
 
-    private fun checkOwner() { check(!closed && permits()) { "Browser account or computer changed" } }
+    init {
+        // The main Activity's Compose effects may be stopped while the browser is visible.
+        // Retire independently when account/route admission is revoked, including idle pages.
+        scope.launch {
+            while (isActive) {
+                delay(500)
+                if (!runCatching(permits).getOrDefault(false)) { close(); break }
+            }
+        }
+    }
+    private fun checkOwner() {
+        if (!closed && !permits()) close()
+        check(!closed) { "Browser account or computer changed" }
+    }
     private suspend fun <T> owned(action: suspend () -> T): T {
         val pending = scope.async { checkOwner(); action() }
         try { return pending.await() } finally { pending.cancel() }
@@ -71,6 +87,7 @@ internal class NativeMacBrowserNetwork(ownerScope: CoroutineScope, private val a
     override fun close() {
         if (closed) return
         closed = true
+        retirement.complete(Unit)
         proxy?.close(); proxy = null
         scope.cancel(); listing = null; listedAt = null
     }
@@ -100,6 +117,7 @@ internal class NativeBrowserNetworks(private val scope: CoroutineScope,
         val owner = authorized.entries.singleOrNull { it.value == mac }?.key ?: return null
         fun permitted() = authorized[owner]?.let { allows(it, owner.login) } == true
         if (!permitted()) return null
+        if (networks[owner]?.retired?.isCompleted == true) networks.remove(owner)
         return networks.getOrPut(owner) {
             // Re-resolve a replacement route for this identity on every operation.
             fun current(): MacBrowserAccess {

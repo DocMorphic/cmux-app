@@ -52,6 +52,9 @@ internal class LocalBrowserSurface(val id: String, initialUrl: String? = null,
         return attachment
     }
     fun detach(token: Long) { if (token == attachment) { attached = false; attachment++ } }
+    fun remote(token: Long, value: LocalBrowserSnapshot) {
+        if (current(token)) mutable.value = value.copy(workRevision = state.value.workRevision, closed = false)
+    }
     private fun current(token: Long) = attached && token == attachment && !state.value.closed
     fun location(token: Long, url: String?, title: String?, back: Boolean, forward: Boolean) {
         if (!current(token)) return

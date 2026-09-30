@@ -427,10 +427,9 @@ fun NativeScreen(
     }
     LaunchedEffect(signedIn, pairedMacs, feedForeground, computerState.connectionKeys, computerState.localConnectionKeys) {
         if (!signedIn) feedSession.clear()
-        else if (feedForeground) feedCoordinator.updateMacs(pairedMacs, computerState.connectionKeys, computerState.localConnectionKeys)
-        else feedCoordinator.pause()
+        else feedSession.configureFeed(pairedMacs, computerState.connectionKeys, computerState.localConnectionKeys, feedForeground)
     }
-    DisposableEffect(feedCoordinator) { onDispose { feedCoordinator.pause() } }
+    DisposableEffect(feedCoordinator) { onDispose { feedSession.leaveMainScreen() } }
     var unreadNotificationsOnly by rememberSaveable(signedIn) { mutableStateOf(false) }
     var notificationFilterMenu by remember { mutableStateOf(false) }
     var confirmReadAll by remember { mutableStateOf(false) }
@@ -1718,9 +1717,19 @@ fun NativeScreen(
                     onReconnect = { error = null; retryDelay = 2_000; retry++ })
             }
             localBrowser != null && pairedMacs.any { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key } -> {
-                LocalBrowserWorkspaceView(localBrowser, localBrowsers,
+                val browserMac = pairedMacs.first { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key }
+                RoutedLocalBrowserWorkspaceView(localBrowser, localBrowsers,
                     workspaceSources.firstOrNull { it.mac.ownsOrigin(localBrowser.key.computerId) }?.workspaces
                         ?.firstOrNull { it.id == localBrowser.key.workspaceId } ?: localBrowser.workspace,
+                    network = { feedSession.browserNetworks.network(browserMac) },
+                    retainHost = {
+                        val held = feedSession.holdBrowser(browserMac)
+                        val connectionHandle = try {
+                            if (sharedConnections != null) NativeAppConnections.acquire(context.applicationContext) else null
+                        } catch (failure: Exception) { held.close(); throw failure }
+                        RoutedBrowserHostLease({ held.close(); connectionHandle?.close() },
+                            { active -> connectionHandle?.connections?.setProbeActive(held, active) })
+                    },
                     onClose = { displayedTab?.first?.let { key -> browserLogin?.let { workspaceTabs.forget(it, key) } } },
                     onRoute = { workspaceRoute = it })
             }

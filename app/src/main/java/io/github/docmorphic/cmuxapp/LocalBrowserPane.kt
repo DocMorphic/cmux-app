@@ -60,7 +60,7 @@ internal class LocalBrowserFileSelection(private var inFlight: Boolean = false) 
 }
 
 @Composable
-internal fun LocalBrowserPane(surface: LocalBrowserSurface, onClose: () -> Unit) {
+internal fun LocalBrowserPane(surface: LocalBrowserSurface, beforeNavigation: (suspend (String?) -> Unit)? = null, onClose: () -> Unit) {
     val state by surface.state.collectAsState()
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -109,7 +109,7 @@ internal fun LocalBrowserPane(surface: LocalBrowserSurface, onClose: () -> Unit)
                     catch (_: Exception) { files.finish(null) }
                     true
                 }
-            }, cancelFiles = files::cancel) }, update = { host ->
+            }, cancelFiles = files::cancel, beforeNavigation = beforeNavigation) }, update = { host ->
                 // Observe requests even when their navigation snapshot has not changed yet.
                 state.workRevision
                 host.applyPendingWork(); host.foreground(foreground)

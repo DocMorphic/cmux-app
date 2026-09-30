@@ -7,12 +7,18 @@ import android.net.Uri
 import android.net.http.SslError
 import android.webkit.*
 import android.widget.FrameLayout
+import kotlinx.coroutines.*
 
 /** Owns only this pane's WebView. It has no JavaScript bridge, file access or Mac credentials. */
 @SuppressLint("SetJavaScriptEnabled")
 internal class LocalBrowserWebHost(context: Context, private val surface: LocalBrowserSurface,
     private val chooseFiles: (Any, WebChromeClient.FileChooserParams, ValueCallback<Array<Uri>>) -> Boolean,
-    private val cancelFiles: (Any) -> Unit) : FrameLayout(context) {
+    private val cancelFiles: (Any) -> Unit,
+    private val beforeNavigation: (suspend (String?) -> Unit)? = null) : FrameLayout(context) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var navigation: Job? = null
+    private var policyRefresh: Job? = null
+    private var preparedUrl: String? = null
     private var browser: WebView? = null
     private var token = 0L
     private var released = false
@@ -54,6 +60,13 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
                 if (!current(web, ticket) || stopped || !isWeb(url)) return
                 navigatingUrl = url; failed = false
                 surface.started(ticket); location(web, ticket)
+                if (preparedUrl == url) preparedUrl = null
+                else if (beforeNavigation != null) {
+                    // Browser-owned redirects/forms retain their original navigation and request body.
+                    // All destinations already use the immutable proxy; refresh policy without replaying them.
+                    policyRefresh?.cancel()
+                    policyRefresh = scope.launch { runCatching { beforeNavigation.invoke(url) } }
+                }
             }
             override fun doUpdateVisitedHistory(web: WebView, url: String?, isReload: Boolean) {
                 if (current(web, ticket) && isWeb(url)) location(web, ticket)
@@ -96,27 +109,51 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
         addView(view, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
+    private fun navigate(view: WebView, url: String?, action: () -> Unit) {
+        navigation?.cancel(); policyRefresh?.cancel()
+        if (beforeNavigation == null) { action(); return }
+        val ticket = token
+        stopped = false; failed = false; surface.started(ticket)
+        navigation = scope.launch {
+            try {
+                beforeNavigation.invoke(url)
+                ensureActive()
+                if (current(view, ticket) && !stopped) { preparedUrl = url; action() }
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (failure: Exception) {
+                currentCoroutineContext().ensureActive()
+                if (current(view, ticket)) surface.failed(ticket, failure.message ?: "Could not connect this browser to its computer.")
+            }
+        }
+    }
+
     fun applyPendingWork() {
         if (released) return
         if (surface.state.value.closed) { release(); return }
         var work = surface.takeWork()
-        var recreated = false
         if (browser == null) {
             if (rendererGone && work.url == null && work.command != LocalBrowserCommand.RELOAD) return
-            createBrowser(); recreated = true
+            createBrowser()
             val restored = surface.takeWork()
             work = LocalBrowserWork(work.url ?: restored.url, work.command ?: restored.command)
         }
         val view = checkNotNull(browser)
         work.url?.takeIf(::isWeb)?.let {
             stopped = false; failed = false; navigatingUrl = it
-            view.loadUrl(it)
+            navigate(view, it) { view.loadUrl(it) }
         }
         when (work.command) {
-            LocalBrowserCommand.BACK -> if (view.canGoBack()) { stopped = false; failed = false; view.goBack() }
-            LocalBrowserCommand.FORWARD -> if (view.canGoForward()) { stopped = false; failed = false; view.goForward() }
-            LocalBrowserCommand.RELOAD -> if (!(recreated && work.url != null)) { stopped = false; failed = false; view.reload() }
-            LocalBrowserCommand.STOP -> { stopped = true; view.stopLoading(); surface.stopped(token, false) }
+            LocalBrowserCommand.BACK -> if (view.canGoBack()) {
+                val history = view.copyBackForwardList()
+                navigate(view, history.getItemAtIndex(history.currentIndex - 1)?.url) { stopped = false; failed = false; view.goBack() }
+            }
+            LocalBrowserCommand.FORWARD -> if (view.canGoForward()) {
+                val history = view.copyBackForwardList()
+                navigate(view, history.getItemAtIndex(history.currentIndex + 1)?.url) { stopped = false; failed = false; view.goForward() }
+            }
+            LocalBrowserCommand.RELOAD -> if (work.url == null) navigate(view, view.url) { stopped = false; failed = false; view.reload() }
+            LocalBrowserCommand.STOP -> { navigation?.cancel(); policyRefresh?.cancel(); stopped = true; view.stopLoading(); surface.stopped(token, false) }
             null -> Unit
         }
     }
@@ -124,6 +161,7 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
     fun release() {
         if (released) return
         released = true; surface.detach(token)
+        scope.cancel()
         browser?.let { view ->
             cancelFiles(view); view.stopLoading(); view.webChromeClient = null; view.webViewClient = WebViewClient()
             removeView(view); view.destroy()

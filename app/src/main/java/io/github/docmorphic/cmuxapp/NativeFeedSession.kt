@@ -15,6 +15,12 @@ internal class NativeFeedSession(
     private val connector: NativeConnector, private val account: NativeAccount, private val store: NativeCredentialStore
 ) : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var foreground = false
+    private var feedMacs = emptyList<NativeCredentialStore.PairedMac>()
+    private var routeKeys = emptyMap<String, String>()
+    private var localRouteKeys = emptyMap<NativeMacIdentity, String>()
+    private val browserHolds = mutableMapOf<Any, String>()
+    private var viewModelCleared = false
     val workspaceSnapshots = NativeWorkspaceSnapshots(store::taskSession)
     val coordinator = NativeFeedCoordinator(scope, connect = { mac ->
         connector.connectSaved(mac, account)
@@ -31,6 +37,25 @@ internal class NativeFeedSession(
     val terminalStartup = NativeTerminalStartup()
     val paneNavigation = NativePaneNavigation()
     val terminalInputs = NativeTerminalInputSession(scope)
+    fun configureFeed(macs: List<NativeCredentialStore.PairedMac>, routes: Map<String, String>,
+        localRoutes: Map<NativeMacIdentity, String>, active: Boolean) {
+        feedMacs = macs; routeKeys = routes; localRouteKeys = localRoutes; foreground = active
+        reconcileFeed()
+    }
+    fun leaveMainScreen() { foreground = false; reconcileFeed() }
+    private fun reconcileFeed() {
+        val wanted = if (foreground) feedMacs else feedMacs.filter { it.origin in browserHolds.values }
+        if (wanted.isEmpty()) coordinator.pause() else coordinator.updateMacs(wanted, routeKeys, localRouteKeys)
+    }
+    fun holdBrowser(mac: NativeCredentialStore.PairedMac): AutoCloseable {
+        check(account.isSignedIn() && store.pairedMacs().contains(mac) && connector.allowsSaved(mac))
+        val token = Any(); browserHolds[token] = mac.origin; reconcileFeed()
+        return AutoCloseable {
+            if (browserHolds.remove(token) != null) {
+                if (viewModelCleared && browserHolds.isEmpty()) dispose() else reconcileFeed()
+            }
+        }
+    }
     fun allowsTerminalInput(owner: TerminalInputSender.Owner): Boolean = account.isSignedIn() &&
         store.taskSession() == owner.login && store.pairedMacs().any { mac ->
             canonicalMacDeviceId(mac.deviceId) == owner.device && mac.instanceTag?.trim()?.takeIf(String::isNotEmpty) == owner.build &&
@@ -39,8 +64,9 @@ internal class NativeFeedSession(
         }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { browserNetworks.clear(); terminalInputs.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
-    override fun onCleared() { clear(); terminalInputs.close(); scope.cancel() }
+    fun clear() { browserHolds.clear(); feedMacs = emptyList(); foreground = false; browserNetworks.clear(); terminalInputs.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
+    override fun onCleared() { viewModelCleared = true; foreground = false; if (browserHolds.isEmpty()) dispose() else reconcileFeed() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,
         private val store: NativeCredentialStore) : ViewModelProvider.Factory {

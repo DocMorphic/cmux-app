@@ -147,6 +147,10 @@ class NativeBrowserNetworksTest {
             assertNull(registry.network(b))
             assertTrue(runCatching { newer.availability() }.isFailure)
             allowed = true
+            val readmitted = registry.network(b)!!
+            assertNotSame(newer, readmitted)
+            assertNotEquals(newer.storageId, readmitted.storageId)
+            assertEquals(MacBrowserAvailability.AVAILABLE, readmitted.availability())
             registry.retain("next-login", null, listOf(b))
             assertTrue(runCatching { newer.availability() }.isFailure)
             val final = registry.network(b)!!
@@ -265,5 +269,16 @@ class NativeBrowserNetworksTest {
                 assertEquals(1, tb.closedLanes.get()); assertFalse(cb.isClosed)
             } finally { coordinator.close() }
         } }
+    }
+    @Test fun revokingOwnerRetiresIdleNetworkWithoutAnActivityRefreshOrAnotherRequest() = runBlocking<Unit> {
+        var allowed = true
+        NativeMacBrowserNetwork(this, Access(), { allowed }).use { network ->
+            val port = network.prepare()
+            assertFalse(network.retired.isCompleted)
+            allowed = false
+            withTimeout(3_000) { network.retired.await() }
+            assertTrue(runCatching { network.prepare() }.isFailure)
+            assertTrue(withContext(Dispatchers.IO) { runCatching { Socket("127.0.0.1", port).close() }.isFailure })
+        }
     }
 }

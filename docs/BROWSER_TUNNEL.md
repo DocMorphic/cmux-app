@@ -251,25 +251,84 @@ unresponsive.
 - Evidence: ignored `captures/runtime/browser-webview/`.
 - Pixel installation/account and signed 284 are unchanged.
 
+## Production presentation integration — 2026-09-30
+
+The local-browser navigation now opens a non-exported `RoutedBrowserActivity`
+in `:browser` when the selected Mac's availability binds browsing to that Mac.
+Older hosts and routes without native lanes retain the existing phone-local
+fallback, following the inspected upstream availability policy. A disconnected
+supported host stays bound to its Mac; localhost never falls back to the phone.
+
+A non-exported, same-UID Messenger service stays in the main process. It owns the
+presentation's opaque request ID, proxy preparation, workspace metadata and
+surface snapshots. Credentials and RPC clients do not cross the IPC boundary.
+The Activity binds the service while alive. A feed hold keeps the exact owning
+Mac in the coordinator when the main screen stops, and a shared connection
+handle keeps its native endpoint alive. Browser foreground changes update the
+native probe activity independently of the main screen. Holds release on return,
+process death, surface closure or owner retirement; main ViewModel disposal can
+wait for the browser's final hold.
+
+Only one routed browser process may exist at a time. Registration terminates an
+old process before installing the next immutable proxy/storage binding. Each
+Mac network has a random storage ID for this app session. Reopening the same
+network reuses it; another Mac, retired admission, account/build identity or a
+new main-process session gets another ID. Retirement closes sockets, closes the
+presentation, then deletes only validated retired `cmux_browser_<32 hex>` WebView
+data/cache directories. Default WebView/account files remain outside that
+namespace; cleanup does not follow symbolic links. An independent admission
+watch retires even idle browser networks while the main screen's Compose effects
+are stopped. Re-admission creates a fresh network/storage ID.
+
+The production browser reuses the existing address field, history controls,
+file chooser, external-scheme handling, renderer recovery and TLS-error rejection.
+Explicit address loads, back/forward and reload await network preparation.
+Browser-owned redirects and forms retain their original request/body; they are
+already routed through the immutable proxy and refresh policy asynchronously.
+A changed proxy port requires a new browser process. Page snapshots return to
+the original account/workspace-owned surface; stale presentation callbacks cannot
+revive a closed surface. Back preserves the local tab and committed URL; selecting
+a Mac pane or closing the browser removes the local tab.
+
+### Verification
+
+Sixteen focused JVM tests pass: network policy/admission/retirement, surface
+snapshot lifecycle, and exact storage cleanup (including symlinks). Debug and
+instrumentation APKs build. Four distinct Android checks now have passing evidence
+on the API 37 / 16 KiB emulator:
+
+- Production Activity/service/proxy: generated localhost page, in-page navigation,
+  main Activity stopped while a host lease is retained, snapshot return, Back,
+  reopening the committed URL, pane selection and one release per presentation.
+- Owner retirement: child process closes, host lease releases and its WebView data
+  directory disappears.
+- Existing phone-local history/reload/close and new-window/link/script/POST checks
+  continue to pass after the shared navigation hook change.
+
+These tests use a generated TCP server and instrumented host-lease callbacks;
+actual NativeFeedSession/Iroh endpoint lifetime still needs live integration
+acceptance. They never read or clear account stores and are emulator-only.
+
+The final four-case run passed three cases; a System UI ANR interrupted the
+retirement case. The same final APKs then passed its focused rerun in **9.103 s**.
+This is four distinct passing checks across runs, not a clean four-case batch or
+startup/performance evidence. Earlier runs exposed missing test-clock advances
+when crossing processes; the final harness pumps the parent Compose clock until
+the child launches and after returning. Visual inspection found and fixed the
+browser header's status-bar overlap. The final screenshot shows separated system
+bars, page header, address controls and visible generated page content.
+
+- Debug APK SHA-256: `ea82c343fdcfba536d18859b991c1b461e13b105730ebf82dc7cc46ec9cde70e`.
+- Test APK SHA-256: `78c6563583f1d5daee098968c7eabae983cf8a33b01722a7bdfdc9f38c63c138`.
+- Evidence: ignored `captures/runtime/browser-webview/presentation-*` and
+  `production-layout.png`; failed/interrupted runs are retained.
+- Pixel installation/account and signed 284 remain unchanged. The owned emulator
+  was stopped after testing.
+
 ## Remaining integration
 
-Android's [ProxyController](https://developer.android.com/reference/androidx/webkit/ProxyController)
-override applies to all WebViews in a process. Its completion callback must
-precede loading. [ProxyConfig.Builder](https://developer.android.com/reference/androidx/webkit/ProxyConfig.Builder)
-supports SOCKS and removal of implicit loopback bypass rules. That may avoid
-iOS's same-port mirrors, but it needs runtime proof with HTTP, HTTPS, WebSocket,
-redirects and service workers.
-
-A global proxy switch in the current main process is insufficient: retained
-pages or service workers could reach the wrong computer. The dedicated-process
-adapter above establishes a tested separation primitive; production presentation
-must enforce retirement before switching owners, manage per-app-session storage
-IDs/cleanup, and preserve existing artifact viewers' network scope. Android
-WebView profiles alone do not establish per-profile proxy isolation.
-
-Connect the owner-bound network to availability UI and navigation, profile
-lifecycle and real browser acceptance. A separate browser Activity/process must
-retain its owner's connection while the main Activity is stopped; the current
-feed pauses with the main screen, so that lifetime needs explicit integration.
-Do not silently redirect a Mac
-localhost page to phone localhost when its connection is unavailable.
+Exercise actual JNI/Iroh browser lanes and a real Mac/Pixel website (HTTP/HTTPS, reconnect and
+account retirement). Verify physical keyboard/IME, file picking, rotation,
+process-death return and lifecycle races with live feed holds. The earlier
+isolated adapter tests use generated TCP hosts and do not prove real native-lane
+acceptance. API 26 WebView startup compatibility is still unverified.

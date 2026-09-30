@@ -23,6 +23,9 @@
         <service android:name=".NativeNotificationService"
             android:exported="false"
             android:foregroundServiceType="remoteMessaging" />
+        <service android:name=".RoutedBrowserHostService" android:exported="false" />
+        <activity android:name=".RoutedBrowserActivity" android:exported="false"
+            android:process=":browser" android:windowSoftInputMode="adjustResize" />
         <receiver android:name=".NativeNotificationRestartReceiver"
             android:exported="true">
             <intent-filter>

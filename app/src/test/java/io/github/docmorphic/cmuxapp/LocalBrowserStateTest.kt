@@ -76,4 +76,24 @@ class LocalBrowserStateTest {
         surface.load("https://late.example/"); surface.request(LocalBrowserCommand.RELOAD)
         assertEquals(LocalBrowserWork(null, null), surface.takeWork())
     }
+    @Test fun remoteSnapshotsCannotReviveClosedOrReplacedPresentations() {
+        val surface = LocalBrowserSurface("id", "https://initial.example/")
+        val first = surface.attach()
+        surface.load("https://pending.example/")
+        val revision = surface.state.value.workRevision
+        val remote = LocalBrowserSnapshot(url = "https://remote.example/", title = "Remote", workRevision = 999)
+        surface.remote(first, remote)
+        assertEquals("Remote", surface.state.value.title)
+        assertEquals(revision, surface.state.value.workRevision)
+        surface.detach(first)
+        val second = surface.attach()
+        surface.remote(first, remote.copy(title = "Stale"))
+        assertEquals("Remote", surface.state.value.title)
+        surface.remote(second, remote.copy(title = "Current"))
+        assertEquals("Current", surface.state.value.title)
+        surface.close()
+        surface.remote(second, remote)
+        assertTrue(surface.state.value.closed)
+        assertEquals("Current", surface.state.value.title)
+    }
 }

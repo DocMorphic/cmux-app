@@ -63,7 +63,7 @@ class LocalBrowserViewTest {
     private fun url(path: String) = server.url(path).toString()
     private fun show(surface: LocalBrowserSurface, visible: () -> Boolean = { true }, close: () -> Unit = {}) {
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().systemBarsPadding()) {
-            if (visible()) LocalBrowserPane(surface, close)
+            if (visible()) LocalBrowserPane(surface, onClose = close)
         } } }
     }
     private fun web(): WebView = compose.activity.window.decorView.findViewWithTag("LocalBrowserWebView")
