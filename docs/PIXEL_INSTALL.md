@@ -16,6 +16,37 @@ The Android Iroh/V2 connection is implemented and earlier checkpoints have real
 Pixel/Mac evidence; see [IROH_V2.md](IROH_V2.md) and [NETWORKING.md](NETWORKING.md).
 This replaces the old statement that Iroh integration was unfinished.
 
+## Signed integration build 248 — 2026-09-30
+
+[Build 248](https://github.com/DocMorphic/cmux-app/actions/runs/36650296593)
+passed from `ecdccb0710e661862365fcf7ed979653f406f44e`. Download the
+[cmux-app-stable-signed-apk artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36650296593/artifacts/11069984729)
+and extract `app-release.apk` (repository access required). This supersedes 244
+as the most recent verified signed build.
+
+- Package `io.github.docmorphic.cmuxapp`, version code `248`, version `0.2.0`.
+- SHA-256: `40c4f83a375b93aa438bfd8bd8bbfeee88cf17adabefb31376bfe104e7519193`.
+- Certificate SHA-256:
+  `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+  It matches the stable certificate; no signing settings changed.
+- Includes terminal zoom, native file/Markdown panels and native Todo controls,
+  in addition to build 244's Ghostty renderer and configurable toolbar.
+- CI's full app/Ghostty JVM suites, helper tests, pinned viewer hashes, APK
+  builds, release signature and native/ZIP alignment gates passed.
+- The downloaded APK independently passes `apksigner` signature verification,
+  native LOAD/RELRO checks and `zipalign -c -P 16` on this Mac.
+- Installed and launched on Android 17's 16 KiB emulator. It reports version 248
+  and `pageSizeCompat=0`; the sign-in screen was visually inspected without a
+  compatibility warning. This proves launch, not signed native-login/terminal
+  acceptance. Local evidence: `captures/runtime/signed248/launch.png`.
+- No Pixel installation: ADB still shows no physical phone. The debug app and
+  stay-awake setting on the Pixel remain unchanged.
+- Does not include the later simulator protocol prerequisite; no usable simulator
+  viewer exists yet. Full parity remains incomplete.
+
+Local download: `build/signed-run-36650296593/app-release.apk` (ignored).
+Stable and debug packages have separate app data and logins.
+
 ## Signed integration build 244 — 2026-09-30
 
 [Build 244](https://github.com/DocMorphic/cmux-app/actions/runs/36645287501)
@@ -23,7 +54,7 @@ completed successfully from `3c806083a37a53b24a3662609f6c5be562029702`.
 Download its
 [cmux-app-stable-signed-apk artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36645287501/artifacts/11068798967)
 and extract `app-release.apk`. Repository access is required. This replaces build
-157 as the most recent verified signed artifact.
+157 at that checkpoint; build 248 above is now newer.
 
 - Package `io.github.docmorphic.cmuxapp`, version code `244`, version `0.2.0`.
 - APK SHA-256:

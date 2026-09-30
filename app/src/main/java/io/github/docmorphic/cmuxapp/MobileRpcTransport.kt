@@ -21,6 +21,8 @@ internal interface MobileRpcTransport : AutoCloseable {
     suspend fun openTerminalOutput(surfaceId: String, cursor: ULong?): TerminalOutputLane? = null
     val supportsArtifactLanes: Boolean get() = false
     suspend fun openArtifact(resource: String): ArtifactLane? = null
+    val supportsSimulatorLanes: Boolean get() = false
+    suspend fun openSimulator(panelId: String): SimStreamLane? = null
     suspend fun writeWithGeneration(bytes: ByteArray): Long { write(bytes); return 0 }
     suspend fun connect()
     suspend fun read(): ByteArray?

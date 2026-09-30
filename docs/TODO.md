@@ -63,6 +63,7 @@ Real Mac/Pixel Todo operations, reconnect behavior, touch/accessibility and exac
 visual parity remain unverified. These tests use the production Android UI and
 transport with a local framed RPC fixture, not a real cmux Mac server.
 
-Signed build 244 predates zoom, file panels and this Todo implementation. It does
-not contain this feature. Simulator and additional browser streaming work remains
+Signed build 248 includes this Todo implementation along with zoom and file
+panels. Its signature, alignment and emulator launch are verified; see
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md). Simulator and additional browser streaming work remains
 tracked in [MAC_SURFACES.md](MAC_SURFACES.md); this is not full-app completion.

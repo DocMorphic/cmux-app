@@ -201,3 +201,9 @@ authenticated team-scope lifecycle contracts at
 4c5272e9153eca2033c9f40ac749f0c3a5bcb291 (Manaflow, GPL-3.0-or-later).
 Account HTTP paths and payloads follow the Stack Auth client API used by that
 revision of the bundled Swift SDK; no Stack SDK code is compiled into this app.
+
+NativeTodo/NativeTodoView and the simulator stream protocol, input outbox, session
+and lifecycle policies adapt the cmux iOS/Shared contracts at
+4c5272e9153eca2033c9f40ac749f0c3a5bcb291. Copyright (c) 2024-present
+Manaflow, Inc.; GPL-3.0-or-later. Android simulator wire fixtures are generated
+with the unmodified pinned Swift codec; source hashes accompany the fixtures.

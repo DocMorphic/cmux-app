@@ -420,6 +420,21 @@ class MobileRpcClient internal constructor(
 
     internal val supportsArtifactLanes get() = transport.supportsArtifactLanes
 
+    internal val supportsSimulatorLanes get() = transport.supportsSimulatorLanes
+
+    /** The caller's lease owns cancellation; a simulator never borrows terminal/control bytes. */
+    internal suspend fun useSimulatorLane(panelId: String, use: suspend (SimStreamLane) -> Unit): Boolean {
+        if (delegate != null) return borrowing { it.useSimulatorLane(panelId, use) }
+        synchronized(stateLock) { check(!closed && connected) }
+        val lane = transport.openSimulator(panelId) ?: return false
+        try {
+            currentCoroutineContext().ensureActive()
+            synchronized(stateLock) { check(!closed && connected) }
+            use(lane)
+            return true
+        } finally { lane.close() }
+    }
+
     internal suspend fun useArtifactLane(resource: String, use: suspend (ArtifactLane) -> Unit): Boolean {
         if (delegate != null) return borrowing { it.useArtifactLane(resource, use) }
         synchronized(stateLock) { check(!closed && connected) }

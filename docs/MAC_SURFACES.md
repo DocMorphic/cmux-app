@@ -76,10 +76,14 @@ limitations**, and a fallback card does not satisfy their native iOS behavior.
    and visual comparison still need acceptance; see [TODO.md](TODO.md).
 2. **Simulator streaming**: pinned `WorkspaceDetailView+Surfaces` has legacy and
    V2 simulator paths, device switching and recovery. Android has no corresponding
-   surface UI/runtime. Audit exact protocols before implementation.
-3. **Browser stream path**: the iOS view distinguishes `.browser` and
-   `.browserStream`; compare the latter against Android's current image/RPC
-   browser rather than treating the existing browser tests as proof of both.
+   surface UI/runtime yet. The v2 wire, Iroh lane, input/presentation session and
+   lifecycle prerequisite is implemented; see [SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md).
+3. **Browser modes**: source comparison now confirms Android's image/RPC browser
+   implements the `.browserStream` path (`mobile.browser.stream.start`, viewport,
+   frame ack and input/dialog methods). The separate `.browser` path hosts a local
+   phone `WKWebView` in `MobileBrowserPane`. Its Android WebView equivalent and
+   routing remain missing. Existing remote-browser tests do not prove local-browser
+   behavior or complete remote-browser UI parity.
 4. **Selection and UI**: exact focus/default-selection policy, surface glyphs,
    card styling, terminal/browser restoration, complete live descriptor changes,
    panel error classification, and phone accessibility/theme behavior still need

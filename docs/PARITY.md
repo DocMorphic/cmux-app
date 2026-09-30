@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Signed build 248 (2026-09-30):** the combined zoom/panels/Todo milestone
+passed CI at `ecdccb0`. The downloaded APK has the existing stable certificate,
+passes native/ZIP 16 KB checks, and launches on Android 17's 16 KiB emulator with
+`pageSizeCompat=0`. This supersedes signed build 244. Pixel installation and full
+native workflow acceptance remain open; see [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
+
+**Simulator streaming prerequisite (2026-09-30):** v2 binary wire, admitted
+Iroh lane, presentation/input session and pure lifecycle policy are implemented.
+22 focused JVM checks pass, including byte-for-byte comparison with fixtures
+exported by the unmodified upstream Swift codec. No simulator viewer, production
+video presenter, legacy path or physical acceptance exists yet; see
+[SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md). The browser audit also clarified
+that the existing Android remote browser implements the iOS `.browserStream`
+RPC path; the separate phone-local `.browser` WebView mode remains missing.
+
 **Native Todo checklist (2026-09-30):** add/edit, three item states, drag ordering,
 swipe deletion, automatic/manual status, progress and offline read-only display
 are implemented from the pinned iOS model. Eight Todo JVM tests and four Android
@@ -26,8 +41,7 @@ separate exact-file `panel.artifact.v1` scope, and fallback cards can focus thei
 surface on the owning Mac. Eleven focused JVM and three 16 KiB Android UI/RPC
 tests pass, including painted Markdown and multi-Mac routing. Todo controls were
 added in the later checkpoint above. Simulator streaming and the additional iOS
-browser-stream path remain missing or
-unaudited; they are required work, not unavoidable Android differences. See
+phone-local browser path remain missing; they are required work, not unavoidable Android differences. See
 [MAC_SURFACES.md](MAC_SURFACES.md).
 
 **Signed build 244 (2026-09-30):** integration CI passed at `3c80608`, the signed

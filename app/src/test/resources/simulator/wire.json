@@ -1,0 +1,18 @@
+{
+  "upstream": "4c5272e9153eca2033c9f40ac749f0c3a5bcb291",
+  "source_sha256": {
+    "Packages/Shared/CmuxSimulatorStreamKit/Sources/CmuxSimulatorStreamKit/SimStreamProtocol.swift": "522a2cb36f7fa1fc52e94b1d10ca782be4a0fb4b20f9201c811da467e326ba59",
+    "Packages/Shared/CmuxSimulatorStreamKit/Sources/CmuxSimulatorStreamKit/SimStreamWireCodec.swift": "6407e999c420db41a8f9f9a21f9ced0950fc316c58c3c4230bbd5d374988bd64"
+  },
+  "messages": {
+    "ack": "AAAAEQT//////////gAAAAAAAAPn",
+    "frame": "AAAAHQP//////////oEAAAAAB1vNFQAAAAcAAAADq83v",
+    "h264": "AAAAHQIBAAAHgAAABDhAAAAAAwICAAAAAmcBAAAAAmgB",
+    "hevc": "AAAAIwIAAAAEmwAACfxAQAAAAAQDAAAAAkABAAAAAkIBAAAAAkQB",
+    "input": "AAAAiAUAAAAAAAAAAwAQAQD/PoAAAD9AAAAAAAAAAAAD6AEB/z6ZmZo/MzMzAAAAAAAAA/gBAv8+mZmaPzMzMwAAAAAAAAQIAQMBAAAAAD+AAAAAAAAAAAAEGAIAAAASaMOpbGxvIHfDtnJsZCDwn5qAAwAoAQMAKAAEAAQBBAIEAwQEBAUEBgQHBAg=",
+    "keyframe": "AAAAAQY=",
+    "start": "AAAADwEB//////////8GQAIAAQ==",
+    "state": "AAAAGAgCAAAAEnNpbSBzaHV0IGRvd24g8J+agA==",
+    "stop": "AAAAAQc="
+  }
+}

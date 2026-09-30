@@ -179,3 +179,9 @@ e0263f46a6698bf7d74e828b6200e4bfa963a3dc.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 
 AndroidX graphics-path 1.1.0: unchanged Java classes and resources; arm64 JNI rebuilt from pinned source with 16 KiB RELRO alignment. See AndroidX-Graphics-Path.txt for the combined upstream notices.
+
+NativeTodo/NativeTodoView and the simulator stream protocol, input outbox, session
+and lifecycle policies adapt the cmux iOS/Shared contracts at
+4c5272e9153eca2033c9f40ac749f0c3a5bcb291. Copyright (c) 2024-present
+Manaflow, Inc.; GPL-3.0-or-later. Android simulator wire fixtures are generated
+with the unmodified pinned Swift codec; source hashes accompany the fixtures.

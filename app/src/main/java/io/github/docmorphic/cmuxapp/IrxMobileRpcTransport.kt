@@ -120,6 +120,13 @@ internal class IrxMobileRpcTransport(
     }
 
     override val supportsArtifactLanes = true
+    override val supportsSimulatorLanes = true
+    override suspend fun openSimulator(panelId: String): SimStreamLane {
+        val descriptor = simulatorLaneDescriptor(panelId)
+        val lane = openFeatureLane(descriptor)
+        return IrxSimulatorLane(lane) { requireAccess(); active(); Unit }
+    }
+
     override suspend fun openArtifact(resource: String): ArtifactLane {
         require(resource.isNotBlank() && resource.length <= 8192 && '\u0000' !in resource)
         return IrxArtifactLane(openFeatureLane(IrxWire.Descriptor(IrxWire.Lane.ARTIFACT, resource, offset = 0uL)), ::requireAccess)
