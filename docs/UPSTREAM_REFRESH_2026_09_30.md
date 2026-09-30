@@ -142,9 +142,12 @@ geometry/event fixes described in the PRD. See `DIRECT_SSH.md` for sources and
 acceptance gates. The opt-in SSH engine experiment subsequently passed five tests
 on API 26 and the same five on API 37 / 16 KiB pages, covering opaque Keystore
 signing, encrypted imports, strict host-key checks, PTY/exec, SFTP and nested
-forwarding teardown. It is separate from the delivered app. Production key/host
-storage, connection lifetime and UI integration are next; biometric, physical and
-real multiplexer acceptance remain open.
+forwarding teardown. It is separate from the delivered app. Production host
+metadata and its Android atomic storage adapter subsequently passed 16 JVM checks
+for restoration, corruption/write failures and scoped route/trust decisions.
+They are not yet connected to the engine or UI. Secure private-key storage,
+connection lifetime and UI integration are next; Android storage runtime,
+biometric, physical and real multiplexer acceptance remain open.
 
 Signed build 284 is from Android commit
 `0db3c178d69facb8468d62e6bca42e951d34c2b1`. It includes the retained identified-input

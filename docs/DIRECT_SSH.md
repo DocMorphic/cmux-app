@@ -33,6 +33,40 @@ subsequent successful connection with the correct pin. The next step is producti
 identity/storage and session lifetime integration. Biometric/physical validation,
 authentication-time cancellation and real multi-host behavior remain open.
 
+**Production host metadata foundation (2026-09-30):** `SshHosts.kt`,
+`SshHostStore.kt` and `AndroidSshHostStore.kt` now provide endpoint/record models,
+canonical host public keys and fingerprints, saved hosts/pins/last-used selection,
+idle policy and persisted auto-connect pause. The Android factory stores metadata
+with `AtomicFile` under `noBackupFilesDir/ssh/hosts-v1.json`, with one main-process
+instance per storage path. It contains public key material and key IDs only;
+private-key storage is still to be built. This foundation is not yet called by
+the UI or connected to the SSH engine.
+
+The store rejects corrupted/unknown-version trust data rather than loading an
+empty set of pins. It rejects missing/cyclic jump routes. Deleting a jump clears
+dependent references and the last-used selection, matching the reviewed source;
+endpoint pins remain available for other saved logins. Removing a key reference
+retires affected dial plans. Legacy persistence-mode data is ignored, and missing
+or unknown idle policy defaults to one day.
+
+Dial plans capture every hop plus connection revisions. Address/user/key/jump or
+pause changes invalidate them, including A→B→A changes, while label/idle edits do
+not. Trust snapshots also have revisions: a stale question cannot replace a pin
+after a competing answer or pin round trip. Revisions update before observers see
+new state, and writes complete before state/revisions are published. The future
+connection manager must still validate these plans after suspension, serialize
+prompts, fence account/session lifetime, resolve credentials and retire affected
+live sessions. The storage layer alone does not implement those behaviors.
+
+**16 focused JVM tests passed** on the final source, covering restoration, OpenSSH
+fingerprint goldens, malformed metadata, jump cycles, concurrent saves, stale
+plans/answers, pause persistence and write-failure rollback. OpenSSH `ssh-keygen`
+independently checked the two generated public-key fingerprints used by the tests.
+Evidence is in ignored `captures/runtime/ssh-store/`. This is JVM/model evidence;
+Android file fault/process-death acceptance, secure key persistence, biometrics,
+session/UI integration and physical use remain outstanding. No APK was assembled
+or installed for this source-only checkpoint.
+
 The candidate wires SSH into normal iOS navigation, without a DEBUG gate:
 
 - [DeviceTreeView.swift][computers] includes SSH computers alongside Macs, an Add

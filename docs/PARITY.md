@@ -21,8 +21,11 @@ gates. This is source evidence, not Android functionality or proof of an iOS bin
 release. The subsequent opt-in engine experiment passed **five runtime checks on
 API 26 and five on API 37 / 16 KiB pages**, including Keystore signing, encrypted
 key imports, host-key refusal, PTY/exec, SFTP and nested forwarding teardown.
-Production storage, session/UI integration, biometric and physical acceptance
-remain open; the experiment adds no dependency to the delivered app.
+Production host metadata now has an atomic Android storage adapter, scoped dial
+plans and versioned trust decisions; **16 JVM tests passed**, including corruption,
+write failures, concurrent saves and stale-answer rejection. Secure private-key
+storage, session/UI integration, Android storage runtime, biometric and physical
+acceptance remain open. The engine experiment adds no dependency to the delivered app.
 The broad implemented reference, signed 284 and Pixel installation are unchanged.
 
 **Files navigation restoration (2026-09-30):** gallery and terminal-path sheets
