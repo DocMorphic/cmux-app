@@ -2,7 +2,7 @@
 
 Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 This is a required feature, not an Android platform exception. The current
-checkpoint is infrastructure; **there is no usable simulator viewer yet**.
+checkpoint has a tested video presenter and transport infrastructure; **there is no usable simulator viewer yet**.
 
 ## Source contract
 
@@ -70,17 +70,107 @@ JAVA_HOME=/path/to/jdk17 ./gradlew :app:testDebugUnitTest \
   --tests '*IrxTerminalInputLaneTest'
 ```
 
-The session uses a test presenter in these checks. No real video decoding,
-Android surface rendering, Mac simulator lane, or physical Pixel acceptance is
-proven. Do not count these tests as a finished simulator feature.
+The preceding protocol-only checks use a test presenter. The decoder checkpoint
+below adds real Android video/pixel evidence; neither checkpoint proves a native
+Mac simulator lane or physical Pixel acceptance.
+
+## Android video decoder checkpoint — 2026-09-30
+
+`SimVideoFormat` validates configuration/dimensions and raw parameter-set types,
+normalizes H.264 SPS/PPS into separate CSD buffers and HEVC VPS/SPS/PPS into one
+CSD buffer, and converts complete 1-, 2- or 4-byte-length-prefixed access units
+to Annex B. Configurations are copied; malformed, empty, oversized and truncated
+units are rejected before decoder submission. Bounds: 8192 per dimension,
+16,777,216 pixels, 1 MiB parameter sets, 65,536 NALs, and at most the 8 MiB wire
+payload plus bounded Annex-B prefix expansion.
+
+`SimVideoPresenter` owns a worker and decoder, preserving the view's Surface.
+Config/reset/disposal retire old decoder state; a new decoder requires a keyframe.
+Hardware MediaCodec is selected only when it advertises low-latency decoding.
+The presenter waits for matching decoded output and releases that buffer to the
+valid Surface. Informational render callbacks can be delayed/batched and do not
+gate protocol credit. See Android's [codec-specific-data contract](https://developer.android.com/reference/android/media/MediaCodec)
+and [render callback contract](https://developer.android.com/reference/kotlin/android/media/MediaCodec.OnFrameRenderedListener).
+
+The first emulator run failed: its software MediaCodec AVC implementation
+reported output delay 3 and did not return the first frame within the deadline.
+This cannot drive cmux's two-frame credit window by waiting for displayed output.
+The fix adds a small FFmpeg software fallback (thread count 1, low-delay mode),
+which immediately decodes an access unit and posts RGBA pixels through
+ANativeWindow. It is used when low-latency hardware is absent or fails; a local
+keyframe can be retried in software before it earns an acknowledgement. No
+terminal/simulator input is retried. The hardware path remains physically untested.
+
+The JNI binding uses monotonically increasing IDs, not native pointers; it bounds
+live decoders at four and fences lookup/decode/destruction with a registry mutex.
+It checks copied packet sizes, padding, decoded dimensions/timestamps, window
+geometry and conversion/post results. Decoder diagnostics never log frame data.
+The fallback is FFmpeg n9.0.2 at
+`946fcce07b6dcd0331c8cc609192aeff5e1924f8`; upstream source is unchanged. Only
+AVC/HEVC decoding and color conversion are built, with GPL/nonfree/network/encoder
+features disabled. Effective configured license is LGPL-2.1-or-later. Source,
+configuration and license attribution are in [NOTICE.md](../NOTICE.md).
+
+### Verified evidence
+
+- 17 focused JVM tests pass: six video-format tests plus 11 wire/session tests.
+- **Four final Android 17 tests pass on the 16 KiB kernel in 7.012 seconds**:
+  AVC and HEVC red keyframes/green dependent frames/reset; malformed frame recovery
+  and destroyed Surface; native allocation bounds/stale handles; and the real
+  framed session using the production presenter with the second frame withheld
+  until the first frame is acknowledged.
+- PixelCopy verifies >90% matching expected red/green pixels in the central area.
+  The color fixtures are generated from synthetic raw RGB, with IDR plus dependent
+  frames; generation commands and hashes are recorded. This avoids accepting a
+  healthy-looking decoder return value or an old frame as display proof.
+- Representative AVC-red, HEVC-green and session-green pixel captures were
+  inspected. Local evidence is ignored under `captures/runtime/simulator-video/`.
+  The initial failing run/logs are retained there too. Emulator stopped after tests.
+- Debug and instrumentation APKs build. All **five** packaged native libraries
+  pass LOAD/RELRO and ZIP 16 KB checks. The new decoder's stripped JNI library is
+  approximately 2.1 MiB; no signing settings changed.
+- Native Mac-built JNI SHA-256:
+  `22ef3d5801b06d8950bf6820026b195c774e8bc0c8d21ee68ad8c5c8746aec67`.
+- Tested debug APK SHA-256:
+  `4963af742c20e724d074faaa541de59fbdfe37d955107ebdac0b1f6dbcd67d99`.
+- Tested instrumentation APK SHA-256:
+  `1dea3136664ad2f401a012b1a5a9f1f29c0c4197e7514bf36eb65d5487db3005`.
+- These APKs precede the final attribution-text addition; executable code and
+  native bytes are unchanged. CI packaging and Linux artifact verification are
+  tracked separately. Signed build 248 does not contain this decoder.
+- Pixel hardware decoding, native Mac simulator streaming, performance and full
+  pane UX remain unverified. The Pixel was absent from ADB throughout.
+
+### Reproduce the native dependency
+
+Use a fresh core output directory; the core script refuses to overwrite an
+existing source build. Native builds run on macOS/Linux with NDK 28.2.13676358:
+
+```sh
+git clone --depth 1 --branch n9.0.2 https://github.com/FFmpeg/FFmpeg.git /path/to/ffmpeg
+python3 scripts/build-simulator-codecs.py --source /path/to/ffmpeg --ndk "$ANDROID_HOME/ndk/28.2.13676358"
+python3 scripts/build-simulator-video-jni.py --core build/simulator-codecs-android --ndk "$ANDROID_HOME/ndk/28.2.13676358"
+```
+
+Gradle verifies source revision, binding-source hash, core-manifest hash, Android
+API/ABI/NDK/page-size metadata and every delivered JNI/license hash. Windows uses
+the same verified `cmux-simulator-video-android-arm64` artifact from the workflow's
+`video_only` run; no Windows source build is claimed. The full integration workflow
+also builds this dependency on a cache miss. `video_only` publishes the native
+checkpoint without rebuilding or publishing a signed application.
+
+To regenerate the synthetic video test assets (ffmpeg with x264/x265 is a local
+fixture-generation tool only):
+
+```sh
+python3 scripts/generate-simulator-video-fixtures.py
+```
 
 ## Next implementation steps
 
-1. Implement an Android MediaCodec presenter for HEVC/H.264 with validated
-   dimensions/parameter sets, AVCC/HVCC-to-Annex-B conversion, Surface ownership,
-   output presentation acknowledgement, decoder reset and full release.
-   Compare with `SimStreamSampleBufferFactory`, `SimStreamDisplayView`, and
-   `SimStreamViewerEngine`; test real encoded frames and actual displayed pixels.
+1. Complete physical acceptance and performance checks for the implemented video
+   presenter, including the Pixel hardware path and real Mac-generated frames.
+   Linux-built native artifacts must also pass the runtime checks.
 2. Add the production lifecycle owner: current-client/lease binding, attach epochs,
    timer/generation fencing, watchdog, foreground/background, explicit refresh,
    quality changes and host status. Use `SimulatorStreamV2Store`,

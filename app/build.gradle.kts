@@ -29,6 +29,32 @@ val verifyGraphicsNative by tasks.registering {
     }
 }
 tasks.named("preBuild").configure { dependsOn(verifyGraphicsNative) }
+val simulatorNativeRoot = rootProject.layout.projectDirectory.dir("build/simulator-codecs-android")
+val verifySimulatorNative by tasks.registering {
+    inputs.file(simulatorNativeRoot.file("jni-manifest.json"))
+    inputs.dir(simulatorNativeRoot.dir("jniLibs"))
+    inputs.dir(simulatorNativeRoot.dir("notices"))
+    inputs.file("src/main/c/simulator_video_jni.c")
+    doLast {
+        val root = simulatorNativeRoot.asFile
+        val manifest = root.resolve("jni-manifest.json")
+        check(manifest.isFile) { "Missing simulator video native checkpoint. See docs/SIMULATOR_STREAMING.md" }
+        val receipt = JsonSlurper().parse(manifest) as Map<*, *>
+        check(receipt["sourceRevision"] == "946fcce07b6dcd0331c8cc609192aeff5e1924f8")
+        check(receipt["ndk"] == "28.2.13676358" && receipt["abi"] == "arm64-v8a" && receipt["androidApi"] == 26 && receipt["elfPageSize"] == 16384)
+        fun digest(file: File) = MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
+        check(digest(file("src/main/c/simulator_video_jni.c")) == receipt["bindingSourceSha256"])
+        check(digest(root.resolve("manifest.json")) == receipt["coreManifestSha256"])
+        val files = receipt["files"] as Map<*, *>
+        check(files.containsKey("jniLibs/arm64-v8a/libcmux_video.so"))
+        files.forEach { (path, hash) ->
+            val artifact = root.resolve(path as String).canonicalFile
+            check(artifact.toPath().startsWith(root.canonicalFile.toPath()) && artifact.isFile)
+            check(digest(artifact) == hash) { "Simulator native checkpoint hash mismatch: $path" }
+        }
+    }
+}
+tasks.named("preBuild").configure { dependsOn(verifySimulatorNative) }
 configurations.configureEach { exclude(group = "androidx.graphics", module = "graphics-path") }
 
 android {
@@ -80,6 +106,8 @@ android {
         jvmTarget = "17"
     }
     sourceSets.getByName("main").java.srcDir("../third_party/termux/terminal-emulator/src/main/java")
+    sourceSets.getByName("main").jniLibs.srcDir(simulatorNativeRoot.dir("jniLibs"))
+    sourceSets.getByName("main").assets.srcDir(simulatorNativeRoot.dir("notices"))
     sourceSets.getByName("androidTest").assets.srcDir("src/test/resources/terminal")
 
     buildFeatures {

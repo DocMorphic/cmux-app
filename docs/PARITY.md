@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Simulator video decoder (2026-09-30):** the production presenter now renders
+AVC/HEVC into an Android Surface, using low-latency hardware where supported and
+a pinned native software fallback. The initial MediaCodec-only emulator test
+exposed buffering incompatible with the host's two-frame credit window; the
+fallback fixes that without acknowledging unseen frames. Seventeen focused JVM
+and four Android 17 16 KiB tests pass, including actual frame pixels and the
+first-frame flow-control boundary. The pane/lifecycle integration, legacy path,
+Linux-native verification and physical Mac/Pixel checks remain open. See
+[SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md).
+
 **Signed build 248 (2026-09-30):** the combined zoom/panels/Todo milestone
 passed CI at `ecdccb0`. The downloaded APK has the existing stable certificate,
 passes native/ZIP 16 KB checks, and launches on Android 17's 16 KiB emulator with

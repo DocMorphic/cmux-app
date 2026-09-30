@@ -20,6 +20,11 @@ on:
         required: false
         type: boolean
         default: false
+      video_only:
+        description: Build the pinned simulator video decoder dependency
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -28,7 +33,7 @@ jobs:
   build:
     # Draft feature commits accumulate without rebuilding release APKs.
     # Build a milestone manually, or automatically once the PR is ready.
-    if: (github.event_name == 'workflow_dispatch' && !inputs.native_only && !inputs.graphics_only && !inputs.ghostty_only) || (github.event_name == 'pull_request' && !github.event.pull_request.draft)
+    if: (github.event_name == 'workflow_dispatch' && !inputs.native_only && !inputs.graphics_only && !inputs.ghostty_only && !inputs.video_only) || (github.event_name == 'pull_request' && !github.event.pull_request.draft)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -109,6 +114,37 @@ jobs:
           tar -xJf "$RUNNER_TEMP/zig.tar.xz" -C "$RUNNER_TEMP"
           python3 scripts/build-ghostty-vt-android.py --source native/ghostty --zig "$RUNNER_TEMP/zig-x86_64-linux-0.16.0/zig" --ndk "$ANDROID_HOME/ndk/28.2.13676358" --output build/ghostty-vt-android
           python3 scripts/build-ghostty-jni-android.py --core build/ghostty-vt-android --ndk "$ANDROID_HOME/ndk/28.2.13676358"
+      - name: Restore simulator video decoder
+        id: simulator-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/simulator-codecs-android/manifest.json
+            build/simulator-codecs-android/jni-manifest.json
+            build/simulator-codecs-android/jniLibs
+            build/simulator-codecs-android/notices
+          key: ${{ runner.os }}-simulator-ffmpeg-946fcce0-ndk28-api26-arm64-${{ hashFiles('scripts/build-simulator-codecs.py', 'scripts/build-simulator-video-jni.py', 'scripts/verify-native-alignment.py', 'app/src/main/c/simulator_video_jni.c') }}
+      - uses: actions/checkout@v4
+        if: steps.simulator-cache.outputs.cache-hit != 'true'
+        with:
+          repository: FFmpeg/FFmpeg
+          ref: 946fcce07b6dcd0331c8cc609192aeff5e1924f8
+          path: native/ffmpeg
+          persist-credentials: false
+      - name: Build pinned simulator video decoder
+        if: steps.simulator-cache.outputs.cache-hit != 'true'
+        run: |
+          sdkmanager 'ndk;28.2.13676358'
+          python3 scripts/build-simulator-codecs.py --source native/ffmpeg --ndk "$ANDROID_HOME/ndk/28.2.13676358"
+          python3 scripts/build-simulator-video-jni.py --core build/simulator-codecs-android --ndk "$ANDROID_HOME/ndk/28.2.13676358"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmux-simulator-video-android-arm64
+          path: |
+            build/simulator-codecs-android/manifest.json
+            build/simulator-codecs-android/jni-manifest.json
+            build/simulator-codecs-android/jniLibs
+            build/simulator-codecs-android/notices
       - name: Prepare stable release key
         env:
           KEYSTORE_BASE64: ${{ secrets.CMUX_APP_RELEASE_KEYSTORE_BASE64 }}
@@ -138,6 +174,47 @@ jobs:
         with:
           name: cmux-app-stable-signed-apk
           path: app/build/outputs/apk/release/app-release.apk
+
+  simulatornative:
+    if: github.event_name == 'workflow_dispatch' && inputs.video_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: FFmpeg/FFmpeg
+          ref: 946fcce07b6dcd0331c8cc609192aeff5e1924f8
+          path: native/ffmpeg
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Build simulator video native dependency
+        run: |
+          sdkmanager 'ndk;28.2.13676358'
+          python3 scripts/build-simulator-codecs.py --source native/ffmpeg --ndk "$ANDROID_HOME/ndk/28.2.13676358"
+          python3 scripts/build-simulator-video-jni.py --core build/simulator-codecs-android --ndk "$ANDROID_HOME/ndk/28.2.13676358"
+      - uses: actions/cache/save@v4
+        with:
+          path: |
+            build/simulator-codecs-android/manifest.json
+            build/simulator-codecs-android/jni-manifest.json
+            build/simulator-codecs-android/jniLibs
+            build/simulator-codecs-android/notices
+          key: ${{ runner.os }}-simulator-ffmpeg-946fcce0-ndk28-api26-arm64-${{ hashFiles('scripts/build-simulator-codecs.py', 'scripts/build-simulator-video-jni.py', 'scripts/verify-native-alignment.py', 'app/src/main/c/simulator_video_jni.c') }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmux-simulator-video-android-arm64
+          path: |
+            build/simulator-codecs-android/manifest.json
+            build/simulator-codecs-android/jni-manifest.json
+            build/simulator-codecs-android/jniLibs
+            build/simulator-codecs-android/notices
 
   irohnative:
     if: github.event_name == 'workflow_dispatch' && inputs.native_only

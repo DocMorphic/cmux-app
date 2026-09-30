@@ -185,3 +185,13 @@ and lifecycle policies adapt the cmux iOS/Shared contracts at
 4c5272e9153eca2033c9f40ac749f0c3a5bcb291. Copyright (c) 2024-present
 Manaflow, Inc.; GPL-3.0-or-later. Android simulator wire fixtures are generated
 with the unmodified pinned Swift codec; source hashes accompany the fixtures.
+
+Simulator video software decoding uses FFmpeg n9.0.2 at
+946fcce07b6dcd0331c8cc609192aeff5e1924f8 (FFmpeg contributors), licensed under
+LGPL-2.1-or-later. Source: https://github.com/FFmpeg/FFmpeg/tree/946fcce07b6dcd0331c8cc609192aeff5e1924f8
+Only native AVC/HEVC decoders, avutil and swscale are enabled; no external codec,
+network, muxer, encoder, GPL or nonfree component is enabled. Upstream source is
+unchanged. Build configuration and Android JNI source are provided in this repo:
+scripts/build-simulator-codecs.py, scripts/build-simulator-video-jni.py and
+app/src/main/c/simulator_video_jni.c. License texts are bundled under
+licenses/simulator-video and included in the app's open-source licenses.
