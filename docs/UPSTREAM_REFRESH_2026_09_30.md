@@ -110,11 +110,12 @@ broader event/replay/connection review remain open.
 
 ## Current delivery boundary
 
-Signed build 274 is from Android commit
-`1d5958fe9982606f7aefaab514bbf02ae5221343`. It includes the accumulated workspace
-selection, startup, ordering, Activity/process restoration and entry-route changes.
-Its verification is recorded in `PIXEL_INSTALL.md`; it does not establish parity
-with this new upstream candidate.
+Signed build 284 is from Android commit
+`0db3c178d69facb8468d62e6bca42e951d34c2b1`. It includes the retained identified-input
+and composer work as well as the previous workspace/startup/recovery changes.
+Full CI, downloaded signature/alignment and emulator upgrade/launch checks passed;
+see `PIXEL_INSTALL.md`. The event-lane scope and optional-reader source fixes
+postdate 284. None of this establishes full parity with the new upstream candidate.
 
 The local installed Mac app's Info.plist reports version **0.64.25**, build **106**.
 The source-commit mapping remains unverified. The Pixel subsequently received

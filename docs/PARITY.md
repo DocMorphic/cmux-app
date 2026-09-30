@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Signed input-delivery build 284 (2026-09-30):** full CI passed at `0db3c17`.
+The downloaded release matches the stable certificate and passes all native
+LOAD/RELRO and ZIP 16 KiB checks. Upgrade from 274 and sign-in-screen launch were
+verified on Android 17 with compatibility mode off. This packages the retained
+input/composer changes; physical capability acceptance and this signed package’s
+native account workflow remain pending. The newer event-stream fixes below are
+source-only. See [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
+
 **Terminal event-lane ownership (2026-09-30):** terminal-scoped native event
 frames now require a matching `payload.surface_id` before entering the merged
 queue. Wrong-terminal payloads and forged local-marker bytes are refused.
@@ -31,7 +39,7 @@ and real JNI/Iroh ACK lanes. Physical identified-capability acceptance remains o
 follow-up passed 32 focused JVM and six Android tests: text/image sends now settle
 across Activity recreation through the retained queue. Its emulator run recovered
 from a System UI ANR and is not performance evidence. See
-[TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md). Signed 274 predates this work.
+[TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md). Signed 284 includes this work.
 
 **Pixel native recovery (2026-09-30):** debug `1d5958f` was installed in place,
 preserving sign-in. The unlocked phone loaded the Mac's workspaces, executed a

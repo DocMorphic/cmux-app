@@ -7,7 +7,8 @@ native session. Each freshly admitted connection negotiates the capability;
 hosts without it retain legacy input behavior. Verification passed **97 focused
 JVM tests and nine Android runtime checks** on API 37 / 16 KiB pages. These include
 synthetic deduplicating hosts and real JNI/Iroh lanes. Physical Mac acceptance
-of the new capability is still outstanding. Signed 274 predates this work.
+of the new capability is still outstanding. Signed 284 includes this integration
+and the composer follow-up; see [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
 
 ## Reviewed upstream contract
 
@@ -232,8 +233,8 @@ Debug APK SHA-256:
 `70f9ec6c0f532ac87e1e37980a08261dc7424f1530c2fd46c56308e4f360b244`.
 Test APK SHA-256:
 `eadf39a3d41726487172f1d06842a61d21813a3570831222f94aa8121fc0ff20`.
-Ignored evidence: `captures/runtime/input-delivery/composer/`. Signed 274 and the
-Pixel's installed `c763e2d` APK predate this composer follow-up.
+Ignored evidence: `captures/runtime/input-delivery/composer/`. Signed 284 now
+includes this composer follow-up; the Pixel's installed `c763e2d` APK predates it.
 
 Still required: physical Mac/Pixel acceptance and broader host restart,
 capability downgrade and partial-write runtime

@@ -15,7 +15,7 @@ plugged-in stay-awake was restored to its original `0`. Evidence is in ignored
 
 Before installation, 97 focused JVM and nine Android emulator runtime checks
 passed; see [TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md). The emulator
-was stopped afterward. Signed build 274 remains the last signed delivery.
+was stopped afterward. Signed build 284 below is now the latest signed delivery.
 
 ## Previous installed checkpoint — 2026-09-30
 
@@ -26,7 +26,7 @@ The installed `base.apk` SHA-256 matches the tested local build:
 Install/hash evidence is in ignored `captures/runtime/pixel-1d5958f/`.
 The phone was subsequently unlocked and passed the native checks below. Its
 plugged-in stay-awake setting was temporarily set to `2`, then restored to `0`.
-This installs the debug package; the signed 274 package below remains separate.
+This installs the debug package; signed packages below remain separate.
 
 The Android Iroh/V2 connection is implemented and earlier checkpoints have real
 Pixel/Mac evidence; see [IROH_V2.md](IROH_V2.md) and [NETWORKING.md](NETWORKING.md).
@@ -61,13 +61,50 @@ These checks cover the debug APK's live input, process recovery and one Markdown
 file. They do not verify signed 274's account workflow, the newer input delivery
 foundation, all file formats, full notifications, or complete iOS parity.
 
+## Signed input-delivery build 284 — 2026-09-30
+
+[Build 284](https://github.com/DocMorphic/cmux-app/actions/runs/36691406643)
+passed at `0db3c178d69facb8468d62e6bca42e951d34c2b1`. Download the
+[stable signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36691406643/artifacts/11086635606)
+and extract `app-release.apk` (repository access required). This is the newest
+verified signed development APK, superseding 274.
+
+- Package `io.github.docmorphic.cmuxapp`, version code **284**, version `0.2.0`.
+- APK SHA-256: `1482af3e6c56ab75643371ac6edef3ee757cf61565ff3e4f6d073c089fca46cd`.
+- Certificate SHA-256:
+  `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+  The downloaded APK independently passes signature verification and matches the
+  previous stable signing identity.
+- Includes identified input protocol/ACK lanes, retained delivery ownership,
+  bounded retry and explicit recovery, plus composer/image settlement across
+  Activity recreation. Older hosts retain their legacy input behavior. See
+  [TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md) for the separate
+  synthetic-peer and native-lane runtime evidence.
+- Full CI app/Ghostty JVM tasks, helper tests, viewer hashes, all APK builds,
+  signing, native LOAD/RELRO and ZIP alignment gates passed. All five downloaded
+  native ELFs and ZIP 16 KiB alignment were independently rechecked locally.
+- Installed successfully over signed **274** on the Android 17 / API 37 emulator.
+  `PAGE_SIZE=16384`, `arm64-v8a`, version 284 and `pageSizeCompat=0` were confirmed.
+  COLD Activity launch reported **1,683 ms** (not a reconnect benchmark). The
+  sign-in screen was visually inspected without a compatibility warning. The
+  owned emulator was stopped afterward.
+- This signed package’s native account/Mac workflow and physical Pixel acceptance
+  remain pending. The Pixel still has debug `c763e2d`; account-clearing tests never
+  ran there. Event-lane ownership (`0bf1707`) and optional-event recovery
+  (`1d3319f`) postdate this APK and are being accumulated for the next build.
+
+Local APK: `build/signed-run-36691406643/app-release.apk` (ignored).
+Evidence: `captures/runtime/signed284/` (ignored). Stable/debug packages keep
+separate data and sign-ins. The older tailnet download was not replaced; use the
+artifact above for 284. Complete iOS parity is still unverified.
+
 ## Signed integration build 274 — 2026-09-30
 
 [Build 274](https://github.com/DocMorphic/cmux-app/actions/runs/36681430449)
 passed from `1d5958fe9982606f7aefaab514bbf02ae5221343`. Download the
 [cmux-app-stable-signed-apk artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36681430449/artifacts/11082157032)
 and extract `app-release.apk` (repository access required). This is the newest
-verified signed development APK, superseding 261.
+verified signed development APK at that checkpoint, superseding 261; 284 is now newer.
 
 - Package `io.github.docmorphic.cmuxapp`, version code **274**, version `0.2.0`.
 - SHA-256: `a20471ffccbb09fc808b11fe630a4073b8a5f825979c13b266bb7b614795e396`.

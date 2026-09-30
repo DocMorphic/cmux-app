@@ -6,12 +6,13 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 274 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36681430449/artifacts/11082157032)
-from `1d5958f` includes terminal rendering, browser/Simulator viewers, file panels,
-and workspace/process recovery. Signature, 16 KB packaging and emulator launch
-are verified. The same source's debug app passed live Pixel/Mac composer input,
-direct typing after process recovery, and Markdown file preview. The signed
-package's account workflow and full parity remain pending. See the
+**Signed download:** [build 284 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36691406643/artifacts/11086635606)
+from `0db3c17` adds identified terminal input, bounded recovery and composer
+settlement across Activity recreation. Signature, 16 KB packaging, upgrade from
+274 and emulator launch are verified. Native lane and lost-reply behavior have
+separate automated runtime evidence; the new capability still needs physical
+Mac/Pixel acceptance. Later event-stream fixes are committed for the next APK.
+The signed package's account workflow and full parity remain pending. See the
 [install guide](docs/PIXEL_INSTALL.md) for exact evidence, checksums and identity.
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
