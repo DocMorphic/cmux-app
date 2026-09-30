@@ -41,8 +41,10 @@ starts fresh; old input and partial messages must not transfer to another lane.
   losing a touch-up or replaying stale input later.
 - `SimViewerLifecycle`: the pinned activation/transport/retry/background/refresh
   policy, 250 ms–4 s bounded backoff, reset after actual presentation, and no
-  automatic retry into a host-declared unavailable panel. Its owner still needs
-  wiring and generation fencing.
+  automatic retry after a host `closed` message. Other statuses (including device
+  unavailable and worker failure) can self-heal on the existing lane and do not
+  terminate it. Closed messages outside a running attachment are ignored. Its
+  owner still needs wiring and generation fencing.
 
 ## Verification — 2026-09-30
 
@@ -58,7 +60,10 @@ tests, and eight existing terminal input/lease tests. These verify:
   rejection; invalid host direction; dropped pending input on cancellation;
   exact lane resource and late lane cancellation under a shared RPC lease.
 - Input coalescing/ordering/queue bounds, retry cap, presentation-based backoff
-  reset, background cancellation and terminal host-state recovery.
+  reset, background cancellation and terminal host-state recovery. The subsequent
+  five-test lifecycle run additionally checks every nonterminal host status in both
+  starting/streaming phases, recovery on the same lane, and late closed messages
+  after background, retry, refresh and deactivation.
 
 `app/src/test/resources/simulator/wire.json` records source SHA-256 hashes.
 Reproduce with:
@@ -136,10 +141,36 @@ configuration and license attribution are in [NOTICE.md](../NOTICE.md).
 - Tested instrumentation APK SHA-256:
   `1dea3136664ad2f401a012b1a5a9f1f29c0c4197e7514bf36eb65d5487db3005`.
 - These APKs precede the final attribution-text addition; executable code and
-  native bytes are unchanged. CI packaging and Linux artifact verification are
-  tracked separately. Signed build 248 does not contain this decoder.
+  native bytes are unchanged. Linux artifact verification is recorded below.
+  Signed build 248 does not contain this decoder.
 - Pixel hardware decoding, native Mac simulator streaming, performance and full
   pane UX remain unverified. The Pixel was absent from ADB throughout.
+
+### Linux artifact runtime verification — 2026-09-30
+
+Native-only [run 36653485468](https://github.com/DocMorphic/cmux-app/actions/runs/36653485468)
+succeeded from app source `c84f76e89b51935ec4fd47dcd65114f6ac0e142e`.
+The `cmux-simulator-video-android-arm64` artifact was downloaded to the Mac;
+all six delivered library/license hashes, the core-manifest hash, binding-source
+hash and pinned revision/API/ABI/NDK/page-size metadata were verified. The JNI
+has four LOAD segments and one RELRO segment, all 16 KiB compatible.
+
+The debug app was rebuilt with those Linux-produced bytes and the lifecycle
+correction above. All **four video tests passed on Android 17's 16 KiB emulator
+in 3.661 seconds**, including actual AVC/HEVC keyframe/dependent-frame pixels,
+first-frame flow control, rejected frames/destroyed Surface, and handle lifetime
+bounds. Representative red/green captures were inspected. All five APK native
+libraries and ZIP alignment passed 16 KiB checks; the emulator was stopped.
+
+- Linux JNI SHA-256: `c0aa344af60cb77121a526612f47cae6cee86dc04bd1da284c713b439b879e37`.
+- Debug APK SHA-256: `e9962288fa60ba3c545bc679f0888709c3c568e65e3ae5f82f80ffea4fa92251`.
+- Test APK SHA-256: `1dea3136664ad2f401a012b1a5a9f1f29c0c4197e7514bf36eb65d5487db3005`.
+- Local ignored evidence: `captures/runtime/simulator-video-linux/`.
+
+This establishes runtime compatibility of the Linux decoder artifact, including
+the dependency consumed by Windows builds. It does not establish a Windows
+source build, physical Pixel decoding or native Mac simulator acceptance. No
+signed app was published; build 248 remains the last signed milestone.
 
 ### Reproduce the native dependency
 
@@ -170,7 +201,7 @@ python3 scripts/generate-simulator-video-fixtures.py
 
 1. Complete physical acceptance and performance checks for the implemented video
    presenter, including the Pixel hardware path and real Mac-generated frames.
-   Linux-built native artifacts must also pass the runtime checks.
+   Linux-built native artifact runtime checks passed as recorded above.
 2. Add the production lifecycle owner: current-client/lease binding, attach epochs,
    timer/generation fencing, watchdog, foreground/background, explicit refresh,
    quality changes and host status. Use `SimulatorStreamV2Store`,

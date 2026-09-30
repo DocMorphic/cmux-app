@@ -23,9 +23,9 @@ class SimViewerLifecycleTest {
         assertEquals(SimViewerLifecycle.Action.None, model.handle(SimViewerLifecycle.Event.TRANSPORT_LOST))
     }
 
-    @Test fun deviceUnavailableDoesNotLoopAndExplicitRefreshCanRecoverIt() {
+    @Test fun hostClosedDoesNotLoopAndExplicitRefreshCanRecoverIt() {
         val model = SimViewerLifecycle(); activate(model)
-        assertEquals(SimViewerLifecycle.Action.Teardown, model.hostEnded(SimHostStatus.DEVICE_UNAVAILABLE, "Simulator stopped"))
+        assertEquals(SimViewerLifecycle.Action.Teardown, model.hostEnded(SimHostStatus.CLOSED, "Simulator stopped"))
         assertEquals("Simulator stopped", model.reason)
         for (event in listOf(SimViewerLifecycle.Event.RETRY_ELAPSED, SimViewerLifecycle.Event.TRANSPORT_READY, SimViewerLifecycle.Event.WEDGED))
             assertEquals(SimViewerLifecycle.Action.None, model.handle(event))
@@ -33,6 +33,34 @@ class SimViewerLifecycleTest {
         assertEquals(SimViewerLifecycle.Action.Teardown, model.handle(SimViewerLifecycle.Event.REFRESH))
         assertNull(model.reason)
         assertEquals(SimViewerLifecycle.Action.Open, model.handle(SimViewerLifecycle.Event.TRANSPORT_READY))
+    }
+
+    @Test fun unavailableDeviceAndWorkerFailuresCanRecoverOnTheExistingLane() {
+        for (configured in listOf(false, true)) {
+            val model = SimViewerLifecycle(); activate(model)
+            if (configured) model.handle(SimViewerLifecycle.Event.CONFIGURED)
+            val phase = model.phase
+            for (status in SimHostStatus.entries.filter { it != SimHostStatus.CLOSED }) {
+                assertEquals(status.name, SimViewerLifecycle.Action.None, model.hostEnded(status, "host status"))
+                assertEquals(phase, model.phase)
+                assertNull(model.reason)
+            }
+            model.handle(SimViewerLifecycle.Event.CONFIGURED)
+            model.handle(SimViewerLifecycle.Event.PRESENTED)
+            assertEquals(SimViewerLifecycle.Phase.STREAMING, model.phase)
+        }
+    }
+
+    @Test fun retiredAttachmentsCannotReplaceBackgroundOrRetryStateWithClosed() {
+        for (event in listOf(SimViewerLifecycle.Event.BACKGROUND, SimViewerLifecycle.Event.WEDGED,
+            SimViewerLifecycle.Event.REFRESH, SimViewerLifecycle.Event.DEACTIVATE)) {
+            val model = SimViewerLifecycle(); activate(model)
+            model.handle(event)
+            val phase = model.phase
+            assertEquals(SimViewerLifecycle.Action.None, model.hostEnded(SimHostStatus.CLOSED, "late close"))
+            assertEquals(phase, model.phase)
+            assertNull(model.reason)
+        }
     }
 
     @Test fun backgroundAndDeactivationIgnoreStaleTimerAndReadySignals() {

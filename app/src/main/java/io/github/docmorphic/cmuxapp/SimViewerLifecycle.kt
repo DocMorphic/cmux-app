@@ -16,7 +16,12 @@ internal class SimViewerLifecycle {
     private var attempt = 0
 
     fun hostEnded(status: SimHostStatus, detail: String): Action {
-        if (phase == Phase.IDLE || phase == Phase.STOPPED) return Action.None
+        // SimulatorStreamV2Store keeps the lane alive for unavailable devices and
+        // failed/crashed workers: the host can recover without a new attachment.
+        // Closed is terminal only for the current, running attachment. The owner
+        // must additionally fence callbacks by its attachment generation.
+        if (status != SimHostStatus.CLOSED || phase !in setOf(Phase.STARTING, Phase.STREAMING))
+            return Action.None
         phase = Phase.UNAVAILABLE; reason = detail.ifEmpty { status.name.lowercase() }
         return Action.Teardown
     }

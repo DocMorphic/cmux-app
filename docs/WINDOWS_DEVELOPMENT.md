@@ -10,10 +10,11 @@ the continuation scope. Windows support here means development and testing.
 Install JDK 17, Android SDK platform 36, build-tools 36.0.0 and platform-tools.
 Set the paths for the current machine; do not copy the handoff Mac paths:
 
-First generate/download a Ghostty artifact from the current branch using
-[GHOSTTY_VT_ANDROID.md](GHOSTTY_VT_ANDROID.md#app-build-dependency). The new
-placeholder bridge requires a new core/JNI build; `36637832054` is now an older
-checkpoint and Gradle rejects it. The commands below fetch the other dependencies.
+The commands below fetch all four current native dependencies. The Ghostty
+placeholder bridge requires the checkpoint described in
+[GHOSTTY_VT_ANDROID.md](GHOSTTY_VT_ANDROID.md#app-build-dependency);
+`36637832054` is an older incompatible checkpoint. The simulator decoder is
+described in [SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md).
 Windows builds consume the verified arm64 artifacts; the native-source build
 scripts currently run on Linux/macOS.
 
@@ -24,6 +25,7 @@ $env:Path = "$env:ANDROID_HOME\platform-tools;$env:Path"
 gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
 gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
 gh run download 36642877666 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
+gh run download 36653485468 --repo DocMorphic/cmux-app --name cmux-simulator-video-android-arm64 --dir build/simulator-codecs-android
 .\gradlew.bat --no-daemon --max-workers=1 :app:testDebugUnitTest
 node --test bridge/*.test.mjs
 python scripts/verify-viewer-assets.py
@@ -38,7 +40,7 @@ No release signing configuration
 changes are needed. Use the existing GitHub workflow/secrets for signed milestones;
 local versionCode 2 is not an upgrade over published build 157.
 
-The app requires pinned Iroh, rebuilt graphics-path and Ghostty dependencies. Move old
+The app requires pinned Iroh, rebuilt graphics-path, Ghostty and simulator-video dependencies. Move old
 checkpoint directories aside before downloading the replacements above. Gradle
 verifies their receipts and hashes, including the new 16 KiB RELRO build marker.
 See [IROH_V2.md](IROH_V2.md#android-native-module) and

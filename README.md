@@ -32,15 +32,14 @@ The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux
 
 Install Android Studio with Android SDK 36 and JDK 17. The app now includes its
 native Iroh, rebuilt graphics-path, Ghostty VT and simulator-video dependencies.
-Obtain the three reviewed checkpoints below, plus the simulator-video dependency (requires GitHub CLI access), or
+Obtain the four reviewed checkpoints below (requires GitHub CLI access), or
 reproduce them from pinned source as described in [IROH_V2.md](docs/IROH_V2.md#android-native-module):
 
 ```bash
 gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
 gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
 gh run download 36642877666 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
-# Build the fourth dependency from pinned source (macOS/Linux), or download its
-# cmux-simulator-video-android-arm64 CI artifact. See docs/SIMULATOR_STREAMING.md.
+gh run download 36653485468 --repo DocMorphic/cmux-app --name cmux-simulator-video-android-arm64 --dir build/simulator-codecs-android
 ./gradlew :app:assembleDebug
 ```
 
