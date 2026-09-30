@@ -190,7 +190,11 @@ Three additional native runtime checks now pass through real JNI/Iroh: large
 bidirectional bytes/half-close, rejected/cancelled lane isolation and a generated
 HTTP server reached through the coordinator, owner network and SOCKS proxy.
 Generated peers do not prove live account/Mac interoperability, Activity/feed-hold
-lifetime, startup stability or physical acceptance. See
+lifetime, startup stability or physical acceptance. The integration APK is now
+installed on the Pixel; a live read-only check verifies identity/account/native
+access but confirms stable Mac 0.64.25 lacks `browser.tunnel.v1`. Physical browser
+tunneling requires a newer compatible host; the official nightly candidate has
+only been identified, not installed. See
 [BROWSER_TUNNEL.md](BROWSER_TUNNEL.md). Signed 284 predates this source work.
 
 **Phone-local browser navigation (2026-09-30):** `New Browser` is now integrated

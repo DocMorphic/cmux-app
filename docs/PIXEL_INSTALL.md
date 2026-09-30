@@ -3,7 +3,36 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current installed checkpoint — identified input integration
+## Current installed checkpoint — isolated browser integration (2026-09-30)
+
+Debug production `9efef27` was installed in place on the connected Pixel. The
+installed APK was pulled back and its SHA-256 matches the emulator-tested build:
+`ea82c343fdcfba536d18859b991c1b461e13b105730ebf82dc7cc46ec9cde70e`.
+This also delivers the earlier direct-keyboard focus and event-lane fixes. Their
+physical UI retest remains open. No app data was cleared or sleep setting changed.
+
+An explicitly selected, opt-in `LiveNativeBrowserCheck` passed in **5.768 s**
+using the existing sign-in and the single saved Iroh Mac. It verified matching
+Mac identity and authenticated workspace-list access. The transport reports
+`LAN or Private VPN` and native browser-lane support on the Android side.
+The live Mac **does not advertise `browser.tunnel.v1`**, so no browser listing or
+TCP-connect operation was attempted. This is a verified host capability gap,
+not evidence of a working physical browser tunnel.
+
+The installed Mac is cmux **0.64.25 / build 106**, also the latest stable GitHub
+release when checked. A newer official nightly is available; it has not been
+installed or launched. The stable Mac installation was unchanged.
+
+The opt-in check refreshes the account/team and opens the ordinary native
+connection; its Mac operations are reads only. It neither clears account stores
+nor changes pairings/workspaces, and sends no terminal input. Ordinary CI skips
+it unless `cmux_live_read_only=true` is explicitly supplied on a physical device.
+Its output is limited to capability booleans/counts and a fixed route label.
+Ignored evidence: `captures/runtime/browser-webview/pixel-live-*`, with the pulled
+APK at `pixel-installed.apk`. The debug app was reopened after instrumentation.
+Signed release 284 remains unchanged.
+
+## Previous installed checkpoint — identified input integration
 
 Debug `c763e2d` was installed in place on the USB-connected Pixel on 2026-09-30.
 Its installed APK hash matches the tested local APK:

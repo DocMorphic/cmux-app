@@ -357,6 +357,31 @@ Mac implementation interoperability or the Activity/feed-hold lifecycle.
 - Evidence and test APK hash: ignored `captures/runtime/browser-webview/native-lanes-*`.
 - The owned emulator was stopped; Pixel and signed 284 remain unchanged.
 
+## Physical capability check — 2026-09-30
+
+The production integration APK was installed on the Pixel in place and its
+installed hash verified. `LiveNativeBrowserCheck` passed in **5.768 s** using the
+existing real account and saved Mac. Identity and authenticated workspace access
+were verified over the native transport (`LAN or Private VPN`). The Android
+transport supports browser lanes, but the live host does **not** advertise
+`browser.tunnel.v1`; no unsupported listing/TCP request was sent.
+
+The Mac is **0.64.25 / 106**, matching the current
+[stable release](https://github.com/manaflow-ai/cmux/releases/tag/v0.64.25).
+This makes a newer compatible host necessary for physical tunnel acceptance.
+An official candidate is
+[nightly build 3669077704801](https://github.com/manaflow-ai/cmux/releases/download/nightly/cmux-nightly-macos-arm64-3669077704801.dmg),
+updated 2026-09-30 09:21 UTC, source
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` from
+[successful upstream run 36690777048](https://github.com/manaflow-ai/cmux/actions/runs/36690777048).
+Only release metadata has been checked. Inspect its signature, bundle/data
+isolation and advertised capability before using it for a separate test host;
+the user's stable Mac application has not been changed.
+
+See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the installed checkpoint. The explicit
+live check performs only host reads through normal authenticated app connections,
+and exports no credential, host identifier, address or workspace contents.
+
 ## Remaining integration
 
 Exercise a real Mac/Pixel website (HTTP/HTTPS, reconnect and account retirement). Verify physical keyboard/IME, file picking, rotation,
