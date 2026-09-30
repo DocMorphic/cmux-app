@@ -1,0 +1,67 @@
+# Upstream refresh candidate — 2026-09-30
+
+The implemented reference remains `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
+During signed build 274 verification, the upstream HEAD API returned
+[`204a11dfcc76280205e50406ab94270a1c152155`](https://github.com/manaflow-ai/cmux/commit/204a11dfcc76280205e50406ab94270a1c152155),
+committed at 2026-09-30 06:57:50 UTC. The
+[comparison](https://github.com/manaflow-ai/cmux/compare/4c5272e9153eca2033c9f40ac749f0c3a5bcb291...204a11dfcc76280205e50406ab94270a1c152155)
+reports 323 commits ahead. Its files response hit the 300-file limit. The saved
+response is a partial inventory; zero change counts in that capped response do
+not establish unchanged content. A complete tree/diff audit is required before
+advancing the implemented reference.
+
+## Priority review areas observed in the comparison
+
+1. **Terminal input and replay contracts.** Added shared
+   `MobileTerminalInputDelivery.swift` and `MobileTerminalInputSender.swift`, changed
+   `MobileTerminalInputFrame.swift`, and added shell
+   `MobileShellComposite+ExactlyOnceInput.swift`. Inspect host handling and the
+   corresponding delivery/sender tests before changing Android retry behavior.
+   Preserve the invariant that uncertain terminal input is never blindly replayed.
+2. **Event and connection lifetime.** Added `MobileEventLaneScope.swift` and changed
+   independent-event, terminal-lane, output-frame and replay-response code. Review
+   identity/revision fences and new replay surface tests against Android's existing
+   scoped clients, grid and raw replay paths.
+3. **Mac browser networking.** Added `BrowserServerRoute.swift`,
+   `MobileTunnelLaneConnection.swift` and shell Mac-browser tunnel code. Verify
+   advertised host capabilities and endpoint scope before deciding which Android
+   browser paths require changes.
+4. **Reconnect and Mac switching.** Changes include stored-Mac dialing, zero-touch
+   dial races, connection recovery and Mac-switch state, with added discovery and
+   recovery tests. Compare these with Android's saved native/Tailscale paths.
+5. **SSH surface.** The comparison includes a new `CmuxMobileSSH` package, SFTP,
+   shell SSH providers, tmux control and browser integration. Establish which
+   features are wired into the shipped iOS UI and which host capabilities they
+   require, then add the verified requirements to `PARITY.md`. SSH parity has not
+   been established by the current Android work.
+
+Fetch the exact candidate into the existing partial upstream checkout, compare
+complete trees locally, and inspect targeted file contents. Avoid broad content
+searches that trigger indiscriminate blob fetching. Record source and test evidence
+for each conclusion. Preserve the previous reference until this audit is complete.
+
+## Current delivery boundary
+
+Signed build 274 is from Android commit
+`1d5958fe9982606f7aefaab514bbf02ae5221343`. It includes the accumulated workspace
+selection, startup, ordering, Activity/process restoration and entry-route changes.
+Its verification is recorded in `PIXEL_INSTALL.md`; it does not establish parity
+with this new upstream candidate.
+
+The local installed Mac app's Info.plist reports version **0.64.25**, build **106**.
+No source-commit mapping or fresh authenticated Pixel/Mac workflow was verified in
+this checkpoint. The physical Pixel is still absent from ADB.
+
+## Other confirmed implementation follow-ups
+
+- `NativeChangesView.kt`: selected file and collapsed folder state use
+  `remember(store)`, so a recreated RPC store loses that detail selection.
+- `NativeScreen.kt`: terminal Files visibility and tapped artifact path use
+  `remember(draftTarget, client)`, so a new connection discards those overlays.
+- `ArtifactFilesSheet.kt` and `ArtifactFilePreview.kt`: inspect nested route,
+  query/filter/sort, pager and scroll state together. Save bounded identifiers,
+  revalidate ownership and refetch through the newly admitted RPC client.
+
+After the protocol audit, continue these detail-state fixes, interrupted creation,
+physical acceptance, accessibility/performance and background delivery. Server
+push/FCM and the remaining limitations remain tracked in `PARITY.md`.

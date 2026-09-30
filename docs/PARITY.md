@@ -12,6 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Signed integration build 274 (2026-09-30):** the accumulated navigation,
+startup/order, Activity/process recovery and entry-route fixes passed full CI at
+`1d5958f`. The downloaded release matches the stable signing certificate and passes
+all five native libraries' LOAD/RELRO checks and ZIP 16 KiB alignment. Upgrade over
+261 and launch were verified on API 37 with `pageSizeCompat=0`; the sign-in screen
+was inspected without a compatibility warning. This establishes package readiness,
+with physical Pixel/Mac acceptance still outstanding. See
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md). The upstream refresh found substantial changes
+at `204a11d`; [UPSTREAM_REFRESH_2026_09_30.md](UPSTREAM_REFRESH_2026_09_30.md)
+records the incomplete inventory and prioritizes a protocol/feature audit before
+advancing the implemented reference. The goal remains incomplete.
+
 **Pairing/notification entry lifetime (2026-09-30):** pending and consumed entry
 routes now survive Android task restoration without rereading the original pairing
 link. Confirmation survives process death; newer links and notification taps take
