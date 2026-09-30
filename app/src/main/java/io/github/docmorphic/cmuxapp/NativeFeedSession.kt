@@ -26,9 +26,10 @@ internal class NativeFeedSession(
     val localBrowsers = LocalBrowserNavigation(scope)
     val workspaceTabs = NativeWorkspaceTabNavigation(store)
     val terminalStartup = NativeTerminalStartup()
+    val paneNavigation = NativePaneNavigation()
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     override fun onCleared() { clear(); scope.cancel() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,

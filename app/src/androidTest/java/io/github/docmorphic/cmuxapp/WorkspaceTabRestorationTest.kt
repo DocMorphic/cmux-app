@@ -69,7 +69,7 @@ class WorkspaceTabRestorationTest {
         listing(surfaces = """[{"surface_id":"project","kind":"project","title":"Project panel"}]""")
         seed(NativeWorkspaceTabKind.MAC_SURFACE, "project")
         launch(); open(); waitFor("Project panel ▾")
-        scenario!!.recreate(); waitFor("Remembered workspace"); open(); waitFor("Project panel ▾")
+        scenario!!.recreate(); waitFor("Project panel ▾")
         assertTrue(peer.requests.none { it.optString("method").startsWith("mobile.terminal.") })
     }
     @Test fun startingRememberedTerminalKeepsMemoryUntilReadyThenReplacesTheFallback() {
@@ -84,7 +84,7 @@ class WorkspaceTabRestorationTest {
         launch(); open(); waitFor("Ready shell ▾")
         compose.onNodeWithText("Ready shell", substring = false).performClick()
         compose.waitUntil(5000) { remembered()?.id == "terminal-2" }
-        listing(); scenario!!.recreate(); waitFor("Remembered workspace"); open(); waitFor("Ready shell ▾")
+        listing(); scenario!!.recreate(); waitFor("Ready shell ▾")
         assertEquals("terminal-2", remembered()?.id)
     }
     @Test fun browserDiscoveryRestoresTheExactPanelWithoutOverwritingMemory() {

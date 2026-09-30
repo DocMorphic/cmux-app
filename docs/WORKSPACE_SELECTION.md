@@ -5,7 +5,9 @@ Audited 2026-09-30 against upstream
 browser workspace-lifetime protection are implemented. Persisted last-tab memory
 is now wired into workspace navigation; see the integration checkpoint below.
 General delayed-pane selection and browser discovery are now integrated.
-**Current-screen restoration and physical acceptance remain open.**
+Workspace/pane identity now survives Activity recreation, including offline panes
+and existing startup/restore intent. **OS process-death recovery, detail-view state
+and physical acceptance remain open.**
 
 ## Reference code
 
@@ -82,11 +84,13 @@ focus and host order; Simulator descriptors take priority on an ID collision.
 
 The preference store, restore controller, created-terminal startup pins, refresh
 ordering and delayed discovery are integrated in the checkpoints below. Local
-browser memory is one of the five persisted tab kinds. This does not yet restore
-the current screen or an in-flight creation after Activity/process recreation.
+browser memory is one of the five persisted tab kinds. Activity recreation now
+retains the selected workspace/pane in the existing session. It does not yet restore
+the current screen after OS process death or resolve an unacknowledged creation
+interrupted by Activity/process destruction.
 
-Continue with current-screen restoration, true process-death acceptance and
-physical Macs/builds. Keep additions outside the large `NativeScreen` method,
+Continue with OS process-death restoration, detail views/overlays, interrupted
+creation recovery and physical Macs/builds. Keep additions outside the large `NativeScreen` method,
 which has already hit Kotlin's JVM bytecode size limit. Follow with Pixel/Mac
 acceptance.
 
@@ -425,3 +429,59 @@ connection report. No phone app data, sign-in or settings changed. Current-scree
 restoration across Activity/process recreation, broader physical multi-Mac/build
 acceptance and landscape/accessibility verification remain open. Signed build
 **261** is unchanged and predates this checkpoint; no new signed build was launched.
+
+
+## Workspace/pane retention across Activity recreation (2026-09-30)
+
+`NativePaneNavigation` now belongs to `NativeFeedSession`. Its foreground workspace,
+terminal, browser, Mac/Simulator surface, Changes workspace and cached workspace/
+group inventory survive Activity recreation. The retained object contains
+presentation models and Compose state, without an Activity, view, socket or input
+lease. Connection and rendering resources are recreated normally; input remains
+subject to the existing connected/current-owner/readiness checks.
+
+Selection is scoped to login, admitted saved pairing, canonical Mac identity,
+build tag and account/team. A different owner, pairing removal, sign-out or session
+clear drops it. A team refresh generation or display-name change keeps it. Old
+callbacks referencing a retired selection cannot mutate the new owner's selection.
+
+Keeping the selected pane from the first recomposition also preserves the existing
+remembered-tab restoration ticket and a created terminal's original startup ticket
+and deadline. The implementation does not create another terminal on recreation.
+Offline panels keep their selected workspace and reconnect status, with Mac actions
+disabled. Terminal/browser streams reconnect to the same selected ID.
+
+Changes has an independent destination: inventory refresh updates its workspace
+metadata without choosing a default terminal, and closing it returns to the
+workspace list. Confirmed removal still retires that destination. Two older
+remembered-tab tests now expect the panel directly after recreation rather than
+manually reopening the workspace.
+
+Verification:
+
+- **26 JVM tests passed**: five retained-owner cases, ten tab-navigation cases and
+  eleven startup cases.
+- **41 Android 17 / 16 KiB tests passed in 121.379 seconds**: nine new Activity
+  cases, eleven remembered-tab cases, nine delayed-pane cases, seven startup
+  cases, three local-browser lifecycle/picker cases and two snapshot-order cases.
+- New cases check exact terminal and browser IDs, returning to the workspace list,
+  offline Mac-panel identity with disabled actions, Simulator selection, Changes
+  refresh/Back, empty-workspace arrival, unchanged startup ticket/deadline with
+  exactly one create, retained browser-restoration intent and replaced login.
+- The initial nine-case run had one test expectation failure. It waited for the
+  internal fixture exception text, while the UI correctly retained the panel and
+  displayed its existing reconnect message. An inspected diagnostic screenshot
+  confirmed the panel and disabled Mac action. The corrected test additionally
+  verifies a failed reconnect attempt before checking reconnect status and the
+  disabled action. Original failed-run logs are retained.
+- Ignored evidence: `captures/runtime/pane-activity/`, including build/runtime logs,
+  JVM XML, the inspected offline screenshot and APK metadata. Emulator stopped.
+- Debug APK SHA-256: `8df0dc06b353383615811e08c2490711961c497ec9f742a4af1bf2e60e2f5713`.
+- Test APK SHA-256: `c521f2b0038cf18940d64a465e6ca9885964bd1def7ce076ce4fd710d2af789e`.
+
+This verifies retained workspace/pane identity across Activity recreation. It does
+not prove current-screen restoration after real OS process death, retention of
+all nested Files/Changes detail, scroll/zoom/overlay state, or recovery of a create
+whose acknowledgement was interrupted by destruction. Those remain required
+follow-up work, alongside physical Pixel/Mac acceptance. No physical Pixel was
+visible, phone data/settings were unchanged, and signed build **261** is unchanged.

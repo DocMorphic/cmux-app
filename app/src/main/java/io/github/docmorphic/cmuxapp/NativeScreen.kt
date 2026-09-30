@@ -113,6 +113,10 @@ fun NativeScreen(
     var viewportRequestGeneration by remember { mutableLongStateOf(0L) }
     val store = remember(context, sharedConnections) { sharedConnections?.store ?: NativeCredentialStore(context.applicationContext) }
     val account = remember(store) { sharedConnections?.account ?: NativeAccount(store) }
+    val feedSession = remember(runtimeOwner) {
+        ViewModelProvider(runtimeOwner, NativeFeedSession.Factory(connection, account, store))
+            .get(NativeFeedSession::class.java)
+    }
     val scope = rememberCoroutineScope()
     val terminalFocusRequester = remember { FocusRequester() }
     var signedIn by remember { mutableStateOf(account.isSignedIn()) }
@@ -139,6 +143,8 @@ fun NativeScreen(
         connection.allowsSaved(it)
     }
     val machineColorIndices = nativeMacColorIndices(pairedMacs, computerState.computers)
+    val paneSelection = feedSession.paneNavigation.select(if (signedIn) store.taskSession() else null,
+        pairedMacs.singleOrNull { it.code == code }, teamState.scope)
     var showSettings by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
     var showTaskComposer by rememberSaveable(signedIn) { mutableStateOf(false) }
@@ -167,9 +173,9 @@ fun NativeScreen(
     var showCreateGroup by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     var backgroundNotifications by remember { mutableStateOf(NativeNotificationService.isEnabled(context)) }
-    var workspaces by remember(code) { mutableStateOf<List<NativeWorkspace>>(emptyList()) }
-    var groups by remember(code) { mutableStateOf<List<NativeGroup>>(emptyList()) }
-    var taskGroupsLoaded by remember(code) { mutableStateOf(false) }
+    var workspaces by paneSelection.workspaces
+    var groups by paneSelection.groups
+    var taskGroupsLoaded by paneSelection.taskGroupsLoaded
     var collapsedGroups by remember(signedIn) {
         val saved = store.load()?.optJSONObject("collapsed_groups")
         mutableStateOf(saved?.keys()?.asSequence()?.filter { saved.opt(it) is Boolean }
@@ -194,9 +200,9 @@ fun NativeScreen(
     var createMenuOpen by remember { mutableStateOf(false) }
     var workspaceFilterMenuOpen by remember { mutableStateOf(false) }
     var computerMenuOpen by remember { mutableStateOf(false) }
-    var selectedWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
-    var selectedTerminal by remember(code) { mutableStateOf<NativeTerminal?>(null) }
-    var selectedSurface by remember(code) { mutableStateOf<NativeSurface?>(null) }
+    var selectedWorkspace by paneSelection.workspace
+    var selectedTerminal by paneSelection.terminal
+    var selectedSurface by paneSelection.surface
     val terminalZoom = remember(code, selectedWorkspace?.id, selectedTerminal?.id) { TerminalZoomState() }
     val terminalCells = remember(density, terminalZoom.size) {
         TerminalCellMetrics.fromFontSize(with(density) { terminalZoom.size.sp.toPx() }, with(density) { 2.dp.toPx() })
@@ -205,8 +211,8 @@ fun NativeScreen(
     val terminalViewport = TerminalViewport.fit(terminalViewportPixels.width, terminalViewportPixels.height, terminalCells)
     val terminalColumns = terminalViewport?.columns ?: 0
     val terminalRows = terminalViewport?.rows ?: 0
-    var selectedBrowser by remember(code) { mutableStateOf<NativeBrowser?>(null) }
-    var selectedChangesWorkspace by remember(code) { mutableStateOf<NativeWorkspace?>(null) }
+    var selectedBrowser by paneSelection.browser
+    var selectedChangesWorkspace by paneSelection.changesWorkspace
     var connectedCode by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(teamState.scope, signedIn) {
         val pairing = PairingCodeParser.parse(code).getOrNull()
@@ -221,11 +227,6 @@ fun NativeScreen(
     val currentIncomingRoute by rememberUpdatedState(incomingNotificationRoute ?: inAppNotification?.routeId)
     val handleNotification by rememberUpdatedState(onNotificationHandled)
     var notificationNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val feedOwner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
-    val feedSession = remember(feedOwner) {
-        ViewModelProvider(feedOwner, NativeFeedSession.Factory(connection, account, store))
-            .get(NativeFeedSession::class.java)
-    }
     val feedCoordinator = feedSession.coordinator
     val workspaceSnapshots = feedSession.workspaceSnapshots
     fun workspaceOwner(requestedCode: String = code) = store.pairedMacs().singleOrNull {
@@ -759,6 +760,7 @@ fun NativeScreen(
         }
         workspaces = updated
         if (value.has("groups")) { groups = parseGroups(value); taskGroupsLoaded = true }
+        selectedChangesWorkspace = selectedChangesWorkspace?.let { previous -> updated.firstOrNull { it.id == previous.id } }
         selectedWorkspace?.let { previous ->
             val current = updated.firstOrNull { it.id == previous.id }
             selectedWorkspace = current
@@ -777,7 +779,7 @@ fun NativeScreen(
                 current?.browsers?.firstOrNull { it.id == browser.id }
             }
             selectedSurface = selectedSurface?.let { surface -> current?.macSurfaces?.firstOrNull { it.id == surface.id } }
-            if (current != null && selectedTerminal == null && selectedBrowser == null && selectedSurface == null &&
+            if (current != null && selectedChangesWorkspace == null && selectedTerminal == null && selectedBrowser == null && selectedSurface == null &&
                 workspaceTabs.pending.value?.tab == null && !creatingTerminal) {
                 current.defaultPane(tabKey?.let(workspaceTabs::browsers).orEmpty())?.let { fallback ->
                     workspaceTabs.cancel()
@@ -1863,11 +1865,11 @@ fun NativeScreen(
                 val active = client
                 val workspace = selectedChangesWorkspace!!
                 if (active != null) NativeChangesView(active, workspace.id, workspace.title,
-                    onBack = { selectedChangesWorkspace = null })
+                    onBack = { selectedChangesWorkspace = null; selectedWorkspace = null })
                 else {
-                    BackHandler { selectedChangesWorkspace = null }
+                    BackHandler { selectedChangesWorkspace = null; selectedWorkspace = null }
                     Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(onClick = { selectedChangesWorkspace = null }) { Text("‹  Workspaces") }
+                        TextButton(onClick = { selectedChangesWorkspace = null; selectedWorkspace = null }) { Text("‹  Workspaces") }
                         Text("Changes in ${workspace.title}", style = MaterialTheme.typography.titleMedium)
                         Text(if (busy) "Reconnecting to your Mac…" else "Changes disconnected", color = nativeMuted)
                         connectionError?.let { Text(it, color = Color(0xFFFF9999)) }

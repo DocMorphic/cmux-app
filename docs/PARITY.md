@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Workspace/pane Activity recreation (2026-09-30):** the selected workspace,
+terminal/browser/Mac/Simulator pane and Changes destination now survive Activity
+recreation in the scoped session, including offline panels. Existing startup
+tickets/deadlines and remembered-browser intent are preserved. Changes refresh no
+longer switches to a terminal. **26 JVM and 41 Android 17 / 16 KiB tests passed**.
+OS process-death restoration, nested detail/overlay state, interrupted-creation
+recovery and physical acceptance remain open. See
+[WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). Signed build 261 is unchanged.
+
 **Empty workspaces and delayed panes (2026-09-30):** empty rows now open into a
 waiting view with creation controls; late known panes and separately discovered
 browsers resolve automatically. Browser discovery populates the terminal menu and
