@@ -3,7 +3,21 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current installed checkpoint — 2026-09-30
+## Current installed checkpoint — identified input integration
+
+Debug `c763e2d` was installed in place on the USB-connected Pixel on 2026-09-30.
+Its installed APK hash matches the tested local APK:
+`1dc620de99ee7ea5646c1be581f7742e889414a6b2ed267e0c402cfdb21267cd`.
+No app data was cleared. The phone was locked after installation; physical input,
+reconnect and host-capability checks for this version are pending unlock. Screen
+sleep settings were not changed. Evidence is in ignored
+`captures/runtime/input-delivery/session/pixel-install.txt`.
+
+Before installation, 97 focused JVM and nine Android emulator runtime checks
+passed; see [TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md). The emulator
+was stopped afterward. Signed build 274 remains the last signed delivery.
+
+## Previous installed checkpoint — 2026-09-30
 
 After signed 274 verification, the Pixel appeared in ADB again. Debug app
 `1d5958f` was installed in place over `5d24946`, without clearing app data.
