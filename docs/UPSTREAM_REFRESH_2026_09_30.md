@@ -139,8 +139,12 @@ a cmux account. Current source supports key management, trust/changed-key prompt
 multi-hop connections, mixed workspace providers, SFTP and SSH browser routing.
 The pinned cmux-tui 0.13.4 installer must not be assumed to contain newer server
 geometry/event fixes described in the PRD. See `DIRECT_SSH.md` for sources and
-acceptance gates; the next implementation step is an Android SSH engine and
-Keystore compatibility spike. This audit adds no Android runtime implementation.
+acceptance gates. The opt-in SSH engine experiment subsequently passed five tests
+on API 26 and the same five on API 37 / 16 KiB pages, covering opaque Keystore
+signing, encrypted imports, strict host-key checks, PTY/exec, SFTP and nested
+forwarding teardown. It is separate from the delivered app. Production key/host
+storage, connection lifetime and UI integration are next; biometric, physical and
+real multiplexer acceptance remain open.
 
 Signed build 284 is from Android commit
 `0db3c178d69facb8468d62e6bca42e951d34c2b1`. It includes the retained identified-input

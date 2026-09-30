@@ -8,6 +8,31 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 
+**Engine experiment (2026-09-30):** the opt-in [ssh-spike module](../ssh-spike/README.md)
+now passes five checks on API 26 / 4 KiB pages (5.027 seconds) and the same five
+on API 37 / 16 KiB pages (6.401 seconds). JSch 2.28.0 + BC 1.86 authenticated with
+a nonexportable Android Keystore P-256 key and encrypted OpenSSH Ed25519/ECDSA
+imports; verified unknown/changed-key refusal; transported exec, PTY resize and
+Unicode input; round-tripped SFTP; and tore down two nested forwarding hops.
+The server is an independent AsyncSSH 2.24.0 fixture with generated keys,
+synthetic commands and a temporary SFTP root. These are actual Android/SSH runtime
+checks, not production UI, biometric, physical-device or real multiplexer acceptance.
+No SSH dependency has been added to the delivered app.
+
+Final experiment APK SHA256 values:
+
+- App: `32cfab133e49a9baddce2b46f207569d441a36c32bd28a986c13cefcaff8d4aa`.
+- Instrumentation: `4c655ffaa4096626680b740620474950366f135b0510ea1f7a86b61e0c3a4f82`.
+
+Ignored evidence lives in `captures/runtime/ssh-engine/api26/` and
+`captures/runtime/ssh-engine/api37-final/`; the runner records API, page size,
+hashes and instrumentation results. A preliminary five-test API 37 run passed
+before strengthening changed-key error assertions; the final runs above use a
+different key of the same algorithm and verify the specific exception plus a
+subsequent successful connection with the correct pin. The next step is production
+identity/storage and session lifetime integration. Biometric/physical validation,
+authentication-time cancellation and real multi-host behavior remain open.
+
 The candidate wires SSH into normal iOS navigation, without a DEBUG gate:
 
 - [DeviceTreeView.swift][computers] includes SSH computers alongside Macs, an Add
@@ -146,8 +171,10 @@ Read the linked files at the exact candidate with `git show <commit>:<path>` in
 the upstream cache. Local research copies are in ignored
 `captures/runtime/ssh-audit/`; they are convenience copies, not release evidence.
 The primary source links below make the audit reproducible without those files.
-No SSH engine dependency, Android code, device installation or signed APK changed
-as part of this audit. No runtime tests are claimed.
+The original audit changed documentation only. The subsequent opt-in engine
+experiment is separately scoped above; it installed only its own emulator test
+packages. The production app, physical Pixel installation and signed milestone
+remain unchanged by this experiment.
 
 [computers]: https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/DeviceTreeView.swift
 [settings]: https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/MobileSettingsView.swift
