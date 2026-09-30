@@ -9,6 +9,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Rule
@@ -97,5 +98,54 @@ class NativeIdentifiedInputTest {
         val last = peer.requests.last { it.optString("method") == "terminal.input" }.getJSONObject("params")
         assertNotEquals(attempts.first().getString("input_stream_id"), last.getString("input_stream_id"))
         assertEquals("explicit new input", last.getString("text"))
+    }
+
+    @Test fun composerLostReplyAcrossRecreationSettlesAndClearsOnlyOriginalDraft() = exercise { peer, scenario ->
+        val repository = TerminalDraftRepository.get(InstrumentationRegistry.getInstrumentation().targetContext)
+        compose.onNodeWithText("Compose").performClick()
+        compose.onNode(hasSetTextAction()).performTextInput("echo retained_composer")
+        peer.dropReplyAfterMethod = "terminal.paste"
+        compose.onNodeWithText("Send").performClick()
+        compose.waitUntil(10_000) { "terminal.paste" in peer.lostReplies }
+        scenario.recreate()
+        compose.waitUntil(20_000) {
+            peer.requests.count { it.optString("method") == "terminal.paste" } >= 2 &&
+                repository.drafts.state.value.values.none { it.operation != null || it.text == "echo retained_composer" }
+        }
+        val attempts = peer.requests.filter { it.optString("method") == "terminal.paste" }.map { it.getJSONObject("params") }
+        assertEquals(1, attempts.map { it.getString("input_stream_id") + ":" + it.getString("input_stream_seq") }.toSet().size)
+        assertEquals(1, peer.appliedInputIdentities.size)
+        assertTrue(attempts.all { it.getString("surface_id") == surface && it.getString("text") == "echo retained_composer" })
+        compose.onNodeWithText(TerminalDrafts.DELIVERY_UNCONFIRMED).assertDoesNotExist()
+        compose.waitUntil(10_000) {
+            TerminalDrafts(NativeCredentialStore(InstrumentationRegistry.getInstrumentation().targetContext, "native_terminal_drafts")
+                .load()?.optJSONArray("drafts")).state.value.values.none { it.text == "echo retained_composer" }
+        }
+        capture("identified-composer-recreated")
+    }
+
+    @Test fun imageReplyLostDuringRecreationFinishesImageBeforeTextOnReplacementConnection() = exercise { peer, scenario ->
+        val repository = TerminalDraftRepository.get(InstrumentationRegistry.getInstrumentation().targetContext)
+        compose.onNodeWithText("Compose").performClick()
+        compose.onNode(hasSetTextAction()).performTextInput("describe staged image")
+        val target = repository.drafts.state.value.keys.single { it.surface == surface }
+        val bytes = android.util.Base64.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aFTsAAAAASUVORK5CYII=", android.util.Base64.DEFAULT)
+        val image = ComposerAttachment(name = "rotation.png", size = bytes.size, imageFormat = "png")
+        runBlocking { repository.attach(target, AttachmentFiles.Prepared(image, bytes), repository.drafts.generation) }
+        peer.dropReplyAfterMethod = "terminal.paste_image"
+        compose.onNodeWithText("Send").performClick()
+        compose.waitUntil(10_000) { "terminal.paste_image" in peer.lostReplies }
+        scenario.recreate()
+        compose.waitUntil(20_000) {
+            peer.requests.any { it.optString("method") == "terminal.paste" } && repository.drafts.state.value[target] == null
+        }
+        val attempts = peer.requests.filter { it.optString("method") in setOf("terminal.paste_image", "terminal.paste") }
+        assertEquals("terminal.paste", attempts.last().getString("method"))
+        val images = attempts.filter { it.getString("method") == "terminal.paste_image" }.map { it.getJSONObject("params") }
+        assertTrue(images.size >= 2)
+        assertEquals(1, images.map { it.getString("input_stream_id") + ":" + it.getString("input_stream_seq") }.toSet().size)
+        assertEquals(2, peer.appliedInputIdentities.size)
+        assertEquals("describe staged image", attempts.last().getJSONObject("params").getString("text"))
+        compose.onNodeWithText(TerminalDrafts.DELIVERY_UNCONFIRMED).assertDoesNotExist()
     }
 }

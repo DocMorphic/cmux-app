@@ -9,8 +9,8 @@ Debug `c763e2d` was installed in place on the USB-connected Pixel on 2026-09-30.
 Its installed APK hash matches the tested local APK:
 `1dc620de99ee7ea5646c1be581f7742e889414a6b2ed267e0c402cfdb21267cd`.
 No app data was cleared. The phone was locked after installation; physical input,
-reconnect and host-capability checks for this version are pending unlock. Screen
-sleep settings were not changed. Evidence is in ignored
+reconnect and host-capability checks for this version are pending unlock. A later live-check attempt reached the lock screen before terminal interaction;
+plugged-in stay-awake was restored to its original `0`. Evidence is in ignored
 `captures/runtime/input-delivery/session/pixel-install.txt`.
 
 Before installation, 97 focused JVM and nine Android emulator runtime checks

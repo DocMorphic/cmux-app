@@ -18,8 +18,10 @@ all five input methods. Fresh admission negotiates support; legacy hosts retain
 their existing path. Immutable target/payload snapshots, ordered media/mouse input,
 reconnect fencing and explicit pause/resume are implemented. **97 focused JVM
 and nine Android runtime tests passed**, including lost-reply Activity recreation
-and real JNI/Iroh ACK lanes. Physical identified-capability acceptance and composer
-rotation settlement remain open. See
+and real JNI/Iroh ACK lanes. Physical identified-capability acceptance remains open. The composer lifecycle
+follow-up passed 32 focused JVM and six Android tests: text/image sends now settle
+across Activity recreation through the retained queue. Its emulator run recovered
+from a System UI ANR and is not performance evidence. See
 [TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md). Signed 274 predates this work.
 
 **Pixel native recovery (2026-09-30):** debug `1d5958f` was installed in place,

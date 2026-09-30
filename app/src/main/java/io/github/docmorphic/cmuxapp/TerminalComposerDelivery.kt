@@ -12,10 +12,16 @@ suspend fun deliverTerminalComposer(
     supportsFiles: Boolean,
     read: suspend (ComposerAttachment) -> ByteArray,
     persist: suspend () -> Unit,
-    isCurrent: () -> Boolean
+    isCurrent: () -> Boolean,
+    resolveClient: (suspend () -> MobileRpcClient)? = null
 ): Set<String> {
     fun checkCurrent() {
         check(isCurrent() && drafts.state.value[send.target]?.operation == send.operation) { "Connection changed" }
+    }
+    suspend fun currentClient(): MobileRpcClient {
+        val current = resolveClient?.invoke() ?: client
+        checkCurrent()
+        return current
     }
     // Fail before delivering any images if the same message contains unsupported files.
     require(supportsFiles || send.attachments.none { it.imageFormat == null }) {
@@ -30,12 +36,12 @@ suspend fun deliverTerminalComposer(
         checkCurrent()
         if (!drafts.contains(send, attachment)) continue
         if (attachment.imageFormat != null) {
-            client.pasteImage(send.target.workspace, send.target.surface, bytes, attachment.imageFormat)
+            currentClient().pasteImage(send.target.workspace, send.target.surface, bytes, attachment.imageFormat)
             checkCurrent()
             drafts.acknowledgeImage(send, attachment)
             persist()
         } else {
-            val path = client.uploadAttachment(attachment, bytes, ::checkCurrent)
+            val path = currentClient().uploadAttachment(attachment, bytes, ::checkCurrent)
             uploaded += attachment.id to path
         }
     }
@@ -43,7 +49,26 @@ suspend fun deliverTerminalComposer(
     // Removing a chip while an earlier upload waits must prevent its path being sent.
     val retained = uploaded.filter { (id, _) -> drafts.state.value[send.target]?.attachments?.any { it.id == id } == true }
     val text = ComposerAttachment.withPaths(retained.map { it.second }, send.text)
-    if (text.isNotEmpty()) client.paste(send.target.workspace, send.target.surface, text, submit)
+    if (text.isNotEmpty()) currentClient().paste(send.target.workspace, send.target.surface, text, submit)
     checkCurrent()
     return retained.map { it.first }.toSet()
+}
+
+/** The retained queue owns this send and its settlement, independent of the observing Activity. */
+internal fun queueTerminalComposer(
+    queue: TerminalInputQueue, drafts: TerminalDrafts, send: TerminalDrafts.Send,
+    persist: suspend () -> Unit, deliver: suspend () -> Set<String>
+): Boolean = queue.offerAction(release = {
+    // Discard/retirement must release the reservation too. A completed operation is a no-op.
+    drafts.finish(send, TerminalDrafts.DELIVERY_UNCONFIRMED)
+}) {
+    try {
+        persist()
+        val delivered = deliver()
+        drafts.finish(send, deliveredFiles = delivered)
+        persist()
+    } catch (failure: Exception) {
+        drafts.finish(send, TerminalDrafts.DELIVERY_UNCONFIRMED)
+        throw failure
+    }
 }

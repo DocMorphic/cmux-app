@@ -124,6 +124,14 @@ internal class NativeTerminalInputSession(private val scope: CoroutineScope) : A
     fun allowsTarget(key: TerminalInputSender.Key, workspace: String): Boolean = context?.let { ctx ->
         valid(ctx) && ctx.owner == key.owner && ctx.targets.any { it.workspace == workspace && canonicalUuid(it.surface) == key.surface }
     } == true
+    /** Resolve only the admitted original owner, including after Activity/connection replacement. */
+    suspend fun clientForTarget(key: TerminalInputSender.Key, workspace: String): MobileRpcClient {
+        val ctx = checkNotNull(context?.takeIf { it.owner == key.owner && valid(it) }) { "Input owner changed" }
+        val target = checkNotNull(ctx.targets.singleOrNull {
+            it.workspace == workspace && canonicalUuid(it.surface) == key.surface
+        }) { "The original terminal is no longer available" }
+        return awaitConnection(ctx, target)
+    }
     fun requiresReconnect(key: TerminalInputSender.Key): Boolean {
         val record = context?.records?.get(key) ?: return false
         return TerminalInputDelivery.CAPABILITY in record.context.capabilities && record.binding?.identityAccepted == false

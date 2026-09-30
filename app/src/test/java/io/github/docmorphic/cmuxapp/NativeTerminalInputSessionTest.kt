@@ -40,6 +40,28 @@ class NativeTerminalInputSessionTest {
         session.status.first { it[key]?.pendingUnits == 0 }
     }
 
+    @Test fun composerClientResolverWaitsForOriginalOwnerAndRejectsMacReplacement() = runBlocking<Unit> {
+        val first = MobileRpcClient(Wire(), { "fixture" }); val replacement = MobileRpcClient(Wire(), { "fixture" })
+        NativeTerminalInputSession(this).use { session ->
+            try {
+                first.connect(); replacement.connect()
+                session.attach(owner, first, capabilities, targets) { true }
+                session.detach(first); first.close()
+                val waiting = async(start = CoroutineStart.UNDISPATCHED) { session.clientForTarget(key, "workspace") }
+                assertFalse(waiting.isCompleted)
+                session.attach(owner, replacement, capabilities, targets) { true }
+                assertSame(replacement, withTimeout(3000) { waiting.await() })
+                session.detach(replacement)
+                val oldOwner = async(start = CoroutineStart.UNDISPATCHED) {
+                    runCatching { session.clientForTarget(key, "workspace") }
+                }
+                session.attach(owner.copy(device = "another-mac"), replacement, capabilities, targets) { true }
+                assertTrue(withTimeout(3000) { oldOwner.await() }.isFailure)
+                assertTrue(runCatching { session.clientForTarget(key, "workspace") }.isFailure)
+            } finally { first.close(); replacement.close() }
+        }
+    }
+
     @Test fun allFivePublicMethodsUseOneOrderedIdentityStreamAndPreserveRpcFields() = runBlocking<Unit> {
         val wire = Wire(); val client = MobileRpcClient(wire, { "fixture" })
         NativeTerminalInputSession(this).use { session ->

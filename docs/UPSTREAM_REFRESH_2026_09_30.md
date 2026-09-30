@@ -67,7 +67,8 @@ The candidate's `MobileTerminalInputFrame.swift` diff and full
   inspected, including kind-3 ACK counter conventions and retry/immutability
   requirements. See [TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md) for
   generated Swift wire goldens, 97 JVM/nine runtime checks and remaining physical
-  and composer-lifecycle acceptance.
+  acceptance. Composer settlement across recreation subsequently passed its focused
+  JVM and Android runtime checks; see the same document.
   Preserve legacy behavior for hosts without the capability.
 
 ## Current delivery boundary

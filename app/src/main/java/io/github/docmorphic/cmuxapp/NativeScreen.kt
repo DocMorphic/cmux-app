@@ -785,6 +785,17 @@ fun NativeScreen(
         val send = drafts.begin(target) ?: return
         val supportsFiles = ComposerAttachment.FILE_CAPABILITY in hostCapabilities
         stopTerminalScrolling(); scrollPosition = 0.0
+        val retainedKey = deliveryKey.takeIf { retainedInputQueue != null }
+        if (retainedKey != null) {
+            // The session queue survives rotation; callbacks capture ownership, never UI selection.
+            queueTerminalComposer(inputQueue, drafts, send, draftRepository::persistNow) {
+                deliverTerminalComposer(active, drafts, send, submit, supportsFiles,
+                    read = draftRepository::read, persist = draftRepository::persistNow,
+                    isCurrent = { terminalInputs.allowsTarget(retainedKey, target.workspace) },
+                    resolveClient = { terminalInputs.clientForTarget(retainedKey, target.workspace) })
+            }
+            return
+        }
         scope.launch {
             try {
                 inputQueue.awaitIdle()

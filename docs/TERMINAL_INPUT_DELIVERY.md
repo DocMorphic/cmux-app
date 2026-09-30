@@ -127,9 +127,17 @@ falling through to legacy delivery.
 Typing and composer admission observe sender/queue failures. The terminal shows
 an explicit Resume typing action, or requests reconnect when identity support was
 invalidated. Resume starts new input and never resubmits abandoned payloads.
-Composer UI jobs remain composition-scoped: rotation after a submitted operation
-can leave its durable draft marked unconfirmed even if the retained sender later
-settles delivery. Full composer lifecycle acceptance remains open.
+For hosts using the retained queue, the queue also owns composer delivery and
+draft settlement. Activity recreation cannot cancel its observer and leave a
+confirmed send falsely unconfirmed. Each subsequent image/text/file operation
+resolves an admitted connection for the original owner; it cannot use another
+Mac or terminal. The original operation identifier protects newer draft edits and
+account replacements from late completion. Pending sends are persisted before
+transmission; queue discard releases their reservation with a visible warning.
+
+Legacy hosts keep conservative delivery: an uncertain operation is not replayed
+without host deduplication support. Interrupted file-upload chunks also remain
+conservative; this change does not automatically resume a chunked upload.
 
 ## Reproducible verification
 
@@ -200,8 +208,35 @@ Evidence is in ignored `captures/runtime/input-delivery/session/`. Account-clear
 instrumentation runs only on the emulator. These results do not establish the
 installed Mac’s advertised capability or physical identified-input acceptance.
 
-Still required: physical Mac/Pixel acceptance, composer rotation settlement,
-and broader host restart, capability downgrade and partial-write runtime
+### Composer lifecycle follow-up
+
+The follow-up passed **32 JVM tests** across the composer queue, draft repository
+model, delivery, input queue and session adapter. Five new cases cover observer
+cancellation, newer edits, owner retirement, failed persistence, late account
+completion and original-owner connection resolution (the observer case also
+checks ordering). Debug and instrumentation APKs built successfully.
+
+**Six Android runtime tests passed in 366.801 seconds** on the API 37 / 16 KiB
+emulator. Two new cases drop a text or image reply, recreate the actual Activity,
+then verify identical retry identities, deduplication-ledger counts, image-before-
+text ordering and settled drafts. The text case also checks persisted cleanup;
+the recovered composer screenshot was visually reviewed. The earlier identified
+typing/retry tests and two legacy composer rejection/reconnect checks also passed.
+
+The emulator displayed a System UI service ANR during the first case. Choosing
+Wait allowed the **same run** to resume and finish; no test or APK was restarted.
+This is functional acceptance under an interrupted emulator run, not clean timing
+or performance evidence. The owned emulator was stopped after completion.
+
+Debug APK SHA-256:
+`70f9ec6c0f532ac87e1e37980a08261dc7424f1530c2fd46c56308e4f360b244`.
+Test APK SHA-256:
+`eadf39a3d41726487172f1d06842a61d21813a3570831222f94aa8121fc0ff20`.
+Ignored evidence: `captures/runtime/input-delivery/composer/`. Signed 274 and the
+Pixel's installed `c763e2d` APK predate this composer follow-up.
+
+Still required: physical Mac/Pixel acceptance and broader host restart,
+capability downgrade and partial-write runtime
 acceptance. Existing deterministic tests cover these protocol failure mechanisms;
 they are not a substitute for live end-to-end evidence.
 
