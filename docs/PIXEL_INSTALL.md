@@ -20,13 +20,17 @@ TCP-connect operation was attempted. This is a verified host capability gap,
 not evidence of a working physical browser tunnel.
 
 The installed Mac is cmux **0.64.25 / build 106**, also the latest stable GitHub
-release when checked. A newer official nightly is available; it has not been
-installed or launched. The stable Mac installation was unchanged.
+release when checked. The official nightly `3669077704801` was subsequently
+signature-verified, staged separately and launched with session restoration
+disabled. Its live account/pairing/capability verification is still pending; see
+[BROWSER_TUNNEL.md](BROWSER_TUNNEL.md). The stable Mac installation was unchanged.
 
 The opt-in check refreshes the account/team and opens the ordinary native
 connection; its Mac operations are reads only. It neither clears account stores
 nor changes pairings/workspaces, and sends no terminal input. Ordinary CI skips
 it unless `cmux_live_read_only=true` is explicitly supplied on a physical device.
+To target the separate nightly, also supply `cmux_live_build=nightly`; an absent
+or ambiguous matching saved pairing fails without selecting a different build.
 Its output is limited to capability booleans/counts and a fixed route label.
 Ignored evidence: `captures/runtime/browser-webview/pixel-live-*`, with the pulled
 APK at `pixel-installed.apk`. The debug app was reopened after instrumentation.

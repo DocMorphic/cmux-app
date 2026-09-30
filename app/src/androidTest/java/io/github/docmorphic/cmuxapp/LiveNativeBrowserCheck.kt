@@ -13,7 +13,12 @@ import org.junit.Test
  */
 class LiveNativeBrowserCheck {
     @Test fun reportExistingMacBrowserCapability() = runBlocking<Unit> {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("cmux_live_read_only") == "true")
+        val arguments = InstrumentationRegistry.getArguments()
+        assumeTrue(arguments.getString("cmux_live_read_only") == "true")
+        val requestedBuild = arguments.getString("cmux_live_build")
+        require(requestedBuild == null || requestedBuild.matches(Regex("[a-z0-9][a-z0-9._-]{0,63}"))) {
+            "Invalid build selector"
+        }
         check(!Build.FINGERPRINT.contains("generic") && !Build.MODEL.contains("sdk")) { "Physical device required" }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         var stage = "existing sign-in"
@@ -27,9 +32,10 @@ class LiveNativeBrowserCheck {
                     try {
                         stage = "account team refresh"
                         val team = checkNotNull(connections.teams.refresh().scope)
-                        stage = "single saved Mac selection"
+                        stage = "single saved Mac selection for requested build"
                         val mac = connections.store.pairedMacs().filter {
-                            connections.connector.allowsSaved(it) && PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Iroh
+                            (requestedBuild == null || it.instanceTag == requestedBuild) &&
+                                connections.connector.allowsSaved(it) && PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Iroh
                         }.single()
                         stage = "native Mac connection"
                         connections.connector.connectSaved(mac, connections.account).use { client ->
@@ -49,6 +55,7 @@ class LiveNativeBrowserCheck {
                             val ports = if (supported && native) checkNotNull(client.browserListeningPorts()) else null
                             check(connections.teams.isCurrent(team))
                             val report = JSONObject().put("identityVerified", true).put("accountAccessVerified", true)
+                                .put("requestedBuildMatched", requestedBuild != null && mac.instanceTag == requestedBuild)
                                 .put("nativeBrowserLaneTransport", native).put("browserCapabilityAdvertised", supported)
                                 .put("browserListingRead", ports != null)
                             ports?.let { report.put("listeningPortCount", it.ports.size).put("allowsNonLoopbackHosts", it.allowsNonLoopbackHosts) }

@@ -374,9 +374,31 @@ An official candidate is
 updated 2026-09-30 09:21 UTC, source
 `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` from
 [successful upstream run 36690777048](https://github.com/manaflow-ai/cmux/actions/runs/36690777048).
-Only release metadata has been checked. Inspect its signature, bundle/data
-isolation and advertised capability before using it for a separate test host;
-the user's stable Mac application has not been changed.
+The official DMG has now been downloaded and its app staged under ignored
+`captures/host-nightly/3669077704801/`. Deep/strict code-signature verification
+passed; Gatekeeper accepted its notarized Manaflow, Inc. Developer ID
+(`7WLXT3NR37`). The DMG SHA-256 is
+`bf6002f026e967c6c87a1439c1ce0a9523d1bfad6e96ed305f25834eaec2633b`.
+The staged app's bundle ID is `com.cmuxterm.app.nightly`, with a separate keychain
+group and bundle-specific session snapshot. It was launched with
+`CMUX_DISABLE_SESSION_RESTORE=1`; the stable installation remains running and
+unchanged. This does not imply all configuration directories are isolated.
+
+The user reports signing in through Account settings. Screen capture is failing
+and accessibility currently exposes window titles without controls, so nightly
+account/pairing status and its advertised browser capability remain unverified.
+The live check now accepts `-e cmux_live_build nightly`: it requires exactly one
+eligible saved Iroh pairing with that build tag, then verifies the host identity.
+It fails instead of falling back to stable or choosing between multiple matches.
+Without a selector it retains the single-saved-Mac requirement.
+
+The updated instrumentation APK compiled and installed successfully. Its first
+physical `nightly` run refreshed the existing account/team, then failed at saved
+Mac selection with `NoSuchElementException`: no eligible saved nightly Iroh
+pairing matched. No host connection or browser request was made by this check.
+This is pending pairing, not a passing nightly acceptance test. The normal debug
+Activity was reopened afterward; no account data or sleep settings were changed.
+Evidence: ignored `captures/runtime/browser-webview/pixel-nightly-live.txt`.
 
 See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the installed checkpoint. The explicit
 live check performs only host reads through normal authenticated app connections,
