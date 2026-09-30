@@ -62,10 +62,12 @@ The candidate's `MobileTerminalInputFrame.swift` diff and full
   input can continue using the legacy format while capability-gated support is
   designed and tested. This finding covers the inspected input path; the remaining
   connection/replay/output changes still need review.
-- Android currently has no `terminal.input.exactly_once.v1` or `input_stream_id`
-  implementation. Next inspect the upstream sender, acknowledgement wire framing,
-  host RPC parsing, stream lifetime and all corresponding tests before implementing
-  bounded retries. Preserve safe legacy behavior for hosts without the capability.
+- Android now has a tested protocol/outbox/RPC foundation for this capability;
+  live sending is still disabled. The sender and envelope codec were subsequently
+  inspected, including kind-3 ACK counter conventions and retry/immutability
+  requirements. See [TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md) for
+  generated Swift wire goldens, verification and the remaining integration work.
+  Preserve legacy behavior for hosts without the capability.
 
 ## Current delivery boundary
 

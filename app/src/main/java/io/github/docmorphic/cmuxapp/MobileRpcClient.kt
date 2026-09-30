@@ -34,7 +34,8 @@ internal class MobileRpcOutcomeUnknown : java.io.IOException("The connection rec
 /**
  * The control channel of cmux's mobile RPC protocol. The caller must supply a
  * legacy route or admitted native transport and a current same-account Stack token.
- * Requests are never replayed after a timeout: terminal input is not idempotent.
+ * Control requests are never replayed here after a timeout. Optional input delivery
+ * identities are interpreted by the session sender.
  */
 class MobileRpcClient internal constructor(
     private val transport: MobileRpcTransport,
@@ -383,16 +384,24 @@ class MobileRpcClient internal constructor(
         return request("mobile.browser.dialog.respond", params)
     }
     suspend fun terminalClick(workspaceId: String, surfaceId: String, cell: TerminalGeometry.Cell): JSONObject =
+        terminalClick(workspaceId, surfaceId, cell, null)
+
+    internal suspend fun terminalClick(workspaceId: String, surfaceId: String, cell: TerminalGeometry.Cell,
+        delivery: TerminalInputDelivery?): JSONObject =
         request("mobile.terminal.mouse", JSONObject().put("workspace_id", workspaceId)
             .put("surface_id", surfaceId).put("client_id", clientId)
-            .put("col", cell.column.coerceAtLeast(0)).put("row", cell.row.coerceAtLeast(0)))
+            .put("col", cell.column.coerceAtLeast(0)).put("row", cell.row.coerceAtLeast(0)).withInputDelivery(delivery))
 
-    suspend fun terminalScroll(workspaceId: String, surfaceId: String, scroll: TerminalScroll): JSONObject {
+    suspend fun terminalScroll(workspaceId: String, surfaceId: String, scroll: TerminalScroll): JSONObject =
+        terminalScroll(workspaceId, surfaceId, scroll, null)
+
+    internal suspend fun terminalScroll(workspaceId: String, surfaceId: String, scroll: TerminalScroll,
+        delivery: TerminalInputDelivery?): JSONObject {
         val params = JSONObject().put("workspace_id", workspaceId).put("surface_id", surfaceId)
             .put("client_id", clientId).put("delta_lines", scroll.lines)
             .put("col", scroll.column.coerceAtLeast(0)).put("row", scroll.row.coerceAtLeast(0))
         scroll.prefetchRows?.let { params.put("max_scrollback_rows", it) }
-        return request("mobile.terminal.scroll", params)
+        return request("mobile.terminal.scroll", params.withInputDelivery(delivery))
     }
 
     suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int, viewportGeneration: Long,
@@ -487,25 +496,35 @@ class MobileRpcClient internal constructor(
         } finally { lane.close() }
     }
 
-    suspend fun input(workspaceId: String, surfaceId: String, text: String): JSONObject =
+    suspend fun input(workspaceId: String, surfaceId: String, text: String): JSONObject = input(workspaceId, surfaceId, text, null)
+
+    internal suspend fun input(workspaceId: String, surfaceId: String, text: String, delivery: TerminalInputDelivery?): JSONObject =
         request("terminal.input", JSONObject()
             .put("workspace_id", workspaceId)
             .put("surface_id", surfaceId)
             .put("client_id", clientId)
-            .put("text", text))
+            .put("text", text).withInputDelivery(delivery))
 
     /** cmux's literal multiline paste, optionally followed by a Return key event. */
     suspend fun paste(workspaceId: String, surfaceId: String, text: String, submit: Boolean): JSONObject =
+        paste(workspaceId, surfaceId, text, submit, null)
+
+    internal suspend fun paste(workspaceId: String, surfaceId: String, text: String, submit: Boolean,
+        delivery: TerminalInputDelivery?): JSONObject =
         request("terminal.paste", JSONObject()
             .put("workspace_id", workspaceId).put("surface_id", surfaceId)
             .put("client_id", clientId).put("text", text)
-            .put("submit_key", if (submit) "return" else "none"))
+            .put("submit_key", if (submit) "return" else "none").withInputDelivery(delivery))
 
     suspend fun pasteImage(workspaceId: String, surfaceId: String, bytes: ByteArray, format: String): JSONObject =
+        pasteImage(workspaceId, surfaceId, bytes, format, null)
+
+    internal suspend fun pasteImage(workspaceId: String, surfaceId: String, bytes: ByteArray, format: String,
+        delivery: TerminalInputDelivery?): JSONObject =
         request("terminal.paste_image", JSONObject()
             .put("workspace_id", workspaceId).put("surface_id", surfaceId).put("client_id", clientId)
             .put("image_base64", java.util.Base64.getEncoder().encodeToString(bytes))
-            .put("image_format", format))
+            .put("image_format", format).withInputDelivery(delivery))
 
     /** Stable attachment IDs make re-upload after an explicit retry idempotent on the Mac. */
     suspend fun uploadAttachment(attachment: ComposerAttachment, bytes: ByteArray, checkCurrent: () -> Unit, operationId: String = attachment.id): String {
