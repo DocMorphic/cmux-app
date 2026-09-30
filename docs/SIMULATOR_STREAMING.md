@@ -35,16 +35,33 @@ starts fresh; old input and partial messages must not transfer to another lane.
   true. Three consecutive rejected frames request one keyframe; six terminate the
   attempt. Host-sent viewer messages and pre-config frames fail closed. All exits
   discard input and retire the lane; instances cannot be reused for reconnect.
+  Input may stage while dialing, within the same bounds. Quality changes enqueue
+  a new Start on the same lane/epoch, ordered with gestures; a pre-attach change
+  updates the initial Start. Teardown attempts a Stop with a one-second deadline
+  after cancelling the input writer, then closes the lane even if Stop fails.
 - `SimInputOutbox`: only unsent move events for the same pointer coalesce, without
   crossing a phase/key/text/button boundary. Batches retain increasing sequence
   numbers. Bounded-queue overflow terminates the session instead of silently
-  losing a touch-up or replaying stale input later.
+  losing a touch-up or replaying stale input later. Quality commands share these
+  bounds and prevent move coalescing across a renegotiation boundary.
 - `SimViewerLifecycle`: the pinned activation/transport/retry/background/refresh
   policy, 250 ms–4 s bounded backoff, reset after actual presentation, and no
   automatic retry after a host `closed` message. Other statuses (including device
   unavailable and worker failure) can self-heal on the existing lane and do not
-  terminate it. Closed messages outside a running attachment are ignored. Its
-  owner still needs wiring and generation fencing.
+  terminate it. Closed messages outside a running attachment are ignored.
+- `SimViewerController`: executes the policy on a single UI dispatcher, with one
+  session/input queue per attach, identity-fenced events and current RPC binding,
+  an eight-second presentation watchdog, backoff, explicit refresh, and
+  foreground/background/disposal. Each replacement waits for the old attempt's
+  decoder cleanup; even repeated refreshes during a cancelled open/reset preserve
+  that barrier. Parent-scope cancellation releases the lane and resets the decoder.
+  `MobileSimLaneSource` uses the view's borrowed client without closing the shared
+  client. The view retains ownership of the Surface and final presenter disposal.
+- `SimQuality`: the pinned high (2000), balanced (1280), and data saver (800)
+  resolution caps. Live renegotiation stays on the current lane; the latest choice
+  also applies to later attaches. Persisting the choice belongs to the pending pane.
+
+These components are not yet mounted by the production surface UI.
 
 ## Verification — 2026-09-30
 
@@ -172,6 +189,41 @@ the dependency consumed by Windows builds. It does not establish a Windows
 source build, physical Pixel decoding or native Mac simulator acceptance. No
 signed app was published; build 248 remains the last signed milestone.
 
+### Connection owner and quality checkpoint — 2026-09-30
+
+Reference: pinned `SimulatorStreamV2Store`, `SimStreamViewerEngine` and
+`SimStreamQualityPreset`. The controller is implemented and tested with the real
+decoder; the production simulator pane is still pending.
+
+- **25 focused JVM tests pass**: 13 wire/session/lane, five lifecycle, and seven
+  controller tests. Virtual time checks the eight-second watchdog, 250/500 ms
+  retries and presentation-based backoff reset, cancellation of retry during
+  background, persisted in-memory quality across reconnect, and host recovery.
+- Race fixtures hold an old lane open or suspend configure/reset while repeatedly
+  refreshing/replacing the client. No cancelled generation publishes geometry,
+  sends staged input, or resets a replacement decoder. Parent cancellation also
+  retires the lane and decoder. A blocked Stop times out at one second before
+  releasing the cleanup barrier.
+- Session fixtures block an input write, then queue touch moves, a quality change,
+  more moves, and touch-up. The observed wire preserves that order, coalesces only
+  moves on the same side of the quality boundary, keeps increasing input sequence
+  numbers, and uses the same attach epoch. Pre-dial quality/input and bounded
+  quality queues are covered, as is rejecting a retired session before Start.
+- **Five Android 17 tests pass on the 16 KiB emulator in 5.242 seconds.** In addition
+  to the decoder checks above, the real controller opens a HEVC stream, presents
+  red pixels, backgrounds/stops, reattaches at data-saver quality and displays
+  green dependent-frame pixels, then renegotiates balanced quality in place and
+  displays a fresh AVC red frame. The test verifies new epoch on reconnect, same
+  epoch/lane on quality change, and preservation of the view-owned Surface.
+- Red/green/red pixel captures were inspected. Evidence is ignored under
+  `captures/runtime/simulator-owner/`; the emulator was stopped after testing.
+- Debug APK SHA-256: `ae17262fbd787e9ca5d90d470d9202ad06ff2ca5d5654377ba99dd2f0be7919f`.
+- Test APK SHA-256: `b9f980309d67e905c95e9706632cd61e0cd791014f32fae7c7358cd21c00326f`.
+
+These checks use framed lane fixtures and real Android decoding, not a native Mac
+simulator session. The Pixel remained absent from ADB. No signed application was
+published at this feature commit; build 248 remains the signed milestone.
+
 ### Reproduce the native dependency
 
 Use a fresh core output directory; the core script refuses to overwrite an
@@ -202,10 +254,9 @@ python3 scripts/generate-simulator-video-fixtures.py
 1. Complete physical acceptance and performance checks for the implemented video
    presenter, including the Pixel hardware path and real Mac-generated frames.
    Linux-built native artifact runtime checks passed as recorded above.
-2. Add the production lifecycle owner: current-client/lease binding, attach epochs,
-   timer/generation fencing, watchdog, foreground/background, explicit refresh,
-   quality changes and host status. Use `SimulatorStreamV2Store`,
-   `SimStreamQualityPreset`, and `SimStreamViewerLifecycle` as the reference.
+2. Mount the implemented lifecycle owner with the view-owned Surface and current
+   RPC lease. Persist quality and connect Android foreground/background/disposal.
+   Stop legacy streaming when mounting v2, as in the pinned surface routing.
 3. Parse simulator descriptors and wire surface selection. Build the pane with
    aspect-fit touch mapping, hardware buttons, text/key input, quality controls,
    device switcher and recovery. Audit `SimulatorStreamV2Pane`,

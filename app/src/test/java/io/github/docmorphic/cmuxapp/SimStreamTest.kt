@@ -92,12 +92,12 @@ class SimStreamTest {
         val b = touch(SimTouchPhase.MOVED, 1, .2f); val newest = touch(SimTouchPhase.MOVED, x = .9f)
         val key = SimInput.Key(40, true); val end = touch(SimTouchPhase.ENDED)
         listOf(begin, a, b, newest, key, a, end).forEach(box::enqueue)
-        assertEquals(listOf(begin, newest, b, key, a, end), box.drain()!!.events)
+        assertEquals(listOf(begin, newest, b, key, a, end), (box.drain() as SimMessage.Input).events)
         assertNull(box.drain()); box.enqueue(key); box.clear(); box.enqueue(end)
-        assertEquals(2uL, box.drain()!!.sequence)
+        assertEquals(2uL, (box.drain() as SimMessage.Input).sequence)
         val limited = SimInputOutbox(maximumEvents = 1)
         limited.enqueue(begin); assertThrows(IOException::class.java) { limited.enqueue(end) }
-        assertEquals(listOf(begin), limited.drain()!!.events)
+        assertEquals(listOf(begin), (limited.drain() as SimMessage.Input).events)
         assertThrows(IOException::class.java) { SimInputOutbox(maximumBytes = 5).enqueue(SimInput.Text("界")) }
     }
 
@@ -133,7 +133,7 @@ class SimStreamTest {
         val run = launch { session(presenter, events).run(lane) }
         entered.await(); assertTrue(lane.sent.none { it is SimMessage.Ack })
         displayed.complete(Unit); withTimeout(2000) { run.join() }
-        assertEquals(SimMessage.Ack(ULong.MAX_VALUE, 999u), lane.sent.last())
+        assertEquals(listOf(SimMessage.Ack(ULong.MAX_VALUE, 999u)), lane.sent.filterIsInstance<SimMessage.Ack>())
         assertTrue(events.last() is SimViewerEvent.Presented); assertTrue(lane.closed)
     }
 
@@ -150,7 +150,8 @@ class SimStreamTest {
         for (message in listOf(frame(), SimMessage.Stop, SimMessage.Ack(1u, 1u))) {
             val lane = Lane(); lane.host(message); lane.incoming.close()
             try { session(Presenter()).run(lane); fail("Host message accepted") } catch (_: IOException) { }
-            assertTrue(lane.closed); assertEquals(1, lane.sent.size)
+            assertTrue(lane.closed)
+            assertEquals(listOf(SimMessage.Start(42u, 1600, listOf(SimCodec.HEVC, SimCodec.H264)), SimMessage.Stop), lane.sent)
         }
     }
 
@@ -166,6 +167,47 @@ class SimStreamTest {
         val next = Lane()
         try { engine.run(next); fail("Reused ended session") } catch (_: IllegalStateException) { }
         assertTrue(lane.sent.none { it is SimMessage.Input }); assertTrue(next.closed)
+    }
+
+    @Test fun qualityBarriersPreserveInputOrderAndNeverCoalesceGesturesAcrossRenegotiation() = runBlocking<Unit> {
+        val lane = Lane(); val blocked = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        lane.writing = { if (it is SimMessage.Input && it.sequence == 1uL) { blocked.complete(Unit); release.await() } }
+        val engine = session(Presenter())
+        assertTrue(engine.updateQuality(1280)) // The first start uses the last pre-attach preference.
+        assertTrue(engine.input(SimInput.Text("before dialing")))
+        val run = launch { engine.run(lane) }
+        try {
+            blocked.await()
+            assertTrue(engine.input(touch(SimTouchPhase.MOVED, x = .1f)))
+            assertTrue(engine.updateQuality(800))
+            assertTrue(engine.input(touch(SimTouchPhase.MOVED, x = .2f)))
+            assertTrue(engine.input(touch(SimTouchPhase.MOVED, x = .3f)))
+            assertTrue(engine.input(touch(SimTouchPhase.ENDED)))
+            release.complete(Unit)
+            withTimeout(2000) { while (lane.sent.size < 5) yield() }
+            assertEquals(listOf(
+                SimMessage.Start(42u, 1280, listOf(SimCodec.HEVC, SimCodec.H264)),
+                SimMessage.Input(1u, listOf(SimInput.Text("before dialing"))),
+                SimMessage.Input(2u, listOf(touch(SimTouchPhase.MOVED, x = .1f))),
+                SimMessage.Start(42u, 800, listOf(SimCodec.HEVC, SimCodec.H264)),
+                SimMessage.Input(3u, listOf(touch(SimTouchPhase.MOVED, x = .3f), touch(SimTouchPhase.ENDED)))
+            ), lane.sent)
+        } finally { run.cancelAndJoin() }
+        assertEquals(SimMessage.Stop, lane.sent.last())
+        assertFalse(engine.updateQuality(2000))
+    }
+
+    @Test fun qualityCommandsShareQueueBoundsAndRetiredSessionsCannotBegin() = runBlocking<Unit> {
+        val box = SimInputOutbox(maximumEvents = 1)
+        box.quality(SimMessage.Start(1u, 800, listOf(SimCodec.H264)))
+        assertThrows(IOException::class.java) { box.enqueue(SimInput.Button(SimButton.HOME)) }
+        assertThrows(IOException::class.java) { box.quality(SimMessage.Start(1u, 1280, listOf(SimCodec.H264))) }
+        box.clear(); assertNull(box.drain())
+        val engine = session(Presenter()); val lane = Lane()
+        engine.input(SimInput.Text("stale")); engine.retireInput()
+        assertFalse(engine.input(SimInput.Text("late")))
+        try { engine.run(lane); fail("Retired session started") } catch (_: IllegalStateException) { }
+        assertTrue(lane.closed); assertTrue(lane.sent.isEmpty())
     }
 
     @Test fun simulatorLaneUsesCanonicalExactPanelResource() {

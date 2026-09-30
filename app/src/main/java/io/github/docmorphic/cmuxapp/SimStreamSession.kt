@@ -14,7 +14,11 @@ internal interface SimStreamLane : AutoCloseable {
 
 /** Input stays ordered except for unsent moves of the same pointer. Overflow retires the session. */
 internal class SimInputOutbox(private val maximumEvents: Int = 1024, private val maximumBytes: Int = 1024 * 1024) {
-    private val pending = mutableListOf<SimInput>()
+    private sealed interface Pending {
+        data class Input(val value: SimInput) : Pending
+        data class Quality(val value: SimMessage.Start) : Pending
+    }
+    private val pending = mutableListOf<Pending>()
     private var nextSequence = 1uL
     private var bytes = 0
     private fun cost(event: SimInput): Int = when (event) {
@@ -29,20 +33,30 @@ internal class SimInputOutbox(private val maximumEvents: Int = 1024, private val
     fun enqueue(event: SimInput) {
         if (event is SimInput.Touch && event.phase == SimTouchPhase.MOVED) {
             for (index in pending.indices.reversed()) {
-                val old = pending[index] as? SimInput.Touch ?: break
+                val old = (pending[index] as? Pending.Input)?.value as? SimInput.Touch ?: break
                 if (old.phase != SimTouchPhase.MOVED) break
-                if (old.pointer == event.pointer) { pending[index] = event; return }
+                if (old.pointer == event.pointer) { pending[index] = Pending.Input(event); return }
             }
         }
         val cost = cost(event)
         if (pending.size >= maximumEvents || cost > maximumBytes - bytes) throw IOException("Simulator input queue full")
-        pending += event; bytes += cost
+        pending += Pending.Input(event); bytes += cost
     }
-    fun drain(limit: Int = 64): SimMessage.Input? {
+    /** A renegotiation is an ordering barrier: touch moves cannot coalesce across it. */
+    fun quality(start: SimMessage.Start) {
+        val cost = 13 + start.codecs.size
+        if (pending.size >= maximumEvents || cost > maximumBytes - bytes) throw IOException("Simulator input queue full")
+        pending += Pending.Quality(start); bytes += cost
+    }
+    fun drain(limit: Int = 64): SimMessage? {
         require(limit in 1..65535)
         if (pending.isEmpty()) return null
+        (pending.first() as? Pending.Quality)?.let {
+            pending.removeAt(0); bytes -= 13 + it.value.codecs.size
+            return it.value
+        }
         if (nextSequence == ULong.MAX_VALUE) throw IOException("Simulator input sequence exhausted")
-        val events = pending.take(limit)
+        val events = pending.take(limit).takeWhile { it is Pending.Input }.map { (it as Pending.Input).value }
         pending.subList(0, events.size).clear(); bytes -= events.sumOf(::cost)
         return SimMessage.Input(nextSequence++, events)
     }
@@ -64,7 +78,7 @@ internal sealed interface SimViewerEvent {
 
 /** One attach, one outbox, one presentation owner. A reconnect must create a new instance. */
 internal class SimStreamSession(private val presenter: SimFramePresenter, private val epoch: ULong,
-    private val maximumLongSide: Int, private val codecs: List<SimCodec>,
+    maximumLongSide: Int, codecs: List<SimCodec>,
     private val receiptMicros: () -> ULong = { (System.nanoTime() / 1000).toULong() },
     private val event: suspend (SimViewerEvent) -> Unit) {
     private val lock = Any()
@@ -75,24 +89,45 @@ internal class SimStreamSession(private val presenter: SimFramePresenter, privat
     private var used = false
     private var ended = false
     private var failure: IOException? = null
+    private var maximumLongSide = maximumLongSide
+    private val codecs = codecs.toList()
+
+    init { require(maximumLongSide in 1..65535); require(codecs.isNotEmpty()) }
 
     fun input(input: SimInput): Boolean = synchronized(lock) {
-        if (!used || ended || failure != null) return false
+        if (ended || failure != null) return false
         try { outbox.enqueue(input) }
         catch (error: IOException) { failure = error; outbox.clear(); lane?.close() }
         wake.trySend(Unit)
         failure == null
     }
 
+    fun updateQuality(pixels: Int): Boolean = synchronized(lock) {
+        require(pixels in 1..65535)
+        if (ended || failure != null) return false
+        if (maximumLongSide == pixels) return true
+        maximumLongSide = pixels
+        if (used) try { outbox.quality(SimMessage.Start(epoch, pixels, codecs)) }
+        catch (error: IOException) { failure = error; outbox.clear(); lane?.close() }
+        wake.trySend(Unit)
+        failure == null
+    }
+
+    /** Synchronous fence used before cancellation; queued gestures can never reach a replacement. */
+    fun retireInput() = synchronized(lock) { ended = true; outbox.clear() }
+
     /** EOF is clean only at a message boundary. Every exit drops input and closes the lane. */
     suspend fun run(connection: SimStreamLane) {
-        try { synchronized(lock) { check(!used); used = true; lane = connection } }
+        val start = try { synchronized(lock) {
+            check(!used && !ended); used = true; lane = connection
+            SimMessage.Start(epoch, maximumLongSide, codecs)
+        } }
         catch (error: Throwable) { connection.close(); throw error }
         var configured = false
         var rejected = 0
         var requestedKeyframe = false
         try {
-            send(SimMessage.Start(epoch, maximumLongSide, codecs))
+            send(start)
             coroutineScope {
                 val writer = launch {
                     for (signal in wake) {
@@ -141,13 +176,16 @@ internal class SimStreamSession(private val presenter: SimFramePresenter, privat
                 } finally { writer.cancelAndJoin() }
             }
         } finally {
+            // The writer has stopped before this final bounded control message.
+            // Cancellation still asks the host to release its encoder promptly.
+            withContext(NonCancellable) { runCatching { stop() } }
             synchronized(lock) { ended = true; outbox.clear(); lane = null; wake.close() }
             connection.close()
         }
     }
 
     suspend fun stop() {
-        synchronized(lock) { ended = true; outbox.clear() }
+        retireInput()
         try { withTimeout(1000) { send(SimMessage.Stop) } }
         finally { synchronized(lock) { lane }?.close() }
     }

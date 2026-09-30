@@ -163,4 +163,62 @@ class SimVideoPresenterTest {
             }
         } finally { run.cancelAndJoin(); presenter.awaitClosed() }
     }
+
+    @Test fun controllerBackgroundReconnectAndLiveQualityDriveRealDecoderPixels() = runBlocking<Unit> {
+        val output = withTimeout(5000) { surface().await() }
+        val presenter = SimVideoPresenter(output)
+        class Lane : SimStreamLane {
+            val inbound = Channel<ByteArray>(Channel.UNLIMITED)
+            val outbound = Channel<SimMessage>(Channel.UNLIMITED)
+            var closed = false
+            override suspend fun read() = inbound.receiveCatching().getOrNull()
+            override suspend fun write(bytes: ByteArray) {
+                outbound.send(SimStreamWire.decode(bytes.copyOfRange(4, bytes.size)))
+            }
+            override fun close() { closed = true; inbound.close() }
+            suspend fun host(message: SimMessage) { inbound.send(SimStreamWire.encode(message)) }
+        }
+        val opened = Channel<Lane>(Channel.UNLIMITED)
+        val source = SimLaneSource { block ->
+            val lane = Lane(); opened.send(lane)
+            try { block(lane); true } finally { lane.close() }
+        }
+        val owner = SimViewerController(this, presenter)
+        try {
+            withTimeout(15000) {
+                owner.bindSource(source); owner.activate()
+                val first = opened.receive()
+                val firstStart = first.outbound.receive() as SimMessage.Start
+                assertEquals(2000, firstStart.maximumLongSide)
+                val hevc = fixture("hevc")
+                first.host(hevc.config); first.host(hevc.frames[0])
+                assertEquals(1uL, (first.outbound.receive() as SimMessage.Ack).sequence)
+                pixelCheck(output, false, "simulator-owner-first")
+                owner.background()
+                assertFalse(owner.input(SimInput.Button(SimButton.HOME)))
+                owner.setQuality(SimQuality.DATA_SAVER); owner.foreground()
+                val second = opened.receive() // New attach waits for the previous worker's reset.
+                assertTrue(first.closed)
+                assertEquals(SimMessage.Stop, first.outbound.receive())
+                val secondStart = second.outbound.receive() as SimMessage.Start
+                assertEquals(firstStart.epoch + 1u, secondStart.epoch)
+                assertEquals(800, secondStart.maximumLongSide)
+                second.host(hevc.config); second.host(hevc.frames[0]); second.host(hevc.frames[1])
+                assertEquals(1uL, (second.outbound.receive() as SimMessage.Ack).sequence)
+                assertEquals(2uL, (second.outbound.receive() as SimMessage.Ack).sequence)
+                pixelCheck(output, true, "simulator-owner-reconnected")
+                owner.setQuality(SimQuality.BALANCED)
+                val quality = second.outbound.receive() as SimMessage.Start
+                assertEquals(secondStart.epoch, quality.epoch); assertEquals(1280, quality.maximumLongSide)
+                val avc = fixture("h264")
+                second.host(avc.config); second.host(avc.frames[0])
+                assertEquals(1uL, (second.outbound.receive() as SimMessage.Ack).sequence)
+                pixelCheck(output, false, "simulator-owner-renegotiated")
+                assertTrue(opened.tryReceive().isFailure) // Quality did not open another lane.
+                assertEquals(SimViewerLifecycle.Phase.STREAMING, owner.state.value.phase)
+                assertEquals(4uL, owner.state.value.presentedFrames)
+            }
+        } finally { owner.awaitClosed(); presenter.awaitClosed() }
+        assertTrue(output.isValid)
+    }
 }
