@@ -27,7 +27,7 @@ internal fun LocalBrowserCreationProgress(creating: Boolean, onCancel: () -> Uni
 
 @Composable
 internal fun LocalBrowserWorkspaceView(destination: LocalBrowserDestination, navigation: LocalBrowserNavigation,
-    workspace: NativeWorkspace = destination.workspace, onRoute: (NativeWorkspaceRoute) -> Unit) {
+    workspace: NativeWorkspace = destination.workspace, onClose: () -> Unit = {}, onRoute: (NativeWorkspaceRoute) -> Unit) {
     val page by destination.surface.state.collectAsState()
     fun open(terminal: String? = null, browser: String? = null, surface: String? = null) {
         navigation.leave(close = true)
@@ -56,7 +56,9 @@ internal fun LocalBrowserWorkspaceView(destination: LocalBrowserDestination, nav
             }
         }
         LocalBrowserPane(destination.surface) {
-            open(terminal = destination.terminalId?.takeIf { id -> workspace.terminals.any { it.id == id } }
+            onClose()
+            if (!workspace.hasPanes) navigation.leave(close = true)
+            else open(terminal = destination.terminalId?.takeIf { id -> workspace.terminals.any { it.id == id } }
                 ?: workspace.terminals.firstOrNull()?.id)
         }
     }

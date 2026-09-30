@@ -118,6 +118,14 @@ internal class LocalBrowserNavigation(private val scope: CoroutineScope,
             returnTerminals[key] ?: workspace.terminals.firstOrNull()?.id, surface))
         return true
     }
+    /** Persisted local-tab memory reopens directly, without attempting a Mac creation RPC. */
+    fun restoreRemembered(key: LocalBrowserKey, workspace: NativeWorkspace): Boolean {
+        store.requestRestore(key)
+        return restore(key, workspace)
+    }
+    fun restoreFromMemory(key: LocalBrowserKey, workspace: NativeWorkspace, remembered: NativeWorkspaceTab?): Boolean =
+        if (remembered == NativeWorkspaceTab.LocalBrowser) restoreRemembered(key, workspace)
+        else remembered == null && restore(key, workspace)
     fun clear() { cancelRequest(); store.clear(); returnTerminals.clear(); mutable.value = LocalBrowserNavigationState(); accountScope = null; loginScope = null }
     companion object {
         fun canCreate(ready: Boolean, capabilities: Set<String>) = ready &&

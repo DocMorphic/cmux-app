@@ -23,9 +23,10 @@ internal class NativeFeedSession(
     val workspaceMoves = NativeWorkspaceMoves(scope, coordinator)
     val taskModels = TaskModelRepository()
     val localBrowsers = LocalBrowserNavigation(scope)
+    val workspaceTabs = NativeWorkspaceTabNavigation(store)
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     override fun onCleared() { clear(); scope.cancel() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,

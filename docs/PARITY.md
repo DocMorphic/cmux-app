@@ -12,11 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Remembered-tab navigation (2026-09-30):** persistent memory is wired into workspace
+opening and explicit pane changes for terminal, Mac surface, browser stream,
+Simulator and local browser selections. Waiting restores preserve memory; late
+results and lifecycle changes are fenced. Browser discovery stays separate from
+ordinary workspace surfaces. Local Close clears memory, including empty-workspace
+cases. **33 JVM and 23 Android 17 / 16 KiB tests passed** after correcting two
+browser inventory regressions. Created-terminal pins, general delayed discovery,
+true process-death and physical acceptance remain open. See
+[WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). Signed build 261 predates this work.
+
 **Last-tab memory foundation (2026-09-30):** the bounded five-kind preference map,
 account/Mac/build keys, encrypted atomic storage adapter and pending restore
 decisions are implemented. **23 JVM and three Android 17 / 16 KiB storage tests
-passed**. This is not wired into workspace UI yet; full remembered-tab restoration
-and browser discovery integration remain open. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md).
+passed**. This foundation preceded the UI integration recorded above. See
+[WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md).
 
 **Fresh workspace selection (2026-09-30):** default opening now respects focused
 non-terminal panes, host spatial order when no terminal exists, Simulator

@@ -98,6 +98,15 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         true
     }
 
+    internal fun forgetWorkspaceTab(login: String, key: NativeWorkspaceTabKey): Boolean = synchronized(storageLock) {
+        val state = load() ?: return@synchronized false
+        if (login.isBlank() || state.optString("task_session") != login || state.optString("refresh_token").isBlank()) return@synchronized false
+        val tabs = NativeWorkspaceLastTabs(state.optJSONObject(NativeWorkspaceLastTabs.STORAGE_KEY))
+        if (!tabs.remove(key)) return@synchronized false
+        update { it.put(NativeWorkspaceLastTabs.STORAGE_KEY, tabs.json()) }
+        true
+    }
+
     /** A login incarnation, independent of access-token refresh and Activity recreation. */
     internal fun taskSession(): String? = synchronized(storageLock) {
         val state = load() ?: return@synchronized null

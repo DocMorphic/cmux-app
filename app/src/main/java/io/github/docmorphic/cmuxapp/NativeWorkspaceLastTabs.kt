@@ -72,6 +72,7 @@ internal class NativeWorkspaceLastTabs(initial: JSONObject? = null) {
         prune()
         return true
     }
+    fun remove(key: NativeWorkspaceTabKey): Boolean = entries.remove(key.encoded) != null
     fun json() = JSONObject().also { result -> entries.forEach { (key, entry) ->
         result.put(key, JSONObject().put("kind", entry.kind).put("tab_id", entry.id).put("sequence", entry.sequence))
     } }

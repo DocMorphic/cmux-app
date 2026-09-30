@@ -2,8 +2,9 @@
 
 Audited 2026-09-30 against upstream
 `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`. Fresh-open default selection and local
-browser workspace-lifetime protection are implemented. **Persisted last-tab memory,
-selection synchronization and physical acceptance remain open.**
+browser workspace-lifetime protection are implemented. Persisted last-tab memory
+is now wired into workspace navigation; see the integration checkpoint below.
+**General delayed-pane selection, created-terminal pins and physical acceptance remain open.**
 
 ## Reference code
 
@@ -81,11 +82,11 @@ Local browser Back already retains a one-shot in-memory restore intent, distinct
 from persisted all-kind last-tab memory. Do not describe that as full selection
 parity. The default resolver is not yet the refresh/restore state machine.
 
-The bounded preference store and pure restore decision/controller foundation below
-are implemented. Integrate explicit versus derived selection separately, then verify pending discovery, process
-recreation, cross-Mac/build identity, focused non-terminal defaults and new-terminal
-startup. Keep additions outside the large `NativeScreen` method, which has already
-hit Kotlin's JVM method bytecode size limit. Follow with Pixel/Mac acceptance.
+The preference store and restore controller are integrated in the checkpoint below.
+Continue with general delayed discovery, true process-death acceptance, multiple
+physical Macs/builds and created-terminal startup pins. Keep additions outside the
+large `NativeScreen` method, which has already hit Kotlin's JVM bytecode size limit.
+Follow with Pixel/Mac acceptance.
 
 ## Default-routing verification (2026-09-30)
 
@@ -111,8 +112,8 @@ Signed build 261 predates this change. No new signed milestone was dispatched.
 
 ## Last-tab storage and restore foundation (2026-09-30)
 
-**This foundation is not yet wired into `NativeScreen`; it does not yet make the
-app restore all last-opened tabs.**
+At this foundation checkpoint it was not yet wired into `NativeScreen`. The later
+navigation integration below supersedes that limitation.
 
 `NativeWorkspaceLastTabs` supports all five upstream kinds and at most 512 entries.
 Unchanged writes do not alter recency. Loading isolates malformed/unknown entries;
@@ -157,7 +158,7 @@ Verification:
 - Debug APK SHA-256: `040bde1b768e001ce779fb8539bb1e78ac311843ebc679f1e8c4a36d9091a580`.
 - Test APK SHA-256: `463c5b13d7a5b27dc595eaf8ba5a0b07aed417da8a4200635edb150276be5859`.
 
-### Next integration steps
+### Integration steps identified at the foundation checkpoint
 
 1. Record committed route/default opens, explicit terminal/surface/stream picks,
    task-created terminals, and local-browser opens. Disarm pending restore on
@@ -180,3 +181,68 @@ Verification:
    delayed results, Account/Activity/process changes and multiple Macs/builds.
 
 Signed build 261 predates this foundation. No new signed build was dispatched.
+
+## Last-tab navigation integration (2026-09-30)
+
+`NativeFeedSession` now owns `NativeWorkspaceTabNavigation`. The main screen records
+committed displayed panes, explicit picker choices and phone-local browser opens.
+Explicit picks disarm pending restoration, including choosing the same interim
+fallback. Back/navigation/account scope changes retire old pending work. Default
+workspace opens consult persistent memory before Mac focus/defaults. A transient
+fallback never replaces a still-waiting remembered tab.
+
+Pending restoration uses a unique ticket and exact account/Mac/build/workspace key.
+`NativeWorkspaceTabRecovery` reads fresh owning workspace inventory and, for a
+remembered browser stream, the separate `mobile.browser.list` inventory. The read
+is capability gated and validates descriptor types, unique IDs and workspace
+ownership. Invalid reads preserve the pending intent. Results check both the ticket
+and current navigation/authorization before publication. Activity lifecycle
+`repeatOnLifecycle(STARTED)` cancels in-flight restoration while stopped and retries
+the read on return, without replaying mutations or input.
+
+Discovered browser panels are retained separately for the visible owning workspace
+and merged into its presentation. Ordinary workspace surface refreshes cannot
+erase a valid discovered stream; late retired tickets cannot populate that cache.
+Leaving the workspace clears the presentation cache. Remembered local browsers
+reopen retained/default phone state without a Mac creation request. Empty workspace
+rows with persisted local-tab memory remain tappable. Closing the local pane clears
+that memory; when no Mac pane exists, Close returns directly to the workspace list.
+The list decrypts the bounded preference snapshot once per account revision.
+
+The first compile exceeded the JVM method-size limit again. Settings composition
+was extracted to `NativeSettingsLayout`, preserving its existing section order and
+callbacks; subsequent debug/instrumentation builds succeeded.
+
+Verification:
+
+- **33 JVM tests passed**: six navigation/discovery cases, six store/key cases,
+  eight restore cases and 13 local-browser navigation regressions.
+- **23 Android 17 / 16 KiB tests passed in 40.187 seconds**: ten new full-screen
+  restoration cases, six local-browser regressions, four default-routing cases
+  and three real Keystore storage cases. The new cases cover explicit terminal
+  memory across Back and a fresh Activity, Mac-surface recreation, readiness waits,
+  explicit selection of the interim fallback, exact browser discovery, late
+  discovery after a new selection, background/return, Simulator descriptor choice,
+  local-browser reopening without creation and local Close in empty workspaces.
+- The initial 23-test run had two browser failures: a subsequent workspace listing
+  discarded the separately discovered panel before streaming started. The scoped
+  discovery presentation cache fixes this; the complete 23-test rerun passed.
+  Original failure output is retained alongside the successful run.
+- Ignored evidence: `captures/runtime/workspace-tab-ui/`; final build log:
+  `/tmp/cmux-workspace-tab-ui-final-build.log`. Owned emulator stopped afterward.
+- Debug APK SHA-256: `bc2562be57427c0c4884aeba10999defcd5a3c4e924ee2fa18d3ffcded76cf62`.
+- Test APK SHA-256: `ef2ef9f72fd550b01a2244745010e0a5ad50c31c906dfbb417041627ee92d9c4`.
+
+### Remaining selection work
+
+- Browser discovery currently services remembered-stream restoration. General
+  discovery for fresh empty workspaces and uncertain create outcomes still needs
+  integration, including default promotion when descriptors arrive later.
+- Created-terminal startup pins/readiness presentation and comprehensive refresh
+  reconciliation remain open. The existing fresh-open resolver is not the full
+  iOS selection synchronizer.
+- Physical Pixel/Mac, true OS process-death, broader multi-Mac/build and
+  accessibility acceptance remain open. Fixture restoration of a Simulator
+  descriptor proves selection; its actual stream is verified by the earlier
+  Simulator tests, not the synthetic host used here.
+- Signed build 261 predates this integration. No new signed build was dispatched.
