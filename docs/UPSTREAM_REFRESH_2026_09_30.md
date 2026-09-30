@@ -133,9 +133,10 @@ postdate 284. None of this establishes full parity with the new upstream candida
 
 The local installed Mac app's Info.plist reports version **0.64.25**, build **106**.
 The source-commit mapping remains unverified. The Pixel subsequently received
-debug `1d5958f` in place and passed live composer/direct input, process recovery
-and Markdown preview checks; see `PIXEL_INSTALL.md`. That APK predates the new
-identified-input contract and does not validate it against the installed host.
+debug `c763e2d` in place and passed live composer/direct input and saved-state
+process recovery checks; see `PIXEL_INSTALL.md`, including its rapid input-mode
+transition observation. The installed host's identified-input capability and
+retry/deduplication behavior have not been established by that check.
 
 ## Other confirmed implementation follow-ups
 

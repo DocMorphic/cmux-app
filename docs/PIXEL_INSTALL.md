@@ -8,14 +8,45 @@ a development build; see [PARITY.md](PARITY.md) for the unverified features.
 Debug `c763e2d` was installed in place on the USB-connected Pixel on 2026-09-30.
 Its installed APK hash matches the tested local APK:
 `1dc620de99ee7ea5646c1be581f7742e889414a6b2ed267e0c402cfdb21267cd`.
-No app data was cleared. The phone was locked after installation; physical input,
-reconnect and host-capability checks for this version are pending unlock. A later live-check attempt reached the lock screen before terminal interaction;
-plugged-in stay-awake was restored to its original `0`. Evidence is in ignored
-`captures/runtime/input-delivery/session/pixel-install.txt`.
+No app data was cleared. The phone was initially locked; a subsequent unlocked
+check verified live input and saved-state recovery as recorded below. Host
+capability and identified-delivery fault acceptance remain open. Install evidence
+is in ignored `captures/runtime/input-delivery/session/pixel-install.txt`.
 
 Before installation, 97 focused JVM and nine Android emulator runtime checks
 passed; see [TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md). The emulator
 was stopped afterward. Signed build 284 below is now the latest signed delivery.
+
+## Physical c763e2d input and recovery check — 2026-09-30
+
+The existing signed-in debug app loaded three workspaces. Only the dedicated
+`PixelTapAcceptance` terminal received input. Composer submission of
+`echo cmux_pixel_c763_composer_1130` and direct typing of
+`echo cmux_pixel_c763_direct_1130` displayed the expected output and shell prompt.
+
+An initial app-only process kill immediately after Home (PID 10390 → 27075)
+reconnected to the workspace list without restoring the selected terminal. This
+attempt did not first verify Android had saved the Activity state. The repeat
+explicitly checked `state=STOPPED` and `mHaveState=true`, then killed only the
+debug app's own PID through `run-as` (27075 → 27356). The existing task displayed
+Restoring workspace and automatically returned to the same terminal and history,
+without signing in again. This verifies Android task saved-state restoration,
+not durable selection recovery after an arbitrary unsaved foreground crash.
+
+One ADB text burst sent immediately after switching from Compose to direct input
+lost the leading `ech`, resulting in `o cmux_pixel_c763_reconnected` and a shell
+command-not-found error. A repeat after UI Automator confirmed the direct input
+view was focused sent `echo cmux_pixel_c763_after_focus` successfully. Preserve
+this timing observation for a focused mode-transition/hardware-key test; it does
+not establish an RPC delivery failure or prove the transition race resolved.
+
+No app data was cleared, no account fixtures were run, and no workspace was
+created or removed. No new APK was installed during this check. Plugged-in
+stay-awake was temporarily `2` and restored to the original `0`. Ignored local
+screenshots and lifecycle evidence: `captures/runtime/pixel-20260930-input/`.
+These checks do not prove the host advertises identified input, deduplicates
+retries, or supports the new browser tunnel capability. The later retained
+composer fix, event-lane fixes and tunnel foundation are not in this installed APK.
 
 ## Previous installed checkpoint — 2026-09-30
 
