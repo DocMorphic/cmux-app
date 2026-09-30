@@ -12,11 +12,20 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Phone-local browser navigation (2026-09-30):** `New Browser` is now integrated
+into workspace actions and terminal/Mac-surface pickers. Connected, capable Macs
+receive one create request; offline/unsupported/rejected/unknown outcomes open the
+local pane. Request cancellation, scoped ownership, Back/restore, Close-to-terminal
+and empty-workspace reopening are implemented. **17 JVM tests and five full
+NativeScreen/RPC Android 17/16 KiB tests passed**. Physical Pixel/Mac, actual system
+file-picker upload, Activity rotation and broader accessibility acceptance remain
+open. Signed build 257 predates this milestone. See [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
+
 **Phone-local browser pane (2026-09-30):** a separate WebView now implements the
 iOS-style address/history/reload/stop/close controls, same-pane popup/form handling,
 persistent cookies/storage, remount and renderer/network recovery. Seven Android
-17/16 KiB tests passed with painted page pixels. Workspace creation/fallback routing
-is still pending, so this checkpoint does not expose the pane in the main app.
+17/16 KiB tests passed with painted page pixels. The later navigation checkpoint
+above exposes this pane in the main app.
 Signed build 257 predates this work. See [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
 
 **Phone-local browser foundation (2026-09-30):** Android's resolver matches 103
@@ -77,7 +86,8 @@ exported by the unmodified upstream Swift codec. This protocol-only checkpoint
 preceded the viewer/decoder work above; legacy and physical acceptance remain open. See
 [SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md). The browser audit also clarified
 that the existing Android remote browser implements the iOS `.browserStream`
-RPC path; the separate phone-local `.browser` WebView mode remains missing.
+RPC path; the separate phone-local `.browser` WebView mode was added in the later
+browser checkpoints above.
 
 **Native Todo checklist (2026-09-30):** add/edit, three item states, drag ordering,
 swipe deletion, automatic/manual status, progress and offline read-only display
@@ -93,7 +103,7 @@ separate exact-file `panel.artifact.v1` scope, and fallback cards can focus thei
 surface on the owning Mac. Eleven focused JVM and three 16 KiB Android UI/RPC
 tests pass, including painted Markdown and multi-Mac routing. Todo controls were
 added in the later checkpoint above. Both simulator panes are now implemented;
-the additional iOS phone-local browser path remains missing and required. See
+the additional iOS phone-local browser path was added in the later checkpoints. See
 [MAC_SURFACES.md](MAC_SURFACES.md).
 
 **Signed build 244 (2026-09-30):** integration CI passed at `3c80608`, the signed

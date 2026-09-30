@@ -9,6 +9,10 @@ view-attachment callback fencing and account/team/Mac/workspace scoping.
 `scripts/generate-local-browser-fixtures.py` runs the unmodified Swift resolver
 and records its source hash with the reference address corpus. ICU4J 77.1 is a
 JVM test-only dependency; Android uses its built-in ICU implementation.
+`LocalBrowserNavigation.kt` and `LocalBrowserWorkspaceView.kt` also adapt the
+pinned `WorkspaceDetailView` browser creation/fallback, tab selection and restore
+behavior from `Packages/iOS/CmuxMobileShellUI`, with Android lifecycle and
+multi-Mac account scoping.
 
 The Android byte/hybrid terminal path uses the Ghostty VT core from
 https://github.com/manaflow-ai/ghostty at

@@ -34,7 +34,8 @@ internal fun NativeSurfaceShortcut(surface: NativeSurface, color: Color, onOpen:
 @Composable
 internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurface, client: MobileRpcClient?,
     capabilities: Set<String>, ready: Boolean, onBack: () -> Unit, onSurface: (NativeSurface) -> Unit,
-    onTerminal: (NativeTerminal) -> Unit, onBrowser: (NativeBrowser) -> Unit, onListing: (org.json.JSONObject) -> Unit) {
+    onTerminal: (NativeTerminal) -> Unit, onBrowser: (NativeBrowser) -> Unit, onListing: (org.json.JSONObject) -> Unit,
+    onNewBrowser: (() -> Unit)? = null) {
     BackHandler(onBack = onBack)
     val currentClient by rememberUpdatedState(client)
     val currentReady by rememberUpdatedState(ready)
@@ -73,6 +74,7 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
                         onClick = { picker = false; onBrowser(item) }) }
                     workspace.macSurfaces.forEach { item -> DropdownMenuItem(text = { Text(item.displayTitle) },
                         onClick = { picker = false; onSurface(item) }) }
+                    onNewBrowser?.let { open -> DropdownMenuItem(text = { Text("New Browser") }, onClick = { picker = false; open() }) }
                 }
             }
         }

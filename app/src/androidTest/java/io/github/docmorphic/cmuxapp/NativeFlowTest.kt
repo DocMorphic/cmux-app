@@ -2178,6 +2178,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var directoryErrorCode: String? = null
     @Volatile var taskGroupsSupported = false
     @Volatile var browserResponse: ((String, JSONObject) -> JSONObject)? = null
+    @Volatile var browserCreationSupported = false
     @Volatile var changesResponse: ((String, JSONObject) -> JSONObject)? = null
     @Volatile var todoSupported = false
     val rejectNextTodo = AtomicBoolean(false)
@@ -2300,6 +2301,7 @@ internal class NativeFixturePeer : AutoCloseable {
     }
 
     private fun response(method: String, params: JSONObject): JSONObject = when (method) {
+        "mobile.browser.create" -> browserResponse?.invoke(method, params) ?: JSONObject()
         "mobile.browser.stream.start" -> browserResponse?.invoke(method, params) ?: JSONObject().put("panel_id", params.getString("panel_id"))
             .put("url", "https://cmux.com").put("title", "Browser fixture").put("can_go_back", false).put("can_go_forward", false).put("is_loading", false)
         "mobile.directory.list", "mobile.directory.search" -> directoryResponse?.invoke(method, params) ?: JSONObject()
@@ -2322,6 +2324,7 @@ internal class NativeFixturePeer : AutoCloseable {
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
             .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
+                if (browserCreationSupported) it.put("browser.stream.v1").put("browser.stream.create.v1")
                 if (todoSupported) it.put("todo.v1")
                 if (panelArtifactsSupported) it.put("panel.artifact.v1").put("surface.focus.v1")
                 if (artifactsSupported) it.put("terminal.artifact.v1").put("chat.artifact.gallery.v1").put("terminal.artifact.list.v1")

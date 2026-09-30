@@ -1,7 +1,7 @@
 # Phone-local browser parity audit
 
-Status: resolver, state foundation and WebView pane implemented 2026-09-30;
-**workspace navigation integration and physical acceptance remain open**.
+Status: resolver, state foundation, WebView pane and workspace navigation
+implemented 2026-09-30; **physical acceptance remains open**.
 Reference revision: `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 
 The authoritative module is
@@ -141,7 +141,68 @@ Verification:
 - Ignored evidence: `captures/runtime/local-browser-pane/`; build/runtime logs in
   `/tmp/cmux-local-browser-pane-build.log` and `/tmp/cmux-local-browser-view-runtime.log`.
 
-No local browser is exposed through the main app yet. Signed Simulator build 257
-predates both checkpoints. Next: `New Browser` remote creation/local fallback,
-stale-request cancellation, account/team/Mac/workspace routing and close-to-terminal,
-followed by physical acceptance. The goal remains incomplete.
+This pane checkpoint alone did not expose the browser. The following navigation
+checkpoint enables it; signed Simulator build 257 predates both.
+
+## Workspace navigation checkpoint (2026-09-30)
+
+`LocalBrowserNavigation` is retained by `NativeFeedSession`, separately from Mac
+inventory. Workspace actions and terminal/Mac-surface pickers expose `New Browser`.
+Remote creation requires a connected owner advertising both `browser.stream.v1`
+and `browser.stream.create.v1`. The request uses that row's Mac and workspace,
+with no foreground-Mac substitution. A valid response must carry a nonempty string
+panel ID and the requested workspace ID. Unsupported/offline/rejected/malformed,
+timed-out or unknown outcomes open the local fallback. The mutation is never
+automatically replayed; repeated taps during the same request do not duplicate it.
+
+Pending creation has progress/cancel UI, a generation guard and captured navigation
+and authorization checks. Navigation, cancellation, account changes, computer
+removal or disposal prevent late results from changing the newer screen. View
+disposal cancels pending callbacks while retaining the separate local page state.
+The main screen's terminal header/tabs and remote-browser branch were extracted
+after hitting Kotlin's per-method bytecode limit; final debug/test builds passed.
+
+The local page works without a live Mac connection. Identity uses the verified
+account/team when available, the saved Mac's account scope while refresh is offline,
+or the login incarnation for legacy unscoped pairings. Sign-out, a new login or a
+changed verified scope retires old state. Mac origin and workspace ID are always
+part of the key. No Mac credentials or RPC client enter the WebView.
+
+`LocalBrowserWorkspaceView` supplies the workspace header and pane picker. Back
+keeps a one-shot restore intent; reopening that workspace remounts its page with
+the saved URL. Close and explicit terminal/Mac-pane selection remove the local
+surface, returning to the selected terminal when it still exists. Notification
+selection also retires a local tab in its target workspace. Workspaces with no
+Mac panes remain tappable when they have a local tab.
+
+Verification:
+
+- **17 JVM tests passed**: ten navigation/identity/descriptor checks and seven
+  surface/store regressions. Coverage includes both capability gates, fallback
+  without sending, one-send failure/timeout handling, remote success, cancelled
+  uncooperative responses, duplicate clicks, stale guards, one-shot restore,
+  return-terminal retention and account/team/Mac isolation/retirement.
+- **Five Android 17 / 16 KiB tests passed in 12.918 seconds** through the actual
+  `NativeScreen` and a local framed-RPC peer: terminal-menu fallback and
+  Back/restore/Close; empty-workspace reopening; malformed remote response
+  fallback and picker selection; successful creation in the requested workspace;
+  cancellation followed by another terminal. These account fixtures explicitly
+  refuse a physical device. They were run only on the owned emulator.
+- Local HTTP page pixels and the full workspace/browser chrome were captured;
+  the screenshot was inspected. The capture occurs during keyboard dismissal,
+  so it does not establish settled IME or physical rotation acceptance.
+- The initial remote-success fixture used `id` instead of the protocol's
+  `surface_id` in the workspace inventory. Correcting the fixture allowed the
+  remote panel route to pass. The separate WebView tests from the previous
+  checkpoint remain seven passing tests; they were not rerun for routing-only edits.
+- Debug SHA-256: `a79f241df6bc7b986abaeedf358d18470f30516fb909c68a9a1d6756051b1153`.
+- Test SHA-256: `cf9a4b9297015f86daaf9b44337114955bfb9cee4db2bc576d7eaef33376eb52`.
+- Ignored evidence: `captures/runtime/local-browser-routing/`; final build log
+  `/tmp/cmux-local-browser-routing-final-build.log`, runtime log
+  `/tmp/cmux-local-browser-routing-runtime.log`. Owned emulator stopped afterward.
+
+Remaining acceptance: real Pixel/Mac creation and offline fallback, system picker
+upload, Activity rotation and settled IME, TalkBack/large text, and cross-Mac
+physical use. Review workspace deletion during an outstanding create and
+longer-lived last-opened-tab restoration in the broader navigation audit. The
+full Android parity goal remains incomplete.
