@@ -90,5 +90,9 @@ internal class LocalBrowserStore(private val defaultUrl: String? = "https://duck
         surfaces.keys.filter { it.computerId !in computerIds }.forEach(::close)
         restores.removeAll { it.computerId !in computerIds }
     }
+    fun retainWorkspaces(computerId: String, workspaceIds: Set<String>) {
+        surfaces.keys.filter { it.computerId == computerId && it.workspaceId !in workspaceIds }.forEach(::close)
+        restores.removeAll { it.computerId == computerId && it.workspaceId !in workspaceIds }
+    }
     fun clear() { surfaces.values.forEach { it.close() }; surfaces.clear(); restores.clear() }
 }

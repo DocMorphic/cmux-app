@@ -126,6 +126,28 @@ class LocalBrowserRoutingTest {
         compose.onNodeWithTag("LocalBrowserPane").assertDoesNotExist()
     }
 
+    @Test fun confirmedWorkspaceRemovalPreventsLateCreationFromOpeningAFallback() {
+        peer.browserCreationSupported = true
+        val response = CountDownLatch(1)
+        peer.browserResponse = { _, _ -> response.await(15, TimeUnit.SECONDS); JSONObject() }
+        try {
+            show(); newFromRow(); waitFor(hasText("Opening browser…"))
+            compose.waitUntil(5000) { peer.requests.any { it.optString("method") == "mobile.browser.create" } }
+            peer.customWorkspaceListing = JSONObject().put("workspaces", JSONArray().put(
+                JSONObject().put("id", "workspace-2").put("title", "Other workspace")
+                    .put("terminals", JSONArray().put(JSONObject().put("id", "terminal-2").put("title", "Other shell")))))
+            response.countDown()
+            compose.waitUntil(15000) {
+                compose.onAllNodesWithText("Opening browser…").fetchSemanticsNodes().isEmpty() &&
+                    compose.onAllNodesWithText("Browser workspace").fetchSemanticsNodes().isEmpty()
+            }
+            compose.onNodeWithTag("LocalBrowserPane").assertDoesNotExist()
+            compose.onNodeWithText("Other workspace").performClick(); waitFor(hasText("Other shell ▾"))
+            assertTrue(peer.requests.none { it.optString("method") == "mobile.browser.stream.start" })
+            assertEquals(1, peer.requests.count { it.optString("method") == "mobile.browser.create" })
+        } finally { response.countDown() }
+    }
+
     @Test fun cancelledCreationDoesNotOpenOverANewerTerminal() {
         peer.browserCreationSupported = true
         val response = CountDownLatch(1)

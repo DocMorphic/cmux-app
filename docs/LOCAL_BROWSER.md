@@ -43,6 +43,35 @@ implements the latter and cannot establish parity for the local pane.
   non-HTTP(S) schemes are not loaded. Port the source tests and run a Swift/Android
   corpus comparison before claiming equivalent behavior.
 
+## Workspace lifetime checkpoint (2026-09-30)
+
+Local pages and restore intents now retire when their owning Mac publishes a
+connected, complete workspace snapshot confirming that the workspace is gone.
+Missing, offline, reconnecting and unhydrated snapshots preserve retained pages.
+Workspace metadata changes update the local header without replacing its page.
+The same check fences a browser-create response before either remote navigation
+or local fallback, even when Compose has not processed the refreshed inventory.
+Colliding workspace IDs on another Mac remain independent.
+
+The feed coordinator rejects missing/non-array workspace lists, invalid or blank
+workspace IDs and duplicate IDs before publishing an authoritative snapshot.
+A rejected snapshot preserves the previous inventory; a valid empty list confirms
+absence. Optional pane metadata retains the existing parser behavior.
+
+Verification: **37 JVM tests passed** (13 navigation, seven store/state and 17 feed
+coordinator cases), and debug/instrumentation APKs built. **Six full-screen Android
+17 / 16 KiB browser-routing tests passed in 15.714 seconds**, including a delayed
+create response whose owner workspace disappears during the request. No fallback
+or stream is opened; another workspace remains usable. Emulator stopped afterward.
+Ignored evidence: `captures/runtime/workspace-lifetime/`; build log:
+`/tmp/cmux-workspace-lifetime-build.log`. Physical Pixel/Mac acceptance remains open.
+
+- Debug APK SHA-256: `a377eee659e0c02362f5f71f5524ede2c34977fdb83b817d0a60748709afce3a`.
+- Test APK SHA-256: `357f2eee6702305b55b04a9a9029cc330a1cb12a287ee31fe113e19be54e594d`.
+
+Signed build 261 predates this fix. This checkpoint does not implement the full
+persisted last-tab policy audited in [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md).
+
 ## Android implementation entry points
 
 1. Port the `New Browser` creation/fallback and stale-request rules above. The

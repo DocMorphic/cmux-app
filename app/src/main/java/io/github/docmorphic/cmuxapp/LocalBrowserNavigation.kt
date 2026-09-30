@@ -18,6 +18,11 @@ internal fun localBrowserKey(login: String?, owner: NativeTeamScope?, mac: Nativ
 internal fun localBrowserCreatedPanel(response: JSONObject, workspaceId: String): String? =
     (response.opt("panel_id") as? String)?.takeIf { it.isNotBlank() && response.opt("workspace_id") == workspaceId }
 
+/** Cached, missing or reconnecting snapshots cannot prove that a workspace was closed. */
+internal fun localBrowserWorkspacePresent(source: NativeFeedSource?, workspaceId: String): Boolean =
+    source == null || source.availability != NativeFeedAvailability.CONNECTED || !source.hasWorkspaceSnapshot ||
+        source.workspaces.any { it.id == workspaceId }
+
 /** UI-owner confined. A create is sent once, even when its remote outcome is unknown. */
 internal class LocalBrowserNavigation(private val scope: CoroutineScope,
     private val store: LocalBrowserStore = LocalBrowserStore(), private val timeoutMillis: Long = 20_000) {
@@ -51,6 +56,18 @@ internal class LocalBrowserNavigation(private val scope: CoroutineScope,
         if (state.value.creating != null) mutable.value = state.value.copy(creating = null)
     }
     fun hasLocal(key: LocalBrowserKey) = store.active(key) != null
+    fun observeWorkspaces(source: NativeFeedSource) {
+        if (source.availability != NativeFeedAvailability.CONNECTED || !source.hasWorkspaceSnapshot) return
+        val ids = source.workspaces.map { it.id }.toSet()
+        fun absent(key: LocalBrowserKey) = key.computerId == source.mac.origin && key.workspaceId !in ids
+        store.retainWorkspaces(source.mac.origin, ids)
+        returnTerminals.keys.removeAll(::absent)
+        state.value.local?.takeIf { it.key.computerId == source.mac.origin }?.let { local ->
+            val workspace = source.workspaces.singleOrNull { it.id == local.key.workspaceId }
+            mutable.value = state.value.copy(local = workspace?.let { local.copy(workspace = it) })
+        }
+        if (state.value.creating?.let(::absent) == true) cancelRequest()
+    }
     fun open(key: LocalBrowserKey, workspace: NativeWorkspace, terminalId: String?, canCreate: Boolean,
         create: suspend () -> String?, stillCurrent: () -> Boolean,
         onLocal: () -> Unit, onRemote: (String) -> Unit) {

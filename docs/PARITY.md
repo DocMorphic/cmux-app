@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Workspace lifetime (2026-09-30):** confirmed removal on a connected owning Mac
+retires local browser pages and pending creation; disconnected/incomplete snapshots
+preserve them. Invalid inventory cannot masquerade as deletion. **37 JVM and six
+Android 17 / 16 KiB routing tests passed**. Signed build 261 predates this fix.
+Full persisted tab/default-selection parity is still open and now source-audited
+in [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). See [LOCAL_BROWSER.md](LOCAL_BROWSER.md)
+for runtime evidence; physical Pixel/Mac acceptance remains open.
+
 **Signed build 261 and browser lifecycle acceptance (2026-09-30):** the browser
 milestone passed full CI at `3b0f6fd`. Its downloaded APK passes stable-signature,
 native/ZIP 16 KiB checks and Android 17 emulator launch. Three further emulator

@@ -54,6 +54,17 @@ internal fun workspaceSearchId(source: NativeFeedSource, workspace: NativeWorksp
 internal data class NativeTerminal(val id: String, val title: String, val directory: String? = null, val isFocused: Boolean = false)
 internal data class NativeBrowser(val id: String, val title: String)
 
+/** Absence can retire local state only after a complete, unambiguous workspace list. */
+internal fun parseAuthoritativeWorkspaces(value: JSONObject): List<NativeWorkspace> {
+    val items = value.optJSONArray("workspaces") ?: throw java.io.IOException("Invalid workspace snapshot")
+    val ids = mutableSetOf<String>()
+    for (index in 0 until items.length()) {
+        val id = items.optJSONObject(index)?.opt("id") as? String
+        if (id.isNullOrBlank() || !ids.add(id)) throw java.io.IOException("Invalid workspace snapshot")
+    }
+    return parseWorkspaces(value)
+}
+
 internal fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
     val array = value.optJSONArray("workspaces") ?: return emptyList()
     return buildList {

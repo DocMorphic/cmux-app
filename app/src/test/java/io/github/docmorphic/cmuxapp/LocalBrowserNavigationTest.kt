@@ -113,4 +113,50 @@ class LocalBrowserNavigationTest {
         runCurrent(); navigation.retain(null, false, emptySet()); advanceUntilIdle()
         assertNull(navigation.state.value.local); assertNull(navigation.state.value.creating)
     }
+
+    @Test fun confirmedWorkspaceRemovalCancelsLateCreationAndClosesRetainedPagesOnlyForItsMac() = runTest {
+        val mac = NativeCredentialStore.PairedMac("a", "a", "Mac A")
+        val a = key.copy(computerId = mac.origin); val b = key.copy(computerId = "mac-b")
+        val navigation = LocalBrowserNavigation(this)
+        navigation.open(key = b, canCreate = false); runCurrent(); val other = navigation.state.value.local!!.surface
+        navigation.leave(close = false)
+        navigation.open(key = a, canCreate = false); runCurrent(); val removed = navigation.state.value.local!!.surface
+        navigation.leave(close = false)
+        val late = CompletableDeferred<String>()
+        navigation.open(key = a, create = { withContext(NonCancellable) { late.await() } }, remote = { fail("Closed workspace opened") })
+        runCurrent()
+        val source = NativeFeedSource(mac, availability = NativeFeedAvailability.CONNECTED, hasWorkspaceSnapshot = true)
+        navigation.observeWorkspaces(source); late.complete("late-panel"); runCurrent()
+        assertNull(navigation.state.value.local); assertNull(navigation.state.value.creating)
+        assertTrue(removed.state.value.closed); assertFalse(navigation.restore(a, workspace))
+        assertTrue(navigation.restore(b, workspace)); assertSame(other, navigation.state.value.local!!.surface)
+        assertFalse(other.state.value.closed)
+    }
+    @Test fun missingCachedAndUnhydratedListsPreserveTheLocalPageButConfirmedAbsenceClosesIt() = runTest {
+        val mac = NativeCredentialStore.PairedMac("a", "a", "A"); val scoped = key.copy(computerId = mac.origin)
+        val navigation = LocalBrowserNavigation(this)
+        navigation.open(key = scoped, canCreate = false); runCurrent(); val page = navigation.state.value.local!!.surface
+        val base = NativeFeedSource(mac, hasWorkspaceSnapshot = true)
+        assertTrue(localBrowserWorkspacePresent(null, key.workspaceId))
+        for (source in listOf(base, base.copy(availability = NativeFeedAvailability.OFFLINE),
+            base.copy(availability = NativeFeedAvailability.CONNECTED, hasWorkspaceSnapshot = false))) {
+            assertTrue(localBrowserWorkspacePresent(source, key.workspaceId)); navigation.observeWorkspaces(source)
+            assertSame(page, navigation.state.value.local!!.surface)
+        }
+        val fresh = base.copy(availability = NativeFeedAvailability.CONNECTED, workspaces = listOf(workspace.copy(title = "Renamed")))
+        navigation.observeWorkspaces(fresh)
+        assertEquals("Renamed", navigation.state.value.local!!.workspace.title)
+        val empty = fresh.copy(workspaces = emptyList())
+        assertFalse(localBrowserWorkspacePresent(empty, key.workspaceId)); navigation.observeWorkspaces(empty)
+        assertNull(navigation.state.value.local); assertTrue(page.state.value.closed)
+    }
+    @Test fun authoritativeWorkspaceParserRejectsIncompleteAndAmbiguousLists() {
+        for (json in listOf("{}", "{\"workspaces\":null}", "{\"workspaces\":[null]}",
+            "{\"workspaces\":[{\"id\":42}]}", "{\"workspaces\":[{\"id\":\"\"}]}",
+            "{\"workspaces\":[{\"id\":\"w\"},{\"id\":\"w\"}]}")) {
+            assertTrue(runCatching { parseAuthoritativeWorkspaces(JSONObject(json)) }.exceptionOrNull() is java.io.IOException)
+        }
+        assertTrue(parseAuthoritativeWorkspaces(JSONObject("{\"workspaces\":[]}")).isEmpty())
+        assertEquals("w", parseAuthoritativeWorkspaces(JSONObject("{\"workspaces\":[{\"id\":\"w\"}]}")).single().id)
+    }
 }

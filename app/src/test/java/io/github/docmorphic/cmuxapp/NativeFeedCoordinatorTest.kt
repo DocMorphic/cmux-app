@@ -14,6 +14,28 @@ class NativeFeedCoordinatorTest {
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 
+    @Test fun malformedWorkspaceSnapshotPreservesLastInventoryUntilConfirmedEmpty() = runBlocking<Unit> {
+        FeedPeer("a").use { peer ->
+            val paired = mac("a")
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(paired))
+                awaitState { coordinator.sources.value[paired.origin]?.let {
+                    it.hasWorkspaceSnapshot && it.availability == NativeFeedAvailability.CONNECTED
+                } == true }
+                peer.workspaceResponse = JSONObject()
+                coordinator.refresh()
+                assertEquals("w", coordinator.sources.value[paired.origin]?.workspaces?.single()?.id)
+                assertEquals("Original", coordinator.sources.value[paired.origin]?.workspaces?.single()?.title)
+                peer.workspaceResponse = JSONObject().put("workspaces", JSONArray())
+                coordinator.refresh()
+                awaitState { coordinator.sources.value[paired.origin]?.let {
+                    it.hasWorkspaceSnapshot && it.workspaces.isEmpty() && it.availability == NativeFeedAvailability.CONNECTED
+                } == true }
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun savedRouteChangeWakesOnlyItsBuildWhileDiscoveryIsUnavailable() = runBlocking<Unit> {
         val device = "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"
         val a = mac(device).copy(code = "cmux-ios://attach?v=3&i=endpoint-a&d=$device&b=default", instanceTag = "default")
@@ -381,6 +403,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     private val powerStreams = CopyOnWriteArrayList<Pair<Socket, String>>()
     @Volatile var hostStatusGate: java.util.concurrent.CountDownLatch? = null
     @Volatile var workspaceTitle = "Original"
+    @Volatile var workspaceResponse: JSONObject? = null
     @Volatile var rejectWorkspaceAction = false
     @Volatile private var read = false
     @Volatile private var revision = 1
@@ -418,7 +441,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                         val stream = request.getJSONObject("params").getString("stream_id")
                         powerStreams.removeAll { it.first === socket && it.second == stream }
                     }
-                    "mobile.workspace.list" -> JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w")
+                    "mobile.workspace.list" -> workspaceResponse ?: JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w")
                         .put("window_id", "window-" + id).put("title", workspaceTitle)))
                         .put("groups", JSONArray().put(JSONObject().put("id", "g").put("name", "Group " + id)))
                     "workspace.action" -> JSONObject().also {

@@ -247,7 +247,8 @@ fun NativeScreen(
             LocalBrowserNavigation.canCreate(source.availability == NativeFeedAvailability.CONNECTED, source.capabilities),
             create = { localBrowserCreatedPanel(feedCoordinator.workspaceAction(source.mac, workspace.id, "browser.create"), workspace.id) },
             stillCurrent = { signedIn && store.taskSession() == browserLogin && teamState.scope == owner && browserNavigationContext() == entryContext &&
-                store.pairedMacs().contains(source.mac) && connection.allowsSaved(source.mac) },
+                store.pairedMacs().contains(source.mac) && connection.allowsSaved(source.mac) &&
+                localBrowserWorkspacePresent(feedCoordinator.sources.value[source.mac.origin], workspace.id) },
             onLocal = {
                 workspaceRoute = null; inAppNotification = null
                 selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null; selectedChangesWorkspace = null
@@ -257,6 +258,7 @@ fun NativeScreen(
             })
     }
     val feedSources by feedCoordinator.sources.collectAsState()
+    LaunchedEffect(feedSources) { feedSources.values.forEach(localBrowsers::observeWorkspaces) }
     val workspaceMoves = feedSession.workspaceMoves
     val moveSources by workspaceMoves.sources.collectAsState()
     val moveStatus by workspaceMoves.status.collectAsState()

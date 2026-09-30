@@ -163,7 +163,7 @@ internal class NativeFeedCoordinator(
         val listing = client.workspaces()
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val source = mutableSources.value[handle.mac.origin] ?: return
-        publish(handle, source.copy(workspaces = parseWorkspaces(listing), groups = parseGroups(listing), hasWorkspaceSnapshot = true))
+        publish(handle, source.copy(workspaces = parseAuthoritativeWorkspaces(listing), groups = parseGroups(listing), hasWorkspaceSnapshot = true))
     }
 
     /** Never substitute the foreground Mac when a row's owning session is unavailable. */
