@@ -421,6 +421,7 @@ class MobileRpcClient internal constructor(
     internal val supportsArtifactLanes get() = transport.supportsArtifactLanes
 
     internal val supportsSimulatorLanes get() = transport.supportsSimulatorLanes
+    internal val simulatorConnectionId: String get() = delegate?.simulatorConnectionId ?: clientId
 
     /** Keeps an event consumer inside its lease for its entire lifetime, including cleanup. */
     internal suspend fun useEventSession(use: suspend (MobileRpcClient) -> Unit) {

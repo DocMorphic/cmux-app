@@ -14,7 +14,8 @@ internal fun interface SimLaneSource {
 
 internal class MobileSimLaneSource(private val client: MobileRpcClient, private val panelId: String) : SimLaneSource {
     init { simulatorLaneDescriptor(panelId) }
-    override suspend fun use(block: suspend (SimStreamLane) -> Unit) = client.useSimulatorLane(panelId, block)
+    override suspend fun use(block: suspend (SimStreamLane) -> Unit): Boolean =
+        SimulatorTransitions.use(client.simulatorConnectionId, panelId) { client.useSimulatorLane(panelId, block) }
 }
 
 internal data class SimViewerState(

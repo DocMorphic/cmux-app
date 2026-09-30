@@ -335,6 +335,46 @@ legacy pane UI and lifecycle wiring, serialized legacy-to-v2 handoff, Android
 JPEG/PNG runtime/pixel tests and physical Mac/Pixel checks. The Pixel remained
 absent from ADB; no APK was installed or published for this checkpoint.
 
+### Legacy pane integration (2026-09-30)
+
+The session foundation above is now wired into `NativeSurfaceView`. Hosts with
+`simulator.stream.v1` open the legacy image pane; admitted v2 remains preferred.
+The pane matches the pinned legacy iOS controls: aspect-fit image, ownership pill,
+text/send, Home, Lock, App Switcher, volume and Siri, with separate capability and
+ownership gates. Its text submission dismisses the keyboard. Locked, waiting,
+stalled, disconnected and closed states have explicit overlays. Images remain
+visible under the reconnect overlay, while stale input is disabled and discarded.
+
+`SimulatorTransitions` serializes both modes across remounts and borrowed leases
+of the same physical connection/panel. Navigation cancellation resolves a bounded
+in-flight start acknowledgment, then stops/unsubscribes the old legacy stream
+before a replacement enters. Unrelated Macs and panels remain independent.
+Background/foreground starts a fresh session without replaying input. Image-size
+changes finish an active drag in its old coordinate system before accepting a
+new gesture; attachment/ownership changes discard old gestures.
+
+Verification:
+
+- **35 focused JVM tests passed**, including a delayed start acknowledgment,
+  cancellation during cleanup, cancelled gate waiters and shared-lease identity.
+- **8 Android 17 / 16 KiB runtime tests passed in 15.7 seconds**: five legacy
+  checks and all three existing v2 pane regressions. Legacy checks verify actual
+  PNG/JPEG pixels and dimensions/MIME rejection; touch/button/Unicode text RPCs;
+  keyboard focus dismissal; host image rotation during a drag; view-only/locked/
+  closed states; Activity background/foreground and reconnect without input replay;
+  and workspace route v1-to-v2 handoff held behind an intentionally delayed stop.
+- Portrait PNG, landscape JPEG, locked and workspace-route screenshots inspected.
+  These are synthetic frames in a fixture Activity, not a real Mac Simulator.
+  Fixture system bars are not full-app theme acceptance. Evidence is ignored under
+  `captures/runtime/legacy-simulator/`; emulator stopped after testing.
+- Debug APK SHA-256: `dc1d8cda4ec732a64c9ad08f728d9e030e249fe40a896c2011b377423be8ae29`.
+- Test APK SHA-256: `c7e291a1fb0b574c4dc048ca8f0fa69d7c6af2718d05ed8795e7c7b0e6ef5d27`.
+
+The Pixel was absent from ADB. Physical Mac/Pixel acceptance, v2 dynamic rotation,
+landscape/large-text/TalkBack/full-app theme checks and hardware performance remain
+open. The previous foundation-only checkpoint and older fallback-card notes are
+historical; the legacy UI is now implemented and fixture-verified.
+
 ### Reproduce the native dependency
 
 Use a fresh core output directory; the core script refuses to overwrite an
@@ -365,10 +405,9 @@ python3 scripts/generate-simulator-video-fixtures.py
 1. Complete physical acceptance and performance checks for the implemented video
    presenter, including the Pixel hardware path and real Mac-generated frames.
    Linux-built native artifact runtime checks passed as recorded above.
-2. Implement the legacy RPC/image path required for hosts without v2. Audit
-   `MobileShellComposite+SimulatorStream`, `SimulatorStreamPane`, coordinate,
-   presentation/staleness policies, stop behavior and separate capability gates.
-   Track started legacy streams and stop only those when transitioning to v2.
+2. Exercise the implemented legacy RPC/image path against a real Mac Simulator,
+   including ownership contention, static-screen keepalives and reconnect.
+   Its pane and serialized v2 transition passed the fixture checks above.
 3. Check dynamic host rotation, large text, landscape, TalkBack and full-app theme
    behavior for the implemented v2 pane; fixture screenshots are not full acceptance.
 4. Exercise both paths against framed/native lane fixtures, then a dedicated real

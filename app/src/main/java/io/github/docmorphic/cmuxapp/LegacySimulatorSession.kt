@@ -25,7 +25,8 @@ internal enum class LegacySimulatorPhase { STARTING, STREAMING, STALLED, LOCKED,
 internal data class LegacySimulatorPresentation<T>(val frame: LegacySimulatorFrame, val image: T)
 internal data class LegacySimulatorState<T>(val descriptor: NativeSimulator,
     val phase: LegacySimulatorPhase = LegacySimulatorPhase.STARTING,
-    val presentation: LegacySimulatorPresentation<T>? = null, val inputPaused: Boolean = false)
+    val presentation: LegacySimulatorPresentation<T>? = null, val inputPaused: Boolean = false,
+    val controlPending: Boolean = true)
 
 /** One attachment. All calls and state changes belong to the caller's single owner dispatcher. */
 internal class LegacySimulatorSession<T>(descriptor: NativeSimulator, private val capabilities: Set<String>,
@@ -74,6 +75,7 @@ internal class LegacySimulatorSession<T>(descriptor: NativeSimulator, private va
     fun refresh(): Boolean {
         if (!running || retired || state.value.phase == LegacySimulatorPhase.CLOSED || recovering) return false
         pending.clear(); bytes = 0; generation++
+        mutable.value = state.value.copy(controlPending = true)
         recoveryPending = true; wake.trySend(Unit); return true
     }
 
@@ -105,7 +107,7 @@ internal class LegacySimulatorSession<T>(descriptor: NativeSimulator, private va
         if (merged.ownedByCurrentConnection != true) { pending.clear(); bytes = 0; generation++ }
     }
 
-    suspend fun run(client: MobileRpcClient) = client.useEventSession { run(MobileLegacySimulatorEndpoint(it)) }
+    suspend fun run(client: MobileRpcClient) = MobileLegacySimulatorSource(client, state.value.descriptor.panelId).use { run(it) }
 
     suspend fun run(endpoint: LegacySimulatorEndpoint) = coroutineScope {
         check(!used); used = true
@@ -128,12 +130,22 @@ internal class LegacySimulatorSession<T>(descriptor: NativeSimulator, private va
         })
         suspend fun start() {
             recovering = true
+            mutable.value = state.value.copy(controlPending = true)
             val revision = stateRevision
             try {
-                val response = endpoint.request("mobile.simulator.stream.start", parameters())
+                // Once a start is on the wire, resolve its bounded acknowledgment
+                // before the transition gate admits a replacement viewer. Cancellation
+                // must not lose a late ownership grant and leave its stream running.
+                val descriptor = withContext(NonCancellable) {
+                    withTimeout(15_000) {
+                        val response = endpoint.request("mobile.simulator.stream.start", parameters())
+                        val accepted = NativeSimulator.read(response, workspace)?.takeIf { it.panelId == panel }
+                            ?: error("Invalid Simulator start response")
+                        if (state.value.phase != LegacySimulatorPhase.CLOSED) stopRequired = true
+                        accepted
+                    }
+                }
                 ensureActive()
-                val descriptor = NativeSimulator.read(response, workspace)?.takeIf { it.panelId == panel }
-                    ?: error("Invalid Simulator start response")
                 if (retired || state.value.phase == LegacySimulatorPhase.CLOSED) return
                 stopRequired = true; started = true; activity = nowMillis()
                 if (revision == stateRevision) applyDescriptor(descriptor)
@@ -149,7 +161,7 @@ internal class LegacySimulatorSession<T>(descriptor: NativeSimulator, private va
                 started = false
                 if (failure is MobileRpcException && failure.code == "locked") markLocked()
                 else if (state.value.phase != LegacySimulatorPhase.STALLED) mutable.value = state.value.copy(phase = LegacySimulatorPhase.FAILED)
-            } finally { recovering = false }
+            } finally { recovering = false; mutable.value = state.value.copy(controlPending = false) }
         }
         val collector = launch(start = CoroutineStart.UNDISPATCHED) {
             endpoint.events.collect { event ->

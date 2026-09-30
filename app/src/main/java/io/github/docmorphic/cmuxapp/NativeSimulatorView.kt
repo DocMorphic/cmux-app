@@ -41,6 +41,14 @@ import kotlinx.coroutines.*
 @Composable
 internal fun NativeSimulatorView(descriptor: NativeSimulator, client: MobileRpcClient?,
     capabilities: Set<String>, ready: Boolean) {
+    var videoMode by remember { mutableStateOf(SimStreamWire.CAPABILITY in capabilities && client?.supportsSimulatorLanes == true) }
+    val useVideo = if (ready) SimStreamWire.CAPABILITY in capabilities && client?.supportsSimulatorLanes == true else videoMode
+    if (ready) SideEffect { videoMode = useVideo }
+    if (!useVideo) {
+        val source = remember(client, descriptor.panelId) { client?.let { MobileLegacySimulatorSource(it, descriptor.panelId) } }
+        LegacySimulatorPane(descriptor, source, capabilities, ready)
+        return
+    }
     val currentClient by rememberUpdatedState(client)
     val currentReady by rememberUpdatedState(ready)
     val currentCapabilities by rememberUpdatedState(capabilities)
@@ -238,7 +246,7 @@ internal fun SimulatorPane(source: SimLaneSource?, actions: SimulatorActions, re
 }
 
 @Composable
-private fun SimulatorOverlay(title: String, detail: String, action: String?, enabled: Boolean, onAction: () -> Unit, glyph: String) {
+internal fun SimulatorOverlay(title: String, detail: String, action: String?, enabled: Boolean, onAction: () -> Unit, glyph: String) {
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .72f)).pointerInput(Unit) {
         awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } }
     }, contentAlignment = Alignment.Center) {
@@ -253,7 +261,7 @@ private fun SimulatorOverlay(title: String, detail: String, action: String?, ena
 }
 
 @Composable
-private fun SimulatorChromeButton(label: String, glyph: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun SimulatorChromeButton(label: String, glyph: String, enabled: Boolean, onClick: () -> Unit) {
     IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(44.dp).semantics { contentDescription = label }) {
         SimulatorGlyph(glyph, if (enabled) Color.White else Color(0xFF707276), Modifier.size(22.dp))
     }

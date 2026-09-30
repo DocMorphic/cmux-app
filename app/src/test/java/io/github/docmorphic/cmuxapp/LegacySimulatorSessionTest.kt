@@ -177,4 +177,18 @@ class LegacySimulatorSessionTest {
         endpoint.emit("simulator.frame", frame(2)); runCurrent(); assertNull(session.state.value.presentation)
         assertFalse(endpoint.calls.any { it.first == "mobile.simulator.stream.stop" })
     }
+
+    @Test fun cancellationWaitsForLateStartAcknowledgmentThenStopsBeforeAReplacementCanEnter() = runTest {
+        val gate = CompletableDeferred<Unit>(); val endpoint = Endpoint()
+        endpoint.response = { method, _ -> if (method.endsWith(".start")) { gate.await(); descriptor() } else JSONObject() }
+        val session = session(); var nextEntered = false
+        val running = launch { SimulatorTransitions.use("mac", panel) { session.run(endpoint) } }; runCurrent()
+        running.cancel(); runCurrent()
+        val next = launch { SimulatorTransitions.use("mac", panel) { nextEntered = true } }; runCurrent()
+        assertFalse(nextEntered)
+        gate.complete(Unit); runCurrent(); running.join(); next.join()
+        assertTrue(nextEntered)
+        assertEquals(listOf("mobile.simulator.stream.stop", "unsubscribe"), endpoint.calls.takeLast(2).map { it.first })
+        assertFalse(session.input(LegacySimulatorInput.Text("late")))
+    }
 }

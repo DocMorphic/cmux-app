@@ -55,7 +55,8 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
     var supportedPanel by remember(workspace.id, surface.id) { mutableStateOf(false) }
     var supportedSimulator by remember(workspace.id, surface.id) { mutableStateOf(false) }
     if ("panel.artifact.v1" in capabilities) SideEffect { supportedPanel = true }
-    val simulatorReady = ready && SimStreamWire.CAPABILITY in capabilities && client?.supportsSimulatorLanes == true
+    val simulatorReady = ready && client != null && ("simulator.stream.v1" in capabilities ||
+        (SimStreamWire.CAPABILITY in capabilities && client.supportsSimulatorLanes))
     if (ready) SideEffect { supportedSimulator = simulatorReady }
     Column(Modifier.fillMaxSize()) {
         var picker by remember { mutableStateOf(false) }

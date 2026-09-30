@@ -12,13 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Legacy Simulator pane (2026-09-30):** the image/RPC session is now integrated
+with workspace navigation, ownership indicators, touch/text/hardware controls,
+background/reconnect handling and a serialized transition to v2. Thirty-five
+focused JVM tests and eight Android 17/16 KiB tests passed (five legacy checks
+plus three v2 regressions), including painted PNG/JPEG pixels, host image rotation,
+ownership restrictions, input non-replay and delayed stop/handoff. Physical
+Mac/Pixel acceptance and full accessibility/theme checks remain open. See
+[SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md).
+
 **Simulator v2 pane (2026-09-30):** the video decoder, connection owner, workspace
 simulator inventory/routing, aspect-fit touch, text/buttons, persistent quality,
 device selection and recovery overlays are now integrated. The Linux decoder
 artifact passes real 16 KiB runtime checks. Twenty focused JVM checks and three
 final Android pane tests pass, including actual pixels and a borrowed RPC route.
 A UI-dispatcher startup race was found and fixed with an explicit publication
-gate. The legacy simulator path, dynamic rotation/accessibility/theme acceptance
+gate. Dynamic v2 rotation/accessibility/theme acceptance
 and real Mac/Pixel verification remain required; see
 [SIMULATOR_STREAMING.md](SIMULATOR_STREAMING.md). Signed build 248 does not include
 these simulator changes.
