@@ -102,10 +102,10 @@ internal class IrxMobileRpcTransport(
         return MobileTransportDiagnostics.fromIroh(active().diagnostics()).also { requireAccess() }
     }
     override suspend fun openTerminalInput(surfaceId: String): TerminalInputLane =
-        IrxTerminalInputLane.open(openTerminalWire(surfaceId, IrxWire.Lane.TERMINAL_INPUT, null))
+        IrxTerminalInputLane.open(openTerminalWire(surfaceId, IrxWire.Lane.TERMINAL_INPUT, null), surfaceId)
 
     override suspend fun openTerminalOutput(surfaceId: String, cursor: ULong?): TerminalOutputLane =
-        IrxTerminalOutputLane(openTerminalWire(surfaceId, IrxWire.Lane.TERMINAL, cursor), cursor)
+        IrxTerminalOutputLane(openTerminalWire(surfaceId, IrxWire.Lane.TERMINAL, cursor), cursor, surfaceId)
 
     private suspend fun openTerminalWire(surfaceId: String, kind: IrxWire.Lane, cursor: ULong?): TerminalLaneWire {
         val surface = java.util.UUID.fromString(surfaceId).toString()

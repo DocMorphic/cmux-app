@@ -13,13 +13,15 @@ internal interface TerminalOutputLane : TerminalInputLane {
 }
 
 /** A duplex terminal stream. Readiness belongs to the consumer after accepting its replay. */
-internal class IrxTerminalOutputLane(private val wire: TerminalLaneWire, private val cursor: ULong?) : TerminalOutputLane {
+internal class IrxTerminalOutputLane(private val wire: TerminalLaneWire, private val cursor: ULong?, surfaceId: String? = null) : TerminalOutputLane {
     private val ended = AtomicBoolean()
     private val state = MutableStateFlow(false)
     override val closed = state.asStateFlow()
     private val reads = Mutex()
     private val writes = Mutex()
-    private val decoder = TerminalLaneProtocol.Decoder()
+    private val surface = surfaceId?.let { runCatching { java.util.UUID.fromString(it).takeIf { id -> id.toString().equals(it, true) } }.getOrNull() }
+    override val supportsIdentifiedInput get() = surface != null
+    private val decoder = TerminalLaneProtocol.Decoder(acceptInputAcknowledgements = surface != null)
     private val frames = ArrayDeque<TerminalLaneProtocol.Output>()
     private var first = true
 
@@ -46,8 +48,14 @@ internal class IrxTerminalOutputLane(private val wire: TerminalLaneWire, private
         }
     }
 
-    override suspend fun send(text: String) {
-        val bytes = TerminalLaneProtocol.input(text)
+    override suspend fun send(text: String) = sendFrame(TerminalLaneProtocol.input(text))
+
+    override suspend fun sendIdentified(text: String, delivery: TerminalInputDelivery) {
+        require(surface != null && delivery.surface == surface) { "Input delivery terminal mismatch" }
+        sendFrame(TerminalLaneProtocol.input(text, delivery = delivery))
+    }
+
+    private suspend fun sendFrame(bytes: ByteArray) {
         writes.withLock {
             check(!ended.get() && !first) { "Terminal lane not ready" }
             try {

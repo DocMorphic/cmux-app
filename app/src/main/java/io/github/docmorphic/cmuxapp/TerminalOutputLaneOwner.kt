@@ -10,7 +10,8 @@ internal class TerminalOutputLaneOwner(
     private val cursor: () -> ULong?,
     private val useLane: suspend (ULong, suspend (TerminalOutputLane) -> Unit) -> Boolean,
     private val consume: (TerminalLaneProtocol.Output) -> TerminalStreamMirror.Result,
-    private val resync: () -> Unit
+    private val resync: () -> Unit,
+    private val onAcknowledgement: ((TerminalInputAcknowledgement) -> Unit)? = null
 ) : AutoCloseable {
     private var generation = 0L
     private var closed = false
@@ -35,6 +36,10 @@ internal class TerminalOutputLaneOwner(
                                 val frame = candidate.receive() ?: break
                                 currentCoroutineContext().ensureActive()
                                 if (generation != run || closed) return@useLane
+                                if (frame.inputAcknowledgement != null) {
+                                    checkNotNull(onAcknowledgement) { "Unexpected input acknowledgement" }(frame.inputAcknowledgement)
+                                    continue
+                                }
                                 if (consume(frame) == TerminalStreamMirror.Result.REPLAY) {
                                     pause(); resync(); return@useLane
                                 }
@@ -61,11 +66,19 @@ internal class TerminalOutputLaneOwner(
         worker?.cancel(); worker = null
     }
 
-    suspend fun send(text: String): Boolean {
+    suspend fun send(text: String): Boolean = send(text, null)
+
+    suspend fun sendIdentified(text: String, delivery: TerminalInputDelivery): Boolean = send(text, delivery)
+
+    private suspend fun send(text: String, delivery: TerminalInputDelivery?): Boolean {
         check(!closed)
         val active = lane?.takeIf { readiness.value && !it.closed.value } ?: return false
         if (text.toByteArray(Charsets.UTF_8).size !in 1..TerminalLaneProtocol.MAX_INPUT) return false
-        try { active.send(text); return true }
+        if (delivery != null && (!active.supportsIdentifiedInput || onAcknowledgement == null)) return false
+        try {
+            if (delivery == null) active.send(text) else active.sendIdentified(text, delivery)
+            return true
+        }
         catch (failure: Throwable) { pause(); throw failure }
     }
 

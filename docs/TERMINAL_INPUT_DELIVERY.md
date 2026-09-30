@@ -2,9 +2,10 @@
 
 Checkpoint: 2026-09-30. Source contract:
 [`204a11dfcc76280205e50406ab94270a1c152155`](https://github.com/manaflow-ai/cmux/commit/204a11dfcc76280205e50406ab94270a1c152155).
-This implements the wire types, bounded outbox and RPC overloads needed for
-`terminal.input.exactly_once.v1`. **Live capability-gated sending, acknowledgement
-routing, reconnect retry and UI settlement are still to be integrated.** Existing
+This implements the wire types, bounded outbox, RPC overloads and lane
+acknowledgement dispatch needed for `terminal.input.exactly_once.v1`. **Live
+capability-gated sending, session binding, reconnect retry and UI settlement are
+still to be integrated.** Existing
 production callers continue the legacy input path. Signed 274 and the Pixel's
 installed debug `1d5958f` predate this foundation.
 
@@ -40,10 +41,21 @@ malformed, unknown-version, invalid-UUID or overflowing acknowledgement data; a
 future sender must never treat malformed identity as a successful downgrade.
 
 `TerminalLaneProtocol` supports identity-bearing input frames and has an explicit
-opt-in acknowledgement decoder. Legacy lane readers keep their existing decoder
-policy until capability/owner-aware acknowledgement dispatch is wired. Decoded
-acknowledgements carry no renderable text. Acknowledgement framing requires the
-fixed body length and expected zero retained/sequence counters.
+opt-in acknowledgement decoder. Native lanes bound to a canonical terminal UUID
+now decode acknowledgements after accepting their initial replay. Input-only
+lanes expose a bounded, non-dropping acknowledgement flow; duplex owners route
+acknowledgements separately from the renderer. Acknowledgements cannot advance
+the output cursor or enable a lane before its replay. Missing handlers refuse
+identified sends before a write, and unexpected acknowledgements retire the
+optional lane. Closed/paused owners reject late callbacks. Decoded acknowledgements
+carry no renderable text. Framing requires the fixed body length and expected
+zero retained/sequence counters.
+
+Both lane owners expose `sendIdentified`: false means no write, while uncertain
+writes throw. A successful write does not wait for its acknowledgement, allowing
+the future sender to pipeline input. These APIs alone do not negotiate the host
+capability or apply acknowledgement stream/sequence rules; the session sender
+must perform those steps before enabling them in the UI.
 
 `TerminalInputOutbox` retains ordered units until confirmed. It supports cumulative
 applied/duplicate acknowledgement, gap rewind/rebase, busy retry, rejected-unit
@@ -73,7 +85,7 @@ resource, including Unicode text and UInt64-max sequence/marker values.
 python3 scripts/generate-terminal-input-delivery-fixtures.py /path/to/cmux
 ```
 
-**56 JVM tests passed**: six Swift-wire-golden/validation cases, eleven outbox
+**56 JVM tests passed in the initial foundation batch**: six Swift-wire-golden/validation cases, eleven outbox
 cases, four identified/legacy RPC cases, and 35 existing modifier, queue, input
 lane, output lane, frame and control-RPC regressions. The RPC fixtures exercise all
 five writing methods, reject a wrong terminal before any write and verify that an
@@ -82,6 +94,14 @@ checks cover every chunk split, all seven statuses and non-renderable ACK bodies
 No APK or signed build was produced for this foundation. Ignored evidence is in
 `captures/runtime/input-delivery/`. Native identified-delivery and physical workflow
 acceptance remain open.
+
+The subsequent lane integration batch passed **64 JVM tests**, including eight
+new lane/owner tests. Compiled Swift acknowledgement envelopes exercise buffered
+bursts beyond the 64-item flow capacity, byte fragmentation, all duplex envelope
+splits, target mismatch, replay readiness, malformed/truncated input, pipeline
+writes, ambiguous-write propagation, renderer/cursor separation and late callback
+rejection. These are in-process wire fixtures; no native or physical identified
+input check is claimed. Signed 274 and the installed Pixel APK are unchanged.
 
 ## Required integration before enabling the capability
 
@@ -95,9 +115,9 @@ acceptance remain open.
 3. Negotiate `terminal.input.exactly_once.v1` per freshly admitted connection.
    Start identified input only for a valid terminal UUID and supported host.
    Capability loss after an uncertain write must not trigger blind legacy replay.
-4. Route kind-3 acknowledgements from both input-only and duplex lanes without
-   advancing the terminal output cursor. Enforce stream and current-owner checks
-   before applying them. Waiting for an acknowledgement needs a bounded timeout.
+4. Bind the implemented lane acknowledgement callbacks to the scoped sender.
+   Enforce stream and session-owner checks before applying them. Waiting for an
+   acknowledgement needs a bounded timeout.
 5. Retry busy/ambiguous transport outcomes with the same identity and bounded
    attempts. Reset retry counters on actual progress, so repeated busy replies
    cannot loop indefinitely. Handle refusal, disappearance and abandonment visibly.
