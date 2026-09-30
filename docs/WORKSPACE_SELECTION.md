@@ -4,7 +4,7 @@ Audited 2026-09-30 against upstream
 `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`. Fresh-open default selection and local
 browser workspace-lifetime protection are implemented. Persisted last-tab memory
 is now wired into workspace navigation; see the integration checkpoint below.
-**General delayed-pane selection, refresh ordering and physical acceptance remain open.**
+**General delayed-pane selection, current-screen restoration and physical acceptance remain open.**
 
 ## Reference code
 
@@ -238,10 +238,10 @@ Verification:
 - Browser discovery currently services remembered-stream restoration. General
   discovery for fresh empty workspaces and uncertain create outcomes still needs
   integration, including default promotion when descriptors arrive later.
-- Created-terminal startup is implemented in the checkpoint below. Comprehensive
-  refresh reconciliation remains open: especially out-of-order inventories around
-  mutations, late default-pane discovery and live multi-Mac/build convergence.
-  The existing resolver is not yet the full iOS selection synchronizer.
+- Created-terminal startup and shared refresh ordering are implemented in the
+  checkpoints below. Late default-pane discovery and live multi-Mac/build
+  convergence remain open. The resolver is not yet the full iOS selection
+  synchronizer.
 - Physical Pixel/Mac, true OS process-death, broader multi-Mac/build and
   accessibility acceptance remain open. Fixture restoration of a Simulator
   descriptor proves selection; its actual stream is verified by the earlier
@@ -302,5 +302,64 @@ Verification:
 These are emulator fixture results, not physical Mac/Pixel acceptance. ADB still
 reported no physical device. No user account data or phone settings changed.
 Full Activity/process restoration of the current navigation/creation state,
-landscape/accessibility acceptance and host refresh-order convergence still need
-work. Signed build **261** is unchanged and predates this feature.
+landscape/accessibility acceptance and physical host convergence still need work.
+Refresh ordering is addressed by the next checkpoint. Signed build **261** is
+unchanged and predates this feature.
+
+
+## Shared workspace refresh ordering (2026-09-30)
+
+`NativeWorkspaceSnapshots` coordinates foreground and feed inventories across
+separate clients for the same login/account/team/Mac/build. It tracks when a read
+started and the last snapshot actually accepted for publication. A late response
+cannot replace a newer accepted inventory. A malformed or failed newer read does
+not discard an earlier valid snapshot.
+
+Workspace, terminal and browser creation, workspace/group actions, checklist
+mutations and explicit surface focus invalidate in-flight inventories before and
+after their RPC. Failed or cancelled mutations also invalidate reads: an absent
+acknowledgement is not proof that nothing changed. Reads wait for mutations, then
+retry superseded inventories up to three times within a 30-second bound. Mutations
+are never replayed by this mechanism. A read timeout becomes a recoverable I/O
+error without cancelling the owning feed monitor.
+
+Publication checks cover connection startup, workspace and notification routing,
+periodic/event refreshes, task/group refreshes, checklist results and remembered
+tabs. Browser discovery checks the inventory again after its separate awaited
+RPC. Create callbacks use an already accepted newer snapshot if available; they
+cannot resurrect a workspace whose subsequent confirmed snapshot removed it.
+Direct foreground mutations also recheck the exact current connection and account
+before transmission.
+
+An explicit open of an already known workspace pane can use that owner's cached
+row while another mutation is pending. This is navigation, not a new authoritative
+inventory, and cannot prove absence or retire other panes. The create response
+still cannot override that newer navigation. This distinction fixed a regression
+found by the delayed-create runtime test.
+
+Verification:
+
+- **39 JVM tests passed**: 11 snapshot ordering/account/lifetime cases, 17 feed
+  coordinator regressions and 11 terminal startup cases.
+- **34 Android 17 / 16 KiB tests passed**: a 30-test batch in **100.67 seconds** and
+  four notification/multi-Mac/reordering cases in **11.656 seconds**.
+- Two new full-screen cases delay a foreground read across terminal creation and
+  delay browser discovery across a newer feed-confirmed workspace deletion. They
+  verify that the new terminal remains selected and a deleted browser never starts
+  streaming. Existing cases cover startup/timeout/Retry, default and remembered
+  tabs, task creation, checklist rejection and lost acknowledgements, panel focus,
+  terminal input/resize, notification ownership and colliding workspace IDs.
+- The initial 30-test run had one failure: the read barrier blocked navigation to
+  another known workspace while a create was waiting. The cached-pane navigation
+  fix above resolved it; the complete 30-test rerun passed. The original failure
+  log is retained.
+- Ignored evidence: `captures/runtime/workspace-order/` (initial and final runtime
+  logs, build log, JVM XML and APK metadata). Owned emulator stopped afterward.
+- Debug APK SHA-256: `0a324d3f9abe187aae824ae90a0356a5e7abac7e437aea41d4bdb1923b07e710`.
+- Test APK SHA-256: `6277a3afad6c4ed0d6effb1e9af9c0aae8575ef38fe021b5b1f54279faf62a13`.
+
+This checks client request ordering and mutation boundaries; it does not prove
+freshness of data cached internally by a host. Physical Mac/Pixel acceptance,
+current-screen restoration across Activity/process recreation and general delayed
+pane discovery remain open. No physical device was visible to ADB, no phone data
+or settings changed, and signed build **261** remains the latest signed release.

@@ -196,7 +196,7 @@ class LegacySimulatorViewTest {
         try {
             compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().systemBarsPadding()) {
                 if (mounted) NativeSurfaceView(workspace, workspace.macSurfaces.single(), lease, caps, true,
-                    onBack = { mounted = false }, onSurface = {}, onTerminal = {}, onBrowser = {}, onListing = {})
+                    onBack = { mounted = false }, onSurface = {}, onTerminal = {}, onBrowser = {})
             } } }
             compose.onNodeWithText("Android Control").assertIsDisplayed(); capture("legacy-simulator-workspace", false)
             compose.runOnIdle { caps = capabilities + SimStreamWire.CAPABILITY }

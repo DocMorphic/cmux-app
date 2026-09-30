@@ -34,13 +34,14 @@ internal fun NativeSurfaceShortcut(surface: NativeSurface, color: Color, onOpen:
 @Composable
 internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurface, client: MobileRpcClient?,
     capabilities: Set<String>, ready: Boolean, onBack: () -> Unit, onSurface: (NativeSurface) -> Unit,
-    onTerminal: (NativeTerminal) -> Unit, onBrowser: (NativeBrowser) -> Unit, onListing: (org.json.JSONObject) -> Unit,
+    onTerminal: (NativeTerminal) -> Unit, onBrowser: (NativeBrowser) -> Unit,
+    mutateWorkspace: (suspend (MobileRpcClient, String, org.json.JSONObject) -> org.json.JSONObject)? = null,
     onNewBrowser: (() -> Unit)? = null) {
     BackHandler(onBack = onBack)
     val currentClient by rememberUpdatedState(client)
     val currentReady by rememberUpdatedState(ready)
     val currentCapabilities by rememberUpdatedState(capabilities)
-    val currentListing by rememberUpdatedState(onListing)
+    val currentMutation by rememberUpdatedState(mutateWorkspace)
     val todo = remember(surface.todoJson) { TodoSnapshot.decode(surface.todoJson) }
     // Keep downloaded content mounted across a reconnect. Any new request rechecks
     // this exact view's current connection; no captured dead client can supply data.
@@ -86,11 +87,8 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
                 val active = checkNotNull(currentClient) { "Mac disconnected." }
                 check(currentReady && "todo.v1" in currentCapabilities) { "Your Mac isn't ready to update this checklist." }
                 val (method, params) = mutation.request(workspace.id)
-                active.request(method, params)
-                check(currentClient === active && currentReady) { "Connection changed while updating the checklist." }
-                val listing = active.workspaces()
+                val listing = checkNotNull(currentMutation) { "Checklist updates are unavailable." }(active, method, params)
                 check(currentClient === active && currentReady) { "Connection changed while refreshing the checklist." }
-                currentListing(listing)
                 val updated = parseWorkspaces(listing).singleOrNull { it.id == workspace.id }
                     ?.macSurfaces?.singleOrNull { it.id == surface.id && it.kind == "todo" }
                 checkNotNull(TodoSnapshot.decode(updated?.todoJson)) { "The checklist is no longer available." }
@@ -105,7 +103,8 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
             NativeSurfaceCard(workspace, surface, ready && "surface.focus.v1" in capabilities) {
                 val active = checkNotNull(currentClient)
                 check(currentReady && "surface.focus.v1" in currentCapabilities)
-                active.request("mobile.surface.focus", org.json.JSONObject().put("workspace_id", workspace.id).put("surface_id", surface.id))
+                checkNotNull(currentMutation) { "Workspace updates are unavailable." }(active, "mobile.surface.focus",
+                    org.json.JSONObject().put("workspace_id", workspace.id).put("surface_id", surface.id))
                 check(currentClient === active && currentReady) { "Connection changed." }
             }
         }

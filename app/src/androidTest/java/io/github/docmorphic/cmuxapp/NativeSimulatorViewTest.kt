@@ -205,7 +205,7 @@ class NativeSimulatorViewTest {
         try {
             compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().systemBarsPadding()) {
                 if (mounted) NativeSurfaceView(workspace, workspace.macSurfaces.single(), lease, setOf(SimStreamWire.CAPABILITY), true,
-                    onBack = { mounted = false }, onSurface = { }, onTerminal = { }, onBrowser = { }, onListing = { })
+                    onBack = { mounted = false }, onSurface = { }, onTerminal = { }, onBrowser = { })
             } } }
             awaitVideo(source)
             compose.onNodeWithText("Test Simulator ▾").assertIsDisplayed()

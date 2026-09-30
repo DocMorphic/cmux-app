@@ -12,7 +12,8 @@ import kotlinx.coroutines.sync.withLock
 internal class NativeFeedCoordinator(
     private val scope: CoroutineScope,
     private val connect: suspend (NativeCredentialStore.PairedMac) -> MobileRpcClient,
-    private val isAllowed: (NativeCredentialStore.PairedMac) -> Boolean
+    private val isAllowed: (NativeCredentialStore.PairedMac) -> Boolean,
+    private val workspaceSnapshots: NativeWorkspaceSnapshots = NativeWorkspaceSnapshots()
 ) : AutoCloseable {
     private class Handle(val mac: NativeCredentialStore.PairedMac, val revision: NativeFeedRevision, val routeKey: String?) {
         var client: MobileRpcClient? = null
@@ -147,7 +148,8 @@ internal class NativeFeedCoordinator(
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
         check(handle.verified) { "Computer identity is still being verified." }
         val required = handle.revision.required()
-        refreshWorkspaces(handle, client)
+        try { refreshWorkspaces(handle, client) }
+        catch (_: NativeWorkspaceSnapshotSuperseded) { return@withLock false }
         val response = client.notifications()
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val revision = response.optLong("revision", -1)
@@ -160,10 +162,11 @@ internal class NativeFeedCoordinator(
 
     /** Workspace snapshots are independent of notification revision floors. Caller holds the handle mutex. */
     private suspend fun refreshWorkspaces(handle: Handle, client: MobileRpcClient) {
-        val listing = client.workspaces()
+        val listing = workspaceSnapshots.read(handle.mac, client)
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val source = mutableSources.value[handle.mac.origin] ?: return
-        publish(handle, source.copy(workspaces = parseAuthoritativeWorkspaces(listing), groups = parseGroups(listing), hasWorkspaceSnapshot = true))
+        if (!listing.accept()) throw NativeWorkspaceSnapshotSuperseded()
+        publish(handle, source.copy(workspaces = listing.workspaces, groups = parseGroups(listing.value), hasWorkspaceSnapshot = true))
     }
 
     /** Never substitute the foreground Mac when a row's owning session is unavailable. */
@@ -227,7 +230,7 @@ internal class NativeFeedCoordinator(
             check(current(handle, client)) { "Saved computer changed" }
             check(handle.verified) { "Computer identity is still being verified." }
             try {
-                val result = operation(handle, client)
+                val result = workspaceSnapshots.mutate(mac) { operation(handle, client) }
                 if (!current(handle, client)) throw CancellationException("Saved computer changed")
                 result
             } finally {

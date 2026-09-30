@@ -2175,6 +2175,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var renamedWorkspace: String? = null
     @Volatile var hiddenWorkspaceId: String? = null
     @Volatile var customWorkspaceListing: JSONObject? = null
+    @Volatile var workspaceListingResponse: ((Boolean) -> JSONObject)? = null
     @Volatile var terminalCreationResponse: ((JSONObject) -> JSONObject)? = null
     @Volatile var workspaceCreationResponse: (() -> JSONObject)? = null
     private val readNotifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
@@ -2240,6 +2241,7 @@ internal class NativeFixturePeer : AutoCloseable {
     }.apply { isDaemon = true; start() }
 
     private fun serve(socket: Socket) {
+        var feedConnection = false
         try {
             socket.use {
                 val input = socket.getInputStream()
@@ -2251,6 +2253,9 @@ internal class NativeFixturePeer : AutoCloseable {
                     for (frame in decoder.feed(buffer.copyOf(count))) {
                         val request = JSONObject(String(frame, Charsets.UTF_8))
                         requests += request
+                        if (request.optString("method") == "mobile.events.subscribe" &&
+                            request.optJSONObject("params")?.optJSONArray("topics")?.toString()?.contains("notification.feed.changed") == true)
+                            feedConnection = true
                         if (request.optString("method") == "mobile.terminal.replay") {
                             releaseReplays?.takeIf { replayGateSurface == request.getJSONObject("params").getString("surface_id") }?.let { latch ->
                                 blockedReplaySurfaces += request.getJSONObject("params").getString("surface_id")
@@ -2283,7 +2288,10 @@ internal class NativeFixturePeer : AutoCloseable {
                         }
                         val taskError = if (request.optString("method") == "workspace.create") nextTaskCreateError.getAndSet(null) else null
                         val todoRejected = (request.optString("method").startsWith("mobile.todo.") || request.optString("method").startsWith("mobile.status.")) && rejectNextTodo.getAndSet(false)
-                        val result = if (taskError != null || todoRejected) JSONObject() else response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
+                        val result = if (taskError != null || todoRejected) JSONObject()
+                            else if (request.optString("method") == "mobile.workspace.list" && workspaceListingResponse != null)
+                                workspaceListingResponse!!.invoke(feedConnection)
+                            else response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
                         // Execute/record the request, then lose only its reply. socket.use
                         // closes this connection; the listener accepts the app's reconnect.
                         if (request.optString("method") == dropReplyAfterMethod) {

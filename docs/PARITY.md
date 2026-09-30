@@ -12,13 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Workspace refresh ordering (2026-09-30):** foreground/feed reads now share scoped
+publication ordering and mutation boundaries. Older responses cannot remove a
+newly created terminal or restore a deleted pane. Late create callbacks use newer
+validated inventory; explicit navigation to known panes remains available during
+a pending create. **39 JVM and 34 Android 17 / 16 KiB tests passed**, after fixing
+one navigation regression found in the first runtime batch. Physical acceptance,
+current-screen restoration and general delayed-pane discovery remain open. See
+[WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). Signed build 261 is unchanged.
+
 **Created-terminal startup (2026-09-30):** new terminals remain selected while
 starting, with readiness-gated output/input, a 30-second deadline, iOS-style timeout
 recovery and explicit Retry. Partial create results preserve other workspaces;
 late replies cannot interrupt newer navigation. **35 JVM and 27 Android 17 /
 16 KiB tests passed**, including the real timeout and existing task/input/tab flows.
-Physical acceptance, current-screen restoration and general refresh ordering
-remain open. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). Signed build 261
+This preceded the refresh-ordering checkpoint above. Physical acceptance and
+current-screen restoration remain open. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). Signed build 261
 is unchanged.
 
 **Remembered-tab navigation (2026-09-30):** persistent memory is wired into workspace

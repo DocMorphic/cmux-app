@@ -28,8 +28,9 @@ internal fun rememberWorkspaceTabSnapshot(store: NativeCredentialStore, login: S
 @Composable
 internal fun NativeWorkspaceTabRecovery(navigation: NativeWorkspaceTabNavigation,
     pending: NativeWorkspacePendingTab?, client: MobileRpcClient?, ready: Boolean,
-    capabilities: Set<String>, isCurrent: () -> Boolean,
-    onChoice: (JSONObject, NativeWorkspace, NativeWorkspaceTabChoice) -> Unit, onMissing: () -> Unit) {
+    capabilities: Set<String>, readListing: suspend (MobileRpcClient) -> NativeWorkspaceSnapshot, isCurrent: () -> Boolean,
+    onChoice: (NativeWorkspaceSnapshot, NativeWorkspace, NativeWorkspaceTabChoice) -> Unit, onMissing: () -> Unit) {
+    val read by rememberUpdatedState(readListing)
     val current by rememberUpdatedState(isCurrent)
     val choose by rememberUpdatedState(onChoice)
     val missing by rememberUpdatedState(onMissing)
@@ -42,15 +43,16 @@ internal fun NativeWorkspaceTabRecovery(navigation: NativeWorkspaceTabNavigation
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
         while (valid()) {
             try {
-                val listing = active.workspaces()
+                val listing = read(active)
                 if (!valid()) return@repeatOnLifecycle
-                val workspace = parseAuthoritativeWorkspaces(listing).singleOrNull { it.id == ticket.key.workspaceId }
-                if (workspace == null) { navigation.cancel(); missing(); return@repeatOnLifecycle }
+                val workspace = listing.workspaces.singleOrNull { it.id == ticket.key.workspaceId }
+                if (workspace == null) { if (!listing.accept()) throw NativeWorkspaceSnapshotSuperseded(); navigation.cancel(); missing(); return@repeatOnLifecycle }
                 val browsers = if (ticket.tab.kind == NativeWorkspaceTabKind.BROWSER_STREAM && "browser.stream.v1" in capabilities) {
                     try { withTimeoutOrNull(15_000) { parseWorkspaceBrowserPanels(active.browserPanels(workspace.id), workspace.id) } }
                     catch (failure: Exception) { if (failure is CancellationException) throw failure; null }
                 } else if ("browser.stream.v1" !in capabilities) emptyList() else null
                 if (!valid()) return@repeatOnLifecycle
+                if (!listing.accept()) throw NativeWorkspaceSnapshotSuperseded()
                 navigation.resolve(ticket, workspace, browsers)?.let { choice -> choose(listing, workspace, choice); return@repeatOnLifecycle }
             } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
