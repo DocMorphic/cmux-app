@@ -4,7 +4,8 @@ Audited 2026-09-30 against upstream
 `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`. Fresh-open default selection and local
 browser workspace-lifetime protection are implemented. Persisted last-tab memory
 is now wired into workspace navigation; see the integration checkpoint below.
-**General delayed-pane selection, current-screen restoration and physical acceptance remain open.**
+General delayed-pane selection and browser discovery are now integrated.
+**Current-screen restoration and physical acceptance remain open.**
 
 ## Reference code
 
@@ -73,20 +74,21 @@ workspace routes; notification routing retains its separate behavior.
 
 Wire browser surfaces and discovered browser streams are different inventories.
 The resolver takes a separate discovered-browser list; an unfocused browser surface
-alone does not override a ready terminal. Android has not yet connected that
-discovery list to selection synchronization. Simulator descriptors are already
-available in workspace snapshots. A matching descriptor promotes the selected
-raw Simulator surface to its streaming view, preserving focus and host order.
+alone does not override a ready terminal. Discovery is now connected to visible
+workspace refresh and pending empty-workspace/default selection. Simulator
+descriptors are available in workspace snapshots. A matching Simulator or browser
+descriptor promotes the selected raw surface to its streaming view, preserving
+focus and host order; Simulator descriptors take priority on an ID collision.
 
-Local browser Back already retains a one-shot in-memory restore intent, distinct
-from persisted all-kind last-tab memory. Do not describe that as full selection
-parity. The default resolver is not yet the refresh/restore state machine.
+The preference store, restore controller, created-terminal startup pins, refresh
+ordering and delayed discovery are integrated in the checkpoints below. Local
+browser memory is one of the five persisted tab kinds. This does not yet restore
+the current screen or an in-flight creation after Activity/process recreation.
 
-The preference store and restore controller are integrated in the checkpoint below.
-Continue with general delayed discovery, true process-death acceptance, multiple
-physical Macs/builds and created-terminal startup pins. Keep additions outside the
-large `NativeScreen` method, which has already hit Kotlin's JVM bytecode size limit.
-Follow with Pixel/Mac acceptance.
+Continue with current-screen restoration, true process-death acceptance and
+physical Macs/builds. Keep additions outside the large `NativeScreen` method,
+which has already hit Kotlin's JVM bytecode size limit. Follow with Pixel/Mac
+acceptance.
 
 ## Default-routing verification (2026-09-30)
 
@@ -363,3 +365,63 @@ freshness of data cached internally by a host. Physical Mac/Pixel acceptance,
 current-screen restoration across Activity/process recreation and general delayed
 pane discovery remain open. No physical device was visible to ADB, no phone data
 or settings changed, and signed build **261** remains the latest signed release.
+
+
+## Empty workspaces and delayed browser discovery (2026-09-30)
+
+Every workspace row now opens, including a freshly created workspace whose panes
+have not arrived. The waiting screen retains Back, New terminal and New browser;
+connection loss shows reconnect status. It attaches to a late terminal, Mac pane,
+Simulator or discovered browser using the existing default policy. No terminal
+output/input is attached before the selected terminal becomes ready.
+
+Visible workspaces now discover browser panels even without a remembered browser.
+Discovery is capability-gated and scoped to login, owning Mac/build, workspace,
+client and foreground lifecycle. The terminal menu exposes discovered browsers.
+A matching descriptor upgrades the selected raw Mac panel, with Simulator priority;
+unrelated late browsers never replace a ready terminal or an explicit selection.
+Malformed/failed discovery preserves the previous cache, while validated empty
+results can retire it. Browser inventory remains separate from wire surfaces.
+
+Pending recovery and general browser discovery publish validated known panes
+before waiting for the browser RPC. They own visible-workspace polling so an
+unrelated periodic read does not continually supersede slow discovery. Host events
+still refresh immediately. Snapshots are checked again after the browser request;
+a deleted workspace or changed session cannot receive a late browser result.
+
+A host refresh may replace the interim fallback while a remembered tab is waiting.
+That derived change now updates the fallback marker without cancelling remembered
+intent. Explicit picker actions still cancel it, including selecting the current
+fallback. Starting a terminal cancels default discovery so a delayed fallback
+cannot invalidate the create response and its startup pin.
+
+The outer screen layout was extracted into a non-inline composable after the first
+build exceeded Kotlin's per-method JVM bytecode limit. The corrected debug and
+instrumentation builds succeed.
+
+Verification:
+
+- **50 JVM tests passed** across navigation, default selection, remembered-tab
+  resolution, terminal startup and shared workspace snapshot ordering.
+- **39 Android 17 / 16 KiB tests passed in 115.648 seconds** on the final APKs:
+  nine delayed-pane cases, seven startup cases, eleven remembered-tab cases,
+  four default-routing cases, two ordering cases and six local-browser cases.
+- New runtime cases cover empty rows, late terminal/Mac panel arrival, browser-only
+  discovery without wire surfaces, browser-menu selection, raw-panel promotion,
+  explicit selection during discovery, leaving before discovery completes,
+  terminal creation from the waiting view and a genuinely new empty workspace.
+  A further remembered-browser case replaces the interim terminal via a host event
+  before browser discovery succeeds and verifies that the remembered browser wins.
+- The earlier nine new cases and 29 existing regression cases also passed before
+  the final fallback-marker fix. No runtime failures were observed in this work.
+- Ignored evidence: `captures/runtime/delayed-panes/` includes original compiler
+  failure, successful builds, runtime logs, JVM XML, APK hashes and the inspected
+  waiting-screen screenshot. The owned emulator was stopped afterward.
+- Debug APK SHA-256: `286624bab6636886848dbf6ce4fc6665cdf503d1cbb5ebf225e9de32f36f9b0f`.
+- Test APK SHA-256: `fec23c728b9214312f527f8dd552b297603ab3c51c8496d537fca559be5d9922`.
+
+ADB and the Mac USB device tree still showed no physical Pixel despite the user's
+connection report. No phone app data, sign-in or settings changed. Current-screen
+restoration across Activity/process recreation, broader physical multi-Mac/build
+acceptance and landscape/accessibility verification remain open. Signed build
+**261** is unchanged and predates this checkpoint; no new signed build was launched.

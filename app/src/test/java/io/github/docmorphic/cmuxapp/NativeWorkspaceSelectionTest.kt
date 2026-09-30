@@ -31,6 +31,12 @@ class NativeWorkspaceSelectionTest {
         assertEquals(first, workspace.copy(terminals = listOf(first)).defaultPane()?.terminal)
         assertNull(workspace.defaultPane())
     }
+    @Test fun discoveredStreamUpgradesTheFocusedRawSurfaceAndSimulatorStillWinsItsId() {
+        val raw = workspace(surfaces = """[{"surface_id":"panel","kind":"custom","is_focused":true}]""")
+        val browser = NativeBrowser("panel", "Streamed panel")
+        assertEquals(browser, raw.defaultPane(listOf(browser))?.browser)
+        assertNotNull(raw.copy(simulators = listOf(simulator("panel"))).defaultPane(listOf(browser))?.surface?.simulator)
+    }
     @Test fun focusedNonTerminalWinsAFreshOpenEvenWhenThereIsAReadyTerminal() {
         val workspace = workspace(shell, """[{"surface_id":"todo","kind":"todo","is_focused":true}]""")
         assertEquals("todo", workspace.defaultPane()?.surface?.id)

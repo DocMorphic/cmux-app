@@ -33,7 +33,7 @@ internal fun NativeTerminalTabs(terminals: List<NativeTerminal>, selected: Nativ
 internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWorkspace?, workspaceCount: Int,
     capabilities: Set<String>, ready: Boolean, directTyping: Boolean,
     onBack: () -> Unit, onSurface: (NativeSurface) -> Unit, onText: () -> Unit, onFiles: () -> Unit,
-    onNewBrowser: () -> Unit, onKeyboard: () -> Unit) {
+    onNewBrowser: () -> Unit, onKeyboard: () -> Unit, onBrowser: (NativeBrowser) -> Unit) {
     val accent = Color(0xFF76B9FF)
     Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
@@ -46,8 +46,11 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
                     .padding(horizontal = 15.dp, vertical = 7.dp), fontWeight = FontWeight.Medium,
                 fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                workspace?.macSurfaces?.forEach { surface ->
+                workspace?.macSurfaces?.filter { it.simulator != null || workspace.browsers.none { browser -> browser.id == it.id } }?.forEach { surface ->
                     DropdownMenuItem(text = { Text(surface.displayTitle) }, onClick = { menu = false; onSurface(surface) })
+                }
+                workspace?.browsers?.filter { browser -> workspace.simulators.none { it.panelId == browser.id } }?.forEach { browser ->
+                    DropdownMenuItem(text = { Text(browser.title.ifBlank { "Browser" }) }, onClick = { menu = false; onBrowser(browser) })
                 }
                 DropdownMenuItem(text = { Text("New Browser") }, onClick = { menu = false; onNewBrowser() }, enabled = workspace != null)
                 DropdownMenuItem(text = { Text("View as Text") }, onClick = { menu = false; onText() }, enabled = terminal.isReady)

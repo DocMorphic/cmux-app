@@ -16,12 +16,12 @@ internal val NativeWorkspace.preferredTerminal: NativeTerminal?
         ?: terminals.firstOrNull()
 
 /** A known Simulator descriptor upgrades its raw Mac surface without losing host order. */
-private fun NativeWorkspace.nonTerminalPane(id: String): NativeWorkspacePane? {
+private fun NativeWorkspace.nonTerminalPane(id: String, discoveredBrowsers: List<NativeBrowser> = emptyList()): NativeWorkspacePane? {
     simulators.firstOrNull { it.panelId == id }?.let { simulator ->
         return NativeWorkspacePane(surface = simulator.surface().copy(
             isFocused = surfaces.firstOrNull { it.id == id }?.isFocused == true))
     }
-    browsers.firstOrNull { it.id == id }?.let { return NativeWorkspacePane(browser = it) }
+    (discoveredBrowsers + browsers).firstOrNull { it.id == id }?.let { return NativeWorkspacePane(browser = it) }
     return macSurfaces.firstOrNull { it.id == id }?.let { NativeWorkspacePane(surface = it) }
 }
 
@@ -37,11 +37,11 @@ internal fun NativeWorkspace.explicitPane(terminalId: String? = null, browserId:
 /** iOS syncDefaultSurfaceForWorkspace followed by preferredTerminal, for a fresh open. */
 internal fun NativeWorkspace.defaultPane(discoveredBrowsers: List<NativeBrowser> = emptyList()): NativeWorkspacePane? {
     surfaces.firstOrNull { it.kind != "terminal" && it.isFocused }?.let { focused ->
-        nonTerminalPane(focused.id)?.let { return it }
+        nonTerminalPane(focused.id, discoveredBrowsers)?.let { return it }
     }
     if (terminals.isEmpty()) {
         surfaces.firstOrNull { it.kind != "terminal" }?.let { first ->
-            nonTerminalPane(first.id)?.let { return it }
+            nonTerminalPane(first.id, discoveredBrowsers)?.let { return it }
         }
     }
     simulators.firstOrNull()?.let { return NativeWorkspacePane(surface = it.surface()) }

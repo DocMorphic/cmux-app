@@ -6,7 +6,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 internal data class NativeWorkspacePendingTab(val login: String, val key: NativeWorkspaceTabKey,
-    val tab: NativeWorkspaceTab, val id: String = UUID.randomUUID().toString())
+    val tab: NativeWorkspaceTab?, val id: String = UUID.randomUUID().toString())
 internal data class NativeWorkspaceTabChoice(val pane: NativeWorkspacePane?, val localBrowser: Boolean = false)
 
 internal fun workspaceTabDisplay(login: String?, owner: NativeTeamScope?, macs: List<NativeCredentialStore.PairedMac>,
@@ -42,9 +42,24 @@ internal class NativeWorkspaceTabNavigation(
     private var interim: NativeWorkspaceTab? = null
     private var recorded: Triple<String, NativeWorkspaceTabKey, NativeWorkspaceTab>? = null
     private var discovered: Pair<NativeWorkspaceTabKey, List<NativeBrowser>>? = null
+    private var observed: Pair<String, NativeWorkspaceTabKey>? = null
     fun remembered(login: String, key: NativeWorkspaceTabKey) = read(login, key)
     fun cancel() { mutablePending.value = null; interim = null }
-    fun clear() { cancel(); recorded = null; discovered = null }
+    fun clear() { cancel(); recorded = null; discovered = null; observed = null }
+    fun browsers(key: NativeWorkspaceTabKey): List<NativeBrowser>? = discovered?.takeIf { it.first == key }?.second
+    fun discover(login: String, key: NativeWorkspaceTabKey, browsers: List<NativeBrowser>): Boolean {
+        if (observed != (login to key)) return false
+        discovered = key to browsers
+        return true
+    }
+    fun awaitDefault(login: String, key: NativeWorkspaceTabKey) {
+        if (pending.value != null) return
+        interim = null
+        mutablePending.value = NativeWorkspacePendingTab(login, key, null)
+    }
+    fun refreshInterim(ticket: NativeWorkspacePendingTab, tab: NativeWorkspaceTab?) {
+        if (pending.value == ticket) interim = tab
+    }
     /** Browser discovery is independent of workspace surface snapshots. Retain only the visible owner. */
     fun withDiscoveredBrowsers(key: NativeWorkspaceTabKey, workspace: NativeWorkspace): NativeWorkspace {
         val browsers = discovered?.takeIf { it.first == key && workspace.id == key.workspaceId }?.second ?: return workspace
@@ -62,6 +77,7 @@ internal class NativeWorkspaceTabNavigation(
     }
     /** Called after composition. Explicit picker actions call explicit(), including same-pane picks. */
     fun observe(login: String?, key: NativeWorkspaceTabKey?, tab: NativeWorkspaceTab?) {
+        observed = if (login != null && key != null) login to key else null
         if (login == null || key == null) { cancel(); discovered = null; return }
         if (discovered?.first != key) discovered = null
         val waiting = pending.value
@@ -78,13 +94,19 @@ internal class NativeWorkspaceTabNavigation(
         if (result?.status == NativeWorkspaceRestoreStatus.WAITING) {
             interim = choice.pane?.tab()
             mutablePending.value = NativeWorkspacePendingTab(login, key, checkNotNull(remembered))
-        } else choice.tab()?.let { record(login, key, it) }
+        } else if (choice.pane == null && !choice.localBrowser) awaitDefault(login, key)
+        else choice.tab()?.let { record(login, key, it) }
         return choice
     }
     fun resolve(ticket: NativeWorkspacePendingTab, workspace: NativeWorkspace,
         browsers: List<NativeBrowser>?): NativeWorkspaceTabChoice? {
         if (pending.value != ticket || workspace.id != ticket.key.workspaceId) return null
         if (browsers != null) discovered = ticket.key to browsers
+        if (ticket.tab == null) {
+            val pane = workspace.defaultPane(browsers.orEmpty()) ?: return null
+            cancel(); record(ticket.login, ticket.key, pane.tab())
+            return NativeWorkspaceTabChoice(pane)
+        }
         val result = restoreWorkspaceTab(workspace, ticket.tab, browsers)
         if (result.status == NativeWorkspaceRestoreStatus.WAITING) return null
         val choice = if (result.status == NativeWorkspaceRestoreStatus.RESTORED)

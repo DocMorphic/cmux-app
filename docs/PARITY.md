@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Empty workspaces and delayed panes (2026-09-30):** empty rows now open into a
+waiting view with creation controls; late known panes and separately discovered
+browsers resolve automatically. Browser discovery populates the terminal menu and
+upgrades a matching raw Mac panel without stealing explicit selection. Host-driven
+changes to an interim fallback preserve remembered-tab intent. **50 JVM and 39
+Android 17 / 16 KiB tests passed**; the waiting screenshot was inspected. The Pixel
+was not visible to ADB/USB, so physical acceptance and current-screen/process
+restoration remain open. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md).
+Signed build 261 is unchanged.
+
 **Workspace refresh ordering (2026-09-30):** foreground/feed reads now share scoped
 publication ordering and mutation boundaries. Older responses cannot remove a
 newly created terminal or restore a deleted pane. Late create callbacks use newer

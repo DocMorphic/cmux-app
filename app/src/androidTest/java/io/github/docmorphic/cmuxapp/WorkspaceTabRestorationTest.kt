@@ -115,6 +115,29 @@ class WorkspaceTabRestorationTest {
         scenario!!.close(); scenario = null; launch(); open(); waitFor("First shell ▾")
         compose.onNodeWithTag("LocalBrowserPane").assertDoesNotExist()
     }
+    @Test fun hostReplacementOfTheInterimTerminalKeepsTheRememberedBrowserIntent() {
+        peer.browserCreationSupported = true
+        val browserAvailable = java.util.concurrent.atomic.AtomicBoolean(false)
+        peer.browserResponse = { method, _ ->
+            if (method == "mobile.browser.list") {
+                if (browserAvailable.get()) JSONObject().put("panels", JSONArray().put(browserDescriptor()))
+                else JSONObject() // Incomplete discovery is not confirmed absence.
+            } else browserDescriptor()
+        }
+        seed(NativeWorkspaceTabKind.BROWSER_STREAM, "remembered-browser")
+        launch(); open(); waitFor("Ready shell ▾")
+        compose.waitUntil(5000) { peer.requests.any { it.optString("method") == "mobile.browser.list" } }
+        val changed = JSONObject(peer.customWorkspaceListing.toString())
+        changed.getJSONArray("workspaces").getJSONObject(0).put("terminals", JSONArray("""[{"id":"replacement","title":"Replacement shell"}]"""))
+        peer.customWorkspaceListing = changed
+        peer.pushTerminalEvent("workspace.updated", JSONObject())
+        waitFor("Replacement shell ▾")
+        assertEquals("remembered-browser", remembered()?.id)
+        browserAvailable.set(true)
+        compose.waitUntil(15000) { peer.requests.any { it.optString("method") == "mobile.browser.stream.start" } }
+        assertEquals("remembered-browser", peer.requests.first { it.optString("method") == "mobile.browser.stream.start" }
+            .getJSONObject("params").getString("panel_id"))
+    }
     @Test fun lateBrowserDiscoveryCannotReplaceANewerExplicitTerminal() {
         peer.browserCreationSupported = true
         val gate = CountDownLatch(1)

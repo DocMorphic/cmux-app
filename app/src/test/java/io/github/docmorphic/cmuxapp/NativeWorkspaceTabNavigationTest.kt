@@ -67,6 +67,52 @@ class NativeWorkspaceTabNavigationTest {
         navigation.observe(null, null, null)
         assertTrue(navigation.withDiscoveredBrowsers(key, workspace).browsers.isEmpty())
     }
+    @Test fun emptyWorkspaceWaitsForADefaultWithoutInventingOrRecordingATab() {
+        memory = null
+        val navigation = navigation()
+        val empty = workspace.copy(terminals = emptyList())
+        assertNull(navigation.open("login", key, empty).pane)
+        val ticket = navigation.pending.value!!
+        assertNull(ticket.tab)
+        navigation.observe("login", key, null)
+        assertNull(navigation.resolve(ticket, empty, emptyList()))
+        assertEquals(0, writes)
+        assertEquals("fallback", navigation.resolve(ticket, workspace, null)?.pane?.terminal?.id)
+        assertNull(navigation.pending.value); assertEquals("fallback", memory?.id)
+    }
+    @Test fun freshEmptyWorkspaceCanResolveToADiscoveredBrowserWithoutAWireSurface() {
+        memory = null
+        val navigation = navigation()
+        val empty = workspace.copy(terminals = emptyList())
+        navigation.open("login", key, empty)
+        val browser = NativeBrowser("late-browser", "Late browser")
+        assertEquals(browser, navigation.resolve(navigation.pending.value!!, empty, listOf(browser))?.pane?.browser)
+        assertEquals(NativeWorkspaceTab(NativeWorkspaceTabKind.BROWSER_STREAM, browser.id), memory)
+        assertEquals(listOf(browser), navigation.withDiscoveredBrowsers(key, empty).browsers)
+    }
+    @Test fun explicitSelectionCancelsDefaultWaitingAndRejectsItsLateDiscovery() {
+        memory = null
+        val navigation = navigation()
+        navigation.open("login", key, workspace.copy(terminals = emptyList()))
+        val ticket = navigation.pending.value!!
+        navigation.explicit("login", key, NativeWorkspaceTab(NativeWorkspaceTabKind.TERMINAL, "chosen"))
+        assertNull(navigation.resolve(ticket, workspace, listOf(NativeBrowser("late", "Late"))))
+        assertEquals("chosen", memory?.id)
+    }
+    @Test fun discoveryCacheIsScopedToTheVisibleLoginAndWorkspaceAndConfirmedEmptyClearsIt() {
+        memory = null
+        val navigation = navigation()
+        navigation.observe("login", key, NativeWorkspaceTab(NativeWorkspaceTabKind.TERMINAL, "fallback"))
+        val browser = NativeBrowser("b", "Browser")
+        assertFalse(navigation.discover("old-login", key, listOf(browser)))
+        assertFalse(navigation.discover("login", key.copy(computerId = "other"), listOf(browser)))
+        assertTrue(navigation.discover("login", key, listOf(browser)))
+        assertEquals(listOf(browser), navigation.browsers(key))
+        assertTrue(navigation.discover("login", key, emptyList()))
+        assertTrue(navigation.withDiscoveredBrowsers(key, workspace).browsers.isEmpty())
+        navigation.observe(null, null, null)
+        assertFalse(navigation.discover("login", key, listOf(browser)))
+    }
     private fun descriptor(id: String = "b", owner: String = "w") = JSONObject().put("panel_id", id)
         .put("workspace_id", owner).put("page_width", 800).put("page_height", 600)
         .put("can_go_back", false).put("can_go_forward", false).put("is_loading", false).put("title", "Browser")
