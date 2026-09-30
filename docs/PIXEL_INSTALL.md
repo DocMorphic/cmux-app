@@ -3,14 +3,16 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current installed checkpoint — 2026-09-29
+## Current installed checkpoint — 2026-09-30
 
-Debug app `5d24946` is installed on the Pixel in place, preserving app data.
-The installed `base.apk` SHA-256 matches the tested build:
-`c1e35644fbe4dc4f79de97dd9989b5507c0f07c48688fef1ea296d28a5f4bb05`.
-Install/hash evidence is in ignored `captures/runtime/pixel-5d24946/`.
-The phone was in use afterward, so new UI acceptance is pending. Its plugged-in
-stay-awake setting remains `0`; it was not changed for this installation.
+After signed 274 verification, the Pixel appeared in ADB again. Debug app
+`1d5958f` was installed in place over `5d24946`, without clearing app data.
+The installed `base.apk` SHA-256 matches the tested local build:
+`e62b09d6cf6c5272e2ab6326b6fbc50cb6031e12416949f94571451dc7859c4d`.
+Install/hash evidence is in ignored `captures/runtime/pixel-1d5958f/`.
+The phone was locked/dozing at installation, so a new unlock request is pending
+before native UI acceptance. Its plugged-in stay-awake setting remains `0`.
+This installs the debug package; the signed 274 package below remains separate.
 
 The Android Iroh/V2 connection is implemented and earlier checkpoints have real
 Pixel/Mac evidence; see [IROH_V2.md](IROH_V2.md) and [NETWORKING.md](NETWORKING.md).
@@ -44,8 +46,9 @@ verified signed development APK, superseding 261.
   `am start -W` reported successful WARM launch, total time 1,060 ms. This is
   upgrade/launch evidence; native sign-in and Mac workflows remain untested on
   this signed package. The owned emulator was stopped afterward.
-- No Pixel install: it remains absent from ADB, and its debug app/data/settings
-  were not changed. Nested file/detail state, unacknowledged creation, full push,
+- Signed 274 was not installed on the Pixel. The debug package was subsequently
+  updated in place when USB reappeared; see the current checkpoint above.
+  Nested file/detail state, unacknowledged creation, full push,
   broader phone acceptance and the new upstream audit remain open. See
   [UPSTREAM_REFRESH_2026_09_30.md](UPSTREAM_REFRESH_2026_09_30.md).
 

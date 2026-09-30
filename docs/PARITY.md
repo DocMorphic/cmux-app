@@ -12,6 +12,12 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Pixel USB returned (2026-09-30):** debug `1d5958f` installed in place over
+`5d24946`, preserving app data. Its installed APK hash matches the tested local
+build. The phone was locked/dozing, and an unlock request is pending before native
+UI acceptance. Stay-awake remains `0`; signed 274 is a separate package. See
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md).
+
 **Signed integration build 274 (2026-09-30):** the accumulated navigation,
 startup/order, Activity/process recovery and entry-route fixes passed full CI at
 `1d5958f`. The downloaded release matches the stable signing certificate and passes

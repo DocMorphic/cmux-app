@@ -7,8 +7,12 @@ committed at 2026-09-30 06:57:50 UTC. The
 [comparison](https://github.com/manaflow-ai/cmux/compare/4c5272e9153eca2033c9f40ac749f0c3a5bcb291...204a11dfcc76280205e50406ab94270a1c152155)
 reports 323 commits ahead. Its files response hit the 300-file limit. The saved
 response is a partial inventory; zero change counts in that capped response do
-not establish unchanged content. A complete tree/diff audit is required before
-advancing the implemented reference.
+not establish unchanged content. The exact candidate was then fetched into the
+partial upstream checkout. A local `git diff --no-renames --name-status` between
+the two trees found **3,278 changed paths**, including **285** under `Packages/iOS`,
+`Packages/Shared/CMUXMobileCore` and `ios`, plus relevant host files. This complete
+path inventory is saved in ignored `captures/runtime/signed274/`; content-level
+review is still incomplete. Keep the implemented reference until that review is done.
 
 ## Priority review areas observed in the comparison
 
@@ -40,6 +44,29 @@ complete trees locally, and inspect targeted file contents. Avoid broad content
 searches that trigger indiscriminate blob fetching. Record source and test evidence
 for each conclusion. Preserve the previous reference until this audit is complete.
 
+## First reviewed contract: terminal input delivery
+
+The candidate's `MobileTerminalInputFrame.swift` diff and full
+`MobileTerminalInputDelivery.swift`, `MobileHostIrxTerminalLaneServer.swift` and
+`MobileHostTerminalInputApplier.swift` were inspected.
+
+- New opt-in capability: `terminal.input.exactly_once.v1`.
+- Input frames reserve header bit 30 (`0x40000000`) for a 40-byte delivery identity:
+  surface UUID, stream UUID and big-endian UInt64 sequence. The optional latency
+  marker remains bit 31; payload length now uses the low 30 bits.
+- RPC identities use `input_stream_id` and `input_stream_seq` beside explicit
+  `surface_id`. The shared host ledger handles sequence order, duplicate detection,
+  terminal identity and applied/busy/unavailable acknowledgements across paths.
+- The inspected host applier explicitly returns `proceed` for absent delivery
+  identity and emits no delivery acknowledgement for that legacy path. Existing
+  input can continue using the legacy format while capability-gated support is
+  designed and tested. This finding covers the inspected input path; the remaining
+  connection/replay/output changes still need review.
+- Android currently has no `terminal.input.exactly_once.v1` or `input_stream_id`
+  implementation. Next inspect the upstream sender, acknowledgement wire framing,
+  host RPC parsing, stream lifetime and all corresponding tests before implementing
+  bounded retries. Preserve safe legacy behavior for hosts without the capability.
+
 ## Current delivery boundary
 
 Signed build 274 is from Android commit
@@ -50,7 +77,9 @@ with this new upstream candidate.
 
 The local installed Mac app's Info.plist reports version **0.64.25**, build **106**.
 No source-commit mapping or fresh authenticated Pixel/Mac workflow was verified in
-this checkpoint. The physical Pixel is still absent from ADB.
+this checkpoint. The Pixel subsequently appeared in ADB and received debug
+`1d5958f` in place, with its installed hash verified. It remains locked pending
+user unlock for native workflow acceptance.
 
 ## Other confirmed implementation follow-ups
 
