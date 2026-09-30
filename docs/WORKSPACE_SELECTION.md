@@ -591,3 +591,61 @@ Verification:
 This covers selection and folder collapse. Diff scroll/expansion, file-preview
 overlays, nested Files state and physical Mac/Pixel acceptance remain open.
 Signed build 284 and the Pixel installation are unchanged.
+
+## Terminal Files navigation retention — 2026-09-30
+
+`TerminalFilesMemory` retains the gallery sheet or directly tapped terminal path
+above the RPC client. Its owner includes the login incarnation, account/team,
+canonical Mac/build, workspace and terminal. It waits for the restored terminal's
+connection admission before binding; account/terminal changes and explicit exit
+discard the old state. Late callbacks still reference their old state object.
+
+Both entry paths retain nested folders and the current preview page by path. The
+gallery also retains Session/In view, search text, icon/list mode, filter, sort and
+folded sections. Returning through the nested back stack preserves those controls.
+Explicit Done starts a fresh sheet on the next open. The show-missing preference
+continues to use its existing preference store.
+
+A new gallery store scans the current terminal first. Saved session routes are
+usable only when the scan re-establishes that exact session ID; a different or
+absent session returns to the file list without sending old preview requests or
+rebinding old paths to the replacement session. Direct taps remain terminal scoped.
+Folders reload through the new RPC client, and previews stat/download their content
+again. Pager sibling paths retain their navigation order; a missing file uses the
+existing preview error instead of selecting a neighbor.
+
+Saved state contains navigation identifiers and labels, not downloaded bytes,
+thumbnails, authorization tokens or RPC objects. Its encoded contribution is
+bounded to 98,304 characters. If a very large pager exceeds this budget, only the
+owning sheet and controls are saved and the nested stack reopens at its root.
+Malformed state is discarded. Scroll/zoom/selection inside a rendered document,
+interrupted exports and physical Mac/Pixel acceptance remain follow-up work.
+
+Verification:
+
+- **14 focused JVM tests passed**: four memory/ownership/codec cases and ten
+  existing gallery-store cases. The memory cases include all owner dimensions,
+  current pager path, nested routes, view controls, malformed state and oversized
+  pager fallback. Both final APKs built.
+- **Six Android 17 / 16 KiB tests passed in 63.312 seconds** on the final APKs.
+  Replacing the RPC client preserves a nested preview's second page, reloads its
+  bytes, retains its back stack, search and icon mode. A changed session cannot
+  trigger saved stat/fetch requests; explicit selection uses the new session ID.
+  Production MainActivity restores the Files sheet and second preview after actual
+  UI-process death, with a new PID and an Android-restored bundle. Existing scope/
+  filter/missing-file, nested-folder and direct-relative-path checks also pass.
+- The initial attempt encountered a System UI ANR, a search-result test race and
+  a kill before Android retained its saved state. The test now waits for the
+  rendered result, and the process fixture waits for system_server's `mHaveState`
+  and stopped Activity state instead of a fixed delay. The next run exposed a
+  real stale-session read: `collectAsState` briefly retained its old flow value on
+  client replacement. Keying the content by its new store fixed it; the final
+  session-change test keeps its no-premature-read assertion.
+- Ignored evidence: `captures/runtime/files-retention/`, including original failed
+  runs, final JVM XML, APK hashes and the inspected final Files-grid screenshot.
+  Final preflight and runtime were clear of the startup ANR. These emulator runs
+  are not performance evidence. The owned emulator was stopped afterward.
+- Debug APK SHA-256: `b1493dba222539b4f66b5d75ba9c5c1e9b3434adf6406f708571caca5a74f706`.
+- Test APK SHA-256: `8ac6a73573ca931d782d4f842285863bdc7d407a838fb38b841a37dc1bf1cfc4`.
+
+The Pixel installation and signed build 284 are unchanged.

@@ -153,11 +153,13 @@ retry/deduplication behavior have not been established by that check.
   selected path before refetching its diff; a vanished file cannot select its old
   neighbor. See `WORKSPACE_SELECTION.md` for verification. Diff scroll, expansion
   and preview-overlay restoration remain follow-up work.
-- `NativeScreen.kt`: terminal Files visibility and tapped artifact path use
-  `remember(draftTarget, client)`, so a new connection discards those overlays.
-- `ArtifactFilesSheet.kt` and `ArtifactFilePreview.kt`: inspect nested route,
-  query/filter/sort, pager and scroll state together. Save bounded identifiers,
-  revalidate ownership and refetch through the newly admitted RPC client.
+- Terminal Files visibility, tapped path, nested folders, selected preview page
+  and gallery controls now use scoped saved navigation state. The newly admitted
+  client scans the terminal before reusing any session route; content is refetched.
+  Fourteen JVM and six Android checks passed, including real task restoration and
+  a regression for stale session reads during flow replacement. See
+  `WORKSPACE_SELECTION.md`. Scroll/zoom/document selection, oversized saved-state
+  fallback and physical acceptance remain open.
 
 After the protocol audit, continue these detail-state fixes, interrupted creation,
 physical acceptance, accessibility/performance and background delivery. Server

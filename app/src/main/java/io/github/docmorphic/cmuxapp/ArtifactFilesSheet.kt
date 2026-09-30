@@ -45,13 +45,14 @@ internal val filesMuted = Color(0xFF9B9FA8)
 private val filesPanel = Color(0xFF191B1F)
 
 @Composable
-internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, refreshSignal: Int = 0, onDismiss: () -> Unit) {
+internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, refreshSignal: Int = 0, navigation: ArtifactNavigationState? = null, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val store = remember(rpc, terminal) { ArtifactGalleryStore(scope, terminal, rpc) }
+    val detail = navigation ?: remember(terminal) { ArtifactNavigationState() }
     val latestSignal by rememberUpdatedState(refreshSignal)
     var showingSession by remember(store) { mutableStateOf(true) }
     DisposableEffect(store) { onDispose { store.close() } }
-    LaunchedEffect(store) { store.initialize().join() }
+    LaunchedEffect(store) { store.initialize().join(); store.setQuery(detail.searchText) }
     // The terminal controller sends only accepted count reports, never provisional per-frame counts.
     LaunchedEffect(store) {
         snapshotFlow { latestSignal }.drop(1).collect { if (showingSession) store.refreshLive() }
@@ -59,7 +60,9 @@ internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorizatio
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = Color(0xFF111316), contentColor = Color(0xFFE5E7EB)) {
             Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
-                ArtifactFilesContent(rpc, store, onDismiss, onScopeChanged = { showingSession = it })
+                // collectAsState can retain its previous flow's value until its collector
+                // restarts. A new client must never observe the old session admission.
+                key(store) { ArtifactFilesContent(rpc, store, onDismiss, onScopeChanged = { showingSession = it }, navigation = detail) }
             }
         }
     }
@@ -67,7 +70,8 @@ internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorizatio
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore, onDismiss: () -> Unit, onScopeChanged: (Boolean) -> Unit = {}) {
+internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore, onDismiss: () -> Unit, onScopeChanged: (Boolean) -> Unit = {},
+    navigation: ArtifactNavigationState? = null) {
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE) }
     val scan by store.inView.collectAsState()
@@ -76,14 +80,19 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
     val search by store.search.collectAsState()
     val query by store.query.collectAsState()
     val pending by store.pendingNewFiles.collectAsState()
-    var sessionScope by remember(store) { mutableStateOf(true) }
-    var searchText by remember(store) { mutableStateOf("") }
-    var grid by remember { mutableStateOf(false) }
-    var filter by remember { mutableStateOf(ArtifactFilter.ALL) }
-    var sort by remember { mutableStateOf(ArtifactSort.RECENT) }
+    val detail = navigation ?: remember(store) { ArtifactNavigationState() }
+    var sessionScope by detail::sessionScope
+    var searchText by detail::searchText
+    var grid by detail::grid
+    var filter by detail::filter
+    var sort by detail::sort
     var showMissing by remember { mutableStateOf(preferences.getBoolean("show-missing-files", false)) }
-    var folded by remember { mutableStateOf(emptySet<String>()) }
-    var destinations by remember(store) { mutableStateOf<List<ArtifactDestination>>(emptyList()) }
+    var folded by detail::folded
+    // Session IDs are re-established by the new terminal scan, never silently rebound.
+    val routesReady = scan.scan != null && detail.matches(store.terminal, authorization)
+    LaunchedEffect(store, scan.scan, authorization) {
+        if (scan.scan != null && !detail.matches(store.terminal, authorization)) detail.clearRoutes()
+    }
     val thumbnails = remember(rpc) { ArtifactThumbnails(rpc) }
     val listState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
@@ -99,13 +108,14 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
         if (activeSession && eager && state.snapshot != null && state.error == null && !state.capped) store.loadMore(query.isNotEmpty(), eager = true)
     }
     fun open(item: ArtifactItem, items: List<ArtifactItem>, scope: ArtifactAuthorization) {
-        destinations = destinations + if (item.kind == ArtifactKind.DIRECTORY) ArtifactDestination.Folder(item, scope)
-            else ArtifactDestination.Preview(artifactSwipeOrder(items), item.path, scope)
+        detail.open(if (item.kind == ArtifactKind.DIRECTORY) ArtifactDestination.Folder(item, scope)
+            else ArtifactDestination.Preview(artifactSwipeOrder(items), item.path, scope))
     }
-    fun back() { destinations = destinations.dropLast(1) }
-    BackHandler(enabled = destinations.isNotEmpty()) { back() }
-    when (val destination = destinations.lastOrNull()) {
-        is ArtifactDestination.Preview -> key(destination) { ArtifactFilePreview(rpc, destination, ::back, onDismiss) }
+    fun back() { detail.back() }
+    BackHandler(enabled = detail.destinations.isNotEmpty()) { back() }
+    when (val destination = detail.destinations.lastOrNull().takeIf { routesReady }) {
+        is ArtifactDestination.Preview -> key(rpc, destination) { ArtifactFilePreview(rpc, destination, ::back, onDismiss,
+            initialPath = detail.selectedPath, onSelectionChanged = { detail.selectedPath = it }) }
         is ArtifactDestination.Folder -> key(destination) {
             ArtifactFolderContent(rpc, thumbnails, destination, ::back, onDismiss) { item, entries ->
                 open(item, entries, destination.authorization)

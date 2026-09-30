@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Files navigation restoration (2026-09-30):** gallery and terminal-path sheets
+retain nested folders/current preview and gallery controls within their admitted
+terminal owner. Reconnect refetches content; session routes wait for a fresh scan
+and cannot silently switch to another session. **14 JVM and six Android 17 / 16 KiB
+tests passed**, including the production Files sheet after real process death and
+a stale-session request regression. Scroll/zoom/document selection, oversized task
+state fallback and physical acceptance still need work. See
+[WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). Signed 284 and the Pixel are unchanged.
+
 **Changes detail restoration (2026-09-30):** the selected diff path and collapsed
 folders now survive RPC-client replacement and Android task restoration, within
 the admitted login/account/team/Mac/build/workspace. Fresh inventory resolves the

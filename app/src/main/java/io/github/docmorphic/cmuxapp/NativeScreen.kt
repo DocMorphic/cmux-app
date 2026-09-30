@@ -536,8 +536,19 @@ fun NativeScreen(
     var textSnapshot by remember(draftTarget, client) { mutableStateOf<TerminalTextSnapshot?>(null) }
     fun openTerminalText() { stopTerminalScrolling(); textSnapshot = TerminalTextSnapshot.capture(grid) }
     textSnapshot?.let { TerminalTextSheet(it) { textSnapshot = null } }
-    var showTerminalFiles by remember(draftTarget, client) { mutableStateOf(false) }
-    var terminalArtifactPath by remember(draftTarget, client) { mutableStateOf<String?>(null) }
+    val filesMemory = rememberSaveable(saver = TerminalFilesMemory.saver) { TerminalFilesMemory() }
+    val filesKey = draftTarget?.let { target -> pairedMacs.singleOrNull { it.code == code }?.let {
+        workspaceTabKey(browserLogin, teamState.scope, it, target.workspace)
+    } }
+    val emptyFilesState = remember { TerminalFilesState() }
+    val filesState = if (connectionReady && connectedCode == code && browserLogin != null && filesKey != null && draftTarget != null)
+        filesMemory.bind(browserLogin, filesKey, draftTarget.surface) else emptyFilesState
+    SideEffect {
+        filesMemory.retainLogin(browserLogin)
+        if (draftTarget == null && screenResume.pending == null && workspaceRoute?.resume == null) filesMemory.clear()
+    }
+    var showTerminalFiles by filesState::showing
+    val terminalArtifactPath = filesState.path
     val artifactRpc = remember(client, hostCapabilities) { client?.let { ArtifactRpc(it, hostCapabilities) } }
     val artifactPreferences = remember(context) { context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE) }
     var folderTapEnabled by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("terminal-folder-tap", true)) }
@@ -571,13 +582,13 @@ fun NativeScreen(
     val artifactChipCount = artifactController?.count?.collectAsState()?.value
     val artifactRefresh = artifactController?.galleryRefresh?.collectAsState()?.value ?: 0
     if (terminalArtifactPath != null && artifactsReady && artifactRpc != null && draftTarget != null) {
-        ArtifactPathSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), terminalArtifactPath!!) {
-            terminalArtifactPath = null
+        ArtifactPathSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), terminalArtifactPath!!, navigation = filesState.direct) {
+            filesState.closePath()
         }
     }
-    if (showTerminalFiles && connectionReady && connectedCode == code && artifactRpc != null && draftTarget != null) {
-        ArtifactFilesSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), artifactRefresh) {
-            showTerminalFiles = false
+    if (showTerminalFiles && artifactsReady && artifactRpc != null && draftTarget != null) {
+        ArtifactFilesSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), artifactRefresh, navigation = filesState.gallery) {
+            filesState.closeGallery()
         }
     }
 
@@ -1849,7 +1860,7 @@ fun NativeScreen(
                                             },
                                             open = {
                                                 stopTerminalScrolling(); directTyping = false; softwareKeyboard?.hide()
-                                                terminalArtifactPath = path
+                                                filesState.openPath(path)
                                             },
                                             focus = { sendClick ->
                                                 if (sendClick) terminalClick?.invoke(cell)

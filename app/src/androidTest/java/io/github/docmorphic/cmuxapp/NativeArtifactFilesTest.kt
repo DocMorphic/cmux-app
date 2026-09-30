@@ -60,6 +60,70 @@ class NativeArtifactFilesTest {
     }
     private fun waitDescription(value: String) = compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription(value).fetchSemanticsNodes().isNotEmpty() }
 
+    @Test fun reconnectRetainsNestedFolderCurrentPreviewAndGalleryControls() {
+        var revision = "before"
+        peer.artifactResponse = { method, params ->
+            val body = "$revision ${params.optString("path")}"
+            when {
+                method.endsWith("scan") -> scan()
+                method.endsWith("gallery") -> gallery(item("/folder", "directory"))
+                method.endsWith("list") -> JSONObject().put("entries", JSONArray(listOf("a.txt", "b.txt").map {
+                    JSONObject().put("name", it).put("kind", "text").put("is_directory", false)
+                }))
+                method.endsWith("stat") -> stat(body)
+                else -> chunk(body)
+            }
+        }
+        val navigation = ArtifactNavigationState()
+        val active = mutableStateOf(rpc)
+        compose.setContent { CmuxTheme { ArtifactFilesSheet(active.value, terminal, navigation = navigation) {} } }
+        waitDescription("Open folder /folder")
+        compose.onNodeWithContentDescription("Icons").performClick()
+        compose.onNode(hasSetTextAction()).performTextInput("folder")
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method").endsWith("gallery") && it.getJSONObject("params").optString("query") == "folder" } }
+        waitDescription("Open folder /folder")
+        compose.onNodeWithContentDescription("Open folder /folder").performClick(); waitDescription("Open file /folder/a.txt")
+        compose.onNodeWithContentDescription("Open file /folder/a.txt").performClick(); waitText("before /folder/a.txt")
+        compose.onNodeWithText("Next").performClick(); waitText("before /folder/b.txt")
+        compose.waitForIdle()
+        revision = "after"
+        val next = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+        runBlocking { next.connect() }; client.close(); client = next
+        compose.runOnIdle { active.value = ArtifactRpc(next, setOf("terminal.artifact.v1", "chat.artifact.gallery.v1", "chat.artifact.folders.v1", "terminal.artifact.list.v1")) }
+        waitText("after /folder/b.txt"); compose.onNodeWithText("2 of 2").assertIsDisplayed()
+        compose.onNodeWithText("‹ Back").performClick(); waitDescription("Open file /folder/a.txt")
+        compose.onNodeWithText("‹ Back").performClick(); waitDescription("Open folder /folder")
+        compose.onNodeWithContentDescription("List").assertIsDisplayed()
+        compose.onNode(hasSetTextAction()).assertTextEquals("folder")
+        compose.waitUntil(10_000) { peer.requests.count { it.optString("method").endsWith("gallery") && it.getJSONObject("params").optString("query") == "folder" } >= 2 }
+    }
+
+    @Test fun replacementSessionCannotReuseSavedPreviewAuthorization() {
+        var session = "session"
+        peer.artifactResponse = { method, _ -> when {
+            method.endsWith("scan") -> scan().put("session_id", session)
+            method.endsWith("gallery") -> gallery(item("/note.txt")).put("session_id", session)
+            method.endsWith("stat") -> stat("Saved preview")
+            else -> chunk("Saved preview")
+        } }
+        val navigation = ArtifactNavigationState(); val active = mutableStateOf(rpc)
+        compose.setContent { CmuxTheme { ArtifactFilesSheet(active.value, terminal, navigation = navigation) {} } }
+        waitDescription("Open file /note.txt"); compose.onNodeWithContentDescription("Open file /note.txt").performClick(); waitText("Saved preview")
+        val before = peer.requests.size
+        session = "replacement"
+        val next = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+        runBlocking { next.connect() }; client.close(); client = next
+        compose.runOnIdle { active.value = ArtifactRpc(next, setOf("terminal.artifact.v1", "chat.artifact.gallery.v1")) }
+        waitDescription("Open file /note.txt"); compose.waitForIdle()
+        assertTrue(navigation.destinations.isEmpty())
+        val prematureReads = peer.requests.drop(before).filter { it.getString("method").endsWith(".stat") || it.getString("method").endsWith(".fetch") }
+        assertTrue("A replacement client read the old preview before user selection: $prematureReads", prematureReads.isEmpty())
+        compose.onNodeWithContentDescription("Open file /note.txt").performClick(); waitText("Saved preview")
+        assertTrue(peer.requests.drop(before).filter { it.getString("method").endsWith(".fetch") }.all {
+            it.getJSONObject("params").getString("session_id") == "replacement"
+        })
+    }
+
     @Test fun scopesFiltersGridAndMissingPreferenceUseWholeSessionGallery() {
         peer.artifactResponse = { method, _ ->
             if (method.endsWith("scan")) scan() else gallery(item("/README.md"), item("/main.py"), item("/output.log"), item("/folder", "directory"), item("/gone.txt").put("exists", false))

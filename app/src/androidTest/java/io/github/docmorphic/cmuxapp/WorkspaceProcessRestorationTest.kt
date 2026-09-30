@@ -74,8 +74,20 @@ class WorkspaceProcessRestorationTest {
         device.pressHome()
         waitUntil { marker("stopped").takeIf(File::exists)?.readText() == pid.toString() &&
             marker("saved").takeIf(File::exists)?.readText() == pid.toString() }
-        // Let ActivityThread deliver its saved-state stop transaction to system_server.
-        SystemClock.sleep(300)
+        // The callback marker precedes ActivityThread's stop transaction. Wait until
+        // system_server actually retains this task's bundle before killing the UI.
+        // A fixed delay can race a busy emulator and exercise a cold launch instead.
+        val recordHeader = Regex("(?m)^\\s*\\* Hist\\s+#\\d+: ActivityRecord\\{[^\\n]+")
+        waitUntil {
+            val dump = device.executeShellCommand("dumpsys activity activities")
+            val header = recordHeader.findAll(dump).singleOrNull {
+                it.value.contains(activity.name) && it.value.contains(" t${appTask.taskInfo.taskId}")
+            }
+            val record = header?.let { dump.substring(it.range.last + 1).lineSequence()
+                .takeWhile { line -> !line.contains("* Hist") }.map(String::trim).toList() }.orEmpty()
+            record.firstOrNull { it.startsWith("mHaveState=") }?.startsWith("mHaveState=true ") == true &&
+                record.firstOrNull { it.startsWith("state=") }?.startsWith("state=STOPPED ") == true
+        }
         Process.killProcess(pid); waitUntil { childPid() == null }
         whileDead()
         assertEquals(parent, Process.myPid())
@@ -152,6 +164,29 @@ class WorkspaceProcessRestorationTest {
         text("File no longer changed")
         assertEquals(before, calls("mobile.workspace.changes.file_diff").count { it.getJSONObject("params").getString("path") == "README.md" })
         text("‹ Changes").click(); description("Open diff src/App.kt").click(); text("Restored diff src/App.kt")
+    }
+    @Test fun filesOverlayAndCurrentPreviewRestoreThroughFreshSessionScan() {
+        peer.artifactsSupported = true
+        peer.artifactResponse = { method, params ->
+            val body = "Process file ${params.optString("path")}"
+            when {
+                method.endsWith("scan") -> JSONObject().put("session_id", "files-session").put("gallery_row_total", 2)
+                method.endsWith("gallery") -> JSONObject().put("session_id", "files-session").put("referenced", JSONArray(
+                    listOf("/a.txt", "/b.txt").map { JSONObject().put("path", it).put("kind", "text") }))
+                method.endsWith("stat") -> JSONObject().put("exists", true).put("is_directory", false).put("kind", "text")
+                    .put("size", body.length).put("mime_type", "text/plain")
+                else -> JSONObject().put("offset", 0).put("total_size", body.length).put("eof", true)
+                    .put("data_b64", java.util.Base64.getEncoder().encodeToString(body.toByteArray()))
+            }
+        }
+        launch(); description("Open files in view").click(); description("Open file /a.txt").click()
+        text("Process file /a.txt"); text("Next").click(); text("Process file /b.txt")
+        val before = calls("mobile.chat.artifact.fetch").size
+        killAndRestore()
+        text("Process file /b.txt"); text("2 of 2")
+        assertTrue(calls("mobile.chat.artifact.fetch").size > before)
+        assertTrue(calls("mobile.chat.artifact.fetch").all { it.getJSONObject("params").getString("session_id") == "files-session" })
+        text("‹ Back").click(); description("Open file /a.txt"); text("Done").click(); text("Focused shell ▾")
     }
     @Test fun localBrowserRestoresWithoutAttemptingRemoteCreation() {
         launch(open = false); description("Actions for Process workspace").click(); text("New browser").click()

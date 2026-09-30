@@ -16,9 +16,12 @@ import kotlinx.coroutines.*
 import java.io.File
 
 @Composable
-internal fun ArtifactFilePreview(rpc: ArtifactRpc, selection: ArtifactDestination.Preview, onBack: () -> Unit, onDone: () -> Unit) {
-    val pager = rememberPagerState(initialPage = selection.files.indexOfFirst { it.path == selection.initialPath }.coerceAtLeast(0), pageCount = { selection.files.size })
+internal fun ArtifactFilePreview(rpc: ArtifactRpc, selection: ArtifactDestination.Preview, onBack: () -> Unit, onDone: () -> Unit,
+    initialPath: String? = null, onSelectionChanged: (String) -> Unit = {}) {
+    val pager = rememberPagerState(initialPage = selection.files.indexOfFirst { it.path == (initialPath ?: selection.initialPath) }.coerceAtLeast(0), pageCount = { selection.files.size })
     val scope = rememberCoroutineScope()
+    val selected by rememberUpdatedState(onSelectionChanged)
+    LaunchedEffect(pager.settledPage) { selection.files.getOrNull(pager.settledPage)?.let { selected(it.path) } }
     Column(Modifier.fillMaxSize()) {
         FilesHeader(selection.files.getOrNull(pager.currentPage)?.displayName ?: "Preview", onBack, onDone)
         HorizontalPager(pager, key = { selection.files[it].path }, modifier = Modifier.weight(1f)) { index ->
