@@ -186,8 +186,11 @@ and storage retirement. Sixteen focused JVM checks pass. Four distinct Android
 checks have passing evidence across runs: presentation/Back/reopen/pane selection,
 retirement/cleanup, and two existing browser regressions. The four-case batch had
 one System UI ANR interruption; its focused rerun passes with the same APKs.
-Generated TCP hosts and instrumented lease callbacks do not prove live
-NativeFeedSession/JNI/Iroh lifetime, startup stability or physical acceptance. See
+Three additional native runtime checks now pass through real JNI/Iroh: large
+bidirectional bytes/half-close, rejected/cancelled lane isolation and a generated
+HTTP server reached through the coordinator, owner network and SOCKS proxy.
+Generated peers do not prove live account/Mac interoperability, Activity/feed-hold
+lifetime, startup stability or physical acceptance. See
 [BROWSER_TUNNEL.md](BROWSER_TUNNEL.md). Signed 284 predates this source work.
 
 **Phone-local browser navigation (2026-09-30):** `New Browser` is now integrated

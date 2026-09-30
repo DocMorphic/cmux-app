@@ -325,10 +325,41 @@ bars, page header, address controls and visible generated page content.
 - Pixel installation/account and signed 284 remain unchanged. The owned emulator
   was stopped after testing.
 
+## Native JNI/Iroh browser acceptance — 2026-09-30
+
+`NativeBrowserTunnelTest` passes **three Android runtime checks in 6.000 s** on
+API 37 / 16 KiB pages. Both generated endpoints bind loopback with relay disabled;
+real packaged JNI, QUIC admission and production browser adapters carry the data.
+No saved credentials are read/cleared and no real Mac is contacted.
+
+- Listing descriptors and fragmented listing replies match the wire schema. A
+  fragmented TCP status coalesced with raw bytes preserves all following bytes.
+  Concurrent 196,731-byte upload and 262,259-byte download remain exact across
+  bounded chunks; an additional response tail arrives after client half-close.
+  The same control RPC connection remains usable afterward.
+- Denied/refused/busy replies remain distinct failures. Closing a borrowed client
+  during an unacknowledged open cancels the waiter and resets that native stream;
+  it releases its lease once while the owner control connection remains usable.
+- `NativeFeedCoordinator` verifies the generated host identity/capability and
+  completes its authenticated subscription/workspace/notification requests.
+  `NativeMacBrowserNetwork` prepares the listing and SOCKS proxy; a SOCKS request
+  for `project.localhost` reaches a generated HTTP server through the actual
+  native TCP-connect lane, preserving the complete 98,328-byte HTTP body.
+
+The first run passed two cases and timed out before the coordinator became ready:
+its fixture had no synthetic access token for authenticated RPCs, and was also
+missing subscription replies. Both fixture omissions were fixed; the final
+three-case batch is clean. This does not prove live account admission, NAT/relay,
+Mac implementation interoperability or the Activity/feed-hold lifecycle.
+
+- Production APK remains the `9efef27` integration APK (SHA-256
+  `ea82c343fdcfba536d18859b991c1b461e13b105730ebf82dc7cc46ec9cde70e`).
+- Evidence and test APK hash: ignored `captures/runtime/browser-webview/native-lanes-*`.
+- The owned emulator was stopped; Pixel and signed 284 remain unchanged.
+
 ## Remaining integration
 
-Exercise actual JNI/Iroh browser lanes and a real Mac/Pixel website (HTTP/HTTPS, reconnect and
-account retirement). Verify physical keyboard/IME, file picking, rotation,
+Exercise a real Mac/Pixel website (HTTP/HTTPS, reconnect and account retirement). Verify physical keyboard/IME, file picking, rotation,
 process-death return and lifecycle races with live feed holds. The earlier
 isolated adapter tests use generated TCP hosts and do not prove real native-lane
 acceptance. API 26 WebView startup compatibility is still unverified.
