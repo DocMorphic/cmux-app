@@ -62,7 +62,7 @@ The candidate's `MobileTerminalInputFrame.swift` diff and full
   input can continue using the legacy format while capability-gated support is
   designed and tested. This finding covers the inspected input path; the remaining
   connection/replay/output changes still need review.
-- Android now has a tested protocol/outbox/RPC foundation for this capability;
+- Android now has tested protocol/outbox/RPC, lane ACK routing and sender-engine support;
   live sending is still disabled. The sender and envelope codec were subsequently
   inspected, including kind-3 ACK counter conventions and retry/immutability
   requirements. See [TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md) for
@@ -78,10 +78,10 @@ Its verification is recorded in `PIXEL_INSTALL.md`; it does not establish parity
 with this new upstream candidate.
 
 The local installed Mac app's Info.plist reports version **0.64.25**, build **106**.
-No source-commit mapping or fresh authenticated Pixel/Mac workflow was verified in
-this checkpoint. The Pixel subsequently appeared in ADB and received debug
-`1d5958f` in place, with its installed hash verified. It remains locked pending
-user unlock for native workflow acceptance.
+The source-commit mapping remains unverified. The Pixel subsequently received
+debug `1d5958f` in place and passed live composer/direct input, process recovery
+and Markdown preview checks; see `PIXEL_INSTALL.md`. That APK predates the new
+identified-input contract and does not validate it against the installed host.
 
 ## Other confirmed implementation follow-ups
 

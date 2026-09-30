@@ -1,11 +1,11 @@
-# Identified terminal input — protocol and queue foundation
+# Identified terminal input — protocol, lanes and session sender
 
 Checkpoint: 2026-09-30. Source contract:
 [`204a11dfcc76280205e50406ab94270a1c152155`](https://github.com/manaflow-ai/cmux/commit/204a11dfcc76280205e50406ab94270a1c152155).
-This implements the wire types, bounded outbox, RPC overloads and lane
-acknowledgement dispatch needed for `terminal.input.exactly_once.v1`. **Live
-capability-gated sending, session binding, reconnect retry and UI settlement are
-still to be integrated.** Existing
+This implements the wire types, bounded outbox, RPC overloads, lane acknowledgement
+dispatch and generic session sender needed for `terminal.input.exactly_once.v1`.
+**Production session binding, capability negotiation and UI settlement are still
+to be integrated.** Existing
 production callers continue the legacy input path. Signed 274 and the Pixel's
 installed debug `1d5958f` predate this foundation.
 
@@ -72,6 +72,45 @@ Android deliberately keeps a stronger immutability invariant to avoid merging ne
 keystrokes into an identity the host might already have applied. New unsent units
 may still merge before their first send.
 
+## Scoped session sender
+
+`TerminalInputSender<P>` now owns the delivery loop. Its key has separate login
+incarnation, user, team, canonical Mac/build and terminal UUID fields. The caller
+must construct that key from admitted account/host state and supply immutable
+payloads. It is confined to the session dispatcher; bindings, submissions and
+acknowledgements must use that same dispatcher.
+
+- Each freshly admitted transport receives a binding token. Replacing or closing
+  it cancels the old pump, preserves pending identities and fences late sends and
+  acknowledgements. Closing an older token cannot close the replacement.
+- Lane input is pipelined. RPC waits behind earlier unacknowledged units; failure
+  rewinds with the original identity, including when falling back from lane to RPC.
+- Missing acknowledgements and writes have five-second deadlines. Both absent
+  bindings and unavailable paths have a 30-second limit. Retry delays are 250/500 ms;
+  three consecutive failures without delivery progress settle and pause the stream.
+  Busy/gap/mismatch replies and connection flapping cannot reset that budget.
+- Only real delivery progress resets retry accounting. The caller gets delivered,
+  undeliverable or abandoned tickets plus pending-byte/unit and failure state.
+  A prior ambiguous write remains uncertain even if a later attempt is refused.
+- The optional merge function combines only never-sent payloads and settles every
+  merged ticket. Rewind/rebase never make an already-written identity mutable.
+  Byte/unit limits remain enforced; pending tickets are independently capped at
+  4,096 and retained terminal slots at 64. Idle unbound slots may be evicted.
+- Capability loss abandons pending input instead of replaying it as legacy input.
+  A confirmed unidentified success settles that unit but blocks later sends and
+  invalidates the binding's identity support. A fresh negotiation is required.
+- Owner retirement/close abandons pending tickets without transferring payloads.
+  Explicit recovery starts a new stream for new input; abandoned payloads are
+  never resubmitted. The session owner must close the sender before its scope.
+
+The generic engine is not yet installed into `NativeFeedSession` or `NativeScreen`.
+Production integration must reserve ordering before asynchronous image preparation,
+route all five input RPC methods through one sender, retain response data needed by
+scroll rendering, and expose the failure/recovery state to the user. Retain an
+admitted RPC lease for the original target while its input is pending; do not resolve
+it from the current selection. Activity recreation should rebind the same key;
+account/Mac retirement should explicitly abandon the old owner.
+
 ## Reproducible verification
 
 `generate-terminal-input-delivery-fixtures.py` compiles the actual pinned upstream
@@ -103,9 +142,20 @@ writes, ambiguous-write propagation, renderer/cursor separation and late callbac
 rejection. These are in-process wire fixtures; no native or physical identified
 input check is claimed. Signed 274 and the installed Pixel APK are unchanged.
 
+The session-sender batch passed **84 JVM tests**, including 20 new virtual-clock
+sender checks plus the 64 protocol, queue, lane and RPC checks. A deduplicating
+peer proves a dropped ACK causes repeated writes under one identity but one host
+application. Checks cover RPC ordering, negative replies, write/ACK/offline
+deadlines, reconnect budgets, late binding results, owner isolation, host-ledger
+rebase, capability downgrade, immutable merges and explicit recovery. The initial
+15-case run caught a redundant unavailable-lane probe caused by a stale wake-up;
+the final batch includes that corrected ordering case. These remain synthetic
+transport checks; no new APK or physical identified-input claim is made.
+Evidence: ignored `captures/runtime/input-delivery/sender/`.
+
 ## Required integration before enabling the capability
 
-1. Put the sender/outboxes under the scoped session lifetime, keyed by login,
+1. Instantiate the implemented sender under the scoped session lifetime, keyed by login,
    account/team, canonical Mac/build and terminal UUID. Rotation/reconnect retain
    pending units; sign-out, owner retirement and disposal abandon them. Never
    route queued input to whichever terminal happens to be selected later.
@@ -118,9 +168,9 @@ input check is claimed. Signed 274 and the installed Pixel APK are unchanged.
 4. Bind the implemented lane acknowledgement callbacks to the scoped sender.
    Enforce stream and session-owner checks before applying them. Waiting for an
    acknowledgement needs a bounded timeout.
-5. Retry busy/ambiguous transport outcomes with the same identity and bounded
-   attempts. Reset retry counters on actual progress, so repeated busy replies
-   cannot loop indefinitely. Handle refusal, disappearance and abandonment visibly.
+5. Surface the implemented sender settlements in the typing/composer UI. Handle
+   refusal, disappearance and abandonment visibly, including explicit recovery
+   that never resubmits abandoned input.
 6. Exercise dropped acknowledgements, busy bursts, partial writes, lane-to-RPC
    failover, host restart, capability downgrade, Activity recreation, Mac/account
    switching and late callbacks using a deduplicating fixture. Then verify on the
