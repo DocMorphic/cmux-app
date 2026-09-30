@@ -14,9 +14,11 @@ UI resemblance alone does not count.
 
 **Terminal event-lane ownership (2026-09-30):** terminal-scoped native event
 frames now require a matching `payload.surface_id` before entering the merged
-queue. Wrong-terminal payloads and forged local-marker bytes are refused. **19
-focused JVM tests passed**; this source change is not yet in an APK. The
-shared-lane malformed-event policy and broader event/replay audit remain open.
+queue. Wrong-terminal payloads and forged local-marker bytes are refused.
+Malformed optional events no longer close control RPC; a failed optional reader
+can restart for a new subscription without reopening on liveness reassertions.
+**26 focused JVM tests passed**; these source changes are not in signed 284.
+Native/physical event-lane acceptance and the broader event/replay audit remain open.
 See [UPSTREAM_REFRESH_2026_09_30.md](UPSTREAM_REFRESH_2026_09_30.md).
 
 **Identified-input production integration (2026-09-30):** wire identities/ACKs,

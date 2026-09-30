@@ -178,7 +178,7 @@ internal class IrxMobileRpcTransport(
             override suspend fun stop(errorCode: ULong) = lane.stop(errorCode)
             override fun close() = lane.close()
         }
-    }, permits = { !synchronized(lock) { closed } && permits() }).frames
+    }, permits = { requireAccess(); !synchronized(lock) { closed } }).frames
 
     override suspend fun connect(): Unit = connecting.withLock { coroutineScope {
         synchronized(lock) { check(!closed); if (session != null) return@coroutineScope }

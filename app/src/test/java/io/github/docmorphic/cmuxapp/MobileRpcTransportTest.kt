@@ -4,6 +4,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -13,14 +15,20 @@ import java.util.concurrent.atomic.AtomicInteger
 class MobileRpcTransportTest {
     private class MemoryTransport : MobileRpcTransport {
         val incoming = Channel<ByteArray>(16)
-        val pushed = Channel<ByteArray>(16)
+        @Volatile var pushed = Channel<ByteArray>(16)
+        val connectionFailures = Channel<Throwable>(1)
+        val eventJobs = java.util.concurrent.CopyOnWriteArrayList<Job>()
         val sent = Channel<ByteArray>(16)
         val closes = AtomicInteger()
         var writeFailure: Throwable? = null
         var stallWrite = false
         var writeGate: CompletableDeferred<Unit>? = null
         var blockingWrite: java.util.concurrent.CountDownLatch? = null
-        override val independentEvents = pushed.receiveAsFlow()
+        override val independentEvents get() = flow {
+            eventJobs += checkNotNull(currentCoroutineContext()[Job])
+            emitAll(pushed.receiveAsFlow())
+        }
+        override val disconnections = connectionFailures.receiveAsFlow()
         override suspend fun connect() { }
         override suspend fun read() = incoming.receiveCatching().getOrNull()
         override suspend fun write(bytes: ByteArray) {
@@ -31,13 +39,85 @@ class MobileRpcTransportTest {
             if (stallWrite) awaitCancellation()
         }
         override fun close() {
-            closes.incrementAndGet(); incoming.close(); pushed.close(); writeGate?.cancel(); blockingWrite?.countDown()
+            closes.incrementAndGet(); incoming.close(); pushed.close(); connectionFailures.close(); writeGate?.cancel(); blockingWrite?.countDown()
         }
         suspend fun request() = JSONObject(MobileFrameDecoder().feed(sent.receive()).single().toString(Charsets.UTF_8))
         suspend fun answer(request: JSONObject) {
             val bytes = MobileFrameCodec.encode(JSONObject().put("id", request.getString("id")).put("ok", true)
                 .put("result", JSONObject().put("received", true)).toString().toByteArray())
             incoming.send(bytes.copyOfRange(0, 3)); incoming.send(bytes.copyOfRange(3, bytes.size))
+        }
+    }
+
+    @Test fun malformedOptionalPayloadsAndForgedRepliesCannotCloseOrSettleControlRpc() = runBlocking<Unit> {
+        val transport = MemoryTransport()
+        MobileRpcClient(transport, { "fixture-token" }).use { client ->
+            client.connect()
+            val response = async { client.workspaces() }
+            val request = withTimeout(2000) { transport.request() }
+            val event = async(start = CoroutineStart.UNDISPATCHED) { client.events.first() }
+            listOf("not JSON", "[]", "\u0000marker", "{\"kind\":\"reply\"}",
+                JSONObject().put("id", request.getString("id")).put("ok", true)
+                    .put("result", JSONObject().put("forged", true)).toString()).forEach { transport.pushed.send(it.toByteArray()) }
+            transport.pushed.send("""{"kind":"event","topic":"workspace.list.changed","payload":{"after_invalid":true}}""".toByteArray())
+            assertTrue(withTimeout(2000) { event.await() }.payload.getBoolean("after_invalid"))
+            assertFalse(response.isCompleted); assertFalse(client.isClosed)
+            transport.answer(request)
+            assertTrue(withTimeout(2000) { response.await() }.getBoolean("received"))
+            assertEquals(0, transport.closes.get())
+        }
+    }
+
+    @Test fun optionalReaderFailureKeepsControlAliveAndNewSubscriptionRestartsOnceAcrossLeases() = runBlocking<Unit> {
+        val transport = MemoryTransport()
+        MobileRpcClient(transport, { "fixture-token" }).use { client ->
+            client.connect()
+            suspend fun subscribe(lease: MobileRpcClient, id: String) {
+                val result = async { lease.subscribe(listOf("terminal.bytes"), id) }
+                transport.answer(withTimeout(2000) { transport.request() })
+                withTimeout(2000) { result.await() }
+            }
+            val first = client.lease {}; val second = client.lease {}
+            try {
+                subscribe(first, "first")
+                withTimeout(2000) { while (transport.eventJobs.isEmpty()) yield() }
+                val old = transport.eventJobs.single()
+                transport.pushed.close(IOException("optional sidecar reset"))
+                withTimeout(2000) { old.join() }
+                assertFalse(client.isClosed); assertEquals(0, transport.closes.get())
+                transport.pushed = Channel(16)
+                subscribe(first, "first") // Reassertion must not spend time reopening optional lanes.
+                assertEquals(1, transport.eventJobs.size)
+                subscribe(second, "second")
+                withTimeout(2000) { while (transport.eventJobs.size != 2) yield() }
+                subscribe(first, "third")
+                assertEquals(2, transport.eventJobs.size)
+                val event = async(start = CoroutineStart.UNDISPATCHED) { first.events.first() }
+                transport.pushed.send("""{"kind":"event","topic":"terminal.bytes","payload":{"restored":true}}""".toByteArray())
+                assertTrue(withTimeout(2000) { event.await() }.payload.getBoolean("restored"))
+                first.close()
+                assertFalse(client.isClosed); assertTrue(transport.eventJobs.last().isActive)
+            } finally { first.close(); second.close() }
+        }
+        assertEquals(1, transport.closes.get())
+    }
+
+    @Test fun optionalEofAllowsControlFallbackButNativeDisconnectionStillFailsPendingCalls() = runBlocking<Unit> {
+        val transport = MemoryTransport()
+        MobileRpcClient(transport, { "fixture-token" }).use { client ->
+            client.connect()
+            withTimeout(2000) { while (transport.eventJobs.isEmpty()) yield() }
+            transport.pushed.close()
+            withTimeout(2000) { transport.eventJobs.single().join() }
+            val event = async(start = CoroutineStart.UNDISPATCHED) { client.events.first() }
+            transport.incoming.send(MobileFrameCodec.encode("""{"kind":"event","topic":"notification.feed.changed","payload":{"fallback":true}}""".toByteArray()))
+            assertTrue(withTimeout(2000) { event.await() }.payload.getBoolean("fallback"))
+            val response = async { runCatching { client.workspaces() } }
+            withTimeout(2000) { transport.request() }
+            transport.connectionFailures.send(IOException("native connection closed"))
+            assertTrue(withTimeout(2000) { response.await() }.isFailure)
+            assertTrue(client.isClosed); assertEquals(1, transport.closes.get())
+            assertTrue(transport.sent.tryReceive().isFailure)
         }
     }
 

@@ -93,11 +93,20 @@ resource UUID would not exercise the real transport. This is source/JVM evidence
 no new APK, native QUIC runtime or physical scope check is claimed. The source
 fix postdates the signed milestone being built from `0db3c17`.
 
-One related discrepancy remains: iOS’s optional independent-event decoder skips
-malformed payloads without closing control RPC. Android’s shared/unscoped path
-still fails the full client on malformed JSON/non-event payloads. Review that
-failure policy and its control fallback separately before claiming event-lane
-parity. Broader event/replay/connection changes remain unaudited.
+The related optional-reader failure policy is now implemented too. Malformed or
+non-event sidecar payloads are ignored; they cannot settle pending control replies.
+An optional reader’s EOF/reset stops its lanes while control RPC and fallback
+control events remain usable. A new subscription can restart the reader; concurrent
+lease subscriptions share it, while reasserting an existing subscription does not
+reopen it. Unsubscribe releases its preparation record. Native disconnection,
+control failure and account revocation remain authoritative session closure paths.
+
+The follow-up passed **26 focused JVM tests**, including three new optional-event
+cases and the scope, lease and control-client regressions. Tests explicitly wait
+for the failed collector job to finish before checking restart, and verify actual
+native-disconnection propagation after optional EOF. Neither this policy change
+nor the scope filter is in signed 284. Native/physical event-lane acceptance and
+broader event/replay/connection review remain open.
 
 ## Current delivery boundary
 

@@ -2,6 +2,7 @@ package io.github.docmorphic.cmuxapp
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -81,6 +82,8 @@ class MobileRpcClient internal constructor(
     private var repairing = false
     private var unverifiedRepairs = 0
     private var writeSequence = 0L
+    private var independentEventReader: Job? = null
+    private val independentEventSubscriptions = mutableSetOf<String>()
 
     internal val isClosed: Boolean get() = synchronized(stateLock) { closed } || delegate?.isClosed == true
 
@@ -126,18 +129,8 @@ class MobileRpcClient internal constructor(
                     try { closures.collect { failConnection(it) } }
                     catch (failure: Throwable) { failConnection(failure) }
                 } }
-                transport.independentEvents?.let { events ->
-                    scope.launch {
-                        try {
-                            events.collect { payload ->
-                                val envelope = MobileJson.objectValue(payload.toString(Charsets.UTF_8))
-                                require(envelope.optString("kind") == "event") { "Non-event on Irx event lane" }
-                                dispatch(envelope)
-                            }
-                        } catch (error: Throwable) { failConnection(error) }
-                    }
-                }
             }
+            prepareIndependentEvents()
             Unit
         } catch (error: Throwable) { failConnection(error); throw error }
     }
@@ -559,8 +552,48 @@ class MobileRpcClient internal constructor(
 
     private val clientId = UUID.randomUUID().toString()
 
+    /** Optional events cannot settle control replies or retire a healthy control connection. */
+    private fun prepareIndependentEvents(streamId: String? = null) {
+        if (delegate != null) {
+            if (!isClosed) delegate.prepareIndependentEvents(streamId)
+            return
+        }
+        val events = transport.independentEvents ?: return
+        val reader = synchronized(stateLock) {
+            if (closed || !connected) return
+            val stream = streamId?.trim()?.takeIf(String::isNotEmpty)
+            // Reasserting a subscription is a control liveness probe, not a new sidecar attempt.
+            if (stream != null && !independentEventSubscriptions.add(stream)) return
+            if (independentEventReader?.isCompleted == false) return
+            scope.launch(start = CoroutineStart.LAZY) {
+                try {
+                    events.collect { payload ->
+                        val envelope = try { MobileJson.objectValue(payload.toString(Charsets.UTF_8)) }
+                        catch (_: Exception) { return@collect }
+                        if (envelope.optString("kind") == "event") dispatch(envelope)
+                    }
+                } catch (failure: Exception) {
+                    if (failure is CancellationException) throw failure
+                    // The reader's cleanup stops its lanes; the host can fall back to control.
+                    // A later new subscription may prepare a new reader. Connection closure
+                    // remains authoritative through disconnections/control read or write.
+                }
+            }.also { independentEventReader = it }
+        }
+        reader.invokeOnCompletion {
+            synchronized(stateLock) { if (independentEventReader === reader) independentEventReader = null }
+        }
+        reader.start()
+    }
+
+    private fun forgetIndependentSubscription(streamId: String) {
+        if (delegate != null) delegate.forgetIndependentSubscription(streamId)
+        else synchronized(stateLock) { independentEventSubscriptions.remove(streamId.trim()) }
+    }
+
     suspend fun subscribe(topics: List<String>, streamId: String = UUID.randomUUID().toString(),
                           screenAnchor: Boolean = false): JSONObject {
+        prepareIndependentEvents(streamId)
         val params = JSONObject().put("client_id", clientId).put("stream_id", streamId)
             .put("topics", org.json.JSONArray(topics))
         if (transport.surfaceEventLanes) params.put("surface_event_lanes", "v1")
@@ -568,9 +601,9 @@ class MobileRpcClient internal constructor(
         return request("mobile.events.subscribe", params)
     }
 
-    suspend fun unsubscribe(streamId: String): JSONObject = request(
-        "mobile.events.unsubscribe", JSONObject().put("stream_id", streamId)
-    )
+    suspend fun unsubscribe(streamId: String): JSONObject = try {
+        request("mobile.events.unsubscribe", JSONObject().put("stream_id", streamId))
+    } finally { forgetIndependentSubscription(streamId) }
 
     private suspend fun readLoop() {
         val decoder = MobileFrameDecoder()
@@ -588,6 +621,7 @@ class MobileRpcClient internal constructor(
         val operations = synchronized(stateLock) {
             if (closed) return
             closed = true; connected = false
+            independentEventSubscriptions.clear()
             pending.values.forEach { it.answer.completeExceptionally(failure) }
             pending.clear()
             leaseOperations.toList().also { leaseOperations.clear() }
