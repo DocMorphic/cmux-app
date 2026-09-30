@@ -7,6 +7,7 @@ import io.github.docmorphic.cmuxapp.iroh.IrxClientSession
 import io.github.docmorphic.cmuxapp.iroh.IrxWire
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -17,7 +18,10 @@ class NativeTerminalInputLaneTest {
     @Test fun nativeInputUsesIndependentStreamAndControlRpcRemainsUsable() = exercise(inputOnly = true)
     @Test fun nativeDuplexTerminalStreamsReplayChunksAndInputAlongsideControl() = exercise(inputOnly = false)
 
-    private fun exercise(inputOnly: Boolean) = runBlocking<Unit> {
+    @Test fun identifiedInputAcknowledgesOnIndependentNativeLane() = exercise(inputOnly = true, identified = true)
+    @Test fun identifiedInputAcknowledgesOnNativeDuplexLaneWithoutRenderingAck() = exercise(inputOnly = false, identified = true)
+
+    private fun exercise(inputOnly: Boolean, identified: Boolean = false) = runBlocking<Unit> {
         IrohRuntime.initialize(InstrumentationRegistry.getInstrumentation().targetContext)
         withTimeout(20_000) {
             val options = EndpointOptions(preset = presetMinimal(), bindAddr = "127.0.0.1:0",
@@ -28,6 +32,8 @@ class NativeTerminalInputLaneTest {
             val phone = Endpoint.bind(phoneOptions)
             val finish = CompletableDeferred<Unit>()
             val surface = "382d08b0-890c-4a4f-a26a-3466cda11b81"
+            val delivery = TerminalInputDelivery(java.util.UUID.fromString(surface), java.util.UUID.randomUUID(), ULong.MAX_VALUE)
+            val acknowledgement = TerminalInputAcknowledgement(TerminalInputAcknowledgement.Status.APPLIED, delivery.stream, delivery.sequence)
             val text = "é😀\u001b[A\r"
             val cursor = ULong.MAX_VALUE - 20u
             try {
@@ -58,9 +64,19 @@ class NativeTerminalInputLaneTest {
                                     val baseline = envelope(1, cursor, if (inputOnly) "" else "native")
                                     ready.writeAll(baseline.copyOfRange(0, 11)); ready.writeAll(baseline.copyOfRange(11, baseline.size))
                                     if (!inputOnly) ready.writeAll(envelope(2, cursor + 6u, "!"))
-                                    val length = ByteBuffer.wrap(keys.readExact(4u)).int
-                                    assertEquals(text.toByteArray().size, length)
-                                    assertEquals(text, keys.readExact(length.toUInt()).decodeToString())
+                                    val header = ByteBuffer.wrap(keys.readExact(4u)).int
+                                    val length = header and 0x3fffffff
+                                    assertEquals(if (identified) 0x40000000 else 0, header and 0x40000000)
+                                    assertEquals(text.toByteArray().size + if (identified) 40 else 0, length)
+                                    if (identified) assertArrayEquals(delivery.encoded(), keys.readExact(40u))
+                                    assertEquals(text, keys.readExact(text.toByteArray().size.toUInt()).decodeToString())
+                                    if (identified) {
+                                        val ack = ByteBuffer.allocate(70).putInt(0x434d5854).put(1).put(3).putShort(0)
+                                            .putLong(0).putLong(0).putLong(34).putInt(34).put(1).put(1)
+                                            .putLong(delivery.stream.mostSignificantBits).putLong(delivery.stream.leastSignificantBits)
+                                            .putLong(delivery.sequence.toLong()).putLong(0).array()
+                                        ready.writeAll(ack.copyOfRange(0, 37)); ready.writeAll(ack.copyOfRange(37, ack.size))
+                                    }
                                     val request = checkNotNull(IrxWire.read { read.read(it.toUInt()) })
                                     assertEquals("mobile.host.status", request.getString("method"))
                                     send.writeAll(MobileFrameCodec.encode(JSONObject().put("id", request.getString("id"))
@@ -78,7 +94,14 @@ class NativeTerminalInputLaneTest {
                     MobileRpcClient(transport, { null }).use { client ->
                         client.connect()
                         suspend fun checkInput(lane: TerminalInputLane) {
-                            lane.send(text)
+                            if (identified) {
+                                lane.sendIdentified(text, delivery)
+                                val ack = if (inputOnly) lane.acknowledgements.first() else {
+                                    val frame = checkNotNull((lane as TerminalOutputLane).receive())
+                                    assertTrue(frame.bytes.isEmpty()); checkNotNull(frame.inputAcknowledgement)
+                                }
+                                assertEquals(acknowledgement, ack)
+                            } else lane.send(text)
                             assertTrue(client.hostStatus().getBoolean("input_checked"))
                             assertFalse(client.isClosed)
                         }

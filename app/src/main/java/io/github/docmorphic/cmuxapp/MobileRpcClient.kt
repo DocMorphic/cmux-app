@@ -48,6 +48,11 @@ class MobileRpcClient internal constructor(
                 socketFactory: SocketFactory = SocketFactory.getDefault()) :
         this(SocketMobileRpcTransport(route, socketFactory), accessToken, attachToken)
 
+    // Scoped to this foreground lease only. Internal identity overloads bypass it.
+    @Volatile internal var terminalInputDispatcher: (suspend (TerminalInputOperation) -> JSONObject)? = null
+    private suspend fun terminalOperation(operation: TerminalInputOperation): JSONObject =
+        terminalInputDispatcher?.invoke(operation) ?: operation.rpc(this, null)
+
     data class Event(val topic: String, val payload: JSONObject, val streamId: String?, val deliverySequence: Long = 0)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -384,7 +389,7 @@ class MobileRpcClient internal constructor(
         return request("mobile.browser.dialog.respond", params)
     }
     suspend fun terminalClick(workspaceId: String, surfaceId: String, cell: TerminalGeometry.Cell): JSONObject =
-        terminalClick(workspaceId, surfaceId, cell, null)
+        terminalOperation(TerminalInputOperation.Click(workspaceId, surfaceId, cell))
 
     internal suspend fun terminalClick(workspaceId: String, surfaceId: String, cell: TerminalGeometry.Cell,
         delivery: TerminalInputDelivery?): JSONObject =
@@ -393,7 +398,7 @@ class MobileRpcClient internal constructor(
             .put("col", cell.column.coerceAtLeast(0)).put("row", cell.row.coerceAtLeast(0)).withInputDelivery(delivery))
 
     suspend fun terminalScroll(workspaceId: String, surfaceId: String, scroll: TerminalScroll): JSONObject =
-        terminalScroll(workspaceId, surfaceId, scroll, null)
+        terminalOperation(TerminalInputOperation.Scroll(workspaceId, surfaceId, scroll))
 
     internal suspend fun terminalScroll(workspaceId: String, surfaceId: String, scroll: TerminalScroll,
         delivery: TerminalInputDelivery?): JSONObject {
@@ -496,7 +501,8 @@ class MobileRpcClient internal constructor(
         } finally { lane.close() }
     }
 
-    suspend fun input(workspaceId: String, surfaceId: String, text: String): JSONObject = input(workspaceId, surfaceId, text, null)
+    suspend fun input(workspaceId: String, surfaceId: String, text: String): JSONObject =
+        terminalOperation(TerminalInputOperation.Text(workspaceId, surfaceId, text))
 
     internal suspend fun input(workspaceId: String, surfaceId: String, text: String, delivery: TerminalInputDelivery?): JSONObject =
         request("terminal.input", JSONObject()
@@ -507,7 +513,7 @@ class MobileRpcClient internal constructor(
 
     /** cmux's literal multiline paste, optionally followed by a Return key event. */
     suspend fun paste(workspaceId: String, surfaceId: String, text: String, submit: Boolean): JSONObject =
-        paste(workspaceId, surfaceId, text, submit, null)
+        terminalOperation(TerminalInputOperation.Paste(workspaceId, surfaceId, text, submit))
 
     internal suspend fun paste(workspaceId: String, surfaceId: String, text: String, submit: Boolean,
         delivery: TerminalInputDelivery?): JSONObject =
@@ -517,7 +523,7 @@ class MobileRpcClient internal constructor(
             .put("submit_key", if (submit) "return" else "none").withInputDelivery(delivery))
 
     suspend fun pasteImage(workspaceId: String, surfaceId: String, bytes: ByteArray, format: String): JSONObject =
-        pasteImage(workspaceId, surfaceId, bytes, format, null)
+        terminalOperation(TerminalInputOperation.Image(workspaceId, surfaceId, bytes, format))
 
     internal suspend fun pasteImage(workspaceId: String, surfaceId: String, bytes: ByteArray, format: String,
         delivery: TerminalInputDelivery?): JSONObject =

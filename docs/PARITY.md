@@ -12,14 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-**Identified-input foundation (2026-09-30):** wire identities/acknowledgements,
-CMXT ACK routing for both lane types, bounded outboxes, five RPC overloads and the
-scoped session-sender engine are implemented. **84 focused JVM tests passed**,
-including compiled Swift goldens and deduplicating-peer retry/order checks.
-Production capability negotiation, session/lease binding and recovery UI remain
-required before enabling the feature. See
-[TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md). Signed 274 and the Pixel
-installation predate this work.
+**Identified-input production integration (2026-09-30):** wire identities/ACKs,
+both native lane types, bounded sender and retained foreground session now share
+all five input methods. Fresh admission negotiates support; legacy hosts retain
+their existing path. Immutable target/payload snapshots, ordered media/mouse input,
+reconnect fencing and explicit pause/resume are implemented. **97 focused JVM
+and nine Android runtime tests passed**, including lost-reply Activity recreation
+and real JNI/Iroh ACK lanes. Physical identified-capability acceptance and composer
+rotation settlement remain open. See
+[TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md). Signed 274 predates this work.
 
 **Pixel native recovery (2026-09-30):** debug `1d5958f` was installed in place,
 preserving sign-in. The unlocked phone loaded the Mac's workspaces, executed a

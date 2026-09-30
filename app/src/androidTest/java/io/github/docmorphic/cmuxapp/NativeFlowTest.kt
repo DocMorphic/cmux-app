@@ -2159,6 +2159,9 @@ internal class NativeFixturePeer : AutoCloseable {
     val port get() = server.localPort
     val requests = CopyOnWriteArrayList<JSONObject>()
     val failures = CopyOnWriteArrayList<String>()
+    @Volatile var identifiedInput = false
+    @Volatile var identifiedInputBusy = false
+    val appliedInputIdentities = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile var dropReplyAfterMethod: String? = null
     val lostReplies = CopyOnWriteArrayList<String>()
     val rejectNextPaste = AtomicBoolean(false)
@@ -2292,6 +2295,13 @@ internal class NativeFixturePeer : AutoCloseable {
                             else if (request.optString("method") == "mobile.workspace.list" && workspaceListingResponse != null)
                                 workspaceListingResponse!!.invoke(feedConnection)
                             else response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
+                        val inputParams = request.optJSONObject("params")
+                        if (identifiedInput && inputParams?.has("input_stream_id") == true) {
+                            val identity = inputParams.getString("input_stream_id") + ":" + inputParams.getString("input_stream_seq")
+                            val status = if (identifiedInputBusy) "busy" else if (appliedInputIdentities.add(identity)) "applied" else "duplicate"
+                            result.put("input_ack", JSONObject().put("status", status).put("stream_id", inputParams.getString("input_stream_id"))
+                                .put("sequence", inputParams.getString("input_stream_seq")).put("expected", "0"))
+                        }
                         // Execute/record the request, then lose only its reply. socket.use
                         // closes this connection; the listener accepts the app's reconnect.
                         if (request.optString("method") == dropReplyAfterMethod) {
@@ -2339,6 +2349,7 @@ internal class NativeFixturePeer : AutoCloseable {
         }
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
             .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
+                if (identifiedInput) it.put(TerminalInputDelivery.CAPABILITY)
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (browserCreationSupported) it.put("browser.stream.v1").put("browser.stream.create.v1")
                 if (todoSupported) it.put("todo.v1")

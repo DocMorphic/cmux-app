@@ -2,12 +2,12 @@
 
 Checkpoint: 2026-09-30. Source contract:
 [`204a11dfcc76280205e50406ab94270a1c152155`](https://github.com/manaflow-ai/cmux/commit/204a11dfcc76280205e50406ab94270a1c152155).
-This implements the wire types, bounded outbox, RPC overloads, lane acknowledgement
-dispatch and generic session sender needed for `terminal.input.exactly_once.v1`.
-**Production session binding, capability negotiation and UI settlement are still
-to be integrated.** Existing
-production callers continue the legacy input path. Signed 274 and the Pixel's
-installed debug `1d5958f` predate this foundation.
+The protocol, lanes and retained sender are now integrated into the production
+native session. Each freshly admitted connection negotiates the capability;
+hosts without it retain legacy input behavior. Verification passed **97 focused
+JVM tests and nine Android runtime checks** on API 37 / 16 KiB pages. These include
+synthetic deduplicating hosts and real JNI/Iroh lanes. Physical Mac acceptance
+of the new capability is still outstanding. Signed 274 predates this work.
 
 ## Reviewed upstream contract
 
@@ -32,13 +32,14 @@ installed debug `1d5958f` predate this foundation.
 as an unsigned 64-bit value. Adding its RPC parameters requires the same explicit
 `surface_id`; it cannot overwrite another identity. Internal overloads on
 `MobileRpcClient` now support metadata on input, paste, image paste, mouse and
-scroll calls. Their existing public overloads produce unchanged legacy requests.
+scroll calls. Their public overloads now dispatch through the foreground session when bound;
+unbound clients retain legacy requests.
 No request replay is added to the control channel.
 
 `TerminalInputAcknowledgement` handles all seven binary/RPC statuses. RPC numbers
 are decimal UInt64 strings. Missing `input_ack` is represented separately from
-malformed, unknown-version, invalid-UUID or overflowing acknowledgement data; a
-future sender must never treat malformed identity as a successful downgrade.
+malformed, unknown-version, invalid-UUID or overflowing acknowledgement data; the
+sender must never treat malformed identity as a successful downgrade.
 
 `TerminalLaneProtocol` supports identity-bearing input frames and has an explicit
 opt-in acknowledgement decoder. Native lanes bound to a canonical terminal UUID
@@ -53,7 +54,7 @@ zero retained/sequence counters.
 
 Both lane owners expose `sendIdentified`: false means no write, while uncertain
 writes throw. A successful write does not wait for its acknowledgement, allowing
-the future sender to pipeline input. These APIs alone do not negotiate the host
+the retained sender to pipeline input. These APIs alone do not negotiate the host
 capability or apply acknowledgement stream/sequence rules; the session sender
 must perform those steps before enabling them in the UI.
 
@@ -85,7 +86,10 @@ acknowledgements must use that same dispatcher.
   acknowledgements. Closing an older token cannot close the replacement.
 - Lane input is pipelined. RPC waits behind earlier unacknowledged units; failure
   rewinds with the original identity, including when falling back from lane to RPC.
-- Missing acknowledgements and writes have five-second deadlines. Both absent
+- Missing acknowledgements and sender write attempts have five-second deadlines.
+  A started control frame finishes under the RPC client’s non-cancellable, bounded
+  15-second write deadline to avoid corrupting the shared stream; its completion
+  can therefore delay the outer timeout. Both absent
   bindings and unavailable paths have a 30-second limit. Retry delays are 250/500 ms;
   three consecutive failures without delivery progress settle and pause the stream.
   Busy/gap/mismatch replies and connection flapping cannot reset that budget.
@@ -103,13 +107,29 @@ acknowledgements must use that same dispatcher.
   Explicit recovery starts a new stream for new input; abandoned payloads are
   never resubmitted. The session owner must close the sender before its scope.
 
-The generic engine is not yet installed into `NativeFeedSession` or `NativeScreen`.
-Production integration must reserve ordering before asynchronous image preparation,
-route all five input RPC methods through one sender, retain response data needed by
-scroll rendering, and expose the failure/recovery state to the user. Retain an
-admitted RPC lease for the original target while its input is pending; do not resolve
-it from the current selection. Activity recreation should rebind the same key;
-account/Mac retirement should explicitly abandon the old owner.
+## Production session integration
+
+`NativeFeedSession` retains `NativeTerminalInputSession` across Activity recreation.
+Admission captures login, account/team, canonical Mac/build, workspace and terminal;
+queued operations never resolve their destination from a later UI selection.
+Reconnect rebinds pending identities to the newly admitted client. Old-client lane
+cleanup and late callbacks cannot close or acknowledge the replacement. Account,
+Mac or terminal retirement abandons the old owner’s pending input.
+
+All five public input methods share the sender. Payloads are immutable snapshots,
+including copied image bytes. The retained queue reserves asynchronous media work
+before later keys, mouse or scroll; RPC waits behind unacknowledged lane input.
+Scroll responses retain their render-grid data. Both native lane types deliver
+ACKs without sending them to the renderer. Advertised identity support with an
+invalid terminal UUID or exhausted record capacity refuses input instead of
+falling through to legacy delivery.
+
+Typing and composer admission observe sender/queue failures. The terminal shows
+an explicit Resume typing action, or requests reconnect when identity support was
+invalidated. Resume starts new input and never resubmits abandoned payloads.
+Composer UI jobs remain composition-scoped: rotation after a submitted operation
+can leave its durable draft marked unconfirmed even if the retained sender later
+settles delivery. Full composer lifecycle acceptance remains open.
 
 ## Reproducible verification
 
@@ -153,28 +173,37 @@ the final batch includes that corrected ordering case. These remain synthetic
 transport checks; no new APK or physical identified-input claim is made.
 Evidence: ignored `captures/runtime/input-delivery/sender/`.
 
-## Required integration before enabling the capability
+## Production integration verification and remaining acceptance
 
-1. Instantiate the implemented sender under the scoped session lifetime, keyed by login,
-   account/team, canonical Mac/build and terminal UUID. Rotation/reconnect retain
-   pending units; sign-out, owner retirement and disposal abandon them. Never
-   route queued input to whichever terminal happens to be selected later.
-2. Snapshot every payload before sending. Preserve order across typed input,
-   paste/image operations, composer submission, mouse and scroll. An RPC must not
-   overtake unacknowledged lane units.
-3. Negotiate `terminal.input.exactly_once.v1` per freshly admitted connection.
-   Start identified input only for a valid terminal UUID and supported host.
-   Capability loss after an uncertain write must not trigger blind legacy replay.
-4. Bind the implemented lane acknowledgement callbacks to the scoped sender.
-   Enforce stream and session-owner checks before applying them. Waiting for an
-   acknowledgement needs a bounded timeout.
-5. Surface the implemented sender settlements in the typing/composer UI. Handle
-   refusal, disappearance and abandonment visibly, including explicit recovery
-   that never resubmits abandoned input.
-6. Exercise dropped acknowledgements, busy bursts, partial writes, lane-to-RPC
-   failover, host restart, capability downgrade, Activity recreation, Mac/account
-   switching and late callbacks using a deduplicating fixture. Then verify on the
-   actual Mac/Pixel before claiming delivery parity.
+The integration batch passed **97 JVM tests**, including nine session-adapter
+checks for all five RPC methods, image snapshots, old-client fencing, reconnect,
+mouse/media ordering, owner isolation, downgrade recovery and invalid identities.
+Debug and instrumentation APKs built successfully.
+
+On the Android 17 / API 37 emulator with 16 KiB pages, **nine runtime tests passed
+in 61.466 seconds**:
+
+- Dropped RPC reply plus Activity recreation retained the exact identity and
+  produced one application in the fixture host’s deduplication ledger.
+- Busy replies stopped after the bounded retry budget; explicit Resume typing
+  used a new stream for fresh input. Paused/recovered screens were inspected.
+- Identified ACKs passed over real JNI/Iroh input-only and duplex lanes, with
+  fragmented ACK frames and a usable independent control channel.
+- Existing native lane/control, direct keyboard/target-switch, image-before-keys,
+  and terminal mouse/scroll checks passed.
+
+Debug APK SHA-256:
+`1dc620de99ee7ea5646c1be581f7742e889414a6b2ed267e0c402cfdb21267cd`.
+Instrumentation APK SHA-256:
+`e74ba98fb115da40b8a6225fc3d9808e25a614160b63e9780b85eb54353e1462`.
+Evidence is in ignored `captures/runtime/input-delivery/session/`. Account-clearing
+instrumentation runs only on the emulator. These results do not establish the
+installed Mac’s advertised capability or physical identified-input acceptance.
+
+Still required: physical Mac/Pixel acceptance, composer rotation settlement,
+and broader host restart, capability downgrade and partial-write runtime
+acceptance. Existing deterministic tests cover these protocol failure mechanisms;
+they are not a substitute for live end-to-end evidence.
 
 The repository-wide upstream refresh is still incomplete; see
 [UPSTREAM_REFRESH_2026_09_30.md](UPSTREAM_REFRESH_2026_09_30.md).

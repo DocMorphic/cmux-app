@@ -99,6 +99,19 @@ class TerminalInputQueue(scope: CoroutineScope, private val deliver: suspend (En
         return true
     }
 
+    /** Reserve a mouse/scroll operation behind text and any asynchronous paste preparation. */
+    suspend fun <T> performOrdered(operation: suspend () -> T): T {
+        val answer = kotlinx.coroutines.CompletableDeferred<T>()
+        val accepted = offerAction(release = {
+            if (!answer.isCompleted) answer.completeExceptionally(java.io.IOException("Queued input was cancelled"))
+        }) {
+            try { answer.complete(operation()) }
+            catch (failure: Throwable) { answer.completeExceptionally(failure); throw failure }
+        }
+        check(accepted) { "Typing paused. Check the terminal before resuming." }
+        return answer.await()
+    }
+
     suspend fun awaitIdle() {
         val result = status.first { it.pendingBytes == 0 || it.error != null || it.closed }
         check(!result.closed && result.error == null) { result.error ?: "Terminal connection changed" }

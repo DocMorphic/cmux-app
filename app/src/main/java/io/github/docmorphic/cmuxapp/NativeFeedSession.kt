@@ -12,7 +12,7 @@ import kotlinx.coroutines.cancel
 
 /** Activity recreation retains account-scoped snapshots; process death refetches from the Mac. */
 internal class NativeFeedSession(
-    connector: NativeConnector, account: NativeAccount, store: NativeCredentialStore
+    private val connector: NativeConnector, private val account: NativeAccount, private val store: NativeCredentialStore
 ) : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val workspaceSnapshots = NativeWorkspaceSnapshots(store::taskSession)
@@ -27,10 +27,17 @@ internal class NativeFeedSession(
     val workspaceTabs = NativeWorkspaceTabNavigation(store)
     val terminalStartup = NativeTerminalStartup()
     val paneNavigation = NativePaneNavigation()
+    val terminalInputs = NativeTerminalInputSession(scope)
+    fun allowsTerminalInput(owner: TerminalInputSender.Owner): Boolean = account.isSignedIn() &&
+        store.taskSession() == owner.login && store.pairedMacs().any { mac ->
+            canonicalMacDeviceId(mac.deviceId) == owner.device && mac.instanceTag?.trim()?.takeIf(String::isNotEmpty) == owner.build &&
+                (mac.accountUserId == null || mac.accountUserId == owner.user) &&
+                (mac.accountTeamId == null || mac.accountTeamId == owner.team) && connector.allowsSaved(mac)
+        }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
-    override fun onCleared() { clear(); scope.cancel() }
+    fun clear() { terminalInputs.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    override fun onCleared() { clear(); terminalInputs.close(); scope.cancel() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,
         private val store: NativeCredentialStore) : ViewModelProvider.Factory {
