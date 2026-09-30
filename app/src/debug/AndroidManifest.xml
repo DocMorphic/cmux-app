@@ -2,5 +2,8 @@
     <application>
         <activity android:name=".NativeLifecycleTestActivity" android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".NativeProcessRestoreTestActivity" android:exported="false"
+            android:process=":restore_test" android:taskAffinity="${applicationId}.processrestore"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 </manifest>

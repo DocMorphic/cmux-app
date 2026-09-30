@@ -75,7 +75,7 @@ internal fun NativeWorkspaceWaitingPane(title: String, onBack: () -> Unit,
         Text(if (connected) "Waiting for workspace panes…" else "Reconnecting to your Mac…")
         connectionError?.let { Text(it) }
         if (!connected && onReconnect != null) TextButton(onClick = onReconnect) { Text("Reconnect") }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (onNewTerminal != null || onNewBrowser != null) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TextButton(onClick = { onNewTerminal?.invoke() }, enabled = onNewTerminal != null) { Text("New terminal") }
             TextButton(onClick = { onNewBrowser?.invoke() }, enabled = onNewBrowser != null) { Text("New browser") }
         }

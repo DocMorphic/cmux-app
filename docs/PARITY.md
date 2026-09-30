@@ -12,13 +12,25 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Android task process recovery (2026-09-30):** saved-instance state now restores
+workspace/pane or Changes after actual UI-process death, after account/Mac/build
+admission and fresh inventory. Startup tickets retain their original deadline;
+restoration never repeats creation. Back cancels pending reconnect routing.
+**36 JVM tests passed**. A **53-test Android 17 / 16 KiB batch passed** before the
+final legacy cached-owner adjustment; **all twelve process tests passed again on
+the final APKs in 113.162 seconds**. Restored OS bundles and changed UI PIDs were
+verified, and the restore screenshot was inspected. Nested details/overlays,
+unacknowledged creation, consumed deep-link lifecycle and physical acceptance
+remain open. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). The Pixel is
+still unavailable to ADB; signed build **261** is unchanged.
+
 **Workspace/pane Activity recreation (2026-09-30):** the selected workspace,
 terminal/browser/Mac/Simulator pane and Changes destination now survive Activity
 recreation in the scoped session, including offline panels. Existing startup
 tickets/deadlines and remembered-browser intent are preserved. Changes refresh no
 longer switches to a terminal. **26 JVM and 41 Android 17 / 16 KiB tests passed**.
-OS process-death restoration, nested detail/overlay state, interrupted-creation
-recovery and physical acceptance remain open. See
+This preceded process recovery above; nested detail/overlay state, interrupted-
+creation recovery and physical acceptance remain open. See
 [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). Signed build 261 is unchanged.
 
 **Empty workspaces and delayed panes (2026-09-30):** empty rows now open into a

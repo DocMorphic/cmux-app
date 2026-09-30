@@ -85,9 +85,9 @@ internal class NativeWorkspaceTabNavigation(
         if (waiting != null) cancel()
         if (tab != null) record(login, key, tab)
     }
-    fun open(login: String, key: NativeWorkspaceTabKey, workspace: NativeWorkspace): NativeWorkspaceTabChoice {
+    fun open(login: String, key: NativeWorkspaceTabKey, workspace: NativeWorkspace,
+        remembered: NativeWorkspaceTab? = read(login, key)): NativeWorkspaceTabChoice {
         cancel()
-        val remembered = read(login, key)
         val result = remembered?.let { restoreWorkspaceTab(workspace, it) }
         val choice = if (result?.status == NativeWorkspaceRestoreStatus.RESTORED)
             NativeWorkspaceTabChoice(result.pane, result.localBrowser) else NativeWorkspaceTabChoice(workspace.defaultPane())

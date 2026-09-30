@@ -6,8 +6,9 @@ browser workspace-lifetime protection are implemented. Persisted last-tab memory
 is now wired into workspace navigation; see the integration checkpoint below.
 General delayed-pane selection and browser discovery are now integrated.
 Workspace/pane identity now survives Activity recreation, including offline panes
-and existing startup/restore intent. **OS process-death recovery, detail-view state
-and physical acceptance remain open.**
+and existing startup/restore intent. Android task saved state now restores the
+workspace/pane after real process death, with fresh owner admission and inventory.
+**Nested detail state, interrupted creation and physical acceptance remain open.**
 
 ## Reference code
 
@@ -85,11 +86,11 @@ focus and host order; Simulator descriptors take priority on an ID collision.
 The preference store, restore controller, created-terminal startup pins, refresh
 ordering and delayed discovery are integrated in the checkpoints below. Local
 browser memory is one of the five persisted tab kinds. Activity recreation now
-retains the selected workspace/pane in the existing session. It does not yet restore
-the current screen after OS process death or resolve an unacknowledged creation
-interrupted by Activity/process destruction.
+retains the selected workspace/pane in the existing session. Android task saved
+state now restores that destination after process death, as recorded below. An
+unacknowledged creation interrupted by destruction remains unresolved.
 
-Continue with OS process-death restoration, detail views/overlays, interrupted
+Continue with detail views/overlays, consumed deep-link lifecycle, interrupted
 creation recovery and physical Macs/builds. Keep additions outside the large `NativeScreen` method,
 which has already hit Kotlin's JVM bytecode size limit. Follow with Pixel/Mac
 acceptance.
@@ -485,3 +486,67 @@ all nested Files/Changes detail, scroll/zoom/overlay state, or recovery of a cre
 whose acknowledgement was interrupted by destruction. Those remain required
 follow-up work, alongside physical Pixel/Mac acceptance. No physical Pixel was
 visible, phone data/settings were unchanged, and signed build **261** is unchanged.
+
+
+## Android task restoration after process death (2026-09-30)
+
+`NativeScreenResume` uses Compose saved-instance state to remember the current
+workspace, pane kind/ID or Changes destination. It records the login incarnation,
+account/team, canonical Mac/build and startup ticket/deadline. Saved state contains
+no credentials, terminal output, rendering/input leases or mutation requests. A
+normal cold launch still follows the existing launch behavior; this is Android
+task restoration rather than an always-reopen preference.
+
+Restoration waits for saved-Mac account admission and a fresh owning workspace
+snapshot. Legacy saved rows without cached account fields may wait for admission,
+but cannot bypass full account/team matching. Login replacement, owner/build
+changes, pairing removal, confirmed workspace removal and explicit newer navigation
+retire the destination. Back also clears the queued route, preventing a late
+reconnect from reopening it. Browser discovery resolves the saved browser even
+when fresh workspace wire surfaces omit it and the Mac now focuses a terminal.
+
+An acknowledged newly created terminal retains its exact startup ticket and
+original deadline. Elapsed time while the process is dead counts toward timeout.
+The saved Android boot counter prevents a device reboot from reviving a pin when
+elapsed clocks overlap; unknown boot identity expires it conservatively. The
+counter is read using Android's existing
+[Settings.Global.BOOT_COUNT](https://developer.android.com/reference/android/provider/Settings.Global#BOOT_COUNT)
+API. A timeout shows the existing failure/fallback; restoration never retries a
+terminal/workspace creation. Explicit Retry remains a separate user action.
+
+The emulator-only debug fixture runs the UI in a dedicated private process. Tests
+background that task, wait for Android's save/stop callbacks, kill only its process,
+and bring the same Android task forward. They verify a changed UI PID and a real
+restored saved-instance bundle while the instrumentation/fixture process stays
+alive. This exercises actual process death, not just Activity recreation. Fixture
+setup clears synthetic emulator credentials and must never run on a physical phone.
+
+Verification:
+
+- **36 JVM tests passed**: ten saved-state/owner/deadline cases, five retained-pane
+  cases, ten tab-navigation cases and eleven startup cases. Both APKs built.
+- **53 Android 17 / 16 KiB tests passed in 237.650 seconds** before the final legacy
+  cached-owner lookup adjustment: twelve real-process cases plus the previous
+  41 Activity, remembered-tab, delayed-pane, startup, local-browser and ordering
+  regressions.
+- After that adjustment and two added owner unit cases, **all twelve process
+  tests passed again on the final APKs in 113.162 seconds**. They cover all five
+  pane kinds, Changes, empty workspace/late arrival, replaced login, removed
+  workspace, Back during gated reconnect, browser discovery without wire surfaces,
+  and startup before/after its original deadline. The timeout case waits 31 real
+  seconds with the UI process dead and verifies exactly one create.
+- The initial debug fixture used an invalid hyphenated process suffix and failed
+  APK installation. Changing it to `:restore_test` fixed installation. No runtime
+  test failures were observed in these process-restoration batches.
+- Ignored evidence: `captures/runtime/process-resume/`, including original build
+  and runtime logs, final JVM XML, per-stage APK hashes and the inspected restore
+  screenshot. The owned emulator was stopped. The Pixel still did not appear in
+  ADB or wireless-debugging discovery; its installed app/data/settings were untouched.
+- Final debug APK SHA-256: `6b6bfc1e20a3b34d6ee07e8948b67547f9b2129c88aa91d9327a39770605590e`.
+- Final test APK SHA-256: `82da3a5713c2880401737193fc18059071d63782be7c9e1c39dabb5595139847`.
+
+Nested Files/Changes detail, scroll/zoom/overlay state, unacknowledged ordinary
+creation, consumed pairing/deep-link priority and physical Mac/Pixel workflows
+remain follow-up work. The legacy pairing intent retained by MainActivity needs
+an entry-route lifecycle audit; this checkpoint does not claim all launch paths.
+Signed build **261** is unchanged and predates this work.

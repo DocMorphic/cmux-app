@@ -16,6 +16,17 @@ internal class NativeTerminalStartup(private val now: () -> Long = { android.os.
         mutableState.value = State(pending = if (terminal.isReady) null else Pending(key, terminal.id, startedAt + TIMEOUT))
     }
     fun clear() { mutableState.value = State() }
+    /** Restore only after this checkpoint's owning Mac and workspace were verified. Never extend a deadline. */
+    fun restore(checkpoint: NativeScreenCheckpoint, workspace: NativeWorkspace, bootCount: Int?) {
+        require(workspace.id == checkpoint.key.workspaceId)
+        val pending = checkpoint.startup?.takeIf { ticket -> workspace.terminals.any { it.id == ticket.terminalId && !it.isReady } }
+        val expired = pending != null && (checkpoint.bootCount == null || checkpoint.bootCount != bootCount ||
+            now() < checkpoint.savedAt || now() >= pending.deadline)
+        val failure = if (expired) Failure(checkpoint.key, pending!!.terminalId) else checkpoint.failure
+        mutableState.value = State(pending = pending?.takeUnless { expired }, failure = failure?.takeUnless {
+            workspace.terminals.any { terminal -> terminal.id == it.terminalId && terminal.isReady }
+        })
+    }
     fun cancelPin() { mutableState.value = mutableState.value.copy(pending = null) }
     fun observe(key: NativeWorkspaceTabKey?, terminalId: String?) {
         val state = mutableState.value
