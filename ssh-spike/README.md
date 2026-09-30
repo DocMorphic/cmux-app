@@ -2,8 +2,10 @@
 
 This opt-in test application evaluates JSch **2.28.0** with Bouncy Castle
 **1.86** on Android. It is not part of `:app`, contains no production SSH UI and
-must not be published as the cmux companion. Both dependencies are confined to
-the instrumentation APK. `settings.gradle.kts` includes the module only with
+must not be published as the cmux companion. Within this module both dependencies
+are confined to the instrumentation APK. The later production key vault in `:app`
+now uses these versions independently; see `docs/DIRECT_SSH.md` for its separate
+evidence and limits. `settings.gradle.kts` includes this module only with
 `-PsshSpike`.
 
 ## What the checks establish
@@ -82,9 +84,9 @@ with Ctrl-C and stop the owned emulator when finished.
   authentication-time cancellation, networking handoff, or long-lived reconnect.
 - A production session should support nested channel streams directly, or give
   temporary forwarding listeners an explicit bounded lifetime and owner.
-- Review licenses/dependency notices and current engine advisories before adding
-  either library to the delivered app. The experiment establishes compatibility
-  for these exact versions; it does not select every production algorithm policy.
+- The app now bundles the complete dependency notices with its key-vault work.
+  This experiment establishes compatibility for these exact versions; it does
+  not select every production algorithm policy or prove the key-vault integration.
 
 Primary references: [JSch][jsch], [Android Keystore][keystore],
 [AsyncSSH][asyncssh]. The complete feature scope remains in

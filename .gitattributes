@@ -1,3 +1,5 @@
 # Keep vendored source hashes and fixtures identical on Windows and macOS.
 * text=auto eol=lf
 *.bat text eol=crlf
+# Preserve the upstream license files verbatim, including their whitespace.
+app/src/main/assets/licenses/JSch*.txt -whitespace

@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH private-key foundation (2026-10-01):** generated P-256 Keystore keys,
+encrypted OpenSSH Ed25519/ECDSA import storage, guarded signing leases, rename
+and recoverable deletion now have **eight passing Android checks on API 26 and
+eight on API 37 / 16 KiB pages**. Sixteen host-store JVM checks also passed.
+JSch 2.28.0 and BC 1.86 are now app dependencies with complete packaged notices.
+This code is not yet connected to the SSH session manager or Computers UI.
+Biometric UI, physical hardware/lock behavior and actual process-death acceptance
+remain open. See [DIRECT_SSH.md](DIRECT_SSH.md). Signed 284 and the Pixel are unchanged.
+
 **Direct SSH source audit (2026-09-30):** the newer candidate exposes SSH computers
 and key management in normal signed-in iOS navigation. Mixed plain-shell, tmux and
 cmux-tui workspaces, SFTP and SSH browser forwarding are substantial outstanding
@@ -23,9 +32,10 @@ API 26 and five on API 37 / 16 KiB pages**, including Keystore signing, encrypte
 key imports, host-key refusal, PTY/exec, SFTP and nested forwarding teardown.
 Production host metadata now has an atomic Android storage adapter, scoped dial
 plans and versioned trust decisions; **16 JVM tests passed**, including corruption,
-write failures, concurrent saves and stale-answer rejection. Secure private-key
-storage, session/UI integration, Android storage runtime, biometric and physical
-acceptance remain open. The engine experiment adds no dependency to the delivered app.
+write failures, concurrent saves and stale-answer rejection. Private-key storage
+has since advanced in the checkpoint above. Session/UI integration, host-storage
+Android runtime, biometric and physical acceptance remain open. The engine
+experiment itself adds no dependency to the delivered app.
 The broad implemented reference, signed 284 and Pixel installation are unchanged.
 
 **Files navigation restoration (2026-09-30):** gallery and terminal-path sheets

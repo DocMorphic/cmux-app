@@ -17,7 +17,8 @@ Unicode input; round-tripped SFTP; and tore down two nested forwarding hops.
 The server is an independent AsyncSSH 2.24.0 fixture with generated keys,
 synthetic commands and a temporary SFTP root. These are actual Android/SSH runtime
 checks, not production UI, biometric, physical-device or real multiplexer acceptance.
-No SSH dependency has been added to the delivered app.
+That experiment added no dependency to the delivered app; the later production
+key-vault checkpoint below adds the tested libraries for key handling.
 
 Final experiment APK SHA256 values:
 
@@ -66,6 +67,68 @@ Evidence is in ignored `captures/runtime/ssh-store/`. This is JVM/model evidence
 Android file fault/process-death acceptance, secure key persistence, biometrics,
 session/UI integration and physical use remain outstanding. No APK was assembled
 or installed for this source-only checkpoint.
+
+## Production key vault — 2026-10-01
+
+`SshKeyCrypto.kt` and `SshKeyVault.kt` now implement device-local private-key
+storage and signing. JSch **2.28.0** and Bouncy Castle **1.86** are app dependencies
+for OpenSSH parsing/signing. Their complete JSch, jBCrypt, JZlib and BC license
+notices are bundled and shown in Open-source licenses. The four notices were
+checked byte-for-byte against the source artifacts and the debug APK. No new
+native library or process-wide Android security provider was added.
+
+- Generated P-256 keys remain in Android Keystore with no exportable private
+  encoding. A prepared one-use signature operation supports a future biometric
+  CryptoObject prompt. Optional per-use strong-biometric policy is configured at
+  creation, including enrollment invalidation; there is no silent fallback to an
+  unprotected key when creation fails. This does **not** establish hardware-backed
+  protection or working biometric UI on the Pixel.
+- Imported Ed25519/ECDSA OpenSSH keys are validated before saving. AES-GCM protects
+  their key bytes/passphrase using a separate Keystore AES key per imported key.
+  Authenticated data binds the ciphertext to its key ID and public key. Owned
+  temporary byte buffers are cleared; callers retain responsibility for their
+  import/UI buffers. RSA import remains unsupported as in the reviewed iOS UI.
+- Metadata and ciphertext live in `noBackupFilesDir/ssh/keys/keys-v1.json`.
+  Atomic writes are synced and read back before publishing new records. Missing
+  encryption aliases are never regenerated while opening an existing record.
+- Deletion first persists a tombstone, hides the key and prevents further signing,
+  then clears host references and removes the alias. Failed cleanup resumes when
+  the vault reopens. Deleted ciphertext cannot be revived by restoring metadata.
+  Interrupted creations leave only aliases eligible for scoped orphan cleanup;
+  malformed metadata fails before any cleanup.
+- Sign operations recheck record/alias existence and the unlocked-device gate.
+  Imported-key leases are revoked on deletion and disposed when closed. Generated
+  signatures verify that metadata matches the Keystore public identity.
+
+The main-process singleton is the production access path. The connection manager
+must still own account admission, lease closure, prompt coordination and network
+session retirement. A generated key's Android Keystore API is not itself proof of
+hardware protection. The unlocked-device policy flag is used on API 35+; older
+versions use the app gate because [Android documents earlier flag issues](https://developer.android.com/reference/android/security/keystore/KeyGenParameterSpec.Builder#setUnlockedDeviceRequired(boolean)). Physical
+lock/biometric/invalidation behavior and actual OS process-death acceptance remain
+open. Tests reconstruct the vault from persisted files within their test process.
+
+**Eight Android runtime tests passed on API 26 (2.046 seconds), and the same eight
+passed on API 37 with 16 KiB pages (5.347 seconds).** They cover generated signing,
+encrypted Ed25519/ECDSA import/reload, wrong passphrases and unsupported RSA,
+authenticated ciphertext/public-identity tamper rejection, deletion/old ciphertext,
+failed writes/cleanup, the injected locked-state gate and closed leases, and
+corrupt-metadata retention. Sixteen existing host-store JVM checks also passed
+after introducing the dependencies. No physical device or account was touched.
+
+Final debug APK SHA256:
+`210ce310af54a4d31cbccb87682cebabd2e9d2510622162a8c0cf4ab69d2f1b7`.
+Final test APK SHA256:
+`61a16eeeb3c28905cf54324282915e6f32e5b6be951c78a194c04bf20e619524`.
+Ignored evidence is in `captures/runtime/ssh-vault/`, particularly
+`instrumentation-26.txt`, `instrumentation-37-final.txt`, `apk-hashes.json` and
+`license-hashes.json`. This is a debug/source milestone; signed 284 is unchanged.
+
+The initial API 37 run exposed a test verifier issue: JSch 2.28.0's public-only
+Ed25519 `KeyPair.load` path supplies the text line as the raw public point. The
+final verifier parses bounded SSH wire fields and uses BC's Ed25519 verifier
+directly; generated/private-key loading in the vault did not change for that fix.
+Future transport code must avoid that public-only loader path.
 
 The candidate wires SSH into normal iOS navigation, without a DEBUG gate:
 
