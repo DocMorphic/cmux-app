@@ -46,7 +46,8 @@ internal sealed interface WorkspaceListEntry {
 internal data class NativeWorkspaceRoute(
     val origin: String, val workspaceId: String, val terminalId: String? = null,
     val browserId: String? = null, val changes: Boolean = false,
-    val id: String = java.util.UUID.randomUUID().toString(), val surfaceId: String? = null
+    val id: String = java.util.UUID.randomUUID().toString(), val surfaceId: String? = null,
+    val createdWorkspace: NativeWorkspace? = null, val createdAtMillis: Long? = null
 )
 internal fun workspaceSearchId(source: NativeFeedSource, workspace: NativeWorkspace) =
     source.mac.origin + ":workspace:" + workspace.id

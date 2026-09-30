@@ -12,13 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Created-terminal startup (2026-09-30):** new terminals remain selected while
+starting, with readiness-gated output/input, a 30-second deadline, iOS-style timeout
+recovery and explicit Retry. Partial create results preserve other workspaces;
+late replies cannot interrupt newer navigation. **35 JVM and 27 Android 17 /
+16 KiB tests passed**, including the real timeout and existing task/input/tab flows.
+Physical acceptance, current-screen restoration and general refresh ordering
+remain open. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). Signed build 261
+is unchanged.
+
 **Remembered-tab navigation (2026-09-30):** persistent memory is wired into workspace
 opening and explicit pane changes for terminal, Mac surface, browser stream,
 Simulator and local browser selections. Waiting restores preserve memory; late
 results and lifecycle changes are fenced. Browser discovery stays separate from
 ordinary workspace surfaces. Local Close clears memory, including empty-workspace
 cases. **33 JVM and 23 Android 17 / 16 KiB tests passed** after correcting two
-browser inventory regressions. Created-terminal pins, general delayed discovery,
+browser inventory regressions. This preceded the startup checkpoint above. General delayed discovery,
 true process-death and physical acceptance remain open. See
 [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md). Signed build 261 predates this work.
 

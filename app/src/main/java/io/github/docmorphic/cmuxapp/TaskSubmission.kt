@@ -71,18 +71,18 @@ internal data class TaskCreationResult(val created: NativeWorkspace, val workspa
     }
 
     companion object {
-        fun parse(response: JSONObject): TaskCreationResult {
+        fun parse(response: JSONObject, description: String = "task workspace"): TaskCreationResult {
             val id = response.opt("created_workspace_id") as? String
             val raw = response.optJSONArray("workspaces")
-            require(!id.isNullOrBlank() && raw != null) { "Mac did not return the created task workspace" }
+            require(!id.isNullOrBlank() && raw != null) { "Mac did not return the created $description" }
             val ids = hashSetOf<String>()
             for (index in 0 until raw.length()) {
                 val itemId = raw.optJSONObject(index)?.opt("id") as? String
-                require(!itemId.isNullOrBlank() && ids.add(itemId)) { "Mac returned an invalid task workspace list" }
+                require(!itemId.isNullOrBlank() && ids.add(itemId)) { "Mac returned an invalid $description list" }
             }
             val workspaces = parseWorkspaces(response)
             val created = workspaces.singleOrNull { it.id == id }
-            require(created != null) { "Mac did not return the created task workspace" }
+            require(created != null) { "Mac did not return the created $description" }
             return TaskCreationResult(created, workspaces)
         }
     }

@@ -61,6 +61,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import androidx.compose.runtime.saveable.listSaver
@@ -233,20 +234,28 @@ fun NativeScreen(
     val browserLogin = if (signedIn) store.taskSession() else null
     val rememberedWorkspaceTabs = rememberWorkspaceTabSnapshot(store, browserLogin)
     val workspaceTabs = feedSession.workspaceTabs
+    val terminalStartup = feedSession.terminalStartup
+    val terminalStartupState by terminalStartup.state.collectAsState()
     val pendingWorkspaceTab by workspaceTabs.pending.collectAsState()
     val displayedTab = if (showSettings || showTaskComposer || selectedChangesWorkspace != null || workspaceRoute != null || currentIncomingRoute != null) null
         else workspaceTabDisplay(browserLogin, teamState.scope, pairedMacs, code, selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, localBrowser)
-    SideEffect { workspaceTabs.observe(browserLogin, displayedTab?.first, displayedTab?.second) }
+    SideEffect {
+        workspaceTabs.observe(browserLogin, displayedTab?.first, displayedTab?.second)
+        terminalStartup.observe(displayedTab?.first, selectedTerminal?.id)
+    }
     fun selectPane(pane: NativeWorkspacePane) {
+        terminalStartup.cancelPin()
         selectedTerminal = pane.terminal; selectedBrowser = pane.browser; selectedSurface = pane.surface
         val login = browserLogin ?: return
         workspaceTabDisplay(login, teamState.scope, pairedMacs, code, selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, null)
             ?.let { workspaceTabs.explicit(login, it.first, checkNotNull(it.second)) }
     }
+    val navigationGeneration = remember { NativeNavigationGeneration() }
     fun browserNavigationContext() = listOf(signedIn, teamState.scope, code, workspaceRoute?.id,
         selectedWorkspace?.id, selectedTerminal?.id, selectedBrowser?.id, selectedSurface?.id,
-        selectedChangesWorkspace?.id, showSettings, showTaskComposer, notificationTab, currentIncomingRoute)
+        selectedChangesWorkspace?.id, showSettings, showTaskComposer, notificationTab, currentIncomingRoute, localBrowser?.key)
     SideEffect {
+        navigationGeneration.observe(browserNavigationContext())
         localBrowsers.retain(teamState.scope, signedIn, pairedMacs.map { it.origin }.toSet(), browserLogin)
         localBrowsers.navigationContext(browserNavigationContext())
     }
@@ -269,6 +278,33 @@ fun NativeScreen(
             }, onRemote = { panel ->
                 inAppNotification = null; workspaceRoute = NativeWorkspaceRoute(source.mac.origin, workspace.id, browserId = panel)
             })
+    }
+    var creatingTerminal by remember { mutableStateOf(false) }
+    fun createTerminal(source: NativeFeedSource, workspace: NativeWorkspace) {
+        if (creatingTerminal) return
+        val entryNavigation = navigationGeneration.observe(browserNavigationContext())
+        val entryLogin = browserLogin
+        val entryOwner = teamState.scope
+        fun stillCurrent() = signedIn && store.taskSession() == entryLogin && teamState.scope == entryOwner &&
+            navigationGeneration.matches(entryNavigation, browserNavigationContext()) &&
+            store.pairedMacs().contains(source.mac) && connection.allowsSaved(source.mac)
+        creatingTerminal = true
+        scope.launch {
+            try {
+                val response = feedCoordinator.workspaceAction(source.mac, workspace.id, "terminal.create")
+                if (!stillCurrent()) return@launch
+                val id = response.opt("created_terminal_id") as? String
+                check(!id.isNullOrBlank()) { "Mac did not return the created terminal." }
+                val created = parseAuthoritativeWorkspaces(response).singleOrNull { it.id == workspace.id }
+                check(created?.terminals?.any { it.id == id } == true) { "Mac did not return the created terminal workspace." }
+                inAppNotification = null; error = null
+                workspaceRoute = NativeWorkspaceRoute(source.mac.origin, workspace.id, terminalId = id,
+                    createdWorkspace = created, createdAtMillis = android.os.SystemClock.elapsedRealtime())
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                if (stillCurrent()) error = failure.message
+            } finally { creatingTerminal = false }
+        }
     }
     val feedSources by feedCoordinator.sources.collectAsState()
     LaunchedEffect(feedSources) { feedSources.values.forEach(localBrowsers::observeWorkspaces) }
@@ -456,7 +492,7 @@ fun NativeScreen(
         artifactPreferences.registerOnSharedPreferenceChangeListener(listener)
         onDispose { artifactPreferences.unregisterOnSharedPreferenceChangeListener(listener) }
     }
-    val artifactsReady = connectionReady && connectedCode == code && artifactRpc?.capabilities?.terminal == true && draftTarget != null
+    val artifactsReady = selectedTerminal?.isReady == true && connectionReady && connectedCode == code && artifactRpc?.capabilities?.terminal == true && draftTarget != null
     val artifactController = remember(artifactRpc, draftTarget, artifactsReady, showMissingArtifacts) {
         if (artifactsReady) TerminalArtifactController(scope, artifactRpc!!,
             ArtifactAuthorization.Terminal(draftTarget!!.workspace, draftTarget.surface), showMissingArtifacts) else null
@@ -503,8 +539,8 @@ fun NativeScreen(
     val inputClient = client
     val inputTarget = draftTarget
     var outputInput by remember(inputClient, inputTarget) { mutableStateOf<TerminalOutputLaneOwner?>(null) }
-    val nativeInput = remember(inputClient, inputTarget, terminalTransport.mode, connectionReady) {
-        if (inputClient != null && inputTarget != null && connectionReady && terminalTransport.mode == TerminalOutputMode.GRID)
+    val nativeInput = remember(inputClient, inputTarget, terminalTransport.mode, connectionReady, selectedTerminal?.isReady) {
+        if (inputClient != null && inputTarget != null && selectedTerminal?.isReady == true && connectionReady && terminalTransport.mode == TerminalOutputMode.GRID)
             TerminalInputLaneOwner(scope) { use -> inputClient.useTerminalInputLane(inputTarget.surface, use) }
         else null
     }
@@ -512,7 +548,7 @@ fun NativeScreen(
     val inputQueue = remember(inputClient, inputTarget, nativeInput) {
         TerminalInputQueue(scope) { entry ->
             check(inputClient != null && inputTarget != null && client === inputClient &&
-                code == inputTarget.pairing && signedIn) { "Terminal connection changed" }
+                code == inputTarget.pairing && signedIn && selectedTerminal?.id == inputTarget.surface && selectedTerminal?.isReady == true) { "Terminal connection changed" }
             if (entry.paste) inputClient.paste(inputTarget.workspace, inputTarget.surface, entry.text, submit = false)
             else if (nativeInput?.send(entry.text) != true && outputInput?.send(entry.text) != true)
                 inputClient.input(inputTarget.workspace, inputTarget.surface, entry.text)
@@ -523,7 +559,7 @@ fun NativeScreen(
 
     fun queueInput(value: String, paste: Boolean = false): Boolean {
         val target = draftTarget ?: return false
-        if (client == null || drafts.state.value[target]?.operation != null) return false
+        if (client == null || selectedTerminal?.isReady != true || drafts.state.value[target]?.operation != null) return false
         stopTerminalScrolling(); scrollPosition = 0.0
         return inputQueue.offer(value, paste)
     }
@@ -673,7 +709,7 @@ fun NativeScreen(
     fun sendComposer(submit: Boolean) {
         val target = draftTarget ?: return
         val active = client ?: return
-        if (preparingAttachments) return
+        if (preparingAttachments || selectedTerminal?.isReady != true) return
         val send = drafts.begin(target) ?: return
         val supportsFiles = ComposerAttachment.FILE_CAPABILITY in hostCapabilities
         stopTerminalScrolling(); scrollPosition = 0.0
@@ -681,10 +717,10 @@ fun NativeScreen(
             try {
                 inputQueue.awaitIdle()
                 draftRepository.persistNow()
-                check(client === active && signedIn && code == target.pairing) { "Connection changed" }
+                check(client === active && signedIn && code == target.pairing && selectedTerminal?.id == target.surface && selectedTerminal?.isReady == true) { "Connection changed" }
                 val deliveredFiles = deliverTerminalComposer(active, drafts, send, submit, supportsFiles,
                     read = draftRepository::read, persist = draftRepository::persistNow,
-                    isCurrent = { client === active && signedIn && code == target.pairing })
+                    isCurrent = { client === active && signedIn && code == target.pairing && selectedTerminal?.id == target.surface && selectedTerminal?.isReady == true })
                 drafts.finish(send, deliveredFiles = deliveredFiles)
                 draftRepository.persistNow()
                 if (selectedTerminal?.id == target.surface) scrollPosition = 0.0
@@ -697,7 +733,10 @@ fun NativeScreen(
 
     fun applyListing(value: JSONObject) {
         val owner = pairedMacs.singleOrNull { it.code == code }
-        val updated = parseWorkspaces(value).map { workspace ->
+        val validated = try { parseAuthoritativeWorkspaces(value) } catch (failure: Exception) {
+            connectionError = failure.message; return
+        }
+        val updated = validated.map { workspace ->
             val key = owner?.let { workspaceTabKey(browserLogin, teamState.scope, it, workspace.id) }
             if (key != null) workspaceTabs.withDiscoveredBrowsers(key, workspace) else workspace
         }
@@ -706,9 +745,17 @@ fun NativeScreen(
         selectedWorkspace?.let { previous ->
             val current = updated.firstOrNull { it.id == previous.id }
             selectedWorkspace = current
-            selectedTerminal = selectedTerminal?.let { terminal ->
-                current?.terminals?.firstOrNull { it.id == terminal.id }
+            val tabKey = owner?.let { workspaceTabKey(browserLogin, teamState.scope, it, previous.id) }
+            val previousTerminal = selectedTerminal
+            val pane = if (tabKey != null && previousTerminal != null)
+                terminalStartup.reconcile(tabKey, current, previousTerminal) else null
+            selectedTerminal = if (previousTerminal != null && tabKey != null) pane?.terminal
+                else previousTerminal?.let { terminal -> current?.terminals?.firstOrNull { it.id == terminal.id } }
+            if (previousTerminal != null && pane?.terminal == null) {
+                selectedBrowser = pane?.browser; selectedSurface = pane?.surface
             }
+            // Also retire a timeout banner when its terminal becomes ready after fallback.
+            if (tabKey != null && previousTerminal == null) terminalStartup.reconcile(tabKey, current, null)
             selectedBrowser = selectedBrowser?.let { browser ->
                 current?.browsers?.firstOrNull { it.id == browser.id }
             }
@@ -848,12 +895,13 @@ fun NativeScreen(
         fun isCurrent() = workspaceRoute?.id == route.id && signedIn && client === active && code == mac.code &&
             store.pairedMacs().contains(mac) && connection.allowsSaved(mac)
         try {
-            val listing = active.workspaces()
+            val listing = if (route.createdWorkspace == null) active.workspaces() else null
             if (!isCurrent()) return@LaunchedEffect
-            val workspace = parseWorkspaces(listing).singleOrNull { it.id == route.workspaceId }
+            val workspace = route.createdWorkspace?.takeIf { it.id == route.workspaceId }
+                ?: parseAuthoritativeWorkspaces(checkNotNull(listing)).singleOrNull { it.id == route.workspaceId }
                 ?: error("This workspace is no longer available on ${mac.name}.")
             if (browserKey != null && !explicitPane && localBrowsers.restoreFromMemory(browserKey, workspace, remembered)) {
-                applyListing(listing); finishSearch(); showSettings = false; showTaskComposer = false
+                if (listing != null) applyListing(listing) else workspaces = TaskCreationResult(workspace, listOf(workspace)).merge(workspaces); finishSearch(); showSettings = false; showTaskComposer = false
                 selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null; selectedSurface = null; selectedChangesWorkspace = null
                 workspaceRoute = null; return@LaunchedEffect
             }
@@ -861,7 +909,7 @@ fun NativeScreen(
                 else NativeWorkspaceTabChoice(workspace.paneForRoute(route))
             if (choice.localBrowser && browserKey != null) {
                 localBrowsers.restoreRemembered(browserKey, workspace)
-                applyListing(listing); finishSearch(); showSettings = false; showTaskComposer = false
+                if (listing != null) applyListing(listing) else workspaces = TaskCreationResult(workspace, listOf(workspace)).merge(workspaces); finishSearch(); showSettings = false; showTaskComposer = false
                 selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null; selectedSurface = null; selectedChangesWorkspace = null
                 workspaceRoute = null; return@LaunchedEffect
             }
@@ -869,10 +917,13 @@ fun NativeScreen(
             check(route.changes || pane != null || workspaceTabs.pending.value != null) { "This workspace pane is no longer available." }
             withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
                 if (isCurrent()) {
-                    applyListing(listing); finishSearch(); notificationTab = false
+                    if (listing != null) applyListing(listing) else workspaces = TaskCreationResult(workspace, listOf(workspace)).merge(workspaces); finishSearch(); notificationTab = false
                     showSettings = false; showTaskComposer = false
                     selectedWorkspace = workspace; selectedTerminal = pane?.terminal; selectedBrowser = pane?.browser; selectedSurface = pane?.surface
                     selectedChangesWorkspace = if (route.changes) workspace else null
+                    if (route.createdWorkspace != null && tabKey != null && pane?.terminal != null) {
+                        workspaceTabs.cancel(); terminalStartup.begin(tabKey, pane.terminal, route.createdAtMillis ?: android.os.SystemClock.elapsedRealtime())
+                    }
                     error = null; workspaceRoute = null
                 }
             }
@@ -891,6 +942,18 @@ fun NativeScreen(
             applyListing(listing); selectedWorkspace = workspaces.firstOrNull { it.id == workspace.id } ?: workspace
             selectedTerminal = choice.pane?.terminal; selectedBrowser = choice.pane?.browser; selectedSurface = choice.pane?.surface
         }, onMissing = { selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null; selectedSurface = null })
+
+    NativeTerminalStartupExpiry(terminalStartup, terminalStartupState.pending) {
+        val workspace = selectedWorkspace
+        val key = workspace?.let { row -> pairedMacs.singleOrNull { it.code == code }?.let {
+            workspaceTabKey(browserLogin, teamState.scope, it, row.id)
+        } }
+        val failure = terminalStartup.state.value.failure
+        if (key != null && workspace != null && failure?.key == key && selectedTerminal?.id == failure.terminalId) {
+            val pane = terminalStartup.reconcile(key, workspace, selectedTerminal)
+            selectedTerminal = pane?.terminal; selectedBrowser = pane?.browser; selectedSurface = pane?.surface
+        }
+    }
 
     LaunchedEffect(signedIn, code, retry,
         computerState.connectionKey(PairingCodeParser.parse(code).getOrNull() as? PairingCode.Iroh)) {
@@ -976,28 +1039,38 @@ fun NativeScreen(
         active.events.collect { event ->
             if (event.topic == "workspace.list.changed" || event.topic == "workspace.updated") {
                 runCatching { active.workspaces() }
-                    .onSuccess { applyListing(it); connectionError = null }
+                    .onSuccess { connectionError = null; applyListing(it) }
                     .onFailure { connectionError = nativeConnectionFailure(it) }
             }
         }
     }
 
-    LaunchedEffect(client, selectedTerminal, selectedSurface?.id) {
+    LaunchedEffect(client, selectedTerminal, selectedSurface?.id, terminalStartupState.failure) {
         val active = client ?: return@LaunchedEffect
-        if (selectedTerminal != null && selectedSurface == null) return@LaunchedEffect
-        while (true) {
-            runCatching { active.workspaces() }.onSuccess { applyListing(it); connectionError = null }
-                .onFailure { connectionError = nativeConnectionFailure(it) }
-            runCatching { active.notifications() }.onSuccess { notifications = parseNotifications(it) }
-                .onFailure { connectionError = nativeConnectionFailure(it) }
-            delay(5_000)
+        if (selectedTerminal?.isReady == true && selectedSurface == null && terminalStartupState.failure == null) return@LaunchedEffect
+        val requestedCode = code
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (client === active && code == requestedCode && signedIn) {
+                try {
+                    val listing = active.workspaces()
+                    if (client !== active || code != requestedCode || !signedIn) return@repeatOnLifecycle
+                    connectionError = null; applyListing(listing)
+                    val feed = active.notifications()
+                    if (client !== active || code != requestedCode || !signedIn) return@repeatOnLifecycle
+                    notifications = parseNotifications(feed)
+                } catch (failure: Exception) {
+                    if (failure is CancellationException) throw failure
+                    if (client === active && code == requestedCode) connectionError = nativeConnectionFailure(failure)
+                }
+                delay(if (selectedTerminal?.isReady == false || terminalStartupState.failure != null) 2_000 else 5_000)
+            }
         }
     }
 
-    LaunchedEffect(client, selectedWorkspace?.id, selectedTerminal?.id, terminalColumns, terminalRows, terminalCells, terminalTransport) {
+    LaunchedEffect(client, selectedWorkspace?.id, selectedTerminal?.id, selectedTerminal?.isReady, terminalColumns, terminalRows, terminalCells, terminalTransport) {
         val active = client ?: return@LaunchedEffect
         val workspace = selectedWorkspace ?: return@LaunchedEffect
-        val terminal = selectedTerminal ?: return@LaunchedEffect
+        val terminal = selectedTerminal?.takeIf { it.isReady } ?: return@LaunchedEffect
         val requestedViewport = terminalViewport ?: return@LaunchedEffect
         val generation = ++replayGeneration
         val viewportGeneration = ++viewportRequestGeneration
@@ -1236,6 +1309,11 @@ fun NativeScreen(
 
     Column(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding()) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
+        if (signedIn && terminalStartupState.failure?.key?.let { it == displayedTab?.first } == true) {
+            NativeTerminalCreationRecovery(creatingTerminal, connectionReady && selectedWorkspace != null) {
+                selectedWorkspace?.let { workspace -> workspaceSources.firstOrNull { it.mac.code == code }?.let { createTerminal(it, workspace) } }
+            }
+        }
         when {
             !signedIn -> NativeSignIn(account::sendCode, account::signIn, onUseHelper,
                 onLicenses = { showLicenses = true }, onSignedIn = { signedIn = true; error = null })
@@ -1363,9 +1441,14 @@ fun NativeScreen(
                         selectedBrowser = null
                         selectedTerminal = created.terminals.firstOrNull {
                             it.id == response.optString("created_terminal_id")
-                        } ?: created.terminals.firstOrNull()
+                        } ?: created.preferredTerminal
+                        selectedTerminal?.let { terminal -> selectedTaskMac?.let { mac ->
+                            workspaceTabKey(browserLogin, teamState.scope, mac, created.id)?.let { key ->
+                                workspaceTabs.cancel(); terminalStartup.begin(key, terminal)
+                            }
+                        } }
                     }, onBack = { showTaskComposer = false },
-                    isCurrent = { signedIn && taskDraftRepository === repository },
+                    isCurrent = { signedIn && taskDraftRepository === repository && showTaskComposer && store.taskSession() == browserLogin },
                     savedDrafts = repository.drafts, draftId = taskDraftId,
                     macName = selectedTaskMac?.let(appearances::name) ?: restored?.macName ?: "Choose a Mac",
                     appearances = appearances,
@@ -1437,6 +1520,13 @@ fun NativeScreen(
                     onTerminal = { selectPane(NativeWorkspacePane(terminal = it)) },
                     onBrowser = { selectPane(NativeWorkspacePane(browser = it)) },
                     onListing = ::applyListing,
+                    onNewBrowser = { selectedWorkspace?.let { workspace -> workspaceSources.firstOrNull { it.mac.code == code }?.let { openNewBrowser(it, workspace) } } })
+            }
+            selectedTerminal?.isReady == false -> {
+                NativeStartingTerminalPane(selectedTerminal!!, selectedWorkspace, workspaces.size,
+                    onBack = { selectedTerminal = null; selectedWorkspace = null; selectedSurface = null },
+                    onTerminal = { selectPane(NativeWorkspacePane(terminal = it)) },
+                    onSurface = { selectPane(NativeWorkspacePane(surface = it)) },
                     onNewBrowser = { selectedWorkspace?.let { workspace -> workspaceSources.firstOrNull { it.mac.code == code }?.let { openNewBrowser(it, workspace) } } })
             }
             selectedTerminal != null -> {
@@ -1534,7 +1624,7 @@ fun NativeScreen(
                     modifier = Modifier.align(Alignment.Center))
                 }
                 TerminalToolbarView(toolbarStore.layout, inputModifiers,
-                    canInput = connectionReady && client != null && inputStatus.error == null && terminalDraft.operation == null,
+                    canInput = selectedTerminal?.isReady == true && connectionReady && client != null && inputStatus.error == null && terminalDraft.operation == null,
                     filesEnabled = artifactsReady,
                     onModifier = { inputModifiers = inputModifiers.tap(it, android.os.SystemClock.uptimeMillis()) },
                     onButton = { button ->
@@ -1730,20 +1820,32 @@ fun NativeScreen(
                                 DropdownMenuItem(text = { Text("New workspace") }, enabled = canCreateOnCurrentMac, onClick = {
                                     createMenuOpen = false
                                     val active = client
-                                    if (active != null) scope.launch { runCatching { active.request("workspace.create") }
-                                        .onSuccess { response ->
-                                            applyListing(response); refreshFeed(); notificationTab = false; error = null
-                                            val created = workspaces.firstOrNull {
-                                                it.id == response.optString("created_workspace_id")
-                                            }
-                                            if (created != null) {
-                                                selectedSurface = null; selectedBrowser = null; selectedWorkspace = created
-                                                selectedTerminal = created.terminals.firstOrNull {
-                                                    it.id == response.optString("created_terminal_id")
-                                                } ?: created.terminals.firstOrNull()
-                                            }
+                                    val entryContext = browserNavigationContext()
+                                    val entryNavigation = navigationGeneration.observe(entryContext)
+                                    val entryLogin = browserLogin
+                                    val mac = pairedMacs.singleOrNull { it.code == code }
+                                    fun stillCurrent() = signedIn && client === active && store.taskSession() == entryLogin &&
+                                        navigationGeneration.matches(entryNavigation, browserNavigationContext()) && mac != null && store.pairedMacs().contains(mac) && connection.allowsSaved(mac)
+                                    if (active != null) scope.launch {
+                                        try {
+                                            val response = active.request("workspace.create")
+                                            if (!stillCurrent()) return@launch
+                                            val result = TaskCreationResult.parse(response, "workspace")
+                                            workspaces = result.merge(workspaces); refreshFeed(); notificationTab = false; error = null
+                                            val created = result.created
+                                            selectedSurface = null; selectedBrowser = null; selectedWorkspace = created
+                                            selectedTerminal = created.terminals.firstOrNull { it.id == response.optString("created_terminal_id") }
+                                                ?: created.preferredTerminal
+                                            selectedTerminal?.let { terminal -> mac?.let {
+                                                workspaceTabKey(entryLogin, teamState.scope, it, created.id)?.let { key ->
+                                                    workspaceTabs.cancel(); terminalStartup.begin(key, terminal)
+                                                }
+                                            } }
+                                        } catch (failure: Exception) {
+                                            if (failure is CancellationException) throw failure
+                                            if (stillCurrent()) error = failure.message
                                         }
-                                        .onFailure { error = it.message } }
+                                    }
                                 })
                                 DropdownMenuItem(text = { Text("New task") }, onClick = {
                                     createMenuOpen = false; finishSearch(); newTaskDraft()
@@ -1846,21 +1948,25 @@ fun NativeScreen(
                                 onAction = { action, title ->
                                     if (action == "changes") open(changes = true)
                                     else if (action == "browser.create") openNewBrowser(owner, workspace)
+                                    else if (action == "terminal.create") createTerminal(owner, workspace)
                                     else if (action.startsWith("move:")) {
                                         val target = action.removePrefix("move:").takeIf { it.isNotBlank() }
                                         move(owner, workspace.id, NativeWorkspaceMove(target, null))
-                                    } else scope.launch {
-                                        try {
-                                            val response = feedCoordinator.workspaceAction(owner.mac, workspace.id, action, title)
-                                            error = null
-                                            if (action == "terminal.create") {
-                                                val id = response.optString("created_terminal_id")
-                                                check(id.isNotBlank()) { "Mac did not return the created terminal." }
-                                                open(terminalId = id)
+                                    } else {
+                                        val entryContext = browserNavigationContext()
+                                        val entryNavigation = navigationGeneration.observe(entryContext)
+                                        val entryLogin = browserLogin
+                                        val entryOwner = teamState.scope
+                                        fun stillCurrent() = signedIn && store.taskSession() == entryLogin && teamState.scope == entryOwner &&
+                                            navigationGeneration.matches(entryNavigation, browserNavigationContext()) && store.pairedMacs().contains(owner.mac) && connection.allowsSaved(owner.mac)
+                                        scope.launch {
+                                            try {
+                                                feedCoordinator.workspaceAction(owner.mac, workspace.id, action, title)
+                                                if (stillCurrent()) error = null
+                                            } catch (failure: Exception) {
+                                                if (failure is CancellationException) throw failure
+                                                if (stillCurrent()) error = failure.message
                                             }
-                                        } catch (failure: Exception) {
-                                            if (failure is CancellationException) throw failure
-                                            error = failure.message
                                         }
                                     }
                                 }

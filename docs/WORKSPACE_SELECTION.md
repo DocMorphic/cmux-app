@@ -4,7 +4,7 @@ Audited 2026-09-30 against upstream
 `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`. Fresh-open default selection and local
 browser workspace-lifetime protection are implemented. Persisted last-tab memory
 is now wired into workspace navigation; see the integration checkpoint below.
-**General delayed-pane selection, created-terminal pins and physical acceptance remain open.**
+**General delayed-pane selection, refresh ordering and physical acceptance remain open.**
 
 ## Reference code
 
@@ -238,11 +238,69 @@ Verification:
 - Browser discovery currently services remembered-stream restoration. General
   discovery for fresh empty workspaces and uncertain create outcomes still needs
   integration, including default promotion when descriptors arrive later.
-- Created-terminal startup pins/readiness presentation and comprehensive refresh
-  reconciliation remain open. The existing fresh-open resolver is not the full
-  iOS selection synchronizer.
+- Created-terminal startup is implemented in the checkpoint below. Comprehensive
+  refresh reconciliation remains open: especially out-of-order inventories around
+  mutations, late default-pane discovery and live multi-Mac/build convergence.
+  The existing resolver is not yet the full iOS selection synchronizer.
 - Physical Pixel/Mac, true OS process-death, broader multi-Mac/build and
   accessibility acceptance remain open. Fixture restoration of a Simulator
   descriptor proves selection; its actual stream is verified by the earlier
   Simulator tests, not the synthetic host used here.
 - Signed build 261 predates this integration. No new signed build was dispatched.
+
+
+## Created-terminal startup checkpoint (2026-09-30)
+
+The pinned iOS `CreatedTerminalSelection` and `MobileShellComposite` keep a new
+terminal selected for up to 30 seconds even when a sibling is ready. Readiness,
+confirmed disappearance, another explicit selection or owner changes release the
+pin. Expiry shows “The new terminal did not finish starting.”; the
+`WorkspaceDetailView` recovery banner's Retry explicitly creates a new terminal.
+Late readiness clears the banner without selecting that terminal again.
+
+Android now implements this flow:
+
+- `NativeTerminalStartup` scopes pins to the same account/team/Mac/build/workspace
+  key used by tab memory. Its elapsed-realtime deadline includes device sleep;
+  foreground lifecycle restart uses the remaining time. It never resends a create.
+- Create responses open their exact terminal from the validated returned workspace
+  without waiting for another listing. New workspace and task responses merge
+  partial inventories without discarding unrelated rows and arm the same pin.
+- Starting terminals keep their title, Back and pane controls, with a visible
+  waiting pane and disabled keyboard. Replay/viewport attachment, native input
+  lanes, queued input, composer delivery and artifact polling require readiness.
+- Validated snapshots release a ready/disappeared pin. Without a pin, an unready
+  selected terminal yields to the normal fallback when ready siblings exist.
+  Failed or malformed workspace-list reads preserve the last selection.
+- Read polling while starting or showing a timeout is lifecycle-bound. The timeout
+  banner appears above the pane, offers one explicit Retry, and clears on a late
+  success. Changing to a sibling cancels the pin immediately.
+- Delayed create results are fenced by account/owner and navigation generation,
+  including leaving a screen and returning to the same screen before the reply.
+  Task creation keeps its existing request connection-token guard and additionally
+  checks the active composer/account session.
+
+Verification:
+
+- **35 JVM tests passed**: 11 startup/deadline/navigation cases, nine default
+  selection cases, six remembered-tab navigation cases and nine task submission
+  cases.
+- **27 Android 17 / 16 KiB tests passed**: seven new startup cases, ten remembered
+  tab regressions, four default-routing cases, three task flows and three keyboard/
+  composer flows. The main 24-test run took **83.707 seconds**; the three input
+  regressions took **11.597 seconds**. All passed on their first runtime run.
+- New full-screen cases verify no terminal RPC before readiness, attachment after
+  readiness, explicit sibling choice, actual 30-second timeout and late recovery,
+  explicit Retry with an exact request count, confirmed disappearance, a delayed
+  create after navigating away, and partial new-workspace responses. The startup
+  screenshot was visually inspected.
+- Evidence (ignored): `captures/runtime/terminal-startup/`, including test XML,
+  build/runtime logs, screenshot and APK metadata. Owned emulator stopped.
+- Debug APK SHA-256: `764ef008992280c1c193b060058a493f8604038871f3fde6a0741ba544f02e1c`.
+- Test APK SHA-256: `43c9dbd932376abe6e38ba4df558694035f573f7ab94c98ec40fd73b68cedaf2`.
+
+These are emulator fixture results, not physical Mac/Pixel acceptance. ADB still
+reported no physical device. No user account data or phone settings changed.
+Full Activity/process restoration of the current navigation/creation state,
+landscape/accessibility acceptance and host refresh-order convergence still need
+work. Signed build **261** is unchanged and predates this feature.

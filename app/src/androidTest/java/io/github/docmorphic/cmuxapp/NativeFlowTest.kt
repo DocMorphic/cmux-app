@@ -2175,6 +2175,8 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var renamedWorkspace: String? = null
     @Volatile var hiddenWorkspaceId: String? = null
     @Volatile var customWorkspaceListing: JSONObject? = null
+    @Volatile var terminalCreationResponse: ((JSONObject) -> JSONObject)? = null
+    @Volatile var workspaceCreationResponse: (() -> JSONObject)? = null
     private val readNotifications = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     @Volatile var releaseTaskModels: CountDownLatch? = null
     @Volatile var taskModelsResponse: JSONObject? = null
@@ -2319,7 +2321,8 @@ internal class NativeFixturePeer : AutoCloseable {
                 """))
             JSONObject().put("source", "discovered").put("models", JSONArray().put(model)).put("default_model", model)
         }
-        "workspace.create" -> JSONObject("""{"created_workspace_id":"task-created",
+        "terminal.create" -> terminalCreationResponse?.invoke(params) ?: JSONObject()
+        "workspace.create" -> workspaceCreationResponse?.invoke() ?: JSONObject("""{"created_workspace_id":"task-created",
             "created_terminal_id":"task-terminal","workspaces":[{"id":"task-created","title":"Created task",
             "terminals":[{"id":"task-terminal","title":"Agent"}]}]}""").also { created ->
             val listing = response("mobile.workspace.list", JSONObject())

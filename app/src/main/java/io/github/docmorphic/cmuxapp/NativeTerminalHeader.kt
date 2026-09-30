@@ -50,11 +50,11 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
                     DropdownMenuItem(text = { Text(surface.displayTitle) }, onClick = { menu = false; onSurface(surface) })
                 }
                 DropdownMenuItem(text = { Text("New Browser") }, onClick = { menu = false; onNewBrowser() }, enabled = workspace != null)
-                DropdownMenuItem(text = { Text("View as Text") }, onClick = { menu = false; onText() })
+                DropdownMenuItem(text = { Text("View as Text") }, onClick = { menu = false; onText() }, enabled = terminal.isReady)
                 if ("terminal.artifact.v1" in capabilities) DropdownMenuItem(text = { Text("Files") },
                     onClick = { menu = false; onFiles() }, enabled = ready)
             }
         }
-        TextButton(onClick = onKeyboard) { Text(if (directTyping) "Compose" else "Keyboard", color = accent, fontSize = 12.sp) }
+        TextButton(onClick = onKeyboard, enabled = terminal.isReady) { Text(if (directTyping) "Compose" else "Keyboard", color = if (terminal.isReady) accent else Color(0xFF666A72), fontSize = 12.sp) }
     }
 }
