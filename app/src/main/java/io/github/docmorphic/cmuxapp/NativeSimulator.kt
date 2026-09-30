@@ -15,7 +15,8 @@ internal data class NativeSimulator(
     /** Shared updates omit personalization; a removed owner explicitly clears control. */
     fun preservingOwnership(previous: NativeSimulator?) = copy(ownedByCurrentConnection =
         ownedByCurrentConnection ?: if (ownerConnectionId == null) false
-        else previous?.takeIf { it.panelId == panelId && it.workspaceId == workspaceId }?.ownedByCurrentConnection)
+        else previous?.takeIf { it.panelId == panelId && it.workspaceId == workspaceId &&
+            it.ownerConnectionId == ownerConnectionId }?.ownedByCurrentConnection)
 
     companion object {
         fun read(value: JSONObject, workspaceId: String): NativeSimulator? = runCatching {

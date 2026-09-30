@@ -422,6 +422,20 @@ class MobileRpcClient internal constructor(
 
     internal val supportsSimulatorLanes get() = transport.supportsSimulatorLanes
 
+    /** Keeps an event consumer inside its lease for its entire lifetime, including cleanup. */
+    internal suspend fun useEventSession(use: suspend (MobileRpcClient) -> Unit) {
+        if (delegate != null) return borrowing { it.useEventSession(use) }
+        coroutineScope {
+            val operation = checkNotNull(currentCoroutineContext()[Job])
+            synchronized(stateLock) {
+                check(!closed && connected) { "Connection closed" }
+                leaseOperations += operation
+            }
+            try { use(this@MobileRpcClient) }
+            finally { synchronized(stateLock) { leaseOperations -= operation } }
+        }
+    }
+
     /** The caller's lease owns cancellation; a simulator never borrows terminal/control bytes. */
     internal suspend fun useSimulatorLane(panelId: String, use: suspend (SimStreamLane) -> Unit): Boolean {
         if (delegate != null) return borrowing { it.useSimulatorLane(panelId, use) }
@@ -545,14 +559,16 @@ class MobileRpcClient internal constructor(
     }
 
     private fun failConnection(failure: Throwable, notify: Boolean = true) {
-        synchronized(stateLock) {
+        val operations = synchronized(stateLock) {
             if (closed) return
             closed = true; connected = false
             pending.values.forEach { it.answer.completeExceptionally(failure) }
             pending.clear()
+            leaseOperations.toList().also { leaseOperations.clear() }
         }
         try { transport.close() }
         finally {
+            operations.forEach { it.cancel(CancellationException("Connection closed", failure)) }
             if (notify) disconnectedMutable.tryEmit(failure)
             scope.cancel()
         }

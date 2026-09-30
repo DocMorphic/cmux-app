@@ -294,6 +294,47 @@ switching and full physical acceptance are still required. Older supported hosts
 currently reach the fallback card: implementing their legacy image/RPC path is
 mandatory, not an accepted platform difference.
 
+### Legacy session foundation (2026-09-30)
+
+Audited the same pinned iOS revision's `MobileSimulatorStreamCapability`,
+`MobileSimulatorFrameEvent`, RPC DTOs, `MobileShellComposite+SimulatorStream`,
+stream store/staleness monitor, presentation pipeline and touch policy. Added:
+
+- Strict panel-scoped JPEG/PNG event parsing with unsigned 64-bit sequence IDs,
+  bounded encoded size/dimensions and an Android bitmap decoder that checks MIME
+  and actual image dimensions before allocating the full image.
+- One active decode and one replaceable pending frame, with disposal of cancelled
+  decoder results. Three consecutive decode failures request stream recovery.
+- A per-attachment legacy session: subscription identity checks, serialized
+  start/input/recovery, personalized control ownership, independent touch/text/
+  button capabilities, and a 15-second watchdog gated by `simulator.keepalive.v1`.
+  Encoded frame arrival or a start acknowledgment cannot clear a decode stall.
+- Bounded ordered input; unknown delivery pauses input and discards queued actions.
+  Explicit refresh does not replay them. Ownership changes clear queued input;
+  shared state cannot carry a grant to a different connection ID. Newer state
+  events win over an older start response, while same-owner shared state can use
+  that response's personalized ownership grant.
+- A scoped RPC event-consumer lifetime. Releasing a lease cancels its idle event
+  collector and allows its bounded cleanup on the shared connection; explicit
+  base closure also cancels consumers. Cleanup stops only an acknowledged started
+  stream and unsubscribes only this session's ID. A locked start never stops the
+  other owner's stream.
+- The legacy six-point gesture threshold, tap-at-start coordinates, letterbox
+  clamping, single-pointer ownership and ordered drag completion.
+
+Verification: **33 JVM tests passed** (`LegacySimulatorTest` 7,
+`LegacySimulatorSessionTest` 9, `MobileRpcEventSessionTest` 2,
+`NativeSimulatorTest` 7, `MobileRpcConnectionsTest` 8). This includes immediate
+dispatcher completion, late non-interruptible decoding, wrong subscription/panel/
+workspace events, locked ownership, state/start races, keepalive-free static
+screens, duplicate-frame recovery, unknown input outcomes and lease cleanup.
+Local build log: `/tmp/cmux-legacy-core-tests.log`.
+
+This is a session foundation, **not an exposed legacy viewer yet**. Still required:
+legacy pane UI and lifecycle wiring, serialized legacy-to-v2 handoff, Android
+JPEG/PNG runtime/pixel tests and physical Mac/Pixel checks. The Pixel remained
+absent from ADB; no APK was installed or published for this checkpoint.
+
 ### Reproduce the native dependency
 
 Use a fresh core output directory; the core script refuses to overwrite an
