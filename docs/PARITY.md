@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Changes detail restoration (2026-09-30):** the selected diff path and collapsed
+folders now survive RPC-client replacement and Android task restoration, within
+the admitted login/account/team/Mac/build/workspace. Fresh inventory resolves the
+path after reordering; a removed file shows a notice instead of opening its former
+neighbor. **11 JVM and four Android 17 / 16 KiB tests passed**, including actual UI
+process replacement. Diff scroll/expansion, preview overlays, nested Files and
+physical acceptance remain open. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md).
+This source/debug change postdates signed 284; the Pixel installation is unchanged.
+
 **Signed input-delivery build 284 (2026-09-30):** full CI passed at `0db3c17`.
 The downloaded release matches the stable certificate and passes all native
 LOAD/RELRO and ZIP 16 KiB checks. Upgrade from 274 and sign-in-screen launch were

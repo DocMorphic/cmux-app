@@ -121,10 +121,13 @@ SOCKS/router and asynchronous Android socket code are now implemented too:
 18 focused JVM tests pass, including 69 Swift-generated loopback classifications,
 plus an Android 17 / 16 KiB binary round-trip/half-close check. Session
 capability/owner binding, policy refresh and cancellation now pass 40 focused JVM
-tests. A dedicated-process WebView adapter passes two Android routing/storage
-checks; production presentation, browser foreground connection lifetime and
-per-session storage retirement remain open. The current phone-local browser
-still uses phone networking. See `BROWSER_TUNNEL.md` for the exact test scope.
+tests. The dedicated-process WebView is now integrated into production presentation
+with a foreground connection hold and owner retirement. Generated-host Android
+checks cover routing/storage, return/reopen, rotation, the system file picker,
+address entry and browser-subprocess recovery. The stable Mac lacks the advertised
+tunnel capability; a separately staged nightly still needs native pairing and
+physical interoperability checks. See `BROWSER_TUNNEL.md` for exact evidence and
+remaining acceptance work.
 This work postdates signed 284. The broad upstream reference has not advanced.
 
 ## Current delivery boundary
@@ -145,8 +148,11 @@ retry/deduplication behavior have not been established by that check.
 
 ## Other confirmed implementation follow-ups
 
-- `NativeChangesView.kt`: selected file and collapsed folder state use
-  `remember(store)`, so a recreated RPC store loses that detail selection.
+- Changes now retains the selected path and collapsed folders above the RPC store,
+  scoped to login/account/team/Mac/build/workspace. Fresh inventory validates the
+  selected path before refetching its diff; a vanished file cannot select its old
+  neighbor. See `WORKSPACE_SELECTION.md` for verification. Diff scroll, expansion
+  and preview-overlay restoration remain follow-up work.
 - `NativeScreen.kt`: terminal Files visibility and tapped artifact path use
   `remember(draftTarget, client)`, so a new connection discards those overlays.
 - `ArtifactFilesSheet.kt` and `ArtifactFilePreview.kt`: inspect nested route,

@@ -44,6 +44,29 @@ class NativeChangesTest {
     private fun waitText(text: String) = compose.waitUntil(10_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
     private fun requests() = peer.requests.filter { it.optString("method") == "mobile.workspace.changes.file_diff" }
 
+    @Test fun reconnectRetainsSelectedPathAndCollapsedFoldersAfterInventoryReorders() {
+        peer.changesResponse = { method, params -> if (method.endsWith(".files")) files("README.md", "src/ui/App.kt") else diff(params.getString("path")) }
+        val active = mutableStateOf(client)
+        val navigation = ChangesNavigationMemory().bind("login", NativeWorkspaceTabKey("account", "team", "mac", "ws"))
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) { NativeChangesView(active.value, "ws", "Fixture repo", {}, navigation) }
+        } } }
+        waitText("App.kt")
+        compose.onNodeWithContentDescription("Collapse folder src/ui").performClick()
+        compose.onNodeWithContentDescription("Open diff README.md").performClick(); waitText("new README.md")
+        val before = requests().count { it.getJSONObject("params").getString("path") == "README.md" }
+        peer.changesResponse = { method, params -> if (method.endsWith(".files")) files("A.md", "README.md", "src/ui/App.kt") else diff(params.getString("path")) }
+        val next = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+        runBlocking { next.connect() }
+        client.close(); client = next
+        compose.runOnIdle { active.value = next }
+        compose.waitUntil(10_000) { requests().count { it.getJSONObject("params").getString("path") == "README.md" } > before }
+        waitText("new README.md"); compose.onNodeWithText("2 of 3").assertIsDisplayed()
+        compose.onNodeWithText("‹ Changes").performClick()
+        compose.onNodeWithContentDescription("Expand folder src/ui").assertExists()
+        compose.onNodeWithText("App.kt").assertDoesNotExist()
+    }
+
     @Test fun collapsedTreeOpensExactFileAndPagerKeepsCopyActionsAndCache() {
         peer.changesResponse = { method, params -> if (method.endsWith(".files")) files("README.md", "src/ui/App.kt") else diff(params.getString("path")) }
         show(); waitText("App.kt")

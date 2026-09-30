@@ -550,3 +550,44 @@ creation and physical Mac/Pixel workflows remain follow-up work. The retained pa
 covered by the entry-route checkpoint in [ENTRY_ROUTES.md](ENTRY_ROUTES.md);
 physical account/URL acceptance is still required.
 Signed build **261** is unchanged and predates this work.
+
+## Changes detail retention — 2026-09-30
+
+`ChangesNavigationMemory` retains the selected relative path and collapsed tree
+folders above the connection-scoped `ChangesStore`. Returning from a diff also
+preserves collapsed folders. The parent screen saves these identifiers in Android
+task state, tied to the login incarnation, account/team, canonical Mac/build and
+workspace. A different owner, logout or explicit exit clears them; callbacks that
+still hold an old owner's state cannot modify the newly bound state.
+
+Restoration waits for admission and fresh file inventory. A new RPC store refetches
+the selected diff by path, including when the inventory order changes. If that
+path is gone, the existing “File no longer changed” notice appears without fetching
+the stale path or substituting its former neighbor. The user can return to the list
+and choose a current file. No diff contents or credentials enter saved state.
+The encoded contribution is bounded to 49,152 characters, with at most 32 collapsed
+folder paths; malformed or oversized saved state is discarded.
+
+Verification:
+
+- **11 focused JVM tests passed**: four navigation-memory cases cover round trip,
+  every owner dimension, logout/exit and malformed/bounded state; seven existing
+  store cases cover requests, cache and selection behavior. Both APKs built.
+- **Four Android 17 / 16 KiB tests passed in 65.370 seconds**. The reconnect case
+  replaces the RPC client and changes the inventory order. Three production-screen
+  task-restoration cases verify the Changes route, retained detail/collapsed tree,
+  and disappearance of the selected file. Each process case verifies a different
+  UI PID and an Android-restored bundle. The route and retained-detail cases also
+  assert that no terminal replay was dispatched.
+- Ignored evidence: `captures/runtime/changes-retention/` (build, JVM XML, runtime
+  log and APK hashes). Cold-boot installation initially reached Android before its
+  package manager was ready; installation was repeated after boot. App launch then
+  reported a timeout, but foreground state and the rendered sign-in screen were
+  verified before instrumentation. The four-case run had no test failures. The
+  owned emulator was stopped afterward; this is not performance evidence.
+- Debug APK SHA-256: `a3bfc235e9c61b27b8a1799b6a31075c9ebf225c99284108e1258d12a587e974`.
+- Test APK SHA-256: `a5e4fde14992b5c4611b430d68bddf7694dd9dc5d3afaefd3633ce1558468149`.
+
+This covers selection and folder collapse. Diff scroll/expansion, file-preview
+overlays, nested Files state and physical Mac/Pixel acceptance remain open.
+Signed build 284 and the Pixel installation are unchanged.

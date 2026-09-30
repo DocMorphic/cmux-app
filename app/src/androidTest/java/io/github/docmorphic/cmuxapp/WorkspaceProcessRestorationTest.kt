@@ -122,6 +122,37 @@ class WorkspaceProcessRestorationTest {
         description("Close changes"); killAndRestore(); description("Close changes").click(); text("Process workspace")
         assertTrue(calls("mobile.terminal.replay").isEmpty())
     }
+    private fun changesFiles(vararg paths: String) {
+        peer.changesResponse = { method, params ->
+            if (method.endsWith(".files")) JSONObject().put("workspace_id", "workspace-1").put("repo_root", "/fixture")
+                .put("files", JSONArray(paths.map { JSONObject().put("path", it).put("status", "modified") }))
+            else JSONObject().put("path", params.getString("path"))
+                .put("unified_diff", "@@ -1 +1 @@\n-old\n+Restored diff ${params.getString("path")}\n")
+        }
+    }
+    @Test fun changesDetailAndCollapsedFoldersRestoreFromRealTaskState() {
+        changesFiles("README.md", "src/App.kt")
+        launch(open = false); description("Actions for Process workspace").click(); text("View changes").click()
+        description("Collapse folder src").click(); description("Open diff README.md").click()
+        text("Restored diff README.md")
+        val before = calls("mobile.workspace.changes.file_diff").size
+        killAndRestore { changesFiles("A.md", "README.md", "src/App.kt") }
+        text("Restored diff README.md"); text("2 of 3")
+        assertTrue(calls("mobile.workspace.changes.file_diff").size > before)
+        text("‹ Changes").click(); description("Expand folder src")
+        description("Close changes").click(); text("Process workspace")
+        assertTrue(calls("mobile.terminal.replay").isEmpty())
+    }
+    @Test fun vanishedChangedFileDoesNotRestoreANeighborOrFetchItsOldPath() {
+        changesFiles("README.md", "src/App.kt")
+        launch(open = false); description("Actions for Process workspace").click(); text("View changes").click()
+        description("Open diff README.md").click(); text("Restored diff README.md")
+        val before = calls("mobile.workspace.changes.file_diff").count { it.getJSONObject("params").getString("path") == "README.md" }
+        killAndRestore { changesFiles("src/App.kt") }
+        text("File no longer changed")
+        assertEquals(before, calls("mobile.workspace.changes.file_diff").count { it.getJSONObject("params").getString("path") == "README.md" })
+        text("‹ Changes").click(); description("Open diff src/App.kt").click(); text("Restored diff src/App.kt")
+    }
     @Test fun localBrowserRestoresWithoutAttemptingRemoteCreation() {
         launch(open = false); description("Actions for Process workspace").click(); text("New browser").click()
         description("Close Browser"); killAndRestore(); description("Close Browser")

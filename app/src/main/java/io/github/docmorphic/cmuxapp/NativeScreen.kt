@@ -246,6 +246,12 @@ fun NativeScreen(
     fun inputTargets(rows: List<NativeWorkspace>) = rows.flatMap { workspace -> workspace.terminals.filter { it.isReady }
         .map { NativeTerminalInputSession.Target(workspace.id, it.id) } }.toSet()
     val screenResume = rememberNativeScreenResume()
+    val changesNavigation = rememberSaveable(saver = ChangesNavigationMemory.saver) { ChangesNavigationMemory() }
+    SideEffect {
+        changesNavigation.retainLogin(browserLogin)
+        if (selectedChangesWorkspace == null && screenResume.pending?.changes != true && workspaceRoute?.changes != true)
+            changesNavigation.clear()
+    }
     val screenBootCount = rememberNativeScreenBootCount()
     fun requireWorkspaceConnection(active: MobileRpcClient, owner: NativeCredentialStore.PairedMac) {
         check(signedIn && client === active && connectionReady && connectedCode == owner.code && code == owner.code &&
@@ -2002,8 +2008,13 @@ fun NativeScreen(
             selectedChangesWorkspace != null -> {
                 val active = client
                 val workspace = selectedChangesWorkspace!!
-                if (active != null) NativeChangesView(active, workspace.id, workspace.title,
-                    onBack = { selectedChangesWorkspace = null; selectedWorkspace = null })
+                val ownerKey = pairedMacs.singleOrNull { it.code == code }?.let {
+                    workspaceTabKey(browserLogin, teamState.scope, it, workspace.id)
+                }
+                if (active != null && connectionReady && connectedCode == code && browserLogin != null && ownerKey != null)
+                    NativeChangesView(active, workspace.id, workspace.title,
+                        onBack = { selectedChangesWorkspace = null; selectedWorkspace = null },
+                        navigation = changesNavigation.bind(browserLogin, ownerKey))
                 else {
                     BackHandler { selectedChangesWorkspace = null; selectedWorkspace = null }
                     Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

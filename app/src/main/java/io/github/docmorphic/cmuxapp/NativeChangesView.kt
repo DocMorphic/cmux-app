@@ -30,7 +30,8 @@ internal val changesAdded = Color(0xFF2EA043)
 internal val changesRemoved = Color(0xFFF85149)
 
 @Composable
-fun NativeChangesView(client: MobileRpcClient, workspaceId: String, title: String, onBack: () -> Unit) {
+internal fun NativeChangesView(client: MobileRpcClient, workspaceId: String, title: String, onBack: () -> Unit,
+    navigation: ChangesNavigationState? = null) {
     val scope = rememberCoroutineScope()
     val store = remember(client, workspaceId) { ChangesStore(scope, workspaceId,
         { client.changedFiles(workspaceId) }, { path, budget -> client.fileDiff(workspaceId, path,
@@ -39,14 +40,16 @@ fun NativeChangesView(client: MobileRpcClient, workspaceId: String, title: Strin
     DisposableEffect(store) { onDispose { store.close() } }
     LaunchedEffect(store) { store.refresh().join() }
     val content = remember(client, workspaceId) { client.changesContent(workspaceId) }
-    ChangesContent(store, title, onBack, content)
+    val detail = navigation ?: remember(client, workspaceId) { ChangesNavigationState() }
+    ChangesContent(store, title, onBack, content, detail)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Unit, content: ChangesContentTransfer? = null) {
+internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Unit, content: ChangesContentTransfer? = null,
+    navigation: ChangesNavigationState) {
     val listing by store.listing.collectAsState()
-    var selected by remember(store) { mutableStateOf<String?>(null) }
+    var selected by navigation::selected
     val snapshot = listing.snapshot
     val files = snapshot?.files.orEmpty()
     val preferences = LocalContext.current.getSharedPreferences("cmux-display", Context.MODE_PRIVATE)
@@ -65,7 +68,7 @@ internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Un
         }
         if (selected == null) {
             if (snapshot != null && !listing.notRepository) ChangesSummary(snapshot)
-            ChangesFileList(listing, store, Modifier.weight(1f)) { selected = it }
+            ChangesFileList(listing, store, navigation, Modifier.weight(1f)) { selected = it }
         } else if (listing.notRepository || (snapshot != null && files.none { it.path == selected })) {
             ChangesNotice("File no longer changed", "Return to Changes to choose a current file.")
         } else if (snapshot == null) {
@@ -76,7 +79,7 @@ internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Un
             key(files.map { it.path }) {
                 val pager = rememberPagerState(initialPage = files.indexOfFirst { it.path == selected }.coerceAtLeast(0), pageCount = { files.size })
                 val scope = rememberCoroutineScope()
-                LaunchedEffect(pager.settledPage) { files.getOrNull(pager.settledPage)?.let { selected = it.path; store.select(it.path) } }
+                LaunchedEffect(store, pager.settledPage) { files.getOrNull(pager.settledPage)?.let { selected = it.path; store.select(it.path) } }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(files.getOrNull(pager.currentPage)?.filename.orEmpty(), Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
                         fontWeight = FontWeight.SemiBold)
@@ -114,8 +117,9 @@ private fun ChangesSummary(snapshot: ChangesSnapshot) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChangesFileList(state: ChangesListState, store: ChangesStore, modifier: Modifier, onSelect: (String) -> Unit) {
-    var collapsed by remember(store) { mutableStateOf(emptySet<String>()) }
+private fun ChangesFileList(state: ChangesListState, store: ChangesStore, navigation: ChangesNavigationState,
+    modifier: Modifier, onSelect: (String) -> Unit) {
+    var collapsed by navigation::collapsed
     val tree = remember(state.snapshot?.files) { ChangedFilesTree(state.snapshot?.files.orEmpty()) }
     val rows = remember(tree, collapsed, state.error, state.notRepository) {
         if (state.error != null || state.notRepository) emptyList() else tree.rows(collapsed)
