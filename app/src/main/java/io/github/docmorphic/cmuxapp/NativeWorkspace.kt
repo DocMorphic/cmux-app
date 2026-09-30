@@ -51,7 +51,8 @@ internal data class NativeWorkspaceRoute(
 internal fun workspaceSearchId(source: NativeFeedSource, workspace: NativeWorkspace) =
     source.mac.origin + ":workspace:" + workspace.id
 
-internal data class NativeTerminal(val id: String, val title: String, val directory: String? = null, val isFocused: Boolean = false)
+internal data class NativeTerminal(val id: String, val title: String, val directory: String? = null,
+    val isFocused: Boolean = false, val isReady: Boolean = true)
 internal data class NativeBrowser(val id: String, val title: String)
 
 /** Absence can retire local state only after a complete, unambiguous workspace list. */
@@ -80,7 +81,8 @@ internal fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 val terminal = items.optJSONObject(terminalIndex) ?: continue
                 val terminalId = terminal.optString("id")
                 if (terminalId.isNotBlank()) terminals += NativeTerminal(terminalId, terminal.optString("title"),
-                    (terminal.opt("current_directory") as? String)?.takeIf { it.isNotBlank() }, terminal.optBoolean("is_focused"))
+                    (terminal.opt("current_directory") as? String)?.takeIf { it.isNotBlank() }, terminal.optBoolean("is_focused"),
+                    terminal.opt("is_ready") as? Boolean ?: true)
             }
             val surfaces = workspace.optJSONArray("surfaces")
             if (surfaces != null) for (surfaceIndex in 0 until surfaces.length()) {

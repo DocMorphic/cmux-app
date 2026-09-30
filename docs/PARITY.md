@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Fresh workspace selection (2026-09-30):** default opening now respects focused
+non-terminal panes, host spatial order when no terminal exists, Simulator
+descriptors and terminal readiness/focus. Explicit pane opens remain exact.
+**31 JVM and 12 Android 17 / 16 KiB tests passed**, including existing browser,
+file/Markdown and Simulator regressions. Persisted last-tab memory, delayed browser
+discovery integration and selection synchronization remain open. Signed build 261
+predates this change. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md).
+
 **Workspace lifetime (2026-09-30):** confirmed removal on a connected owning Mac
 retires local browser pages and pending creation; disconnected/incomplete snapshots
 preserve them. Invalid inventory cannot masquerade as deletion. **37 JVM and six

@@ -603,6 +603,11 @@ class NativeFlowTest {
         } } }
         waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Panel workspace").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Panel workspace").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Canvas panel ▾").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Other Surface · In “Panel workspace”").assertIsDisplayed()
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.surface.focus" })
+        compose.onNodeWithText("Canvas panel ▾").performClick()
+        compose.onNodeWithText("Text panel").performClick()
         compose.waitUntil(10_000) {
             var loaded = false
             compose.runOnUiThread { loaded = findArtifactTextInWindows()?.textView?.text?.toString() == text }

@@ -838,19 +838,13 @@ fun NativeScreen(
                 selectedWorkspace = null; selectedTerminal = null; selectedBrowser = null; selectedSurface = null; selectedChangesWorkspace = null
                 workspaceRoute = null; return@LaunchedEffect
             }
-            val terminal = if (route.browserId != null || route.surfaceId != null || route.changes) null else if (route.terminalId != null)
-                workspace.terminals.singleOrNull { it.id == route.terminalId } else workspace.terminals.firstOrNull()
-            val browser = if (route.changes || route.terminalId != null || route.surfaceId != null) null else if (route.browserId != null)
-                workspace.browsers.singleOrNull { it.id == route.browserId } else if (terminal == null) workspace.browsers.firstOrNull() else null
-            val surface = if (route.changes || route.terminalId != null || route.browserId != null) null
-                else if (route.surfaceId != null) workspace.macSurfaces.singleOrNull { it.id == route.surfaceId }
-                else if (terminal == null && browser == null) workspace.macSurfaces.firstOrNull() else null
-            check(route.changes || terminal != null || browser != null || surface != null) { "This workspace pane is no longer available." }
+            val pane = workspace.paneForRoute(route)
+            check(route.changes || pane != null) { "This workspace pane is no longer available." }
             withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
                 if (isCurrent()) {
                     applyListing(listing); finishSearch(); notificationTab = false
                     showSettings = false; showTaskComposer = false
-                    selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser; selectedSurface = surface
+                    selectedWorkspace = workspace; selectedTerminal = pane?.terminal; selectedBrowser = pane?.browser; selectedSurface = pane?.surface
                     selectedChangesWorkspace = if (route.changes) workspace else null
                     error = null; workspaceRoute = null
                 }
