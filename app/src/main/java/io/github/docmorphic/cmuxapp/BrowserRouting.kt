@@ -74,16 +74,19 @@ internal class MacBrowserRouter(private val mac: BrowserTunnelBackend,
 }
 
 /** Bounds Mac feature lanes without queueing behind browser traffic or borrowing another Mac. */
-internal class MacBrowserLaneBackend(private val provider: () -> MobileRpcClient?, maximumLanes: Int = 32) : BrowserTunnelBackend {
+internal class MacBrowserLaneBackend(private val backend: BrowserTunnelBackend, maximumLanes: Int = 32) : BrowserTunnelBackend {
+    constructor(provider: () -> MobileRpcClient?, maximumLanes: Int = 32) : this(BrowserTunnelBackend { host, port, connected ->
+        val client = provider() ?: throw BrowserTunnelProtocol.OpenFailure(BrowserTunnelProtocol.Status.FAILED)
+        if (!client.useBrowserTunnel(host, port, connected))
+            throw BrowserTunnelProtocol.OpenFailure(BrowserTunnelProtocol.Status.FAILED)
+    }, maximumLanes)
     init { require(maximumLanes in 1..32) }
     private val slots = Semaphore(maximumLanes)
     override suspend fun use(host: String, port: Int, connected: suspend (BrowserTunnelLane) -> Unit) {
         if (!slots.tryAcquire()) throw BrowserTunnelProtocol.OpenFailure(BrowserTunnelProtocol.Status.BUSY)
         try {
-            // The provider must freshly validate the bound owner and browser.tunnel.v1 capability.
-            val client = provider() ?: throw BrowserTunnelProtocol.OpenFailure(BrowserTunnelProtocol.Status.FAILED)
-            if (!client.useBrowserTunnel(host, port, connected))
-                throw BrowserTunnelProtocol.OpenFailure(BrowserTunnelProtocol.Status.FAILED)
+            // The backend must freshly validate the bound owner and browser.tunnel.v1 capability.
+            backend.use(host, port, connected)
         } finally { slots.release() }
     }
 }

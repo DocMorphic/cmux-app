@@ -18,6 +18,8 @@ internal class NativeFeedCoordinator(
     private class Handle(val mac: NativeCredentialStore.PairedMac, val revision: NativeFeedRevision, val routeKey: String?) {
         var client: MobileRpcClient? = null
         var verified = false
+        var capabilities = emptySet<String>()
+        val browserOperations = mutableSetOf<Job>()
         var job: Job? = null
         val mutex = Mutex()
         val refresh = NativeFeedRefresh()
@@ -54,7 +56,46 @@ internal class NativeFeedCoordinator(
     private fun remove(origin: String) {
         // The monitor's finally releases its client after bounded stream cleanup.
         // Closing here would prevent unsubscribe while another consumer keeps the wire alive.
-        handles.remove(origin)?.let { it.job?.cancel(); it.refresh.close() }
+        handles.remove(origin)?.let { cancelBrowsers(it); it.job?.cancel(); it.refresh.close() }
+    }
+    private fun cancelBrowsers(handle: Handle) {
+        handle.browserOperations.toList().forEach { it.cancel(CancellationException("Browser computer connection changed")) }
+        handle.browserOperations.clear()
+    }
+
+    /** Fresh admission is checked on the feed's owner dispatcher, never against cached UI capabilities. */
+    fun browserAccess(mac: NativeCredentialStore.PairedMac, permits: () -> Boolean): MacBrowserAccess = object : MacBrowserAccess {
+        private fun handle(): Handle? = handles[mac.origin]?.takeIf {
+            it.mac == mac && permits() && current(it) && it.verified && it.client?.isClosed == false
+        }
+        private fun availability(handle: Handle?) = when {
+            handle == null -> MacBrowserAvailability.NOT_CONNECTED
+            BrowserTunnelProtocol.CAPABILITY !in handle.capabilities -> MacBrowserAvailability.NEEDS_MAC_UPDATE
+            handle.client?.supportsBrowserTunnels != true -> MacBrowserAvailability.ROUTE_WITHOUT_LANES
+            else -> MacBrowserAvailability.AVAILABLE
+        }
+        override suspend fun availability() = withContext(scope.coroutineContext.minusKey(Job)) { availability(handle()) }
+        private suspend fun <T> admitted(action: suspend (MobileRpcClient) -> T): T =
+            withContext(scope.coroutineContext.minusKey(Job)) {
+                val handle = handle()
+                check(availability(handle) == MacBrowserAvailability.AVAILABLE) { "Browser computer is unavailable" }
+                val active = checkNotNull(handle)
+                val client = checkNotNull(active.client)
+                val operation = checkNotNull(currentCoroutineContext()[Job])
+                active.browserOperations += operation
+                try {
+                    val result = withContext(Dispatchers.IO) { action(client) }
+                    ensureActive()
+                    check(handle() === active && active.client === client) { "Browser computer changed" }
+                    result
+                } finally { active.browserOperations -= operation }
+            }
+        override suspend fun use(host: String, port: Int, connected: suspend (BrowserTunnelLane) -> Unit) = admitted { client ->
+            check(client.useBrowserTunnel(host, port, connected)) { "Browser route has no tunnel lanes" }
+        }
+        override suspend fun listeningPorts() = admitted { client ->
+            checkNotNull(client.browserListeningPorts()) { "Browser route has no listing lane" }
+        }
     }
     private fun current(handle: Handle, client: MobileRpcClient? = handle.client) =
         handles[handle.mac.origin] === handle && handle.client === client && isAllowed(handle.mac)
@@ -77,6 +118,7 @@ internal class NativeFeedCoordinator(
                 val capabilities = status.optJSONArray("capabilities")?.let { values ->
                     (0 until values.length()).mapNotNull { values.optString(it).takeIf(String::isNotBlank) }.toSet()
                 }.orEmpty()
+                handle.capabilities = capabilities
                 publish(handle, (mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac))
                     .copy(capabilities = capabilities, keepAwake = null))
                 val client = active
@@ -111,7 +153,7 @@ internal class NativeFeedCoordinator(
                 val source = mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac)
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
                     error = failure.message ?: "Computer unavailable", keepAwake = null))
-            } finally { handle.verified = false; active?.close(); handle.client = null }
+            } finally { handle.verified = false; handle.capabilities = emptySet(); cancelBrowsers(handle); active?.close(); handle.client = null }
             handle.refresh.awaitRequest(10_000)
         }
     }

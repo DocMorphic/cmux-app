@@ -2,8 +2,9 @@
 
 Status: native tunnel client and SOCKS/router implemented, with JVM and Android
 socket checks. The phone-local WebView does **not yet route through the Mac**.
-Production owner/capability wiring, isolated browser networking/storage and
-physical browser acceptance remain open. Signed 284 predates this work.
+Session owner/capability wiring and policy refresh are implemented. Isolated
+WebView networking/storage and physical browser acceptance remain open.
+Signed 284 predates this work.
 
 ## Audited upstream contract
 
@@ -61,7 +62,8 @@ both stream halves on closure. `IrxDuplexLane.finishSending()` calls native
 `SendStream.finish()` while preserving its receive half. `MobileRpcClient`
 exposes a scoped use function, so closing a borrowed lease cancels its tunnel
 without closing the shared control connection. Callers must negotiate the
-capability before use; production WebView/session integration is still pending.
+capability before use; the feed accessor now does so. WebView integration is
+still pending.
 
 The fixture generator compiles the two **unchanged** pinned Swift wire sources
 and the unchanged `CmxLoopbackHost.swift` classifier. Minimal type declarations
@@ -97,8 +99,8 @@ Refusals, timeouts, cancellation, and failures after bytes may have transferred
 never replay a request through the direct backend. `MacBrowserLaneBackend` looks
 up its provider on each open, retains the RPC client's scoped callback through
 the relay, and refuses excess lanes instead of waiting behind browser traffic.
-The production provider still needs to enforce the exact account/Mac/build and
-freshly negotiated capability; this layer is not yet wired into `NativeScreen`.
+The session provider described below enforces account/Mac/build identity and
+freshly negotiated capability. The WebView still uses its original phone network.
 
 `NioBrowserSocket` uses Android's API 26
 [asynchronous socket channels](https://developer.android.com/reference/java/nio/channels/AsynchronousSocketChannel)
@@ -134,6 +136,48 @@ live Mac behavior is claimed by this byte-stream test.
 - Ignored evidence: `captures/runtime/browser-proxy/`.
 - Pixel APK and signed 284 are unchanged; no production proxy starts yet.
 
+## Owner and policy checkpoint
+
+`NativeFeedSession.browserNetworks` now retains networks by login, account/team
+generation, saved origin, canonical Mac device and build. `NativeScreen` updates
+the authorized set alongside browser navigation. Sign-out, team changes, forgetting
+a Mac or replacing its identity retire the corresponding network, close its proxy
+and cancel its pending listing and both Mac/direct relays. Route changes for the
+same owner retain the network and resolve the new saved route on the next request.
+Creating the registry does not start a listener; the future WebView adapter must
+explicitly request and prepare a network.
+
+`NativeFeedCoordinator.browserAccess` runs admission checks on its owning
+dispatcher. It requires the exact current saved Mac, verified host identity, a
+live client, newly negotiated `browser.tunnel.v1` and a transport supporting
+feature lanes. Cached source capabilities cannot authorize a reconnecting client.
+Availability distinguishes disconnected, old Mac and a route without lanes.
+Disconnected pages remain bound to their original Mac. Relay/listing operations
+are cancelled immediately when their handle retires, without holding the feed
+mutation mutex or closing another consumer's shared connection.
+
+`NativeMacBrowserNetwork.prepare` keeps its proxy port through ordinary reconnects,
+refreshes policy after ten seconds and always refreshes before loopback navigation.
+Failed refreshes retain the last confirmed listing/policy; a Mac-only destination
+never falls back to phone localhost. If its listener dies, preparation tries to
+rebind the previous port before requesting another. The existing 32-lane limit
+wraps the admitted provider. No iOS-style same-port mirrors are enabled; Android's
+loopback proxy bypass must still be disabled and verified in the WebView adapter.
+
+**40 focused JVM tests passed**: five new owner/network tests, 17 feed regressions,
+three routing tests, five SOCKS tests and ten wire tests. The new tests use actual
+loopback SOCKS sockets plus simulated admitted RPC transports. They cover the
+ten-second boundary, forced loopback refresh, policy retention across disconnect,
+same-port reconnect, route replacement, login/team/build/Mac isolation, live
+capability/route checks, stale cached capability rejection, pending listing and
+direct-traffic cancellation, independent Mac relay retirement and feed refresh
+while relays stay open. All have zero failures, errors or skips.
+
+This checkpoint compiles production Kotlin and runs JVM tests; it does not build
+or install a new APK. The connected Pixel's app, account and sleep settings remain
+unchanged. Neither WebView behavior nor live Mac browser traffic is established
+by these checks.
+
 ## Next integration decisions
 
 Android's [ProxyController](https://developer.android.com/reference/androidx/webkit/ProxyController)
@@ -149,7 +193,9 @@ equivalent network isolation together with per-computer session storage before
 wiring the routed WebView. Android WebView profiles alone do not establish
 per-profile proxy isolation. Preserve existing artifact viewers' network scope.
 
-Then integrate the tested proxy/router with the owner-bound provider and
-availability UI, reconnect/session retirement, ten-second policy refresh, profile
-lifecycle and real browser acceptance. Do not silently redirect a Mac
+Connect the owner-bound network to availability UI and navigation, profile
+lifecycle and real browser acceptance. A separate browser Activity/process must
+retain its owner's connection while the main Activity is stopped; the current
+feed pauses with the main screen, so that lifetime needs explicit integration.
+Do not silently redirect a Mac
 localhost page to phone localhost when its connection is unavailable.

@@ -24,6 +24,9 @@ internal class NativeFeedSession(
     val workspaceMoves = NativeWorkspaceMoves(scope, coordinator)
     val taskModels = TaskModelRepository()
     val localBrowsers = LocalBrowserNavigation(scope)
+    val browserNetworks = NativeBrowserNetworks(scope, coordinator::browserAccess) { mac, login ->
+        account.isSignedIn() && store.taskSession() == login && store.pairedMacs().contains(mac) && connector.allowsSaved(mac)
+    }
     val workspaceTabs = NativeWorkspaceTabNavigation(store)
     val terminalStartup = NativeTerminalStartup()
     val paneNavigation = NativePaneNavigation()
@@ -36,7 +39,7 @@ internal class NativeFeedSession(
         }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { terminalInputs.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { browserNetworks.clear(); terminalInputs.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     override fun onCleared() { clear(); terminalInputs.close(); scope.cancel() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,

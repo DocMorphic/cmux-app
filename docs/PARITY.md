@@ -176,9 +176,10 @@ contract and implemented native connection/listing lanes, raw transfer, half-clo
 and lease cleanup. 33 focused JVM tests pass with unchanged Swift wire fixtures.
 The SOCKS/router follow-up passes 18 JVM tests (including 69 Swift loopback
 classifications) and an Android 17 / 16 KiB asynchronous socket round trip with
-half-close. This is not yet connected to the WebView; production owner binding,
-policy refresh, isolated network
-and ephemeral storage, runtime and physical acceptance remain open. See
+half-close. Session owner binding, fresh capability/route admission, ten-second
+policy refresh and independent cancellation now pass 40 focused JVM checks.
+This is not yet connected to the WebView; isolated network and ephemeral storage,
+browser foreground connection lifetime, runtime and physical acceptance remain open. See
 [BROWSER_TUNNEL.md](BROWSER_TUNNEL.md). Signed 284 predates this source work.
 
 **Phone-local browser navigation (2026-09-30):** `New Browser` is now integrated

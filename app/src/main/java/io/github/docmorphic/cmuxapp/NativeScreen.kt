@@ -303,6 +303,7 @@ fun NativeScreen(
     SideEffect {
         navigationGeneration.observe(browserNavigationContext())
         localBrowsers.retain(teamState.scope, signedIn, pairedMacs.map { it.origin }.toSet(), browserLogin)
+        feedSession.browserNetworks.retain(browserLogin.takeIf { signedIn }, teamState.scope, pairedMacs)
         localBrowsers.navigationContext(browserNavigationContext())
     }
     fun openNewBrowser(source: NativeFeedSource, workspace: NativeWorkspace) {

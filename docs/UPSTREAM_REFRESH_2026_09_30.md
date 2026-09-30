@@ -119,8 +119,9 @@ See [BROWSER_TUNNEL.md](BROWSER_TUNNEL.md) for exact sources and behavior.
 
 SOCKS/router and asynchronous Android socket code are now implemented too:
 18 focused JVM tests pass, including 69 Swift-generated loopback classifications,
-plus an Android 17 / 16 KiB binary round-trip/half-close check. Production
-capability/owner binding, policy refresh, isolated WebView networking and
+plus an Android 17 / 16 KiB binary round-trip/half-close check. Session
+capability/owner binding, policy refresh and cancellation now pass 40 focused JVM
+tests. Isolated WebView networking, browser foreground connection lifetime and
 per-computer ephemeral storage remain open. The current phone-local browser
 still uses phone networking. See `BROWSER_TUNNEL.md` for the exact test scope.
 This work postdates signed 284. The broad upstream reference has not advanced.
