@@ -202,6 +202,10 @@ three-case API 37/16 KiB batch verifies page-local state and history across both
 rotations, workspace return/reopen/pane selection, and owner-retirement cleanup.
 This is emulator evidence; physical rotation, chooser and process-death checks
 remain open.
+Two additional routed presentation checks pass on API 37/16 KiB: real Android
+document-picker cancel/reopen, complete multipart file upload through the proxy,
+connection-hold lifecycle, and address entry. They use a generated host; physical
+Mac/Pixel and native Iroh upload acceptance remain open.
 
 **Phone-local browser navigation (2026-09-30):** `New Browser` is now integrated
 into workspace actions and terminal/Mac-surface pickers. Connected, capable Macs

@@ -439,9 +439,38 @@ batch used a cold-booted emulator and the corrected title-based fixture.
 - Pixel installation and signed release 284 are unchanged. The owned emulator
   was stopped after verification.
 
+## Routed file picker and address entry — 2026-09-30
+
+Two further presentation checks pass in a clean **38.873 s** API 37 / 16 KiB
+batch using the production Activity, bound service, WebView and proxy with a
+generated host. No production changes were required for these checks.
+
+- A generated Downloads text file is selected through Android's real document
+  picker after first opening and cancelling that picker. The multipart POST
+  reaches the generated host through `NativeMacBrowserNetwork`/SOCKS; filename,
+  method, content type and the complete file payload (Unicode and line breaks
+  included) match. The connection hold survives both picker visits, its foreground
+  probe follows the browser's visibility, and the hold releases once on returning
+  to the workspace. The generated document is deleted in cleanup. The uploaded
+  page screenshot was visually inspected.
+- Editing the actual address input and pressing Enter commits the new URL and
+  causes exactly one request for that page. Early fixture attempts targeted the
+  description node inside Compose's `EditText`; that node cannot receive text.
+  Hierarchy evidence identified the real editable parent, and the final selector
+  verifies its focus/text before submission. This was a test-selector issue.
+
+Production APK remains `aae915f`'s rotation build, SHA-256
+`47f149051072568a6809e3b91dfeeb883917c7da9a820ec1bae604eef72639a6`.
+Final test APK SHA-256:
+`4ac9a5b4186428b41663cf36f9b723663c67bd62bfa571d47bb0eaf3c058eab7`.
+Ignored evidence: `captures/runtime/browser-webview/chooser-*` and
+`address-focused.xml`. These are generated-host emulator checks, not physical
+Mac/Pixel upload or native Iroh interoperability acceptance. The emulator was
+stopped afterward; Pixel and signed release 284 remain unchanged.
+
 ## Remaining integration
 
-Exercise a real Mac/Pixel website (HTTP/HTTPS, reconnect and account retirement). Verify physical keyboard/IME, file picking, physical rotation,
+Exercise a real Mac/Pixel website (HTTP/HTTPS, reconnect and account retirement). Verify physical keyboard/IME, physical file picking/rotation,
 process-death return and lifecycle races with live feed holds. The earlier
 isolated adapter tests use generated TCP hosts and do not prove real native-lane
 acceptance. API 26 WebView startup compatibility is still unverified.

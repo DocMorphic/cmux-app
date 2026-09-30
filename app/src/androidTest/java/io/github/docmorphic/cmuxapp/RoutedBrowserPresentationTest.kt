@@ -1,6 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
+import android.content.ContentValues
 import android.os.Build
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
@@ -17,6 +19,7 @@ import org.json.JSONObject
 import org.junit.*
 import org.junit.Assert.*
 import java.io.File
+import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -28,6 +31,7 @@ class RoutedBrowserPresentationTest {
     private val device get() = UiDevice.getInstance(instrumentation)
     private val owner = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val paths = CopyOnWriteArrayList<String>()
+    private val uploads = CopyOnWriteArrayList<RecordedRequest>()
     private val targets = CopyOnWriteArrayList<String>()
     private val holds = AtomicInteger()
     private val releases = AtomicInteger()
@@ -55,9 +59,21 @@ class RoutedBrowserPresentationTest {
             dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest): MockResponse {
                     paths += request.path!!
+                    if (request.path == "/upload") {
+                        uploads += request
+                        return MockResponse().setHeader("Content-Type", "text/html; charset=utf-8")
+                            .setBody("<title>Upload received</title><h1>Upload received through the Mac route</h1>")
+                    }
+                    if (request.path == "/form") return MockResponse().setHeader("Content-Type", "text/html; charset=utf-8")
+                        .setBody("""<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Upload form</title>
+                            <style>body{background:#164f3b;color:white}button{display:block;margin:24px 0;font-size:24px}</style>
+                            <form method="post" action="/upload" enctype="multipart/form-data">
+                            <input id="file" name="attachment" type="file" accept="text/plain" hidden onchange="if(this.files.length)document.title='Selected file'">
+                            <button type="button" onclick="document.getElementById('file').click()">Choose upload file</button>
+                            <button>Upload selected file</button></form>""".trimIndent())
                     val next = request.path!!.startsWith("/next")
                     return MockResponse().setHeader("Content-Type", "text/html").setHeader("Cache-Control", "no-store")
-                        .setBody("""<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>${if(next) "Next" else "Routed fixture"}</title><body style="background:#164f3b;color:white;font:24px sans-serif"><h1>Mac route fixture</h1><a style="color:white" href="/next">Open next page</a><p><button onclick="window.draft=true;renderDraft()">Keep draft</button></p><script>function renderDraft(){if(window.draft)document.title='Draft '+(innerWidth>innerHeight?'landscape':'portrait')}addEventListener('resize',renderDraft);document.body.dataset.cookie=document.cookie;document.cookie='presentation=kept;path=/'</script>""")
+                        .setBody("""<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>${if(next) "Next" else "Routed fixture"}</title><body style="background:#164f3b;color:white;font:24px sans-serif"><h1>Mac route fixture</h1><a style="color:white" href="/next">Open next page</a><p><button onclick="window.draft=true;renderDraft()">Keep draft</button></p><p><a style="color:white" href="/form">Open upload form</a></p><script>function renderDraft(){if(window.draft)document.title='Draft '+(innerWidth>innerHeight?'landscape':'portrait')}addEventListener('resize',renderDraft);document.body.dataset.cookie=document.cookie;document.cookie='presentation=kept;path=/'</script>""")
                 }
             }; start()
         }
@@ -148,5 +164,76 @@ class RoutedBrowserPresentationTest {
             until { holds.get() == 0 }
             assertEquals(1, releases.get())
         } finally { device.setOrientationNatural(); device.unfreezeRotation() }
+    }
+    @Test fun addressEntryCommitsTheEditedUrl() {
+        browser("Routed fixture ▾")
+        // Compose exposes the description on a child of the actual editable node.
+        val selector = By.clazz("android.widget.EditText").hasDescendant(By.desc("Browser address"))
+        val address = checkNotNull(device.wait(Until.findObject(selector), 5_000))
+        address.click()
+        val focused = device.wait(Until.hasObject(By.copy(selector).focused(true)), 5_000)
+        val shots = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        device.dumpWindowHierarchy(File(shots, "routed-address-focused.xml"))
+        assertTrue("Address field receives focus", focused)
+        address.text = "http://localhost:34876/form"
+        val changed = device.wait(Until.hasObject(By.copy(selector).text("http://localhost:34876/form")), 5_000)
+        device.dumpWindowHierarchy(File(shots, "routed-address-edited.xml"))
+        assertTrue("Edited URL reaches the field before submission", changed)
+        device.pressEnter(); text("Upload form ▾")
+        until { main { surface.state.value.url?.endsWith("/form") == true } }
+        assertEquals(1, paths.count { it == "/form" })
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
+    }
+    @Test fun systemFilePickerCanCancelReopenAndUploadThroughTheRoutedProcess() {
+        Assume.assumeTrue(Build.VERSION.SDK_INT >= 29)
+        val filename = "cmux-routed-${UUID.randomUUID()}.txt"
+        val contents = "Routed browser upload fixture — 中 🚀\nSecond line.\n"
+        val resolver = context.contentResolver
+        val document = checkNotNull(resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+            put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/")
+        }))
+        try {
+            resolver.openOutputStream(document)!!.use { it.write(contents.toByteArray()) }
+            browser("Routed fixture ▾")
+            text("Open upload form").click(); text("Upload form ▾")
+            fun picker() {
+                text("Choose upload file").click()
+                assertTrue("System document picker", device.wait(Until.hasObject(By.pkg("com.google.android.documentsui")), 5_000) ||
+                    device.wait(Until.hasObject(By.pkg("com.android.documentsui")), 5_000))
+                until { probes.lastOrNull() == false }
+                assertEquals(1, holds.get()); assertEquals(0, releases.get())
+            }
+            picker()
+            device.pressBack(); text("Upload form ▾")
+            until { probes.lastOrNull() == true }
+            assertTrue(uploads.isEmpty())
+            picker()
+            var row = device.wait(Until.findObject(By.text(filename)), 1_500)
+            if (row == null) {
+                desc("Show roots").click(); text("Downloads").click()
+                row = device.wait(Until.findObject(By.text(filename)), 5_000)
+            }
+            checkNotNull(row) { "Generated upload file missing" }.click()
+            text("Selected file ▾")
+            until { probes.lastOrNull() == true }
+            text("Upload selected file").click(); text("Upload received ▾")
+            val request = uploads.single()
+            assertEquals("POST", request.method)
+            assertTrue(request.getHeader("Content-Type")!!.startsWith("multipart/form-data; boundary="))
+            val body = request.body.clone().readUtf8()
+            assertTrue(body.contains("filename=\"$filename\""))
+            val boundary = request.getHeader("Content-Type")!!.substringAfter("boundary=")
+            assertEquals(contents, body.substringAfter("\r\n\r\n").substringBeforeLast("\r\n--$boundary"))
+            assertTrue(targets.contains("localhost:34876"))
+            assertEquals(1, holds.get()); assertEquals(0, releases.get())
+            val shots = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+            assertTrue(device.takeScreenshot(File(shots, "routed-browser-uploaded.png")))
+            desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+            until { holds.get() == 0 }
+            assertEquals(1, releases.get())
+        } finally { resolver.delete(document, null, null) }
     }
 }
