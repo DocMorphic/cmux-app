@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Direct SSH source audit (2026-09-30):** the newer candidate exposes SSH computers
+and key management in normal signed-in iOS navigation. Mixed plain-shell, tmux and
+cmux-tui workspaces, SFTP and SSH browser forwarding are substantial outstanding
+Android requirements. [DIRECT_SSH.md](DIRECT_SSH.md) records the exact sources,
+superseded PRD decisions, server-version caveats and implementation/acceptance
+gates. This is source evidence, not Android functionality or proof of an iOS binary
+release. The next SSH step is an Android engine/Keystore compatibility spike.
+The broad implemented reference, signed 284 and Pixel installation are unchanged.
+
 **Files navigation restoration (2026-09-30):** gallery and terminal-path sheets
 retain nested folders/current preview and gallery controls within their admitted
 terminal owner. Reconnect refetches content; session routes wait for a fresh scan

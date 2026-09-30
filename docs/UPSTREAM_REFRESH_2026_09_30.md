@@ -33,11 +33,11 @@ review is still incomplete. Keep the implemented reference until that review is 
 4. **Reconnect and Mac switching.** Changes include stored-Mac dialing, zero-touch
    dial races, connection recovery and Mac-switch state, with added discovery and
    recovery tests. Compare these with Android's saved native/Tailscale paths.
-5. **SSH surface.** The comparison includes a new `CmuxMobileSSH` package, SFTP,
-   shell SSH providers, tmux control and browser integration. Establish which
-   features are wired into the shipped iOS UI and which host capabilities they
-   require, then add the verified requirements to `PARITY.md`. SSH parity has not
-   been established by the current Android work.
+5. **SSH surface.** Normal signed-in iOS source paths expose the new
+   `CmuxMobileSSH` package, mixed shell/tmux/cmux-tui providers, SFTP and browser
+   integration. The source audit and implementation gates are now recorded in
+   [DIRECT_SSH.md](DIRECT_SSH.md). Android direct SSH remains unimplemented;
+   existing Mac tests do not cover it. Binary shipping status is not established.
 
 Fetch the exact candidate into the existing partial upstream checkout, compare
 complete trees locally, and inspect targeted file contents. Avoid broad content
@@ -131,6 +131,16 @@ remaining acceptance work.
 This work postdates signed 284. The broad upstream reference has not advanced.
 
 ## Current delivery boundary
+
+The direct SSH audit confirms normal Computers/Settings entry points at this
+candidate. Old signed-out entry and per-host persistence-mode plans are superseded.
+The phone must sign in, but a remote SSH server needs neither the Mac companion nor
+a cmux account. Current source supports key management, trust/changed-key prompts,
+multi-hop connections, mixed workspace providers, SFTP and SSH browser routing.
+The pinned cmux-tui 0.13.4 installer must not be assumed to contain newer server
+geometry/event fixes described in the PRD. See `DIRECT_SSH.md` for sources and
+acceptance gates; the next implementation step is an Android SSH engine and
+Keystore compatibility spike. This audit adds no Android runtime implementation.
 
 Signed build 284 is from Android commit
 `0db3c178d69facb8468d62e6bca42e951d34c2b1`. It includes the retained identified-input
