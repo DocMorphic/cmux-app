@@ -39,6 +39,10 @@ command-not-found error. A repeat after UI Automator confirmed the direct input
 view was focused sent `echo cmux_pixel_c763_after_focus` successfully. Preserve
 this timing observation for a focused mode-transition/hardware-key test; it does
 not establish an RPC delivery failure or prove the transition race resolved.
+The subsequent focus-handoff fix reproduces this gap in an Android regression
+and passes both that test and the broader keyboard regression. See
+[TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md). The fixed APK has not
+been installed here; repeat the phone transition before closing this observation.
 
 No app data was cleared, no account fixtures were run, and no workspace was
 created or removed. No new APK was installed during this check. Plugged-in

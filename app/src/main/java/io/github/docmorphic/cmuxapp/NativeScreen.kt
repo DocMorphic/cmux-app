@@ -580,6 +580,13 @@ fun NativeScreen(
     var inputModifiers by remember(draftTarget, client) { mutableStateOf(TerminalInputModifiers()) }
     var directTyping by remember(draftTarget) { mutableStateOf(false) }
     var rawKeyboardView by remember(draftTarget) { mutableStateOf<TerminalKeyboardView?>(null) }
+    fun openDirectKeyboard() {
+        // Hardware keys may arrive before Compose mounts the native editor. The existing
+        // grid must own focus immediately; its key handler uses the same ordered input path.
+        terminalFocusRequester.requestFocus()
+        directTyping = true
+        rawKeyboardView?.showKeyboard()
+    }
     LaunchedEffect(directTyping, rawKeyboardView) {
         if (directTyping) rawKeyboardView?.let { view ->
             // Let the removed Compose editor finish its IME session before requesting the native editor.
@@ -1778,8 +1785,8 @@ fun NativeScreen(
                         selectedWorkspace?.let { workspace -> workspaceSourceForPane()?.let { openNewBrowser(it, workspace) } }
                     }, onKeyboard = {
                         inputModifiers = TerminalInputModifiers()
-                        if (directTyping) rawKeyboardView?.finishComposition()
-                        directTyping = !directTyping
+                        if (directTyping) { rawKeyboardView?.finishComposition(); directTyping = false }
+                        else openDirectKeyboard()
                     }, onBrowser = { browser ->
                         rawKeyboardView?.finishComposition(); directTyping = false
                         inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
@@ -1797,7 +1804,7 @@ fun NativeScreen(
                         .focusable()
                         .semantics(mergeDescendants = true) {
                             stateDescription = "Terminal font size ${terminalZoom.size}"
-                            onClick("Open keyboard") { directTyping = true; rawKeyboardView?.showKeyboard(); true }
+                            onClick("Open keyboard") { openDirectKeyboard(); true }
                             customActions = listOf(CustomAccessibilityAction("View as Text") { openTerminalText(); true })
                         }
                         .terminalPinchZoom(terminalZoom)
@@ -1830,11 +1837,11 @@ fun NativeScreen(
                                             },
                                             focus = { sendClick ->
                                                 if (sendClick) terminalClick?.invoke(cell)
-                                                directTyping = true; rawKeyboardView?.showKeyboard()
+                                                openDirectKeyboard()
                                             })
                                     } else terminalClick?.invoke(cell)
                                 }
-                                if (!handlingArtifact) { directTyping = true; rawKeyboardView?.showKeyboard() }
+                                if (!handlingArtifact) openDirectKeyboard()
                             }, onLongPress = { artifactTapController.invalidate(); openTerminalText() })
                         }
                         .terminalScrollGestures(terminalMotion,

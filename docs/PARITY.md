@@ -164,6 +164,13 @@ The production debug APK is unchanged by this test-only follow-up. Physical
 Pixel/Mac and remaining parity work are still open. See [PIXEL_INSTALL.md](PIXEL_INSTALL.md)
 and [LOCAL_BROWSER.md](LOCAL_BROWSER.md).
 
+**Immediate direct-keyboard focus (2026-09-30):** selecting direct mode now
+immediately focuses the terminal grid while the native editor mounts. A regression
+reproduced lost early hardware keys before the fix; exact-byte and existing
+IME/pause/target-switch checks now pass (two Android 17 / 16 KiB tests). Composer
+draft retention also passes. Physical retest and signed delivery remain open; see
+[TERMINAL_INPUT_DELIVERY.md](TERMINAL_INPUT_DELIVERY.md).
+
 **Mac browser tunnel foundation (2026-09-30):** reviewed the newer `204a11d`
 contract and implemented native connection/listing lanes, raw transfer, half-close
 and lease cleanup. 33 focused JVM tests pass with unchanged Swift wire fixtures.

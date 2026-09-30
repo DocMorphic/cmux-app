@@ -52,10 +52,15 @@ import java.util.concurrent.TimeUnit
 class NativeFlowTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>(effectContext = StandardTestDispatcher())
     private lateinit var peer: NativeFixturePeer
+    private var fixtureStarted = false
     private val observedClients = CopyOnWriteArrayList<MobileRpcClient>()
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Before fun startPeer() {
+        check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk")) {
+            "Synthetic account tests require the disposable emulator"
+        }
+        fixtureStarted = true
         context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE).edit().remove("terminal-folder-tap").remove("show-missing-files").commit()
         compose.runOnUiThread {
             compose.activity.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
@@ -71,6 +76,7 @@ class NativeFlowTest {
     }
 
     @After fun cleanUp() {
+        if (!fixtureStarted) return
         context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE).edit().remove("terminal-folder-tap").remove("show-missing-files").commit()
         compose.activity.finish()
         peer.close()
@@ -1090,6 +1096,35 @@ class NativeFlowTest {
             }
             compose.onNodeWithTag("terminal-shortcut-$id").assertIsDisplayed()
         } finally { compose.mainClock.autoAdvance = previousAutoAdvance }
+    }
+
+    @Test fun directModeTakesHardwareFocusBeforeTheNativeEditorIsMounted() {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.onNode(hasSetTextAction()).performTextInput("Keep this draft")
+        val click = compose.onNodeWithText("Keyboard").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        val keys = android.view.KeyCharacterMap.load(android.view.KeyCharacterMap.VIRTUAL_KEYBOARD)
+            .getEvents("echo early".toCharArray())!!
+        compose.runOnUiThread {
+            assertTrue(click())
+            // Same UI turn: Compose has not mounted the AndroidView or run its next-frame IME effect.
+            assertNull(findTerminalKeyboard(compose.activity.window.decorView))
+            keys.forEach { compose.activity.dispatchKeyEvent(it) }
+            compose.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+            compose.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
+        }
+        waitForTerminalFixture(10_000) {
+            peer.requests.filter { it.optString("method") == "terminal.input" }
+                .joinToString("") { it.getJSONObject("params").getString("text") } == "echo early\r"
+        }
+        compose.onNodeWithText("Compose").performClick()
+        assertDraft("Keep this draft")
     }
 
     @Test fun directKeyboardCompositionKeysPauseAndTargetSwitch() {

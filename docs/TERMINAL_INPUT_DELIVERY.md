@@ -243,3 +243,38 @@ they are not a substitute for live end-to-end evidence.
 
 The repository-wide upstream refresh is still incomplete; see
 [UPSTREAM_REFRESH_2026_09_30.md](UPSTREAM_REFRESH_2026_09_30.md).
+
+## Direct-keyboard focus handoff — 2026-09-30
+
+Physical testing of installed `c763e2d` observed a rapid ADB text burst losing its
+first three characters immediately after selecting Keyboard. A deterministic
+Android regression reproduced the transition gap: it invokes the real header
+action and dispatches hardware keys in the same UI turn, before Compose mounts
+the native editor. Before the fix, the expected terminal bytes never arrived.
+
+`openDirectKeyboard()` now synchronously focuses the existing terminal grid.
+Its hardware handler forwards keys through the same ordered input path while the
+next-frame effect completes the Compose-to-native IME handoff. Header, ordinary
+terminal taps, accessibility activation and the artifact-tap fallback share the
+helper. The existing IME delay is preserved; composer contents remain separate.
+
+The regression and the existing composition/Unicode/deletion, modifier keys,
+pause/resume and target-switching case passed: **two Android 17 / 16 KiB tests in
+24.818 seconds**. The regression checks exact `echo early\r` bytes and an unchanged
+composer draft. Debug and instrumentation APK builds passed. `NativeFlowTest`
+now rejects physical devices before setup or cleanup can touch account state.
+
+An initial baseline attempt was killed during emulator startup ANRs; it is not a
+test failure attributable to this code. After resolving the System UI dialog, the
+baseline produced the expected assertion failure. A second cold emulator startup
+also required dismissing its System UI ANR before the fixed run began. Both fixed
+tests then completed. This is functional evidence, not a clean performance run.
+The emulator was stopped after testing. Ignored logs: `captures/runtime/focus-transition/`.
+
+- Debug APK: `ffbf791041b19d5ced4a9511c360de53c27324ce8b859831a1f98d96bc63c130`.
+- Test APK: `f665113e5028d82c3d6e6b394e428c63b63bf2cb3ad502fa1b3d936dc66bdfe7`.
+
+The fixed APK has not been installed on the Pixel, and signed 284 predates it.
+Repeat the rapid mode transition on the phone before closing that physical
+observation. This does not establish host identified-input capability or retry
+deduplication; those require separate acceptance.
