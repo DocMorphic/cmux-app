@@ -12,6 +12,12 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Last-tab memory foundation (2026-09-30):** the bounded five-kind preference map,
+account/Mac/build keys, encrypted atomic storage adapter and pending restore
+decisions are implemented. **23 JVM and three Android 17 / 16 KiB storage tests
+passed**. This is not wired into workspace UI yet; full remembered-tab restoration
+and browser discovery integration remain open. See [WORKSPACE_SELECTION.md](WORKSPACE_SELECTION.md).
+
 **Fresh workspace selection (2026-09-30):** default opening now respects focused
 non-terminal panes, host spatial order when no terminal exists, Simulator
 descriptors and terminal readiness/focus. Explicit pane opens remain exact.

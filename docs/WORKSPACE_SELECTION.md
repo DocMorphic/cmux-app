@@ -81,8 +81,8 @@ Local browser Back already retains a one-shot in-memory restore intent, distinct
 from persisted all-kind last-tab memory. Do not describe that as full selection
 parity. The default resolver is not yet the refresh/restore state machine.
 
-Add the bounded preference store and refresh/restore controller, integrate explicit
-versus derived selection separately, then verify pending discovery, process
+The bounded preference store and pure restore decision/controller foundation below
+are implemented. Integrate explicit versus derived selection separately, then verify pending discovery, process
 recreation, cross-Mac/build identity, focused non-terminal defaults and new-terminal
 startup. Keep additions outside the large `NativeScreen` method, which has already
 hit Kotlin's JVM method bytecode size limit. Follow with Pixel/Mac acceptance.
@@ -108,3 +108,75 @@ hit Kotlin's JVM method bytecode size limit. Follow with Pixel/Mac acceptance.
 - Test APK SHA-256: `d5d91759a4d3930080a225ee5c98da782d66308857ebdcc99cc218609f2710b3`.
 
 Signed build 261 predates this change. No new signed milestone was dispatched.
+
+## Last-tab storage and restore foundation (2026-09-30)
+
+**This foundation is not yet wired into `NativeScreen`; it does not yet make the
+app restore all last-opened tabs.**
+
+`NativeWorkspaceLastTabs` supports all five upstream kinds and at most 512 entries.
+Unchanged writes do not alter recency. Loading isolates malformed/unknown entries;
+unknown kinds remain stored but cannot be selected. Recency overflow rebases the
+bounded map while preserving order. Keys use account/team, canonical Mac device
+and normalized build tag, and RPC workspace ID. Route/name changes do not change a
+known Mac's key. Anonymous pairings use their origin; unverified unscoped accounts
+use the login incarnation. This follows the pinned `CmxMacAppInstanceIdentity`
+normalization, including trimming build-tag whitespace and treating empty as nil.
+
+`NativeCredentialStore.lastWorkspaceTab` and `rememberWorkspaceTab` use its existing
+Keystore-encrypted state. The shared storage lock covers login validation and the
+whole read/modify/commit operation, so concurrent store instances merge writes.
+Unchanged selections skip encryption/commit/revision changes. Retired login calls
+cannot read/write preferences or recreate signed-out account state. Account/team
+scope belongs in the computed key; UI callbacks must still check their captured
+authorization/navigation scope before choosing that key.
+
+`restoreWorkspaceTab` returns restored, waiting, or unavailable. It distinguishes
+empty hydration from populated missing panes, waits for a remembered unready
+terminal when a ready sibling exists, and distinguishes undiscovered browser
+inventory (`null`) from a successful empty list. A remembered Mac browser surface
+stays a raw surface until its stream descriptor is discovered. Simulator restore
+requires its descriptor; local browser restore requests a view-owned reopen.
+Matching active streams are retained; a different active stream wins over memory.
+`NativeWorkspaceTabRestoration` owns one pending key/tab, keeps it across waiting
+results, and disarms it on resolution/cancellation/new opens.
+
+Verification:
+
+- **23 JVM tests passed**: six bounded-store/key cases, eight restore cases and
+  nine default-selection regressions.
+- Debug/instrumentation APKs built. **Three Android 17 / 16 KiB storage tests passed
+  in 0.125 seconds**: encrypted round trips across store instances for all five
+  kinds and idempotent writes; login replacement/sign-out fencing; and concurrent
+  store-instance writes preserving every tab and unrelated account update.
+- Android tests use disposable, separately named preferences and the real
+  Keystore adapter. They do not exercise screen restoration, process death or a
+  real cmux account. The owned emulator was stopped after testing.
+- Ignored evidence: `captures/runtime/workspace-tab-memory/`; final build log:
+  `/tmp/cmux-workspace-tab-memory-final-build.log`.
+- Debug APK SHA-256: `040bde1b768e001ce779fb8539bb1e78ac311843ebc679f1e8c4a36d9091a580`.
+- Test APK SHA-256: `463c5b13d7a5b27dc595eaf8ba5a0b07aed417da8a4200635edb150276be5859`.
+
+### Next integration steps
+
+1. Record committed route/default opens, explicit terminal/surface/stream picks,
+   task-created terminals, and local-browser opens. Disarm pending restore on
+   explicit selection. Do not record an interim derived fallback while waiting.
+2. On a default workspace open, consult memory before other defaults; local-browser
+   restore must directly reopen retained/default local state without a Mac create
+   RPC. Existing one-shot local restore is insufficient after process death.
+3. Feed pending restores fresh owning snapshots even while a terminal is visible.
+   Cross-Mac/account navigation, notifications, Back and sign-out must retire old
+   pending work. Preserve selected pages across degraded/missing inventory.
+4. Wire the currently unused `MobileRpcClient.browserPanels(workspaceId)` read to
+   scoped discovery. Pinned `MobileBrowserListResponse` requires a `panels` array;
+   descriptors use `panel_id`, `workspace_id`, optional URL/title, page dimensions,
+   navigation/loading booleans and optional dialog. Reject wrong-workspace or
+   malformed results without converting them into confirmed empty discovery.
+   Capability gate is `browser.stream.v1`; an old client response cannot update a
+   new owning session. See `MobileShellComposite+BrowserStream.swift`.
+5. Integrate readiness/created-terminal pins and delayed surface promotion without
+   stealing an explicit selection. Verify full-screen restoration for every kind,
+   delayed results, Account/Activity/process changes and multiple Macs/builds.
+
+Signed build 261 predates this foundation. No new signed build was dispatched.
