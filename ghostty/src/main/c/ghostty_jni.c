@@ -14,6 +14,9 @@ typedef struct Terminal {
     GhosttyRenderState render;
     GhosttyRenderStateRowIterator rows;
     GhosttyRenderStateRowCells cells;
+    uint8_t *replies;
+    size_t reply_size, reply_capacity;
+    bool reply_overflow;
     struct Terminal *next;
 } Terminal;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -45,6 +48,7 @@ static void dispose(Terminal *entry) {
     ghostty_render_state_row_iterator_free(entry->rows);
     ghostty_render_state_free(entry->render);
     ghostty_terminal_free(entry->terminal);
+    free(entry->replies);
     free(entry);
 }
 // Cached at library load so callbacks from any Java thread use the correct
@@ -118,7 +122,28 @@ static bool dimensions(JNIEnv *env, jint cols, jint rows) {
     return false;
 }
 
-JNIEXPORT jlong JNICALL JNI_METHOD(nativeCreate)(JNIEnv *env, jobject self, jint cols, jint rows, jint history) {
+// SSH owns its PTY and must answer terminal queries. Mac mirrors never install
+// this callback. Collect bounded bytes while parsing; never call Java or reenter
+// Ghostty from a callback held under the native registry lock.
+#define REPLY_BYTES (256u * 1024u)
+static void write_pty(GhosttyTerminal terminal, void *userdata, const uint8_t *data, size_t length) {
+    (void)terminal;
+    Terminal *entry = userdata;
+    if (!entry || entry->reply_overflow || !length) return;
+    if (length > REPLY_BYTES - entry->reply_size) { entry->reply_overflow = true; return; }
+    size_t required = entry->reply_size + length;
+    if (required > entry->reply_capacity) {
+        size_t capacity = entry->reply_capacity ? entry->reply_capacity : 256;
+        while (capacity < required) capacity *= 2;
+        uint8_t *next = realloc(entry->replies, capacity);
+        if (!next) { entry->reply_overflow = true; return; }
+        entry->replies = next; entry->reply_capacity = capacity;
+    }
+    memcpy(entry->replies + entry->reply_size, data, length);
+    entry->reply_size += length;
+}
+
+JNIEXPORT jlong JNICALL JNI_METHOD(nativeCreate)(JNIEnv *env, jobject self, jint cols, jint rows, jint history, jboolean replies) {
     (void)self;
     if (!dimensions(env, cols, rows)) return 0;
     if (history < 0 || history > 64 * 1024 * 1024) {
@@ -150,7 +175,9 @@ JNIEXPORT jlong JNICALL JNI_METHOD(nativeCreate)(JNIEnv *env, jobject self, jint
         !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_FILE, &disabled)) ||
         !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_TEMP_FILE, &disabled)) ||
         !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_SHARED_MEM, &disabled))) goto done;
-    // No PTY, clipboard, title, filesystem or other effect callbacks are installed.
+    if (replies && (!ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_USERDATA, entry)) ||
+        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_WRITE_PTY, write_pty)))) goto done;
+    // Clipboard, title, filesystem and other effect callbacks remain absent.
     id = entry->id = next_id++;
     entry->next = terminals; terminals = entry; active_count++;
 done:
@@ -176,24 +203,36 @@ JNIEXPORT jint JNICALL JNI_METHOD(nativeActiveHandles)(JNIEnv *env, jobject self
     return count;
 }
 
-JNIEXPORT void JNICALL JNI_METHOD(nativeAppend)(JNIEnv *env, jobject self, jlong id, jbyteArray bytes) {
+JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeAppend)(JNIEnv *env, jobject self, jlong id, jbyteArray bytes) {
     (void)self;
-    if (!bytes) { fail(env, "java/lang/IllegalArgumentException", "Missing terminal bytes"); return; }
+    if (!bytes) { fail(env, "java/lang/IllegalArgumentException", "Missing terminal bytes"); return NULL; }
     jsize length = (*env)->GetArrayLength(env, bytes);
     if (length > 2 * 1024 * 1024) {
-        fail(env, "java/lang/IllegalArgumentException", "Terminal bytes exceed limit"); return;
+        fail(env, "java/lang/IllegalArgumentException", "Terminal bytes exceed limit"); return NULL;
     }
     pthread_mutex_lock(&lock);
     Terminal *entry = lookup(env, id);
-    if (entry && length) {
+    jbyteArray result = NULL;
+    if (entry && entry->reply_overflow) {
+        fail(env, "java/lang/IllegalStateException", "Terminal reply limit exceeded; close this terminal");
+    } else if (entry && length) {
+        entry->reply_size = 0;
         // Do not hold a critical JVM array while Ghostty allocates or parses.
         jbyte *data = (*env)->GetByteArrayElements(env, bytes, NULL);
         if (data) {
             ghostty_terminal_vt_write(entry->terminal, (const uint8_t *)data, length);
             (*env)->ReleaseByteArrayElements(env, bytes, data, JNI_ABORT);
+            if (entry->reply_overflow) {
+                fail(env, "java/lang/IllegalStateException", "Terminal reply limit exceeded; close this terminal");
+            } else if (entry->reply_size && !(*env)->ExceptionCheck(env)) {
+                result = (*env)->NewByteArray(env, entry->reply_size);
+                if (result) (*env)->SetByteArrayRegion(env, result, 0, entry->reply_size, (jbyte *)entry->replies);
+            }
+            entry->reply_size = 0;
         }
     }
     pthread_mutex_unlock(&lock);
+    return result;
 }
 
 JNIEXPORT void JNICALL JNI_METHOD(nativeResize)(JNIEnv *env, jobject self, jlong id,

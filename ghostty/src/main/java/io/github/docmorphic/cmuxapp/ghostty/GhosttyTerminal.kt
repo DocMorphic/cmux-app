@@ -1,7 +1,7 @@
 package io.github.docmorphic.cmuxapp.ghostty
 
 /** Owns native state. Callers must close it on replay replacement and disposal. */
-class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 * 1024) : AutoCloseable {
+class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 * 1024, replyToQueries: Boolean = false) : AutoCloseable {
     private var handle: Long
     private var imageCache: Map<Long, GhosttyGraphicsFrame.Image> = emptyMap()
 
@@ -10,14 +10,16 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
         // The pinned C header says lines, but Screen.init implements a byte
         // budget rounded to storage pages. Keep the binding's units explicit.
         require(scrollbackBytes in 0..64 * 1024 * 1024)
-        handle = nativeCreate(columns, rows, scrollbackBytes)
+        handle = nativeCreate(columns, rows, scrollbackBytes, replyToQueries)
         check(handle != 0L) { "Could not create Ghostty terminal" }
     }
 
-    @Synchronized fun append(bytes: ByteArray) {
+    /** Returned protocol replies must go only to this terminal's owning PTY.
+     * Default mirror mode returns no replies. No clipboard/effect callbacks run. */
+    @Synchronized fun append(bytes: ByteArray): ByteArray {
         check(handle != 0L) { "Ghostty terminal is closed" }
         require(bytes.size <= 2 * 1024 * 1024) { "Terminal byte chunk is too large" }
-        nativeAppend(handle, bytes)
+        return nativeAppend(handle, bytes) ?: EMPTY
     }
 
     @Synchronized fun resize(columns: Int, rows: Int, cellWidth: Int, cellHeight: Int) {
@@ -51,8 +53,8 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
     }
 
     internal fun activeHandlesForTest(): Int = nativeActiveHandles()
-    private external fun nativeCreate(columns: Int, rows: Int, scrollbackBytes: Int): Long
-    private external fun nativeAppend(handle: Long, bytes: ByteArray)
+    private external fun nativeCreate(columns: Int, rows: Int, scrollbackBytes: Int, replyToQueries: Boolean): Long
+    private external fun nativeAppend(handle: Long, bytes: ByteArray): ByteArray?
     private external fun nativeResize(handle: Long, columns: Int, rows: Int, cellWidth: Int, cellHeight: Int)
     private external fun nativeSnapshot(handle: Long, scrollOffset: Int): ByteArray
     private external fun nativeGraphicsSnapshot(handle: Long, scrollOffset: Int, cachedGenerations: LongArray): ByteArray
@@ -60,6 +62,7 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
     private external fun nativeActiveHandles(): Int
 
     companion object {
+        private val EMPTY = byteArrayOf()
         init { System.loadLibrary("cmux_ghostty") }
     }
 }

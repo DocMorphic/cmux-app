@@ -129,4 +129,27 @@ class GhosttyTerminalTest {
             assertEquals(0, terminal.snapshot().historyRows)
         }
     }
+    @Test fun sshRepliesAreExplicitOrderedAndTrackResizeWhileMirrorsStaySilent() {
+        GhosttyTerminal(20, 5).use { mirror ->
+            assertTrue(mirror.append("\u001b[6n\u001b[5n".toByteArray()).isEmpty())
+        }
+        GhosttyTerminal(20, 5, replyToQueries = true).use { terminal ->
+            assertTrue(terminal.append("\u001b[3;4H\u001b[".toByteArray()).isEmpty())
+            assertEquals("\u001b[3;4R\u001b[0n", terminal.append("6n\u001b[5n".toByteArray()).toString(Charsets.UTF_8))
+            assertTrue(terminal.append("ordinary".toByteArray()).isEmpty())
+            terminal.resize(42, 12, 10, 20)
+            assertEquals("\u001b[8;12;42t", terminal.append("\u001b[18t".toByteArray()).toString(Charsets.UTF_8))
+            // A terminal query must not install clipboard or filesystem effects.
+            assertTrue(terminal.append("\u001b]52;c;?\u0007".toByteArray()).isEmpty())
+        }
+    }
+
+    @Test fun sshReplyOverflowFailsClosedWithoutReturningAPartialResponse() {
+        GhosttyTerminal(20, 5, replyToQueries = true).use { terminal ->
+            val queries = "\u001b[6n".repeat(50000).toByteArray()
+            assertThrows(IllegalStateException::class.java) { terminal.append(queries) }
+            assertThrows(IllegalStateException::class.java) { terminal.append("x".toByteArray()) }
+        }
+    }
+
 }
