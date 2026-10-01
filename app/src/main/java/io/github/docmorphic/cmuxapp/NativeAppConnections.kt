@@ -30,6 +30,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) },
         savedTailscale = savedTailscale)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val ssh = NativeSshRuntime(context.applicationContext, store, scope)
     private val tailscale = TailscaleConnector(context, store, teams)
     val connector = object : NativeConnector {
         override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = tailscale.connect(pairing, account)
@@ -101,7 +102,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             activityOwners.clear()
             applicationActive.value = IrxProbeActivity(false, applicationActive.value.revision + 1)
         }
-        scope.cancel(); tailscale.close(); native.close(); teams.close()
+        ssh.close(); scope.cancel(); tailscale.close(); native.close(); teams.close()
     }
 
     class Handle internal constructor(val connections: NativeAppConnections) : AutoCloseable {

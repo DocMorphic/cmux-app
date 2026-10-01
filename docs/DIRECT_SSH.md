@@ -2,14 +2,82 @@
 
 ## Status and evidence boundary
 
-**SSH connections are not yet available through the Android UI.** Settings now
-exposes SSH key management; Computers/terminal integration is still open. Production host
-storage, private-key storage and the low-level transport are implemented as
-described in the checkpoints below. Existing native Mac pairing, terminal
+**SSH computers can now be saved and connected from the Android UI.** Computers
+and Settings expose the host list/editor, and Settings exposes SSH key management.
+Terminal/workspace provider integration remains open. Production host storage,
+private-key storage and the low-level transport are implemented as described in
+the checkpoints below. Existing native Mac pairing, terminal
 rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This audit
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
+Older checkpoints below retain their original evidence boundaries; the account-owned
+hosts checkpoint is the latest implementation status.
+
+## Account-owned SSH hosts and prompts (2026-10-01)
+
+`NativeAppConnections` now owns a `NativeSshRuntime`. Each login incarnation gets
+one coordinator; token refresh and team changes retain it, while sign-out,
+a different login or closing the shared application owner retire connections
+and pending prompts. Admission also checks the current credential incarnation
+synchronously, so delayed account observers cannot authorize an old connection.
+Loading runs on the owner's IO scope. Unreadable metadata/key storage produces a
+retryable error without resetting saved data or preventing native Mac use.
+
+The signed-in Computers and Settings screens open a host list and editor with
+address/port/username, optional name (defaults to address), key selection and a
+jump-host selector. Validation normalizes bracketed addresses and rejects invalid
+ports; the store rejects missing/cyclic jump routes. Adding or changing a route
+connects; label-only changes retain the connection. Confirmed deletion removes the
+host and retires dependent routes. Disconnect persists automatic-connection pause;
+an explicit Connect resumes it. Editor fields survive an excursion into key
+management. A concurrently edited/deleted host cannot be silently overwritten.
+
+Root-level identity prompts show the presented algorithm/SHA256 fingerprint and,
+for changed keys, the previous fingerprint and explicit replacement action.
+Cancellation retains the prior pin and pauses reconnection. Prompt callbacks use
+the coordinator's exact question ID. Platform biometric presentation carries the
+exact prepared Keystore Signature (API 28+ BiometricPrompt, API 26–27 fingerprint
+prompt), queues requests, and ignores callbacks from disposed presentations.
+Prompts are presented only while the Activity is started. This source integration
+is **not yet a physical biometric/enrollment/rotation acceptance result**.
+
+**Verification:** four account-lifetime JVM checks, two atomic-editor checks and
+all nine existing coordinator checks passed. Debug/test APKs built. Three API 37 / 16 KiB host-screen checks
+passed against the independent AsyncSSH loopback fixture: editor validation/name
+fallback and unknown-key connection; changed-key cancellation/pin preservation
+then explicit replacement; key-screen draft preservation/rename retaining the
+same transport/confirmed deletion closing it. The runner refuses physical devices
+and uses isolated host/key storage. Its `--ui` mode records APK hashes, page size,
+instrumentation output and process diagnostics. The initial screenshot capture
+caught platform animations before they settled, so the capture helper was corrected
+and the suite rerun. Review then identified a compare/write race: host editor saves
+now perform that operation under the store lock and synchronize against vault key
+deletion. The editor also restores its comparison base alongside its draft, so an
+old restored form cannot silently overwrite a newer route. An additional Android
+restoration check was added; see the final receipt below. This is component-screen runtime
+coverage, not a full-app account/navigation/process-restoration acceptance run.
+
+Final source verification: **15 JVM checks and 4 Android UI checks passed**.
+The final Android run took **41.268 seconds** on API 37 with 16,384-byte pages.
+All four completed without skips. Final APK SHA256 values:
+
+- Debug app: `b9fb5dc09a3e6a54cec79b962ce68924958985712b7778b6aad7646c8cc798c0`.
+- Instrumentation: `b01561ae9c166664cd897d00358fd8ef0b7009deaf30b9be04fbcf6330bca210`.
+
+Ignored evidence: `captures/runtime/ssh-transport/hosts-ui-edit-guard/` contains the
+final receipt, instrumentation output, diagnostics and four screenshots. Captures
+were visually inspected across the capture/final runs. The component fixture's
+white system status bar is not evidence of the production Activity's system-bar
+appearance. The single retained emulator and loopback server were stopped afterward.
+
+Remaining: mixed shell/tmux/cmux-tui workspace providers and terminal routing,
+idle-session enforcement/editor control, one-time password key installation,
+SFTP/browser integration, full app/process restoration, account UI retirement,
+API 26 prompt runtime and physical biometric/SSH acceptance. The editor does not
+advertise an idle timeout before provider/session enforcement exists. Phone-local
+host/key records intentionally remain across sign-out, matching the upstream model;
+network owners do not. Existing signed build 284 and the Pixel install are unchanged.
 
 **Engine experiment (2026-09-30):** the opt-in [ssh-spike module](../ssh-spike/README.md)
 now passes five checks on API 26 / 4 KiB pages (5.027 seconds) and the same five

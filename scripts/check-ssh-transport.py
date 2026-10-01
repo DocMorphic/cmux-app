@@ -13,7 +13,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--serial", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--ui", action="store_true", help="Run the four production SSH host-screen checks")
     args = parser.parse_args()
+    count = 4 if args.ui else 13
+    test_class = "SshComputersScreenTest" if args.ui else "SshTransportTest"
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")
     root = Path(__file__).resolve().parents[1]
@@ -45,7 +48,7 @@ def main():
     run(["logcat", "-c"])
     run(["reverse", port, port])
     try:
-        command = ["shell", "am", "instrument", "-w", "-r", "-e", "class", "io.github.docmorphic.cmuxapp.SshTransportTest"]
+        command = ["shell", "am", "instrument", "-w", "-r", "-e", "class", "io.github.docmorphic.cmuxapp." + test_class]
         # Only public fixture coordinates enter instrumentation arguments; the
         # server's generated private import examples remain in its build folder.
         public = {"port": fixture["port"], "user": fixture["username"],
@@ -57,11 +60,11 @@ def main():
         command += ["io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner"]
         result = run(command, timeout=180)
         (args.output / "instrumentation.txt").write_text(result + "\n")
-        if not re.search(r"^OK \(13 tests\)$", result, re.M) or "FAILURES!!!" in result or "numtests=13" not in result:
+        if not re.search(rf"^OK \({count} tests\)$", result, re.M) or "FAILURES!!!" in result or f"numtests={count}" not in result:
             raise RuntimeError("Production SSH checks failed; inspect instrumentation.txt")
-        if len(re.findall(r"^INSTRUMENTATION_STATUS_CODE: 0$", result, re.M)) != 13:
+        if len(re.findall(r"^INSTRUMENTATION_STATUS_CODE: 0$", result, re.M)) != count:
             raise RuntimeError("A fixture check was skipped or did not finish successfully")
-        print(f"Production SSH transport: 13 tests passed on API {receipt['api']}")
+        print(f"Production SSH {test_class}: {count} tests passed on API {receipt['api']}")
     finally:
         # Preserve the test process's diagnostics even if instrumentation crashes
         # before reporting a JUnit result. This runner only admits emulators.

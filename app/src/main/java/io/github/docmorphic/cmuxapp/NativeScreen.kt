@@ -147,6 +147,7 @@ fun NativeScreen(
     val paneSelection = feedSession.paneNavigation.select(if (signedIn) store.taskSession() else null,
         pairedMacs.singleOrNull { it.code == code }, teamState.scope)
     var showSettings by rememberSaveable(signedIn) { mutableStateOf(false) }
+    var showSshComputers by rememberSaveable(signedIn) { mutableStateOf(false) }
     var showSshKeys by rememberSaveable(signedIn) { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
     var showTaskComposer by rememberSaveable(signedIn) { mutableStateOf(false) }
@@ -1537,6 +1538,8 @@ fun NativeScreen(
         dismissButton = { TextButton(onClick = { showCreateGroup = false }) { Text("Cancel") } }
     )
 
+    if (signedIn) sharedConnections?.ssh?.let { NativeSshPromptHost(it) }
+
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding()) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
         if (signedIn && terminalStartupState.failure?.key?.let { it == displayedTab?.first } == true) {
@@ -1547,6 +1550,7 @@ fun NativeScreen(
         when {
             !signedIn -> NativeSignIn(account::sendCode, account::signIn, onUseHelper,
                 onLicenses = { showLicenses = true }, onSignedIn = { signedIn = true; error = null })
+            showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
             showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
             showSettings -> {
                 NativeSettingsLayout(onBack = { showSettings = false }, account = {
@@ -1576,6 +1580,7 @@ fun NativeScreen(
                 })
                 }, computers = {
                 Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
+                if (sharedConnections != null) TextButton(onClick = { showSshComputers = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.computers")) { Text("SSH Computers") }
                 NativeSavedComputerRows(pairedMacs, appearances, machineColorIndices, sharedConnections?.native,
                     computerState, computerConnections, forgetCallbacks, { computerDetails = it }) { mac -> code = mac.code; showSettings = false }
                 TextButton(onClick = {
@@ -1754,6 +1759,7 @@ fun NativeScreen(
                     onRoute = { workspaceRoute = it })
             }
             code.isBlank() -> NativeComputerPicker(teamState, computerState, runtime = sharedConnections?.native,
+                onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
                 colorIndices = machineColorIndices, connections = computerConnections, forgetCallbacks = forgetCallbacks,
                 presentDetails = { computerDetails = it },
                 hasSavedComputers = pairedMacs.isNotEmpty(),
@@ -2478,6 +2484,7 @@ private fun NativeComputerPicker(
     connections: Map<NativeMacIdentity, NativeComputerConnection> = emptyMap(),
     forgetCallbacks: NativeComputerForgetCallbacks = NativeComputerForgetCallbacks(),
     presentDetails: ((NativeComputerDetailsPresentation) -> Unit)? = null,
+    onSsh: (() -> Unit)? = null,
     hasSavedComputers: Boolean, onSelect: (IrohV2Computer) -> Unit, onSettings: () -> Unit,
     onRefresh: () -> Unit, onPairing: (String) -> Unit, onNewTask: () -> Unit,
     onUseHelper: () -> Unit, onLicenses: () -> Unit, onError: (String?) -> Unit
@@ -2549,6 +2556,7 @@ private fun NativeComputerPicker(
         TextButton(onClick = onNewTask, modifier = Modifier.fillMaxWidth()) { Text("New task") }
         TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
         TextButton(onClick = onLicenses) { Text("Open-source licenses") }
+        onSsh?.let { TextButton(onClick = it, modifier = Modifier.testTag("computers.ssh")) { Text("SSH Computers") } }
         if (hasSavedComputers) TextButton(onClick = onSettings) { Text("Saved computers") }
     }
 }

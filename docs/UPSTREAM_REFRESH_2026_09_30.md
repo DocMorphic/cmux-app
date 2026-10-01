@@ -194,3 +194,16 @@ retry/deduplication behavior have not been established by that check.
 After the protocol audit, continue these detail-state fixes, interrupted creation,
 physical acceptance, accessibility/performance and background delivery. Server
 push/FCM and the remaining limitations remain tracked in `PARITY.md`.
+
+### SSH account and host UI checkpoint — 2026-10-01
+
+The Android shared owner now creates one SSH coordinator per login incarnation.
+Saved-host UI is reachable from Computers and Settings, and root identity/biometric
+prompts are wired to the production transport. Four account-lifetime JVM checks, two atomic-editor JVM checks and
+nine coordinator checks passed. All four real-server API 37 / 16 KiB host UI
+checks passed, including stale editor restoration/atomic-save protection. See the
+final receipt in DIRECT_SSH.
+This advances host management/connection UI, not mixed SSH workspace/terminal,
+SFTP/browser, idle-session enforcement, full-app/process restoration or physical
+biometric acceptance. The implemented upstream reference remains unchanged.
+See [DIRECT_SSH.md](DIRECT_SSH.md) for evidence and next work.

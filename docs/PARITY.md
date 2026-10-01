@@ -12,6 +12,19 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH host UI and account ownership (2026-10-01):** Computers/Settings now open
+saved SSH hosts, add/edit/delete, connect/disconnect and key/jump-host selection.
+Root prompts show unknown/changed host fingerprints and explicit trust decisions.
+The shared runtime is scoped to a login incarnation and retires connections/prompts
+on account change. Platform biometric presentation is wired to the exact prepared
+Signature; hardware, enrollment, rotation and API 26 runtime acceptance remain
+unverified. **Fifteen JVM and four Android 17 / 16 KiB fixture UI checks passed.**
+The final Android check verifies that restoring a stale host draft cannot overwrite
+a newer route; saves compare and write atomically and exclude concurrent key deletion.
+Full-app account/navigation restoration, idle policy, mixed terminal/workspace
+providers, SSH Files/browser and physical acceptance remain open. No new signed
+release or Pixel installation. See [DIRECT_SSH.md](DIRECT_SSH.md).
+
 **SSH Keys UI (2026-10-01):** signed-in Settings now opens generated/imported key
 management with optional biometric policy, public-key copy/share, rename and
 confirmed deletion. Private-key/passphrase inputs are excluded from saved screen

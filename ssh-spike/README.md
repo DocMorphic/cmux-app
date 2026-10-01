@@ -111,3 +111,10 @@ Primary references: [JSch][jsch], [Android Keystore][keystore],
 [jsch]: https://github.com/mwiede/jsch/tree/jsch-2.28.0
 [keystore]: https://developer.android.com/privacy-and-security/keystore
 [asyncssh]: https://asyncssh.readthedocs.io/en/latest/
+
+The same production runner accepts `--ui` for four host-screen checks: creating
+and connecting a host through a visible fingerprint prompt; changed-key refusal
+and replacement; retaining an editor through key management and a connection
+through rename; and rejecting an obsolete restored editor after a route change.
+It uses isolated temporary host/key stores and does not sign out an existing app
+account. Keep using the single retained `cmux_api37_16k` emulator.

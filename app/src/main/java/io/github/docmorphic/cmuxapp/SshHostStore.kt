@@ -16,6 +16,8 @@ internal data class SshHostState(
     fun host(id: UUID) = hosts.firstOrNull { it.id == id }
 }
 
+internal class SshHostEditConflict : IllegalStateException("This computer changed while you were editing it. Cancel and reopen the editor to load its current settings.")
+
 /** One phone-local metadata store. All mutations publish only after durable write.
  * Corrupt/unreadable data throws: it must not silently discard existing trust. */
 internal class SshHostStore(private val read: () -> String?, private val write: (String) -> Unit) {
@@ -35,6 +37,14 @@ internal class SshHostStore(private val read: () -> String?, private val write: 
             .sortedWith(compareBy<SshHostRecord> { it.createdAtMillis }.thenBy { it.id.toString() }))
         val changed = old == null || !old.connectsLike(host) || old.autoConnectPaused != host.autoConnectPaused
         commit(next, changedHosts = if (changed) listOf(host.id) else emptyList())
+    }
+
+    /** Compare and write under one lock; a stale editor cannot recreate a deleted
+     * row or undo a concurrent route, pause, or key-reference change. */
+    @Synchronized fun saveEdit(expected: SshHostRecord?, replacement: SshHostRecord) {
+        if ((expected != null && expected.id != replacement.id) || mutable.value.host(replacement.id) != expected)
+            throw SshHostEditConflict()
+        upsert(replacement)
     }
 
     @Synchronized fun delete(id: UUID) {
