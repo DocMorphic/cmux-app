@@ -2,21 +2,30 @@
 
 ## Upstream behavior reviewed
 
-Reviewed upstream `15aa32cfc4bcaedee2f99f0c03b68f9814eaba79` on 2026-10-01:
+Rechecked the five iOS test/release policy files at upstream
+`f204ade4df352cd4c214f8a21f792cfc50e7dba8` on 2026-10-02. This is a
+release-policy audit only; it does not advance the app parity references:
 
 | iOS behavior | Android counterpart |
 | --- | --- |
 | Relevant PRs and merge-group commits run simulator checks | Ready Android PRs run the existing build/test gate; draft feature commits do not assemble APKs |
 | INTERNAL TestFlight polls main every 20 minutes | Android preview lane polls main every 20 minutes |
-| Five relevant commits or oldest relevant commit at least 180 minutes old trigger a batch | Same count/age policy in `scripts/android-preview-decision.py` |
+| Five relevant main first-parent commits or oldest merge at least 180 minutes old trigger a batch | Same count/age policy in `scripts/android-preview-decision.py`; one merged PR counts once |
 | Unchanged or unrelated commits skip upload; unchanged failed candidates wait | Skip unchanged/doc-only batches and unchanged failed scheduled builds; manual retry remains available |
 | Manual TestFlight dispatch can force a build; uploads are serialized | `publish_preview=true` on main forces a verified signed GitHub prerelease; preview runs are serialized |
 | Production App Store upload/submission is separately dispatched | `Promote Android release` manually promotes an existing verified APK without rebuilding it |
 
-Primary sources: [iOS simulator tests](https://github.com/manaflow-ai/cmux/blob/15aa32cfc4bcaedee2f99f0c03b68f9814eaba79/.github/workflows/test-ios.yml),
-[INTERNAL/DEMO TestFlight](https://github.com/manaflow-ai/cmux/blob/15aa32cfc4bcaedee2f99f0c03b68f9814eaba79/.github/workflows/ios-testflight.yml),
-[batch decision](https://github.com/manaflow-ai/cmux/blob/15aa32cfc4bcaedee2f99f0c03b68f9814eaba79/scripts/ci/ios_upload_batch_decision.py),
-[production App Store workflow](https://github.com/manaflow-ai/cmux/blob/15aa32cfc4bcaedee2f99f0c03b68f9814eaba79/.github/workflows/ios-app-store.yml).
+Primary sources: [iOS simulator tests](https://github.com/manaflow-ai/cmux/blob/f204ade4df352cd4c214f8a21f792cfc50e7dba8/.github/workflows/test-ios.yml),
+[INTERNAL/DEMO TestFlight](https://github.com/manaflow-ai/cmux/blob/f204ade4df352cd4c214f8a21f792cfc50e7dba8/.github/workflows/ios-testflight.yml),
+[batch decision](https://github.com/manaflow-ai/cmux/blob/f204ade4df352cd4c214f8a21f792cfc50e7dba8/scripts/ci/ios_upload_batch_decision.py),
+[production App Store workflow](https://github.com/manaflow-ai/cmux/blob/f204ade4df352cd4c214f8a21f792cfc50e7dba8/.github/workflows/ios-app-store.yml).
+The [official-bundle TestFlight lane](https://github.com/manaflow-ai/cmux/blob/f204ade4df352cd4c214f8a21f792cfc50e7dba8/.github/workflows/ios-appstore-upload.yml)
+also polls hourly, batching ten commits or six hours; App Review remains manual.
+Android currently follows the faster INTERNAL policy for its single preview lane.
+The October 2 change in that official-bundle workflow adds Go setup for the Cloud
+tunnel extension; its batching policy is unchanged. The other four reviewed files
+are identical to the October 1 audit.
+
 The separate twice-daily iOS DEMO branding/distribution is not needed for this
 single Android app. GitHub APK releases are the configured Android delivery
 channel; no Play Console application, credentials or Play internal track has been
@@ -60,8 +69,11 @@ Ready PRs retain automatic build/test behavior; draft commits accumulate without
 an APK build. The new lightweight policy tests run without starting an emulator.
 Once changes are merged to main, the scheduled preview decision counts relevant
 commits since the **last published preview source**, not the last green poll.
-Five commits or three hours from the oldest relevant commit triggers the existing
-signed build. Missing/changed history builds conservatively; unavailable release
+Five relevant main commits or three hours from the oldest relevant merge triggers
+the existing signed build. A merged feature branch counts once, using the merge
+committer time. Direct main commits count individually. Documentation-only changes
+do not count. A preview source outside main’s first-parent history forces a fresh
+build rather than using side-branch counts or ages. Missing/changed history builds conservatively; unavailable release
 history fails without guessing. An unchanged failed candidate does not rebuild
 every twenty minutes. Manual `publish_preview=true` retries it deliberately.
 
@@ -120,13 +132,17 @@ python3 -m unittest discover -s scripts/tests -p 'test_update_policy.py'
 
 ## Verification at this checkpoint
 
-Nine policy tests pass, including batching boundaries, unchanged failures,
+Ten policy tests pass, including a real Git history with a six-commit feature
+branch counted as one newly landed merge, an unrelated documentation commit, a
+rename out of the app directory and a side-branch baseline. They also cover
+batching boundaries, unchanged failures,
 renames, capped/diverged comparisons, idempotent issue updates and keeping the
 implemented reference unchanged. Actionlint 1.7.12 accepts all three workflows.
-A live read-only comparison found **696 commits** after audited candidate
-`204a11d` at detected head `15aa32c`; the API returned a capped file list and a
+The October 2 live read-only comparison found **738 commits** after audited candidate
+`204a11d` at detected head `f204ade`; the API returned a capped file list and a
 partial commit list. The report correctly requires a full review and does not
-advance either reference. Evidence is in ignored `captures/runtime/upstream-ci/`.
+advance either reference. Evidence is in ignored `captures/runtime/upstream-ci/recheck-2026-10-02/`.
+No emulator or APK build was needed for this release-policy check.
 No issue, preview release, production release, main merge or phone update was
 performed by this verification. CI publication/promotion still needs its first
 main-branch run after activation.

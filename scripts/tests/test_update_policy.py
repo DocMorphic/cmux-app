@@ -1,6 +1,9 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import os
+import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 def load(name):
@@ -13,6 +16,41 @@ watch = load("upstream-watch")
 preview = load("android-preview-decision")
 
 class UpdatePolicyTest(unittest.TestCase):
+    def test_merged_branch_counts_once_at_merge_time_and_ignores_docs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def git(*args, timestamp=1700000000):
+                env = dict(os.environ, GIT_AUTHOR_DATE=f"{timestamp} +0000",
+                           GIT_COMMITTER_DATE=f"{timestamp} +0000")
+                return subprocess.run(["git", *args], cwd=root, env=env,
+                                      text=True, capture_output=True, check=True).stdout.strip()
+            git("init", "-b", "main")
+            git("config", "user.name", "Fixture")
+            git("config", "user.email", "fixture@example.invalid")
+            git("config", "commit.gpgsign", "false")
+            (root / "app").mkdir()
+            (root / "app/code.txt").write_text("base")
+            git("add", "."); git("commit", "-m", "base")
+            base = git("rev-parse", "HEAD")
+            git("checkout", "-b", "feature")
+            for i in range(6):
+                (root / "app/code.txt").write_text(str(i))
+                git("add", "."); git("commit", "-m", f"feature {i}")
+            side = git("rev-parse", "HEAD")
+            git("checkout", "main")
+            git("merge", "--no-ff", "feature", "-m", "merge", timestamp=1700020000)
+            (root / "README.md").write_text("docs only")
+            git("add", "."); git("commit", "-m", "docs", timestamp=1700020100)
+            head = git("rev-parse", "HEAD")
+            times = preview.relevant_commit_times(base, head, cwd=root)
+            self.assertEqual([1700020000], times)
+            self.assertFalse(preview.decide(count=len(times), oldest=min(times), now=1700020100)[0])
+            with self.assertRaises(ValueError):
+                preview.relevant_commit_times(side, head, cwd=root)
+            git("mv", "app/code.txt", "archived.txt")
+            git("commit", "-am", "move out of app", timestamp=1700020200)
+            self.assertEqual([1700020200], preview.relevant_commit_times(head, git("rev-parse", "HEAD"), cwd=root))
+
     def test_batch_by_count_or_oldest_age(self):
         self.assertFalse(preview.decide(count=4, oldest=0, now=10799)[0])
         self.assertTrue(preview.decide(count=5, oldest=0, now=1)[0])

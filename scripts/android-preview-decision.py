@@ -39,6 +39,27 @@ def api(path):
     return json.loads(command("gh", "api", path))
 
 
+def relevant_commit_times(base, head, cwd=None):
+    """Count main's landed changes, with merge time rather than branch age."""
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=cwd, text=True,
+                              capture_output=True, check=True).stdout.strip()
+
+    # --boundary can include a merge's second parent even with --first-parent.
+    # Check actual main ancestry instead of accepting that side-branch boundary.
+    if base not in git("rev-list", "--first-parent", head).splitlines():
+        raise ValueError("Last preview is not on main's first-parent history")
+    rows = git("log", "--first-parent", "--format=%H:%ct", f"{base}..{head}").splitlines()
+    times = []
+    for row in rows:
+        sha, committed = row.split(":")
+        # Explicit first-parent diff also covers merge conflict resolutions and
+        # renames out of app paths. Never count the merged branch's commits again.
+        if git("diff", "--name-only", "--no-renames", sha + "^1", sha, "--", *PATHS):
+            times.append(int(committed))
+    return times
+
+
 def last_preview(repository):
     for page in range(1, 11):
         releases = api(f"repos/{repository}/releases?per_page=100&page={page}")
@@ -78,14 +99,17 @@ def main():
             if exists:
                 failed_unchanged = not command("git", "diff", "--name-only", fail_sha, head, "--", *PATHS)
     changed = False
-    rows = []
+    times = []
     if base and base != head:
         changed = subprocess.run(["git", "merge-base", "--is-ancestor", base, head], capture_output=True).returncode != 0
         if not changed:
-            rows = command("git", "log", "--format=%H:%ct", f"{base}..{head}", "--", *PATHS).splitlines()
+            try:
+                times = relevant_commit_times(base, head)
+            except ValueError:
+                changed = True
     build, reason = decide(force=args.force, same_head=base == head, first=base is None,
                            history_changed=changed, failed_unchanged=failed_unchanged,
-                           count=len(rows), oldest=min((int(row.rsplit(":", 1)[1]) for row in rows), default=None))
+                           count=len(times), oldest=min(times, default=None))
     print(reason)
     if args.output:
         with open(args.output, "a") as output:
