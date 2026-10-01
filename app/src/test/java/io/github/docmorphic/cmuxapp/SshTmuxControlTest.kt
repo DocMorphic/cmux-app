@@ -57,6 +57,9 @@ class SshTmuxControlTest {
         pipe.feed("%layout-change @2 abcd,80x24,0,0{39x24,0,0,7,40x24,40,0,8} abcd,80x24,0,0,7 *\n%window-renamed @2 label\n")
         runCurrent(); assertEquals(1, changes) // one relist per delivered event burst
         pipe.feed("%window-close @2\n%window-close @2\n"); runCurrent()
+        pipe.reply(7, "@2 %7 80x24"); runCurrent()
+        assertEquals(0, events.count { it == TmuxPaneEvent.Ended }) // another group's unlink
+        pipe.feed("%window-close @2\n"); runCurrent(); pipe.reply(8); runCurrent()
         assertEquals(1, events.count { it == TmuxPaneEvent.Ended }); assertEquals(0, client.attachedPaneCount)
         client.close()
     }

@@ -31,6 +31,12 @@ def approved(args):
     if args == ["-V"]:
         return True
     if args[0] == "if-shell":
+        if (len(args) == 7 and args[1:3] == ["-F", "-t"]
+                and re.fullmatch(r"=cmux-[0-9a-f]{8}-cmux-android-[0-9a-f]{32}:", args[3])
+                and args[4] == "#{==:#{session_attached},0}"
+                and shlex.split(args[5]) == ["kill-session", "-t", args[3][:-1]]
+                and args[6] == "display-message -p CMUX_GROUP_IN_USE"):
+            return True
         return (len(args) == 7 and args[1:3] == ["-F", "-t"] and re.fullmatch(r"\$\d+(?::@\d+\.%\d+)?", args[3])
                 and re.fullmatch(r"#\{&&:#\{==:#\{pid},\d+},#\{==:#\{session_created},\d+}}", args[4])
                 and approved(shlex.split(args[5])) and args[6] == "display-message -p CMUX_STALE_TARGET")

@@ -155,6 +155,21 @@ internal class SshShells(private val hosts: SshHostStore, private val connection
             connections.open(hostId)
         }.also { mutable.value += it }
     }
+    /** An ended PTY cannot resume. Keep its screen until connecting succeeds,
+     * then replace its registry slot with a new shell, without replaying input. */
+    suspend fun reconnect(id: String): SshShell = withContext(Dispatchers.Main.immediate) {
+        check(job.isActive && admitted()) { "Sign in to reconnect an SSH shell" }
+        val previous = checkNotNull(mutable.value.firstOrNull { it.id == id }) { "SSH shell was removed" }
+        check(previous.state.value.phase == SshShellPhase.ENDED) { "This SSH shell is still running" }
+        connections.open(previous.hostId)
+        check(job.isActive && admitted() && mutable.value.any { it === previous }) { "SSH shell changed while reconnecting" }
+        val next = SshShell(previous.hostId, "Shell ${++counter}", scope, { job.isActive && admitted() }) {
+            connections.open(previous.hostId)
+        }
+        mutable.value = mutable.value.map { if (it === previous) next else it }
+        previous.close()
+        next
+    }
     fun remove(id: String) {
         val removed = mutable.value.firstOrNull { it.id == id } ?: return
         mutable.value -= removed; removed.close()

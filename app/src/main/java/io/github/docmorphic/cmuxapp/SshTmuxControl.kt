@@ -44,6 +44,8 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
     private val layouts = mutableMapOf<Int, List<TmuxLeaf>>()
     private var size: Pair<Int, Int>? = null
     private var topology: Job? = null
+    private var layoutRefresh: Job? = null
+    private var layoutRefreshAgain = false
     private var receivedExit = false
     var onTopologyChange: (() -> Unit)? = null
     var onClose: (() -> Unit)? = null
@@ -89,6 +91,7 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
     }
     suspend fun initialize() {
         val rows = command("list-panes -s -F '#{window_id} #{pane_id} #{pane_width}x#{pane_height}'")
+        val next = mutableMapOf<Int, List<TmuxLeaf>>()
         for (row in rows) {
             val fields = row.toString(Charsets.UTF_8).split(' ')
             check(fields.size == 3) { "Invalid tmux pane geometry" }
@@ -96,7 +99,15 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
             val pane = checkNotNull(SshTmuxParser.id(fields[1], '%'))
             val dimensions = fields[2].split('x').map { it.toInt() }
             check(dimensions.size == 2 && dimensions.all { it in 1..65535 })
-            layouts[window] = layouts[window].orEmpty() + TmuxLeaf(pane, dimensions[0], dimensions[1], 0, 0)
+            next[window] = next[window].orEmpty() + TmuxLeaf(pane, dimensions[0], dimensions[1], 0, 0)
+        }
+        layouts.clear(); layouts.putAll(next); updateGrids()
+    }
+    private fun refreshLayouts() {
+        if (layoutRefresh?.isActive == true) { layoutRefreshAgain = true; return }
+        layoutRefresh = scope.launch {
+            try { do { layoutRefreshAgain = false; initialize() } while (layoutRefreshAgain && !isClosed) }
+            catch (_: Exception) { finish() }
         }
     }
     fun attach(pane: Int, window: Int, events: (TmuxPaneEvent) -> Unit) {
@@ -180,8 +191,12 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
                 when (message.kind) {
                     "%exit" -> { receivedExit = true; finish() }
                     "%window-add", "%window-renamed", "%sessions-changed", "%session-renamed" -> changed()
-                    "%window-close" -> { SshTmuxParser.id(fields.firstOrNull().orEmpty(), '@')?.let(layouts::remove); updateGrids(); changed() }
+                    // tmux also broadcasts this when another grouped session
+                    // unlinks a window that our session still owns. Confirm
+                    // membership before retiring its panes.
+                    "%window-close" -> { refreshLayouts(); changed() }
                     "%layout-change" -> {
+                        if (layoutRefresh?.isActive == true) layoutRefreshAgain = true
                         val window = checkNotNull(SshTmuxParser.id(fields.firstOrNull().orEmpty(), '@'))
                         val leaves = SshTmuxLayout.parse(fields[1]).toMutableList()
                         fields.getOrNull(2)?.takeIf { it.isNotEmpty() }?.let { visible ->

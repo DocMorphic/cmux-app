@@ -263,4 +263,17 @@ chunked input cannot migrate into a replacement attachment. Twenty-five focused
 JVM checks and four real SSH/tmux Android checks passed (58.451 seconds, API 37 /
 16 KiB). This is saved-state/fresh-runtime simulation, not full OS process-death
 or physical acceptance. [DIRECT_SSH.md](DIRECT_SSH.md) records exact hashes and
-remaining work, including the upstream atomic abandoned-group collection guard.
+remaining work. A later source reread corrected the collection attribution:
+upstream lists then deletes unattached groups; an atomic attachment recheck is
+an Android improvement, not a guard already present in that upstream source.
+
+### Shell retry and grouped-session cleanup — 2026-10-01
+
+The ended-shell terminal now exposes explicit retry with in-place connection
+errors and replacement by a fresh PTY after successful connection. Android group
+collection rechecks attachment at execution, exceeding the reviewed upstream's
+list-then-delete behavior. A real tmux trace exposed `%window-close` broadcasts
+when another group is deleted; authoritative relisting now prevents false pane
+retirement. Twenty-six focused JVM checks, three shell Android checks (51.471s)
+and four real SSH/tmux Android checks (50.850s) passed on identical API 37 / 16 KiB
+APKs. [DIRECT_SSH.md](DIRECT_SSH.md) contains hashes, diagnostics and scope limits.

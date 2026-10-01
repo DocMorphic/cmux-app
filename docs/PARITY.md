@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Shell retry and tmux cleanup (2026-10-01):** ended plain shells reconnect from
+their terminal screen; failed connection keeps the old screen, while success
+opens a fresh PTY without replaying input. Abandoned-group cleanup checks current
+attachment inside tmux. Control clients confirm window membership when another
+group's deletion broadcasts a close notification. Twenty-six focused JVM checks,
+three shell and four real SSH/tmux Android checks passed on the same APKs (API 37 /
+16 KiB). [Exact results and remaining work](DIRECT_SSH.md). Signed 284 and the
+physical Pixel installation remain unchanged.
+
 **tmux saved selection and target binding (2026-10-01):** saved Android state now
 reattaches the exact pane through a fresh SSH runtime and preserves Disconnect.
 Capture/input commands bind session/window/pane at server execution, and pending

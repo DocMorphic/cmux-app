@@ -48,7 +48,7 @@ class SshTmuxProcessTest {
             withTimeout(3000) {
                 while (exec("display-message", "-p", "-t", "%$pane", "#{bracket_paste_flag}") != "1") delay(10)
             }
-            val group = "original${SshTmuxEncoding.GROUP_MARKER}fixture"
+            val group = "cmux-12345678${SshTmuxEncoding.GROUP_MARKER}${UUID.randomUUID().toString().replace("-", "")}"
             val running = process(listOf("-C", "new-session", "-t", "=original", "-s", group, ";", "set-option", "-t", "=$group:", "destroy-unattached", "off"))
             val beforeWrite = AtomicReference<((String) -> Unit)?>(null)
             val pipe = object : SshTmuxPipe {
@@ -65,6 +65,14 @@ class SshTmuxProcessTest {
             val control = SshTmuxControl(group, pipe, owner, commandTimeoutMillis = 5000); client = control
             withTimeout(15000) {
                 control.initialize()
+                // A stale listing must not kill a group which has attached
+                // before cleanup reaches tmux. An unattached group is removed.
+                assertEquals("CMUX_GROUP_IN_USE", exec(*SshTmuxInventory.collectGroupArguments(group).toTypedArray()))
+                assertEquals("alive", control.command("display-message -p alive").single().toString(Charsets.UTF_8))
+                val abandoned = "cmux-87654321${SshTmuxEncoding.GROUP_MARKER}${UUID.randomUUID().toString().replace("-", "")}"
+                exec("new-session", "-d", "-t", "=original", "-s", abandoned)
+                exec(*SshTmuxInventory.collectGroupArguments(abandoned).toTypedArray())
+                assertFalse(exec("list-sessions", "-F", "#{session_name}").lines().contains(abandoned))
                 val events = mutableListOf<TmuxPaneEvent>()
                 val seeded = CompletableDeferred<Unit>()
                 val window = SshTmuxParser.id(original, '@')!!

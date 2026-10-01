@@ -13,8 +13,57 @@ rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This au
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
-Older checkpoints below retain their original evidence boundaries; the tmux
-saved-selection and target-binding checkpoint is the latest implementation status.
+Older checkpoints below retain their original evidence boundaries; the shell
+reconnect and grouped-session cleanup checkpoint is the latest implementation status.
+
+## Plain-shell reconnect and grouped-session cleanup (2026-10-01)
+
+An ended plain shell now offers Reconnect on its terminal screen. A failed dial
+leaves the old renderer and registry slot intact and shows the error on that
+screen. After connecting, the registry replaces that slot with a fresh shell;
+an ended PTY is not resumable. Old input is not replayed. The action rechecks
+account ownership and that the original shell was not removed during connection.
+It shares the coordinator's explicit retry/trust behavior.
+
+Collection of abandoned Android tmux groups now evaluates `session_attached`
+inside tmux immediately before `kill-session`. Only exact generated Android group
+names are admitted, and an attached group remains alive. The `if-shell` target
+has a trailing colon to select the session context; an initial test caught that
+omitting it gives an empty attachment-count format. This recheck is an Android
+improvement: the reviewed iOS source lists unattached groups then removes them by
+name. Prior notes claiming iOS already had the recheck have been corrected.
+
+The real-process test also exposed a control-stream lifecycle issue: deleting
+another grouped session can broadcast `%window-close` for windows our group still
+owns. The client now coalesces an authoritative pane listing before retiring those
+panes, rather than trusting the notification alone. Layout changes during that
+listing request a follow-up. Tests cover both a surviving linked window and an
+actual removal. The original failure and its private-fixture wire trace are kept
+in ignored evidence; temporary wire logging was removed from the test source.
+
+**Verification:** 26 focused JVM checks passed without skips (17 tmux, including
+the real tmux 3.7c process, and nine connection-coordinator checks). Debug and test
+APKs built. On the single API 37 / 16,384-byte-page emulator, **three shell Android
+checks passed in 51.471 seconds** and **four real SSH/tmux checks passed in 50.850
+seconds**, using identical APKs. Shell retry was exercised with a missing key:
+the failed attempt kept the old screen, restoring the key enabled a fresh PTY,
+the old marker was absent, remote active-shell count was one, and the old object
+rejected input. The fresh-shell capture was inspected. tmux coverage retained
+creation/split/end, account retirement, drop/manual recovery and saved-state
+restoration against a fresh runtime.
+
+- App SHA256: `66cf483105826dacbf06d7fce4fff61f613225d9643c4cf93808d3f4657aed37`.
+- Test SHA256: `eb95b4461a79486b9213dea407d1dfc8ac1eb1f5c065deb0a3b5d4fbe6198511`.
+- Ignored evidence under `captures/runtime/tmux-workspaces/`:
+  `cleanup-jvm/`, `cleanup-shell-android/`, `cleanup-tmux-android/`,
+  `cleanup-shell-verified-build.txt` and `cleanup-wire-failure.xml`.
+
+The emulator and both loopback fixtures were stopped. Signed build 284 and the
+Pixel installation are unchanged. The component/fixture screenshots do not prove
+full Activity styling, arbitrary-TUI or physical-device acceptance. Full OS
+process-death/foreground fault acceptance, stale restored-target UI, bounded warm
+caches, mixed shell/tmux/cmux-tui navigation, SSH Files/browser/media and physical
+acceptance remain open.
 
 ## Saved tmux selection and execution-time pane targets (2026-10-01)
 
@@ -59,8 +108,9 @@ installation remain unchanged. Remaining work includes full-Activity/OS process
 restoration, failed/stale restored-target acceptance, foreground fault injection,
 plain-shell retry, bounded warm caches and atomic collection of abandoned phone
 groups, mixed shell/tmux/cmux-tui navigation, SSH Files/browser/media and physical
-acceptance. Upstream collection rechecks `session_attached` inside tmux before
-removing a group; the current Android discovery still needs that atomic guard.
+acceptance. Correction to the original audit note: upstream collection lists
+unattached groups and then removes them by name; it does not recheck attachment
+inside tmux. An Android execution-time recheck is an additional protection.
 
 ## Visible tmux recovery and moved-pane actions (2026-10-01)
 

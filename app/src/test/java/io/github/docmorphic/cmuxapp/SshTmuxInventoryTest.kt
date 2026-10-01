@@ -4,6 +4,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SshTmuxInventoryTest {
+    @Test fun collectionSelectsOnlyUnattachedGeneratedAndroidGroups() {
+        val name = "cmux-12345678-cmux-android-" + "a".repeat(32)
+        assertEquals(listOf(name), SshTmuxInventory.staleGroups("0:$name\n0:$name\n1:$name\n0:work-cmux-android-custom\n0:work-cmux-ios-copy\n"))
+        assertTrue(SshTmuxInventory.staleGroups("1:$name").isEmpty())
+        assertThrows(IllegalArgumentException::class.java) { SshTmuxInventory.collectGroupArguments("personal") }
+    }
     @Test fun inventoryGroupsStableSessionsAndKeepsWindowColons() {
         val rows = SshTmuxInventory.parse("12:\$0:100:@2:1:%3:1:40:24:2:work:build: logs\n12:\$0:100:@2:1:%2:0:39:24:2:work:build: logs\n12:\$1:101:@2:1:%2:0:39:24:2:work-cmux-ios-a:copy\n")
         assertEquals(1, rows.size); assertEquals("12:0:100", rows[0].id); assertEquals("\$0", rows[0].target)

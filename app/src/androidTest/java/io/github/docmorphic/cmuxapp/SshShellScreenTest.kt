@@ -120,4 +120,29 @@ class SshShellScreenTest {
         compose.runOnIdle { lifetime.cancel(); assertFalse(second.send("do not deliver\n")) }
         compose.waitUntil(5000) { session.shells.state.value.isEmpty() && !connection.isConnected }
     }
+    @Test fun endedShellKeepsItsScreenOnFailedRetryAndReconnectStartsFreshPty() {
+        val old = open()
+        command("old shell marker"); waitText(old, "ECHO old shell marker")
+        command("vt-exit")
+        compose.waitUntil(10000) { old.state.value.phase == SshShellPhase.ENDED }
+        compose.onNodeWithTag("ssh.shell.reconnect").assertIsDisplayed()
+        // A failed dial answers on the terminal being viewed and does not erase
+        // its screen or consume a second shell slot.
+        compose.runOnIdle { session.hosts.upsert(host.copy(keyId = null)) }
+        compose.onNodeWithTag("ssh.shell.reconnect").performClick()
+        compose.waitUntil(10000) { compose.onAllNodesWithText("Choose an available SSH key").fetchSemanticsNodes().isNotEmpty() }
+        assertSame(old, session.shells.state.value.single())
+        assertTrue(text(old).contains("old shell marker"))
+        compose.runOnIdle { session.hosts.upsert(host) }
+        compose.onNodeWithTag("ssh.shell.reconnect").performClick()
+        compose.waitUntil(10000) { session.shells.state.value.singleOrNull()?.let { it !== old && it.state.value.phase == SshShellPhase.RUNNING } == true }
+        val fresh = session.shells.state.value.single()
+        assertNotEquals(old.id, fresh.id)
+        assertFalse(text(fresh).contains("old shell marker"))
+        command("fresh shell marker"); waitText(fresh, "ECHO fresh shell marker")
+        val connection = runBlocking { session.connections.open(host.id) }
+        assertEquals("1", runBlocking { connection.exec("shell-count").stdout.toString(Charsets.UTF_8).trim() })
+        compose.runOnIdle { assertFalse(old.send("must not replay")) }
+        capture("ssh-shell-reconnected")
+    }
 }

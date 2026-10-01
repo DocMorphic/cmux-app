@@ -49,6 +49,17 @@ internal object SshTmuxInventory {
     }
     fun guarded(path: String, workspace: SshTmuxWorkspace, action: String, target: String = workspace.target) =
         command(path, *guardedArguments(workspace, action, target).toTypedArray())
+    private val groupName = Regex("cmux-[0-9a-f]{8}-cmux-android-[0-9a-f]{32}")
+    fun staleGroups(output: String) = output.lineSequence().filter { it.startsWith("0:") }
+        .map { it.removePrefix("0:") }.filter { groupName.matches(it) }.distinct().toList()
+    fun collectGroupArguments(name: String): List<String> {
+        require(groupName.matches(name))
+        val target = "=$name"
+        // if-shell resolves a target-pane; the trailing colon selects the
+        // named session's current window instead of treating it as a pane.
+        return listOf("if-shell", "-F", "-t", "$target:", "#{==:#{session_attached},0}",
+            "kill-session -t ${SshTmuxEncoding.quote(target)}", "display-message -p CMUX_GROUP_IN_USE")
+    }
 }
 
 internal data class SshTmuxHostState(val loading: Boolean = true, val available: Boolean = false,
@@ -108,10 +119,8 @@ internal class SshTmuxHost(val hostId: UUID, val connection: SshTransport, lifet
             val result = connection.exec(SshTmuxInventory.command(path, "list-sessions", "-F", "#{session_attached}:#{session_name}"))
             guard()
             if (result.exitStatus == 0) {
-                val pattern = Regex("0:(cmux-[0-9a-f]{8}-cmux-android-[0-9a-f]{32})")
-                for (line in result.stdout.toString(Charsets.UTF_8).lineSequence()) {
-                    val name = pattern.matchEntire(line)?.groupValues?.get(1) ?: continue
-                    connection.exec(SshTmuxInventory.command(path, "kill-session", "-t", "=$name")); guard()
+                for (name in SshTmuxInventory.staleGroups(result.stdout.toString(Charsets.UTF_8))) {
+                    connection.exec(SshTmuxInventory.command(path, *SshTmuxInventory.collectGroupArguments(name).toTypedArray())); guard()
                 }
             }
             collected = true

@@ -83,7 +83,23 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
         LaunchedEffect(id) { selectedTmux = null }
     }
     if (activeShell != null) {
-        key(activeShell.id) { SshShellScreen(activeShell) { selectedShell = null } }
+        key(activeShell.id) {
+            SshShellScreen(activeShell, reconnecting = busy, reconnectError = failure, onReconnect = {
+                if (!busy) {
+                    busy = true; failure = null
+                    scope.launch {
+                        try {
+                            val next = session.shells.reconnect(activeShell.id)
+                            if (selectedShell == activeShell.id) selectedShell = next.id
+                        } catch (error: Exception) {
+                            currentCoroutineContext().ensureActive()
+                            if (session.connections.statuses.value[activeShell.hostId]?.phase != SshConnectionPhase.IDLE && error !is CancellationException)
+                                failure = error.message ?: "Could not reconnect SSH shell"
+                        } finally { busy = false }
+                    }
+                }
+            }) { selectedShell = null; failure = null }
+        }
         return
     }
     if (keyScreen) {
