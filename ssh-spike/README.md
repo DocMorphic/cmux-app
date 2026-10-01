@@ -209,3 +209,36 @@ production control/renderer/shared terminal screen receive deterministic wire
 events; it must not be cited as an end-to-end Android SSH/cmux-tui check. Native
 Ghostty checkpoint 36920005789 or a fresh matching build is needed after the
 single-cell JNI change; do not bypass the native source/artifact gate.
+
+
+## Mixed Android SSH workspace checks
+
+`scripts/ssh-cmux-fixture.py` serves one generated-key loopback SSH listener with
+private real cmux-tui and tmux owners. Start it with the verified executable from
+the preceding section and the existing AsyncSSH environment:
+
+```sh
+captures/runtime/ssh-engine/venv/bin/python scripts/ssh-cmux-fixture.py \
+  --cmux-tui /absolute/path/to/verified/cmux-tui --tmux /absolute/path/to/tmux \
+  --output captures/runtime/cmux-tui/mixed-fixture.json
+python3 scripts/check-ssh-transport.py --serial emulator-5554 --cmux-ui \
+  --fixture captures/runtime/cmux-tui/mixed-fixture.json \
+  --output captures/runtime/cmux-tui/mixed-android
+```
+
+Build debug/test APKs before starting the retained emulator. The runner refuses
+physical devices and requires all three checks without skips. It records exact
+APK digests and page size. Checks exercise the combined workspace route, Unicode
+input/history, reopen, cmux workspace/terminal creation and confirmed termination,
+tmux and shell navigation, automatic transport recovery, explicit Disconnect and
+saved selection restoration through a fresh runtime. They read the production
+View as Text sheet rather than reacquiring the terminal to inspect it.
+
+The listener accepts only fixture discovery/relay/tmux vectors. Every created
+terminal runs cat; SSH-provided arbitrary shell commands are refused. Its plain
+shell uses cat pipes and accepts resize notifications, so this suite does not
+establish OS PTY resizing (covered by the separate shell fixture). Metadata contains
+public fixture coordinates only. Ctrl-C closes its terminal resources, stops its
+private owners and confirms the cmux state reset before removing its temporary
+HOME; a cleanup failure retains the path for diagnosis. Personal cmux sessions
+are never addressed.

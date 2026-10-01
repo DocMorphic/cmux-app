@@ -5,8 +5,8 @@
 **SSH computers can now be saved and connected from the Android UI.** Computers
 and Settings expose the host list/editor, and Settings exposes SSH key management.
 Plain SSH shells now open from the saved-host list with the Ghostty terminal.
-tmux workspaces now have a host entry, pane UI and persistent actions. Mixed
-cmux-tui workspace integration remains open. Production host storage,
+The Workspaces entry now combines existing cmux-tui owners, tmux sessions and
+plain shells in one screen, with persistent terminal navigation and actions. Production host storage,
 private-key storage and the low-level transport are implemented as described in
 the checkpoints below. Existing native Mac pairing, terminal
 rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This audit
@@ -14,7 +14,65 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the cmux-tui
-provider and renderer checkpoint is the latest implementation status.
+mixed workspace checkpoint is the latest implementation status.
+
+## Mixed SSH workspace navigation (2026-10-01)
+
+The Computers host's Workspaces action now enters a shared route listing
+cmux-tui workspaces, tmux sessions and plain shells in that order, matching the
+reviewed iOS provider ordering. cmux-tui rows preserve screen/pane/tab hierarchy;
+existing-owner creation, new terminal and confirmed End Workspace invoke the
+production provider. tmux retains its pane, new-window, split and end actions.
+Shells can be created, reopened and closed from the same screen. Browser and
+unknown content stay visible as unavailable rather than being opened as a PTY.
+The list is a working integration; final iOS visual/interaction parity is still
+outstanding.
+
+One connection admission supplies both provider families. An automatic reconnect
+does not clear the user's persisted Disconnect choice. Saved selection stores
+only typed navigation identities, scoped to the saved host and the account login
+incarnation. cmux-tui restoration resolves durable resources; tmux resolves its
+exact workspace/window/pane; a missing plain shell is reported rather than
+silently respawned. A canceled cmux view acquisition retires its exact eventual
+renderer after the detach fence, without releasing a newer acquisition under the
+same key. Ending confirmation is discarded when its provider/connection changes.
+
+**Verification:** 47 focused JVM checks passed without skips (including the real
+cmux-tui/tmux process checks and two saved-target checks). Debug and test APKs built;
+app ELF LOAD/RELRO and both APK ZIP 16 KiB alignment checks passed. On the sole
+retained API 37 / 16,384-byte-page AVD, **three mixed workspace checks passed in
+68.722 seconds** through real Android SSH, cmux-tui 0.13.4, tmux 3.7c, the production
+Compose route and Ghostty JNI:
+
+- Unicode replay/input, View as Text, reopening with history, new cmux terminal
+  and workspace, cancel/confirm ending, then tmux and plain-shell navigation/input;
+- transport drop followed by UI-driven automatic reattachment, history and fresh
+  input; explicit Disconnect stays idle until Reconnect;
+- saved selection restored using a fresh host store/vault/session runtime, with
+  history intact and persisted Disconnect still respected across restoration.
+
+These checks inspect the actual View as Text sheet, so they cannot accidentally
+repair navigation by separately reacquiring a renderer. The mixed fixture's plain
+shell is a cat pipe accepting window-change events, not an OS PTY resize test.
+The first run exposed missing resize-event handling in that fixture; the fixture
+was repaired and all three checks reran on the same APKs. Terminal and workspace
+captures were inspected (cat's PTY echo includes visible control-sequence notation;
+that is fixture output). The harness status bar is not a final-app styling check.
+Both private server/state directories were removed after confirmed cleanup and
+the emulator was stopped. [Reproduction](../ssh-spike/README.md#mixed-android-ssh-workspace-checks).
+
+- App SHA256: `c9596ca644db2ce0d99223105160b9ed950e5a62ff36a302e2e1cc325c642235`.
+- Test SHA256: `c8e086f65db6a979ee5649bc691a6a83846c38b2b587b37a4411e77d11c418b2`.
+- Ignored evidence: `captures/runtime/cmux-tui/mixed-build.txt`,
+  `mixed-alignment.txt`, `mixed-final-android/`, `mixed-fixture-final-log.txt`.
+
+This establishes Android SSH integration with existing fixture owners. Installer
+and phone-owned session creation, a compatible server release for geometry and
+idle-close, remaining cmux topology actions, warm-cache policy, full OS process
+death, SSH browser/SFTP/media, physical Pixel acceptance and final UI parity remain
+open. Signed 284 and the physical Pixel installation are unchanged. The upstream
+watch/release schedules documented in [UPDATES.md](UPDATES.md) still await the
+application and workflow merge to main; this checkpoint does not activate them.
 
 ## cmux-tui provider and renderer (2026-10-01)
 

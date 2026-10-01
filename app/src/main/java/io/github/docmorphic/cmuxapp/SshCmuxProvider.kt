@@ -134,7 +134,8 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
         latest.revision?.let { params.put("expected_revision", it) }
         control.request("close-workspace", params); read(); Unit
     }
-    suspend fun open(selection: SshCmuxSelection, id: String): SshCmuxTerminal = mutate {
+    suspend fun open(selection: SshCmuxSelection, id: String): SshCmuxTerminal {
+      val opening = scope.async { operations.withLock {
         val row = checkNotNull(selection.resolve(session, read())) { "This terminal moved, ended or was replaced" }.second
         // Each view acquisition owns a distinct renderer/attachment. A late
         // release from the prior composition must not close a newer view of
@@ -142,6 +143,15 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
         terminals.remove(id)?.retire()
         check(terminals.size < 16) { "Close a terminal before opening another" }
         SshCmuxTerminal.open(id, selection, row, control, scope, ::allowed).also { terminals[id] = it }
+      } }
+      return try { opening.await() }
+      catch (failure: CancellationException) {
+          // The provider owns the in-flight attach. If navigation disappeared
+          // before it returned, retire that exact result after its fence, never
+          // a newer acquisition stored under the same ID.
+          scope.launch { runCatching { opening.await() }.getOrNull()?.let(::release) }
+          throw failure
+      }
     }
     private fun allowed() = !closed && job.isActive && admitted() && !control.closed
     fun release(terminal: SshCmuxTerminal) {

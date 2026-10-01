@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Mixed SSH workspaces (2026-10-01):** the Computers Workspaces entry now combines
+existing cmux-tui owners, tmux and plain shells, with input/history and provider
+creation/end actions. Forty-seven JVM checks and three real Android SSH workspace
+checks passed on API 37 / 16 KiB, covering reopen, reconnect, saved-runtime recovery
+and persisted Disconnect. [Exact evidence and remaining work](DIRECT_SSH.md) include
+installer/owned-session creation, remaining actions, SSH browser/SFTP, final iOS UI
+parity and physical Pixel acceptance. Signed delivery remains unchanged.
+
 **cmux-tui provider/renderer (2026-10-01):** account/transport-owned host and
 session providers now publish live inventory and support guarded creation/end
 actions. The shared terminal screen can display the cmux-tui Ghostty mirror with

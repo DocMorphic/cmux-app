@@ -24,7 +24,7 @@ internal fun NativeSshComputersRoute(runtime: NativeSshRuntime, onBack: () -> Un
     val state by runtime.state.collectAsState()
     val session = state.resource?.takeIf { it.admitted() }
     when {
-        session != null -> key(session) { SshComputersScreen(session, onBack) }
+        session != null -> key(state.login) { SshComputersScreen(session, onBack) }
         else -> Column(Modifier.padding(22.dp)) {
             BackHandler(onBack = onBack)
             TextButton(onClick = onBack) { Text("Back") }
@@ -79,7 +79,7 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
     val activeShell = shells.firstOrNull { it.id == selectedShell }
     selectedTmux?.let { id ->
         val host = hosts.hosts.firstOrNull { it.id.toString() == id }
-        if (host != null) { SshTmuxRoute(session, host.id) { selectedTmux = null }; return }
+        if (host != null) { SshWorkspacesRoute(session, host.id) { selectedTmux = null }; return }
         LaunchedEffect(id) { selectedTmux = null }
     }
     if (activeShell != null) {
@@ -166,7 +166,7 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
                             }
                         }, enabled = !busy, modifier = Modifier.testTag("ssh.host.${host.id}.shell")) { Text("New Shell") }
                         TextButton(onClick = { selectedTmux = host.id.toString() }, enabled = !busy,
-                            modifier = Modifier.testTag("ssh.host.${host.id}.tmux")) { Text("tmux Workspaces") }
+                            modifier = Modifier.testTag("ssh.host.${host.id}.tmux")) { Text("Workspaces") }
                         shells.filter { it.hostId == host.id }.forEach { shell ->
                             val shellState by shell.state.collectAsState()
                             Row(Modifier.fillMaxWidth()) {

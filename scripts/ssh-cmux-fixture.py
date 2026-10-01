@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""Loopback SSH fixture with private real cmux-tui/tmux owners and cat terminals.
+No SSH-supplied shell command is executed. Discovery is served from the fixture's
+private paths, and relay commands are restricted to the app's tested operations.
+"""
+import argparse
+import asyncio
+import base64
+import importlib.util
+import json
+import os
+from pathlib import Path
+import secrets
+import shlex
+import shutil
+import signal
+import tempfile
+import uuid
+import asyncssh
+
+spec = importlib.util.spec_from_file_location("tmux_fixture", Path(__file__).with_name("ssh-tmux-fixture.py"))
+tmux_fixture = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(tmux_fixture)
+
+
+async def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--cmux-tui", type=Path, required=True)
+    parser.add_argument("--tmux", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    binary = str(args.cmux_tui.resolve(strict=True)); tmux = str(args.tmux.resolve(strict=True))
+    root = Path(tempfile.mkdtemp(prefix="cs-", dir="/tmp"))
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    session = "fixture"
+    tmux_socket = "cmux-app-fixture-" + uuid.uuid4().hex
+    shell = root / "fixture-shell"
+    shell.write_text("#!/bin/sh\nexec /bin/cat\n"); shell.chmod(0o700)
+    config = root / "config.json"; config.write_text("{}")
+    tmux_config = root / "tmux.conf"
+    tmux_config.write_text("set -g default-shell /bin/sh\nset -g default-command /bin/cat\nset -g update-environment ''\n")
+    env = {"HOME": str(root), "PATH": "/usr/bin:/bin", "SHELL": str(shell), "TERM": "xterm-256color",
+           "LANG": "en_US.UTF-8", "CMUX_TUI_CONFIG": str(config)}
+    for key, folder in {"XDG_RUNTIME_DIR": "run", "XDG_STATE_HOME": "state", "XDG_CONFIG_HOME": "config",
+                        "XDG_DATA_HOME": "data", "TMPDIR": "tmp"}.items():
+        (root / folder).mkdir(); env[key] = str(root / folder)
+    stop = asyncio.Event()
+    for sig in (signal.SIGINT, signal.SIGTERM): asyncio.get_running_loop().add_signal_handler(sig, stop.set)
+    stderr = (root / "stderr.txt").open("ab")
+    async def spawn(*tokens):
+        return await asyncio.create_subprocess_exec(*tokens, cwd=root, env=env, stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE, stderr=stderr, limit=16 * 1024 * 1024)
+    async def cli(*tokens):
+        proc = await spawn(binary, *tokens)
+        try: out, _ = await asyncio.wait_for(proc.communicate(), 10)
+        except BaseException: proc.kill(); await proc.wait(); raise
+        if proc.returncode: raise RuntimeError(f"Private cmux-tui command failed; retained {root}: {out.decode()}")
+        return json.loads(out)
+    async def tmux_run(*tokens, allow_failure=False):
+        proc = await spawn(tmux, "-L", tmux_socket, "-f", str(tmux_config), *tokens)
+        out, _ = await asyncio.wait_for(proc.communicate(), 10)
+        if proc.returncode and not allow_failure: raise RuntimeError("Private tmux operation failed")
+        return out.decode().strip()
+    class Wire:
+        def __init__(self, proc): self.proc = proc; self.sequence = 0
+        async def request(self, cmd=None, params=None, operation=None):
+            self.sequence += 1; rid = f"fixture-{self.sequence}"
+            value = {"id": rid, "cmd": cmd, **(params or {})} if cmd else {
+                "id": rid, "protocol": "cmux.protocol/2", "type": "request", "operation": operation,
+                "params": params or {}, **({"idempotency_key": str(uuid.uuid4())} if operation == "terminal.close" else {})}
+            self.proc.stdin.write((json.dumps(value) + "\n").encode()); await self.proc.stdin.drain()
+            while True:
+                line = await asyncio.wait_for(self.proc.stdout.readline(), 10)
+                if not line: raise RuntimeError("Private relay closed")
+                result = json.loads(line)
+                if result.get("id") != rid: continue
+                if result.get("ok") is not True: raise RuntimeError(f"Private relay rejected {cmd or operation}: {result}")
+                return result.get("result" if operation else "data", {})
+        async def close(self):
+            self.proc.stdin.close()
+            try: await asyncio.wait_for(self.proc.wait(), 3)
+            except asyncio.TimeoutError: self.proc.terminate(); await self.proc.wait()
+    async def wire(): return Wire(await spawn(binary, "relay", "--session", session))
+    def tabs(tree):
+        return [tab for ws in tree["workspaces"] for screen in ws.get("screens", [])
+                for pane in screen.get("panes", []) for tab in pane.get("tabs", [])]
+    async def clear(control):
+        machines = await control.request(operation="machine.list")
+        assert len(machines) == 1
+        machine = machines[0]["id"]
+        sessions = await control.request(operation="session.list", params={"machine": machine})
+        matching = [s for s in sessions if s.get("name") == session]; assert len(matching) == 1
+        scope = {"machine": machine, "session": matching[0]["id"]}
+        # Resource inventory also includes terminals with no remaining view.
+        terminals = await control.request(operation="terminal.list", params=scope)
+        assert isinstance(terminals, list), terminals
+        for terminal in terminals:
+            if terminal.get("lifecycle") == "tombstoned": continue
+            await control.request(operation="terminal.close", params={**scope, "terminal": terminal["id"]})
+        tree = await control.request("list-workspaces")
+        for workspace in tree["workspaces"]: await control.request("close-workspace", {"key": workspace["key"]})
+    async def reset():
+        control = await wire()
+        try:
+            await clear(control)
+            key = str(uuid.uuid4())
+            await control.request("create-workspace", {"key": key, "name": "Desktop cmux"})
+            created = await control.request("create-terminal", {"key": key, "argv": ["/bin/cat"], "cols": 100, "rows": 30})
+            await control.request("send", {"surface": created["surface"], "bytes": base64.b64encode("\x1b[32mRemote cmux λ 中\x1b[0m\x1b[?2004h\n".encode()).decode()})
+        finally: await control.close()
+        await tmux_run("kill-server", allow_failure=True)
+        await tmux_run("new-session", "-d", "-s", "desktop-tmux", "-x", "100", "-y", "30")
+        await tmux_run("send-keys", "-t", "=desktop-tmux:", "Remote tmux", "Enter")
+    children = set(); listener = None
+    key = asyncssh.generate_private_key("ssh-ed25519")
+    user = "cmux-fixture-" + secrets.token_hex(12)
+    class Server(asyncssh.SSHServer):
+        def begin_auth(self, username): return True
+        def public_key_auth_supported(self): return True
+        def validate_public_key(self, username, public_key): return username == user
+    allowed = {"identify", "set-client-info", "subscribe", "list-workspaces", "create-workspace", "create-terminal", "close-workspace",
+               "attach-surface", "set-client-sizing", "send", "resize-attached-view", "resize-surface", "release-attached-view-size", "detach-attached-view"}
+    def relay_line(line):
+        if len(line.encode()) > 1024 * 1024: raise ValueError("Oversized fixture request")
+        value = json.loads(line)
+        if "cmd" in value:
+            if value["cmd"] not in allowed: raise ValueError("Fixture command refused")
+            if value["cmd"] == "create-terminal" and ("command" in value or value.get("argv") not in (None, ["/bin/cat"])):
+                raise ValueError("Fixture permits cat only")
+        elif value.get("protocol") != "cmux.protocol/2" or value.get("operation") not in {"machine.list", "session.list", "terminal.close"}:
+            raise ValueError("Fixture resource operation refused")
+        return line.encode()
+    async def handle(proc):
+        child = None
+        try:
+            tokens = shlex.split(proc.command or "")
+            if tokens == ["fixture-reset"]:
+                await reset(); proc.exit(0); return
+            if len(tokens) == 3 and tokens[:2] == ["sh", "-c"]:
+                script = tokens[2]
+                if script.startswith('for p in "$HOME/.local/bin/cmux-tui"'):
+                    proc.stdout.write("/fixture/cmux-tui\n"); proc.exit(0); return
+                if script.startswith('for p in "$(command -v tmux 2>/dev/null)"'):
+                    proc.stdout.write("/fixture/tmux\n"); proc.exit(0); return
+                if script.startswith("u=$(id -u)"):
+                    proc.stdout.write(str(socket) + "\n"); proc.exit(0); return
+            kind = "shell"
+            if not tokens and proc.term_type:
+                child = await spawn("/bin/cat")
+                proc.stdout.write("Plain shell fixture λ 中\r\n")
+            elif tokens == ["exec", "/fixture/cmux-tui", "relay", "--socket", str(socket)] and not proc.term_type:
+                kind = "cmux"; child = await spawn(binary, "relay", "--socket", str(socket))
+            elif tokens and tokens[0] == "/fixture/tmux" and not proc.term_type:
+                kind = "tmux"; args = tokens[1:]
+                if args[:1] == ["-C"]:
+                    delimiter = args.index(";")
+                    if not tmux_fixture.approved(args[1:delimiter]) or not tmux_fixture.approved(args[delimiter+1:]): raise ValueError("Invalid tmux control startup")
+                elif not tmux_fixture.approved(args): raise ValueError("Invalid tmux operation")
+                child = await spawn(tmux, "-L", tmux_socket, "-f", str(tmux_config), *args)
+            else: raise ValueError("Unexpected fixture exec or PTY")
+            children.add(child)
+            if os.environ.get("CMUX_SSH_TRACE") == "1": print(json.dumps({"started": kind}), flush=True)
+            async def output():
+                import codecs
+                decoder = codecs.getincrementaldecoder("utf-8")()
+                while data := await child.stdout.read(8192): proc.stdout.write(decoder.decode(data))
+                proc.stdout.write(decoder.decode(b"", final=True))
+            async def input_stream():
+                try:
+                    while True:
+                        try:
+                            data = await (proc.stdin.read(8192) if kind == "shell" else proc.stdin.readline())
+                        except asyncssh.TerminalSizeChanged:
+                            if kind != "shell": raise
+                            # This mixed-navigation fixture uses cat pipes. The
+                            # dedicated PTY fixture verifies actual OS resizing.
+                            continue
+                        if not data: break
+                        if kind == "cmux": encoded = relay_line(data)
+                        else:
+                            if kind == "tmux" and not tmux_fixture.approved(shlex.split(data.rstrip("\r\n"))): raise ValueError("tmux control command refused")
+                            encoded = data.encode()
+                        child.stdin.write(encoded); await child.stdin.drain()
+                finally: child.stdin.close()
+            tasks = [asyncio.create_task(output()), asyncio.create_task(input_stream())]
+            try:
+                await child.wait(); await tasks[0]; proc.exit(child.returncode)
+            finally:
+                for task in tasks: task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+        except Exception as exc:
+            print(json.dumps({"fixtureError": type(exc).__name__, "detail": str(exc)}), flush=True)
+            proc.stderr.write("Private SSH fixture refused request\n"); proc.exit(127)
+        finally:
+            if child:
+                if child.returncode is None: child.terminate(); await child.wait()
+                children.discard(child)
+    try:
+        await cli("server", "ensure", "--session", session, "--json")
+        socket = root / "run" / f"cmux-tui-{os.getuid()}" / f"{session}.sock"
+        assert socket.is_socket(), socket
+        await reset()
+        listener = await asyncssh.create_server(Server, "127.0.0.1", 0, server_host_keys=[key], process_factory=handle, encoding="utf-8")
+        args.output.write_text(json.dumps({"port": listener.get_port(), "username": user, "hostKey": key.export_public_key().decode().strip(),
+                                           "nonce": "cmux", "silentPort": 0}) + "\n")
+        print(json.dumps({"ready": True, "port": listener.get_port(), "root": str(root)}), flush=True)
+        await stop.wait()
+    finally:
+        if listener: listener.close(); await listener.wait_closed()
+        for child in list(children):
+            if child.returncode is None: child.terminate(); await child.wait()
+        await tmux_run("kill-server", allow_failure=True)
+        # Do not erase durable state if terminal-host cleanup fails.
+        control = await wire()
+        try: await clear(control)
+        finally: await control.close()
+        await cli("server", "stop", "--session", session, "--json")
+        preview = await cli("session", session, "reset-state", "--json")
+        await cli("session", session, "reset-state", "--force", "--confirm-reset", preview["confirm_reset"], "--json")
+        stderr.close(); shutil.rmtree(root)
+
+
+if __name__ == "__main__": asyncio.run(main())

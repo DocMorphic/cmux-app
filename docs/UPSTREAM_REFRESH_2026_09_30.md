@@ -313,3 +313,14 @@ checks passed. CI run 36920005789 rebuilt the binding to accept the pinned core'
 provider/renderer checkpoint: the mixed Computers workspace UI and real Android
 SSH-to-cmux-tui acceptance are next, and no server-version gap or broad parity pin
 was declared complete. [DIRECT_SSH.md](DIRECT_SSH.md) records exact receipts.
+
+
+## Mixed Android SSH navigation checkpoint (2026-10-01)
+
+The reviewed iOS provider's cmux-tui → tmux → shell ordering is now wired into the
+Android Computers Workspaces route. Existing-owner navigation and provider actions
+are exercised through real Android SSH and Ghostty, including saved selection and
+Disconnect restoration. Forty-seven focused JVM and three Android checks passed.
+See [DIRECT_SSH.md](DIRECT_SSH.md#mixed-ssh-workspace-navigation-2026-10-01) for exact
+scope, hashes and remaining installer/browser/files/device/UI work. This milestone
+does not advance either upstream reference or the last signed release.
