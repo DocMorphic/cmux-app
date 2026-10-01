@@ -13,8 +13,60 @@ rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This au
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
-Older checkpoints below retain their original evidence boundaries; the shell
-reconnect and grouped-session cleanup checkpoint is the latest implementation status.
+Older checkpoints below retain their original evidence boundaries; the cmux-tui
+relay checkpoint is the latest implementation status.
+
+## cmux-tui relay foundation (2026-10-01)
+
+`SshCmuxControl` now shares the account-owned raw SSH exec pipe with tmux.
+It implements bounded newline/UTF-8 JSON framing, string request correlation,
+ordered writes, request deadlines and retirement on malformed/overflowing input.
+Canceled replies cannot answer another request; input and uncertain mutations
+are not retried. Session identity, protocol 11 minimum and required capabilities
+are checked before attachment. Numeric surface IDs and dimensions reject string,
+fractional and overflowing values rather than aliasing another terminal.
+
+Attachment registers before the request because the initial VT snapshot arrives
+before its acknowledgment. The client handles output, replacement resize replay,
+colors, exclusive geometry, view leases, release/reclaim and detach fences. A
+server without lease/detach support is fenced by closing the relay. Idle-close
+requests are capability-gated and use the upstream seconds/never contract.
+Resource V2 requests preserve a caller's idempotency key and structured errors.
+This adapts the candidate's `Packages/iOS/CmuxMobileSSH/.../CmuxTUI` contract;
+it does not yet provide discovery, installation, typed inventory or workspace UI.
+
+**Verification:** 28 focused JVM checks passed without skips: ten cmux-tui unit
+checks, one real cmux-tui process and 17 tmux regression checks, including real
+tmux 3.7c. The cmux-tui test creates an isolated HOME/runtime/config, subscribes,
+creates a workspace and `/bin/cat` terminal, receives Unicode output, resizes,
+releases/reclaims its lease, detaches and rejects late input. A new relay then
+reattaches the same durable terminal resource with its prior history. Explicit
+`terminal.close` ends the process, and the empty workspace is removed. Cleanup
+closes fixture terminal hosts before stopping/resetting the owner: stopping only
+the owner would leave durable terminal processes alive. Failed cleanup retains
+its unique directory instead of deleting state out from under live processes.
+
+The real binary was the official npm `cmux-tui-darwin-arm64` **0.13.4**, pinned by
+the reviewed iOS provider. Its tarball SHA512 was checked before extraction:
+`O0N+CffNanx9DvdAJc6J7FgqtEitY+E7FNEkvJfXs0QeAcvfAb5jhROqkdw4IsSGcJlwF8NNa/8ak4p3nSyGkw==`.
+It reports control protocol 12 and build
+`ec4cbd4fdd16526d5653d7a1f76496ef785f2a2a`. It was executed only from ignored
+fixture storage, never installed in the user's PATH. The opt-in test recipe is
+in [the SSH fixture guide](../ssh-spike/README.md#real-cmux-tui-relay-check).
+
+**Observed server-version gap:** a separate two-client probe attached a desktop
+view at 100×40, then a phone view at 80×24. The phone's release returned `applied`,
+but the canonical tree still reported 80×24. Thus an acknowledgment does not prove
+desktop geometry restoration on 0.13.4. This binary also omits
+`terminal-idle-close-v1`. The client capability contract is tested, but selecting
+and validating a server version with those behaviors remains required.
+
+Ignored receipts: `captures/runtime/cmux-tui/final-unit-build.txt`,
+`verified-jvm/`, `metadata.json` and `probe-receipt.json`. No emulator was started,
+no APK was assembled/published and no Pixel app was replaced at this checkpoint.
+This process test verifies the production relay codec against the server; Android
+SSH transport integration, terminal rendering, mixed-provider UI, warm caches,
+installer/version strategy and physical acceptance remain open.
 
 ## Plain-shell reconnect and grouped-session cleanup (2026-10-01)
 

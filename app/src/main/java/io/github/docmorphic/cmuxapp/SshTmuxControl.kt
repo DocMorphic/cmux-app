@@ -2,15 +2,11 @@ package io.github.docmorphic.cmuxapp
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.ArrayDeque
 
-internal interface SshTmuxPipe : AutoCloseable {
-    val output: Flow<ByteArray>
-    suspend fun write(bytes: ByteArray)
-}
+internal typealias SshTmuxPipe = SshExecPipe
 internal sealed interface TmuxPaneEvent {
     data class Grid(val columns: Int, val rows: Int) : TmuxPaneEvent
     data class Snapshot(val bytes: ByteArray) : TmuxPaneEvent

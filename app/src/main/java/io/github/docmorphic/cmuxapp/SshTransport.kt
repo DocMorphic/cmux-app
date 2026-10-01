@@ -299,7 +299,8 @@ internal class SshTransport private constructor(
 
     /** tmux control mode requires a raw exec stream: allocating a PTY would add
      * terminal echo/framing. The returned pipe belongs to the current route. */
-    suspend fun openTmux(command: String): SshTmuxPipe {
+    suspend fun openTmux(command: String): SshTmuxPipe = openExecStream(command)
+    suspend fun openExecStream(command: String): SshExecPipe {
         val channel = target().openChannel("exec") as ChannelExec
         own(channel)
         return blocking(cancel = { release(channel) }) {
@@ -310,7 +311,7 @@ internal class SshTransport private constructor(
                 channel.setErrStream(object : OutputStream() { override fun write(value: Int) {} }, true)
                 val input = channel.inputStream; val sink = channel.outputStream
                 channel.connect(CONNECT_TIMEOUT); guard()
-                object : SshTmuxPipe {
+                object : SshExecPipe {
                     private val retired = AtomicBoolean(false)
                     private val writes = Mutex()
                     override val output = kotlinx.coroutines.flow.flow {

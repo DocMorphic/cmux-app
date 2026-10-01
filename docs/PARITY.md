@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**cmux-tui relay foundation (2026-10-01):** bounded request/event framing,
+capability/session checks, initial replay, terminal input, resize leases and
+detach fences are implemented. Twenty-eight focused JVM checks passed, including
+real cmux-tui 0.13.4 and tmux processes. Reattachment preserved the durable terminal
+and history. A separate two-client probe confirmed that 0.13.4 fails to restore
+desktop geometry after phone release; it also lacks the idle-close capability.
+[Evidence and remaining integration](DIRECT_SSH.md) distinguish the relay core
+from unimplemented cmux-tui inventory/UI/installer and Android/device acceptance.
+No APK or physical installation changed.
+
 **Shell retry and tmux cleanup (2026-10-01):** ended plain shells reconnect from
 their terminal screen; failed connection keeps the old screen, while success
 opens a fresh PTY without replaying input. Abandoned-group cleanup checks current

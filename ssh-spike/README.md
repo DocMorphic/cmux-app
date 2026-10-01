@@ -152,3 +152,32 @@ workspace actions/rendering, account retirement, visible drop/manual recovery, a
 saved pane restoration against a fresh runtime with persisted Disconnect respected.
 Stop the fixture with Ctrl-C; it removes its private server and temporary HOME.
 The checks install only on an emulator and use isolated host/key storage.
+
+## Real cmux-tui relay check
+
+`SshCmuxProcessTest` accepts an explicitly supplied executable. The recorded run
+used the official npm `cmux-tui-darwin-arm64` 0.13.4 tarball, verified against its
+registry SHA512 integrity before extracting `package/bin/cmux-tui`. Exact version,
+integrity and observed compatibility gaps are in [DIRECT_SSH.md](../docs/DIRECT_SSH.md).
+The test neither downloads nor installs a binary automatically.
+
+With the emulator stopped:
+
+```sh
+CMUX_TUI_TEST_BINARY=/absolute/path/to/verified/cmux-tui \
+CMUX_TMUX_TEST_BINARY=/absolute/path/to/tmux \
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 \
+ANDROID_HOME="$HOME/Library/Android/sdk" \
+./gradlew --no-daemon --max-workers=1 :app:testDebugUnitTest --rerun \
+  --tests '*SshCmux*' --tests '*SshTmux*'
+```
+
+The cmux-tui fixture uses a short unique `/tmp/ct-*` HOME and session, private
+runtime/config/data directories, and a `/bin/cat` terminal. It verifies actual
+relay replay/input/resize/detach, stable-resource reattachment and explicit
+terminal termination. Cleanup resolves the exact fixture session, closes its
+terminal resources, stops the owner and performs confirmed state reset before
+deleting that directory. If cleanup fails, inspect the retained fixture path;
+never erase its state while its terminal hosts are alive. No personal cmux socket,
+configuration or workspace is used. This is a JVM process check; it does not prove
+Android SSH transport/UI or physical-device acceptance.

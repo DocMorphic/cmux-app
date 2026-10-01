@@ -277,3 +277,15 @@ when another group is deleted; authoritative relisting now prevents false pane
 retirement. Twenty-six focused JVM checks, three shell Android checks (51.471s)
 and four real SSH/tmux Android checks (50.850s) passed on identical API 37 / 16 KiB
 APKs. [DIRECT_SSH.md](DIRECT_SSH.md) contains hashes, diagnostics and scope limits.
+
+### cmux-tui relay core — 2026-10-01
+
+The candidate's CmuxMobileSSH/CmuxTUI wire/attachment contract now has a bounded
+Kotlin client, shared raw SSH exec pipe, identity/capability gates, reply and detach
+fences, VT replay, input, geometry leases and resource V2 envelopes. Twenty-eight
+focused JVM checks passed, including isolated real cmux-tui and tmux processes.
+The official 0.13.4 binary confirms terminal persistence/replay, but a two-client
+probe reproduces the documented desktop-geometry restoration gap. Its capability
+list also lacks idle-close. [DIRECT_SSH.md](DIRECT_SSH.md) records exact version,
+integrity, behavior and evidence. No implemented reference was advanced; the
+cmux-tui provider/UI, compatible installer and Android/device integration remain.
