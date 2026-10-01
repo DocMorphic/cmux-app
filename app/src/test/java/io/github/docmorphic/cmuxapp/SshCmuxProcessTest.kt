@@ -28,10 +28,11 @@ class SshCmuxProcessTest {
             "TERM" to "xterm-256color", "LANG" to "en_US.UTF-8", "CMUX_TUI_CONFIG" to config.absolutePath)
         for ((name, dir) in mapOf("XDG_RUNTIME_DIR" to "run", "XDG_STATE_HOME" to "state", "XDG_CONFIG_HOME" to "config",
             "XDG_DATA_HOME" to "data", "TMPDIR" to "tmp")) environment[name] = root.resolve(dir).apply { mkdirs() }.absolutePath
-        fun process(vararg args: String) = ProcessBuilder(listOf(binary) + args).apply {
+        fun spawn(args: List<String>) = ProcessBuilder(args).apply {
             directory(root); environment().clear(); environment().putAll(environment)
             redirectError(ProcessBuilder.Redirect.appendTo(root.resolve("stderr.txt")))
         }.start()
+        fun process(vararg args: String) = spawn(listOf(binary) + args)
         fun exec(vararg args: String): JSONObject {
             val running = process(*args)
             check(running.waitFor(10, TimeUnit.SECONDS)) { running.destroyForcibly(); "Fixture command timed out; retained $root" }
@@ -41,9 +42,9 @@ class SshCmuxProcessTest {
         }
         val owner = CoroutineScope(coroutineContext + SupervisorJob(coroutineContext[Job]))
         val relays = mutableListOf<Process>()
-        fun relay(): SshCmuxControl {
-            val running = process("relay", "--session", session); relays += running
-            val pipe = object : SshExecPipe {
+        fun pipe(running: Process): SshExecPipe {
+            relays += running
+            return object : SshExecPipe {
                 override val output = flow {
                     val bytes = ByteArray(8192)
                     while (true) { val n = running.inputStream.read(bytes); if (n < 0) break; emit(bytes.copyOf(n)) }
@@ -53,8 +54,13 @@ class SshCmuxProcessTest {
                 }
                 override fun close() { running.destroy() }
             }
-            return SshCmuxControl(pipe, owner, timeoutMillis = 5000)
         }
+        fun relay() = SshCmuxControl(pipe(process("relay", "--session", session)), owner, timeoutMillis = 5000)
+        val remote = SshCmuxRemote({ command -> withContext(Dispatchers.IO) {
+            val running = spawn(listOf("/bin/sh", "-c", command))
+            check(running.waitFor(10, TimeUnit.SECONDS)) { running.destroyForcibly(); "Discovery command timed out" }
+            SshExecResult(running.inputStream.readBytes(), byteArrayOf(), running.exitValue())
+        } }, { command -> pipe(spawn(listOf("/bin/sh", "-c", command))) }, owner)
         fun objects(array: JSONArray) = (0 until array.length()).map(array::getJSONObject)
         fun tabs(tree: JSONObject) = objects(tree.getJSONArray("workspaces")).flatMap { workspace ->
             objects(workspace.getJSONArray("screens")).flatMap { screen ->
@@ -74,10 +80,19 @@ class SshCmuxProcessTest {
         }
         var client: SshCmuxControl? = null
         try {
+            // The exact production locator must prefer this private HOME.
+            // Symlinking avoids a second 44 MB fixture binary on disk.
+            val localBin = root.resolve(".local/bin").apply { mkdirs() }
+            Files.createSymbolicLink(localBin.resolve("cmux-tui").toPath(), File(binary).toPath())
+            val located = checkNotNull(remote.locateBinary())
+            assertEquals(localBin.resolve("cmux-tui").absolutePath, located)
+            assertTrue(remote.listSockets().none { it.serves(session) })
             exec("server", "ensure", "--session", session, "--json")
             withTimeout(20000) {
-                val control = relay(); client = control
-                val info = control.handshake(session)
+                val socket = remote.listSockets().single { it.serves(session) }
+                assertTrue(socket.path.startsWith(root.absolutePath + "/"))
+                val control = remote.connect(located, socket); client = control
+                val info = checkNotNull(control.server)
                 assertTrue(info.protocol >= 11)
                 assertTrue("view-attachment-lease-v1" in info.capabilities)
                 var changes = 0
@@ -91,6 +106,9 @@ class SshCmuxProcessTest {
                 val before = tabs(control.request("list-workspaces")).single()
                 val terminal = before.getString("terminal_resource_id")
                 assertTrue(terminal.startsWith("term_"))
+                val inventory = control.listWorkspaces()
+                assertEquals("Android private fixture", inventory.workspaces.single().name)
+                val selection = SshCmuxSelection.capture(session, inventory, inventory.workspaces.single(), inventory.tabs.single())
                 val events = mutableListOf<SshCmuxEvent>()
                 val attachment = control.attach(surface, 80, 24, events::add)
                 assertNotNull(attachment.lease)
@@ -112,11 +130,17 @@ class SshCmuxProcessTest {
                 assertTrue(runCatching { control.send(attachment, "must-not-send\n".toByteArray()) }.isFailure)
                 control.close()
 
-                val next = relay(); client = next; next.handshake(session)
-                val preserved = tabs(next.request("list-workspaces")).single()
-                assertEquals(terminal, preserved.getString("terminal_resource_id"))
+                // Terminal hosts and topology survive an owner restart, while
+                // numeric view IDs and the owner's generation are transient.
+                exec("server", "stop", "--session", session, "--json")
+                exec("server", "ensure", "--session", session, "--json")
+                val newSocket = remote.listSockets().single { it.serves(session) }
+                val next = remote.connect(located, newSocket); client = next
+                assertNotEquals(info.generation, next.server?.generation)
+                val preserved = checkNotNull(selection.resolve(session, next.listWorkspaces())).second
+                assertEquals(terminal, preserved.terminal)
                 val restored = mutableListOf<SshCmuxEvent>()
-                val reattached = next.attach(preserved.getInt("surface"), 80, 24, restored::add)
+                val reattached = next.attach(preserved.surface, 80, 24, restored::add)
                 assertTrue(restored.filterIsInstance<SshCmuxEvent.Snapshot>().first().bytes.toString(Charsets.UTF_8).contains("live λ 中"))
                 assertFalse(restored.filterIsInstance<SshCmuxEvent.Snapshot>().first().bytes.toString(Charsets.UTF_8).contains("must-not-send"))
                 closeFixtureTerminals(next)

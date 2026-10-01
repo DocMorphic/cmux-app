@@ -40,6 +40,10 @@ class SshCmuxControlTest {
         assertThrows(Exception::class.java) { bounded.feed("{}\n".toByteArray()) }
         assertThrows(Exception::class.java) { SshCmuxLines().feed("{}junk\n".toByteArray()) }
         assertThrows(Exception::class.java) { SshCmuxLines().feed(byteArrayOf(0xff.toByte(), 10)) }
+        val deep = "{\"nested\":" + "[".repeat(129) + "0" + "]".repeat(129) + "}\n"
+        assertThrows(Exception::class.java) { SshCmuxLines().feed(deep.toByteArray()) }
+        val quoted = JSONObject().put("title", "[{\\\"".repeat(150)).toString() + "\n"
+        assertEquals(1, SshCmuxLines().feed(quoted.toByteArray()).size)
     }
     @Test fun handshakeRejectsWrongSessionOrMissingCapabilities() = runTest {
         for (data in listOf(identify().put("session", "another"), identify().put("capabilities", JSONArray()),

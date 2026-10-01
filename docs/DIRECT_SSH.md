@@ -14,7 +14,54 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the cmux-tui
-relay checkpoint is the latest implementation status.
+discovery and inventory checkpoint is the latest implementation status.
+
+## cmux-tui discovery and durable inventory (2026-10-01)
+
+`SshCmuxRemote` now adapts the production SSH transport to the existing-owner
+discovery contract. It searches the phone install location, PATH and common
+Homebrew/local paths, then lists named and hashed sockets in upstream runtime
+precedence. It does not install a binary or start a server. Absolute paths and
+session names are validated, arguments are shell-quoted, output uses strict UTF-8,
+and listings are bounded. The first socket per session digest wins. A hashed
+socket must match the SHA256 of the session returned by `identify`; a substituted
+owner, timeout or canceled connection closes the opened relay. Binary absence is
+distinguished from an execution error.
+
+The typed inventory preserves ordered workspaces/screens/panes/tabs, empty
+workspaces, terminal identities, browser metadata and split/stack layouts.
+Unknown additive kinds/layouts remain representable without being treated as
+terminals. Malformed identities, duplicate numeric/view IDs, invalid layout
+references, excessive item counts or nesting reject the snapshot. Browser sizes
+such as 1920×1080 remain metadata rather than being mistaken for an invalid
+terminal grid.
+Wire JSON nesting is also bounded before recursive JSON decoding, so the typed
+layout limit cannot be bypassed by overflowing the decoder first. Quoted brackets
+and escaped quotes in titles do not count as nesting.
+
+`SshCmuxSelection` scopes restoration to a session and registry, stable workspace
+key/resource and terminal identity. If a terminal has multiple tab views, a saved
+tab resource selects its exact view; an ambiguous match is refused. Numeric-only
+legacy selections work only within the same known owner generation. A replacement
+registry, dead/replaced terminal or different session cannot inherit the selection
+just because its title or numeric IDs match. The caller must additionally scope
+these selections to its account and saved SSH host.
+
+**Verification:** 40 focused JVM checks passed without skips: ten relay checks,
+seven inventory/selection checks, five discovery/lifetime checks, one real
+cmux-tui process and 17 tmux regression checks. The real 0.13.4 process check now
+runs the production binary/socket discovery commands and `relay --socket`, parses
+the actual workspace hierarchy, captures a durable selection, stops/restarts the
+private owner, observes a changed generation, then resolves and reattaches the
+same terminal with history intact. Its private terminal and owner state are
+cleaned up after the run. Receipts are in ignored
+`captures/runtime/cmux-tui/inventory-final-build.txt` and `inventory-jvm/`.
+
+This adds the SSH adapter and inventory/restore policy; account-owned provider
+publication, workspace UI, live topology refresh, renderer ownership, installer,
+compatible server selection and physical Android acceptance remain outstanding.
+No emulator or APK build was needed, and signed 284/Pixel installations remain
+unchanged. The 0.13.4 geometry-restoration and idle-close gaps below remain open.
 
 ## cmux-tui relay foundation (2026-10-01)
 

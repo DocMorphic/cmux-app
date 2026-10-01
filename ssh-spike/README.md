@@ -181,3 +181,12 @@ deleting that directory. If cleanup fails, inspect the retained fixture path;
 never erase its state while its terminal hosts are alive. No personal cmux socket,
 configuration or workspace is used. This is a JVM process check; it does not prove
 Android SSH transport/UI or physical-device acceptance.
+
+The process check also exercises production `SshCmuxRemote` discovery commands,
+using a symlink at the fixture HOME's `.local/bin/cmux-tui` to avoid copying the
+binary. It connects only to the uniquely named fixture socket. After attachment,
+it restarts that owner, verifies its generation changed and resolves the saved
+durable selection against a fresh typed inventory before checking replay history.
+The complete focused command above currently runs 40 checks when both opt-in
+executables are supplied; absent opt-ins produce skips rather than real-server
+verification.

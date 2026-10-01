@@ -289,3 +289,15 @@ probe reproduces the documented desktop-geometry restoration gap. Its capability
 list also lacks idle-close. [DIRECT_SSH.md](DIRECT_SSH.md) records exact version,
 integrity, behavior and evidence. No implemented reference was advanced; the
 cmux-tui provider/UI, compatible installer and Android/device integration remain.
+
+### cmux-tui discovery and durable selection — 2026-10-01
+
+Existing-owner discovery now follows CmuxTUIRemote+Discovery.swift: runtime
+precedence, named/hashed sockets, installed-binary lookup and non-starting socket
+relays. Android checks the returned hashed-session identity and adds bounded
+listings/strict parsing. Typed hierarchy and durable selection cover mixed tabs,
+split/stack layouts, ambiguous views and owner generation changes. Forty focused
+JVM checks passed; the real-process check discovers, attaches, restarts the private
+owner and restores the original terminal/history. [DIRECT_SSH.md](DIRECT_SSH.md)
+records evidence and the remaining account-provider/UI/Android integration. The
+broad implemented reference and 0.13.4 compatibility gaps remain unchanged.

@@ -27,6 +27,7 @@ internal class SshCmuxLines(private val limit: Int = 16 * 1024 * 1024) {
                 if (buffer.size() > 0) {
                     val decoder = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT)
                     val text = decoder.decode(ByteBuffer.wrap(buffer.toByteArray())).toString()
+                    boundNesting(text)
                     val parser = JSONTokener(text)
                     val objectValue = parser.nextValue() as? JSONObject ?: error("cmux-tui line is not an object")
                     check(parser.nextClean() == '\u0000') { "Trailing cmux-tui JSON content" }
@@ -41,6 +42,23 @@ internal class SshCmuxLines(private val limit: Int = 16 * 1024 * 1024) {
     private fun append(bytes: ByteArray, offset: Int, length: Int) {
         check(length <= limit - buffer.size()) { "cmux-tui line exceeded its limit" }
         buffer.write(bytes, offset, length)
+    }
+    private fun boundNesting(text: String) {
+        // Bound before JSONTokener recurses, not only after building a typed
+        // inventory. Brackets in quoted titles/data do not count as nesting.
+        var depth = 0; var quoted = false; var escaped = false
+        for (character in text) {
+            if (quoted) {
+                if (escaped) escaped = false
+                else if (character == '\\') escaped = true
+                else if (character == '"') quoted = false
+            } else when (character) {
+                '"' -> quoted = true
+                '{', '[' -> { depth++; check(depth <= 128) { "cmux-tui JSON nesting exceeded its limit" } }
+                '}', ']' -> { depth--; check(depth >= 0) { "Invalid cmux-tui JSON nesting" } }
+            }
+        }
+        check(depth == 0 && !quoted) { "Incomplete cmux-tui JSON" }
     }
 }
 

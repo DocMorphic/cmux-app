@@ -214,3 +214,10 @@ and cmux-tui/spec/commands.md at
 204a11dfcc76280205e50406ab94270a1c152155. Copyright (c) 2024-present Manaflow,
 Inc.; GPL-3.0-or-later. Android adds bounded framing and queues, strict numeric
 identity checks, deadlines, coroutine ownership and explicit cancellation fences.
+
+SshCmuxRemote.kt and SshCmuxInventory.kt adapt discovery commands and workspace
+wire/model shapes from CmuxTUIRemote+Discovery.swift, CmuxTUIModels.swift and
+CmuxTUIWire.swift in that same upstream directory/revision. Copyright (c)
+2024-present Manaflow, Inc.; GPL-3.0-or-later. Android adds bounded snapshots,
+hashed-owner verification, ordered typed layouts and conservative durable
+selection restoration across owner generations.

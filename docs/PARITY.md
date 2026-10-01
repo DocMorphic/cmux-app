@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**cmux-tui discovery/inventory (2026-10-01):** the SSH adapter now locates existing
+owners without starting them, verifies named/hashed socket identity and parses
+the ordered workspace hierarchy. Durable selections reject ambiguous or replaced
+targets. Forty focused JVM checks passed, including the production discovery
+commands and recovery of terminal/history after a real 0.13.4 owner restart.
+[Exact scope and remaining work](DIRECT_SSH.md) include provider/UI integration,
+Android SSH/device acceptance and the still-open server-version geometry gap.
+No APK or physical installation changed.
+
 **cmux-tui relay foundation (2026-10-01):** bounded request/event framing,
 capability/session checks, initial replay, terminal input, resize leases and
 detach fences are implemented. Twenty-eight focused JVM checks passed, including
