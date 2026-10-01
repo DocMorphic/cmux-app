@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Real SSH upload pickers (2026-10-02):** fixed stale picker callbacks that
+retained the initial null folder and silently dropped selections. All eight
+SFTP/browser cases passed in 102.598 seconds on API 37 / 16 KiB, including actual
+Android document/photo picker cancellation/reopening, multiple documents, duplicate
+names, exact transfer bytes and a visible image preview. [Evidence](DIRECT_SSH.md)
+retains the failing runs and Android 17 package/Done selector correction. Physical
+Pixel, multi-photo/video, photo naming, export, cloud providers, process restoration
+and final UI acceptance remain open. No signed APK or broad pin changed.
+
 **SSH Files insertion and interruptions (2026-10-02):** inserted paths now use
 shell quoting, matching iOS; uploads verify known source size before publication.
 Five JVM cases, six SFTP/browser cases and three shell UI cases passed on the same

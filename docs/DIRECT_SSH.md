@@ -14,7 +14,53 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the SSH
-insertion/transfer checkpoint is the latest implementation status.
+system-picker checkpoint is the latest implementation status.
+
+## Real Android document and photo pickers (2026-10-02)
+
+The real document-picker test exposed a stale callback capture: the local
+`::upload` function reference retained the initial null `directory`. Local Kotlin
+function references compare equal despite different captured values, so the
+launcher's updated callback retained that first capture. The selection returned
+without an error but uploaded nothing. Both picker launchers now use lambdas that
+update when the loaded folder changes. A rerun confirmed multiple document uploads
+and duplicate-name handling reached the selected remote folder with exact bytes.
+
+The tests create their own MediaStore documents and image, cancel and reopen the
+actual system pickers, then verify uploads over real SFTP. They delete only the
+media they created. Android 17's installed modular photo picker is
+`com.google.android.photopicker` and uses a **Done** confirmation label; older
+picker packages/Add labels remain supported by the test. These differences affect
+test selectors, not the app's platform picker contract.
+
+**Verification:** all **eight** SFTP/browser/system-picker cases passed in
+**102.598 seconds** on API 37 / 16 KiB, with no skipped cases. The two new cases
+prove cancelling/reopening both system pickers, multi-document selection, preserving
+an existing destination on duplicate upload, exact transferred document/photo bytes
+and a displayed image preview. The other six cases retain file actions, source
+failure, cancellation/cleanup and account-retirement coverage. The selected-photo
+and image-preview captures were inspected; the generated green image is visible.
+APK ELF and ZIP 16 KiB alignment checks passed. No JVM logic changed in this fix.
+
+Initial attempts are retained: the original eight-case run exposed the upload
+callback bug and an obsolete photo-picker package selector; the diagnostic run
+showed an empty folder without an error and the new picker package. After the app
+fix the document case passed, while the photo test still expected Add. The installed
+`PhotopickerGoogle@CE2A.260420.050` resources and rendered final selection bar confirm
+Done. The test now accepts the platform's Done/Add label in the picker package.
+The [AOSP selection bar](https://android.googlesource.com/platform/packages/providers/MediaProvider/+/61808742c17acb107221fa5f0ce998532dbc0bed/photopicker/src/com/android/photopicker/features/selectionbar/SelectionBar.kt)
+was also inspected while diagnosing this control. No picker result is mocked.
+
+Ignored evidence is in `captures/runtime/ssh-audit/`: `pickers-android/`,
+`pickers-diagnostic/`, `pickers-callback/`, `pickers-final-build.txt`,
+`pickers-final-alignment.txt` and final `pickers-verified/`. Debug APK SHA-256:
+`959e17ae494e5e233bf2900e447b524e8511331bb7f03ac810695e395568a14f`;
+test APK: `e5b39ae4ea9366dc4a923cb5765edf465a959f3e1e972d84f780525d079a44a0`.
+The emulator and fixture were stopped. No signed release or broad upstream pin
+changed. Physical Pixel, multiple-photo/video selection, iOS-style generated photo
+names, media/export, publication races/connection loss and final visual acceptance
+remain open. Cloud-backed provider behavior and picker/process-death restoration
+are not established by these local-media tests.
 
 ## SSH path insertion and transfer interruption (2026-10-02)
 

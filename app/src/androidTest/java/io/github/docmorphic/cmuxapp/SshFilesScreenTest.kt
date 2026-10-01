@@ -24,6 +24,16 @@ import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONObject
+import android.content.ContentValues
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import android.graphics.Bitmap
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
+import java.io.ByteArrayOutputStream
+import java.util.regex.Pattern
 
 /** Isolated loopback SFTP; runner refuses physical devices. */
 class SshFilesScreenTest {
@@ -58,7 +68,15 @@ class SshFilesScreenTest {
         if (::session.isInitialized) { compose.runOnIdle { session.close(); lifetime.cancel() }; session.vault.state.value.toList().forEach { session.vault.delete(it.id) } }
         if (::root.isInitialized) root.deleteRecursively()
     }
-    private fun ready(tag: String) { compose.waitUntil(15000) { compose.onAllNodes(hasTestTag(tag) and isEnabled()).fetchSemanticsNodes().isNotEmpty() } }
+    private fun ready(tag: String) {
+        try { compose.waitUntil(15000) { compose.onAllNodes(hasTestTag(tag) and isEnabled()).fetchSemanticsNodes().isNotEmpty() } }
+        catch (failure: Throwable) {
+            capture("ssh-files-ready-failure")
+            device.dumpWindowHierarchy(File(compose.activity.getExternalFilesDir(null), "ssh-files-ready-failure.xml"))
+            android.util.Log.e("TestRunner", "Files wait failed: $tag\n" + compose.onRoot().printToString())
+            throw failure
+        }
+    }
     private fun shown(text: String) { compose.waitUntil(15000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }
     private fun show() {
         val visible = mutableStateOf(true)
@@ -201,5 +219,104 @@ class SshFilesScreenTest {
         assertTrue(remote.list(directory).isEmpty())
         assertEquals("unknown.bin", remote.upload(directory, "unknown.bin", null, { byteArrayOf(1, 2).inputStream() }) { _, _ -> })
         assertEquals(2L, remote.list(directory).single().size)
+    }
+    private val device get() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    private fun media(name: String, mime: String, bytes: ByteArray, image: Boolean = false): Uri {
+        val resolver = compose.activity.contentResolver
+        val uri = checkNotNull(resolver.insert(if (image) MediaStore.Images.Media.EXTERNAL_CONTENT_URI else MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, if (image) "Pictures/" else "Download/")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+                if (image) put(MediaStore.Images.ImageColumns.DATE_TAKEN, System.currentTimeMillis())
+            }))
+        try {
+            resolver.openOutputStream(uri)!!.use { it.write(bytes) }
+            resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            return uri
+        } catch (failure: Throwable) { resolver.delete(uri, null, null); throw failure }
+    }
+    private fun picker(photos: Boolean = false) {
+        compose.onNodeWithText("Upload").performClick()
+        compose.onNodeWithText(if (photos) "Upload from Photos…" else "Upload from Files…").performClick()
+        val packages = if (photos) listOf("com.google.android.photopicker", "com.android.photopicker", "com.google.android.providers.media.module", "com.android.providers.media.module")
+            else listOf("com.google.android.documentsui", "com.android.documentsui")
+        assertTrue("Real Android system picker", packages.any { device.wait(Until.hasObject(By.pkg(it)), 5000) })
+        device.dumpWindowHierarchy(File(compose.activity.getExternalFilesDir(null), if (photos) "ssh-photo-picker.xml" else "ssh-document-picker.xml"))
+        capture(if (photos) "ssh-photo-picker" else "ssh-document-picker")
+    }
+    private fun documentRow(name: String): androidx.test.uiautomator.UiObject2 {
+        var row = device.wait(Until.findObject(By.text(name)), 1500)
+        if (row == null) {
+            device.findObject(By.desc("Show roots"))?.click()
+            checkNotNull(device.wait(Until.findObject(By.text("Downloads")), 5000)) { "Downloads root missing" }.click()
+            row = device.wait(Until.findObject(By.text(name)), 5000)
+        }
+        return checkNotNull(row) { "Generated document missing from picker: $name" }
+    }
+    private fun verifyRemote(name: String, bytes: ByteArray) = runBlocking {
+        val local = File(root, "picker-verify/${UUID.randomUUID()}")
+        assertEquals(bytes.size.toLong(), remote.download("$directory/$name", local) { _, _ -> })
+        assertArrayEquals(bytes, local.readBytes())
+    }
+    @Test fun documentPickerCancelsReopensAndUploadsMultipleFilesWithoutReplacingExistingFile() {
+        assumeTrue(Build.VERSION.SDK_INT >= 29)
+        val first = "cmux-doc-${UUID.randomUUID()}.txt"
+        val second = "cmux-doc-${UUID.randomUUID()}.bin"
+        val firstBytes = "Picker document λ 中\nSecond line\n".toByteArray()
+        val secondBytes = ByteArray(73019) { (it % 251).toByte() }
+        val uris = mutableListOf<Uri>()
+        try {
+            uris += media(first, "text/plain", firstBytes)
+            uris += media(second, "application/octet-stream", secondBytes)
+            show(); picker()
+            device.pressBack(); ready("ssh.files.refresh")
+            assertTrue(runBlocking { remote.list(directory) }.isEmpty())
+            picker()
+            documentRow(first).longClick()
+            checkNotNull(device.wait(Until.findObject(By.text(second)), 5000)).click()
+            checkNotNull(device.wait(Until.findObject(By.text(Pattern.compile("(?i)open|select"))), 5000)) { "Multiple-selection confirm button missing" }.click()
+            ready("ssh.files.row.$first"); ready("ssh.files.row.$second")
+            verifyRemote(first, firstBytes); verifyRemote(second, secondBytes)
+            // Select the same source again: the existing remote copy survives.
+            picker(); documentRow(first).click()
+            val duplicate = first.removeSuffix(".txt") + " 2.txt"
+            ready("ssh.files.row.$duplicate")
+            verifyRemote(first, firstBytes); verifyRemote(duplicate, firstBytes)
+            assertEquals(3, runBlocking { remote.list(directory) }.size)
+            capture("ssh-document-uploaded")
+        } finally { uris.forEach { compose.activity.contentResolver.delete(it, null, null) } }
+    }
+    @Test fun photoPickerCancelsReopensAndUploadsAnImageWhichPreviews() {
+        assumeTrue(Build.VERSION.SDK_INT >= 33)
+        val bitmap = Bitmap.createBitmap(48, 32, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(android.graphics.Color.rgb(31, 165, 96))
+        val bytes = ByteArrayOutputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it); it.toByteArray() }
+        bitmap.recycle()
+        val uri = media("cmux-photo-${UUID.randomUUID()}.png", "image/png", bytes, image = true)
+        try {
+            show(); picker(photos = true)
+            device.pressBack(); ready("ssh.files.refresh")
+            assertTrue(runBlocking { remote.list(directory) }.isEmpty())
+            picker(photos = true)
+            checkNotNull(device.wait(Until.findObject(By.descContains("Photo taken")), 10000)) { "Generated photo missing from picker" }.click()
+            // Android 17's modular picker uses Done; earlier versions use Add.
+            val confirm = checkNotNull(device.wait(Until.findObject(
+                By.pkg(Pattern.compile("com\\.(google\\.)?android\\.(photopicker|providers\\.media\\.module)"))
+                    .text(Pattern.compile("(?i)add.*|done"))), 5000)) { "Photo selection confirm button missing" }
+            device.dumpWindowHierarchy(File(compose.activity.getExternalFilesDir(null), "ssh-photo-selected.xml"))
+            capture("ssh-photo-selected")
+            confirm.click()
+            runBlocking { withTimeout(15000) { while (remote.list(directory).none { !it.name.startsWith(".cmux-upload-") }) delay(50) } }
+            ready("ssh.files.refresh")
+            val entry = runBlocking { remote.list(directory) }.single()
+            verifyRemote(entry.name, bytes)
+            ready("ssh.files.row.${entry.name}")
+            compose.onNodeWithTag("ssh.files.row.${entry.name}").performClick()
+            compose.waitUntil(15000) { compose.onAllNodes(hasContentDescription("Image preview", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNode(hasContentDescription("Image preview", substring = true)).assertIsDisplayed()
+            capture("ssh-photo-preview")
+        } finally { compose.activity.contentResolver.delete(uri, null, null) }
     }
 }

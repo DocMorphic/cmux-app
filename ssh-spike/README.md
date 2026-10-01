@@ -86,7 +86,7 @@ shell-count checks; it never executes
 input as host commands. Optional `CMUX_SSH_TRACE=1` logs lifecycle event types and
 active shell counts without terminal input or credentials.
 
-Use `--files-ui` for six SFTP browser checks against this same chrooted fixture.
+Use `--files-ui` for eight SFTP browser/system-picker checks against this same chrooted fixture.
 They exercise literal Unicode/glob/backslash filenames, transfer bytes and naming
 collisions, rename, symlink navigation/deletion, nonempty-folder refusal, visible
 text preview and folder dialogs, plus refusing a retired account's transport.
@@ -95,7 +95,13 @@ download and cleans local scratch files, cancelled uploads do not publish a fina
 name, the shared connection survives, and broken/size-mismatched sources fail
 without publishing. The fixed `files-transfer-arm`, `files-transfer-release` and
 `files-transfer-status` commands control only the synthetic server's transfer gate.
-No path or executable text is accepted by these controls. The shell UI suite also
+No path or executable text is accepted by these controls. Two additional cases
+seed their own MediaStore documents/photo, operate the actual Android document and
+photo pickers, verify cancellation/reopening, multiple documents, duplicate upload
+names and exact remote bytes, then delete their own local media. The photo case
+also opens the uploaded image preview. Use `--files-pickers` to run just these
+two system-picker cases while diagnosing picker integration. Picker UI hierarchies and screenshots are
+saved in the debug app's external files directory for diagnosis. The shell UI suite also
 verifies quoted path insertion without Enter or sending the unsent composer draft.
 The fixed `files-fixture-link` setup command creates only a fixture-owned link;
 it accepts no path argument and never runs a shell. The runner remains emulator

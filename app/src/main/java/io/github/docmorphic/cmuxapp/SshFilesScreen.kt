@@ -109,8 +109,10 @@ internal fun SshFilesScreen(session: NativeSshSession, hostId: UUID, terminal: S
             } } finally { load(target) }
         }
     }
-    val documents = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments(), ::upload)
-    val photos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(), ::upload)
+    // Local function references compare equal even when their captured directory
+    // changes. Lambdas let the launcher's updated callback see the loaded folder.
+    val documents = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { upload(it) }
+    val photos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { upload(it) }
     fun open(entry: SshFileEntry) = act {
         val path = SshFilePaths.join(checkNotNull(directory), entry.name)
         if (entry.directory || entry.symlink && remote.directory(path)) { load(path); trail = trail + path }

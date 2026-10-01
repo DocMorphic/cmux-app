@@ -17,17 +17,18 @@ def main():
     parser.add_argument("--shell-ui", action="store_true", help="Run three production Ghostty SSH shell-screen checks")
     parser.add_argument("--tmux-ui", action="store_true", help="Run the four real tmux workspace checks")
     parser.add_argument("--cmux-ui", action="store_true", help="Run six real mixed cmux-tui/tmux/shell workspace checks")
-    parser.add_argument("--files-ui", action="store_true", help="Run six real SFTP transfer/browser checks")
+    parser.add_argument("--files-ui", action="store_true", help="Run eight real SFTP transfer/browser/system-picker checks")
+    parser.add_argument("--files-pickers", action="store_true", help="Run only the two real Android system-picker upload checks")
     parser.add_argument("--cmux-install", action="store_true", help="Run one live HTTPS/SFTP private installation check")
     parser.add_argument("--cmux-renderer", action="store_true", help="Run three cmux-tui provider/renderer component checks without an SSH fixture")
     parser.add_argument("--fixture", type=Path, help="Generated coordinates from ssh-tmux-fixture.py")
     args = parser.parse_args()
-    if sum((args.ui, args.shell_ui, args.tmux_ui, args.cmux_ui, args.cmux_install, args.cmux_renderer, args.files_ui)) > 1:
+    if sum((args.ui, args.shell_ui, args.tmux_ui, args.cmux_ui, args.cmux_install, args.cmux_renderer, args.files_ui, args.files_pickers)) > 1:
         parser.error("Choose one UI suite")
     if (args.tmux_ui or args.cmux_ui or args.cmux_install) and not args.fixture:
         parser.error("Real workspace checks require --fixture")
-    count = 6 if args.files_ui else 1 if args.cmux_install else 6 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14)))
-    test_class = "SshFilesScreenTest" if args.files_ui else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
+    count = 2 if args.files_pickers else 8 if args.files_ui else 1 if args.cmux_install else 6 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14)))
+    test_class = "SshFilesScreenTest" if args.files_ui or args.files_pickers else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")
     root = Path(__file__).resolve().parents[1]
@@ -60,7 +61,12 @@ def main():
     if port:
         run(["reverse", port, port])
     try:
-        command = ["shell", "am", "instrument", "-w", "-r", "-e", "class", "io.github.docmorphic.cmuxapp." + test_class]
+        selected = "io.github.docmorphic.cmuxapp." + test_class
+        if args.files_pickers:
+            selected = ",".join(selected + "#" + method for method in (
+                "documentPickerCancelsReopensAndUploadsMultipleFilesWithoutReplacingExistingFile",
+                "photoPickerCancelsReopensAndUploadsAnImageWhichPreviews"))
+        command = ["shell", "am", "instrument", "-w", "-r", "-e", "class", selected]
         # Only public fixture coordinates enter instrumentation arguments; the
         # server's generated private import examples remain in its build folder.
         public = {"port": fixture["port"], "user": fixture["username"],
