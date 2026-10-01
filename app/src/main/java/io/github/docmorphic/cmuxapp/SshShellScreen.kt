@@ -27,7 +27,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
-internal fun SshShellScreen(shell: SshTerminal, onBack: () -> Unit) {
+internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, reconnectError: String? = null,
+    onReconnect: (() -> Unit)? = null, onBack: () -> Unit) {
     val state by shell.state.collectAsState()
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -81,6 +82,11 @@ internal fun SshShellScreen(shell: SshTerminal, onBack: () -> Unit) {
             TextButton(onClick = {
                 if (direct) { rawKeyboard?.finishComposition(); direct = false; keyboard?.hide() } else showKeyboard()
             }, enabled = canInput) { Text(if (direct) "Compose" else "Keyboard") }
+        }
+        if (reconnecting) LinearProgressIndicator(Modifier.fillMaxWidth())
+        reconnectError?.let { Text(it, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.error) }
+        if (state.phase == SshShellPhase.ENDED && onReconnect != null) {
+            TextButton(onClick = onReconnect, enabled = !reconnecting, modifier = Modifier.testTag("ssh.shell.reconnect")) { Text("Reconnect") }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             RenderGridView(display, cells, state.revision, Modifier.fillMaxSize().testTag("ssh.shell.terminal")

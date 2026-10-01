@@ -42,10 +42,13 @@ internal object SshTmuxInventory {
     }
     /** tmux evaluates this guard in its own command queue, before mutation.
      * A replacement server/session cannot satisfy an old confirmation token. */
-    fun guarded(path: String, workspace: SshTmuxWorkspace, action: String): String {
+    fun paneTarget(workspace: SshTmuxWorkspace, pane: SshTmuxPaneRow) = "${workspace.target}:@${pane.window}.%${pane.id}"
+    fun guardedArguments(workspace: SshTmuxWorkspace, action: String, target: String = workspace.target): List<String> {
         val condition = "#{&&:#{==:#{pid},${workspace.server}},#{==:#{session_created},${workspace.created}}}"
-        return command(path, "if-shell", "-F", "-t", workspace.target, condition, action, "display-message -p CMUX_STALE_TARGET")
+        return listOf("if-shell", "-F", "-t", target, condition, action, "display-message -p CMUX_STALE_TARGET")
     }
+    fun guarded(path: String, workspace: SshTmuxWorkspace, action: String, target: String = workspace.target) =
+        command(path, *guardedArguments(workspace, action, target).toTypedArray())
 }
 
 internal data class SshTmuxHostState(val loading: Boolean = true, val available: Boolean = false,
@@ -157,8 +160,9 @@ internal class SshTmuxHost(val hostId: UUID, val connection: SshTransport, lifet
     }
     suspend fun split(workspace: SshTmuxWorkspace, pane: SshTmuxPaneRow, right: Boolean): Unit = mutate {
         current(workspace); check(state.value.workspaces.first { it.id == workspace.id }.panes.any { it.id == pane.id })
-        val action = "split-window -d ${environment.joinToString(" ")} ${if (right) "-h" else "-v"} -t %${pane.id}"
-        run(SshTmuxInventory.guarded(checkNotNull(tmux), workspace, action)); discover()
+        val target = SshTmuxInventory.paneTarget(workspace, pane)
+        val action = "split-window -d ${environment.joinToString(" ")} ${if (right) "-h" else "-v"} -t ${SshTmuxEncoding.quote(target)}"
+        run(SshTmuxInventory.guarded(checkNotNull(tmux), workspace, action, target)); discover()
     }
     suspend fun endWorkspace(workspace: SshTmuxWorkspace): Unit = mutate {
         current(workspace)
@@ -195,6 +199,9 @@ internal class SshTmuxHost(val hostId: UUID, val connection: SshTransport, lifet
     suspend fun open(workspace: SshTmuxWorkspace, pane: SshTmuxPaneRow): SshTmuxTerminal = scope.async {
       operations.withLock {
         current(workspace)
+        check(state.value.workspaces.first { it.id == workspace.id }.panes.any { it.id == pane.id && it.window == pane.window }) {
+            "This tmux pane moved or ended. Refresh before trying again."
+        }
         val id = "cmux-ssh-$hostId:tmux:${workspace.id}/%${pane.id}"
         terminals[id]?.takeUnless { it.state.value.phase == SshShellPhase.ENDED }?.let { return@withLock it }
         val client = control(workspace); current(workspace)

@@ -50,7 +50,9 @@ class SshTmuxScreenTest {
         }
         if (::root.isInitialized) root.deleteRecursively()
     }
-    private fun show() = compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) { SshTmuxScreen(provider, {}) } } }
+    private fun show(route: Boolean = false) = compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+        if (route) SshTmuxRoute(session, provider.hostId) {} else SshTmuxScreen(provider) {}
+    } } }
     private fun remoteWindow(workspace: SshTmuxWorkspace): String = runBlocking {
         val result = provider.connection.exec(SshTmuxInventory.command("/fixture/tmux", "display-message", "-p", "-t", workspace.target, "#{window_id}"))
         assertEquals(0, result.exitStatus); result.stdout.toString(Charsets.UTF_8).trim()
@@ -129,5 +131,41 @@ class SshTmuxScreenTest {
         compose.waitUntil(10000) { terminal.state.value.phase == SshShellPhase.RUNNING }
         compose.runOnIdle { lifetime.cancel(); assertFalse(terminal.send("must not send")) }
         compose.waitUntil(5000) { terminal.state.value.phase == SshShellPhase.ENDED && !provider.connection.isConnected }
+    }
+    @Test fun visiblePaneRecoversAfterDropButExplicitDisconnectWaitsForReconnect() {
+        show(route = true)
+        val workspace = provider.state.value.workspaces.single()
+        val pane = workspace.panes.first()
+        compose.waitUntil(10000) { compose.onAllNodesWithTag("ssh.tmux.pane.${workspace.id}.${pane.id}").fetchSemanticsNodes().isNotEmpty() }
+        waitAction(pane.windowName)
+        compose.onNodeWithTag("ssh.tmux.pane.${workspace.id}.${pane.id}").performScrollTo().performClick()
+        compose.waitUntil(10000) { compose.onAllNodes(hasTestTag("ssh.shell.composer") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ssh.shell.composer").performTextReplacement("before reconnect")
+        compose.onNodeWithTag("ssh.shell.send").performClick()
+        val old = runBlocking { withContext(Dispatchers.Main) { provider.open(workspace, pane) } }
+        waitText(old, "before reconnect")
+        compose.runOnIdle { provider.connection.close() }
+        compose.waitUntil(10000) { old.state.value.phase == SshShellPhase.ENDED }
+        // Wait for UI-driven recovery before reading the provider. Calling open
+        // too soon here would repair a broken auto-connect implementation.
+        compose.waitUntil(15000) { compose.onAllNodes(hasTestTag("ssh.shell.composer") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        provider = runBlocking { session.tmux.open(provider.hostId) }
+        val recovered = runBlocking { withContext(Dispatchers.Main) { provider.open(workspace, pane) } }
+        assertNotSame(old, recovered)
+        waitText(recovered, "before reconnect")
+        compose.onNodeWithTag("ssh.shell.composer").performTextReplacement("after reconnect")
+        compose.onNodeWithTag("ssh.shell.send").performClick()
+        waitText(recovered, "after reconnect")
+        compose.runOnIdle { session.connections.disconnect(provider.hostId) }
+        compose.waitUntil(10000) { recovered.state.value.phase == SshShellPhase.ENDED }
+        waitAction("Reconnect")
+        Thread.sleep(600)
+        assertEquals(SshConnectionPhase.IDLE, session.connections.statuses.value[provider.hostId]?.phase)
+        compose.onNodeWithTag("ssh.shell.composer").assertIsNotEnabled()
+        assertTrue(session.hosts.state.value.host(provider.hostId)!!.autoConnectPaused)
+        compose.onNodeWithTag("ssh.shell.reconnect").performClick()
+        compose.waitUntil(15000) { compose.onAllNodes(hasTestTag("ssh.shell.composer") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        assertFalse(session.hosts.state.value.host(provider.hostId)!!.autoConnectPaused)
+        capture("tmux-reconnected")
     }
 }

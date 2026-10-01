@@ -82,6 +82,19 @@ class SshTmuxProcessTest {
                 exec("split-window", "-d", "-h", "-t", "%$pane")
                 while (changes == 0) delay(10)
                 assertTrue(events.filterIsInstance<TmuxPaneEvent.Grid>().size >= 2)
+                // A pane moved into another session must not receive an action
+                // from the old workspace's still-visible row.
+                val metadata = exec("display-message", "-p", "-t", "=original:", "#{pid}:#{session_id}:#{session_created}").split(':')
+                val workspace = SshTmuxWorkspace(metadata[0].toInt(), SshTmuxParser.id(metadata[1], '$')!!, metadata[2].toLong(), "original", emptyList())
+                val row = SshTmuxPaneRow(pane, SshTmuxParser.id(original, '@')!!, 0, "original", 0, 39, 18, 2)
+                val oldTarget = SshTmuxInventory.paneTarget(workspace, row)
+                exec("new-session", "-d", "-s", "destination")
+                exec("join-pane", "-d", "-s", "%$pane", "-t", "=destination:")
+                val before = exec("list-panes", "-s", "-t", "=destination", "-F", "#{pane_id}")
+                val stale = process(SshTmuxInventory.guardedArguments(workspace, "split-window -d -h -t ${SshTmuxEncoding.quote(oldTarget)}", oldTarget))
+                assertTrue(stale.waitFor(5, TimeUnit.SECONDS)); assertNotEquals(0, stale.exitValue())
+                assertEquals(before, exec("list-panes", "-s", "-t", "=destination", "-F", "#{pane_id}"))
+                exec("kill-session", "-t", "=destination")
                 runCatching { control.detachSession() }
                 assertTrue(control.isClosed)
                 val sessions = exec("list-sessions", "-F", "#{session_name}").lines()

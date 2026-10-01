@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**tmux visible recovery (2026-10-01):** the open pane now recovers after an SSH
+drop, retaining its remote session and output. Explicit Disconnect stays paused
+until Reconnect; progress/failure feedback is visible. Split actions target the
+original session/window/pane and reject a pane moved elsewhere. Twenty-four focused
+JVM checks and three real SSH/tmux Android checks passed (API 37 / 16 KiB, 50.212
+seconds). Cold-process selection, further capture/input races, failed-attach and
+foreground fault acceptance, plain-shell retry, mixed providers, cache bounds and
+physical-device parity remain open. [Exact evidence](DIRECT_SSH.md). Signed 284 and
+the Pixel installation remain unchanged.
+
 **tmux workspace UI (2026-10-01):** saved hosts now discover existing tmux
 sessions and open panes through the shared Ghostty terminal screen. New workspace,
 new terminal, splits and confirmed ending are implemented, with server/session

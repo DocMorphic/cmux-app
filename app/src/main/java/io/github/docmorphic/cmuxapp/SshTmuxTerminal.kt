@@ -106,11 +106,17 @@ internal class SshTmuxHosts(private val connections: SshConnections<SshTransport
     init { scope.launch(start = CoroutineStart.UNDISPATCHED) { try { awaitCancellation() } finally { closeAll() } } }
     suspend fun open(id: java.util.UUID): SshTmuxHost = withContext(Dispatchers.Main.immediate) {
         check(job.isActive && admitted()) { "Sign in to open tmux workspaces" }
-        val connection = connections.open(id)
+        adopt(id, connections.open(id))
+    }
+    suspend fun autoOpen(id: java.util.UUID): SshTmuxHost? = withContext(Dispatchers.Main.immediate) {
+        check(job.isActive && admitted()) { "Sign in to open tmux workspaces" }
+        connections.autoConnect(id)?.let { adopt(id, it) }
+    }
+    private fun adopt(id: java.util.UUID, connection: SshTransport): SshTmuxHost {
         check(job.isActive && admitted() && connection.isConnected)
-        hosts[id]?.takeIf { it.connection === connection }?.let { return@withContext it }
+        hosts[id]?.takeIf { it.connection === connection }?.let { return it }
         hosts.remove(id)?.close()
-        SshTmuxHost(id, connection, scope, { job.isActive && admitted() }).also { hosts[id] = it }
+        return SshTmuxHost(id, connection, scope, { job.isActive && admitted() }).also { hosts[id] = it }
     }
     private fun closeAll() { hosts.values.toList().forEach { it.close() }; hosts.clear() }
     override fun close() { job.cancel(); scope.launch(NonCancellable) { closeAll() } }

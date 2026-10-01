@@ -241,3 +241,15 @@ including renderer/input and action lifecycle checks on API 37 / 16 KiB. Final
 capture and APK receipts are in [DIRECT_SSH.md](DIRECT_SSH.md). This advances the
 tmux route; mixed-provider navigation, reconnect/cold-start, pane-move races,
 older tmux, idle/cache, SSH Files/browser and physical acceptance remain open.
+
+### Visible tmux reconnect and moved-pane split guard — 2026-10-01
+
+The visible route now reconnects after an SSH drop and reattaches the same stable
+session/window/pane. Persisted Disconnect suppresses automatic retry; explicit
+Reconnect resumes it with progress and failure feedback. Fully qualified split
+targets reject panes moved into another workspace. Twenty-four focused JVM checks
+and three real SSH/tmux Android checks passed on API 37 / 16 KiB (50.212 seconds),
+including UI-driven drop recovery and manual reconnect. [DIRECT_SSH.md](DIRECT_SSH.md)
+records exact APK receipts and remaining cold-start, race and physical acceptance.
+The iOS idle-close policy was traced to detached cmux-tui sessions and its server
+capability; it must not be substituted with an Android timer or tmux session kill.

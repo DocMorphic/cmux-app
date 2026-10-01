@@ -31,7 +31,7 @@ def approved(args):
     if args == ["-V"]:
         return True
     if args[0] == "if-shell":
-        return (len(args) == 7 and args[1:3] == ["-F", "-t"] and re.fullmatch(r"\$\d+", args[3])
+        return (len(args) == 7 and args[1:3] == ["-F", "-t"] and re.fullmatch(r"\$\d+(?::@\d+\.%\d+)?", args[3])
                 and re.fullmatch(r"#\{&&:#\{==:#\{pid},\d+},#\{==:#\{session_created},\d+}}", args[4])
                 and approved(shlex.split(args[5])) and args[6] == "display-message -p CMUX_STALE_TARGET")
     if args[0] == "set-option":
@@ -53,7 +53,7 @@ def approved(args):
         return False
     flags, values = rules[args[0]]
     patterns = {"name": r"(?:cmux-\d+|cmux-[0-9a-f]{8}-cmux-android-[0-9a-f]{32})",
-                "target": r"(?:\\?\$\d+:?|%\d+|=cmux-[0-9a-f]{8}-cmux-android-[0-9a-f]{32}:?)",
+                "target": r"(?:\\?\$\d+(?::@\d+\.%\d+|:)?|%\d+|=cmux-[0-9a-f]{8}-cmux-android-[0-9a-f]{32}:?)",
                 "history": r"-2000", "size": r"\d+x\d+", "pause": r"%\d+:(?:pause|continue)", "environment": r"COLORTERM=truecolor"}
     i = 1
     while i < len(args):

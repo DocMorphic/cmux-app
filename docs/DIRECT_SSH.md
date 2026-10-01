@@ -13,8 +13,55 @@ rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This au
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
-Older checkpoints below retain their original evidence boundaries; the account-owned
-tmux workspace checkpoint is the latest implementation status.
+Older checkpoints below retain their original evidence boundaries; the tmux
+recovery checkpoint is the latest implementation status.
+
+## Visible tmux recovery and moved-pane actions (2026-10-01)
+
+The visible tmux route now observes the account's SSH coordinator while the app
+is started. A dropped connection can reconnect automatically and reattach the
+shown pane, preserving its remote session and captured output. Explicit
+Disconnect and declined identity prompts retain the coordinator's persisted
+auto-connect pause; failures require an explicit retry. The terminal and workspace
+screens expose Reconnect, progress and errors. View cancellation does not cancel
+the coordinator's shared dial. Reattachment matches the server/session creation
+identity and exact window/pane; missing or replaced targets show an error rather
+than opening an unrelated pane. This selection is retained in the current route,
+not yet restored after process death.
+
+Split actions now use a fully qualified session/window/pane target for both the
+tmux guard and mutation. A real-process regression moves a pane into a different
+session before sending the old action and verifies refusal without adding a pane
+to that destination. Opening a pane also checks its current inventory membership.
+Further races during control capture/input and cold-start restoration remain
+separate acceptance work.
+
+**Verification:** 24 focused JVM checks passed without skips (15 tmux, including
+the private real-process case, and nine connection-coordinator checks). Debug and
+instrumentation APKs built. All three real SSH/tmux Android checks passed in
+**50.212 seconds** on the single API 37 emulator with **16,384-byte pages**. The new
+route test drops the transport while a pane is visible, waits for the UI itself
+to recover before looking up the provider, verifies old and new output, then
+checks persisted Disconnect and explicit Reconnect. The existing workspace
+creation/split/end and account-retirement checks also pass. The recovered-terminal
+capture was inspected; this remains the isolated `cat` fixture, with its line
+discipline echoes, rather than physical-device or arbitrary-TUI acceptance.
+
+- App SHA256: `ccb7bc35f74ca6afe6573bd26ba44079eb814072bada677d5676c973ce390a92`.
+- Test SHA256: `eba684027e75b2271060083bdcd230a93e30c771f44b1adb5d7524dab2ca6605`.
+- Ignored evidence: `captures/runtime/tmux-workspaces/reconnect-android/`,
+  `reconnect-jvm/`, `reconnect-build.txt` and `reconnect-fixture-trace.txt`.
+
+The emulator and private fixture were stopped. Signed build 284 and the Pixel
+installation remain unchanged. Foreground/background fault injection, failed
+reattachment UI, cold-process selection, plain-shell retry, mixed providers,
+cache bounds, SSH Files/browser/media and physical acceptance remain open.
+
+The iOS idle-close setting applies to **detached cmux-tui sessions on the remote
+computer**, through its `terminal-idle-close-v1` capability and per-surface policy.
+It is not an Android inactivity timeout or authorization to kill tmux sessions.
+That policy will be connected with the cmux-tui provider; see [host editor][editor]
+and [cmux-tui provider][tui].
 
 ## tmux workspace UI and Android SSH integration (2026-10-01)
 
