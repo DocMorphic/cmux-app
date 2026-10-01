@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH Keys UI (2026-10-01):** signed-in Settings now opens generated/imported key
+management with optional biometric policy, public-key copy/share, rename and
+confirmed deletion. Private-key/passphrase inputs are excluded from saved screen
+state, the import window blocks screenshots, and file reads are bounded before
+decoding. **Three JVM and three Android 17 / 16 KiB UI checks passed**, followed by
+one focused check after correcting the list screenshot wait. List/generate captures
+were inspected. System picker/share integration, real process restoration,
+biometric presentation and physical acceptance remain open; saved SSH Computers
+and terminal integration are next. See [DIRECT_SSH.md](DIRECT_SSH.md).
+
 **Update workflow (2026-10-01):** upstream iOS CI/release policy was reviewed at
 `15aa32c`. New workflows track upstream mobile/shared changes in one review issue,
 batch main Android previews after five relevant commits or three hours, and

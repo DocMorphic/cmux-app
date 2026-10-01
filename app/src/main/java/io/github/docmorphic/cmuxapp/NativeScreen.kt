@@ -146,7 +146,8 @@ fun NativeScreen(
     val machineColorIndices = nativeMacColorIndices(pairedMacs, computerState.computers)
     val paneSelection = feedSession.paneNavigation.select(if (signedIn) store.taskSession() else null,
         pairedMacs.singleOrNull { it.code == code }, teamState.scope)
-    var showSettings by remember { mutableStateOf(false) }
+    var showSettings by rememberSaveable(signedIn) { mutableStateOf(false) }
+    var showSshKeys by rememberSaveable(signedIn) { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
     var showTaskComposer by rememberSaveable(signedIn) { mutableStateOf(false) }
     var taskDraftId by rememberSaveable(signedIn) { mutableStateOf(java.util.UUID.randomUUID().toString()) }
@@ -1546,6 +1547,7 @@ fun NativeScreen(
         when {
             !signedIn -> NativeSignIn(account::sendCode, account::signIn, onUseHelper,
                 onLicenses = { showLicenses = true }, onSignedIn = { signedIn = true; error = null })
+            showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
             showSettings -> {
                 NativeSettingsLayout(onBack = { showSettings = false }, account = {
                 NativeAccountTeamSection(teamState, onRefresh = {
@@ -1624,6 +1626,7 @@ fun NativeScreen(
                         modifier = Modifier.semantics { contentDescription = "Background notifications" })
                 }
                 }, preferences = {
+                TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
                 NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences)
                 TextButton(onClick = { showShortcuts = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Terminal Shortcuts") }
                 TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }

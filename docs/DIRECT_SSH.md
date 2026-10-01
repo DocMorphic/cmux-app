@@ -2,7 +2,8 @@
 
 ## Status and evidence boundary
 
-**Android direct SSH is not yet available through the app UI.** Production host
+**SSH connections are not yet available through the Android UI.** Settings now
+exposes SSH key management; Computers/terminal integration is still open. Production host
 storage, private-key storage and the low-level transport are implemented as
 described in the checkpoints below. Existing native Mac pairing, terminal
 rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This audit
@@ -223,6 +224,54 @@ The supplied owner is not yet wired to the production account/UI runtime.
 Computers/key screens, root prompt/biometric presentation, idle closure,
 workspace provider integration and physical acceptance still need implementation.
 Signed 284 and the physical Pixel installation remain unchanged.
+
+## SSH Keys in Settings — 2026-10-01
+
+The signed-in Settings screen now opens `NativeSshKeysRoute` and the production
+`SshKeysScreen`, backed by the encrypted vault. Loading runs off the UI thread;
+corrupt/unreadable storage shows a retryable error without resetting keys. The
+route observes account-store revisions and hides key management when its captured
+login is no longer admitted. Settings/key navigation and public form labels use
+saved state; private-key text and passphrases do not.
+
+The screens follow the reviewed iOS key-management flow: generate a P-256 key with
+optional biometric policy (default off), import OpenSSH Ed25519/ECDSA text or a
+chosen file, show algorithm/origin/fingerprint, copy/share the public key, rename,
+and confirm deletion. Deletion removes dependent hosts' key references through
+the production vault callback. A wrong passphrase keeps the input available for
+retry. File reads are bounded below 64 KiB before UTF-8 decoding, even if a
+provider omits its size. The import screen sets `FLAG_SECURE` and restores the
+previous window flag when it leaves. Owned secret byte snapshots are cleared on
+operation completion, including cancellation before the coroutine starts.
+
+**Three focused JVM checks passed** for file-size limits and strict UTF-8. **Three
+Android 17 / 16 KiB UI checks passed in 61.276 seconds**, exercising generation,
+rename, actual public-key clipboard contents, canceled/confirmed deletion with
+host-reference cleanup, encrypted import after a wrong passphrase, and Compose
+saved-state restoration that retains the label while clearing both secret fields.
+The screenshot-window flag was checked during import and after leaving it.
+
+An initial capture labeled as the key list still showed generation in progress.
+The capture now waits for the actual key-row tag rather than matching the same
+name in an input field. The focused management check passed again in 21.890
+seconds, and the corrected list/generate screenshots were inspected. This is
+component UI evidence, not full-app system-bar or physical-device acceptance.
+
+Debug APK SHA256:
+`edba77013c3dfe57d3b79b6917e56d1ee6fa675431491c3ca3e12a8e1b1eecfe`.
+Final test APK SHA256 after the capture correction:
+`e204b56fad3104e5d9a7cbea1a3dc37c7f1c137024a82e41e28761a3bb2e219e`.
+Evidence is in `captures/runtime/ssh-transport/keys-ui-api37/` and
+`keys-ui-capture/`. `SshKeysScreenTest` uses its own temporary vault/host metadata
+and does not clear accounts. The checks ran only on the retained emulator, which
+was stopped afterward. Signed 284 and the Pixel installation are unchanged.
+
+The system document-picker/share-sheet round trip, full Settings navigation after
+actual process death, account-retirement race acceptance, biometric prompt/
+invalidation and physical hardware behavior still need integrated checks.
+The biometric toggle configures the key's policy; connection-time biometric
+presentation is not implemented by this screen. Saved SSH Computers and the
+coordinator's account/root-prompt integration are the next feature work.
 
 The candidate wires SSH into normal iOS navigation, without a DEBUG gate:
 
