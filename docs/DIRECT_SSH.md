@@ -14,7 +14,46 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the SSH
-system-picker checkpoint is the latest implementation status.
+Files presentation checkpoint is the latest implementation status.
+
+## SSH Files presentation (2026-10-02)
+
+Audited `SSHDirectoryView.swift` at the same `204a11df` candidate. The Android
+sheet now has a centered folder title, an Add menu containing both upload routes
+and New Folder, file/folder/link icons, modification dates, directory chevrons,
+selectable monospace paths, long-press actions and pull to refresh. Filename/title
+ellipses preserve both ends; transfers use a bottom progress bar. Explicit Refresh
+and row action buttons remain accessible alongside the gestures.
+
+Listings put folders first and compare numeric filename runs by magnitude,
+without integer overflow, alongside locale-aware text collation. This covers
+common natural filename ordering; Java collation is not a claim of identical
+ordering to Apple's localized-standard comparator for every Unicode name.
+Photo-picker uploads use `Photo-yyyyMMdd-HHmmss[-N].extension` in local time,
+with the media MIME type selecting the extension. Documents retain provider
+basenames. The actual photo-picker test now requires the generated PNG name as
+well as verifying exact bytes and the rendered preview.
+
+Nine JVM cases passed (five existing path cases and four presentation cases), and
+both debug APKs built. The tests cover folders/numeric order, large numbers,
+leading zeros, German/Swedish collation and timestamp/time-zone/batch suffixes.
+Native ELF and both APK ZIP 16 KiB alignment checks passed.
+
+All **eight** real SFTP/browser/system-picker cases passed in **108.982 seconds**
+on API 37 / 16 KiB, with no skipped tests. The final photo capture shows the green
+fixture image and its generated `Photo-20261002-011454.png` name. Evidence is in
+ignored `captures/runtime/ssh-audit/files-presentation-*`: build and alignment
+logs, Android device receipt, instrumentation/logcat and inspected screenshots.
+Debug APK SHA-256:
+`ec8e2f163a7dfeb842c92ecaad2ed12d3e9c4a551016c5de08fc11f4f74da75c`;
+test APK: `e8c0f8a7bb113e8423520db2f90a81827d3f71fab0c3f9a05ce59938a6a07c01`.
+After building, only whitespace indentation and documentation were adjusted.
+
+The browser screenshot confirms the new file icon, modification date, grouped
+row, Add button and middle-truncated title. This fixture activity has its own
+system-bar styling; it is not physical-device or full iOS visual acceptance.
+Swipe-to-delete, multiple-photo/video and cloud-provider checks, process death,
+export and physical acceptance remain open. No signed release or parity pin changed.
 
 ## Real Android document and photo pickers (2026-10-02)
 

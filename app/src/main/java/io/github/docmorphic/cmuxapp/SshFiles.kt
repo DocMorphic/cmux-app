@@ -70,7 +70,7 @@ internal class SshFiles(private val connection: suspend () -> SshTransport) {
             }
             ChannelSftp.LsEntrySelector.CONTINUE
         })
-        return result.sortedWith(compareBy<SshFileEntry> { !it.directory }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }.thenBy { it.name })
+        return result.sortedWith(SshFilePresentation.order())
     }
     suspend fun directory(path: String): Boolean = run { it.stat(SshFilePaths.literal(path)).isDir }
     suspend fun mkdir(directory: String, name: String) = run { it.mkdir(SshFilePaths.join(directory, name)) }

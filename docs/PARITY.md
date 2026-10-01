@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH Files presentation (2026-10-02):** matched the reviewed iOS Add menu,
+file/folder/link indicators, dates, folder chevrons, selectable paths, centered
+title and bottom transfer display. Added pull to refresh, long-press actions,
+locale-aware natural filename sorting and generated photo names. Nine JVM checks
+and all eight Android SFTP/browser/picker cases passed (108.982 seconds, API 37 /
+16 KiB); browser and photo-preview captures inspected. Swipe-delete, broader media,
+physical-device and final visual acceptance remain open. [Evidence](DIRECT_SSH.md).
+
 **Real SSH upload pickers (2026-10-02):** fixed stale picker callbacks that
 retained the initial null folder and silently dropped selections. All eight
 SFTP/browser cases passed in 102.598 seconds on API 37 / 16 KiB, including actual

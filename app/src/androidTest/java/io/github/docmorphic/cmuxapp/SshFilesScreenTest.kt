@@ -126,7 +126,7 @@ class SshFilesScreenTest {
         compose.waitUntil(15000) { compose.onAllNodesWithContentDescription("Raw text preview").fetchSemanticsNodes().isNotEmpty() }
         onView(withText("Files fixture λ 中")).check(matches(isDisplayed()))
         capture("ssh-files-preview")
-        compose.onNodeWithText("Back").performClick(); ready("ssh.files.new-folder")
+        compose.onNodeWithText("Back").performClick(); ready("ssh.files.add"); compose.onNodeWithTag("ssh.files.add").performClick()
         compose.onNodeWithTag("ssh.files.new-folder").performClick()
         compose.onNodeWithTag("ssh.files.name").performTextInput("New λ folder")
         compose.onNodeWithText("Create").performClick(); ready("ssh.files.row.New λ folder")
@@ -238,7 +238,7 @@ class SshFilesScreenTest {
         } catch (failure: Throwable) { resolver.delete(uri, null, null); throw failure }
     }
     private fun picker(photos: Boolean = false) {
-        compose.onNodeWithText("Upload").performClick()
+        compose.onNodeWithTag("ssh.files.add").performClick()
         compose.onNodeWithText(if (photos) "Upload from Photos…" else "Upload from Files…").performClick()
         val packages = if (photos) listOf("com.google.android.photopicker", "com.android.photopicker", "com.google.android.providers.media.module", "com.android.providers.media.module")
             else listOf("com.google.android.documentsui", "com.android.documentsui")
@@ -311,6 +311,7 @@ class SshFilesScreenTest {
             runBlocking { withTimeout(15000) { while (remote.list(directory).none { !it.name.startsWith(".cmux-upload-") }) delay(50) } }
             ready("ssh.files.refresh")
             val entry = runBlocking { remote.list(directory) }.single()
+            assertTrue(entry.name.matches(Regex("Photo-[0-9]{8}-[0-9]{6}\\.png")))
             verifyRemote(entry.name, bytes)
             ready("ssh.files.row.${entry.name}")
             compose.onNodeWithTag("ssh.files.row.${entry.name}").performClick()
