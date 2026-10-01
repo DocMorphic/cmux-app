@@ -2,7 +2,9 @@
 
 ## Status and evidence boundary
 
-**Android direct SSH is not implemented.** Existing native Mac pairing, terminal
+**Android direct SSH is not yet available through the app UI.** Production host
+storage, private-key storage and the low-level transport are implemented as
+described in the checkpoints below. Existing native Mac pairing, terminal
 rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This audit
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
@@ -39,9 +41,9 @@ authentication-time cancellation and real multi-host behavior remain open.
 canonical host public keys and fingerprints, saved hosts/pins/last-used selection,
 idle policy and persisted auto-connect pause. The Android factory stores metadata
 with `AtomicFile` under `noBackupFilesDir/ssh/hosts-v1.json`, with one main-process
-instance per storage path. It contains public key material and key IDs only;
-private-key storage is still to be built. This foundation is not yet called by
-the UI or connected to the SSH engine.
+instance per storage path. It contains public key material and key IDs only.
+The later vault and transport checkpoints connect this foundation to the SSH
+engine; Computers UI integration remains outstanding.
 
 The store rejects corrupted/unknown-version trust data rather than loading an
 empty set of pins. It rejects missing/cyclic jump routes. Deleting a jump clears
@@ -54,10 +56,11 @@ Dial plans capture every hop plus connection revisions. Address/user/key/jump or
 pause changes invalidate them, including A→B→A changes, while label/idle edits do
 not. Trust snapshots also have revisions: a stale question cannot replace a pin
 after a competing answer or pin round trip. Revisions update before observers see
-new state, and writes complete before state/revisions are published. The future
-connection manager must still validate these plans after suspension, serialize
-prompts, fence account/session lifetime, resolve credentials and retire affected
-live sessions. The storage layer alone does not implement those behaviors.
+new state, and writes complete before state/revisions are published. The transport
+now validates plans after suspension, fences the supplied account lifetime,
+resolves credentials and retires affected live sessions. Connection coalescing,
+prompt coordination and the UI owner remain to be integrated. The storage layer
+alone does not implement those behaviors.
 
 **16 focused JVM tests passed** on the final source, covering restoration, OpenSSH
 fingerprint goldens, malformed metadata, jump cycles, concurrent saves, stale
@@ -129,6 +132,56 @@ Ed25519 `KeyPair.load` path supplies the text line as the raw public point. The
 final verifier parses bounded SSH wire fields and uses BC's Ed25519 verifier
 directly; generated/private-key loading in the vault did not change for that fix.
 Future transport code must avoid that public-only loader path.
+
+## Production SSH transport — 2026-10-01
+
+`SshTransport.kt` connects saved host routes to the production key vault. Its
+caller must supply a signed-in account lifetime, an admission predicate and
+identity/biometric prompt callbacks. It supports generated P-256 and imported
+keys, strict endpoint-key verification, exec, ordered PTY input/resize and scoped
+SFTP channels. Imported private-key leases close immediately after authentication.
+
+Jump routes use nested SSH `direct-tcpip` channels without temporary local TCP
+listeners. Pins use each original hostname and port. Every suspension rechecks
+the saved route and owner; late trust answers cannot pin an edited route. Declining
+a changed identity retains its previous pin and pauses automatic connection.
+Explicit connection clears the relevant route pauses. Owner cancellation, key
+deletion, endpoint/key/jump edits, pin replacement or a dropped hop retire the
+route and its owned channels. Label and idle-policy edits preserve a valid session.
+
+JSch's proxy interface can have no Java socket, so its socket read timeout does
+not bound a silent jump target. `SshTimedInputStream` supplies a bounded,
+backpressured stream with a 10-second handshake read timeout and 15-second
+connected read timeout for keepalive handling. Exec also has an output-size bound
+and deadline; a timed-out command closes its channel while leaving the session
+available. These are transport mechanisms, not evidence of network handoff or
+long-duration reconnect behavior.
+
+**Eleven Android transport checks passed on API 37 / 16 KiB pages in 22.932
+seconds.** These exercise the production host store/vault/transport against the
+independent generated AsyncSSH fixture: generated and imported authentication,
+pin reuse, changed-key refusal/pause/explicit retry, cancellation during trust,
+late answers after route edits, owner/key/pin retirement, exec/Unicode PTY/resize,
+70,000-byte SFTP transfer, two jump hops, exec timeout, a silent jump target and
+target disconnect cleanup. Four timed-stream JVM tests and the sixteen host-store
+tests passed on the same production source. No physical device was touched.
+
+The interrupted first attempt reported only `Process crashed`; no test result
+was credited. The subsequent run used identical APK hashes and saved all eleven
+successful instrumentation statuses plus scoped logcat. Evidence is in ignored
+`captures/runtime/ssh-transport/api37-resumed/`; the earlier failure remains in
+`api37-final/`. Debug APK SHA256:
+`fb9ec2b339547244685e9d64e10d1dda759588fdd806ab4f4893a601999452c6`.
+Test APK SHA256:
+`4601fa87cff9bc16f964ba82f7826751f86d1efd0810b899a31af676d37fed17`.
+Signed build 284 and the Pixel installation are unchanged.
+
+Connection coalescing/retry, prompt presentation, Computers/key UI, real biometric
+authorization, one-time password key installation, shell/tmux/cmux-tui providers
+and SSH Files/browser integration remain outstanding. This transport is not yet
+reachable from the app UI. Earlier API 26 vault/spike checks do not establish
+API 26 transport coverage; only the existing API 37 / 16 KiB emulator is retained
+on this Mac following the user's storage request.
 
 The candidate wires SSH into normal iOS navigation, without a DEBUG gate:
 

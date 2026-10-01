@@ -145,12 +145,18 @@ signing, encrypted imports, strict host-key checks, PTY/exec, SFTP and nested
 forwarding teardown. It is separate from the delivered app. Production host
 metadata and its Android atomic storage adapter subsequently passed 16 JVM checks
 for restoration, corruption/write failures and scoped route/trust decisions.
-They are not yet connected to the engine or UI. The 2026-10-01 private-key vault
-follow-up adds generated Keystore keys, authenticated encrypted imports, guarded
+The 2026-10-01 private-key vault follow-up adds generated Keystore keys,
+authenticated encrypted imports, guarded
 signing and recoverable deletion, with eight runtime checks passing on each of
 API 26 and API 37 / 16 KiB. JSch/BC are now app dependencies with packaged notices.
-Connection lifetime and UI integration are next; actual process-death, biometric,
-physical, host-storage Android runtime and real multiplexer acceptance remain open.
+The production transport now connects both stores to JSch with scoped route/owner
+lifetime, strict trust decisions, bounded jump reads and owned exec/PTY/SFTP
+channels. Eleven Android 17 / 16 KiB transport checks and twenty focused JVM
+checks passed. Connection coalescing/retry and UI integration are next; actual
+process-death, biometric, physical, host-storage Android runtime and real
+multiplexer acceptance remain open. Only the existing API 37 / 16 KiB emulator
+is retained after the user's storage cleanup; no new API 26 transport coverage
+is claimed.
 
 Signed build 284 is from Android commit
 `0db3c178d69facb8468d62e6bca42e951d34c2b1`. It includes the retained identified-input

@@ -28,7 +28,9 @@ evidence and limits. `settings.gradle.kts` includes this module only with
 The fixture runs on host loopback with generated credentials, synthetic commands
 and SFTP confined to a temporary directory. It accepts valid public-key proofs for
 a random fixture username. It has no host shell or personal credentials. Forwarding
-is restricted to its own loopback SSH listener. This verifies engine mechanics,
+is restricted to its own loopback SSH listener and a generated loopback TCP peer
+which deliberately sends no greeting (used by production transport timeout tests).
+This verifies engine mechanics,
 not a production command runner or general ProxyJump policy.
 
 ## Run
@@ -68,6 +70,20 @@ that reverse on exit. It records APK hashes, API/page size and the instrumentati
 result. API 26 lacks `getconf`, so its page-size receipt uses the process's own
 `smaps` page-size fields without saving memory addresses or paths. Stop the fixture
 with Ctrl-C and stop the owned emulator when finished.
+
+The production transport has a separate runner:
+`scripts/check-ssh-transport.py --serial emulator-5554 --output <ignored-directory>`.
+Build `:app:assembleDebug :app:assembleDebugAndroidTest` before starting the
+emulator. This runner installs the debug app and its instrumentation only on an
+emulator, supplies public fixture coordinates at runtime, and requires all eleven
+transport tests to finish without skips. Unlike this spike's embedded assets,
+those public arguments do not require rebuilding after a fixture restart.
+
+On the development Mac, retain only the existing `cmux_api37_16k` AVD and its
+system image. The redundant API 37 and API 26 AVDs/images were removed at the
+user's request to save storage. Earlier API 26 receipts remain historical evidence;
+they do not establish API 26 coverage for later transport changes. Do not recreate
+additional emulators as a routine part of development.
 
 ## Limits and next integration work
 

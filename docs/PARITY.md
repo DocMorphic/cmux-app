@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH transport checkpoint (2026-10-01):** the production host store and vault
+now connect through a scoped SSH transport with strict trust decisions, nested
+jump channels, exec, PTY input/resize and SFTP. Owner/route/key/pin changes retire
+sessions; silent jump peers have bounded reads and dropped targets close the
+whole route. **Eleven Android 17 / 16 KiB transport checks and twenty focused JVM
+checks passed.** Connection coalescing/retry, prompt and Computers/key UI,
+biometrics, mixed workspace providers and SSH Files/browser integration remain
+outstanding. See [DIRECT_SSH.md](DIRECT_SSH.md) for exact evidence and limits.
+Only one local emulator is retained following the user's storage request.
+Signed 284 and the physical Pixel installation are unchanged.
+
 **SSH private-key foundation (2026-10-01):** generated P-256 Keystore keys,
 encrypted OpenSSH Ed25519/ECDSA import storage, guarded signing leases, rename
 and recoverable deletion now have **eight passing Android checks on API 26 and

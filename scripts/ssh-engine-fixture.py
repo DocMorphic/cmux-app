@@ -26,6 +26,7 @@ async def main():
     host_key = asyncssh.generate_private_key("ssh-ed25519")
     nonce = secrets.token_hex(16)
     port = 0
+    silent_port = 0
 
     class Server(asyncssh.SSHServer):
         def begin_auth(self, user):
@@ -39,7 +40,7 @@ async def main():
             return user == username
 
         def connection_requested(self, dest_host, dest_port, orig_host, orig_port):
-            return dest_host == "127.0.0.1" and dest_port == port
+            return dest_host == "127.0.0.1" and dest_port in (port, silent_port)
 
     async def process(proc):
         if proc.command == "probe":
@@ -48,6 +49,12 @@ async def main():
         elif proc.command == "wait":
             await proc.stdin.read()
             proc.exit(0)
+        elif proc.command == "stall":
+            proc.stdout.write("WAIT\n")
+            await asyncio.sleep(120)
+            proc.exit(0)
+        elif proc.command == "drop":
+            proc.channel.get_connection().abort()
         elif proc.command is None:
             proc.stdout.write("SIZE %d %d\n" % proc.term_size[:2])
             while True:
@@ -63,6 +70,15 @@ async def main():
             proc.stderr.write("fixture command refused\n")
             proc.exit(127)
 
+    async def silent_peer(reader, writer):
+        try:
+            await reader.read()  # Accept TCP but never send an SSH greeting.
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    silent = await asyncio.start_server(silent_peer, "127.0.0.1", 0)
+    silent_port = silent.sockets[0].getsockname()[1]
     with tempfile.TemporaryDirectory(prefix="cmux-ssh-spike-") as directory:
         async with await asyncssh.create_server(
             Server, "127.0.0.1", 0, server_host_keys=[host_key],
@@ -81,11 +97,15 @@ async def main():
                        "hostKey": host_key.export_public_key().decode().strip(),
                        "changedHostKey": asyncssh.generate_private_key("ssh-ed25519")
                            .export_public_key().decode().strip(),
-                       "port": port, "imports": imports}
+                       "port": port, "silentPort": silent_port, "imports": imports}
             (assets / "fixture.json").write_text(json.dumps(fixture))
             print(json.dumps({"ready": True, "port": port,
                               "assets": str(assets)}), flush=True)
-            await asyncio.Event().wait()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                silent.close()
+                await silent.wait_closed()
 
 
 if __name__ == "__main__":
