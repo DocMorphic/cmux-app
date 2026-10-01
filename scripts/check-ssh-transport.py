@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--ui", action="store_true", help="Run the four production SSH host-screen checks")
     parser.add_argument("--shell-ui", action="store_true", help="Run three production Ghostty SSH shell-screen checks")
     parser.add_argument("--tmux-ui", action="store_true", help="Run the four real tmux workspace checks")
-    parser.add_argument("--cmux-ui", action="store_true", help="Run four real mixed cmux-tui/tmux/shell workspace checks")
+    parser.add_argument("--cmux-ui", action="store_true", help="Run six real mixed cmux-tui/tmux/shell workspace checks")
     parser.add_argument("--cmux-install", action="store_true", help="Run one live HTTPS/SFTP private installation check")
     parser.add_argument("--cmux-renderer", action="store_true", help="Run three cmux-tui provider/renderer component checks without an SSH fixture")
     parser.add_argument("--fixture", type=Path, help="Generated coordinates from ssh-tmux-fixture.py")
@@ -25,7 +25,7 @@ def main():
         parser.error("Choose one UI suite")
     if (args.tmux_ui or args.cmux_ui or args.cmux_install) and not args.fixture:
         parser.error("Real workspace checks require --fixture")
-    count = 1 if args.cmux_install else 3 if args.cmux_renderer else (4 if args.cmux_ui or args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14)))
+    count = 1 if args.cmux_install else 6 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14)))
     test_class = "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")
@@ -69,7 +69,18 @@ def main():
         for name, value in public.items():
             command += ["-e", "cmux_ssh_" + name, shlex.quote(str(value))]
         command += ["io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner"]
-        result = run(command, timeout=240 if args.cmux_install else 180)
+        try:
+            result = run(command, timeout=240 if args.cmux_install or args.cmux_ui else 180)
+        except subprocess.TimeoutExpired as failure:
+            # adb's timeout does not stop instrumentation on the device. Retain
+            # partial results and stop this emulator-only test before removing
+            # its reverse tunnel; otherwise it can outlive the failed runner.
+            output = failure.stdout or b""
+            if isinstance(output, bytes):
+                output = output.decode("utf-8", errors="replace")
+            (args.output / "instrumentation.txt").write_text(output + "\nRUNNER TIMEOUT\n")
+            run(["shell", "am", "force-stop", "io.github.docmorphic.cmuxapp.debug"])
+            raise RuntimeError("SSH instrumentation timed out; partial results and logcat retained") from None
         (args.output / "instrumentation.txt").write_text(result + "\n")
         if not re.search(rf"^OK \({count} tests?\)$", result, re.M) or "FAILURES!!!" in result or f"numtests={count}" not in result:
             raise RuntimeError("Production SSH checks failed; inspect instrumentation.txt")

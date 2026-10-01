@@ -106,6 +106,7 @@ async def main():
         tree = await control.request("list-workspaces")
         for workspace in tree["workspaces"]: await control.request("close-workspace", {"key": workspace["key"]})
     async def reset():
+        await cli("server", "ensure", "--session", session, "--json")
         control = await wire()
         try:
             await clear(control)
@@ -114,11 +115,17 @@ async def main():
             created = await control.request("create-terminal", {"key": key, "argv": ["/bin/cat"], "cols": 100, "rows": 30})
             await control.request("send", {"surface": created["surface"], "bytes": base64.b64encode("\x1b[32mRemote cmux λ 中\x1b[0m\x1b[?2004h\n".encode()).decode()})
         finally: await control.close()
+        if "cmux-android" in owned_sessions:
+            await cli("server", "ensure", "--session", "cmux-android", "--json")
+            phone = await wire("cmux-android")
+            try: await clear(phone, "cmux-android")
+            finally: await phone.close()
         await tmux_run("kill-server", allow_failure=True)
         await tmux_run("new-session", "-d", "-s", "desktop-tmux", "-x", "100", "-y", "30")
         await tmux_run("send-keys", "-t", "=desktop-tmux:", "Remote tmux", "Enter")
     children = set(); listener = None
     owned_sessions = {session}
+    phone_ensures = 0
     key = asyncssh.generate_private_key("ssh-ed25519")
     user = "cmux-fixture-" + secrets.token_hex(12)
     class Server(asyncssh.SSHServer):
@@ -126,7 +133,7 @@ async def main():
         def public_key_auth_supported(self): return True
         def validate_public_key(self, username, public_key): return username == user
     allowed = {"identify", "set-client-info", "subscribe", "list-workspaces", "create-workspace", "create-terminal", "close-workspace",
-               "attach-surface", "set-client-sizing", "send", "resize-attached-view", "resize-surface", "release-attached-view-size", "detach-attached-view"}
+               "new-screen", "new-tab", "split", "attach-surface", "set-client-sizing", "send", "resize-attached-view", "resize-surface", "release-attached-view-size", "detach-attached-view"}
     def relay_line(line):
         if len(line.encode()) > 1024 * 1024: raise ValueError("Oversized fixture request")
         value = json.loads(line)
@@ -138,12 +145,21 @@ async def main():
             raise ValueError("Fixture resource operation refused")
         return line.encode()
     async def handle(proc):
+        nonlocal phone_ensures
         child = None
         try:
             tokens = shlex.split(proc.command or "")
+            if tokens == ["fixture-owner-status"]:
+                proc.stdout.write(json.dumps({"phone": socket.with_name("cmux-android.sock").is_socket(),
+                    "desktop": socket.is_socket(), "phoneEnsures": phone_ensures})); proc.exit(0); return
             if tokens == ["fixture-install-status"]:
                 proc.stdout.write(json.dumps({"prepared": install.prepared, "activated": install.activated,
                     "stages": sum(p.exists() for p in install.stages)})); proc.exit(0); return
+            if tokens in (["fixture-stop-phone-owner"], ["fixture-stop-desktop-owner"]):
+                owner = "cmux-android" if tokens[0] == "fixture-stop-phone-owner" else session
+                if owner not in owned_sessions: raise ValueError("Owner not created")
+                await cli("server", "stop", "--session", owner, "--json")
+                proc.exit(0); return
             if tokens == ["fixture-reset"]:
                 await reset(); proc.exit(0); return
             if len(tokens) == 3 and tokens[:2] == ["sh", "-c"]:
@@ -162,7 +178,8 @@ async def main():
                     proc.stdout.write("/fixture/tmux\n"); proc.exit(0); return
                 if script.startswith("u=$(id -u)"):
                     for owner in sorted(owned_sessions):
-                        proc.stdout.write(str(socket.with_name(owner + ".sock")) + "\n")
+                        path = socket.with_name(owner + ".sock")
+                        if path.is_socket(): proc.stdout.write(str(path) + "\n")
                     proc.exit(0); return
                 if script == f"{install_module.quote(exposed_binary)} server ensure --session cmux-android --json >&2 && exec {install_module.quote(exposed_binary)} relay --session cmux-android":
                     if args.install:
@@ -170,7 +187,7 @@ async def main():
                         await asyncio.wait_for(start.communicate(), 10)
                         if start.returncode: raise ValueError("Installed owner failed to start")
                     else: await cli("server", "ensure", "--session", "cmux-android", "--json")
-                    owned_sessions.add("cmux-android")
+                    owned_sessions.add("cmux-android"); phone_ensures += 1
                     tokens = ["exec", exposed_binary, "relay", "--socket", str(socket.with_name("cmux-android.sock"))]
             kind = "shell"
             if not tokens and proc.term_type:
@@ -240,6 +257,7 @@ async def main():
         await tmux_run("kill-server", allow_failure=True)
         # Do not erase durable state if terminal-host cleanup fails.
         for owner in owned_sessions:
+            await cli("server", "ensure", "--session", owner, "--json")
             control = await wire(owner)
             try: await clear(control, owner)
             finally: await control.close()

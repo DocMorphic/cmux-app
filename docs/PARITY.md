@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**cmux-tui owner recovery and layout actions (2026-10-01):** saved selections can
+restart the phone-owned session and recover the original terminal/history;
+discovery and missing desktop owners remain read-only. New Screen, New Tab and
+both split directions select the created terminal. The saved idle policy is sent
+only to capable servers; 0.13.4 still lacks that capability. Fifty-seven focused
+JVM checks and six real Android SSH workspace checks passed (171.110 seconds,
+API 37 / 16 KiB). [Exact evidence](DIRECT_SSH.md) includes the initial timeout,
+inspected captures and outstanding server-version, files/browser, visual and
+physical-device acceptance. No signed release or broad upstream pin changed.
+
 **cmux-tui installer/phone-owned creation (2026-10-01):** New cmux Workspace
 starts only `cmux-android`, installing a verified pinned platform binary when one
 is absent. Listing does not install; activation refuses to replace an existing

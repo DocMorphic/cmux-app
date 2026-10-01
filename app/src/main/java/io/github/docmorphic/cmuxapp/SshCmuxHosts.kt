@@ -15,7 +15,8 @@ internal data class SshCmuxHostState(val loading: Boolean = true, val available:
 /** Existing cmux-tui owners on one SSH connection. Failed/stale sockets are
  * reported independently; they cannot hide reachable owners on the same host. */
 internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifetime: CoroutineScope,
-    private val admitted: () -> Boolean, private val installer: SshCmuxInstaller? = null) : AutoCloseable {
+    private val admitted: () -> Boolean, private val installer: SshCmuxInstaller? = null,
+    private val idlePolicy: () -> Long? = { 86400L }) : AutoCloseable {
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
     private val remote = SshCmuxRemote(connection, scope)
@@ -65,7 +66,7 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
             var control: SshCmuxControl? = null
             try {
                 control = remote.connect(binary, socket); guard()
-                val provider = SshCmuxProvider.open(control, scope) { !closed && job.isActive && admitted() && connection.isConnected }
+                val provider = SshCmuxProvider.open(control, scope, idlePolicy) { !closed && job.isActive && admitted() && connection.isConnected }
                 guard(); providers[socket.digest] = provider
             } catch (failure: Exception) {
                 control?.close()
@@ -74,6 +75,38 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
             }
         }
         guard(); mutable.value = mutable.value.copy(available = true, providers = providers.values.toList(), errors = errors)
+    }
+    /** Opening a saved terminal can restart our own owner, never a desktop
+     * owner's session. It neither installs software nor creates new terminals. */
+    suspend fun forSelection(selection: SshCmuxSelection): SshCmuxProvider = withContext(Dispatchers.Main.immediate) {
+        operations.withLock {
+            guard(); require(SshCmuxDiscovery.validSession(selection.session)) { "Invalid cmux-tui session" }
+            val id = SshCmuxDiscovery.digest(selection.session)
+            providers[id]?.takeUnless { it.state.value.ended } ?: run {
+                val binary = checkNotNull(remote.locateBinary()) { "cmux-tui is no longer installed on this computer" }
+                guard(); acquire(binary, selection.session)
+            }
+        }
+    }
+    // Called with operations held, so refresh and simultaneous view openings
+    // cannot publish two controls for one owner.
+    private suspend fun acquire(binary: String, session: String): SshCmuxProvider {
+        guard()
+        val id = SshCmuxDiscovery.digest(session)
+        providers[id]?.takeUnless { it.state.value.ended }?.let { return it }
+        val control = if (session == "cmux-android") remote.connectOwned(binary) else {
+            val socket = checkNotNull(remote.listSockets().singleOrNull { it.serves(session) }) {
+                "This desktop cmux-tui session is not running. Start it on the computer, then reconnect."
+            }
+            guard(); remote.connect(binary, socket)
+        }
+        try {
+            guard()
+            val provider = SshCmuxProvider.open(control, scope, idlePolicy) { !closed && job.isActive && admitted() && connection.isConnected }
+            guard(); providers.remove(id)?.close(); providers[id] = provider
+            mutable.value = mutable.value.copy(available = true, providers = providers.values.toList())
+            return provider
+        } catch (failure: Exception) { control.close(); throw failure }
     }
     /** Parent-owned after explicit user creation, so navigating away does not
      * cancel a submitted install/creation or cause an automatic replay. */
@@ -89,16 +122,8 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
                         .install(platform, connection) { mutable.value = mutable.value.copy(operation = it) }
                     guard()
                 }
-                val id = SshCmuxDiscovery.digest("cmux-android")
-                var provider = providers[id]?.takeUnless { it.state.value.ended }
-                if (provider == null) {
-                    val control = remote.connectOwned(binary); guard()
-                    try {
-                        provider = SshCmuxProvider.open(control, scope) { !closed && job.isActive && admitted() && connection.isConnected }
-                        guard(); providers.remove(id)?.close(); providers[id] = provider
-                    } catch (failure: Exception) { control.close(); throw failure }
-                }
-                mutable.value = mutable.value.copy(available = true, providers = providers.values.toList(), operation = "Creating workspace…")
+                val provider = acquire(binary, "cmux-android")
+                mutable.value = mutable.value.copy(operation = "Creating workspace…")
                 provider.createWorkspace()
             } finally { mutable.value = mutable.value.copy(operation = null); if (!closed) refresh() }
         }
@@ -111,7 +136,8 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
 }
 
 internal class SshCmuxHosts(private val connections: SshConnections<SshTransport>, lifetime: CoroutineScope,
-    private val admitted: () -> Boolean, private val installer: SshCmuxInstaller? = null) : AutoCloseable {
+    private val admitted: () -> Boolean, private val installer: SshCmuxInstaller? = null,
+    private val idlePolicy: (UUID) -> Long? = { 86400L }) : AutoCloseable {
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
     private val hosts = mutableMapOf<UUID, SshCmuxHost>()
@@ -126,7 +152,7 @@ internal class SshCmuxHosts(private val connections: SshConnections<SshTransport
         check(job.isActive && admitted() && connection.isConnected)
         hosts[id]?.takeIf { it.connection === connection }?.let { return it }
         hosts.remove(id)?.close()
-        return SshCmuxHost(id, connection, scope, { job.isActive && admitted() }, installer).also { hosts[id] = it }
+        return SshCmuxHost(id, connection, scope, { job.isActive && admitted() }, installer, { idlePolicy(id) }).also { hosts[id] = it }
     }
     private fun closeAll() { hosts.values.toList().forEach { it.close() }; hosts.clear() }
     override fun close() { job.cancel(); scope.launch(NonCancellable) { closeAll() } }

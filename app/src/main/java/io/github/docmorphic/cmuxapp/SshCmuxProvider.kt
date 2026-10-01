@@ -16,7 +16,7 @@ internal data class SshCmuxState(val tree: SshCmuxTree? = null, val loading: Boo
  * cancel a submitted mutation; account/transport retirement closes the control.
  * Never retries input or mutations after an uncertain reply. */
 internal class SshCmuxProvider private constructor(val control: SshCmuxControl, lifetime: CoroutineScope,
-    private val admitted: () -> Boolean) : AutoCloseable {
+    private val idlePolicy: () -> Long?, private val admitted: () -> Boolean) : AutoCloseable {
     val session = checkNotNull(control.server).session
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job)
@@ -97,7 +97,47 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
         val params = envelope().put("key", key).put("cols", 80).put("rows", 24)
             .put("terminal_id", UUID.randomUUID().toString().replace("-", ""))
         argv?.let { require(it.isNotEmpty()); params.put("argv", JSONArray(it)) }
-        control.request("create-terminal", params); guard()
+        val created = control.request("create-terminal", params); guard()
+        applyIdlePolicy(surface(created))
+    }
+    private fun surface(result: JSONObject): Int {
+        val value = result.get("surface")
+        check(value is Int || value is Long) { "Invalid created terminal identity" }
+        return (value as Number).toLong().also { check(it in 0..Int.MAX_VALUE.toLong()) }.toInt()
+    }
+    private suspend fun applyIdlePolicy(surface: Int) {
+        try { control.idlePolicy(surface, idlePolicy()) }
+        catch (failure: Exception) { currentCoroutineContext().ensureActive(); guard() }
+    }
+    suspend fun newScreen(workspace: SshCmuxWorkspace): SshCmuxSelection = createSurface(workspace, null, "new-screen")
+    suspend fun newTab(workspace: SshCmuxWorkspace, pane: SshCmuxPane): SshCmuxSelection = createSurface(workspace, pane, "new-tab")
+    suspend fun split(workspace: SshCmuxWorkspace, pane: SshCmuxPane, right: Boolean): SshCmuxSelection =
+        createSurface(workspace, pane, "split", right)
+
+    private suspend fun createSurface(workspace: SshCmuxWorkspace, pane: SshCmuxPane?, command: String,
+        right: Boolean = true): SshCmuxSelection = mutate {
+        val current = current(read(), workspace)
+        val params = JSONObject().put("cols", 80).put("rows", 24)
+        if (pane == null) params.put("workspace", current.id)
+        else {
+            check(workspace.screens.any { screen -> screen.panes.any { it == pane } }) { "Pane belongs to another workspace" }
+            val target = checkNotNull(current.screens.flatMap { it.panes }.singleOrNull {
+                it.id == pane.id && (pane.resource == null || it.resource == pane.resource)
+            }) { "This pane moved or was replaced. Refresh before trying again." }
+            check(!target.dead) { "This pane ended" }
+            params.put("pane", target.id)
+        }
+        if (command == "split") params.put("dir", if (right) "right" else "down")
+        // These legacy layout commands do not accept the durable workspace
+        // mutation envelope. Resolve on the current owner's tree and never
+        // replay a creation after a lost response.
+        val created = surface(control.request(command, params)); guard()
+        applyIdlePolicy(created)
+        val tree = read(); val updated = current(tree, workspace)
+        val tab = checkNotNull(updated.tabs.singleOrNull { it.surface == created && it.isTerminal }) {
+            "The created terminal is no longer listed. Refresh before creating another."
+        }
+        SshCmuxSelection.capture(session, tree, updated, tab)
     }
     private suspend fun resolveScope(): Pair<String, String> {
         resourceScope?.let { return it }
@@ -142,6 +182,7 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
         // the same terminal. Reuse will require explicit view lifetime tokens.
         terminals.remove(id)?.retire()
         check(terminals.size < 16) { "Close a terminal before opening another" }
+        applyIdlePolicy(row.surface)
         SshCmuxTerminal.open(id, selection, row, control, scope, ::allowed).also { terminals[id] = it }
       } }
       return try { opening.await() }
@@ -167,8 +208,9 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
         mutable.value = mutable.value.copy(loading = false, ended = true)
     }
     companion object {
-        suspend fun open(control: SshCmuxControl, lifetime: CoroutineScope, admitted: () -> Boolean): SshCmuxProvider {
-            val provider = SshCmuxProvider(control, lifetime, admitted)
+        suspend fun open(control: SshCmuxControl, lifetime: CoroutineScope, idlePolicy: () -> Long? = { 86400L },
+            admitted: () -> Boolean): SshCmuxProvider {
+            val provider = SshCmuxProvider(control, lifetime, idlePolicy, admitted)
             try {
                 provider.guard(); control.request("subscribe"); provider.operations.withLock { provider.read() }
                 provider.mutable.value = provider.mutable.value.copy(loading = false)

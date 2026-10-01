@@ -129,8 +129,8 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                     SshWorkspaceView(expected, tmux.open(workspace, pane))
                 }
                 is SshWorkspaceTarget.Cmux -> {
-                    val inventory = cmux.state.first { !it.loading }
-                    val provider = checkNotNull(inventory.providers.singleOrNull { it.session == target.selection.session }) { "This cmux-tui session is unavailable. Reconnect to try again." }
+                    cmux.state.first { !it.loading }
+                    val provider = cmux.forSelection(target.selection)
                     val state = provider.state.first { !it.loading }
                     check(!state.ended && state.error == null) { state.error ?: "cmux-tui session disconnected" }
                     SshWorkspaceView(expected, provider.open(target.selection, "cmux-ssh-$expected"), provider)
@@ -197,16 +197,25 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                         Column(Modifier.padding(14.dp)) {
                             Text(workspace.name.ifBlank { "Workspace" }, style = MaterialTheme.typography.titleMedium)
                             Row {
-                                TextButton(onClick = { act { provider.newTerminal(workspace) } }, enabled = available && !state.ended && !state.loading,
-                                    modifier = Modifier.testTag("ssh.cmux.new-terminal.${workspace.key}")) { Text("New Terminal") }
+                                TextButton(onClick = { act { select(SshWorkspaceTarget.Cmux(provider.newScreen(workspace))) } }, enabled = available && !state.ended && !state.loading,
+                                    modifier = Modifier.testTag("ssh.cmux.new-terminal.${workspace.key}")) { Text("New Screen") }
                                 TextButton(onClick = { ending = SshWorkspaceEnd(workspace.name) { provider.endWorkspace(workspace) } },
                                     enabled = available && !state.ended, modifier = Modifier.testTag("ssh.cmux.end.${workspace.key}")) { Text("End Workspace") }
                             }
                             if (workspace.tabs.isEmpty()) Text("No terminals in this workspace.")
                             for ((screenIndex, screen) in workspace.screens.withIndex()) {
-                                if (workspace.screens.size > 1) Text(screen.name ?: "Screen ${screenIndex + 1}")
+                                Text(screen.name ?: "Screen ${screenIndex + 1}")
                                 for ((paneIndex, pane) in screen.panes.withIndex()) {
                                     if (screen.panes.size > 1) Text(pane.name ?: "Pane ${paneIndex + 1}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Row {
+                                        val editable = available && !state.ended && !state.loading && !pane.dead
+                                        TextButton(onClick = { act { select(SshWorkspaceTarget.Cmux(provider.newTab(workspace, pane))) } }, enabled = editable,
+                                            modifier = Modifier.testTag("ssh.cmux.new-tab.${workspace.key}.${pane.id}")) { Text("New Tab") }
+                                        TextButton(onClick = { act { select(SshWorkspaceTarget.Cmux(provider.split(workspace, pane, true))) } }, enabled = editable,
+                                            modifier = Modifier.testTag("ssh.cmux.split-right.${workspace.key}.${pane.id}")) { Text("Split Right") }
+                                        TextButton(onClick = { act { select(SshWorkspaceTarget.Cmux(provider.split(workspace, pane, false))) } }, enabled = editable,
+                                            modifier = Modifier.testTag("ssh.cmux.split-down.${workspace.key}.${pane.id}")) { Text("Split Down") }
+                                    }
                                     for (tab in pane.tabs) {
                                         val title = tab.name?.takeIf { it.isNotBlank() } ?: tab.title.ifBlank { if (tab.isBrowser) "Browser" else "Terminal" }
                                         TextButton(onClick = { select(SshWorkspaceTarget.Cmux(SshCmuxSelection.capture(provider.session, checkNotNull(tree), workspace, tab))) },

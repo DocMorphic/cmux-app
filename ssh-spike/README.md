@@ -227,12 +227,14 @@ python3 scripts/check-ssh-transport.py --serial emulator-5554 --cmux-ui \
 ```
 
 Build debug/test APKs before starting the retained emulator. The runner refuses
-physical devices and requires all four checks without skips. It records exact
+physical devices and requires all six checks without skips. It records exact
 APK digests and page size. Checks exercise the combined workspace route, Unicode
 input/history, reopen, cmux workspace/terminal creation and confirmed termination,
 tmux and shell navigation, automatic transport recovery, explicit Disconnect and
 saved selection restoration through a fresh runtime, and creation in the separate
-phone-owned `cmux-android` session without changing the desktop workspace. They read the production
+phone-owned `cmux-android` session without changing the desktop workspace,
+restart of a stopped phone owner with durable history, refusal to start a stopped
+desktop owner, and automatic selection after New Screen/New Tab/both splits. They read the production
 View as Text sheet rather than reacquiring the terminal to inspect it.
 
 The listener accepts only fixture discovery/relay/tmux vectors. Every created
@@ -278,3 +280,10 @@ focused command and include `--tests '*SshWorkspaceTarget*'`. The combined suite
 runs 54 checks with all three opt-ins supplied. It exercises a private HOME with
 spaces/quotes, checksum/size/platform rejection, canceled download cleanup,
 installation, interrupted upload cleanup and refusal to replace an existing file.
+
+
+The owner/layout checkpoint raises the complete focused JVM suite to **57 checks**.
+The mixed Android fixture exposes explicit stop-owner operations for its two
+private sessions. Cleanup deliberately restarts private stopped owners to close
+their persistent terminal resources before confirmed reset. This fixture cleanup
+is separate from production discovery, whose refusal to start owners is tested.

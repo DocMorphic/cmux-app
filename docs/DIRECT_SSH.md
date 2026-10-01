@@ -14,7 +14,74 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the cmux-tui
-installer and phone-owned session checkpoint is the latest implementation status.
+owner recovery and layout checkpoint is the latest implementation status.
+
+## Owner recovery, layout creation and idle policy (2026-10-01)
+
+Opening a durable cmux-tui selection now resolves its provider independently of
+listing. A missing/ended `cmux-android` owner can be started with the existing
+binary, then the saved terminal is resolved by registry/workspace/tab/terminal
+identity. This path never installs a binary or creates a replacement terminal.
+Other session names require an existing matching socket; the phone does not
+start a missing desktop owner. Startup, provider publication and discovery are
+serialized per host. Discovery itself remains read-only.
+
+The workspace screen now uses `new-screen` for **New Screen**, matching iOS's
+nested-terminal action. Each pane exposes **New Tab**, **Split Right** and
+**Split Down**. Each successful action selects the returned terminal, rather than
+requiring a second tap. Provider actions re-list the current owner, resolve the
+stable workspace and verify pane identity/membership before sending a numeric
+layout command. They re-list afterward and capture the created terminal's durable
+identity. A moved/replaced pane is refused before submission. These legacy layout
+commands do not support the durable workspace mutation envelope; no fake CAS fields
+are sent, and an uncertain creation is not automatically replayed.
+
+The host's saved idle-close setting is now supplied on creation and attachment,
+using `terminal-idle-close-v1` capability gating. Unsupported servers receive no
+policy command. An explicit policy rejection does not replay creation or block
+an otherwise live terminal. A disconnected control still retires normally. This
+matches iOS's best-effort setting behavior and **does not add idle closure to
+0.13.4**, which lacks that capability; the server-version gap remains open.
+
+**JVM verification:** 57 focused checks passed without skips, including the real
+cmux-tui/tmux process tests and installer process test. New checks cover current
+idle settings (including Never), server policy rejection without duplicate
+creation, correct returned-terminal selection, pane identity rejection and omission
+of unsupported layout mutation guards. Debug/test APKs built and app ELF / both
+APK ZIP 16 KiB checks passed.
+
+**Android verification:** all six mixed-workspace checks passed on API 37 / 16 KiB
+in 171.110 seconds using real SSH, private cmux-tui 0.13.4 and tmux processes.
+The new layout check creates a screen, tab and both split directions, types into
+each automatically selected terminal, verifies the resulting topology and keeps
+the original terminal identity. The owner-recovery check stops the phone owner,
+proves a separate discovery consumer does not restart it, then uses Reconnect to
+recover the same registry and terminal through a new owner generation. History
+and new input are checked through the visible terminal before reading the current
+provider registry. Exactly one additional phone-owner ensure occurs. A stopped
+desktop owner remains stopped and shows the explicit reconnect error.
+
+An initial combined run timed out after three completed tests; its precise stall
+cause was not established. The identical APKs passed all six checks on rerun.
+This is retained as a test-run reliability follow-up, not counted as a pass. The
+runner now preserves partial instrumentation output on timeout and force-stops
+the emulator test before removing its reverse tunnel. An earlier recovery test
+assertion inspected a retired setup host; it now inspects the current host only
+after UI-driven history and input recovery succeed.
+
+Receipts are under ignored `captures/runtime/cmux-tui/`: `layout-jvm/`,
+`layout-build.txt`, `layout-alignment.txt`, `layout-android/` (timeout) and
+`layout-android-retry/` (six passing results and inspected captures). Debug APK
+SHA-256 is `e75c4e8562275c973e70cd98c7e9434d59bde04aa9b7182e973b177f0a147c3c`;
+test APK is `a1adeb945b26a3414268f031d2037ddcdf5e9512a7f64602d76c8d9dc7d9838a`.
+The emulator was stopped after verification. No physical-device test or signed
+release was performed. Captures verify readable controls and recovered terminal
+content; they do not establish final iOS visual parity or large-font acceptance.
+
+Remaining work includes workspace/pane/tab rename/move/close actions, browser and
+SFTP/media, compatible-server geometry/idle closure, complete iOS visual/interaction
+parity, process-death/fault acceptance and physical Pixel verification. This
+checkpoint does not change the signed release or upstream references.
 
 ## Installer and phone-owned session creation (2026-10-01)
 

@@ -315,6 +315,18 @@ SSH-to-cmux-tui acceptance are next, and no server-version gap or broad parity p
 was declared complete. [DIRECT_SSH.md](DIRECT_SSH.md) records exact receipts.
 
 
+## cmux-tui owner recovery and layout checkpoint (2026-10-01)
+
+Android now follows the reviewed provider's distinction between explicit recovery
+of its phone-owned session and discovery of existing desktop owners. New Screen,
+New Tab and both split directions select their returned terminal. Saved idle-close
+settings follow the upstream capability-gated, best-effort behavior, without
+claiming missing 0.13.4 server support. Fifty-seven focused JVM checks and six real
+Android SSH workspace tests passed (171.110 seconds, API 37 / 16 KiB).
+[DIRECT_SSH.md](DIRECT_SSH.md) records the initial combined-run timeout, corrected
+test inspection of the current host, exact APK hashes and remaining acceptance.
+No reviewed/implemented pin or signed release was advanced.
+
 ## Mixed Android SSH navigation checkpoint (2026-10-01)
 
 The reviewed iOS provider's cmux-tui → tmux → shell ordering is now wired into the

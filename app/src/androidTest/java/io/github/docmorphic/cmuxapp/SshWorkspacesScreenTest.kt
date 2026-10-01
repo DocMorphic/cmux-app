@@ -108,6 +108,7 @@ class SshWorkspacesScreenTest {
         val key = workspace().key
         compose.onNodeWithTag("ssh.cmux.new-terminal.$key").performScrollTo().performClick()
         compose.waitUntil(15000) { workspace().tabs.size == 2 }
+        ready(); compose.onNodeWithText("Back").performClick()
         ready("ssh.cmux.create.fixture")
         compose.onNodeWithTag("ssh.cmux.create.fixture").performScrollTo().performClick()
         compose.waitUntil(15000) { provider().state.value.tree!!.workspaces.size == 2 }
@@ -150,6 +151,77 @@ class SshWorkspacesScreenTest {
         compose.waitUntil(10000) { owned.state.value.tree!!.workspaces.isEmpty() }
         assertEquals(desktop.key, desktopProvider.state.value.tree!!.workspaces.single().key)
         capture("cmux-ssh-created-owner")
+    }
+    @Test fun newScreenTabAndBothSplitsSelectTheirCreatedTerminal() {
+        show(); ready("ssh.cmux.create.fixture")
+        val original = workspace(); val key = original.key; val screen = original.screens.single(); val pane = screen.panes.single()
+        fun create(tag: String, text: String) {
+            ready(tag); compose.onNodeWithTag(tag).performScrollTo().performClick()
+            send(text) // No second tap: the created terminal must be selected.
+            compose.onNodeWithText("Back").performClick()
+        }
+        create("ssh.cmux.new-terminal.$key", "new screen λ 中")
+        assertEquals(2, workspace().screens.size)
+        create("ssh.cmux.new-tab.$key.${pane.id}", "new tab λ 中")
+        assertEquals(2, workspace().screens.first { it.id == screen.id }.panes.single().tabs.size)
+        create("ssh.cmux.split-right.$key.${pane.id}", "right split λ 中")
+        assertEquals(2, workspace().screens.first { it.id == screen.id }.panes.size)
+        create("ssh.cmux.split-down.$key.${pane.id}", "down split λ 中")
+        val updated = workspace().screens.first { it.id == screen.id }
+        assertEquals(3, updated.panes.size)
+        fun directions(layout: SshCmuxLayout?): Set<Boolean> = when (layout) {
+            is SshCmuxLayout.Split -> directions(layout.a) + directions(layout.b) + layout.right
+            else -> emptySet()
+        }
+        assertEquals(setOf(true, false), directions(updated.layout))
+        assertEquals(5, workspace().tabs.size)
+        assertTrue(workspace().tabs.any { it.terminal == original.tabs.single().terminal })
+        capture("cmux-ssh-layout-actions")
+        compose.onNodeWithTag("ssh.cmux.end.$key").performScrollTo().performClick()
+        compose.onAllNodesWithText("End Workspace").onLast().performClick()
+        compose.waitUntil(15000) { provider().state.value.tree!!.workspaces.none { it.key == key } }
+    }
+    @Test fun ownerRestartRestoresSameTerminalWhileListingNeverRestartsDesktopOrPhone() {
+        show(); ready("ssh.cmux.create-owned")
+        compose.onNodeWithTag("ssh.cmux.create-owned").performScrollTo().performClick()
+        compose.waitUntil(15000) { cmux.state.value.providers.any { it.session == "cmux-android" && it.state.value.tree?.workspaces?.size == 1 } }
+        val before = cmux.state.value.providers.single { it.session == "cmux-android" }
+        val tree = before.state.value.tree!!; val workspace = tree.workspaces.single(); val tab = workspace.tabs.single()
+        val tag = "ssh.cmux.terminal.${workspace.key}.${tab.surface}"
+        ready(tag); compose.onNodeWithTag(tag).performScrollTo().performClick(); send("before owner stop λ 中")
+        fun status() = runBlocking { org.json.JSONObject(cmux.connection.exec("fixture-owner-status").stdout.toString(Charsets.UTF_8)) }
+        val ensures = status().getInt("phoneEnsures")
+        assertEquals(0, runBlocking { cmux.connection.exec("fixture-stop-phone-owner").exitStatus })
+        ready("ssh.shell.reconnect")
+        assertTrue(cmux.connection.isConnected); assertFalse(status().getBoolean("phone"))
+        // A separate list consumer must not restart the stopped owner. The
+        // visible route still retains its ended provider until user Reconnect.
+        val observer = compose.runOnIdle { SshCmuxHost(hostId, cmux.connection, lifetime, { lifetime.isActive }) }
+        try {
+            compose.waitUntil(15000) { !observer.state.value.loading }
+            assertTrue(observer.state.value.providers.none { it.session == "cmux-android" })
+            assertFalse(status().getBoolean("phone")); assertEquals(ensures, status().getInt("phoneEnsures"))
+        } finally { compose.runOnIdle { observer.close() } }
+        compose.onNodeWithTag("ssh.shell.reconnect").performClick()
+        ready(); waitText("before owner stop λ 中"); send("after owner restart λ 中")
+        // Read the current registry only after UI-driven recovery and input
+        // succeed. A retired SSH host is not the route's current provider.
+        cmux = runBlocking { session.cmux.open(hostId) }
+        val after = cmux.state.value.providers.single { it.session == "cmux-android" }
+        assertNotSame(before, after)
+        assertNotEquals(tree.generation, after.state.value.tree!!.generation)
+        assertEquals(tree.registry, after.state.value.tree!!.registry)
+        assertEquals(tab.terminal, after.state.value.tree!!.tabs.single().terminal)
+        assertEquals(ensures + 1, status().getInt("phoneEnsures"))
+        capture("cmux-ssh-owner-restarted")
+        compose.onNodeWithText("Back").performClick()
+        openCmux(); waitText("Remote cmux λ 中")
+        assertEquals(0, runBlocking { cmux.connection.exec("fixture-stop-desktop-owner").exitStatus })
+        ready("ssh.shell.reconnect"); compose.onNodeWithTag("ssh.shell.reconnect").performClick()
+        val error = "This desktop cmux-tui session is not running. Start it on the computer, then reconnect."
+        compose.waitUntil(15000) { compose.onAllNodesWithText(error).fetchSemanticsNodes().isNotEmpty() }
+        assertFalse(status().getBoolean("desktop")); assertTrue(cmux.connection.isConnected)
+        compose.onNodeWithTag("ssh.shell.composer").assertIsNotEnabled()
     }
     @Test fun droppedConnectionReattachesButExplicitDisconnectWaitsForUser() {
         show(); openCmux(); send("before connection loss")

@@ -18,6 +18,9 @@ class SshCmuxProviderTest {
         var held: JSONObject? = null
         var holdCommand: String? = null
         var tree = JSONObject().put("generation", "boot-a").put("registry_id", "registry-a").put("workspace_revision", 0).put("workspaces", JSONArray())
+        var supportsIdle = false
+        var rejectIdle = false
+        var layoutMutation: (JSONObject) -> Unit = {}
         var closed = false
         fun event(name: String) = feed(JSONObject().put("event", name))
         fun feed(value: JSONObject) { check(input.trySend((value.toString()+"\n").toByteArray()).isSuccess) }
@@ -26,6 +29,10 @@ class SshCmuxProviderTest {
         override suspend fun write(bytes: ByteArray) {
             val request = JSONObject(bytes.toString(Charsets.UTF_8)); sent += request
             val command = request.optString("cmd")
+            if (command == "set-terminal-idle-policy" && rejectIdle) {
+                feed(JSONObject().put("id", request.getString("id")).put("ok", false).put("error", "policy unavailable")); return
+            }
+            if (command in listOf("new-screen", "new-tab", "split")) layoutMutation(request)
             if (holdCommand == command) { check(held == null); held = request; return }
             if (request.has("operation")) {
                 val result = when (request.getString("operation")) {
@@ -39,8 +46,10 @@ class SshCmuxProviderTest {
             val data = when (command) {
                 "identify" -> JSONObject().put("app", "cmux-tui").put("version", "fixture").put("protocol", 12)
                     .put("session", "fixture").put("pid", 1).put("generation", "boot-a")
-                    .put("capabilities", JSONArray(listOf("workspace-registry-v1", "attach-initial-size")))
+                    .put("capabilities", JSONArray(listOf("workspace-registry-v1", "attach-initial-size") + if (supportsIdle) listOf("terminal-idle-close-v1") else emptyList<String>()))
                 "list-workspaces" -> tree
+                "create-terminal" -> JSONObject().put("surface", 1)
+                "new-screen", "new-tab", "split" -> JSONObject().put("surface", 5)
                 else -> JSONObject()
             }
             reply(request, data)
@@ -48,9 +57,9 @@ class SshCmuxProviderTest {
         override fun close() { closed = true; input.close() }
         fun count(command: String) = sent.count { it.optString("cmd") == command }
     }
-    private suspend fun TestScope.open(pipe: Pipe, owner: CoroutineScope = backgroundScope): SshCmuxProvider {
+    private suspend fun TestScope.open(pipe: Pipe, owner: CoroutineScope = backgroundScope, idle: () -> Long? = { 86400L }): SshCmuxProvider {
         val control = SshCmuxControl(pipe, owner)
-        val result = async { control.handshake("fixture"); SshCmuxProvider.open(control, owner) { true } }
+        val result = async { control.handshake("fixture"); SshCmuxProvider.open(control, owner, idle) { true } }
         runCurrent(); return result.await()
     }
     @Test fun topologyRefreshCoalescesAndOverflowResubscribesBeforeRelisting() = runTest {
@@ -94,6 +103,41 @@ class SshCmuxProviderTest {
         assertTrue(ending.await().isFailure)
         assertTrue(pipe.sent.none { it.optString("operation") == "terminal.close" })
         assertEquals(0, pipe.count("close-workspace")); provider.close()
+    }
+    @Test fun idlePolicyUsesCurrentHostChoiceAndPolicyRejectionDoesNotReplayCreation() = runTest {
+        val pipe = Pipe().apply { supportsIdle = true }
+        var seconds: Long? = 3600
+        val provider = open(pipe, idle = { seconds })
+        val first = async { provider.createWorkspace() }; runCurrent(); first.await()
+        assertEquals(3600L, pipe.sent.single { it.optString("cmd") == "set-terminal-idle-policy" }.getLong("idle_close_seconds"))
+        seconds = null; pipe.rejectIdle = true
+        val second = async { provider.createWorkspace() }; runCurrent(); second.await()
+        assertFalse(pipe.sent.last { it.optString("cmd") == "set-terminal-idle-policy" }.has("idle_close_seconds"))
+        assertEquals(2, pipe.count("create-workspace")); assertEquals(2, pipe.count("create-terminal"))
+        assertFalse(provider.state.value.ended); provider.close()
+    }
+    private fun paneTree() = JSONArray("""[{"id":1,"key":"workspace-a","resource_id":"ws_a","name":"one","screens":[{"id":2,"panes":[{"id":3,"resource_id":"pane_a","tabs":[{"surface":4,"kind":"pty","tab_resource_id":"tab_a","terminal_resource_id":"term_a"}]}]}]}]""")
+    @Test fun layoutCreationResolvesExactPaneAndSelectsReturnedTerminalWithoutFakeMutationGuards() = runTest {
+        val pipe = Pipe().apply { tree.put("workspaces", paneTree()) }
+        val provider = open(pipe); val before = provider.state.value.tree!!.workspaces.single(); val pane = before.screens.single().panes.single()
+        pipe.layoutMutation = { request ->
+            assertEquals(3, request.getInt("pane")); assertEquals("right", request.getString("dir"))
+            assertFalse(request.has("expected_generation")); assertFalse(request.has("mutation_id"))
+            pipe.tree.getJSONArray("workspaces").getJSONObject(0).getJSONArray("screens").getJSONObject(0)
+                .getJSONArray("panes").put(JSONObject("""{"id":6,"resource_id":"pane_b","tabs":[{"surface":5,"kind":"pty","tab_resource_id":"tab_b","terminal_resource_id":"term_b"}]}"""))
+        }
+        val create = async { provider.split(before, pane, true) }; runCurrent()
+        val selected = create.await(); assertEquals("term_b", selected.terminalResource); assertEquals(5, selected.surface)
+        assertEquals("workspace-a", selected.workspaceKey); assertEquals(1, pipe.count("split"))
+        provider.close()
+    }
+    @Test fun paneMovedOrReplacedBeforeCreationIsRefusedBeforeSendingMutation() = runTest {
+        val pipe = Pipe().apply { tree.put("workspaces", paneTree()) }
+        val provider = open(pipe); val before = provider.state.value.tree!!.workspaces.single(); val pane = before.screens.single().panes.single()
+        pipe.tree.getJSONArray("workspaces").getJSONObject(0).getJSONArray("screens").getJSONObject(0)
+            .getJSONArray("panes").getJSONObject(0).put("resource_id", "replacement")
+        val create = async { runCatching { provider.newTab(before, pane) } }; runCurrent()
+        assertTrue(create.await().isFailure); assertEquals(0, pipe.count("new-tab")); provider.close()
     }
     @Test fun colorsRejectEscapeInjectionAndOnlyEmitBoundedPaletteIndices() {
         val colors = JSONObject().put("fg", "#aAbBcC").put("bg", "#000000\u001b]52;c;secret\u0007")
