@@ -29,7 +29,8 @@ class UpdatePolicyTest(unittest.TestCase):
         return watch.build_report({"repository":"manaflow-ai/cmux", "implemented_ref":"a"*40, "reviewed_ref":"b"*40},
                                   "c"*40, {"files":files, "status":"ahead", "commits":[], "total_commits":1, **kwargs})
     def test_ui_protocol_and_rename_out_of_mobile_are_relevant(self):
-        for path in ("ios/App.swift", "Packages/Shared/Wire.swift", "Sources/Mobile/Host.swift", "workers/presence/src/index.ts"):
+        for path in ("ios/App.swift", "Packages/Shared/Wire.swift", "Sources/Mobile/Host.swift",
+                     "Sources/TerminalController.swift", ".github/workflows/test-ios.yml", "workers/presence/src/index.ts"):
             self.assertTrue(self.report([{"filename":path,"status":"modified"}])["requires_review"])
         self.assertTrue(self.report([{"filename":"archive/old.swift","previous_filename":"ios/old.swift","status":"renamed"}])["requires_review"])
     def test_complete_unrelated_diff_is_quiet_but_truncation_is_not(self):

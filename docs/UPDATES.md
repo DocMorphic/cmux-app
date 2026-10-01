@@ -38,7 +38,8 @@ GitHub Actions is currently prohibited from creating/approving PRs in this repo.
 The watcher therefore uses an issue with scoped `issues: write`, leaving that
 repository setting unchanged. It neither opens code PRs nor changes signing keys.
 
-The inventory covers iOS UI, shared/mobile protocol code, phone push, workers,
+The inventory covers iOS UI, shared/mobile protocol code, all native host `Sources/`
+(mobile behavior can change outside `Sources/Mobile/`), phone push, workers,
 authentication SDK, Ghostty pins and iOS build definitions. Renames out of a watched
 path also count. GitHub limits comparison file inventories to 300 files. A capped
 inventory, diverged history or incomplete commit list is stated explicitly; a

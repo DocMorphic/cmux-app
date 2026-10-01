@@ -10,8 +10,8 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = "<!-- cmux-upstream-watch:v1 -->"
 PREFIXES = ("ios/", "Packages/iOS/", "Packages/Shared/", "Packages/macOS/CmuxPhonePush/",
-            "Sources/Mobile/", "Sources/Socket", "workers/", "docs/prd/ios", "vendor/stack-auth-swift")
-EXACT = {"ghostty", "ghostty.h", ".gitmodules"}
+            "Sources/", "workers/", "docs/prd/ios", "vendor/stack-auth-swift")
+EXACT = {"ghostty", "ghostty.h", ".gitmodules", ".github/workflows/test-ios.yml"}
 
 
 def relevant(path):
