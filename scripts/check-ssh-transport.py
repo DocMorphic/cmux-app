@@ -15,14 +15,14 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--ui", action="store_true", help="Run the four production SSH host-screen checks")
     parser.add_argument("--shell-ui", action="store_true", help="Run two production Ghostty SSH shell-screen checks")
-    parser.add_argument("--tmux-ui", action="store_true", help="Run the three real tmux workspace checks")
+    parser.add_argument("--tmux-ui", action="store_true", help="Run the four real tmux workspace checks")
     parser.add_argument("--fixture", type=Path, help="Generated coordinates from ssh-tmux-fixture.py")
     args = parser.parse_args()
     if sum((args.ui, args.shell_ui, args.tmux_ui)) > 1:
         parser.error("Choose one UI suite")
     if args.tmux_ui and not args.fixture:
         parser.error("Real tmux checks require --fixture")
-    count = 3 if args.tmux_ui else (2 if args.shell_ui else (4 if args.ui else 14))
+    count = 4 if args.tmux_ui else (2 if args.shell_ui else (4 if args.ui else 14))
     test_class = "SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest"))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")

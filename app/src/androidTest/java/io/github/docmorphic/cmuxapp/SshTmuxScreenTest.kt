@@ -6,6 +6,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.*
 import org.junit.*
@@ -21,11 +22,12 @@ class SshTmuxScreenTest {
     private lateinit var session: NativeSshSession
     private lateinit var lifetime: CoroutineScope
     private lateinit var provider: SshTmuxHost
+    private var metadata: String? = null
     @Before fun setup() {
         val args = InstrumentationRegistry.getArguments()
         assumeTrue(args.getString("cmux_ssh_nonce") == "tmux")
         root = File(compose.activity.noBackupFilesDir, "tmux-ui-${UUID.randomUUID()}")
-        val hosts = SshHostStore({ null }, {})
+        val hosts = SshHostStore({ metadata }, { metadata = it })
         val vault = SshKeyVault(root, { true }, hosts::removeKeyReferences)
         val key = vault.generate("tmux fixture")
         val host = SshHostRecord(name = "tmux fixture", keyId = key.id,
@@ -167,5 +169,45 @@ class SshTmuxScreenTest {
         compose.waitUntil(15000) { compose.onAllNodes(hasTestTag("ssh.shell.composer") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
         assertFalse(session.hosts.state.value.host(provider.hostId)!!.autoConnectPaused)
         capture("tmux-reconnected")
+    }
+    @Test fun savedPaneReattachesWithFreshRuntimeAndRestoredDisconnectStaysPaused() {
+        val hostId = provider.hostId
+        val workspace = provider.state.value.workspaces.single()
+        val pane = workspace.panes.first()
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshTmuxRoute(session, hostId) {}
+        } } }
+        compose.waitUntil(10000) { compose.onAllNodes(hasTestTag("ssh.tmux.pane.${workspace.id}.${pane.id}") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ssh.tmux.pane.${workspace.id}.${pane.id}").performScrollTo().performClick()
+        compose.waitUntil(10000) { compose.onAllNodes(hasTestTag("ssh.shell.composer") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ssh.shell.composer").performTextReplacement("saved runtime")
+        compose.onNodeWithTag("ssh.shell.send").performClick()
+        val before = runBlocking { withContext(Dispatchers.Main) { provider.open(workspace, pane) } }
+        waitText(before, "saved runtime")
+        fun replaceRuntime() = compose.runOnIdle {
+            session.close(); lifetime.cancel()
+            val hosts = SshHostStore({ metadata }, { metadata = it })
+            val vault = SshKeyVault(root, { true }, hosts::removeKeyReferences)
+            lifetime = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            session = NativeSshSession(hosts, vault, lifetime) { lifetime.isActive }
+        }
+        replaceRuntime()
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitUntil(15000) { compose.onAllNodes(hasTestTag("ssh.shell.composer") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        provider = runBlocking { session.tmux.open(hostId) }
+        val restored = runBlocking { withContext(Dispatchers.Main) { provider.open(workspace, pane) } }
+        assertNotSame(before, restored); waitText(restored, "saved runtime")
+        compose.runOnIdle { session.connections.disconnect(hostId) }
+        compose.waitUntil(10000) { restored.state.value.phase == SshShellPhase.ENDED }
+        replaceRuntime()
+        restoration.emulateSavedInstanceStateRestore()
+        waitAction("Try again")
+        assertTrue(session.hosts.state.value.host(hostId)!!.autoConnectPaused)
+        assertTrue(session.connections.statuses.value.isEmpty())
+        compose.onNodeWithText("Try again").performClick()
+        compose.waitUntil(15000) { compose.onAllNodes(hasTestTag("ssh.shell.composer") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        assertFalse(session.hosts.state.value.host(hostId)!!.autoConnectPaused)
+        capture("tmux-restored")
     }
 }

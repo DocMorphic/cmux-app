@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**tmux saved selection and target binding (2026-10-01):** saved Android state now
+reattaches the exact pane through a fresh SSH runtime and preserves Disconnect.
+Capture/input commands bind session/window/pane at server execution, and pending
+input chunks cannot continue into a replacement attachment. Twenty-five focused
+JVM checks and four real SSH/tmux Android checks passed (API 37 / 16 KiB, 58.451
+seconds). Actual OS process-death/Pixel acceptance, stale-target UI cases, atomic
+phone-group collection, cache bounds and mixed-provider integration remain open.
+[Evidence and scope](DIRECT_SSH.md). Signed 284 is unchanged.
+
 **tmux visible recovery (2026-10-01):** the open pane now recovers after an SSH
 drop, retaining its remote session and output. Explicit Disconnect stays paused
 until Reconnect; progress/failure feedback is visible. Split actions target the

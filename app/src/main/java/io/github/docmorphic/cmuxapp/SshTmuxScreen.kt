@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -27,6 +28,7 @@ internal fun SshTmuxRoute(session: NativeSshSession, hostId: UUID, onBack: () ->
     var failure by remember(session, hostId) { mutableStateOf<String?>(null) }
     var connecting by remember(session, hostId) { mutableStateOf(false) }
     var recovery by remember(session, hostId) { mutableIntStateOf(0) }
+    var entered by rememberSaveable(hostId.toString()) { mutableStateOf(false) }
     val mutex = remember(session, hostId) { Mutex() }
     val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -49,7 +51,10 @@ internal fun SshTmuxRoute(session: NativeSshSession, hostId: UUID, onBack: () ->
         } finally { connecting = false }
     }
     LaunchedEffect(session, hostId, lifecycle) {
-        connect(true) // The user explicitly opened this computer.
+        // Only a fresh user navigation clears a persisted Disconnect. Android
+        // restoring this route after recreation is an automatic open.
+        val explicit = !entered; entered = true
+        connect(explicit)
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             session.connections.statuses.collect { statuses ->
                 if (host?.connection?.isConnected != true && statuses[hostId]?.phase != SshConnectionPhase.FAILED) connect(false)
@@ -74,26 +79,31 @@ internal fun SshTmuxScreen(host: SshTmuxHost, reconnecting: Boolean = false, rec
     val disconnected by host.connection.disconnected.collectAsState()
     val scope = rememberCoroutineScope()
     var selected by remember(host.hostId) { mutableStateOf<SshTmuxTerminal?>(null) }
+    var selection by rememberSaveable(host.hostId.toString()) { mutableStateOf<String?>(null) }
     var restoring by remember { mutableStateOf(false) }
+    var retry by remember { mutableIntStateOf(0) }
     var ending by remember(host) { mutableStateOf<SshTmuxWorkspace?>(null) }
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(host, recovery) {
-        val old = selected ?: return@LaunchedEffect
-        if (old.state.value.phase != SshShellPhase.ENDED) return@LaunchedEffect
+    fun reference(workspace: SshTmuxWorkspace, pane: SshTmuxPaneRow) = "${workspace.id}/@${pane.window}/%${pane.id}"
+    fun leavePane() { selection = null; selected = null; failure = null }
+    LaunchedEffect(host, recovery, selection, retry) {
+        val expected = selection ?: return@LaunchedEffect
+        val old = selected
+        if (old != null && reference(old.workspace, old.pane) == expected && old.state.value.phase != SshShellPhase.ENDED) return@LaunchedEffect
         restoring = true; failure = null
         try {
             val inventory = host.state.first { !it.loading }
             check(inventory.error == null) { inventory.error.orEmpty() }
-            val workspace = inventory.workspaces.firstOrNull { it.id == old.workspace.id }
-                ?: error("This tmux workspace ended or was replaced. Go back to choose a workspace.")
-            val pane = workspace.panes.firstOrNull { it.id == old.pane.id && it.window == old.pane.window }
-                ?: error("This tmux pane moved or ended. Go back to choose a pane.")
+            val match = inventory.workspaces.firstNotNullOfOrNull { workspace ->
+                workspace.panes.firstOrNull { reference(workspace, it) == expected }?.let { workspace to it }
+            } ?: error("This tmux pane moved, ended or was replaced. Go back to choose a pane.")
+            val (workspace, pane) = match
             val replacement = host.open(workspace, pane)
-            if (selected === old) selected = replacement
+            if (selection == expected) selected = replacement
         } catch (error: Exception) {
             if (error is CancellationException) throw error
-            if (selected === old) failure = error.message ?: "Could not reopen tmux pane"
+            if (selection == expected) failure = error.message ?: "Could not reopen tmux pane"
         } finally { restoring = false }
     }
     fun act(action: suspend () -> Unit) {
@@ -105,8 +115,16 @@ internal fun SshTmuxScreen(host: SshTmuxHost, reconnecting: Boolean = false, rec
             finally { busy = false }
         }
     }
-    selected?.let { terminal ->
-        SshShellScreen(terminal, reconnecting || restoring, reconnectError ?: failure, onReconnect) { selected = null; failure = null }
+    if (selection != null) {
+        val terminal = selected?.takeIf { reference(it.workspace, it.pane) == selection }
+        if (terminal != null) SshShellScreen(terminal, reconnecting || restoring, reconnectError ?: failure, onReconnect, ::leavePane)
+        else Column(Modifier.fillMaxSize().padding(16.dp)) {
+            BackHandler(onBack = ::leavePane)
+            TextButton(onClick = ::leavePane) { Text("Back") }
+            if (restoring || reconnecting) CircularProgressIndicator()
+            (reconnectError ?: failure)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            if (!restoring && !reconnecting) TextButton(onClick = { host.refresh(); retry++ }) { Text("Try again") }
+        }
         return
     }
     BackHandler(onBack = onBack)
@@ -141,7 +159,7 @@ internal fun SshTmuxScreen(host: SshTmuxHost, reconnecting: Boolean = false, rec
                             val first = panes.first()
                             Text("${first.windowIndex}: ${first.windowName}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             for (pane in panes) {
-                                TextButton(onClick = { act { selected = host.open(workspace, pane) } }, enabled = enabled,
+                                TextButton(onClick = { selection = reference(workspace, pane) }, enabled = enabled,
                                     modifier = Modifier.testTag("ssh.tmux.pane.${workspace.id}.${pane.id}")) { Text(if (pane.count > 1) "Pane ${pane.index + 1}" else pane.windowName) }
                                 Row {
                                     TextButton(onClick = { act { host.split(workspace, pane, true) } }, enabled = enabled) { Text("Split Right") }

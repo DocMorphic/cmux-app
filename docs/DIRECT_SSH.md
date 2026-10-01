@@ -14,7 +14,53 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the tmux
-recovery checkpoint is the latest implementation status.
+saved-selection and target-binding checkpoint is the latest implementation status.
+
+## Saved tmux selection and execution-time pane targets (2026-10-01)
+
+The selected tmux pane now uses Android saved state containing the exact remote
+server/session creation identity, window ID and pane ID. After restoration the
+route relists and attaches only that matching target. A restored route uses
+automatic connection policy; a fresh navigation or explicit retry may clear a
+persisted Disconnect. Pending attachment has a Back action and visible failure/
+retry feedback. Restoration does not replay terminal input.
+
+Every control-mode capture, mode query and input command now names its grouped
+session, original window and pane together. A global pane ID alone would follow
+`join-pane` into another window/session even when the phone has not received the
+layout change yet. Geometry updates and the warm terminal cache also retire a
+pane that leaves its original window. Chunked input retains its attachment object
+and cannot resume into a newer attachment after an acknowledgement arrives.
+
+**Verification:** 25 focused JVM checks passed without skips. The private tmux
+3.7c process test moves a pane after its input command is queued but before the
+pipe writes it: the command fails and the destination capture has no input marker.
+A stale attachment produces neither a snapshot nor output from that moved pane.
+A deterministic control test confirms that remaining input chunks do not enter a
+replacement attachment. The previous stale-split guard remains covered.
+
+All **four real SSH/tmux Android checks passed in 58.451 seconds** on API 37 with
+16,384-byte pages. The new test saves/restores the Compose hierarchy after closing
+the old runtime, then creates fresh connection/provider/renderer objects and
+reloads serialized host metadata and the fixture key vault. It verifies retained
+remote output and a paused Disconnect across a second restoration, followed by
+explicit retry. The final capture was inspected. This uses
+`StateRestorationTester`; it is not an actual OS-killed full application process
+or physical Pixel run. Fixture, visual and arbitrary-TUI limits from the prior
+checkpoint still apply.
+
+- App SHA256: `36c3e8f487947f16eb6f238583d8524353c91cc777b60c98e2b8d8f70d62b7ac`.
+- Test SHA256: `d109ccb5e425831045d015c2fecf1d633f809441d00eb87019d8293561c01015`.
+- Ignored evidence: `captures/runtime/tmux-workspaces/restore-android/`,
+  `restore-jvm/`, `restore-build-final.txt` and `restore-fixture-trace.txt`.
+
+The sole emulator and private server were stopped. Signed 284 and the Pixel
+installation remain unchanged. Remaining work includes full-Activity/OS process
+restoration, failed/stale restored-target acceptance, foreground fault injection,
+plain-shell retry, bounded warm caches and atomic collection of abandoned phone
+groups, mixed shell/tmux/cmux-tui navigation, SSH Files/browser/media and physical
+acceptance. Upstream collection rechecks `session_attached` inside tmux before
+removing a group; the current Android discovery still needs that atomic guard.
 
 ## Visible tmux recovery and moved-pane actions (2026-10-01)
 

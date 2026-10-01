@@ -128,7 +128,7 @@ internal class SshTmuxHost(val hostId: UUID, val connection: SshTransport, lifet
         for (id in controls.keys.toList().filter { it !in live }) controls.remove(id)?.close()
         for ((id, terminal) in terminals.toMap()) {
             val row = workspaces.firstOrNull { it.id == terminal.workspace.id }?.panes?.firstOrNull { it.id == terminal.pane.id }
-            if (row == null) { terminals.remove(id); terminal.close() } else terminal.updatePane(row)
+            if (row == null || row.window != terminal.pane.window) { terminals.remove(id); terminal.close() } else terminal.updatePane(row)
         }
     }
     private fun current(workspace: SshTmuxWorkspace) {
@@ -203,10 +203,10 @@ internal class SshTmuxHost(val hostId: UUID, val connection: SshTransport, lifet
             "This tmux pane moved or ended. Refresh before trying again."
         }
         val id = "cmux-ssh-$hostId:tmux:${workspace.id}/%${pane.id}"
-        terminals[id]?.takeUnless { it.state.value.phase == SshShellPhase.ENDED }?.let { return@withLock it }
+        terminals[id]?.takeUnless { it.state.value.phase == SshShellPhase.ENDED || it.pane.window != pane.window }?.let { return@withLock it }
         val client = control(workspace); current(workspace)
         // Another view may have finished the shared control open first.
-        terminals[id]?.takeUnless { it.state.value.phase == SshShellPhase.ENDED }?.let { return@withLock it }
+        terminals[id]?.takeUnless { it.state.value.phase == SshShellPhase.ENDED || it.pane.window != pane.window }?.let { return@withLock it }
         terminals.remove(id)?.close()
         SshTmuxTerminal(id, workspace, pane, client, scope, { !closed && job.isActive && admitted() && connection.isConnected }).also { terminals[id] = it }
       }

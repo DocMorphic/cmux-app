@@ -30,7 +30,7 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
     private val parser = SshTmuxParser()
     private data class Reply(val lines: List<ByteArray>, val error: Boolean)
     private class Pending(val receive: (Reply) -> Unit) { var timeout: Job? = null }
-    private class Pane(val events: (TmuxPaneEvent) -> Unit) {
+    private class Pane(val window: Int, val target: String, val events: (TmuxPaneEvent) -> Unit) {
         val titles = SshTmuxTitleFilter()
         var stage = 0 // before capture, waiting for state, live
         var snapshot: ByteArray? = null
@@ -99,16 +99,19 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
             layouts[window] = layouts[window].orEmpty() + TmuxLeaf(pane, dimensions[0], dimensions[1], 0, 0)
         }
     }
-    fun attach(pane: Int, events: (TmuxPaneEvent) -> Unit) {
-        require(pane >= 0); check(pane !in panes) { "tmux pane already attached" }
-        val entry = Pane(events); panes[pane] = entry
+    fun attach(pane: Int, window: Int, events: (TmuxPaneEvent) -> Unit) {
+        require(pane >= 0 && window >= 0); check(pane !in panes) { "tmux pane already attached" }
+        // Pane IDs are global to the server and survive join-pane. Bind every
+        // read/write to the original grouped session and window at execution.
+        val target = SshTmuxEncoding.quote("=$groupedSession:@$window.%$pane")
+        val entry = Pane(window, target, events); panes[pane] = entry
         var alternate = false
         fun current() = panes[pane] === entry
         try {
             enqueue(listOf(
                 "refresh-client -A '%$pane:pause'" to { _ -> },
-                "display-message -p -t %$pane -F '#{alternate_on}'" to { reply -> alternate = reply.lines.firstOrNull()?.toString(Charsets.UTF_8) == "1" },
-                "capture-pane -p -e -S -${SshTmuxEncoding.HISTORY_LINES} -t %$pane" to { reply ->
+                "display-message -p -t $target -F '#{alternate_on}'" to { reply -> alternate = reply.lines.firstOrNull()?.toString(Charsets.UTF_8) == "1" },
+                "capture-pane -p -e -S -${SshTmuxEncoding.HISTORY_LINES} -t $target" to { reply ->
                     if (current()) {
                         if (reply.error) endPane(pane) else {
                             val out = ByteArrayOutputStream()
@@ -118,13 +121,13 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
                         }
                     }
                 },
-                "display-message -p -t %$pane -F '${SshTmuxEncoding.stateFormat}'" to { reply ->
+                "display-message -p -t $target -F '${SshTmuxEncoding.stateFormat}'" to { reply ->
                     if (current() && entry.stage == 1) {
                         if (reply.error) endPane(pane) else {
                             val fields = SshTmuxEncoding.fields(reply.lines.firstOrNull())
                             val width = fields["pane_width"]?.toIntOrNull(); val height = fields["pane_height"]?.toIntOrNull()
                             entry.grid = if (width != null && height != null && width in 1..65535 && height in 1..65535) width to height
-                                else leaf(pane)?.let { it.columns to it.rows }
+                                else leaf(pane, entry)?.let { it.columns to it.rows }
                             entry.stage = 2
                             entry.grid?.let { entry.events(TmuxPaneEvent.Grid(it.first, it.second)) }
                             entry.events(TmuxPaneEvent.Snapshot(checkNotNull(entry.snapshot) + SshTmuxEncoding.stateSequence(fields)))
@@ -140,10 +143,11 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
     }
     fun detach(pane: Int) { panes.remove(pane) }
     suspend fun write(pane: Int, bytes: ByteArray) {
-        check(pane in panes) { "tmux pane is not attached" }
+        val entry = checkNotNull(panes[pane]) { "tmux pane is not attached" }
         for (start in bytes.indices step 256) {
+            check(panes[pane] === entry && entry.stage == 2) { "tmux pane attachment ended" }
             val hex = bytes.copyOfRange(start, minOf(start + 256, bytes.size)).joinToString(" ") { (it.toInt() and 255).toString(16).padStart(2, '0') }
-            command("send-keys -t %$pane -H $hex")
+            command("send-keys -t ${entry.target} -H $hex")
         }
     }
     fun resize(columns: Int, rows: Int) {
@@ -152,7 +156,7 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
         enqueue(listOf("refresh-client -C ${columns}x$rows" to { _ -> }))
         size = columns to rows
     }
-    private fun leaf(pane: Int) = layouts.values.flatten().firstOrNull { it.pane == pane }
+    private fun leaf(pane: Int, entry: Pane) = layouts[entry.window]?.firstOrNull { it.pane == pane }
     private fun changed() {
         if (topology?.isActive == true) return
         topology = scope.launch { yield(); onTopologyChange?.invoke() }
@@ -195,7 +199,7 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
     }
     private fun updateGrids() {
         for ((pane, entry) in panes.toMap()) {
-            val geometry = leaf(pane)
+            val geometry = leaf(pane, entry)
             if (geometry == null) { endPane(pane); continue }
             val next = geometry.columns to geometry.rows
             if (entry.stage == 2 && entry.grid != next) { entry.grid = next; entry.events(TmuxPaneEvent.Grid(next.first, next.second)) }

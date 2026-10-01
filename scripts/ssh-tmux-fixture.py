@@ -48,12 +48,12 @@ def approved(args):
         "refresh-client": ({}, {"-C": "size", "-A": "pause"}),
     }
     if args[0] == "send-keys":
-        return len(args) >= 5 and args[1] == "-t" and re.fullmatch(r"%\d+", args[2]) and args[3] == "-H" and all(re.fullmatch(r"[0-9a-f]{2}", x) for x in args[4:])
+        return len(args) >= 5 and args[1] == "-t" and re.fullmatch(r"=cmux-[0-9a-f]{8}-cmux-android-[0-9a-f]{32}:@\d+\.%\d+", args[2]) and args[3] == "-H" and all(re.fullmatch(r"[0-9a-f]{2}", x) for x in args[4:])
     if args[0] not in rules:
         return False
     flags, values = rules[args[0]]
     patterns = {"name": r"(?:cmux-\d+|cmux-[0-9a-f]{8}-cmux-android-[0-9a-f]{32})",
-                "target": r"(?:\\?\$\d+(?::@\d+\.%\d+|:)?|%\d+|=cmux-[0-9a-f]{8}-cmux-android-[0-9a-f]{32}:?)",
+                "target": r"(?:\\?\$\d+(?::@\d+\.%\d+|:)?|%\d+|=cmux-[0-9a-f]{8}-cmux-android-[0-9a-f]{32}(?::@\d+\.%\d+|:)?)",
                 "history": r"-2000", "size": r"\d+x\d+", "pause": r"%\d+:(?:pause|continue)", "environment": r"COLORTERM=truecolor"}
     i = 1
     while i < len(args):

@@ -146,6 +146,8 @@ python3 scripts/check-ssh-transport.py --serial emulator-5554 \
   --output captures/runtime/tmux-workspaces/result
 ```
 
-The runner requires both tmux UI checks without skips and records exact APK hashes.
+The runner requires four tmux UI checks without skips and records exact APK hashes:
+workspace actions/rendering, account retirement, visible drop/manual recovery, and
+saved pane restoration against a fresh runtime with persisted Disconnect respected.
 Stop the fixture with Ctrl-C; it removes its private server and temporary HOME.
 The checks install only on an emulator and use isolated host/key storage.

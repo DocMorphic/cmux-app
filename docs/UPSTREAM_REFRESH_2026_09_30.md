@@ -253,3 +253,14 @@ including UI-driven drop recovery and manual reconnect. [DIRECT_SSH.md](DIRECT_S
 records exact APK receipts and remaining cold-start, race and physical acceptance.
 The iOS idle-close policy was traced to detached cmux-tui sessions and its server
 capability; it must not be substituted with an Android timer or tmux session kill.
+
+### Saved tmux selection and target binding — 2026-10-01
+
+Saved state restores an exact pane with fresh runtime objects, while automatic
+re-entry respects a saved Disconnect. Control capture/input now target the
+original session/window/pane; a queued command cannot follow a moved pane, and
+chunked input cannot migrate into a replacement attachment. Twenty-five focused
+JVM checks and four real SSH/tmux Android checks passed (58.451 seconds, API 37 /
+16 KiB). This is saved-state/fresh-runtime simulation, not full OS process-death
+or physical acceptance. [DIRECT_SSH.md](DIRECT_SSH.md) records exact hashes and
+remaining work, including the upstream atomic abandoned-group collection guard.

@@ -9,6 +9,7 @@ import org.junit.Test
 import java.nio.file.Files
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /** Opt-in real tmux, always a unique private socket and empty HOME/config.
  * CMUX_TMUX_TEST_BINARY must name an absolute binary; no personal server is used. */
@@ -49,12 +50,16 @@ class SshTmuxProcessTest {
             }
             val group = "original${SshTmuxEncoding.GROUP_MARKER}fixture"
             val running = process(listOf("-C", "new-session", "-t", "=original", "-s", group, ";", "set-option", "-t", "=$group:", "destroy-unattached", "off"))
+            val beforeWrite = AtomicReference<((String) -> Unit)?>(null)
             val pipe = object : SshTmuxPipe {
                 override val output = flow {
                     val bytes = ByteArray(8192)
                     while (true) { val n = running.inputStream.read(bytes); if (n < 0) break; emit(bytes.copyOf(n)) }
                 }.flowOn(Dispatchers.IO)
-                override suspend fun write(bytes: ByteArray) = withContext(Dispatchers.IO) { running.outputStream.write(bytes); running.outputStream.flush() }
+                override suspend fun write(bytes: ByteArray) = withContext(Dispatchers.IO) {
+                    beforeWrite.getAndSet(null)?.invoke(bytes.toString(Charsets.UTF_8))
+                    running.outputStream.write(bytes); running.outputStream.flush()
+                }
                 override fun close() { running.destroy() }
             }
             val control = SshTmuxControl(group, pipe, owner, commandTimeoutMillis = 5000); client = control
@@ -62,7 +67,8 @@ class SshTmuxProcessTest {
                 control.initialize()
                 val events = mutableListOf<TmuxPaneEvent>()
                 val seeded = CompletableDeferred<Unit>()
-                control.attach(pane) { events += it; if (it is TmuxPaneEvent.Snapshot) seeded.complete(Unit) }
+                val window = SshTmuxParser.id(original, '@')!!
+                control.attach(pane, window) { events += it; if (it is TmuxPaneEvent.Snapshot) seeded.complete(Unit) }
                 seeded.await()
                 val snapshot = events.filterIsInstance<TmuxPaneEvent.Snapshot>().single().bytes.toString(Charsets.UTF_8)
                 assertTrue(snapshot.contains("seed-before-phone"))
@@ -89,11 +95,25 @@ class SshTmuxProcessTest {
                 val row = SshTmuxPaneRow(pane, SshTmuxParser.id(original, '@')!!, 0, "original", 0, 39, 18, 2)
                 val oldTarget = SshTmuxInventory.paneTarget(workspace, row)
                 exec("new-session", "-d", "-s", "destination")
-                exec("join-pane", "-d", "-s", "%$pane", "-t", "=destination:")
+                // Move after the UI accepted input and queued its command, but
+                // before the command reaches tmux. Local inventory is too late.
+                beforeWrite.set { command ->
+                    assertTrue(command.startsWith("send-keys"))
+                    exec("join-pane", "-d", "-s", "%$pane", "-t", "=destination:")
+                }
+                assertTrue(runCatching { control.write(pane, "must-not-follow-pane\n".toByteArray()) }.isFailure)
+                assertNull(beforeWrite.get())
+                assertFalse(exec("capture-pane", "-p", "-t", "%$pane").contains("must-not-follow-pane"))
                 val before = exec("list-panes", "-s", "-t", "=destination", "-F", "#{pane_id}")
                 val stale = process(SshTmuxInventory.guardedArguments(workspace, "split-window -d -h -t ${SshTmuxEncoding.quote(oldTarget)}", oldTarget))
                 assertTrue(stale.waitFor(5, TimeUnit.SECONDS)); assertNotEquals(0, stale.exitValue())
                 assertEquals(before, exec("list-panes", "-s", "-t", "=destination", "-F", "#{pane_id}"))
+                // A stale attach must not capture the moved pane's new content.
+                control.detach(pane)
+                val staleEvents = mutableListOf<TmuxPaneEvent>()
+                control.attach(pane, window, staleEvents::add)
+                while (TmuxPaneEvent.Ended !in staleEvents) delay(10)
+                assertTrue(staleEvents.none { it is TmuxPaneEvent.Snapshot || it is TmuxPaneEvent.Output })
                 exec("kill-session", "-t", "=destination")
                 runCatching { control.detachSession() }
                 assertTrue(control.isClosed)

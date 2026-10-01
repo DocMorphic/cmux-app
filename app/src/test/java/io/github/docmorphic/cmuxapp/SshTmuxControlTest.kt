@@ -34,7 +34,7 @@ class SshTmuxControlTest {
     @Test fun snapshotIsDeliveredBeforeBufferedLiveOutputAndLateSeedsCannotReviveDetachedPane() = runTest {
         val pipe = Pipe(); val client = SshTmuxControl("test", pipe, backgroundScope)
         val events = mutableListOf<TmuxPaneEvent>()
-        client.attach(7, events::add); runCurrent()
+        client.attach(7, 2, events::add); runCurrent()
         pipe.feed("%output %7 already captured\n"); pipe.reply(1, error = true) // old tmux pause unsupported
         pipe.reply(2, "1"); pipe.reply(3, "screen row")
         pipe.feed("%output %7 later\\015\\012\n"); runCurrent(); assertTrue(events.isEmpty())
@@ -44,14 +44,14 @@ class SshTmuxControlTest {
         val snapshot = (events[1] as TmuxPaneEvent.Snapshot).bytes.toString(Charsets.UTF_8)
         assertTrue(snapshot.startsWith("\u001b[?1049h\u001b[H\u001b[2Jscreen row")); assertFalse(snapshot.contains("already captured"))
         assertArrayEquals("later\r\n".toByteArray(), (events[2] as TmuxPaneEvent.Output).bytes)
-        client.detach(7); client.attach(7, events::add); client.detach(7)
+        client.detach(7); client.attach(7, 2, events::add); client.detach(7)
         (6..10).forEach { pipe.reply(it, "stale") }; runCurrent(); assertEquals(3, events.size)
         client.close()
     }
     @Test fun layoutChangesFixPaneGridAndClosingWindowEndsPaneOnce() = runTest {
         val pipe = Pipe(); val client = SshTmuxControl("test", pipe, backgroundScope)
         val init = async { client.initialize() }; runCurrent(); pipe.reply(1, "@2 %7 80x24"); runCurrent(); init.await()
-        val events = mutableListOf<TmuxPaneEvent>(); client.attach(7, events::add)
+        val events = mutableListOf<TmuxPaneEvent>(); client.attach(7, 2, events::add)
         pipe.reply(2); pipe.reply(3, "0"); pipe.reply(4, "seed"); pipe.reply(5, "pane_width=80,pane_height=24"); pipe.reply(6); runCurrent()
         var changes = 0; client.onTopologyChange = { changes++ }
         pipe.feed("%layout-change @2 abcd,80x24,0,0{39x24,0,0,7,40x24,40,0,8} abcd,80x24,0,0,7 *\n%window-renamed @2 label\n")
@@ -68,6 +68,19 @@ class SshTmuxControlTest {
         val broken = Pipe().apply { failWrite = true }; val other = SshTmuxControl("other", broken, backgroundScope)
         val failure = async { runCatching { other.command("no retry") } }; runCurrent()
         assertTrue(failure.await().isFailure); assertTrue(other.isClosed); assertTrue(broken.sent.isEmpty())
+    }
+    @Test fun chunkedInputCannotContinueIntoReplacementAttachment() = runTest {
+        val pipe = Pipe(); val client = SshTmuxControl("test", pipe, backgroundScope)
+        client.attach(7, 2) {}; runCurrent()
+        pipe.reply(1); pipe.reply(2, "0"); pipe.reply(3, "seed")
+        pipe.reply(4, "pane_width=80,pane_height=24"); pipe.reply(5); runCurrent()
+        val writing = async { runCatching { client.write(7, ByteArray(512) { 65 }) } }; runCurrent()
+        assertEquals(1, pipe.sent.count { it.startsWith("send-keys") })
+        client.detach(7); client.attach(7, 3) {}; runCurrent()
+        pipe.reply(6); runCurrent()
+        assertTrue(writing.await().isFailure)
+        assertEquals(1, pipe.sent.count { it.startsWith("send-keys") })
+        client.close()
     }
     @Test fun gracefulCloseWaitsForKillAndOwnerCancellationClosesImmediately() = runTest {
         val pipe = Pipe(); val owner = CoroutineScope(backgroundScope.coroutineContext + Job())

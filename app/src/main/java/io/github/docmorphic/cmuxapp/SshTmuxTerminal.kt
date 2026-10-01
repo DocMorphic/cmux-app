@@ -27,7 +27,7 @@ internal class SshTmuxTerminal(override val id: String, val workspace: SshTmuxWo
     private var pending = 0
     init {
         scope.launch(start = CoroutineStart.UNDISPATCHED) { try { awaitCancellation() } finally { end(null) } }
-        try { control.attach(pane.id, ::event) }
+        try { control.attach(pane.id, pane.window, ::event) }
         catch (failure: Exception) { close(); throw failure }
         scope.launch {
             try {
