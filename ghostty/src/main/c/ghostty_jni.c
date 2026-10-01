@@ -17,6 +17,7 @@ typedef struct Terminal {
     uint8_t *replies;
     size_t reply_size, reply_capacity;
     bool reply_overflow;
+    GhosttySizeReportSize size;
     struct Terminal *next;
 } Terminal;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -143,6 +144,24 @@ static void write_pty(GhosttyTerminal terminal, void *userdata, const uint8_t *d
     entry->reply_size += length;
 }
 
+static bool terminal_size(GhosttyTerminal terminal, void *userdata, GhosttySizeReportSize *size) {
+    (void)terminal;
+    Terminal *entry = userdata;
+    *size = entry->size;
+    return true;
+}
+static jbyteArray take_replies(JNIEnv *env, Terminal *entry) {
+    jbyteArray result = NULL;
+    if (entry->reply_overflow) {
+        fail(env, "java/lang/IllegalStateException", "Terminal reply limit exceeded; close this terminal");
+    } else if (entry->reply_size && !(*env)->ExceptionCheck(env)) {
+        result = (*env)->NewByteArray(env, entry->reply_size);
+        if (result) (*env)->SetByteArrayRegion(env, result, 0, entry->reply_size, (jbyte *)entry->replies);
+    }
+    entry->reply_size = 0;
+    return result;
+}
+
 JNIEXPORT jlong JNICALL JNI_METHOD(nativeCreate)(JNIEnv *env, jobject self, jint cols, jint rows, jint history, jboolean replies) {
     (void)self;
     if (!dimensions(env, cols, rows)) return 0;
@@ -175,8 +194,10 @@ JNIEXPORT jlong JNICALL JNI_METHOD(nativeCreate)(JNIEnv *env, jobject self, jint
         !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_FILE, &disabled)) ||
         !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_TEMP_FILE, &disabled)) ||
         !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_SHARED_MEM, &disabled))) goto done;
+    entry->size = (GhosttySizeReportSize){.columns = cols, .rows = rows, .cell_width = 1, .cell_height = 1};
     if (replies && (!ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_USERDATA, entry)) ||
-        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_WRITE_PTY, write_pty)))) goto done;
+        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_WRITE_PTY, write_pty)) ||
+        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_SIZE, terminal_size)))) goto done;
     // Clipboard, title, filesystem and other effect callbacks remain absent.
     id = entry->id = next_id++;
     entry->next = terminals; terminals = entry; active_count++;
@@ -222,30 +243,31 @@ JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeAppend)(JNIEnv *env, jobject self,
         if (data) {
             ghostty_terminal_vt_write(entry->terminal, (const uint8_t *)data, length);
             (*env)->ReleaseByteArrayElements(env, bytes, data, JNI_ABORT);
-            if (entry->reply_overflow) {
-                fail(env, "java/lang/IllegalStateException", "Terminal reply limit exceeded; close this terminal");
-            } else if (entry->reply_size && !(*env)->ExceptionCheck(env)) {
-                result = (*env)->NewByteArray(env, entry->reply_size);
-                if (result) (*env)->SetByteArrayRegion(env, result, 0, entry->reply_size, (jbyte *)entry->replies);
-            }
-            entry->reply_size = 0;
+            result = take_replies(env, entry);
         }
     }
     pthread_mutex_unlock(&lock);
     return result;
 }
 
-JNIEXPORT void JNICALL JNI_METHOD(nativeResize)(JNIEnv *env, jobject self, jlong id,
+JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeResize)(JNIEnv *env, jobject self, jlong id,
         jint cols, jint rows, jint width, jint height) {
     (void)self;
-    if (!dimensions(env, cols, rows)) return;
+    if (!dimensions(env, cols, rows)) return NULL;
     if (width < 1 || width > 4096 || height < 1 || height > 4096) {
-        fail(env, "java/lang/IllegalArgumentException", "Invalid terminal cell size"); return;
+        fail(env, "java/lang/IllegalArgumentException", "Invalid terminal cell size"); return NULL;
     }
     pthread_mutex_lock(&lock);
     Terminal *entry = lookup(env, id);
-    if (entry) ok(env, ghostty_terminal_resize(entry->terminal, cols, rows, width, height));
+    jbyteArray result = NULL;
+    if (entry && entry->reply_overflow) {
+        fail(env, "java/lang/IllegalStateException", "Terminal reply limit exceeded; close this terminal");
+    } else if (entry && ok(env, ghostty_terminal_resize(entry->terminal, cols, rows, width, height))) {
+        entry->size = (GhosttySizeReportSize){.columns = cols, .rows = rows, .cell_width = width, .cell_height = height};
+        result = take_replies(env, entry);
+    }
     pthread_mutex_unlock(&lock);
+    return result;
 }
 
 typedef struct { uint8_t *data; size_t length, capacity; bool failed; } Buffer;

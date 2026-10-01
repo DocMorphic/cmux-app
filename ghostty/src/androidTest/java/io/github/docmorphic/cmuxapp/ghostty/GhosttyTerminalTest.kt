@@ -139,6 +139,9 @@ class GhosttyTerminalTest {
             assertTrue(terminal.append("ordinary".toByteArray()).isEmpty())
             terminal.resize(42, 12, 10, 20)
             assertEquals("\u001b[8;12;42t", terminal.append("\u001b[18t".toByteArray()).toString(Charsets.UTF_8))
+            terminal.append("\u001b[?2048h".toByteArray())
+            assertEquals("\u001b[48;10;30;200;300t", terminal.resize(30, 10, 10, 20).toString(Charsets.UTF_8))
+            assertTrue(terminal.append("no stale resize reply".toByteArray()).isEmpty())
             // A terminal query must not install clipboard or filesystem effects.
             assertTrue(terminal.append("\u001b]52;c;?\u0007".toByteArray()).isEmpty())
         }

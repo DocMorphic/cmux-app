@@ -22,10 +22,10 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
         return nativeAppend(handle, bytes) ?: EMPTY
     }
 
-    @Synchronized fun resize(columns: Int, rows: Int, cellWidth: Int, cellHeight: Int) {
+    @Synchronized fun resize(columns: Int, rows: Int, cellWidth: Int, cellHeight: Int): ByteArray {
         check(handle != 0L) { "Ghostty terminal is closed" }
         require(columns in 2..1000 && rows in 2..1000 && cellWidth in 1..4096 && cellHeight in 1..4096)
-        nativeResize(handle, columns, rows, cellWidth, cellHeight)
+        return nativeResize(handle, columns, rows, cellWidth, cellHeight) ?: EMPTY
     }
 
     /** Copies all values; no borrowed native pointer survives this call. */
@@ -55,7 +55,7 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
     internal fun activeHandlesForTest(): Int = nativeActiveHandles()
     private external fun nativeCreate(columns: Int, rows: Int, scrollbackBytes: Int, replyToQueries: Boolean): Long
     private external fun nativeAppend(handle: Long, bytes: ByteArray): ByteArray?
-    private external fun nativeResize(handle: Long, columns: Int, rows: Int, cellWidth: Int, cellHeight: Int)
+    private external fun nativeResize(handle: Long, columns: Int, rows: Int, cellWidth: Int, cellHeight: Int): ByteArray?
     private external fun nativeSnapshot(handle: Long, scrollOffset: Int): ByteArray
     private external fun nativeGraphicsSnapshot(handle: Long, scrollOffset: Int, cachedGenerations: LongArray): ByteArray
     private external fun nativeDestroy(handle: Long)
