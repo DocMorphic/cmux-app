@@ -257,3 +257,9 @@ wire/model shapes from `CmuxTUIRemote+Discovery.swift`, `CmuxTUIModels.swift` an
 2024-present Manaflow, Inc.; GPL-3.0-or-later. Android adds bounded snapshots,
 hashed-owner verification, ordered typed layouts and conservative durable
 selection restoration across owner generations.
+
+`SshCmuxProvider.kt`, `SshCmuxHosts.kt` and `SshCmuxTerminal.kt` follow the same
+revision's `CmuxTUIControl.swift` and `MobileSSHCmuxTUIProvider.swift` lifecycle,
+creation, termination, replay and geometry behavior (Manaflow, GPL-3.0-or-later).
+Android adds account/coroutine ownership, bounded retained renderers and input,
+content-set confirmation checks and exact resource-session resolution.

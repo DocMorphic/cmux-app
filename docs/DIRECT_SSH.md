@@ -14,7 +14,76 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the cmux-tui
-discovery and inventory checkpoint is the latest implementation status.
+provider and renderer checkpoint is the latest implementation status.
+
+## cmux-tui provider and renderer (2026-10-01)
+
+`NativeSshSession` now owns a `SshCmuxHosts` registry, with host providers bound to
+the current account and SSH transport. Existing owners are discovered independently;
+stale/unreachable sockets produce errors without hiding reachable sessions. No
+server is installed or started by discovery. Each `SshCmuxProvider` subscribes,
+coalesces topology refreshes and resubscribes/re-lists after overflow. Invalid
+snapshots retain the last good tree and expose an error. Account/transport closure
+retires controls and renderers.
+
+Provider-owned actions create a durable workspace/terminal, add a terminal and end
+a workspace. Creations carry unique mutation/terminal identities and generation
+guards; canceled UI waiters cannot replay or abort an already submitted mutation.
+Ending checks the confirmed content identities, resolves the exact resource
+session without a first-session fallback, calls `terminal.close` for its distinct
+terminals, rechecks for newly added content and only then removes the workspace.
+This is a sequence of server operations, not an atomic transaction: failure may
+leave a partially ended workspace, and uncertain operations are not auto-retried.
+Multi-tab/pane split/move/rename actions still need integration and acceptance.
+
+`SshCmuxTerminal` implements the shared terminal-screen contract with a silent
+Ghostty mirror, fresh VT replacement for replay/resizing, server colors/cursor,
+bounded ordered input and chunked large replay ingestion. Geometry updates are
+conflated. The shared screen's STARTED lifecycle explicitly claims/releases view
+geometry; a retained opening first releases its initial claim until a visible
+screen adopts it. Reopening creates a distinct renderer after the prior detach
+fence, so a late release/resize from an old screen cannot retire the replacement.
+Renderer ownership is bounded to 16 retained terminals per owner. A cache policy
+for the final mixed workspace UI is still outstanding.
+
+The renderer exposed a binding restriction: cmux-tui permits a 1×1 canonical
+grid, while Android's Ghostty wrapper/JNI/snapshot decoder required at least two
+rows/columns. The pinned core itself rejects only zero dimensions. Commit
+`bd67fce` aligns the binding with that contract. Native-only CI run
+[36920005789](https://github.com/DocMorphic/cmux-app/actions/runs/36920005789)
+passed; its 29 artifact files and current binding source hash were checked before
+using the checkpoint locally. [Ghostty evidence](GHOSTTY_VT_ANDROID.md) records the
+native runtime checks. No native verification gate was bypassed.
+
+**Verification:** 45 focused JVM checks passed without skips. The real 0.13.4
+process test now uses provider creation/end actions, confirms changed-content
+refusal before any terminal is ended, then ends both original fixture terminals
+and removes the workspace. Unit checks cover overflow, canceled UI waiters,
+account-owner retirement, malformed refresh, ambiguous resource sessions and
+color-escape filtering. Debug/test APKs built; app ELF alignment and both APK ZIP
+alignment checks passed.
+
+On the retained API 37 / 16,384-byte-page emulator, **three renderer component
+checks passed in 38.298 seconds**. They use deterministic wire events through the
+production control, JNI renderer and shared Compose screen: Unicode replay,
+bracketed composer input, silent query handling, foreground/background/cursor
+metadata, hidden-view release, 1×1 replacement, detached-input refusal and stale
+view release after reacquisition. The
+terminal capture was inspected. Separately, **ten Ghostty native runtime checks
+passed**, including single-cell create/resize/expand. The emulator was stopped.
+
+- App SHA256: `3ac64acfaf3a072dc85e38d364ff0010a7a39edb4e9b9f57474e7214ca7bb346`.
+- Test SHA256: `baf6d65052edbed3d16e6476e3a5b3514495a5264de954fe31aa9701f7e17978`.
+- Ignored evidence: `captures/runtime/cmux-tui/provider-jvm/`,
+  `provider-final-build.txt`, `provider-final-alignment.txt`, `provider-final-android/`
+  and `native-36920005789/`.
+
+The mixed workspace navigation still needs to call these providers; this does
+not claim that cmux-tui is exposed through the Computers UI yet. The Android
+component fixture is not end-to-end cmux-tui over Android SSH. That workflow,
+installer/owned-session creation, remaining workspace actions, browser/SFTP,
+physical Pixel acceptance and the published-server geometry/idle-close gaps
+remain open. Signed 284 and the physical Pixel installation are unchanged.
 
 ## cmux-tui discovery and durable inventory (2026-10-01)
 

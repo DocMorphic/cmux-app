@@ -16,14 +16,15 @@ def main():
     parser.add_argument("--ui", action="store_true", help="Run the four production SSH host-screen checks")
     parser.add_argument("--shell-ui", action="store_true", help="Run three production Ghostty SSH shell-screen checks")
     parser.add_argument("--tmux-ui", action="store_true", help="Run the four real tmux workspace checks")
+    parser.add_argument("--cmux-renderer", action="store_true", help="Run three cmux-tui provider/renderer component checks without an SSH fixture")
     parser.add_argument("--fixture", type=Path, help="Generated coordinates from ssh-tmux-fixture.py")
     args = parser.parse_args()
-    if sum((args.ui, args.shell_ui, args.tmux_ui)) > 1:
+    if sum((args.ui, args.shell_ui, args.tmux_ui, args.cmux_renderer)) > 1:
         parser.error("Choose one UI suite")
     if args.tmux_ui and not args.fixture:
         parser.error("Real tmux checks require --fixture")
-    count = 4 if args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14))
-    test_class = "SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest"))
+    count = 3 if args.cmux_renderer else (4 if args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14)))
+    test_class = "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")
     root = Path(__file__).resolve().parents[1]
@@ -35,7 +36,7 @@ def main():
 
     if run(["shell", "getprop", "ro.kernel.qemu"]) != "1" or run(["shell", "getprop", "sys.boot_completed"]) != "1":
         parser.error("A booted emulator is required")
-    fixture = json.loads((args.fixture or root / "ssh-spike/build/fixture-assets/fixture.json").read_text())
+    fixture = None if args.cmux_renderer else json.loads((args.fixture or root / "ssh-spike/build/fixture-assets/fixture.json").read_text())
     packages = [root / "app/build/outputs/apk/debug/app-debug.apk",
                 root / "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"]
     args.output.mkdir(parents=True, exist_ok=True)
@@ -51,15 +52,16 @@ def main():
     (args.output / "device.json").write_text(json.dumps(receipt, indent=2) + "\n")
     for package in packages:
         assert "Success" in run(["install", "-r", str(package)], timeout=180)
-    port = f"tcp:{int(fixture['port'])}"
+    port = f"tcp:{int(fixture['port'])}" if fixture else None
     run(["logcat", "-c"])
-    run(["reverse", port, port])
+    if port:
+        run(["reverse", port, port])
     try:
         command = ["shell", "am", "instrument", "-w", "-r", "-e", "class", "io.github.docmorphic.cmuxapp." + test_class]
         # Only public fixture coordinates enter instrumentation arguments; the
         # server's generated private import examples remain in its build folder.
         public = {"port": fixture["port"], "user": fixture["username"],
-                  "nonce": fixture["nonce"], "hostkey": fixture["hostKey"], "silentport": fixture["silentPort"]}
+                  "nonce": fixture["nonce"], "hostkey": fixture["hostKey"], "silentport": fixture["silentPort"]} if fixture else {}
         # adb shell joins arguments through the device shell. Quote each value.
         import shlex
         for name, value in public.items():
@@ -71,14 +73,15 @@ def main():
             raise RuntimeError("Production SSH checks failed; inspect instrumentation.txt")
         if len(re.findall(r"^INSTRUMENTATION_STATUS_CODE: 0$", result, re.M)) != count:
             raise RuntimeError("A fixture check was skipped or did not finish successfully")
-        print(f"Production SSH {test_class}: {count} tests passed on API {receipt['api']}")
+        print(f"{'cmux-tui renderer component' if args.cmux_renderer else 'Production SSH'} {test_class}: {count} tests passed on API {receipt['api']}")
     finally:
         # Preserve the test process's diagnostics even if instrumentation crashes
         # before reporting a JUnit result. This runner only admits emulators.
         diagnostics = subprocess.run(adb + ["logcat", "-d", "-s", "TestRunner", "AndroidRuntime", "DEBUG"],
                                      capture_output=True, text=True, timeout=30)
         (args.output / "logcat.txt").write_text(diagnostics.stdout + diagnostics.stderr)
-        run(["reverse", "--remove", port])
+        if port:
+            run(["reverse", "--remove", port])
 
 
 if __name__ == "__main__":

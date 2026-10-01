@@ -10,4 +10,5 @@ internal interface SshTerminal : AutoCloseable {
     val display: GhosttyVtTerminal
     fun send(text: String, paste: Boolean = false): Boolean
     fun resize(columns: Int, rows: Int, cells: TerminalCellMetrics)
+    fun visible(visible: Boolean) {}
 }

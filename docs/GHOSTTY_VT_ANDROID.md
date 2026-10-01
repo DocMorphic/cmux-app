@@ -1,5 +1,29 @@
 # Upstream Ghostty VT core on Android
 
+## Single-cell remote grids — 2026-10-01
+
+`bd67fce` removes an Android-only minimum of two rows/columns in the Kotlin
+owner, JNI dimension guard and snapshot decoder. The pinned core's
+`src/terminal/c/terminal.zig` constructor and `Terminal.zig` resize contract reject
+zero dimensions, so 1×1 is supported by the core. The display adapter now preserves
+that canonical size instead of widening it. The pin, snapshot wire format and ABI
+are unchanged.
+
+Native-only CI run [36920005789](https://github.com/DocMorphic/cmux-app/actions/runs/36920005789)
+built the core/JNI and test APK and passed alignment checks. Its 29 checkpoint
+files, core-manifest digest and current binding-source digest were verified
+before restoring `build/ghostty-vt-android/`. The native test APK passed ten
+`GhosttyTerminalTest` checks on the retained API 37 / 16 KiB emulator, including
+single-cell creation, expansion and resize back to 1×1. The app's cmux-tui renderer
+component also displayed a 1×1 replacement replay. No additional AVD was created.
+
+Evidence: ignored `captures/runtime/cmux-tui/native-36920005789/` and
+`provider-final-android/`; [DIRECT_SSH.md](DIRECT_SSH.md) gives exact app/test APK hashes.
+The emulator's previous **native test fixture package only** was uninstalled
+because different CI runs use different debug certificates; no user app/account
+or physical phone was cleared. Signed build 284 remains unchanged. Older sections
+below retain their original checkpoint boundaries.
+
 Checkpoint: 2026-09-30. Ghostty parses the Android app's byte/hybrid terminal
 streams, and the app paints ordinary and Unicode placeholder Kitty placements.
 Authoritative Mac grid delivery remains selected where negotiated. Full terminal

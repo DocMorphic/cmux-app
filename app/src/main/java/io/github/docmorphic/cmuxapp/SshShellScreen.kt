@@ -25,11 +25,22 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.awaitCancellation
 
 @Composable
 internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, reconnectError: String? = null,
     onReconnect: (() -> Unit)? = null, onBack: () -> Unit) {
     val state by shell.state.collectAsState()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(shell, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            shell.visible(true)
+            try { awaitCancellation() } finally { shell.visible(false) }
+        }
+    }
     val context = LocalContext.current
     val density = LocalDensity.current
     val keyboard = LocalSoftwareKeyboardController.current

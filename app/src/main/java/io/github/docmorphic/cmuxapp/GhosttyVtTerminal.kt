@@ -48,7 +48,7 @@ class GhosttyVtTerminal(columns: Int, rows: Int, private val onReply: ((ByteArra
     /** SSH owns terminal dimensions; Mac mirrors continue using replay replacement. */
     fun resize(columns: Int, rows: Int, width: Int, height: Int) {
         check(!closed) { "Ghostty terminal is closed" }
-        val replies = engine.resize(columns.coerceIn(2, 1000), rows.coerceIn(2, 1000), width, height)
+        val replies = engine.resize(columns.coerceIn(1, 1000), rows.coerceIn(1, 1000), width, height)
         cellWidth = width; cellHeight = height; dirty = true
         graphicsFrames.clear()
         if (replies.isNotEmpty()) onReply?.invoke(replies)

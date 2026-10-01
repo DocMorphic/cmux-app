@@ -95,14 +95,9 @@ class SshCmuxProcessTest {
                 val info = checkNotNull(control.server)
                 assertTrue(info.protocol >= 11)
                 assertTrue("view-attachment-lease-v1" in info.capabilities)
-                var changes = 0
-                control.onEvent = { if (it.optString("event") == "tree-changed") changes++ }
-                control.request("subscribe")
-                val key = UUID.randomUUID().toString()
-                control.request("create-workspace", JSONObject().put("key", key).put("name", "Android private fixture"))
-                val created = control.request("create-terminal", JSONObject().put("key", key).put("argv", JSONArray(listOf("/bin/cat")))
-                    .put("cols", 100).put("rows", 40))
-                val surface = created.getInt("surface")
+                val provider = SshCmuxProvider.open(control, owner) { true }
+                val key = provider.createWorkspace("Android private fixture", listOf("/bin/cat"))
+                val surface = provider.state.value.tree!!.tabs.single().surface
                 val before = tabs(control.request("list-workspaces")).single()
                 val terminal = before.getString("terminal_resource_id")
                 assertTrue(terminal.startsWith("term_"))
@@ -137,18 +132,23 @@ class SshCmuxProcessTest {
                 val newSocket = remote.listSockets().single { it.serves(session) }
                 val next = remote.connect(located, newSocket); client = next
                 assertNotEquals(info.generation, next.server?.generation)
+                val nextProvider = SshCmuxProvider.open(next, owner) { true }
                 val preserved = checkNotNull(selection.resolve(session, next.listWorkspaces())).second
                 assertEquals(terminal, preserved.terminal)
                 val restored = mutableListOf<SshCmuxEvent>()
                 val reattached = next.attach(preserved.surface, 80, 24, restored::add)
                 assertTrue(restored.filterIsInstance<SshCmuxEvent.Snapshot>().first().bytes.toString(Charsets.UTF_8).contains("live λ 中"))
                 assertFalse(restored.filterIsInstance<SshCmuxEvent.Snapshot>().first().bytes.toString(Charsets.UTF_8).contains("must-not-send"))
-                closeFixtureTerminals(next)
+                val confirmed = nextProvider.state.value.tree!!.workspaces.single()
+                nextProvider.newTerminal(confirmed, listOf("/bin/cat"))
+                assertEquals(2, nextProvider.state.value.tree!!.tabs.size)
+                assertTrue(runCatching { nextProvider.endWorkspace(confirmed) }.isFailure)
+                assertEquals(2, next.listWorkspaces().tabs.count { !it.dead })
+                nextProvider.endWorkspace(nextProvider.state.value.tree!!.workspaces.single())
                 while (restored.none { it is SshCmuxEvent.Ended }) delay(10)
                 assertTrue(reattached.ended)
-                next.request("close-workspace", JSONObject().put("key", key))
                 assertEquals(0, next.request("list-workspaces").getJSONArray("workspaces").length())
-                assertTrue(changes > 0)
+                assertTrue(nextProvider.state.value.tree!!.workspaces.isEmpty())
             }
         } finally {
             client?.close()

@@ -190,3 +190,22 @@ durable selection against a fresh typed inventory before checking replay history
 The complete focused command above currently runs 40 checks when both opt-in
 executables are supplied; absent opt-ins produce skips rather than real-server
 verification.
+
+The provider checkpoint extends that focused command to **45 checks**. The real
+process uses provider-owned durable creation and guarded end-workspace actions,
+including refusal when the confirmation's content set changed.
+
+For the standalone cmux-tui renderer component checks, build the debug/test APKs
+with the emulator stopped, then boot the same retained AVD and run:
+
+```sh
+python3 scripts/check-ssh-transport.py --serial emulator-5554 --cmux-renderer \
+  --output captures/runtime/cmux-tui/provider-android
+```
+
+This mode needs no SSH fixture or reverse port. It requires exactly three successful
+instrumentation checks, records API/page size/APK hashes and rejects skips. The
+production control/renderer/shared terminal screen receive deterministic wire
+events; it must not be cited as an end-to-end Android SSH/cmux-tui check. Native
+Ghostty checkpoint 36920005789 or a fresh matching build is needed after the
+single-cell JNI change; do not bypass the native source/artifact gate.

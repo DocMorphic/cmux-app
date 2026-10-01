@@ -301,3 +301,15 @@ JVM checks passed; the real-process check discovers, attaches, restarts the priv
 owner and restores the original terminal/history. [DIRECT_SSH.md](DIRECT_SSH.md)
 records evidence and the remaining account-provider/UI/Android integration. The
 broad implemented reference and 0.13.4 compatibility gaps remain unchanged.
+
+### cmux-tui provider, renderer and single-cell binding — 2026-10-01
+
+Account-owned host/session providers now handle live topology, overflow recovery,
+durable creation and guarded workspace termination. A silent Ghostty mirror feeds
+the shared terminal screen and releases geometry with visibility. Forty-five
+focused JVM checks, three Android renderer component checks and ten native Ghostty
+checks passed. CI run 36920005789 rebuilt the binding to accept the pinned core's
+1×1 grid contract; source/artifact/alignment gates were verified. This remains a
+provider/renderer checkpoint: the mixed Computers workspace UI and real Android
+SSH-to-cmux-tui acceptance are next, and no server-version gap or broad parity pin
+was declared complete. [DIRECT_SSH.md](DIRECT_SSH.md) records exact receipts.

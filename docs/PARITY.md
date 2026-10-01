@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**cmux-tui provider/renderer (2026-10-01):** account/transport-owned host and
+session providers now publish live inventory and support guarded creation/end
+actions. The shared terminal screen can display the cmux-tui Ghostty mirror with
+input, server metadata and visibility/geometry lifecycle. Forty-five focused JVM
+checks, three Android renderer component checks and ten native Ghostty checks passed.
+The binding now supports the server's 1×1 grid after a verified native rebuild.
+[Exact evidence and scope](DIRECT_SSH.md): mixed workspace navigation and real
+cmux-tui-over-Android-SSH/Pixel acceptance remain open; no signed APK changed.
+
 **cmux-tui discovery/inventory (2026-10-01):** the SSH adapter now locates existing
 owners without starting them, verifies named/hashed socket identity and parses
 the ordered workspace hierarchy. Durable selections reject ambiguous or replaced
