@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Update workflow (2026-10-01):** upstream iOS CI/release policy was reviewed at
+`15aa32c`. New workflows track upstream mobile/shared changes in one review issue,
+batch main Android previews after five relevant commits or three hours, and
+promote a verified APK manually. Nine policy tests and Actionlint passed; a live
+comparison correctly marked its capped inventory incomplete. These schedules
+remain inactive until the workflows reach main. See [UPDATES.md](UPDATES.md).
+
+**SSH connection coordinator (2026-10-01):** explicit and automatic opens now
+share in-flight/live connections; view cancellation leaves shared work alive.
+Trust questions queue/coalesce, stale answers are rejected, disconnect persists
+pause, and failures wait for explicit retry. **25 focused JVM and 13 Android 17 /
+16 KiB transport checks passed.** Account/UI wiring, idle closure, biometric
+presentation and mixed workspace providers remain open. See
+[DIRECT_SSH.md](DIRECT_SSH.md). Signed 284 and the physical Pixel are unchanged.
+
 **SSH transport checkpoint (2026-10-01):** the production host store and vault
 now connect through a scoped SSH transport with strict trust decisions, nested
 jump channels, exec, PTY input/resize and SFTP. Owner/route/key/pin changes retire

@@ -1,10 +1,17 @@
 name: Android build
 
 on:
+  schedule:
+    - cron: '7,27,47 * * * *'
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
     inputs:
+      publish_preview:
+        description: Publish a signed GitHub preview from main after verification
+        required: false
+        type: boolean
+        default: false
       native_only:
         description: Build the pinned Iroh arm64 dependency instead of APKs
         required: false
@@ -28,12 +35,44 @@ on:
 
 permissions:
   contents: read
+  actions: read
+
+concurrency:
+  group: android-${{ (github.event_name == 'schedule' || inputs.publish_preview) && 'preview' || github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  decide:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      should_build: ${{ steps.decision.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test update policy
+        run: python3 -m unittest discover -s scripts/tests -p 'test_update_policy.py'
+      - name: Decide whether to build
+        id: decision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH_PREVIEW: ${{ inputs.publish_preview }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = schedule ]; then
+            python3 scripts/android-preview-decision.py
+          elif [ "$PUBLISH_PREVIEW" = true ]; then
+            test "$GITHUB_REF" = refs/heads/main
+            python3 scripts/android-preview-decision.py --force
+          else
+            echo 'should_build=true' >> "$GITHUB_OUTPUT"
+          fi
   build:
+    needs: decide
     # Draft feature commits accumulate without rebuilding release APKs.
     # Build a milestone manually, or automatically once the PR is ready.
-    if: (github.event_name == 'workflow_dispatch' && !inputs.native_only && !inputs.graphics_only && !inputs.ghostty_only && !inputs.video_only) || (github.event_name == 'pull_request' && !github.event.pull_request.draft)
+    if: needs.decide.outputs.should_build == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.native_only && !inputs.graphics_only && !inputs.ghostty_only && !inputs.video_only) || (github.event_name == 'pull_request' && !github.event.pull_request.draft))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -161,7 +200,13 @@ jobs:
         run: ./gradlew :ghostty:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --stacktrace
       - name: Verify release signature
         run: |
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk > "$RUNNER_TEMP/cmux-signer.txt"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          expected = '1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4'
+          assert 'Signer #1 certificate SHA-256 digest: ' + expected in (Path(os.environ['RUNNER_TEMP']) / 'cmux-signer.txt').read_text(), 'Release signer changed'
+          PY
       - name: Verify all packaged native LOAD and RELRO segments
         run: |
           python3 scripts/verify-native-alignment.py app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/release/app-release.apk
@@ -174,6 +219,46 @@ jobs:
         with:
           name: cmux-app-stable-signed-apk
           path: app/build/outputs/apk/release/app-release.apk
+
+  publish-preview:
+    needs: build
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || inputs.publish_preview)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: cmux-app-stable-signed-apk
+          path: release
+      - name: Record verified build provenance
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path('release')
+          digest = hashlib.sha256((root / 'app-release.apk').read_bytes()).hexdigest()
+          receipt = {'source': os.environ['GITHUB_SHA'], 'versionCode': int(os.environ['GITHUB_RUN_NUMBER']),
+                     'sha256': digest, 'workflowRun': os.environ['GITHUB_RUN_ID']}
+          (root / 'manifest.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          (root / 'SHA256SUMS').write_text(digest + '  app-release.apk\n')
+          notes = ('<!-- cmux-preview-source: ' + receipt['source'] + ' -->\n\n'
+                   'Signed Android preview. Source: `' + receipt['source'] + '`.\n\n'
+                   'Passed JVM tests, asset checks, helper tests, signature verification and 16 KB alignment checks. '
+                   'Automated packaging does not establish full iOS parity or physical-device acceptance.\n\n'
+                   'Install app-release.apk to update the release app while retaining its data.\n')
+          (root / 'notes.md').write_text(notes)
+          PY
+      - name: Publish immutable preview assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "android-preview-$GITHUB_RUN_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --prerelease \
+            --title "Android preview $GITHUB_RUN_NUMBER" --notes-file release/notes.md \
+            release/app-release.apk release/SHA256SUMS release/manifest.json
+          gh release edit "android-preview-$GITHUB_RUN_NUMBER" --repo "$GITHUB_REPOSITORY" --draft=false
 
   simulatornative:
     if: github.event_name == 'workflow_dispatch' && inputs.video_only
