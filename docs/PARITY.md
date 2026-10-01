@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH on-device browser (2026-10-02):** terminal title menu now opens the
+existing isolated browser through the selected SSH computer. Direct TCP streams,
+SOCKS server-side hostnames, localhost routing, reconnect and owner/route retirement
+are implemented with no Mac/phone fallback. Twenty-six JVM checks and four Android
+cases passed (32.453 seconds, API 37 / 16 KiB); the real localhost page screenshot
+was inspected. Full workspace browser navigation, cmux-tui streaming/mode switching,
+SSH HTTPS/WebSocket/upload and physical acceptance remain open. [Evidence](DIRECT_SSH.md).
+
 **SSH Files presentation (2026-10-02):** matched the reviewed iOS Add menu,
 file/folder/link indicators, dates, folder chevrons, selectable paths, centered
 title and bottom transfer display. Added pull to refresh, long-press actions,

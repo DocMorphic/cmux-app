@@ -32,7 +32,7 @@ import kotlinx.coroutines.awaitCancellation
 
 @Composable
 internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, reconnectError: String? = null,
-    onReconnect: (() -> Unit)? = null, onFiles: (() -> Unit)? = null, onBack: () -> Unit) {
+    onReconnect: (() -> Unit)? = null, onFiles: (() -> Unit)? = null, onBrowser: (() -> Unit)? = null, onBack: () -> Unit) {
     val state by shell.state.collectAsState()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(shell, lifecycle) {
@@ -88,7 +88,18 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     Column(Modifier.fillMaxSize().testTag("ssh.shell")) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }) { Text("Back") }
-            Text(shell.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            if (onBrowser == null) Text(shell.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            else Box(Modifier.weight(1f)) {
+                var menu by remember { mutableStateOf(false) }
+                TextButton(onClick = { menu = true }, modifier = Modifier.testTag("ssh.shell.menu")) {
+                    Text("${shell.title} ▾", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Open Browser") }, onClick = {
+                        menu = false; rawKeyboard?.finishComposition(); keyboard?.hide(); onBrowser()
+                    })
+                }
+            }
             TextButton(onClick = ::showText, modifier = Modifier.testTag("ssh.shell.text")) { Text("Text") }
             if (onFiles != null) TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onFiles() }, modifier = Modifier.testTag("ssh.shell.files")) { Text("Files") }
             TextButton(onClick = {

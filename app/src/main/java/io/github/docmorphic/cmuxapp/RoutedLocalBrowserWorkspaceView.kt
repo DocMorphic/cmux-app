@@ -22,7 +22,7 @@ internal class RoutedBrowserHostLease(private val release: () -> Unit, private v
 
 @Composable
 internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestination, navigation: LocalBrowserNavigation,
-    workspace: NativeWorkspace, network: () -> NativeMacBrowserNetwork?, retainHost: () -> RoutedBrowserHostLease,
+    workspace: NativeWorkspace, network: () -> RoutedBrowserNetwork?, retainHost: () -> RoutedBrowserHostLease,
     onClose: () -> Unit, onRoute: (NativeWorkspaceRoute) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -68,7 +68,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
         var registered: String? = null
         try {
             val owner = checkNotNull(network()) { "This computer is no longer available" }
-            if (!owner.availability().bindsBrowserToMac) { routed = false; return@LaunchedEffect }
+            if (!owner.requiresProxy()) { routed = false; return@LaunchedEffect }
             routed = true; failure = null
             lease = retainHost()
             val held = lease

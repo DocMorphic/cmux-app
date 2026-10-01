@@ -89,6 +89,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     var retry by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     var files by remember(session, hostId) { mutableStateOf(false) }
+    var browser by remember(session, hostId) { mutableStateOf<SshBrowserPresentation?>(null) }
     var ending by remember(session, hostId) { mutableStateOf<SshWorkspaceEnd?>(null) }
     fun select(target: SshWorkspaceTarget) { selection = "$hostId\n${target.encode()}"; failure = null }
     fun leave() { selection = null; opened = null; failure = null }
@@ -154,7 +155,12 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
             } else { onReconnect(); retry++ }
         }
         if (files && terminal != null) SshFilesSheet(session, hostId, terminal) { files = false }
-        if (terminal != null) SshShellScreen(terminal, reconnecting || restoring || busy, reconnectError ?: failure, reconnect, onFiles = { files = true }, onBack = ::leave)
+        browser?.let { SshBrowserSheet(it) { browser = null } }
+        if (terminal != null) SshShellScreen(terminal, reconnecting || restoring || busy, reconnectError ?: failure, reconnect, onFiles = { files = true },
+            onBrowser = { act {
+                val target = checkNotNull(SshWorkspaceTarget.decode(checkNotNull(selection).substringAfter('\n')))
+                browser = SshBrowserPresentation(session.browsers.network(hostId), sshBrowserWorkspace(target, terminal.title))
+            } }, onBack = ::leave)
         else Column(Modifier.fillMaxSize().padding(16.dp)) {
             BackHandler(onBack = ::leave)
             TextButton(onClick = ::leave) { Text("Back") }

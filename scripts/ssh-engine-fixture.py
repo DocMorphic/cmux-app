@@ -27,6 +27,7 @@ async def main():
     nonce = secrets.token_hex(16)
     port = 0
     silent_port = 0
+    browser_port = 0
     active_shells = 0
     transfer_gate = asyncio.Event()
     transfer_gate.set()
@@ -54,7 +55,19 @@ async def main():
         if os.environ.get("CMUX_SSH_TRACE") == "1":
             print(json.dumps({"fixture_event": event, "active_shells": active_shells}), flush=True)
 
+    async def echo_after_eof(reader, writer):
+        # A bounded binary payload with a tail only after SSH EOF tests half-close.
+        data = await reader.read(256 * 1024)
+        while not reader.at_eof() and len(data) < 256 * 1024:
+            data += await reader.read(256 * 1024 - len(data))
+        writer.write(data + b"\x00\xffSSH-tail")
+        writer.write_eof()
+        writer.close()
+
     class Server(asyncssh.SSHServer):
+        def connection_made(self, conn):
+            self.conn = conn
+
         def connection_lost(self, exc):
             trace("connection_closed:" + type(exc).__name__)
 
@@ -69,6 +82,10 @@ async def main():
             return user == username
 
         def connection_requested(self, dest_host, dest_port, orig_host, orig_port):
+            if dest_host == "ssh-only.invalid" and dest_port == 7:
+                return echo_after_eof
+            if dest_host in ("localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1", "ssh-only.invalid") and dest_port == browser_port:
+                return self.conn.forward_connection("127.0.0.1", browser_port)
             return dest_host == "127.0.0.1" and dest_port in (port, silent_port)
 
     async def process(proc):
@@ -187,6 +204,29 @@ async def main():
             writer.close()
             await writer.wait_closed()
 
+    async def browser_peer(reader, writer):
+        try:
+            header = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 10)
+            path = header.split(b" ", 2)[1]
+            if path == b"/api":
+                body = nonce.encode()
+                mime = "text/plain"
+            else:
+                body = ("<!doctype html><meta name='viewport' content='width=device-width,initial-scale=1'>"
+                        "<title>SSH loading</title><style>body{background:#112e3c;color:white;font:24px sans-serif;padding:20px}</style>"
+                        "<h1 id='result'>Loading through SSH</h1><a style='color:white' href='/next'>Next SSH page</a>"
+                        "<script>fetch('/api').then(r=>r.text()).then(t=>{document.querySelector('#result').textContent='SSH route verified';"
+                        "document.title=location.pathname==='/next'?'SSH next':'SSH routed fixture';"
+                        "document.body.append(document.createTextNode(location.origin));document.cookie='ssh_browser=kept;path=/';})</script>").encode()
+                mime = "text/html; charset=utf-8"
+            writer.write((f"HTTP/1.1 200 OK\r\nContent-Type: {mime}\r\nContent-Length: {len(body)}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n").encode() + body)
+            await writer.drain()
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    browser_server = await asyncio.start_server(browser_peer, "127.0.0.1", 0)
+    browser_port = browser_server.sockets[0].getsockname()[1]
     silent = await asyncio.start_server(silent_peer, "127.0.0.1", 0)
     silent_port = silent.sockets[0].getsockname()[1]
     with tempfile.TemporaryDirectory(prefix="cmux-ssh-spike-") as directory:
@@ -207,13 +247,15 @@ async def main():
                        "hostKey": host_key.export_public_key().decode().strip(),
                        "changedHostKey": asyncssh.generate_private_key("ssh-ed25519")
                            .export_public_key().decode().strip(),
-                       "port": port, "silentPort": silent_port, "imports": imports}
+                       "port": port, "silentPort": silent_port, "browserPort": browser_port, "imports": imports}
             (assets / "fixture.json").write_text(json.dumps(fixture))
             print(json.dumps({"ready": True, "port": port,
                               "assets": str(assets)}), flush=True)
             try:
                 await asyncio.Event().wait()
             finally:
+                browser_server.close()
+                await browser_server.wait_closed()
                 silent.close()
                 await silent.wait_closed()
 

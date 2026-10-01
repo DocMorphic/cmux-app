@@ -19,11 +19,11 @@ import java.util.UUID
 internal object RoutedBrowserSessions {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val transitions = Mutex()
-    private val networks = mutableMapOf<String, NativeMacBrowserNetwork>()
+    private val networks = mutableMapOf<String, RoutedBrowserNetwork>()
     private var active: Entry? = null
     private var completed: Entry? = null
 
-    internal class Entry(val id: String, val network: NativeMacBrowserNetwork, val destination: LocalBrowserDestination,
+    internal class Entry(val id: String, val network: RoutedBrowserNetwork, val destination: LocalBrowserDestination,
         var workspace: NativeWorkspace, val release: () -> Unit, val probe: (Boolean) -> Unit) {
         val exited = CompletableDeferred<Unit>()
         var surfaceWatch: Job? = null
@@ -34,7 +34,7 @@ internal object RoutedBrowserSessions {
         fun send(kind: Int, data: Bundle = Bundle()) { runCatching { peer?.send(Message.obtain(null, kind).apply { this.data = data }) } }
     }
 
-    suspend fun register(context: Context, network: NativeMacBrowserNetwork, destination: LocalBrowserDestination,
+    suspend fun register(context: Context, network: RoutedBrowserNetwork, destination: LocalBrowserDestination,
         workspace: NativeWorkspace, release: () -> Unit, probe: (Boolean) -> Unit): Entry = transitions.withLock {
         val app = context.applicationContext
         stopBrowserProcess(app)

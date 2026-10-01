@@ -28,8 +28,10 @@ evidence and limits. `settings.gradle.kts` includes this module only with
 The fixture runs on host loopback with generated credentials, synthetic commands
 and SFTP confined to a temporary directory. It accepts valid public-key proofs for
 a random fixture username. It has no host shell or personal credentials. Forwarding
-is restricted to its own loopback SSH listener and a generated loopback TCP peer
-which deliberately sends no greeting (used by production transport timeout tests).
+is restricted to its own loopback SSH listener, a generated silent TCP peer and
+a generated HTTP fixture. The explicit `ssh-only.invalid:7` handler returns a
+bounded binary echo after EOF. These are private browser/transport fixtures;
+other destinations are rejected.
 This verifies engine mechanics,
 not a production command runner or general ProxyJump policy.
 
@@ -308,3 +310,21 @@ The mixed Android fixture exposes explicit stop-owner operations for its two
 private sessions. Cleanup deliberately restarts private stopped owners to close
 their persistent terminal resources before confirmed reset. This fixture cleanup
 is separate from production discovery, whose refusal to start owners is tested.
+
+## Production SSH browser checks
+
+The production runner's `--ssh-browser` mode runs four checks using the same
+private SSH fixture and the normal debug/test APKs:
+
+```sh
+ANDROID_HOME="$HOME/Library/Android/sdk" python3 scripts/check-ssh-transport.py \
+  --serial emulator-5554 --ssh-browser --output captures/runtime/ssh-browser
+```
+
+It forwards only the SSH listener through adb; the generated HTTP fixture is
+reachable through the SSH direct-TCP channel. Tests cover binary half-close,
+server-only names, localhost HTTP, no phone-network fallback, reconnect,
+blocked-read cancellation, route/storage retirement and a rendered browser page
+opened from the actual terminal menu. See `docs/DIRECT_SSH.md` for current proof
+and outstanding HTTPS/media/physical acceptance. This runner refuses physical
+phones and passes only public fixture coordinates to instrumentation.

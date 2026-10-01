@@ -17,7 +17,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
     lifetime: CoroutineScope, private val cmuxInstaller: SshCmuxInstaller? = null, val admitted: () -> Boolean,
 ) : AutoCloseable {
     private val lock = Any()
-    private var closed = false
+    @Volatile private var closed = false
     val isOpen get() = synchronized(lock) { !closed && admitted() }
     private val requests = MutableStateFlow<List<SshBiometricRequest>>(emptyList())
     val biometrics = requests.asStateFlow()
@@ -36,6 +36,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
     val shells = SshShells(hosts, connections, lifetime, admitted)
     val tmux = SshTmuxHosts(connections, lifetime, admitted)
     val cmux = SshCmuxHosts(connections, lifetime, admitted, cmuxInstaller) { id -> hosts.state.value.host(id)?.idleClose?.seconds }
+    val browsers = SshBrowserNetworks(hosts, connections, lifetime) { !closed && admitted() }
     fun answerBiometric(id: UUID, signature: java.security.Signature?) = synchronized(lock) {
         if (!closed && admitted()) requests.value.firstOrNull()?.takeIf { it.id == id }?.answer(signature)
     }
@@ -43,7 +44,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
         if (!closed) {
             closed = true
             requests.value.forEach { it.cancel() }; requests.value = emptyList()
-            shells.close(); tmux.close(); cmux.close(); connections.close()
+            browsers.close(); shells.close(); tmux.close(); cmux.close(); connections.close()
         }
     }
 }

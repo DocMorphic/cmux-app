@@ -339,6 +339,52 @@ internal class SshTransport private constructor(
         }
     }
 
+    /** A raw stream to the target host's network. DNS stays on the SSH server. */
+    suspend fun openTcp(host: String, port: Int): BrowserTunnelLane {
+        BrowserTunnelProtocol.connect(host, port)
+        val channel = target().openChannel("direct-tcpip") as ChannelDirectTCPIP
+        own(channel)
+        return blocking(cancel = { release(channel) }) {
+            try {
+                guard(); channel.setHost(host); channel.setPort(port)
+                channel.setOrgIPAddress("127.0.0.1"); channel.setOrgPort(0)
+                val input = channel.inputStream; val output = channel.outputStream
+                channel.connect(CONNECT_TIMEOUT); guard()
+                object : BrowserTunnelLane {
+                    private val ended = AtomicBoolean(false)
+                    private val reads = Mutex()
+                    private val writes = Mutex()
+                    private var sentEof = false
+                    override suspend fun read(maximumBytes: Int): ByteArray? {
+                        require(maximumBytes in 1..64 * 1024)
+                        return reads.withLock { blocking(cancel = ::close) {
+                            guard(); check(!ended.get())
+                            val bytes = ByteArray(maximumBytes)
+                            val count = input.read(bytes)
+                            guard(); if (count < 0) null else bytes.copyOf(count)
+                        } }
+                    }
+                    override suspend fun write(bytes: ByteArray) {
+                        val owned = bytes.copyOf()
+                        writes.withLock { blocking(cancel = ::close) {
+                            try {
+                                guard(); check(!ended.get() && !sentEof && channel.isConnected)
+                                output.write(owned); output.flush(); guard()
+                            } finally { owned.fill(0) }
+                        } }
+                    }
+                    override suspend fun finishSending() = writes.withLock {
+                        blocking(cancel = ::close) {
+                            guard(); check(!ended.get())
+                            if (!sentEof) { output.close(); sentEof = true }
+                        }
+                    }
+                    override fun close() { if (ended.compareAndSet(false, true)) release(channel) }
+                }
+            } catch (failure: Throwable) { release(channel); throw failure }
+        }
+    }
+
     suspend fun <T> withSftp(block: (ChannelSftp) -> T): T {
         val channel = target().openChannel("sftp") as ChannelSftp
         own(channel)

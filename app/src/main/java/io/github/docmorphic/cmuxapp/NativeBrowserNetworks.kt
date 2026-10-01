@@ -14,15 +14,23 @@ internal interface MacBrowserAccess : BrowserTunnelBackend {
     suspend fun listeningPorts(): BrowserTunnelProtocol.ListeningPorts
 }
 
+/** The browser process receives only this owner's proxy and isolated storage identity. */
+internal interface RoutedBrowserNetwork {
+    val storageId: String
+    val retired: Deferred<Unit>
+    suspend fun requiresProxy(): Boolean
+    suspend fun prepare(loopbackPort: Int? = null): Int
+}
+
 /** One computer's network survives reconnects. Retirement cancels both Mac and direct traffic. */
 internal class NativeMacBrowserNetwork(ownerScope: CoroutineScope, private val access: MacBrowserAccess,
     private val permits: () -> Boolean,
     direct: BrowserTunnelBackend = NioBrowserSocket.direct,
     private val now: () -> Long = System::nanoTime
-) : AutoCloseable {
-    val storageId: String = java.util.UUID.randomUUID().toString().replace("-", "")
+) : AutoCloseable, RoutedBrowserNetwork {
+    override val storageId: String = java.util.UUID.randomUUID().toString().replace("-", "")
     private val retirement = CompletableDeferred<Unit>()
-    val retired: Deferred<Unit> get() = retirement
+    override val retired: Deferred<Unit> get() = retirement
     private val scope = CoroutineScope(ownerScope.coroutineContext + SupervisorJob(ownerScope.coroutineContext[Job]))
     private val preparing = Mutex()
     private val router = MacBrowserRouter(MacBrowserLaneBackend(access), direct)
@@ -52,9 +60,10 @@ internal class NativeMacBrowserNetwork(ownerScope: CoroutineScope, private val a
         try { return pending.await() } finally { pending.cancel() }
     }
     suspend fun availability(): MacBrowserAvailability = owned { access.availability() }
+    override suspend fun requiresProxy() = availability().bindsBrowserToMac
 
     /** Call before navigation; a failed refresh retains the last confirmed Mac policy. */
-    suspend fun prepare(loopbackPort: Int? = null): Int = owned {
+    override suspend fun prepare(loopbackPort: Int?): Int = owned {
         require(loopbackPort == null || loopbackPort in 1..65535)
         preparing.withLock {
             checkOwner()

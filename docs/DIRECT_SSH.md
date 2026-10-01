@@ -14,7 +14,71 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the SSH
-Files presentation checkpoint is the latest implementation status.
+SSH browser checkpoint is the latest implementation status.
+
+## SSH browser network and terminal entry (2026-10-02)
+
+Reviewed [MobileSSHComputers+Browser.swift][browser] and
+[WorkspaceDetailView+SSH.swift](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/SSHFiles/WorkspaceDetailView%2BSSH.swift)
+at the same candidate. iOS sends all on-device browser destinations through the
+SSH computer, with server-side DNS and computer-private browser storage. It also
+mirrors loopback listeners because its browser bypasses the proxy for loopback.
+
+Android's existing dedicated browser process now accepts either a paired-Mac
+network or a separate SSH network. The SSH path has no Mac RPC or phone-network
+fallback. `SshTransport.openTcp` owns a cancellable `direct-tcpip` channel, preserves
+binary bytes and half-close, and performs live channel teardown on its network
+worker. Each SOCKS request borrows the current SSH transport, so transient socket
+loss can reconnect without rebinding the proxy. Account, saved route, jump route,
+key-selection and trust changes retire the proxy and its browser storage identity. Explicit
+Disconnect is still respected by the existing connection coordinator.
+
+The terminal title menu has **Open Browser** for shell, tmux and cmux-tui terminal
+views. It uses the existing browser Activity, address controls and navigation,
+with the terminal composition retained behind its sheet. Local browser state is
+scoped to the SSH network and workspace. This entry exposes the current terminal
+in the browser pane picker; full SSH workspace pane inventory and streamed
+cmux-tui browser tabs/mode switching remain to be integrated.
+
+Android uses WebView's proxy override with implicit loopback bypass removed;
+there is no need to bind the computer's port numbers on the phone. The new private
+fixture permits only generated loopback destinations and the explicit
+`ssh-only.invalid` test name. Its HTTP server is not forwarded by adb. The
+[AsyncSSH direct-connection documentation](https://asyncssh.readthedocs.io/en/stable/)
+was used to configure the bounded server-side handlers.
+
+The initial run passed the 131,099-byte stream/half-close case but failed the
+three proxy/UI cases before the SOCKS success reply. The new callback ran on the
+owner's main dispatcher, unlike the existing Mac relay. Android async socket
+operations may perform immediate socket work on the caller; the SSH relay now
+runs on `Dispatchers.IO`. The initial results remain in ignored
+`captures/runtime/ssh-audit/ssh-browser-android/`.
+
+**Verification:** 26 existing JVM checks passed across browser networks, SOCKS,
+local navigation and saved SSH targets. Both APKs built. The same four new Android
+cases passed after the relay correction in **32.453 seconds** on API 37 / 16 KiB:
+
+- 131,099 binary bytes plus a response tail after client half-close;
+- server-only name and localhost HTTP, fresh-transport reconnect using the same
+  proxy port, no fallback to a listening phone-side socket, and cancellation of a
+  blocked read without losing the shared SSH transport;
+- saved route change retiring the proxy, rejection of the old network, and a fresh
+  storage identity when the original route is restored;
+- the real terminal menu, browser Activity and localhost page/API over SSH,
+  page navigation, then account-session retirement returning to the terminal.
+
+The final browser screenshot was inspected. ELF and both APK ZIP 16 KiB alignment
+checks passed. Final evidence is in ignored `captures/runtime/ssh-audit/` under
+`ssh-browser-io-*`; the initial build/test failure remains under `ssh-browser-*`.
+Debug APK SHA-256:
+`caebc07ea225ba7aa664fa19e6ea372017081c414cce2cc00224397d64e41f94`;
+test APK: `3f4df93b46f8b962fc5c3eac9d5bb5f70a631c44d8cd9c56884e772d2def8c2d`.
+The emulator and private SSH fixture were stopped after verification.
+
+HTTPS, WebSocket/service worker and browser uploads over **SSH**, active-stream
+retirement, app process death, full workspace/mode navigation and physical Pixel
+acceptance remain open. Existing Mac-route tests are not proof of those SSH cases.
+No signed release or parity reference changed.
 
 ## SSH Files presentation (2026-10-02)
 
