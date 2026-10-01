@@ -48,6 +48,7 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
     val statuses by session.connections.statuses.collectAsState()
     val shells by session.shells.state.collectAsState()
     var selectedShell by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedTmux by rememberSaveable { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
@@ -76,6 +77,11 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
     val editorState = rememberSaveableStateHolder()
     val original by rememberSaveable(editing, stateSaver = SshHostEditSaver) { mutableStateOf(editing?.takeUnless { it == "new" }?.let { id -> hosts.hosts.firstOrNull { it.id.toString() == id } }) }
     val activeShell = shells.firstOrNull { it.id == selectedShell }
+    selectedTmux?.let { id ->
+        val host = hosts.hosts.firstOrNull { it.id.toString() == id }
+        if (host != null) { SshTmuxRoute(session, host.id) { selectedTmux = null }; return }
+        LaunchedEffect(id) { selectedTmux = null }
+    }
     if (activeShell != null) {
         key(activeShell.id) { SshShellScreen(activeShell) { selectedShell = null } }
         return
@@ -143,6 +149,8 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
                                 }
                             }
                         }, enabled = !busy, modifier = Modifier.testTag("ssh.host.${host.id}.shell")) { Text("New Shell") }
+                        TextButton(onClick = { selectedTmux = host.id.toString() }, enabled = !busy,
+                            modifier = Modifier.testTag("ssh.host.${host.id}.tmux")) { Text("tmux Workspaces") }
                         shells.filter { it.hostId == host.id }.forEach { shell ->
                             val shellState by shell.state.collectAsState()
                             Row(Modifier.fillMaxWidth()) {

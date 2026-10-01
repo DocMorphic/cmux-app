@@ -238,3 +238,8 @@ session attachment, pane seeding and geometry behavior from cmux's
 `204a11dfcc76280205e50406ab94270a1c152155`. Copyright (c) 2024-present Manaflow, Inc.;
 GPL-3.0-or-later. Android adds bounded replies/queues, exact reply guards,
 command deadlines, canceled-reply fencing and coroutine-owned stream cleanup.
+
+The tmux workspace provider and pane UI follow MobileSSHTmuxProvider.swift at
+204a11dfcc76280205e50406ab94270a1c152155 (Manaflow, GPL-3.0-or-later), with Android
+account-owned sessions, server/session identity guards, coroutine ownership and
+Ghostty pane rendering.

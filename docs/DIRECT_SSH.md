@@ -5,7 +5,8 @@
 **SSH computers can now be saved and connected from the Android UI.** Computers
 and Settings expose the host list/editor, and Settings exposes SSH key management.
 Plain SSH shells now open from the saved-host list with the Ghostty terminal.
-Mixed tmux/cmux-tui workspace integration remains open. Production host storage,
+tmux workspaces now have a host entry, pane UI and persistent actions. Mixed
+cmux-tui workspace integration remains open. Production host storage,
 private-key storage and the low-level transport are implemented as described in
 the checkpoints below. Existing native Mac pairing, terminal
 rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This audit
@@ -13,7 +14,76 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the account-owned
-plain-shell checkpoint is the latest implementation status.
+tmux workspace checkpoint is the latest implementation status.
+
+## tmux workspace UI and Android SSH integration (2026-10-01)
+
+Each saved SSH computer now exposes **tmux Workspaces** beside **New Shell**.
+Opening it discovers tmux in the login PATH/common install locations and lists
+existing sessions, windows and panes; it does not install a remote dependency.
+The host/provider is tied to the existing account-owned SSH connection. A route or
+account retirement closes its controls/renderers. Navigation keeps an attached
+pane warm, and reopening uses the same terminal object while its stream is live.
+
+The shared terminal screen now accepts both plain PTYs and tmux pane adapters.
+The latter uses a silent Ghostty mirror: tmux already answers application terminal
+queries. Captures replace the screen before live output, and server layout events
+supply the actual pane grid. The phone requests client geometry, while the painter
+fits/letterboxes the pane. Current pane titles and split labels update from inventory
+without replacing the terminal. Keyboard, composer, toolbar, text paste, Text view,
+scrollback and zoom use the existing screen controls.
+
+The workspace UI exposes New Workspace, New Terminal, Split Right/Down, Refresh
+and confirmed End Workspace. New windows/splits are detached so they preserve the
+original session's selected window. tmux 3.2+ receives `COLORTERM=truecolor` for
+new shells; older/unknown version strings use the compatible command form without
+that option. Window creation/closing runs under the provider owner, so navigating
+away does not cancel and automatically repeat an uncertain mutation.
+
+Session actions carry server PID, numeric session ID and creation time. tmux checks
+the server/creation condition in its own command queue before a target mutation;
+a stale confirmation cannot silently address a replacement session. The phone's
+group is removed before ending the original session, otherwise its linked windows
+would keep programs alive. Graceful `%exit` completes that phone detach. Discovery
+hides iOS and Android phone groups and collects only unattached generated Android
+group names. A failed attachment makes the next discovery reconsider collection.
+Topology bursts coalesce and changes arriving during a refresh request a follow-up
+pass. Listing malformed geometry or failed operations produces an error.
+
+The current UI is a tmux-specific route beside plain shells. Consolidating all
+plain/tmux/cmux-tui workspaces into the complete iOS-style mixed tree remains open.
+Also open: cold-process/reconnect acceptance, pane-move races, older tmux runtime,
+cache/idle policy, SSH Files/browser/media, physical keyboard/device acceptance
+and full accessibility/visual parity. This checkpoint does not advance the broad
+upstream reference or constitute a complete parity release.
+
+**Verification:** fifteen focused JVM checks passed without skips, including the
+real private tmux process case. Two Android UI checks then passed against an
+independent loopback SSH server running **real tmux 3.7c**, through the production
+SSH adapter, control client and Ghostty renderer. The final run took **30.598
+seconds** on API 37 / 16,384-byte pages. It verified discovery of a pre-existing
+session, ANSI/Unicode and bracketed-paste mode, composer input, navigation retaining
+the same pane, new window, split, unchanged original selected window, pane-label
+updates, cancel/confirm end, removal of the phone group, new workspace creation,
+server-identity refusal and account retirement rejecting input.
+
+The first UI run timed out at Split; explicitly waiting for enabled actions
+resolved that test failure. A later check verifies that existing
+pane headers follow updated inventory metadata. Final screenshots were inspected
+in their settled state. These component tests use an isolated vault/store and
+empty temporary remote HOME with `cat` panes; caret escape echoes come from that
+fixture's line discipline. Their white status bar/edge-to-edge system inset is
+not evidence of production Activity styling. Physical keyboard/Pixel, arbitrary
+TUIs, older tmux and full app restoration are not established by this run.
+
+Final APK SHA256 values:
+
+- App: `9e5f65e19b41160560b646ac02a6879b2e44f75434b6bedbb76b2cff16ffc667`.
+- Instrumentation: `81582a97b62827b794f9a4b5aef36d49a65b3ee72b995c40556db3a64dd7e931`.
+
+Ignored receipts, logs and images are in `captures/runtime/tmux-workspaces/`, with
+`android-final/` and `jvm-final/` holding the final results. The sole emulator and
+private fixture were stopped. Signed build 284 and the physical Pixel are unchanged.
 
 ## tmux control-mode foundation (2026-10-01)
 

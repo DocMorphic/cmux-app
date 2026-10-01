@@ -15,11 +15,15 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--ui", action="store_true", help="Run the four production SSH host-screen checks")
     parser.add_argument("--shell-ui", action="store_true", help="Run two production Ghostty SSH shell-screen checks")
+    parser.add_argument("--tmux-ui", action="store_true", help="Run the two real tmux workspace checks")
+    parser.add_argument("--fixture", type=Path, help="Generated coordinates from ssh-tmux-fixture.py")
     args = parser.parse_args()
-    if args.ui and args.shell_ui:
+    if sum((args.ui, args.shell_ui, args.tmux_ui)) > 1:
         parser.error("Choose one UI suite")
-    count = 2 if args.shell_ui else (4 if args.ui else 14)
-    test_class = "SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")
+    if args.tmux_ui and not args.fixture:
+        parser.error("Real tmux checks require --fixture")
+    count = 2 if args.shell_ui or args.tmux_ui else (4 if args.ui else 14)
+    test_class = "SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest"))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")
     root = Path(__file__).resolve().parents[1]
@@ -31,7 +35,7 @@ def main():
 
     if run(["shell", "getprop", "ro.kernel.qemu"]) != "1" or run(["shell", "getprop", "sys.boot_completed"]) != "1":
         parser.error("A booted emulator is required")
-    fixture = json.loads((root / "ssh-spike/build/fixture-assets/fixture.json").read_text())
+    fixture = json.loads((args.fixture or root / "ssh-spike/build/fixture-assets/fixture.json").read_text())
     packages = [root / "app/build/outputs/apk/debug/app-debug.apk",
                 root / "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"]
     args.output.mkdir(parents=True, exist_ok=True)

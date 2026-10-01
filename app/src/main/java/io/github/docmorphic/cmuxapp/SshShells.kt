@@ -11,16 +11,16 @@ internal data class SshShellState(val phase: SshShellPhase = SshShellPhase.OPENI
 /** Main-dispatcher owned shell. UI disposal releases its view, not the PTY.
  * Raw SSH writes have no delivery acknowledgement and are never replayed. */
 internal class SshShell(
-    val hostId: UUID, val title: String, lifetime: CoroutineScope,
+    val hostId: UUID, override val title: String, lifetime: CoroutineScope,
     private val admitted: () -> Boolean,
     private val connect: suspend () -> SshTransport,
-) : AutoCloseable {
-    val id = "cmux-ssh-$hostId:shell:${UUID.randomUUID()}"
+) : SshTerminal {
+    override val id = "cmux-ssh-$hostId:shell:${UUID.randomUUID()}"
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
     private val mutable = MutableStateFlow(SshShellState())
-    val state = mutable.asStateFlow()
-    val display = GhosttyVtTerminal(80, 24) { bytes -> enqueue(Command.Write(bytes.copyOf())) }
+    override val state = mutable.asStateFlow()
+    override val display = GhosttyVtTerminal(80, 24) { bytes -> enqueue(Command.Write(bytes.copyOf())) }
     private var pty: SshPty? = null
     private var connection: SshTransport? = null
     private var ended = false
@@ -66,12 +66,12 @@ internal class SshShell(
         }
     }
     private fun allowed() = !ended && !disposed && job.isActive && admitted() && connection?.isConnected != false
-    fun send(text: String, paste: Boolean = false): Boolean {
+    override fun send(text: String, paste: Boolean): Boolean {
         if (!allowed() || mutable.value.phase != SshShellPhase.RUNNING) return false
         val encoded = if (paste) TerminalKeyEncoding.paste(text, display.bracketedPaste) else text
         return enqueue(Command.Write(encoded.toByteArray(Charsets.UTF_8)))
     }
-    fun resize(columns: Int, rows: Int, cells: TerminalCellMetrics) {
+    override fun resize(columns: Int, rows: Int, cells: TerminalCellMetrics) {
         if (!allowed()) return
         val next = listOf(columns.coerceIn(2, 1000), rows.coerceIn(2, 1000), cells.widthPx.toInt().coerceIn(1, 4096), cells.heightPx.toInt().coerceIn(1, 4096))
         if (next == viewport) return

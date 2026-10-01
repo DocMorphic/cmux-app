@@ -124,3 +124,28 @@ and replacement; retaining an editor through key management and a connection
 through rename; and rejecting an obsolete restored editor after a route change.
 It uses isolated temporary host/key stores and does not sign out an existing app
 account. Keep using the single retained `cmux_api37_16k` emulator.
+
+## Real tmux workspace fixture
+
+With `tmux` installed, use the existing AsyncSSH venv to start an independent
+loopback SSH server backed by a unique private tmux server. It uses an empty HOME,
+explicit config and `/bin/cat` panes. SSH requests are restricted to approved tmux
+argument vectors; no SSH-provided shell command is executed. It does not touch the
+user's tmux socket or shell configuration.
+
+```sh
+captures/runtime/ssh-engine/venv/bin/python scripts/ssh-tmux-fixture.py \
+  --tmux /absolute/path/to/tmux --output captures/runtime/tmux-workspaces/fixture.json
+```
+
+Build debug/test APKs with the emulator stopped, then boot the retained AVD:
+
+```sh
+python3 scripts/check-ssh-transport.py --serial emulator-5554 \
+  --tmux-ui --fixture captures/runtime/tmux-workspaces/fixture.json \
+  --output captures/runtime/tmux-workspaces/result
+```
+
+The runner requires both tmux UI checks without skips and records exact APK hashes.
+Stop the fixture with Ctrl-C; it removes its private server and temporary HOME.
+The checks install only on an emulator and use isolated host/key storage.

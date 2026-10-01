@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
-internal fun SshShellScreen(shell: SshShell, onBack: () -> Unit) {
+internal fun SshShellScreen(shell: SshTerminal, onBack: () -> Unit) {
     val state by shell.state.collectAsState()
     val context = LocalContext.current
     val density = LocalDensity.current

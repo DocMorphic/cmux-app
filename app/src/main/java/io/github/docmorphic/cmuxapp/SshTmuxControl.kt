@@ -44,6 +44,7 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
     private val layouts = mutableMapOf<Int, List<TmuxLeaf>>()
     private var size: Pair<Int, Int>? = null
     private var topology: Job? = null
+    private var receivedExit = false
     var onTopologyChange: (() -> Unit)? = null
     var onClose: (() -> Unit)? = null
     var isClosed = false; private set
@@ -173,7 +174,7 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
             is TmuxMessage.Notice -> {
                 val fields = message.arguments
                 when (message.kind) {
-                    "%exit" -> finish()
+                    "%exit" -> { receivedExit = true; finish() }
                     "%window-add", "%window-renamed", "%sessions-changed", "%session-renamed" -> changed()
                     "%window-close" -> { SshTmuxParser.id(fields.firstOrNull().orEmpty(), '@')?.let(layouts::remove); updateGrids(); changed() }
                     "%layout-change" -> {
@@ -204,6 +205,7 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
     suspend fun detachSession() {
         if (isClosed) return
         try { command("kill-session -t ${SshTmuxEncoding.quote("=$groupedSession")}") }
+        catch (failure: IOException) { if (!receivedExit) throw failure }
         finally { finish() }
     }
     private fun finish() {

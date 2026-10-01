@@ -229,3 +229,15 @@ Twelve JVM checks, including a real tmux 3.7c private-server check, and fourteen
 Android SSH transport checks passed. These verify separate layers; real tmux over
 Android SSH and the mixed-provider UI are next. No broader parity pin or signed
 release was advanced. Exact evidence and limitations: [DIRECT_SSH.md](DIRECT_SSH.md).
+
+### tmux workspace UI over Android SSH — 2026-10-01
+
+The saved-host UI now discovers existing tmux sessions, opens streamed panes and
+supports persistent workspace/window/split/end actions. The phone group is removed
+before ending its source session; server/session identity guards protect stale
+confirmations. Current pane metadata updates without replacing the warm terminal.
+Fifteen focused JVM checks and two real tmux 3.7c-over-SSH Android UI checks passed,
+including renderer/input and action lifecycle checks on API 37 / 16 KiB. Final
+capture and APK receipts are in [DIRECT_SSH.md](DIRECT_SSH.md). This advances the
+tmux route; mixed-provider navigation, reconnect/cold-start, pane-move races,
+older tmux, idle/cache, SSH Files/browser and physical acceptance remain open.

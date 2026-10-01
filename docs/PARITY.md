@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**tmux workspace UI (2026-10-01):** saved hosts now discover existing tmux
+sessions and open panes through the shared Ghostty terminal screen. New workspace,
+new terminal, splits and confirmed ending are implemented, with server/session
+identity guards, phone-group cleanup and original window-selection preservation.
+Pane labels follow topology updates. Fifteen focused JVM checks and two real
+SSH/tmux Android UI checks passed (API 37 / 16 KiB, 30.598 seconds); final captures
+were inspected. The mixed shell/tmux/cmux-tui tree, pane-move/reconnect/cold-start
+acceptance, idle/cache policy, SSH Files/browser/media, physical-device and full
+visual/accessibility parity remain open. [Receipts](DIRECT_SSH.md). Signed 284 and
+the Pixel install are unchanged.
+
 **tmux control foundation (2026-10-01):** raw non-PTY exec streams, bounded
 control parsing, ordered replies, history/mode seeding, live output, server pane
 geometry and grouped-session teardown are implemented. Twelve JVM checks pass,
