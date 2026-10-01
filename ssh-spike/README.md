@@ -78,6 +78,12 @@ emulator. This runner installs the debug app and its instrumentation only on an
 emulator, supplies public fixture coordinates at runtime, and requires all thirteen
 transport tests to finish without skips. Unlike this spike's embedded assets,
 those public arguments do not require rebuilding after a fixture restart.
+Use `--ui` for the four saved-host UI checks, or `--shell-ui` for the two
+production Ghostty shell-screen checks. Each mode enforces its expected test count
+and rejects skips. The shell fixture supports ANSI/Unicode, bracketed paste,
+cursor queries, alternate screens and remote shell-count checks; it never executes
+input as host commands. Optional `CMUX_SSH_TRACE=1` logs lifecycle event types and
+active shell counts without terminal input or credentials.
 
 On the development Mac, retain only the existing `cmux_api37_16k` AVD and its
 system image. The redundant API 37 and API 26 AVDs/images were removed at the

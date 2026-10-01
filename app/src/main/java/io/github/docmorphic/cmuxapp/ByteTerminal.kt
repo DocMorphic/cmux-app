@@ -1,6 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
-/** A remote VT mirror; it never owns a PTY or sends terminal-generated replies. */
+/** VT display. Network/PTY ownership belongs to its caller; Mac mirrors disable replies. */
 interface ByteTerminal : TerminalDisplay, AutoCloseable {
     fun append(bytes: ByteArray)
 }

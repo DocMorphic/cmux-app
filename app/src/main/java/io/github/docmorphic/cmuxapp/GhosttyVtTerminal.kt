@@ -4,8 +4,8 @@ import io.github.docmorphic.cmuxapp.ghostty.GhosttyFrame
 import io.github.docmorphic.cmuxapp.ghostty.GhosttyTerminal
 
 /** Android VT path. Cached owned frames can finish painting after native close. */
-class GhosttyVtTerminal(columns: Int, rows: Int) : ByteTerminal, TerminalGraphicsDisplay {
-    private val engine = GhosttyTerminal(columns, rows)
+class GhosttyVtTerminal(columns: Int, rows: Int, private val onReply: ((ByteArray) -> Unit)? = null) : ByteTerminal, TerminalGraphicsDisplay {
+    private val engine = GhosttyTerminal(columns, rows, replyToQueries = onReply != null)
     private var closed = false
     private var dirty = false
     private var cellWidth = 0
@@ -33,16 +33,25 @@ class GhosttyVtTerminal(columns: Int, rows: Int) : ByteTerminal, TerminalGraphic
 
     override fun append(bytes: ByteArray) {
         check(!closed) { "Ghostty terminal is closed" }
-        engine.append(bytes); dirty = true; graphicsFrames.clear()
+        val replies = engine.append(bytes)
+        dirty = true; graphicsFrames.clear()
+        if (replies.isNotEmpty()) onReply?.invoke(replies)
     }
     fun setCellMetrics(cells: TerminalCellMetrics) {
         require(cells.widthPx.isFinite() && cells.heightPx.isFinite())
         val width = cells.widthPx.toInt().coerceIn(1, 4096)
         val height = cells.heightPx.toInt().coerceIn(1, 4096)
         if (closed || (width == cellWidth && height == cellHeight)) return
-        engine.resize(live.columns, live.rows, width, height)
-        cellWidth = width; cellHeight = height
+        resize(columns, rows, width, height)
+    }
+
+    /** SSH owns terminal dimensions; Mac mirrors continue using replay replacement. */
+    fun resize(columns: Int, rows: Int, width: Int, height: Int) {
+        check(!closed) { "Ghostty terminal is closed" }
+        val replies = engine.resize(columns.coerceIn(2, 1000), rows.coerceIn(2, 1000), width, height)
+        cellWidth = width; cellHeight = height; dirty = true
         graphicsFrames.clear()
+        if (replies.isNotEmpty()) onReply?.invoke(replies)
     }
 
     override fun graphicsSnapshot(scrollOffset: Int, cells: TerminalCellMetrics): TerminalGraphicsDisplay.Snapshot? {

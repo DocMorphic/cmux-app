@@ -46,6 +46,8 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
     val hosts by session.hosts.state.collectAsState()
     val keys by session.vault.state.collectAsState()
     val statuses by session.connections.statuses.collectAsState()
+    val shells by session.shells.state.collectAsState()
+    var selectedShell by rememberSaveable { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
@@ -73,6 +75,11 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
     }
     val editorState = rememberSaveableStateHolder()
     val original by rememberSaveable(editing, stateSaver = SshHostEditSaver) { mutableStateOf(editing?.takeUnless { it == "new" }?.let { id -> hosts.hosts.firstOrNull { it.id.toString() == id } }) }
+    val activeShell = shells.firstOrNull { it.id == selectedShell }
+    if (activeShell != null) {
+        key(activeShell.id) { SshShellScreen(activeShell) { selectedShell = null } }
+        return
+    }
     if (keyScreen) {
         SshKeysScreen(session.vault, session.admitted) { keyScreen = false }
         return
@@ -125,6 +132,25 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
                                 modifier = Modifier.testTag("ssh.host.${host.id}.connect")) { Text("Connect") }
                             TextButton(onClick = { editing = host.id.toString(); failure = null }, enabled = !busy) { Text("Edit") }
                             TextButton(onClick = { deleting = host.id.toString() }, enabled = !busy) { Text("Delete") }
+                        }
+                        TextButton(onClick = {
+                            failure = null
+                            scope.launch {
+                                try { selectedShell = session.shells.create(host.id).id }
+                                catch (error: Exception) {
+                                    if (error is CancellationException) throw error
+                                    failure = error.message ?: "Could not open SSH shell"
+                                }
+                            }
+                        }, enabled = !busy, modifier = Modifier.testTag("ssh.host.${host.id}.shell")) { Text("New Shell") }
+                        shells.filter { it.hostId == host.id }.forEach { shell ->
+                            val shellState by shell.state.collectAsState()
+                            Row(Modifier.fillMaxWidth()) {
+                                TextButton(onClick = { selectedShell = shell.id }, modifier = Modifier.weight(1f).testTag("ssh.shell.${shell.id}.open")) {
+                                    Text(shell.title + if (shellState.phase == SshShellPhase.ENDED) " · Ended" else "")
+                                }
+                                TextButton(onClick = { session.shells.remove(shell.id) }) { Text("Close") }
+                            }
                         }
                     }
                 }

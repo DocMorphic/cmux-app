@@ -207,3 +207,15 @@ This advances host management/connection UI, not mixed SSH workspace/terminal,
 SFTP/browser, idle-session enforcement, full-app/process restoration or physical
 biometric acceptance. The implemented upstream reference remains unchanged.
 See [DIRECT_SSH.md](DIRECT_SSH.md) for evidence and next work.
+
+### Plain SSH shell checkpoint — 2026-10-01
+
+Saved SSH hosts now open a PTY with the existing Ghostty renderer and mobile
+terminal input controls. Query responses are opt-in, bounded and ordered with
+input; Mac mirrors remain silent. Navigation retains the shell, explicit close
+preserves the shared transport, and account retirement rejects new input.
+Two shell UI, thirteen transport, four mirror and nine native Ghostty checks
+passed on API 37 / 16 KiB, with rebuilt native alignment/package gates passing.
+See [DIRECT_SSH.md](DIRECT_SSH.md) for exact receipts and the Main-thread channel
+close regression. This does not advance the broad implemented reference or establish
+mixed tmux/cmux-tui, SSH Files/browser, idle policy or physical-device parity.

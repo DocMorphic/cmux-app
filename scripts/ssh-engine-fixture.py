@@ -27,8 +27,16 @@ async def main():
     nonce = secrets.token_hex(16)
     port = 0
     silent_port = 0
+    active_shells = 0
+
+    def trace(event):
+        if os.environ.get("CMUX_SSH_TRACE") == "1":
+            print(json.dumps({"fixture_event": event, "active_shells": active_shells}), flush=True)
 
     class Server(asyncssh.SSHServer):
+        def connection_lost(self, exc):
+            trace("connection_closed:" + type(exc).__name__)
+
         def begin_auth(self, user):
             return True
 
@@ -43,7 +51,12 @@ async def main():
             return dest_host == "127.0.0.1" and dest_port in (port, silent_port)
 
     async def process(proc):
-        if proc.command == "probe":
+        nonlocal active_shells
+        if proc.command == "shell-count":
+            trace("count_requested")
+            proc.stdout.write(str(active_shells) + "\n")
+            proc.exit(0)
+        elif proc.command == "probe":
             proc.stdout.write(nonce + "\n")
             proc.exit(0)
         elif proc.command == "wait":
@@ -56,16 +69,50 @@ async def main():
         elif proc.command == "drop":
             proc.channel.get_connection().abort()
         elif proc.command is None:
-            proc.stdout.write("SIZE %d %d\n" % proc.term_size[:2])
-            while True:
-                try:
-                    line = await proc.stdin.readline()
-                    if not line:
-                        break
-                    proc.stdout.write("ECHO " + line)
-                except asyncssh.TerminalSizeChanged as event:
-                    proc.stdout.write("SIZE %d %d\n" % (event.width, event.height))
-            proc.exit(0)
+            active_shells += 1
+            trace("shell_opened")
+            try:
+                proc.stdout.write("SIZE %d %d\r\n" % proc.term_size[:2])
+                line = ""
+                after_cr = False
+                while True:
+                    try:
+                        char = await proc.stdin.read(1)
+                        if not char:
+                            break
+                        if char not in "\r\n":
+                            line += char
+                            after_cr = False
+                            continue
+                        if char == "\n" and after_cr:
+                            after_cr = False
+                            continue
+                        after_cr = char == "\r"
+                        bracketed = line.startswith("\x1b[200~") and line.endswith("\x1b[201~")
+                        value = line[6:-6] if bracketed else line
+                        line = ""
+                        if value == "vt-demo":
+                            proc.stdout.write("\x1b[2J\x1b[H\x1b[32mGreen λ 中\x1b[0m\r\n\x1b[?2004h")
+                        elif value == "vt-query":
+                            proc.stdout.write("\x1b[3;4H\x1b[6n")
+                            reply = await proc.stdin.readexactly(6)
+                            proc.stdout.write("\r\n" + ("QUERY-OK" if reply == "\x1b[3;4R" else "QUERY-FAILED") + "\r\n")
+                        elif value == "vt-alt":
+                            proc.stdout.write("\x1b[?1049h\x1b[HALTERNATE\r\n")
+                        elif value == "vt-primary":
+                            proc.stdout.write("\x1b[?1049l")
+                        elif value == "vt-exit":
+                            break
+                        elif value == "bracket-check":
+                            proc.stdout.write(("BRACKET-OK" if bracketed else "BRACKET-MISSING") + "\r\n")
+                        else:
+                            proc.stdout.write("ECHO " + value + "\r\n")
+                    except asyncssh.TerminalSizeChanged as event:
+                        proc.stdout.write("SIZE %d %d\r\n" % (event.width, event.height))
+                proc.exit(0)
+            finally:
+                active_shells -= 1
+                trace("shell_closed")
         else:
             proc.stderr.write("fixture command refused\n")
             proc.exit(127)

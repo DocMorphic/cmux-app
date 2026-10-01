@@ -32,6 +32,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
                 finally { synchronized(lock) { requests.value -= request } }
             })
     }
+    val shells = SshShells(hosts, connections, lifetime, admitted)
     fun answerBiometric(id: UUID, signature: java.security.Signature?) = synchronized(lock) {
         if (!closed && admitted()) requests.value.firstOrNull()?.takeIf { it.id == id }?.answer(signature)
     }
@@ -39,7 +40,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
         if (!closed) {
             closed = true
             requests.value.forEach { it.cancel() }; requests.value = emptyList()
-            connections.close()
+            shells.close(); connections.close()
         }
     }
 }

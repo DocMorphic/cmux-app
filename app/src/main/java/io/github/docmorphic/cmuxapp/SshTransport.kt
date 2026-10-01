@@ -236,7 +236,14 @@ internal class SshTransport private constructor(
         try { synchronized(lock) { guard(); channels += channel } }
         catch (failure: Throwable) { channel.disconnect(); throw failure }
     }
-    private fun release(channel: Channel) { synchronized(lock) { channels.remove(channel) }; channel.disconnect() }
+    private fun release(channel: Channel) {
+        synchronized(lock) { channels.remove(channel) }
+        // disconnect() sends SSH_MSG_CHANNEL_CLOSE. UI close and coroutine
+        // cancellation can arrive on Main: Android rejects that socket write
+        // after JSch has already advanced its cipher, corrupting the shared
+        // connection. Keep all live channel teardown on a network worker.
+        workers.execute { channel.disconnect() }
+    }
 
     suspend fun exec(command: String, timeoutMillis: Long = 30_000, maxOutputBytes: Int = 8 * 1024 * 1024): SshExecResult {
         require(timeoutMillis > 0 && maxOutputBytes > 0)
@@ -276,6 +283,7 @@ internal class SshTransport private constructor(
         return blocking(cancel = { release(channel) }) {
             try {
                 channel.setPtyType("xterm-256color", columns, rows, 0, 0)
+                channel.setEnv("LANG", "en_US.UTF-8")
                 val input = channel.inputStream; val output = channel.outputStream
                 channel.connect(CONNECT_TIMEOUT); guard()
                 SshPty(input, send = { bytes -> blocking(cancel = { release(channel) }) {
@@ -327,7 +335,11 @@ internal class SshTransport private constructor(
                     continuation.resume(result, onCancellation = { _, _, _ -> cancel() })
                 } catch (failure: Throwable) { if (continuation.isActive) continuation.resumeWithException(failure) }
             }
-            continuation.invokeOnCancellation { cancel(); future.cancel(true) }
+            // An interrupt between JSch encryption and socket flush could
+            // corrupt the shared SSH packet stream. Close the
+            // owned channel/socket instead; prevent unstarted work, but let an
+            // already running packet finish without a thread interruption.
+            continuation.invokeOnCancellation { cancel(); future.cancel(false) }
         }
         suspend fun connect(hosts: SshHostStore, vault: SshKeyVault, hostId: UUID, lifetime: CoroutineScope,
             admitted: () -> Boolean, explicit: Boolean,

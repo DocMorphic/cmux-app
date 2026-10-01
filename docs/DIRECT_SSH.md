@@ -4,7 +4,8 @@
 
 **SSH computers can now be saved and connected from the Android UI.** Computers
 and Settings expose the host list/editor, and Settings exposes SSH key management.
-Terminal/workspace provider integration remains open. Production host storage,
+Plain SSH shells now open from the saved-host list with the Ghostty terminal.
+Mixed tmux/cmux-tui workspace integration remains open. Production host storage,
 private-key storage and the low-level transport are implemented as described in
 the checkpoints below. Existing native Mac pairing, terminal
 rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This audit
@@ -12,7 +13,63 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the account-owned
-hosts checkpoint is the latest implementation status.
+plain-shell checkpoint is the latest implementation status.
+
+## Plain SSH shell and Ghostty replies (2026-10-01)
+
+Saved SSH computers now expose **New Shell**, open and close actions. Each shell
+owns a PTY and Ghostty renderer under the account runtime; navigating back releases
+the screen but retains the same shell. Multiple shells share the host connection.
+Closing one shell releases its channel without disconnecting other host work.
+Account retirement and host removal close their shells. Ended shells currently
+retain final output until explicitly closed; durable reconnect is not claimed.
+
+The screen uses the existing terminal grid, text selection sheet, direct keyboard,
+hardware-key encoder, custom toolbar, modifiers, text clipboard paste, composer,
+scrollback and pinch zoom. The PTY receives UTF-8, `xterm-256color`, ordered input
+and resize events. Bracketed paste follows the terminal mode. Input and terminal
+query replies share a bounded queue (256 commands / 256 KiB); overflow or failed
+writes end that shell without replaying uncertain input. Files/media paste and SSH
+mouse forwarding remain to be connected.
+
+Ghostty query replies are explicitly opted into for SSH. Cursor/status/size queries
+and resize reports return owned bytes through JNI, with a sticky 256 KiB overflow
+failure. Existing Mac mirrors stay silent by default; no Java callback reenters
+native parsing. Clipboard/title/filesystem effects remain disabled. Native workflow
+[36898404839](https://github.com/DocMorphic/cmux-app/actions/runs/36898404839)
+at `29fec4c` rebuilt the pinned core/binding and passed its JVM/package and 16 KiB
+ELF LOAD/RELRO/APK ZIP gates. Its verified native artifact is used in the app below.
+
+The shell-close regression initially caused an SSH MAC error: channel disconnect
+sent its close packet from Main, where Android rejects network writes after JSch
+advances encryption state. Channel cleanup now runs on a network worker. Canceled
+operations close their resources without interrupting a worker midway through a
+packet. The regression verifies the next exec on the **same** transport, remote
+shell count zero, reopening, and immediate input rejection on account retirement.
+
+**Verification on the retained API 37 emulator, 16,384-byte pages:**
+
+- Two production shell-screen checks passed in **48.787 seconds**: ANSI/Unicode,
+  bracketed paste, live cursor-query response, alternate screen, composer, Text
+  sheet, navigation preserving the shell, resize, close and account retirement.
+- All thirteen existing transport checks passed in **14.478 seconds**, including
+  cancellation, trust, jumps, coordinator ownership and SFTP.
+- Four existing Ghostty mirror/render checks passed in **0.137 seconds**.
+- Nine native Ghostty runtime checks passed in **0.151 seconds** on the exact new
+  native test artifact, including query ordering/resize/overflow and silent mirrors.
+
+Final app APK SHA256:
+`68f0c8fdae3ab836cd5fe7441c18cbb52b588283a6cbf1654125f778dc6d6349`.
+Instrumentation APK SHA256:
+`e8cdaa6dd61889bd52b701640243081c36362b214ec0431e945aa410aad1e8e7`.
+Ignored evidence: `captures/runtime/ssh-transport/shell-worker-close/`,
+`shell-worker-transport/`, and `ghostty-replies-tests/`. The shell screenshot was
+visually inspected. The component fixture's white system status bar is not proof
+of production Activity styling. The fixture implements synthetic terminal commands;
+it does not establish real tmux/cmux-tui, arbitrary TUI, full-app restoration,
+physical keyboard/biometric or Pixel acceptance. Signed build 284 and the Pixel
+installation are unchanged. Mixed providers, idle enforcement, password key setup,
+SFTP/browser UI and physical acceptance remain required.
 
 ## Account-owned SSH hosts and prompts (2026-10-01)
 

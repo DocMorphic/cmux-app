@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Plain SSH shells (2026-10-01):** saved hosts now open account-owned PTYs with
+Ghostty rendering, terminal-query replies, keyboard/composer, toolbar, text paste,
+scrollback, zoom and Text view. Navigation retains the same shell; explicit close
+releases its channel and leaves the shared transport usable. Account retirement
+rejects input. Channel cleanup runs off Main to prevent Android's network-thread
+restriction from corrupting SSH packet state. **Two shell UI, thirteen transport,
+four mirror and nine native Ghostty checks passed** on API 37 / 16 KiB. Native
+alignment/package gates passed. Mixed tmux/cmux-tui providers, SSH Files/browser,
+media paste, mouse forwarding, idle enforcement and physical acceptance remain
+open. Signed 284 and the Pixel are unchanged. [Evidence](DIRECT_SSH.md).
+
 **SSH host UI and account ownership (2026-10-01):** Computers/Settings now open
 saved SSH hosts, add/edit/delete, connect/disconnect and key/jump-host selection.
 Root prompts show unknown/changed host fingerprints and explicit trust decisions.

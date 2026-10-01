@@ -14,9 +14,12 @@ def main():
     parser.add_argument("--serial", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--ui", action="store_true", help="Run the four production SSH host-screen checks")
+    parser.add_argument("--shell-ui", action="store_true", help="Run two production Ghostty SSH shell-screen checks")
     args = parser.parse_args()
-    count = 4 if args.ui else 13
-    test_class = "SshComputersScreenTest" if args.ui else "SshTransportTest"
+    if args.ui and args.shell_ui:
+        parser.error("Choose one UI suite")
+    count = 2 if args.shell_ui else (4 if args.ui else 13)
+    test_class = "SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")
     root = Path(__file__).resolve().parents[1]
