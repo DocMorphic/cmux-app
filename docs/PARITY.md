@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**cmux-tui installer/phone-owned creation (2026-10-01):** New cmux Workspace
+starts only `cmux-android`, installing a verified pinned platform binary when one
+is absent. Listing does not install; activation refuses to replace an existing
+file. Fifty-four JVM checks, four mixed-workspace Android checks and a live Android
+HTTPS/SFTP installation check passed against private Mac fixtures. [Exact evidence and limits](DIRECT_SSH.md) retain
+server-version gaps, owner-stop restoration, other-platform/Pixel acceptance and
+remaining workspace/browser/files/UI work. The signed release is unchanged.
+
 **Mixed SSH workspaces (2026-10-01):** the Computers Workspaces entry now combines
 existing cmux-tui owners, tmux and plain shells, with input/history and provider
 creation/end actions. Forty-seven JVM checks and three real Android SSH workspace

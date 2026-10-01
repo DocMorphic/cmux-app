@@ -263,3 +263,12 @@ revision's `CmuxTUIControl.swift` and `MobileSSHCmuxTUIProvider.swift` lifecycle
 creation, termination, replay and geometry behavior (Manaflow, GPL-3.0-or-later).
 Android adds account/coroutine ownership, bounded retained renderers and input,
 content-set confirmation checks and exact resource-session resolution.
+
+
+`SshCmuxInstall.kt` and phone-owned session creation follow the explicit-install
+workflow in `MobileSSHCmuxTUIProvider.swift` / `MobileSSHHostProviders.swift` at
+`204a11dfcc76280205e50406ab94270a1c152155` (Manaflow, GPL-3.0-or-later). Android adds
+application-pinned platform SHA512 digests, bounded cancellable downloads, SFTP
+staging, version verification and activation that refuses to overwrite an existing
+binary. Downloaded cmux-tui npm platform packages identify their license as MIT;
+they are fetched on demand and are not embedded in this repository or APK.

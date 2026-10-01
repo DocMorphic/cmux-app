@@ -31,7 +31,7 @@ class SshComputersScreenTest {
         val vault = SshKeyVault(root, { true }, hosts::removeKeyReferences)
         vault.generate("Host UI fixture")
         owner = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        session = NativeSshSession(hosts, vault, owner, { owner.isActive })
+        session = NativeSshSession(hosts, vault, owner, admitted = { owner.isActive })
         endpoint = SshEndpoint("127.0.0.1", args.getString("cmux_ssh_port")!!.toInt(), args.getString("cmux_ssh_user")!!)
         expected = SshHostKey.parse(args.getString("cmux_ssh_hostkey")!!)
     }

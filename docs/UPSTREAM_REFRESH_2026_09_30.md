@@ -324,3 +324,15 @@ Disconnect restoration. Forty-seven focused JVM and three Android checks passed.
 See [DIRECT_SSH.md](DIRECT_SSH.md#mixed-ssh-workspace-navigation-2026-10-01) for exact
 scope, hashes and remaining installer/browser/files/device/UI work. This milestone
 does not advance either upstream reference or the last signed release.
+
+
+## Explicit installation and phone-owned creation (2026-10-01)
+
+Android now follows iOS's explicit platform download/SSH installation workflow and
+creates workspaces in `cmux-android`. It pins official 0.13.4 artifact digests,
+verifies the executable version and refuses to overwrite an existing installation.
+Fifty-four JVM checks and a real Android HTTPS/SFTP installation check passed;
+[DIRECT_SSH.md](DIRECT_SSH.md#installer-and-phone-owned-session-creation-2026-10-01)
+records platform/owner-recovery limitations and exact APK evidence. The registry
+still reported 0.13.4 for Darwin/arm64 latest, so the previously observed geometry
+and idle-close gaps remain unresolved. Neither upstream reference is advanced.

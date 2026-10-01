@@ -78,6 +78,21 @@ class SshCmuxRemoteTest {
         val client = good.connect("/bin/cmux-tui", socket)
         assertEquals("expected", client.server?.session); assertFalse(valid.closed); client.close(); assertTrue(valid.closed)
     }
+    @Test fun ownedStartupUsesOnlyProductSessionAndRejectsAnotherOwner() = runTest {
+        val valid = Pipe("cmux-android")
+        val remote = SshCmuxRemote({ error("Must use one startup stream") }, { command ->
+            assertTrue(command.contains("server ensure --session cmux-android --json"))
+            assertTrue(command.contains("relay --session cmux-android"))
+            valid
+        }, backgroundScope)
+        val control = remote.connectOwned("/opt/local/bin/cmux-tui"); control.close()
+        assertTrue(valid.closed)
+        val wrong = Pipe("main")
+        val bad = SshCmuxRemote({ error("No exec") }, { wrong }, backgroundScope)
+        assertTrue(runCatching { bad.connectOwned("/bin/cmux-tui") }.isFailure)
+        assertTrue(wrong.closed)
+        assertTrue(runCatching { bad.connectOwned("relative/cmux-tui") }.isFailure)
+    }
     @Test fun timeoutAndCallerCancellationCloseOpenedRelay() = runTest {
         val socket = SshCmuxDiscovery.parseSockets("/tmp/cmux-tui-501/main.sock").single()
         val pipe = Pipe("main", reply = false)

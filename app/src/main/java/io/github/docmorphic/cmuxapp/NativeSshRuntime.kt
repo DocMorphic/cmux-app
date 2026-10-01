@@ -14,7 +14,7 @@ internal class SshBiometricRequest(val key: SshKeyRecord, val operation: SshPrep
 }
 
 internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
-    lifetime: CoroutineScope, val admitted: () -> Boolean,
+    lifetime: CoroutineScope, private val cmuxInstaller: SshCmuxInstaller? = null, val admitted: () -> Boolean,
 ) : AutoCloseable {
     private val lock = Any()
     private var closed = false
@@ -34,7 +34,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
     }
     val shells = SshShells(hosts, connections, lifetime, admitted)
     val tmux = SshTmuxHosts(connections, lifetime, admitted)
-    val cmux = SshCmuxHosts(connections, lifetime, admitted)
+    val cmux = SshCmuxHosts(connections, lifetime, admitted, cmuxInstaller)
     fun answerBiometric(id: UUID, signature: java.security.Signature?) = synchronized(lock) {
         if (!closed && admitted()) requests.value.firstOrNull()?.takeIf { it.id == id }?.answer(signature)
     }
@@ -52,7 +52,7 @@ internal class NativeSshRuntime(context: Context, store: NativeCredentialStore, 
         val hosts = AndroidSshHostStore.get(context)
         val vault = SshKeyVault.get(context)
         check(admitted()) { "Account changed" }
-        NativeSshSession(hosts, vault, scope, admitted)
+        NativeSshSession(hosts, vault, scope, SshCmuxInstaller(SshCmuxArchive(java.io.File(context.cacheDir, "cmux-tui"))), admitted)
     }
     val state = owner.state
     fun retry() = owner.retry()

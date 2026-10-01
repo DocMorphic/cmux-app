@@ -227,11 +227,12 @@ python3 scripts/check-ssh-transport.py --serial emulator-5554 --cmux-ui \
 ```
 
 Build debug/test APKs before starting the retained emulator. The runner refuses
-physical devices and requires all three checks without skips. It records exact
+physical devices and requires all four checks without skips. It records exact
 APK digests and page size. Checks exercise the combined workspace route, Unicode
 input/history, reopen, cmux workspace/terminal creation and confirmed termination,
 tmux and shell navigation, automatic transport recovery, explicit Disconnect and
-saved selection restoration through a fresh runtime. They read the production
+saved selection restoration through a fresh runtime, and creation in the separate
+phone-owned `cmux-android` session without changing the desktop workspace. They read the production
 View as Text sheet rather than reacquiring the terminal to inspect it.
 
 The listener accepts only fixture discovery/relay/tmux vectors. Every created
@@ -242,3 +243,38 @@ public fixture coordinates only. Ctrl-C closes its terminal resources, stops its
 private owners and confirms the cmux state reset before removing its temporary
 HOME; a cleanup failure retains the path for diagnosis. Personal cmux sessions
 are never addressed.
+
+
+## Android cmux-tui installation check
+
+The same private fixture has an `--install` mode. Its locator reports no binary
+until the app downloads and installs into the fixture HOME. SFTP is confined to
+registered staging paths, and remote exec accepts only the exact installer scripts,
+private relay commands and fixture operations. Start a fresh fixture in this mode:
+
+```sh
+captures/runtime/ssh-engine/venv/bin/python scripts/ssh-cmux-fixture.py --install \
+  --cmux-tui /absolute/path/to/verified/cmux-tui --tmux /absolute/path/to/tmux \
+  --output captures/runtime/cmux-tui/install-fixture.json
+python3 scripts/check-ssh-transport.py --serial emulator-5554 --cmux-install \
+  --fixture captures/runtime/cmux-tui/install-fixture.json \
+  --output captures/runtime/cmux-tui/install-android
+```
+
+This single opt-in instrumentation check requires internet on the emulator: it
+uses the production HTTPS downloader against the pinned official npm artifact,
+then Android SFTP, real remote extraction/probe/activation and the installed
+executable to start `cmux-android`. It proves listing did not download/install,
+the desktop workspace remains visible, terminal input works, a second creation
+reuses the executable and the remote staging directories are removed. Generated
+keys and the download cache are local to this test and deleted during teardown.
+The real binary test currently targets this Mac's Darwin/arm64 platform; it does
+not establish Linux/x64 or physical-Pixel installation behavior.
+
+The corresponding JVM installer check uses an explicitly supplied tarball, never
+an automatic test download. With the emulator stopped, add
+`CMUX_TUI_TEST_ARCHIVE=/absolute/path/to/cmux-tui-darwin-arm64-0.13.4.tgz` to the
+focused command and include `--tests '*SshWorkspaceTarget*'`. The combined suite
+runs 54 checks with all three opt-ins supplied. It exercises a private HOME with
+spaces/quotes, checksum/size/platform rejection, canceled download cleanup,
+installation, interrupted upload cleanup and refusal to replace an existing file.

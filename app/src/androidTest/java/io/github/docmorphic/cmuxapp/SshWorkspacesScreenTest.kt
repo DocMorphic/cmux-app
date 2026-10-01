@@ -56,7 +56,7 @@ class SshWorkspacesScreenTest {
         }
         if (::root.isInitialized) root.deleteRecursively()
     }
-    private fun provider() = cmux.state.value.providers.single()
+    private fun provider() = cmux.state.value.providers.single { it.session == "fixture" }
     private fun workspace() = provider().state.value.tree!!.workspaces.first { it.name == "Desktop cmux" }
     private fun show() = compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
         SshWorkspacesRoute(session, hostId) {}
@@ -77,10 +77,13 @@ class SshWorkspacesScreenTest {
         val deadline = System.nanoTime() + 10_000_000_000L
         var text = ""
         do {
+            ready("ssh.shell.text")
             compose.onNodeWithTag("ssh.shell.text").performClick()
-            onView(withTagValue(`is`("terminal-text-snapshot" as Any))).check { view, error ->
-                if (error != null) throw error
-                text = (view as TextView).text.toString()
+            if (compose.onAllNodesWithText("No terminal text available").fetchSemanticsNodes().isEmpty()) {
+                onView(withTagValue(`is`("terminal-text-snapshot" as Any))).check { view, error ->
+                    if (error != null) throw error
+                    text = (view as TextView).text.toString()
+                }
             }
             compose.onNodeWithText("Done").performClick()
             if (text.contains(value)) return
@@ -124,6 +127,29 @@ class SshWorkspacesScreenTest {
         compose.onNodeWithText("Back").performClick()
         compose.onNodeWithTag("ssh.workspaces.new-shell").performScrollTo().performClick()
         ready(); waitText("Plain shell fixture λ 中"); send("Phone shell")
+    }
+    @Test fun createsOnlyPhoneOwnedSessionAndKeepsDesktopWorkspaceIntact() {
+        show(); ready("ssh.cmux.create-owned")
+        val desktop = workspace(); val original = provider().state.value.tree!!.registry
+        compose.onNodeWithTag("ssh.cmux.create-owned").performScrollTo().performClick()
+        compose.waitUntil(20000) { cmux.state.value.providers.any { it.session == "cmux-android" && it.state.value.tree?.workspaces?.size == 1 } }
+        val owned = cmux.state.value.providers.single { it.session == "cmux-android" }
+        val phone = owned.state.value.tree!!.workspaces.single(); val tab = phone.tabs.single()
+        val desktopProvider = cmux.state.value.providers.single { it.session == "fixture" }
+        assertEquals(original, desktopProvider.state.value.tree!!.registry)
+        assertEquals(desktop.key, desktopProvider.state.value.tree!!.workspaces.single().key)
+        val tag = "ssh.cmux.terminal.${phone.key}.${tab.surface}"
+        ready(tag); compose.onNodeWithTag(tag).performScrollTo().performClick()
+        send("created from Android")
+        compose.onNodeWithText("Back").performClick()
+        ready(tag); compose.onNodeWithTag(tag).performScrollTo().performClick()
+        waitText("created from Android")
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithTag("ssh.cmux.end.${phone.key}").performScrollTo().performClick()
+        compose.onAllNodesWithText("End Workspace").onLast().performClick()
+        compose.waitUntil(10000) { owned.state.value.tree!!.workspaces.isEmpty() }
+        assertEquals(desktop.key, desktopProvider.state.value.tree!!.workspaces.single().key)
+        capture("cmux-ssh-created-owner")
     }
     @Test fun droppedConnectionReattachesButExplicitDisconnectWaitsForUser() {
         show(); openCmux(); send("before connection loss")

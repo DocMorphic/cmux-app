@@ -28,6 +28,7 @@ async def main():
     parser.add_argument("--cmux-tui", type=Path, required=True)
     parser.add_argument("--tmux", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--install", action="store_true", help="Require the phone to install into the private HOME over SFTP")
     args = parser.parse_args()
     binary = str(args.cmux_tui.resolve(strict=True)); tmux = str(args.tmux.resolve(strict=True))
     root = Path(tempfile.mkdtemp(prefix="cs-", dir="/tmp"))
@@ -50,6 +51,11 @@ async def main():
     async def spawn(*tokens):
         return await asyncio.create_subprocess_exec(*tokens, cwd=root, env=env, stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE, stderr=stderr, limit=16 * 1024 * 1024)
+    install_spec = importlib.util.spec_from_file_location("install_fixture", Path(__file__).with_name("ssh-cmux-install-fixture.py"))
+    install_module = importlib.util.module_from_spec(install_spec)
+    install_spec.loader.exec_module(install_module)
+    install = install_module.InstallFixture(root, spawn)
+    exposed_binary = str(root / ".local/bin/cmux-tui") if args.install else "/fixture/cmux-tui"
     async def cli(*tokens):
         proc = await spawn(binary, *tokens)
         try: out, _ = await asyncio.wait_for(proc.communicate(), 10)
@@ -80,16 +86,16 @@ async def main():
             self.proc.stdin.close()
             try: await asyncio.wait_for(self.proc.wait(), 3)
             except asyncio.TimeoutError: self.proc.terminate(); await self.proc.wait()
-    async def wire(): return Wire(await spawn(binary, "relay", "--session", session))
+    async def wire(owner=session): return Wire(await spawn(binary, "relay", "--session", owner))
     def tabs(tree):
         return [tab for ws in tree["workspaces"] for screen in ws.get("screens", [])
                 for pane in screen.get("panes", []) for tab in pane.get("tabs", [])]
-    async def clear(control):
+    async def clear(control, owner=session):
         machines = await control.request(operation="machine.list")
         assert len(machines) == 1
         machine = machines[0]["id"]
         sessions = await control.request(operation="session.list", params={"machine": machine})
-        matching = [s for s in sessions if s.get("name") == session]; assert len(matching) == 1
+        matching = [s for s in sessions if s.get("name") == owner]; assert len(matching) == 1
         scope = {"machine": machine, "session": matching[0]["id"]}
         # Resource inventory also includes terminals with no remaining view.
         terminals = await control.request(operation="terminal.list", params=scope)
@@ -112,6 +118,7 @@ async def main():
         await tmux_run("new-session", "-d", "-s", "desktop-tmux", "-x", "100", "-y", "30")
         await tmux_run("send-keys", "-t", "=desktop-tmux:", "Remote tmux", "Enter")
     children = set(); listener = None
+    owned_sessions = {session}
     key = asyncssh.generate_private_key("ssh-ed25519")
     user = "cmux-fixture-" + secrets.token_hex(12)
     class Server(asyncssh.SSHServer):
@@ -134,29 +141,50 @@ async def main():
         child = None
         try:
             tokens = shlex.split(proc.command or "")
+            if tokens == ["fixture-install-status"]:
+                proc.stdout.write(json.dumps({"prepared": install.prepared, "activated": install.activated,
+                    "stages": sum(p.exists() for p in install.stages)})); proc.exit(0); return
             if tokens == ["fixture-reset"]:
                 await reset(); proc.exit(0); return
             if len(tokens) == 3 and tokens[:2] == ["sh", "-c"]:
                 script = tokens[2]
+                if args.install:
+                    result = await install.command(script)
+                    if result is not None:
+                        proc.stdout.write(result[0]); proc.exit(result[1]); return
+                if script == "uname -s && uname -m":
+                    proc.stdout.write("Darwin\narm64\n"); proc.exit(0); return
                 if script.startswith('for p in "$HOME/.local/bin/cmux-tui"'):
-                    proc.stdout.write("/fixture/cmux-tui\n"); proc.exit(0); return
+                    if args.install and not Path(exposed_binary).is_file():
+                        proc.exit(1); return
+                    proc.stdout.write(exposed_binary + "\n"); proc.exit(0); return
                 if script.startswith('for p in "$(command -v tmux 2>/dev/null)"'):
                     proc.stdout.write("/fixture/tmux\n"); proc.exit(0); return
                 if script.startswith("u=$(id -u)"):
-                    proc.stdout.write(str(socket) + "\n"); proc.exit(0); return
+                    for owner in sorted(owned_sessions):
+                        proc.stdout.write(str(socket.with_name(owner + ".sock")) + "\n")
+                    proc.exit(0); return
+                if script == f"{install_module.quote(exposed_binary)} server ensure --session cmux-android --json >&2 && exec {install_module.quote(exposed_binary)} relay --session cmux-android":
+                    if args.install:
+                        start = await spawn(exposed_binary, "server", "ensure", "--session", "cmux-android", "--json")
+                        await asyncio.wait_for(start.communicate(), 10)
+                        if start.returncode: raise ValueError("Installed owner failed to start")
+                    else: await cli("server", "ensure", "--session", "cmux-android", "--json")
+                    owned_sessions.add("cmux-android")
+                    tokens = ["exec", exposed_binary, "relay", "--socket", str(socket.with_name("cmux-android.sock"))]
             kind = "shell"
             if not tokens and proc.term_type:
                 child = await spawn("/bin/cat")
                 proc.stdout.write("Plain shell fixture λ 中\r\n")
-            elif tokens == ["exec", "/fixture/cmux-tui", "relay", "--socket", str(socket)] and not proc.term_type:
-                kind = "cmux"; child = await spawn(binary, "relay", "--socket", str(socket))
+            elif len(tokens) == 5 and tokens[:4] == ["exec", exposed_binary, "relay", "--socket"] and tokens[4] in {str(socket.with_name(owner + ".sock")) for owner in owned_sessions} and not proc.term_type:
+                kind = "cmux"; child = await spawn(exposed_binary if args.install else binary, "relay", "--socket", tokens[4])
             elif tokens and tokens[0] == "/fixture/tmux" and not proc.term_type:
-                kind = "tmux"; args = tokens[1:]
-                if args[:1] == ["-C"]:
-                    delimiter = args.index(";")
-                    if not tmux_fixture.approved(args[1:delimiter]) or not tmux_fixture.approved(args[delimiter+1:]): raise ValueError("Invalid tmux control startup")
-                elif not tmux_fixture.approved(args): raise ValueError("Invalid tmux operation")
-                child = await spawn(tmux, "-L", tmux_socket, "-f", str(tmux_config), *args)
+                kind = "tmux"; tmux_args = tokens[1:]
+                if tmux_args[:1] == ["-C"]:
+                    delimiter = tmux_args.index(";")
+                    if not tmux_fixture.approved(tmux_args[1:delimiter]) or not tmux_fixture.approved(tmux_args[delimiter+1:]): raise ValueError("Invalid tmux control startup")
+                elif not tmux_fixture.approved(tmux_args): raise ValueError("Invalid tmux operation")
+                child = await spawn(tmux, "-L", tmux_socket, "-f", str(tmux_config), *tmux_args)
             else: raise ValueError("Unexpected fixture exec or PTY")
             children.add(child)
             if os.environ.get("CMUX_SSH_TRACE") == "1": print(json.dumps({"started": kind}), flush=True)
@@ -200,9 +228,9 @@ async def main():
         socket = root / "run" / f"cmux-tui-{os.getuid()}" / f"{session}.sock"
         assert socket.is_socket(), socket
         await reset()
-        listener = await asyncssh.create_server(Server, "127.0.0.1", 0, server_host_keys=[key], process_factory=handle, encoding="utf-8")
+        listener = await asyncssh.create_server(Server, "127.0.0.1", 0, server_host_keys=[key], process_factory=handle, sftp_factory=install.sftp if args.install else None, encoding="utf-8")
         args.output.write_text(json.dumps({"port": listener.get_port(), "username": user, "hostKey": key.export_public_key().decode().strip(),
-                                           "nonce": "cmux", "silentPort": 0}) + "\n")
+                                           "nonce": "cmux-install" if args.install else "cmux", "silentPort": 0}) + "\n")
         print(json.dumps({"ready": True, "port": listener.get_port(), "root": str(root)}), flush=True)
         await stop.wait()
     finally:
@@ -211,12 +239,13 @@ async def main():
             if child.returncode is None: child.terminate(); await child.wait()
         await tmux_run("kill-server", allow_failure=True)
         # Do not erase durable state if terminal-host cleanup fails.
-        control = await wire()
-        try: await clear(control)
-        finally: await control.close()
-        await cli("server", "stop", "--session", session, "--json")
-        preview = await cli("session", session, "reset-state", "--json")
-        await cli("session", session, "reset-state", "--force", "--confirm-reset", preview["confirm_reset"], "--json")
+        for owner in owned_sessions:
+            control = await wire(owner)
+            try: await clear(control, owner)
+            finally: await control.close()
+            await cli("server", "stop", "--session", owner, "--json")
+            preview = await cli("session", owner, "reset-state", "--json")
+            await cli("session", owner, "reset-state", "--force", "--confirm-reset", preview["confirm_reset"], "--json")
         stderr.close(); shutil.rmtree(root)
 
 

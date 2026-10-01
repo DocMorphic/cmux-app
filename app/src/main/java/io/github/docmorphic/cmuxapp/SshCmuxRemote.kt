@@ -76,6 +76,24 @@ internal class SshCmuxRemote(private val exec: suspend (String) -> SshExecResult
     private fun text(bytes: ByteArray) = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
         .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString()
 
+    suspend fun probePlatform(): SshCmuxPlatform {
+        val result = exec(SshCmuxDiscovery.shell(SshCmuxPlatform.SCRIPT))
+        check(result.exitStatus == 0) { "Could not determine this computer's platform" }
+        return SshCmuxPlatform.parse(text(result.stdout))
+    }
+    suspend fun connectOwned(binary: String): SshCmuxControl {
+        require(SshCmuxDiscovery.validPath(binary))
+        val quoted = SshTmuxEncoding.shellQuote(binary)
+        // Only this product-scoped owner may be started by the phone. Existing
+        // desktop sessions continue to use relay --socket without ensure.
+        val script = "$quoted server ensure --session cmux-android --json >&2 && exec $quoted relay --session cmux-android"
+        var control: SshCmuxControl? = null
+        return try { withTimeout(30000) {
+            SshCmuxControl(open(SshCmuxDiscovery.shell(script)), lifetime).also {
+                control = it; it.handshake("cmux-android")
+            }
+        } } catch (failure: Exception) { control?.close(); throw failure }
+    }
     suspend fun locateBinary(): String? {
         val result = exec(SshCmuxDiscovery.shell(SshCmuxDiscovery.binaryScript))
         if (result.exitStatus == 1) return null

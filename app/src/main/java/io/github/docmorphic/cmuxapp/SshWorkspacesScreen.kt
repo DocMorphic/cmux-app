@@ -163,17 +163,27 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         return
     }
     BackHandler(onBack = onBack)
-    val available = !disconnected && !reconnecting && !busy
+    val available = !disconnected && !reconnecting && !busy && cmuxState.operation == null
     Column(Modifier.fillMaxSize().testTag("ssh.workspaces")) {
         Row(Modifier.fillMaxWidth().padding(8.dp)) {
             TextButton(onClick = onBack) { Text("Back") }
             Text(hosts.host(hostId)?.name ?: "Workspaces", Modifier.weight(1f).padding(vertical = 12.dp), style = MaterialTheme.typography.titleMedium)
             TextButton(onClick = { tmux.refresh(); cmux.refresh() }, enabled = available) { Text("Refresh") }
         }
-        if (tmuxState.loading || cmuxState.loading || busy || reconnecting) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (tmuxState.loading || cmuxState.loading || busy || reconnecting || cmuxState.operation != null) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (disconnected) TextButton(onClick = onReconnect, enabled = !reconnecting) { Text("Reconnect") }
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             (reconnectError ?: failure)?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+            item(key = "cmux-create") {
+                val supported = cmuxState.available || cmuxState.platform?.packageName != null || cmuxState.platform == null
+                TextButton(onClick = { act { cmux.createWorkspace() } }, enabled = available && supported && !cmuxState.loading,
+                    modifier = Modifier.testTag("ssh.cmux.create-owned")) { Text("New cmux Workspace") }
+                cmuxState.operation?.let { Text(it) }
+                if (!cmuxState.available && !cmuxState.loading) Text(
+                    if (supported) "Installs cmux-tui on this computer when needed."
+                    else "cmux-tui is unavailable for ${cmuxState.platform?.os} / ${cmuxState.platform?.arch}.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             for ((provider, state) in providers) {
                 item(key = "cmux-header:${provider.session}") {
                     Text("cmux-tui · ${provider.session}", style = MaterialTheme.typography.titleMedium)

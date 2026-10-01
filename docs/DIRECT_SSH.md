@@ -14,7 +14,83 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the cmux-tui
-mixed workspace checkpoint is the latest implementation status.
+installer and phone-owned session checkpoint is the latest implementation status.
+
+## Installer and phone-owned session creation (2026-10-01)
+
+The workspace screen now offers **New cmux Workspace** independently of running
+owners. This explicit action probes the platform, locates a binary, installs one
+only if absent and starts the product-scoped `cmux-android` owner. Existing desktop
+owners still use their sockets without `server ensure`. Their workspace identities
+remain unchanged when the phone creates or ends its own workspace. Discovery and
+listing do not download, install or start an owner. Host creation and discovery
+are serialized; account/transport retirement cancels their ownership. Navigation
+away does not abort an already submitted creation or replay it later.
+
+`SshCmuxInstall.kt` follows iOS's phone-download/SSH-upload approach, with an
+application pin for **0.13.4** and SHA512 digests for Darwin/Linux arm64/x64 packages.
+The official Darwin/arm64 `latest` metadata still reported 0.13.4 in this check;
+this is not a newer compatible server release. URLs and digests are fixed per app
+build. Downloads reject redirects, non-200 replies and archives over 64 MiB, check
+cached files before reuse, verify SHA512 before any remote install operation and
+remove partial downloads on failure/cancellation. The four package manifests were
+read from the official npm registry; receipts are in `install-audit/` below.
+
+Installation uses Android SFTP into a unique 0700 staging directory under the
+remote `$HOME/.local/bin`, extracts only `package/bin/cmux-tui`, requires a regular
+non-symlink executable and checks its `remote-probe` distribution version. An atomic
+hard link within that filesystem publishes the executable only if the destination
+is still absent. Existing executables and symlinks are never overwritten. Shell
+paths are quoted and cleanup accepts only the generated staging identity. Upload,
+verification and activation failures attempt bounded cleanup. A disconnected or
+unreachable host can prevent that cleanup; this is not a guarantee that every
+network-loss case leaves no staging files. No remote Node or internet is required.
+
+**Verification:** 54 focused JVM checks passed without skips. The six installer
+checks cover platform/URL selection, size/checksum rejection before remote writes,
+partial-download cancellation, bounded cleanup paths and real published-archive
+installation in a private HOME containing spaces/quotes. That process check also
+verifies cache reuse, refusal to replace the installed file, unchanged binary hash
+and cleanup after interrupted upload. Owned-startup checks reject a substituted
+session identity. Debug/test APKs and the app ELF / APK ZIP 16 KiB gates passed.
+
+On the retained API 37 / 16,384-byte-page emulator, the live installation test
+passed in **18.359 seconds**: production HTTPS download from npm, pinned checksum,
+Android SFTP, real Mac extraction/version check/activation, the installed executable
+starting `cmux-android`, terminal input, visibility of the existing desktop workspace,
+a second creation without another installation, and zero retained staging folders.
+The test's cache and generated key were removed. It uses private generated SSH
+credentials and does not touch the user's Mac installation. This run proves
+Darwin/arm64 installation; Linux/x64, Linux/arm64, Darwin/x64 and the physical Pixel
+still need their own acceptance evidence.
+
+The four mixed-workspace Android checks then passed in **99.099 seconds** on the
+same app APK, with the test-only synchronization fix. The new fourth check creates,
+opens, reopens and ends a phone-owned workspace while retaining the desktop
+workspace's registry/key. The original failure attempted to read View as Text
+before the asynchronously reopened screen existed; the corrected test waits for
+that screen and handles an initially empty replay. The other checks retain mixed
+navigation, input, drop recovery and saved Disconnect restoration. The resulting
+owner/workspace capture was inspected. All private fixture roots were removed
+after confirmed terminal/owner cleanup, and the single emulator was stopped.
+
+- App SHA256: `f93e8d2510329b5bcd7a01c211b23972c8a26ab53367472bb57c5c1366423c45`.
+- Installation test APK SHA256: `b021939786034fa4fc67c8a04f99bdcc66826774a647c21274aa234a2e7d5137`.
+- The subsequent workspace-test synchronization correction changes only the test
+  APK, to `c6ec33241415cecd885eb00884702fddbf0bf3f1ccafd161af756dce5b4df680`.
+- Ignored receipts: `captures/runtime/cmux-tui/install-audit/`, including `jvm/`,
+  `owned-build.txt`, `transport-build.txt`, `final-test-build.txt`, `alignment.txt`,
+  `install-android/` and `final-owned-android/`.
+
+[Reproduction](../ssh-spike/README.md#android-cmux-tui-installation-check) records
+both installer modes. The install screenshot captures creation progress; it is not
+final iOS styling acceptance. The server's geometry/idle-close gaps are unchanged.
+Restoring a selected phone-owned session after its owner stops still needs an
+ensure-on-open path (listing must remain read-only); automatic upgrades and a
+compatible server release remain open. Other outstanding work includes idle-policy
+integration, remaining cmux topology actions, SSH Files/browser/media, full OS
+process death, final visual parity and physical acceptance. Signed 284, the Pixel
+installation and the upstream references are unchanged.
 
 ## Mixed SSH workspace navigation (2026-10-01)
 
