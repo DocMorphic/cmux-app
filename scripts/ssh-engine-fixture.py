@@ -52,7 +52,17 @@ async def main():
 
     async def process(proc):
         nonlocal active_shells
-        if proc.command == "shell-count":
+        if proc.command == "files-fixture-link":
+            # Fixture-owned symlink setup avoids JSch's OpenSSH-style symlink
+            # argument order differing from AsyncSSH's standard-order decoder.
+            # This command accepts no remote path and never invokes a shell.
+            target = Path(directory) / "files-link-target *?\\"
+            target.mkdir(exist_ok=True)
+            link = Path(directory) / "files-link"
+            link.unlink(missing_ok=True)
+            link.symlink_to(target.name, target_is_directory=True)
+            proc.exit(0)
+        elif proc.command == "shell-count":
             trace("count_requested")
             proc.stdout.write(str(active_shells) + "\n")
             proc.exit(0)

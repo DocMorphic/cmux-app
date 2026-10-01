@@ -85,6 +85,15 @@ class SshShellScreenTest {
         command("vt-primary"); waitText(shell, "Green λ 中")
         compose.runOnIdle { assertEquals("primary", shell.display.activeScreen) }
         command("Hello λ from Android"); waitText(shell, "ECHO Hello λ from Android")
+        // Files is a sheet over the live terminal: opening/closing it must
+        // preserve unsent composer text and the exact PTY.
+        compose.onNodeWithTag("ssh.shell.composer").performTextReplacement("unsent files draft λ")
+        compose.onNodeWithTag("ssh.shell.files").performClick()
+        compose.waitUntil(15000) { compose.onAllNodes(hasTestTag("ssh.files.refresh") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithTag("ssh.shell.composer").assertTextContains("unsent files draft λ")
+        assertSame(shell, session.shells.state.value.single())
+        compose.onNodeWithTag("ssh.shell.composer").performTextClearance()
         capture("ssh-shell-primary")
         compose.onNodeWithTag("ssh.shell.text").performClick()
         compose.onNodeWithText("Terminal Text").assertIsDisplayed()

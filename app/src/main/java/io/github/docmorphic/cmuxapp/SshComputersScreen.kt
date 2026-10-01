@@ -84,7 +84,9 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
     }
     if (activeShell != null) {
         key(activeShell.id) {
-            SshShellScreen(activeShell, reconnecting = busy, reconnectError = failure, onReconnect = {
+            var files by remember { mutableStateOf(false) }
+            if (files) SshFilesSheet(session, activeShell.hostId, activeShell) { files = false }
+            SshShellScreen(activeShell, reconnecting = busy, reconnectError = failure, onFiles = { files = true }, onReconnect = {
                 if (!busy) {
                     busy = true; failure = null
                     scope.launch {

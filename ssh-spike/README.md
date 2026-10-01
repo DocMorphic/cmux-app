@@ -86,6 +86,14 @@ shell-count checks; it never executes
 input as host commands. Optional `CMUX_SSH_TRACE=1` logs lifecycle event types and
 active shell counts without terminal input or credentials.
 
+Use `--files-ui` for three SFTP browser checks against this same chrooted fixture.
+They exercise literal Unicode/glob/backslash filenames, transfer bytes and naming
+collisions, rename, symlink navigation/deletion, nonempty-folder refusal, visible
+text preview and folder dialogs, plus refusing a retired account's transport.
+The fixed `files-fixture-link` setup command creates only a fixture-owned link;
+it accepts no path argument and never runs a shell. The runner remains emulator
+only and preserves partial output/stops instrumentation on timeout.
+
 On the development Mac, retain only the existing `cmux_api37_16k` AVD and its
 system image. The redundant API 37 and API 26 AVDs/images were removed at the
 user's request to save storage. Earlier API 26 receipts remain historical evidence;

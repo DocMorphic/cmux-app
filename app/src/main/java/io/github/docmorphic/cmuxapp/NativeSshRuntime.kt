@@ -18,6 +18,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
 ) : AutoCloseable {
     private val lock = Any()
     private var closed = false
+    val isOpen get() = synchronized(lock) { !closed && admitted() }
     private val requests = MutableStateFlow<List<SshBiometricRequest>>(emptyList())
     val biometrics = requests.asStateFlow()
     val connections = SshConnections(hosts, lifetime, admitted) { id, owner, current, trust ->

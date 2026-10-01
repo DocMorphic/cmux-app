@@ -117,7 +117,7 @@ internal fun SshTmuxScreen(host: SshTmuxHost, reconnecting: Boolean = false, rec
     }
     if (selection != null) {
         val terminal = selected?.takeIf { reference(it.workspace, it.pane) == selection }
-        if (terminal != null) SshShellScreen(terminal, reconnecting || restoring, reconnectError ?: failure, onReconnect, ::leavePane)
+        if (terminal != null) SshShellScreen(terminal, reconnecting || restoring, reconnectError ?: failure, onReconnect, onBack = ::leavePane)
         else Column(Modifier.fillMaxSize().padding(16.dp)) {
             BackHandler(onBack = ::leavePane)
             TextButton(onClick = ::leavePane) { Text("Back") }

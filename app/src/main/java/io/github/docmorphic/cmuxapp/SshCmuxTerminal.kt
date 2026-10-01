@@ -71,6 +71,12 @@ internal class SshCmuxTerminal private constructor(override val id: String, val 
         }
     }
     private fun allowed() = !disposed && !ended && job.isActive && admitted() && !control.closed
+    override suspend fun currentDirectory(): String? {
+        check(allowed())
+        val info = control.request("process-info", JSONObject().put("surface", tab.surface))
+        check(allowed())
+        return listOf(info.opt("foreground_cwd"), info.opt("cwd")).filterIsInstance<String>().firstOrNull { it.startsWith('/') }
+    }
     fun update(value: SshCmuxTab) {
         require(value.surface == tab.surface)
         if (!disposed && value != tab) { tab = value; changed() }

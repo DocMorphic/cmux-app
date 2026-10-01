@@ -315,6 +315,18 @@ SSH-to-cmux-tui acceptance are next, and no server-version gap or broad parity p
 was declared complete. [DIRECT_SSH.md](DIRECT_SSH.md) records exact receipts.
 
 
+## SSH Files checkpoint (2026-10-02)
+
+The reviewed `SSHFiles` model, directory/preview views and terminal entry point now
+have a direct Android SFTP implementation. Four JVM checks, three SFTP/browser
+tests and three shell UI checks passed against private fixtures on API 37 / 16 KiB.
+The toolbar opens a sheet that preserves the unsent draft and existing PTY.
+[DIRECT_SSH.md](DIRECT_SSH.md) records exact receipts, publication/cancellation
+boundaries and remaining physical/picker/media/current-directory acceptance.
+Inspection of the reviewed iOS SSH provider and UI found no workspace/pane/tab
+rename or move action, correcting that item in the earlier Android task list.
+No broad upstream pin or signed release changed.
+
 ## cmux-tui owner recovery and layout checkpoint (2026-10-01)
 
 Android now follows the reviewed provider's distinction between explicit recovery

@@ -41,6 +41,12 @@ internal class SshTmuxTerminal(override val id: String, val workspace: SshTmuxWo
         }
     }
     private fun allowed() = !disposed && !ended && job.isActive && admitted() && !control.isClosed
+    override suspend fun currentDirectory(): String? {
+        check(allowed())
+        val lines = control.command("display-message -p -t %${pane.id} '#{pane_current_path}'")
+        check(allowed())
+        return lines.singleOrNull()?.toString(Charsets.UTF_8)?.takeIf { it.startsWith('/') }
+    }
     fun updatePane(row: SshTmuxPaneRow) {
         require(row.id == pane.id)
         if (row != pane && !disposed) {

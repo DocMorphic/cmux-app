@@ -88,6 +88,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     var restoring by remember { mutableStateOf(false) }
     var retry by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
+    var files by remember(session, hostId) { mutableStateOf(false) }
     var ending by remember(session, hostId) { mutableStateOf<SshWorkspaceEnd?>(null) }
     fun select(target: SshWorkspaceTarget) { selection = "$hostId\n${target.encode()}"; failure = null }
     fun leave() { selection = null; opened = null; failure = null }
@@ -152,7 +153,8 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                 select(SshWorkspaceTarget.Shell(replacement.id))
             } else { onReconnect(); retry++ }
         }
-        if (terminal != null) SshShellScreen(terminal, reconnecting || restoring || busy, reconnectError ?: failure, reconnect, ::leave)
+        if (files && terminal != null) SshFilesSheet(session, hostId, terminal) { files = false }
+        if (terminal != null) SshShellScreen(terminal, reconnecting || restoring || busy, reconnectError ?: failure, reconnect, onFiles = { files = true }, onBack = ::leave)
         else Column(Modifier.fillMaxSize().padding(16.dp)) {
             BackHandler(onBack = ::leave)
             TextButton(onClick = ::leave) { Text("Back") }

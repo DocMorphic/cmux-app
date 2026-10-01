@@ -32,7 +32,7 @@ import kotlinx.coroutines.awaitCancellation
 
 @Composable
 internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, reconnectError: String? = null,
-    onReconnect: (() -> Unit)? = null, onBack: () -> Unit) {
+    onReconnect: (() -> Unit)? = null, onFiles: (() -> Unit)? = null, onBack: () -> Unit) {
     val state by shell.state.collectAsState()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(shell, lifecycle) {
@@ -90,6 +90,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }) { Text("Back") }
             Text(shell.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             TextButton(onClick = ::showText, modifier = Modifier.testTag("ssh.shell.text")) { Text("Text") }
+            if (onFiles != null) TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onFiles() }, modifier = Modifier.testTag("ssh.shell.files")) { Text("Files") }
             TextButton(onClick = {
                 if (direct) { rawKeyboard?.finishComposition(); direct = false; keyboard?.hide() } else showKeyboard()
             }, enabled = canInput) { Text(if (direct) "Compose" else "Keyboard") }
@@ -117,7 +118,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             if (scroll > 0) TextButton(onClick = { motion.stop(); scroll = 0.0 }, modifier = Modifier.align(Alignment.BottomEnd)) { Text("Latest") }
             TerminalZoomOverlay(zoom, preferences, foreground = Color(0xFFE0E5EB), background = Color(0xFF111316), modifier = Modifier.align(Alignment.Center))
         }
-        TerminalToolbarView(toolbar.layout, modifiers, canInput, filesEnabled = false,
+        TerminalToolbarView(toolbar.layout, modifiers, canInput, filesEnabled = onFiles != null,
             onModifier = { modifiers = modifiers.tap(it, android.os.SystemClock.uptimeMillis()) },
             onButton = { button ->
                 rawKeyboard?.finishComposition()
@@ -128,7 +129,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                         if (text != null) write(text, paste = true) else message = "No text in the clipboard."
                     }
                     TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT -> zoom.step(if (button == TerminalToolbarButton.ZOOM_IN) 1 else -1)
-                    TerminalToolbarButton.FILES -> Unit
+                    TerminalToolbarButton.FILES -> { keyboard?.hide(); onFiles?.invoke() }
                     else -> button.key?.let { write(modifiers.special(it, display.applicationCursorKeys)); modifiers = modifiers.consume() }
                 }
             }, onCustom = { rawKeyboard?.finishComposition(); modifiers = TerminalInputModifiers(); write(it.output) },

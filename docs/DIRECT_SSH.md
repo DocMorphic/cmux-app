@@ -13,8 +13,84 @@ rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This au
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
-Older checkpoints below retain their original evidence boundaries; the cmux-tui
-owner recovery and layout checkpoint is the latest implementation status.
+Older checkpoints below retain their original evidence boundaries; the SSH
+Files browser checkpoint is the latest implementation status.
+
+## SSH Files browser (2026-10-02)
+
+The SSH terminal Files action now opens an SFTP browser on that SSH computer.
+It resolves remote home and the selected cmux-tui/tmux terminal's current directory,
+with a parent trail rooted at home or `/`. Plain shells currently fall back to
+home; shell-reported working-directory integration remains open. The browser
+supports folder-first listings, refresh, symlink directory navigation, new folders,
+rename, confirmed nonrecursive delete, copy/insert path, document/photo selection
+for uploads, progress and file preview. Downloads reuse the shared image, PDF,
+text/Markdown, media and export viewers. Small unknown UTF-8 files use text;
+unsupported files remain downloadable for external open/share/save.
+
+This uses SFTP directly, never native Mac file RPC or remote shell commands.
+Each operation owns a cancellable channel on the existing account/host transport.
+Closing the account prevents new operations and closes that transport. An explicit
+Disconnect remains respected. Mutations do not retry after a lost response.
+Remote names use POSIX rules and JSch's glob-taking methods receive escaped literal
+paths; `mkdir` and `realpath` receive raw paths. Folder deletion never recurses,
+and symlink deletion removes the link. Downloads stream to a private scratch file,
+check announced size and modification time, enforce available disk space and remove
+incomplete local copies. These metadata checks do not detect every same-size edit
+within the server's timestamp resolution. Closing the sheet removes its downloads;
+export actions use the shared viewer's separately owned copies.
+
+Uploads choose a free suffix from a fresh listing and stream through a uniquely
+named temporary file. On servers advertising `hardlink@openssh.com`, publishing
+uses that extension to avoid replacing a concurrently created destination. Other
+servers rename after checking that the destination is absent; SFTP v3/JSch does
+not provide a portable atomic compare-and-swap for that fallback. Rename similarly
+checks the destination first. Concurrent remote writers remain an acceptance
+boundary. Partial remote-file removal is best effort: connection loss can leave
+`.cmux-upload-<UUID>` for later inspection. Operations have a ten-minute deadline;
+that is not a resumable-transfer implementation.
+
+Source scope correction: the reviewed iOS SSH provider/UI exposes create/end
+workspace, new screen/window and tab/split creation. No SSH workspace/pane/tab
+rename or move action was found in `MobileSSH*`, `MobileShellComposite+SSH*` or
+`SSHWorkspaceListPanel` at the reviewed candidate. Those protocol commands are not
+an additional iOS SSH UI parity requirement. Native Mac workspace actions retain
+their existing requirements. The real SSH gaps are Files/browser, lifecycle/cache,
+server capability gaps and final visual/device acceptance.
+
+Sources at `204a11d`: `SSHFiles/SSHFileBrowserModel.swift`, `SSHDirectoryView.swift`,
+`SSHFilePreviewView.swift`, `WorkspaceDetailView+SSH.swift`,
+`CmuxTUIControl+ProcessInfo.swift`. JSch path and publication semantics were checked
+against its [2.28.0 ChannelSftp source](https://github.com/mwiede/jsch/blob/jsch-2.28.0/src/main/java/com/jcraft/jsch/ChannelSftp.java).
+
+**Verification:** four focused JVM path/input checks passed without skips. The
+final debug/test APKs passed three real SFTP/browser checks in **65.803 seconds**
+and three shell UI checks in **62.849 seconds**, on API 37 / 16 KiB. The shell check
+opens Files through the production toolbar, closes it and verifies the same PTY
+and unsent composer draft remain. Files stays in a sheet over the terminal. Other
+checks cover exact transfer bytes, suffix collisions, Unicode/glob/backslash names,
+rename collision refusal, nonempty-folder refusal, symlink deletion preserving the
+target, folder creation/rename/delete/cancel dialogs, native displayed Unicode
+preview text and refusal to reopen a retired account. APK ELF and ZIP alignment
+checks passed. Long folder headings were constrained after screenshot inspection;
+final browser/preview captures were inspected. Path insertion rejects control
+characters and requests bracketed paste without adding Enter.
+
+The first attempt failed on an ambiguous test selector (Rename title/button) and
+fixture symlink setup (JSch's OpenSSH-style argument order versus AsyncSSH's
+standard decoder). The selector now chooses the clickable button; a fixed,
+path-free fixture command creates only the private test link. These failures and
+intermediate passing receipts are retained, rather than counted as final passes.
+
+Ignored evidence is in `captures/runtime/ssh-audit/`: `files-path-tests.xml`,
+`files-verified-build.txt`, `files-verified-alignment.txt`,
+`files-verified-android/` and `files-verified-shell/`. Final debug APK SHA-256:
+`f5b8343761525f0f90a213ad5bacd4e49ed07029fe69c249485b7f4b518c5de7`; test APK:
+`ca41721c32bae34ea5ec6e6d56579840031b5ace7955c9816cc7608c9de04662`.
+The emulator and private SFTP fixture were stopped afterward.
+Physical Pixel, system document/photo pickers, large media, cancellation/fault
+edges, iOS visual acceptance and plain-shell current-directory reporting remain
+open. No signed release or upstream pin changed.
 
 ## Owner recovery, layout creation and idle policy (2026-10-01)
 
@@ -78,7 +154,7 @@ The emulator was stopped after verification. No physical-device test or signed
 release was performed. Captures verify readable controls and recovered terminal
 content; they do not establish final iOS visual parity or large-font acceptance.
 
-Remaining work includes workspace/pane/tab rename/move/close actions, browser and
+Remaining work includes browser and
 SFTP/media, compatible-server geometry/idle closure, complete iOS visual/interaction
 parity, process-death/fault acceptance and physical Pixel verification. This
 checkpoint does not change the signed release or upstream references.

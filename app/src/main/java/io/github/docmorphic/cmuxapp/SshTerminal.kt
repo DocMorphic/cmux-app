@@ -11,4 +11,5 @@ internal interface SshTerminal : AutoCloseable {
     fun send(text: String, paste: Boolean = false): Boolean
     fun resize(columns: Int, rows: Int, cells: TerminalCellMetrics)
     fun visible(visible: Boolean) {}
+    suspend fun currentDirectory(): String? = null
 }

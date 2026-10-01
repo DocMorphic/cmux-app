@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH Files browser (2026-10-02):** terminal Files now opens a direct SFTP sheet
+with navigation, transfers, previews, folder creation, rename, confirmed deletion
+and path actions. Four JVM checks, three real SFTP/browser checks and three shell
+UI checks passed on the final API 37 / 16 KiB APKs. Opening Files preserves the
+unsent composer draft and PTY. [Exact evidence and boundaries](DIRECT_SSH.md) retain
+picker/media/fault/physical acceptance and plain-shell directory reporting.
+The source audit also corrects the prior task list: reviewed iOS SSH UI does not
+expose workspace/pane/tab rename or move actions. Native Mac action requirements
+are unchanged. No signed release or broad upstream pin advanced.
+
 **cmux-tui owner recovery and layout actions (2026-10-01):** saved selections can
 restart the phone-owned session and recover the original terminal/history;
 discovery and missing desktop owners remain read-only. New Screen, New Tab and
