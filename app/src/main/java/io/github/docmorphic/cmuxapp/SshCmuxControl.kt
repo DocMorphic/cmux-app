@@ -94,6 +94,7 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
     private var queuedBytes = 0
     private var nextID = 0L
     private val attachments = mutableMapOf<Int, SshCmuxAttachment>()
+    private val browsers = mutableMapOf<Int, SshCmuxBrowserAttachment>()
     var server: SshCmuxServer? = null; private set
     var closed = false; private set
     var onEvent: ((JSONObject) -> Unit)? = null
@@ -122,7 +123,7 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
             check(info.pid > 0 && (session == null || info.session == session)) { "cmux-tui session identity changed" }
             for (cap in listOf("workspace-registry-v1", "attach-initial-size"))
                 check(cap in info.capabilities) { "cmux-tui is missing $cap" }
-            val offered = listOf("view-attachment-lease-v1", "view-attachment-detach-v1").filter { it in info.capabilities }
+            val offered = listOf("view-attachment-lease-v1", "view-attachment-detach-v1", SshCmuxBrowserWire.CAPABILITY).filter { it in info.capabilities }
             request("set-client-info", JSONObject().put("name", "cmux-android").put("kind", "android").put("capabilities", JSONArray(offered)))
             server = info; return info
         } catch (failure: Exception) { finish(); throw failure }
@@ -161,7 +162,7 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
     }
     suspend fun attach(surface: Int, columns: Int, rows: Int, events: (SshCmuxEvent) -> Unit): SshCmuxAttachment {
         require(surface >= 0); size(columns, rows)
-        check(server != null && surface !in attachments)
+        check(server != null && surface !in attachments && surface !in browsers)
         val attachment = SshCmuxAttachment(surface, events)
         attachments[surface] = attachment // Initial replay precedes the reply.
         try {
@@ -218,6 +219,85 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
         seconds?.let { params.put("idle_close_seconds", it) }
         request("set-terminal-idle-policy", params); return true
     }
+    suspend fun attachBrowser(surface: Int, columns: Int, rows: Int, events: (SshCmuxBrowserEvent) -> Unit): SshCmuxBrowserAttachment {
+        require(surface >= 0); size(columns, rows)
+        check(SshCmuxBrowserWire.CAPABILITY in checkNotNull(server).capabilities) { "cmux-tui needs guarded browser streaming support" }
+        check(surface !in attachments && surface !in browsers) { "Surface already attached" }
+        val attachment = SshCmuxBrowserAttachment(surface, events)
+        browsers[surface] = attachment
+        try {
+            val result = request("attach-surface", JSONObject().put("surface", surface).put("mode", "bytes").put("cols", columns).put("rows", rows))
+            attachment.lease = result.opt("lease") as? String
+            live(attachment); check(attachment.seeded) { "Browser attach did not send its initial state" }
+            // Browser geometry uses the smallest reported grid, never terminal exclusive sizing.
+            return attachment
+        } catch (failure: Exception) { finish(); throw failure }
+    }
+    suspend fun browserFrameDisplayed(attachment: SshCmuxBrowserAttachment, sequence: Long): Boolean = attachment.operations.withLock {
+        live(attachment)
+        attachment.frames.keys.filter { it < sequence }.forEach { attachment.frames.remove(it) }
+        val token = attachment.frames.remove(sequence) ?: return@withLock false
+        if (!attachment.pointer.canAcknowledge(token)) return@withLock false
+        try {
+            request("browser-frame-presented", JSONObject().put("surface", attachment.surface).put("frame_seq", token))
+            live(attachment); attachment.pointer.acknowledge(token)
+        } catch (failure: Exception) { attachment.pointer.revoke(); throw failure }
+    }
+    suspend fun browserInput(attachment: SshCmuxBrowserAttachment, input: BrowserInput): Boolean = attachment.operations.withLock {
+        live(attachment)
+        val params = JSONObject().put("surface", attachment.surface)
+        when (input) {
+            is BrowserInput.Click -> {
+                require(input.x.isFinite() && input.y.isFinite() && input.count > 0)
+                val token = attachment.pointer.token ?: return@withLock false
+                params.put("x_px", input.x).put("y_px", input.y).put("frame_seq", token).put("button", "left").put("click_count", input.count)
+                try {
+                    request("browser-mouse-guarded", params.put("kind", "down")); live(attachment)
+                    // Both halves keep the same token. Never release onto a newer frame.
+                    request("browser-mouse-guarded", params.put("kind", "up"))
+                } catch (failure: Exception) { attachment.pointer.revoke(); throw failure }
+            }
+            is BrowserInput.Scroll -> {
+                require(input.x.isFinite() && input.y.isFinite() && input.dy.isFinite())
+                val token = attachment.pointer.token ?: return@withLock false
+                if (input.dy == 0.0) return@withLock false
+                try { request("browser-wheel-guarded", params.put("x_px", input.x).put("y_px", input.y)
+                    .put("delta_y_px", input.dy).put("frame_seq", token)) }
+                catch (failure: Exception) { attachment.pointer.revoke(); throw failure }
+            }
+            is BrowserInput.Text -> request("browser-insert-text", params.put("text", input.text))
+            is BrowserInput.Key -> {
+                val key = SshCmuxBrowserKeys.named(input.key, input.modifiers) ?: return@withLock false
+                request("browser-key-press", key.put("surface", attachment.surface))
+            }
+            is BrowserInput.Navigation -> {
+                attachment.pointer.revoke()
+                input.url?.let { params.put("url", it) }
+                request("browser-${input.command}", params)
+            }
+        }
+        live(attachment); true
+    }
+    suspend fun browserCellPixels(): Pair<Int, Int> {
+        val result = request("get-cell-pixels")
+        return maxOf(1, integer(result, "width_px", 16384).toInt()) to maxOf(1, integer(result, "height_px", 16384).toInt())
+    }
+    suspend fun resizeBrowser(attachment: SshCmuxBrowserAttachment, columns: Int, rows: Int): Boolean = attachment.operations.withLock {
+        live(attachment); size(columns, rows); attachment.pointer.revoke()
+        request("resize-surface", JSONObject().put("surface", attachment.surface).put("cols", columns).put("rows", rows)).opt("accepted") == true
+    }
+    suspend fun detach(attachment: SshCmuxBrowserAttachment) = attachment.operations.withLock {
+        if (browsers[attachment.surface] !== attachment) return@withLock
+        if (attachment.lease == null || "view-attachment-detach-v1" !in checkNotNull(server).capabilities) { finish(); return@withLock }
+        attachment.detaching = true; attachment.pointer.revoke()
+        try {
+            outcome(request("detach-attached-view", JSONObject().put("surface", attachment.surface).put("lease", attachment.lease)))
+            browsers.remove(attachment.surface); end(attachment, false)
+        } catch (failure: Exception) { finish(); throw failure }
+    }
+    private fun live(attachment: SshCmuxBrowserAttachment) {
+        check(!closed && job.isActive && !attachment.ended && !attachment.detaching && browsers[attachment.surface] === attachment) { "Browser attachment ended" }
+    }
     private fun live(attachment: SshCmuxAttachment) {
         check(!closed && job.isActive && !attachment.ended && !attachment.detaching && attachments[attachment.surface] === attachment) { "cmux-tui attachment ended" }
     }
@@ -249,6 +329,14 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
             }
             value.optJSONObject("colors")?.let { attachment.events(SshCmuxEvent.Colors(it)) }
         }
+        val browser = if (value.has("surface") && !value.isNull("surface"))
+            browsers[integer(value, "surface", Int.MAX_VALUE.toLong()).toInt()] else null
+        if (browser != null && !browser.ended) {
+            if (event == "detached") {
+                if (!browser.detaching) browsers.remove(browser.surface)
+                end(browser, false)
+            } else SshCmuxBrowserWire.parse(value)?.let(browser::receive)
+        }
         onEvent?.invoke(value)
     }
     private fun integer(value: JSONObject, field: String, maximum: Long): Long {
@@ -259,6 +347,9 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
     private fun end(attachment: SshCmuxAttachment, disconnected: Boolean) {
         if (!attachment.ended) { attachment.ended = true; runCatching { attachment.events(SshCmuxEvent.Ended(disconnected)) } }
     }
+    private fun end(attachment: SshCmuxBrowserAttachment, disconnected: Boolean) {
+        if (!attachment.ended) { attachment.ended = true; runCatching { attachment.receive(SshCmuxBrowserEvent.Ended(disconnected)) } }
+    }
     private fun finish() {
         if (closed) return
         closed = true; job.cancel(); writes.close(); runCatching { pipe.close() }
@@ -266,6 +357,7 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
         val requests = pending.values.toList(); pending.clear()
         for (item in requests) { item.timeout?.cancel(); item.result.completeExceptionally(IOException("cmux-tui relay ended; delivery was not confirmed")) }
         val streams = attachments.values.toList(); attachments.clear(); streams.forEach { end(it, true) }
+        val browserStreams = browsers.values.toList(); browsers.clear(); browserStreams.forEach { end(it, true) }
         runCatching { onEvent?.invoke(JSONObject().put("event", "disconnected")) }
     }
     override fun close() = finish()

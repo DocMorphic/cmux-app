@@ -14,7 +14,52 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the SSH
-SSH browser checkpoint is the latest implementation status.
+streamed-browser protocol checkpoint is the latest implementation status.
+
+## Streamed SSH browser protocol (2026-10-02)
+
+Audited the iOS [`CmuxTUIBrowser.swift`](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileSSH/Sources/CmuxMobileSSH/CmuxTUI/CmuxTUIBrowser.swift),
+[`CmuxTUIControl.swift`](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileSSH/Sources/CmuxMobileSSH/CmuxTUI/CmuxTUIControl.swift),
+[`MobileSSHCmuxTUIProvider.swift`](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileSSHCmuxTUIProvider.swift)
+and the pinned candidate's [control command specification](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/cmux-tui/spec/commands.md).
+
+The control client now negotiates `browser-pointer-frame-guard-v1` and has a
+separate browser attachment lifecycle. It decodes state/frame metadata, tracks
+image sequence separately from pointer tokens, retains at most eight undisplayed
+sequence/token pairs, and only admits pointer input after the corresponding
+presentation acknowledgement succeeds. State-only updates cannot grant a new
+range. Stale images, changed ranges, navigation, resize, detach and failed input
+cannot revive an old presentation. Both halves of a click retain the same token;
+uncertain input is never replayed. Text, CDP key mapping, vertical wheel, navigation,
+cell-pixel queries and nonexclusive browser resize are implemented.
+
+Browser attachment is registered before initial replay and uses its returned
+lease for detach. Browser and terminal attachments cannot claim the same surface.
+Malformed IDs/tokens retire the relay instead of coercing a different surface or
+frame. Tokens currently accept exact nonnegative signed-64-bit JSON integers;
+values outside that range and floating-point values are rejected. Image metadata
+is bounded to 16 megapixels and 12 MiB encoded data. The rendering layer still
+needs to validate/decode PNGs and acknowledge only displayed pixels.
+
+**Verification:** **25 JVM tests** passed, with no skipped cases: fourteen new
+browser wire/guard/control checks, ten existing control checks and the extended
+real-process test using published cmux-tui **0.13.4**. The real binary accepted the
+capability negotiation, created a private attach-only browser tab, emitted initial
+state, returned its lease and cell metrics, resized and detached without closing
+the relay. Existing real terminal attach/restart/lease checks also passed.
+The fixture had no CDP provider, so this proves protocol lifecycle, **not streamed
+pixels, pointer effects, Chrome integration or the Android browser UI**.
+
+The first run exposed a JUnit return-type error in the extended test; adding an
+explicit Unit result fixed its signature. The original log is retained. Final
+logs/XML are ignored under `captures/runtime/ssh-audit/ssh-stream-control-*`.
+No emulator was started and no APK or signed release was built for this protocol
+milestone. The previous on-device SSH browser APK remains the latest local build.
+
+Remaining: adapt this stream to the shared Android browser renderer, resolve
+browser selections by stable content identity, enable SSH browser tabs and mode
+switching, verify real CDP frames/input, then perform physical-device acceptance.
+The workspace browser rows remain unavailable until that integration lands.
 
 ## SSH browser network and terminal entry (2026-10-02)
 

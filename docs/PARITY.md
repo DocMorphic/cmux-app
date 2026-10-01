@@ -12,6 +12,13 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Streamed SSH browser protocol (2026-10-02):** added separate guarded browser
+attachments, frame/token presentation tracking, CDP input/navigation, resize and
+lease detach. Twenty-five JVM checks passed, including the pinned cmux-tui binary's
+browser-tab state/attach/resize/detach lifecycle. No CDP provider or Android pixels
+were exercised. Browser selection, renderer and mode-switch integration remain
+open; SSH streamed-browser rows are still unavailable. [Evidence](DIRECT_SSH.md).
+
 **SSH on-device browser (2026-10-02):** terminal title menu now opens the
 existing isolated browser through the selected SSH computer. Direct TCP streams,
 SOCKS server-side hostnames, localhost routing, reconnect and owner/route retirement

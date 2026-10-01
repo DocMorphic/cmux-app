@@ -149,6 +149,21 @@ class SshCmuxProcessTest {
                 assertTrue(reattached.ended)
                 assertEquals(0, next.request("list-workspaces").getJSONArray("workspaces").length())
                 assertTrue(nextProvider.state.value.tree!!.workspaces.isEmpty())
+                // A real attach-only browser tab can exist without a CDP provider.
+                // Verify its protocol/lease lifecycle; this is not pixel/render proof.
+                val browserId = next.request("new-browser-tab", JSONObject().put("url", "http://127.0.0.1:9/")).getInt("surface")
+                assertTrue(next.listWorkspaces().tabs.single { it.surface == browserId }.isBrowser)
+                val browserEvents = mutableListOf<SshCmuxBrowserEvent>()
+                val browser = next.attachBrowser(browserId, 80, 24, browserEvents::add)
+                assertTrue(browserEvents.first() is SshCmuxBrowserEvent.State)
+                assertNotNull(browser.lease); assertNull(browser.pointer.token)
+                val cell = next.browserCellPixels(); assertTrue(cell.first > 0 && cell.second > 0)
+                next.resizeBrowser(browser, 72, 20)
+                next.detach(browser)
+                assertEquals(1, browserEvents.count { it is SshCmuxBrowserEvent.Ended })
+                assertFalse(next.closed)
+                next.request("close-surface", JSONObject().put("surface", browserId))
+                Unit
             }
         } finally {
             client?.close()
