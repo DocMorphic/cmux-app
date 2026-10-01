@@ -57,11 +57,11 @@ def main():
         command += ["io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner"]
         result = run(command, timeout=180)
         (args.output / "instrumentation.txt").write_text(result + "\n")
-        if not re.search(r"^OK \(11 tests\)$", result, re.M) or "FAILURES!!!" in result or "numtests=11" not in result:
+        if not re.search(r"^OK \(13 tests\)$", result, re.M) or "FAILURES!!!" in result or "numtests=13" not in result:
             raise RuntimeError("Production SSH checks failed; inspect instrumentation.txt")
-        if len(re.findall(r"^INSTRUMENTATION_STATUS_CODE: 0$", result, re.M)) != 11:
+        if len(re.findall(r"^INSTRUMENTATION_STATUS_CODE: 0$", result, re.M)) != 13:
             raise RuntimeError("A fixture check was skipped or did not finish successfully")
-        print(f"Production SSH transport: 11 tests passed on API {receipt['api']}")
+        print(f"Production SSH transport: 13 tests passed on API {receipt['api']}")
     finally:
         # Preserve the test process's diagnostics even if instrumentation crashes
         # before reporting a JUnit result. This runner only admits emulators.

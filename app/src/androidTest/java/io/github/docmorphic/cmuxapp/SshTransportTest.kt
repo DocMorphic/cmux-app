@@ -217,4 +217,42 @@ class SshTransportTest {
         eventually { !connection.isConnected && connection.activeChannels == 0 }
         probe(connect())
     }
+    private fun coordinator() = SshConnections(hosts, owner, { owner.isActive }) { id, lifetime, allowed, ask ->
+        SshTransport.connect(hosts, vault, id, lifetime, allowed, false, ask,
+            { _, _ -> error("Fixture keys do not require biometrics") })
+    }
+
+    @Test fun coordinatorSharesLiveDialAndViewCancellationDoesNotCancelTrust() = runBlocking {
+        coordinator().use { manager ->
+            val first = async { manager.open(host.id) }
+            val second = async { manager.autoConnect(host.id) }
+            eventually { manager.prompts.value.size == 1 }
+            first.cancelAndJoin()
+            val prompt = manager.prompts.value.single()
+            assertTrue(manager.answer(prompt.id, true))
+            val connection = withTimeout(10000) { second.await() }!!
+            probe(connection)
+            assertSame(connection, manager.open(host.id))
+            manager.disconnect(host.id)
+            eventually { !connection.isConnected }
+            assertNull(manager.autoConnect(host.id))
+            assertFalse(manager.answer(prompt.id, false))
+        }
+    }
+
+    @Test fun coordinatorCoalescesTheSameJumpIdentityAcrossActualConnections() = runBlocking {
+        val child = host.copy(id = UUID.randomUUID(), jumpHostId = host.id)
+        hosts.upsert(child)
+        coordinator().use { manager ->
+            val first = async { manager.open(host.id) }
+            val second = async { manager.open(child.id) }
+            eventually { manager.prompts.value.size == 1 }
+            val prompt = manager.prompts.value.single()
+            assertTrue(manager.answer(prompt.id, true))
+            probe(withTimeout(10000) { first.await() })
+            probe(withTimeout(10000) { second.await() })
+            assertTrue(manager.prompts.value.isEmpty())
+        }
+    }
+
 }

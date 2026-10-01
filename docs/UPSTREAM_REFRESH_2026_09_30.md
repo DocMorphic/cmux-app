@@ -152,7 +152,9 @@ API 26 and API 37 / 16 KiB. JSch/BC are now app dependencies with packaged notic
 The production transport now connects both stores to JSch with scoped route/owner
 lifetime, strict trust decisions, bounded jump reads and owned exec/PTY/SFTP
 channels. Eleven Android 17 / 16 KiB transport checks and twenty focused JVM
-checks passed. Connection coalescing/retry and UI integration are next; actual
+checks passed. A subsequent coordinator checkpoint adds shared dials, queued/coalesced trust
+questions and explicit retry/pause behavior, with 25 JVM and 13 Android runtime
+checks passing. Account/UI integration and idle closure are next; actual
 process-death, biometric, physical, host-storage Android runtime and real
 multiplexer acceptance remain open. Only the existing API 37 / 16 KiB emulator
 is retained after the user's storage cleanup; no new API 26 transport coverage

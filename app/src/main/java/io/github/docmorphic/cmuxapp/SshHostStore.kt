@@ -23,6 +23,8 @@ internal class SshHostStore(private val read: () -> String?, private val write: 
     private var revision = 0L
     private val hostRevisions = mutableMapOf<UUID, Long>()
     private val trustRevisions = mutableMapOf<String, Long>()
+    private data class TrustApproval(val question: SshTrustSnapshot, val key: SshHostKey, val revision: Long)
+    private val trustApprovals = mutableMapOf<String, TrustApproval>()
     private val mutable = MutableStateFlow(load())
     val state = mutable.asStateFlow()
 
@@ -98,10 +100,17 @@ internal class SshHostStore(private val read: () -> String?, private val write: 
         question: SshTrustSnapshot, presented: SshHostKey): Boolean {
         if (!isCurrent(plan)) return false
         val hop = plan.hops.firstOrNull { it.hostId == hostId } ?: return false
-        if (question != trustSnapshot(hop.endpoint)) return false
+        val current = trustSnapshot(hop.endpoint)
+        if (question != current) {
+            // Coalesced prompt waiters may commit the same decision. It is
+            // reusable only until the very next pin mutation, including A→B→A.
+            val approval = trustApprovals[hop.endpoint.hostKeyIdentity]
+            return approval?.question == question && approval.key == presented &&
+                approval.revision == current.revision && current.pinned == presented
+        }
         if (question.pinned == presented) return true
         commit(mutable.value.copy(pinnedKeys = mutable.value.pinnedKeys + (question.identity to presented)),
-            changedTrust = question.identity)
+            changedTrust = question.identity, approvedQuestion = question)
         return true
     }
 
@@ -113,13 +122,19 @@ internal class SshHostStore(private val read: () -> String?, private val write: 
         return true
     }
 
-    private fun commit(next: SshHostState, changedHosts: List<UUID> = emptyList(), changedTrust: String? = null) {
+    private fun commit(next: SshHostState, changedHosts: List<UUID> = emptyList(), changedTrust: String? = null,
+        approvedQuestion: SshTrustSnapshot? = null) {
         validate(next)
         val encoded = encode(next)
         require(encoded.toByteArray(Charsets.UTF_8).size <= MAX_BYTES)
         write(encoded)
         changedHosts.forEach { hostRevisions[it] = ++revision }
-        if (changedTrust != null) trustRevisions[changedTrust] = ++revision
+        if (changedTrust != null) {
+            trustRevisions[changedTrust] = ++revision
+            trustApprovals.remove(changedTrust)
+            if (approvedQuestion != null) trustApprovals[changedTrust] = TrustApproval(
+                approvedQuestion, checkNotNull(next.pinnedKeys[changedTrust]), revision)
+        }
         mutable.value = freeze(next)
     }
 

@@ -183,6 +183,47 @@ reachable from the app UI. Earlier API 26 vault/spike checks do not establish
 API 26 transport coverage; only the existing API 37 / 16 KiB emulator is retained
 on this Mac following the user's storage request.
 
+## Connection and trust coordinator — 2026-10-01
+
+`SshConnections.kt` now owns one in-flight/live connection per saved computer
+within a supplied login lifetime. Explicit opens and automatic opens join the
+same work. A view canceling its wait does not cancel the shared handshake or
+identity question. Failures remain visible and wait for explicit retry; a dropped
+established connection returns to idle, eligible for a later foreground/list open.
+There is no background reconnect loop.
+
+The coordinator exposes ordered trust prompts for root presentation. The same
+identity question from concurrent routes shares one prompt; different questions
+get distinct IDs and stale dismissal callbacks cannot cancel a newer question.
+Rejecting a jump identity pauses that host for all dependent routes. Disconnect
+persists pause; explicit open resumes it. Route/key changes and owner cancellation
+retire affected work. Name/idle-policy edits keep the connection. The host store
+now retains an in-memory receipt for the exact committed trust decision so all
+coalesced waiters can confirm it. Any later pin mutation, including removal or a
+key round trip, invalidates that receipt; route revisions remain independently
+required.
+
+**Nine coordinator JVM tests plus sixteen host-store JVM tests passed.** The
+production transport suite now has **thirteen passing Android 17 / 16 KiB tests
+(13.136 seconds)**, including real concurrent coordinator opens, view cancellation,
+disconnect/pause and a shared jump identity against the generated server.
+The APKs were built after restoring only the missing, published native checkpoints
+(about 23 MiB); no additional AVD or system image was created.
+
+Debug APK SHA256:
+`97cd1e757940e0cfa3a243234a507e892781345f77a999142d2de70a4e9d65c4`.
+Test APK SHA256:
+`b843449558b44dce9ae690b80bd5ce1a51d9f75a7b18811cc803b832bbdde745`.
+Evidence is in `captures/runtime/ssh-transport/coordinator-api37/` and
+`coordinator-build-2.txt`. The runner saves crash diagnostics and requires every
+case to finish without skips. The earlier eleven-test checkpoint remains
+historical evidence.
+
+The supplied owner is not yet wired to the production account/UI runtime.
+Computers/key screens, root prompt/biometric presentation, idle closure,
+workspace provider integration and physical acceptance still need implementation.
+Signed 284 and the physical Pixel installation remain unchanged.
+
 The candidate wires SSH into normal iOS navigation, without a DEBUG gate:
 
 - [DeviceTreeView.swift][computers] includes SSH computers alongside Macs, an Add

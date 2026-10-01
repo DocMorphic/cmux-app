@@ -43,18 +43,24 @@ internal data class SshTrustQuestion(val hostId: UUID, val endpoint: SshEndpoint
     val prior: SshTrustSnapshot, val presented: SshHostKey)
 internal data class SshExecResult(val stdout: ByteArray, val stderr: ByteArray, val exitStatus: Int)
 
+internal interface SshManagedConnection : AutoCloseable {
+    val plan: SshDialPlan
+    val isConnected: Boolean
+    val disconnected: kotlinx.coroutines.flow.StateFlow<Boolean>
+}
+
 /** One saved route, including all jump sessions, owned by a caller's account lifetime.
  * Does not perform reconnect/retry or send passwords. UI admission and prompt
  * presentation are supplied by the owner; no caller may use a signed-out scope. */
 internal class SshTransport private constructor(
     private val hosts: SshHostStore,
     private val vault: SshKeyVault,
-    val plan: SshDialPlan,
+    override val plan: SshDialPlan,
     lifetime: CoroutineScope,
     private val admitted: () -> Boolean,
     private val askTrust: suspend (SshTrustQuestion) -> Boolean,
     private val authorize: suspend (SshKeyRecord, SshPreparedSignature) -> Unit,
-) : AutoCloseable {
+) : SshManagedConnection {
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(job + Dispatchers.IO)
     private val closed = AtomicBoolean(false)
@@ -66,7 +72,9 @@ internal class SshTransport private constructor(
     private val identities = mutableListOf<VaultIdentity>()
     private val serverKeys = mutableMapOf<UUID, SshHostKey>()
     @Volatile private var ready: Session? = null
-    val isConnected: Boolean get() = !closed.get() && ready?.isConnected == true
+    private val ended = kotlinx.coroutines.flow.MutableStateFlow(false)
+    override val disconnected: kotlinx.coroutines.flow.StateFlow<Boolean> = ended
+    override val isConnected: Boolean get() = !closed.get() && ready?.isConnected == true
     internal val activeChannels: Int get() = synchronized(lock) { channels.size }
 
     init {
@@ -304,6 +312,7 @@ internal class SshTransport private constructor(
         resources.proxies.asReversed().forEach { runCatching { it.close() } }
         resources.sessions.asReversed().forEach { runCatching { it.disconnect() } }
         ready = null
+        ended.value = true
     }
     private data class CloseSet(val sockets: List<Socket>, val sessions: List<Session>, val channels: List<Channel>,
         val proxies: List<Proxy>, val identities: List<VaultIdentity>)
