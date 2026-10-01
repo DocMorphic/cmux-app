@@ -118,7 +118,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 }
 
 static bool dimensions(JNIEnv *env, jint cols, jint rows) {
-    if (cols >= 2 && cols <= 1000 && rows >= 2 && rows <= 1000) return true;
+    if (cols >= 1 && cols <= 1000 && rows >= 1 && rows <= 1000) return true;
     fail(env, "java/lang/IllegalArgumentException", "Invalid Ghostty dimensions");
     return false;
 }

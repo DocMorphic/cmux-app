@@ -40,8 +40,8 @@ data class GhosttyFrame(
             }
             fun rgb(value: Int): Int { require(value in -1..0xffffff); return value }
             require(integer() == 0x47565431) { "Unknown Ghostty snapshot version" }
-            val columns = integer().also { require(it in 2..1000) }
-            val rows = integer().also { require(it in 2..1000) }
+            val columns = integer().also { require(it in 1..1000) }
+            val rows = integer().also { require(it in 1..1000) }
             val fg = rgb(integer()); val bg = rgb(integer()); val cursor = rgb(integer())
             require(fg >= 0 && bg >= 0)
             val flags = integer().also { require(it and 63 == it) }

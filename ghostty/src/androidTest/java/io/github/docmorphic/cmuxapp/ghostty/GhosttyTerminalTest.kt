@@ -8,6 +8,22 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 class GhosttyTerminalTest {
+    @Test fun singleCellRemoteGridCanRenderResizeAndExpand() {
+        GhosttyTerminal(1, 1).use { terminal ->
+            terminal.append("Z".toByteArray())
+            val initial = terminal.snapshot()
+            assertEquals(1, initial.columns); assertEquals(1, initial.rows)
+            assertEquals("Z", initial.lines.single().joinToString("") { it.text }.trimEnd())
+            terminal.resize(12, 4, 8, 16)
+            terminal.append("\r\nexpanded".toByteArray())
+            assertEquals(12, terminal.snapshot().columns)
+            terminal.resize(1, 1, 8, 16)
+            terminal.append("\u001b[2J\u001b[HZ".toByteArray())
+            val resized = terminal.snapshot()
+            assertEquals(1, resized.columns); assertEquals(1, resized.rows)
+            assertEquals("Z", resized.lines.single().joinToString("") { it.text }.trimEnd())
+        }
+    }
     private fun GhosttyTerminal.write(text: String) = append(text.toByteArray())
     private fun GhosttyFrame.text(row: Int) = lines[row].joinToString("") { it.text }.trimEnd()
 

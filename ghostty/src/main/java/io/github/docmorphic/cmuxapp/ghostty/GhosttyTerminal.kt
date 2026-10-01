@@ -6,7 +6,7 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
     private var imageCache: Map<Long, GhosttyGraphicsFrame.Image> = emptyMap()
 
     init {
-        require(columns in 2..1000 && rows in 2..1000)
+        require(columns in 1..1000 && rows in 1..1000)
         // The pinned C header says lines, but Screen.init implements a byte
         // budget rounded to storage pages. Keep the binding's units explicit.
         require(scrollbackBytes in 0..64 * 1024 * 1024)
@@ -24,7 +24,7 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
 
     @Synchronized fun resize(columns: Int, rows: Int, cellWidth: Int, cellHeight: Int): ByteArray {
         check(handle != 0L) { "Ghostty terminal is closed" }
-        require(columns in 2..1000 && rows in 2..1000 && cellWidth in 1..4096 && cellHeight in 1..4096)
+        require(columns in 1..1000 && rows in 1..1000 && cellWidth in 1..4096 && cellHeight in 1..4096)
         return nativeResize(handle, columns, rows, cellWidth, cellHeight) ?: EMPTY
     }
 
