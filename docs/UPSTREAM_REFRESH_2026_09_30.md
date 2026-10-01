@@ -1,5 +1,14 @@
 # Upstream refresh candidate — 2026-09-30
 
+## Follow-up: SSH Files insertion and transfer failures (2026-10-02)
+
+`SSHFileBrowserSheet.actions` at `204a11d` shell-quotes inserted paths. Android now
+does the same and retains paste/no-Enter behavior. Known source sizes are checked
+before upload publication. Five JVM, six SFTP/browser and three shell UI cases
+passed, including interrupted transfers and failed sources. See
+[DIRECT_SSH.md](DIRECT_SSH.md) for exact receipts, the initial launcher ANR and
+remaining picker/fault/physical/visual acceptance. Broad references are unchanged.
+
 ## Follow-up: plain SSH directory reports (2026-10-02)
 
 Ported `MobileSSHWorkingDirectoryReport` behavior from audited candidate

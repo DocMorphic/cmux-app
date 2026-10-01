@@ -28,6 +28,27 @@ async def main():
     port = 0
     silent_port = 0
     active_shells = 0
+    transfer_gate = asyncio.Event()
+    transfer_gate.set()
+    waiting = {"reads": 0, "writes": 0}
+
+    class FixtureSFTP(asyncssh.SFTPServer):
+        async def hold(self, kind):
+            waiting[kind] += 1
+            try:
+                await transfer_gate.wait()
+            finally:
+                waiting[kind] -= 1
+
+        async def read(self, file_obj, offset, size):
+            if Path(os.fsdecode(file_obj.name)).name == "slow-download.bin" and offset >= 32768:
+                await self.hold("reads")
+            return super().read(file_obj, offset, size)
+
+        async def write(self, file_obj, offset, data):
+            if Path(os.fsdecode(file_obj.name)).parent.name == "slow-upload":
+                await self.hold("writes")
+            return super().write(file_obj, offset, data)
 
     def trace(event):
         if os.environ.get("CMUX_SSH_TRACE") == "1":
@@ -52,7 +73,16 @@ async def main():
 
     async def process(proc):
         nonlocal active_shells
-        if proc.command == "files-fixture-link":
+        if proc.command == "files-transfer-arm":
+            transfer_gate.clear()
+            proc.exit(0)
+        elif proc.command == "files-transfer-release":
+            transfer_gate.set()
+            proc.exit(0)
+        elif proc.command == "files-transfer-status":
+            proc.stdout.write(json.dumps(waiting) + "\n")
+            proc.exit(0)
+        elif proc.command == "files-fixture-link":
             # Fixture-owned symlink setup avoids JSch's OpenSSH-style symlink
             # argument order differing from AsyncSSH's standard-order decoder.
             # This command accepts no remote path and never invokes a shell.
@@ -127,6 +157,7 @@ async def main():
                             folder = Path(directory) / "Shell files λ +%?#"
                             folder.mkdir(exist_ok=True)
                             (folder / "cwd-marker.txt").write_text("shell folder fixture")
+                            (folder / "'a'.txt").write_text("quoted path fixture")
                             # Split an OSC across writes, including its ST terminator.
                             proc.stdout.write("\x1b]7;file://fixture/Shell%20files%20")
                             await asyncio.sleep(0.03)
@@ -162,7 +193,7 @@ async def main():
         async with await asyncssh.create_server(
             Server, "127.0.0.1", 0, server_host_keys=[host_key],
             process_factory=process, encoding="utf-8", line_editor=False,
-            sftp_factory=lambda chan: asyncssh.SFTPServer(chan, chroot=directory),
+            sftp_factory=lambda chan: FixtureSFTP(chan, chroot=directory),
         ) as listener:
             port = listener.get_port()
             imports = []

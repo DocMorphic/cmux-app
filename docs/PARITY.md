@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH Files insertion and interruptions (2026-10-02):** inserted paths now use
+shell quoting, matching iOS; uploads verify known source size before publication.
+Five JVM cases, six SFTP/browser cases and three shell UI cases passed on the same
+API 37 / 16 KiB APKs. Tests cover cancelled transfers, local cleanup, source failure,
+size changes, a surviving connection and quoted-path delivery with the draft
+preserved. [Exact evidence](DIRECT_SSH.md) retains the initial emulator launcher
+ANR, successful identical-APK rerun and cancellation/publication boundaries.
+System picker, media/export and physical/visual acceptance remain open.
+
 **Plain SSH folder tracking (2026-10-02):** Files now starts at the shell's
 reported directory via passive OSC 7 observation, with remote home fallback.
 Seven parser and four path JVM tests pass; three real SSH shell UI checks pass

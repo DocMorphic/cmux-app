@@ -3,6 +3,8 @@ package io.github.docmorphic.cmuxapp
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -18,6 +20,10 @@ import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import java.io.File
 import java.util.UUID
+import java.io.ByteArrayInputStream
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
+import org.json.JSONObject
 
 /** Isolated loopback SFTP; runner refuses physical devices. */
 class SshFilesScreenTest {
@@ -55,6 +61,7 @@ class SshFilesScreenTest {
     private fun ready(tag: String) { compose.waitUntil(15000) { compose.onAllNodes(hasTestTag(tag) and isEnabled()).fetchSemanticsNodes().isNotEmpty() } }
     private fun shown(text: String) { compose.waitUntil(15000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }
     private fun show() {
+        val visible = mutableStateOf(true)
         val terminal = object : SshTerminal {
             override val id = "files-test"; override val title = "Files test"
             override val state = MutableStateFlow(SshShellState(SshShellPhase.RUNNING))
@@ -64,7 +71,10 @@ class SshFilesScreenTest {
             override fun close() {}
             override suspend fun currentDirectory() = directory
         }
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) { SshFilesScreen(session, hostId, terminal) {} } } }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            if (visible.value) SshFilesScreen(session, hostId, terminal) { visible.value = false }
+            else Text("Files closed")
+        } } }
         ready("ssh.files.refresh")
     }
     @Test fun literalTransfersRenameLinksAndNonemptyDeleteUseRealSftp() = runBlocking {
@@ -91,7 +101,8 @@ class SshFilesScreenTest {
         assertEquals(listOf("/", directory, "$directory/folder *?\\"), remote.start("$directory/folder *?\\"))
     }
     @Test fun folderActionsAndPreviewAreUsableFromTheBrowser() {
-        runBlocking { remote.upload(directory, "hello.txt", 18, { "Files fixture λ 中".byteInputStream() }) { _, _ -> } }
+        val content = "Files fixture λ 中".toByteArray()
+        runBlocking { remote.upload(directory, "hello.txt", content.size.toLong(), { content.inputStream() }) { _, _ -> } }
         show(); ready("ssh.files.row.hello.txt")
         compose.onNodeWithTag("ssh.files.row.hello.txt").performClick()
         compose.waitUntil(15000) { compose.onAllNodesWithContentDescription("Raw text preview").fetchSemanticsNodes().isNotEmpty() }
@@ -124,5 +135,71 @@ class SshFilesScreenTest {
         compose.onNodeWithTag("ssh.files.refresh").performClick()
         shown("This account session ended")
         assertFalse(connection.isConnected)
+    }
+    private suspend fun waitForTransfer(kind: String) = withTimeout(10000) {
+        while (JSONObject(connection.exec("files-transfer-status").stdout.toString(Charsets.UTF_8)).getInt(kind) == 0) delay(30)
+    }
+    @Test fun closingBrowserCancelsDownloadAndEventuallyRemovesScratchFiles() {
+        val bytes = ByteArray(256 * 1024) { 42 }
+        runBlocking { remote.upload(directory, "slow-download.bin", bytes.size.toLong(), { bytes.inputStream() }) { _, _ -> } }
+        val scratch = File(compose.activity.cacheDir, "ssh-files")
+        val existing = scratch.listFiles()?.map { it.name }?.toSet().orEmpty()
+        show()
+        runBlocking { assertEquals(0, connection.exec("files-transfer-arm").exitStatus) }
+        try {
+            compose.onNodeWithTag("ssh.files.row.slow-download.bin").performClick()
+            runBlocking { waitForTransfer("reads") }
+            assertTrue(scratch.listFiles().orEmpty().any { it.name !in existing })
+            compose.onNodeWithText("Done").performClick()
+            compose.onNodeWithText("Files closed").assertIsDisplayed()
+        } finally { runBlocking { connection.exec("files-transfer-release") } }
+        runBlocking { withTimeout(10000) {
+            while (scratch.listFiles().orEmpty().any { it.name !in existing }) delay(30)
+        } }
+        assertTrue(connection.isConnected)
+        assertEquals(listOf("slow-download.bin"), runBlocking { remote.list(directory) }.map { it.name })
+    }
+    @Test fun cancelledUploadDoesNotPublishOrBreakTheSharedConnection() = runBlocking {
+        remote.mkdir(directory, "slow-upload")
+        val folder = "$directory/slow-upload"
+        val closed = AtomicBoolean(false)
+        val source = object : ByteArrayInputStream(ByteArray(512 * 1024) { 17 }) {
+            override fun close() { closed.set(true); super.close() }
+        }
+        connection.exec("files-transfer-arm")
+        val pending = async(Dispatchers.IO) { remote.upload(folder, "never-published.bin", 512L * 1024, { source }) { _, _ -> } }
+        try {
+            waitForTransfer("writes")
+            withTimeout(3000) { pending.cancelAndJoin() }
+            assertTrue(pending.isCancelled)
+        } finally { connection.exec("files-transfer-release") }
+        withTimeout(10000) { while (!closed.get()) delay(30) }
+        assertTrue(connection.isConnected)
+        val entries = remote.list(folder)
+        assertTrue(entries.none { it.name == "never-published.bin" })
+        // Cancellation closes the transfer channel. If its best-effort remove
+        // loses that race, only the unique staging file may remain, never the
+        // requested filename. Remove this private fixture's residue explicitly.
+        assertTrue(entries.all { it.name.startsWith(".cmux-upload-") })
+        entries.forEach { remote.delete(folder, it) }
+        assertEquals("after.txt", remote.upload(folder, "after.txt", 2, { byteArrayOf(1, 2).inputStream() }) { _, _ -> })
+    }
+    @Test fun failedOrTruncatedSourceClosesAndDoesNotPublishPartialFile() = runBlocking {
+        val closed = AtomicBoolean(false)
+        val broken = object : ByteArrayInputStream(ByteArray(100000)) {
+            override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
+                if (pos > 0) throw IOException("Fixture source disappeared")
+                return super.read(bytes, offset, length)
+            }
+            override fun close() { closed.set(true); super.close() }
+        }
+        assertTrue(runCatching { remote.upload(directory, "failed.bin", 100000, { broken }) { _, _ -> } }.isFailure)
+        assertTrue(closed.get())
+        for (expected in listOf(1L, 3L)) {
+            assertTrue(runCatching { remote.upload(directory, "changed.bin", expected, { byteArrayOf(1, 2).inputStream() }) { _, _ -> } }.isFailure)
+        }
+        assertTrue(remote.list(directory).isEmpty())
+        assertEquals("unknown.bin", remote.upload(directory, "unknown.bin", null, { byteArrayOf(1, 2).inputStream() }) { _, _ -> })
+        assertEquals(2L, remote.list(directory).single().size)
     }
 }

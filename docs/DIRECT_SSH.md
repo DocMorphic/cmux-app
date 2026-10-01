@@ -14,7 +14,55 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the SSH
-working-directory checkpoint is the latest implementation status.
+insertion/transfer checkpoint is the latest implementation status.
+
+## SSH path insertion and transfer interruption (2026-10-02)
+
+Files now inserts a shell-quoted absolute path, preserving spaces, quotes, glob
+characters and shell metacharacters as one argument. This follows
+`SSHFileBrowserSheet.actions` (`remotePathShellWord`) at audited candidate
+`204a11d`. Copy Path still copies the raw path. Insertion remains a paste with no
+Enter and leaves the unsent composer draft intact. Paths containing terminal
+control characters remain unavailable for insertion.
+
+Uploads with a known source size now require the streamed byte count to match
+before publishing the destination name. A changed or truncated source therefore
+cannot silently produce a successful partial upload. Unknown-size providers remain
+supported. Read failures close the source and remove staging through the live
+channel. Cancellation closes the operation's SFTP channel, leaving the shared SSH
+transport usable. Remote cleanup remains best effort: cancellation or transport
+loss can leave only the uniquely named `.cmux-upload-*` staging file. The operation
+is never replayed; the test verifies the requested final name is not published when an upload is
+cancelled while its data writes are held by the fixture. Cancellation racing with
+publication remains an uncertain outcome requiring a fresh listing.
+
+**Verification:** five focused JVM path/quoting cases passed. Six real SFTP
+browser/transfer cases passed in **57.646 seconds**, and three shell UI cases in
+**74.121 seconds**, on the same API 37 / 16 KiB APKs. The shell UI inserted a path
+containing spaces, Unicode, glob characters and single quotes, retained the unsent
+draft, then explicitly sent Enter and verified the exact quoted bytes in the
+fixture's echo. The fixture never executes terminal input as host commands.
+Transfer checks hold actual server reads/writes, cancel the client operation and
+verify local cleanup, source closure, no final upload name and a usable transport.
+Read failure and both smaller/larger known source-size mismatches leave no staged
+or final files; unknown-size upload succeeds. Native preview text and shell output
+captures were inspected. APK ELF and ZIP alignment checks passed.
+
+The first Files run passed five cases but failed the preview's Espresso focus
+check. A screenshot and window dump confirmed a Pixel Launcher ANR dialog covering
+the activity. The emulator launcher was stopped, then the **same APKs** passed all
+six cases. The failed log/capture remain in `transfer-files/` and
+`transfer-live.png`; no app workaround or relaxed assertion was used.
+
+Ignored evidence under `captures/runtime/ssh-audit/`: `transfer-build.txt`,
+`transfer-path-tests.xml`, `transfer-alignment.txt`, `transfer-files-verified/`
+and `transfer-shell/`. Debug APK SHA-256:
+`5d762fc9ac15eaad7977f1ed671b60eec3ec66d3d0407aa834d7efb85b731ece`;
+test APK: `98503c606ed0c7cb87acafde43c826ae397f8779909add4d8cab4d56db3d1314`.
+The emulator and fixture were stopped after verification. No signed release or
+upstream pin changed. System document/photo pickers, media/export, publication
+races/connection loss, remaining SSH browser features and final physical/UI
+acceptance remain open.
 
 ## Plain SSH working directory (2026-10-02)
 
@@ -107,7 +155,8 @@ target, folder creation/rename/delete/cancel dialogs, native displayed Unicode
 preview text and refusal to reopen a retired account. APK ELF and ZIP alignment
 checks passed. Long folder headings were constrained after screenshot inspection;
 final browser/preview captures were inspected. Path insertion rejects control
-characters and requests bracketed paste without adding Enter.
+characters and requests bracketed paste without adding Enter; the insertion
+follow-up above adds the required shell quoting.
 
 The first attempt failed on an ambiguous test selector (Rename title/button) and
 fixture symlink setup (JSch's OpenSSH-style argument order versus AsyncSSH's

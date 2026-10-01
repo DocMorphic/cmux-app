@@ -96,9 +96,15 @@ class SshShellScreenTest {
         compose.onNodeWithText("/Shell files λ +%?#").assertIsDisplayed()
         compose.onNodeWithTag("ssh.files.row.cwd-marker.txt").assertIsDisplayed()
         capture("ssh-shell-current-folder")
-        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithTag("ssh.files.actions.'a'.txt").performClick()
+        compose.onNodeWithText("Insert Path in Terminal").performClick()
         compose.onNodeWithTag("ssh.shell.composer").assertTextContains("unsent files draft λ")
         assertSame(shell, session.shells.state.value.single())
+        val inserted = "'/Shell files λ +%?#/'\\''a'\\''.txt'"
+        assertFalse(text(shell).contains("ECHO $inserted"))
+        // Insertion does not press Enter or send the unsent composer draft.
+        compose.runOnIdle { assertTrue(shell.send("\r")) }
+        waitText(shell, "ECHO $inserted")
         compose.onNodeWithTag("ssh.shell.composer").performTextClearance()
         capture("ssh-shell-primary")
         compose.onNodeWithTag("ssh.shell.text").performClick()

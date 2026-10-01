@@ -28,4 +28,9 @@ class SshFilePathsTest {
             assertFalse(SshFilePaths.canInsert(it))
         }
     }
+    @Test fun insertedPathIsOneLiteralShellWord() {
+        assertEquals("'/tmp/a '\\''quote'\\'' ${'$'}var;*.txt'", SshFilePaths.shellWord("/tmp/a 'quote' ${'$'}var;*.txt"))
+        assertEquals("'/tmp/λ 中+\\file.txt'", SshFilePaths.shellWord("/tmp/λ 中+\\file.txt"))
+        assertTrue(runCatching { SshFilePaths.shellWord("/tmp/line\ncommand") }.isFailure)
+    }
 }

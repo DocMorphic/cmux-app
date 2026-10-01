@@ -13,6 +13,7 @@ internal object SshFilePaths {
     fun validName(name: String) = name.isNotBlank() && name != "." && name != ".." && '/' !in name && '\u0000' !in name
     fun path(path: String): String { require(path.startsWith('/') && '\u0000' !in path); return path }
     fun canInsert(path: String) = path.startsWith('/') && path.none { it.isISOControl() }
+    fun shellWord(path: String): String { require(canInsert(path)); return SshTmuxEncoding.shellQuote(path) }
     fun join(directory: String, name: String): String { require(validName(name)); return path(directory).trimEnd('/') + "/" + name }
     fun parent(path: String) = path(path).trimEnd('/').substringBeforeLast('/', "").ifEmpty { "/" }
     // JSch interprets these characters as globs even in stat/get/remove/rename.
@@ -138,6 +139,7 @@ internal class SshFiles(private val connection: suspend () -> SshTransport) {
                         output.write(buffer, 0, count); sent += count; progress(sent, total)
                     }
                 } }
+                check(total == null || sent == total) { "The upload size changed. Select the file again." }
                 context.ensureActive(); check(absent(channel, destination)) { "A file with this name appeared during upload. Try again." }
                 // OpenSSH's hardlink extension publishes without replacing a
                 // concurrently created destination. Other servers use rename

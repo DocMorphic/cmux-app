@@ -86,7 +86,7 @@ internal fun SshFilesScreen(session: NativeSshSession, hostId: UUID, terminal: S
     DisposableEffect(downloads) { onDispose { downloads.deleteRecursively() } }
     fun insert(path: String) {
         if (!SshFilePaths.canInsert(path)) { failure = "This path contains control characters. Use Copy Path instead."; return }
-        if (terminal?.send(path, paste = true) == true) onDone() else failure = "The terminal is disconnected. Reconnect before inserting a path."
+        if (terminal?.send(SshFilePaths.shellWord(path), paste = true) == true) onDone() else failure = "The terminal is disconnected. Reconnect before inserting a path."
     }
     fun upload(uris: List<Uri>) = act {
         val target = directory ?: return@act
