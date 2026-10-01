@@ -123,6 +123,16 @@ async def main():
                             proc.stdout.write("\x1b[?1049h\x1b[HALTERNATE\r\n")
                         elif value == "vt-primary":
                             proc.stdout.write("\x1b[?1049l")
+                        elif value == "vt-cwd":
+                            folder = Path(directory) / "Shell files λ +%?#"
+                            folder.mkdir(exist_ok=True)
+                            (folder / "cwd-marker.txt").write_text("shell folder fixture")
+                            # Split an OSC across writes, including its ST terminator.
+                            proc.stdout.write("\x1b]7;file://fixture/Shell%20files%20")
+                            await asyncio.sleep(0.03)
+                            proc.stdout.write("%CE%BB%20+%25?#\x1b")
+                            await asyncio.sleep(0.03)
+                            proc.stdout.write("\\CWD-REPORTED\r\n")
                         elif value == "vt-exit":
                             break
                         elif value == "bracket-check":

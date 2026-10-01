@@ -12,12 +12,20 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Plain SSH folder tracking (2026-10-02):** Files now starts at the shell's
+reported directory via passive OSC 7 observation, with remote home fallback.
+Seven parser and four path JVM tests pass; three real SSH shell UI checks pass
+in 76.967 seconds on API 37 / 16 KiB, including special-character folder browsing,
+preserved draft/session and forgotten directory after reconnect. Screenshot and
+alignment evidence are in [DIRECT_SSH.md](DIRECT_SSH.md). Physical Pixel and final
+visual acceptance remain open; no signed APK or broad upstream pin changed.
+
 **SSH Files browser (2026-10-02):** terminal Files now opens a direct SFTP sheet
 with navigation, transfers, previews, folder creation, rename, confirmed deletion
 and path actions. Four JVM checks, three real SFTP/browser checks and three shell
 UI checks passed on the final API 37 / 16 KiB APKs. Opening Files preserves the
 unsent composer draft and PTY. [Exact evidence and boundaries](DIRECT_SSH.md) retain
-picker/media/fault/physical acceptance and plain-shell directory reporting.
+picker/media/fault/physical acceptance; plain-shell directory reporting is covered above.
 The source audit also corrects the prior task list: reviewed iOS SSH UI does not
 expose workspace/pane/tab rename or move actions. Native Mac action requirements
 are unchanged. No signed release or broad upstream pin advanced.

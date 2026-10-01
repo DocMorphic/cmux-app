@@ -14,14 +14,47 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the SSH
-Files browser checkpoint is the latest implementation status.
+working-directory checkpoint is the latest implementation status.
+
+## Plain SSH working directory (2026-10-02)
+
+Plain shells now observe OSC 7 reports in their own output, matching the iOS
+`MobileSSHWorkingDirectoryReport` at audited candidate `204a11d`. Files opens at
+the last reported absolute directory; shells without reports still start at remote
+home. The observer sends no shell commands and passes the original output bytes
+unchanged to Ghostty. Each shell owns its report state; ended, retired or replaced
+shells return no directory, and a reconnect starts unknown.
+
+Reports support BEL and ST endings across arbitrary chunks, percent-encoded
+`file://` paths and literal `kitty-shell-cwd://` paths. Plus signs, query/fragment
+characters and Unicode remain path characters. Invalid, cancelled, non-directory
+and oversized OSCs cannot overwrite the last valid report. Retained OSC storage
+is bounded to 4096 bytes. A missing remote folder falls back to home through the
+existing SFTP resolver.
+
+**Verification:** seven parser JVM cases and four existing file-path cases passed
+with no failures/skips. Debug and instrumentation APKs built once and passed ELF
+and ZIP 16 KiB alignment checks. All three real SSH shell UI tests passed in
+**76.967 seconds** on API 37 / 16 KiB. The production Files action displayed
+`/Shell files λ +%?#` and its fixture marker file after a split OSC report; the
+saved screenshot was inspected. Closing Files preserves the draft and PTY.
+Ended/reconnected shells forget the old directory, while ANSI, terminal queries,
+alternate-screen restoration, input and resize checks still pass.
+
+Ignored evidence: `captures/runtime/ssh-audit/cwd-build.txt`, `cwd-alignment.txt`,
+`cwd-*Test.xml` and `cwd-android/`. Debug APK SHA-256:
+`2ac7d8a5c8a42e80bfb1d926025b35c2d501d5e8f8b1a8fc6bb6a90e4a2a855c`;
+test APK: `b684fc0c5a70c4fc550e2573a43b076d702d7fe445936ea8e745a7ec41a69010`.
+No physical Pixel was connected. System pickers, transfer faults, remaining SSH
+browser features and final visual/physical acceptance remain open. This does not
+publish a signed APK or advance the broad parity pin.
 
 ## SSH Files browser (2026-10-02)
 
 The SSH terminal Files action now opens an SFTP browser on that SSH computer.
 It resolves remote home and the selected cmux-tui/tmux terminal's current directory,
-with a parent trail rooted at home or `/`. Plain shells currently fall back to
-home; shell-reported working-directory integration remains open. The browser
+with a parent trail rooted at home or `/`. The follow-up above adds plain-shell
+reported directories, with home as the fallback. The browser
 supports folder-first listings, refresh, symlink directory navigation, new folders,
 rename, confirmed nonrecursive delete, copy/insert path, document/photo selection
 for uploads, progress and file preview. Downloads reuse the shared image, PDF,
@@ -89,8 +122,8 @@ Ignored evidence is in `captures/runtime/ssh-audit/`: `files-path-tests.xml`,
 `ca41721c32bae34ea5ec6e6d56579840031b5ace7955c9816cc7608c9de04662`.
 The emulator and private SFTP fixture were stopped afterward.
 Physical Pixel, system document/photo pickers, large media, cancellation/fault
-edges, iOS visual acceptance and plain-shell current-directory reporting remain
-open. No signed release or upstream pin changed.
+edges and iOS visual acceptance remain open. Plain-shell current-directory
+reporting is covered by the follow-up above. No signed release or upstream pin changed.
 
 ## Owner recovery, layout creation and idle policy (2026-10-01)
 

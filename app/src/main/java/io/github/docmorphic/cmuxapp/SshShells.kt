@@ -23,6 +23,7 @@ internal class SshShell(
     override val display = GhosttyVtTerminal(80, 24) { bytes -> enqueue(Command.Write(bytes.copyOf())) }
     private var pty: SshPty? = null
     private var connection: SshTransport? = null
+    private val workingDirectory = SshWorkingDirectoryReport()
     private var ended = false
     private var disposed = false
     private var pendingBytes = 0
@@ -54,7 +55,9 @@ internal class SshShell(
                     if (count < 0) break
                     check(admitted() && transport.isConnected) { "SSH computer changed" }
                     if (count > 0) {
-                        display.append(buffer.copyOf(count))
+                        val bytes = buffer.copyOf(count)
+                        workingDirectory.consume(bytes)
+                        display.append(bytes)
                         mutable.value = mutable.value.copy(revision = mutable.value.revision + 1)
                     }
                 }
@@ -66,6 +69,7 @@ internal class SshShell(
         }
     }
     private fun allowed() = !ended && !disposed && job.isActive && admitted() && connection?.isConnected != false
+    override suspend fun currentDirectory(): String? = if (allowed()) workingDirectory.directory else null
     override fun send(text: String, paste: Boolean): Boolean {
         if (!allowed() || mutable.value.phase != SshShellPhase.RUNNING) return false
         val encoded = if (paste) TerminalKeyEncoding.paste(text, display.bracketedPaste) else text

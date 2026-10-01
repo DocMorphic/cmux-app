@@ -1,5 +1,15 @@
 # Upstream refresh candidate — 2026-09-30
 
+## Follow-up: plain SSH directory reports (2026-10-02)
+
+Ported `MobileSSHWorkingDirectoryReport` behavior from audited candidate
+`204a11d`: passive OSC 7 streaming observation, per-shell directory ownership,
+home fallback and cleared state after shell end/reconnect. Eleven focused JVM
+checks and three real Android shell UI checks passed; Files displayed the reported
+Unicode/special-character directory. See [DIRECT_SSH.md](DIRECT_SSH.md) for exact
+source, APK and runtime evidence. This source-specific follow-up does not advance
+the broad implemented or reviewed references.
+
 The implemented reference remains `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 During signed build 274 verification, the upstream HEAD API returned
 [`204a11dfcc76280205e50406ab94270a1c152155`](https://github.com/manaflow-ai/cmux/commit/204a11dfcc76280205e50406ab94270a1c152155),

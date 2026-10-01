@@ -85,11 +85,17 @@ class SshShellScreenTest {
         command("vt-primary"); waitText(shell, "Green λ 中")
         compose.runOnIdle { assertEquals("primary", shell.display.activeScreen) }
         command("Hello λ from Android"); waitText(shell, "ECHO Hello λ from Android")
+        assertNull(runBlocking { shell.currentDirectory() })
+        command("vt-cwd"); waitText(shell, "CWD-REPORTED")
+        assertEquals("/Shell files λ +%?#", runBlocking { shell.currentDirectory() })
         // Files is a sheet over the live terminal: opening/closing it must
         // preserve unsent composer text and the exact PTY.
         compose.onNodeWithTag("ssh.shell.composer").performTextReplacement("unsent files draft λ")
         compose.onNodeWithTag("ssh.shell.files").performClick()
         compose.waitUntil(15000) { compose.onAllNodes(hasTestTag("ssh.files.refresh") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("/Shell files λ +%?#").assertIsDisplayed()
+        compose.onNodeWithTag("ssh.files.row.cwd-marker.txt").assertIsDisplayed()
+        capture("ssh-shell-current-folder")
         compose.onNodeWithText("Done").performClick()
         compose.onNodeWithTag("ssh.shell.composer").assertTextContains("unsent files draft λ")
         assertSame(shell, session.shells.state.value.single())
@@ -132,8 +138,11 @@ class SshShellScreenTest {
     @Test fun endedShellKeepsItsScreenOnFailedRetryAndReconnectStartsFreshPty() {
         val old = open()
         command("old shell marker"); waitText(old, "ECHO old shell marker")
+        command("vt-cwd"); waitText(old, "CWD-REPORTED")
+        assertEquals("/Shell files λ +%?#", runBlocking { old.currentDirectory() })
         command("vt-exit")
         compose.waitUntil(10000) { old.state.value.phase == SshShellPhase.ENDED }
+        assertNull(runBlocking { old.currentDirectory() })
         compose.onNodeWithTag("ssh.shell.reconnect").assertIsDisplayed()
         // A failed dial answers on the terminal being viewed and does not erase
         // its screen or consume a second shell slot.
@@ -148,6 +157,7 @@ class SshShellScreenTest {
         val fresh = session.shells.state.value.single()
         assertNotEquals(old.id, fresh.id)
         assertFalse(text(fresh).contains("old shell marker"))
+        assertNull(runBlocking { fresh.currentDirectory() })
         command("fresh shell marker"); waitText(fresh, "ECHO fresh shell marker")
         val connection = runBlocking { session.connections.open(host.id) }
         assertEquals("1", runBlocking { connection.exec("shell-count").stdout.toString(Charsets.UTF_8).trim() })
