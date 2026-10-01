@@ -15,6 +15,76 @@ reference or establish which App Store/TestFlight binary contains these features
 Older checkpoints below retain their original evidence boundaries; the account-owned
 plain-shell checkpoint is the latest implementation status.
 
+## tmux control-mode foundation (2026-10-01)
+
+`SshTmuxProtocol.kt` and `SshTmuxControl.kt` implement the tmux pane stream needed
+by the mixed workspace provider. This layer is **not yet exposed in the Android
+workspace UI**. It follows the upstream control parser/client at `204a11d`, with a
+phone-owned `-cmux-android-` grouped session, `destroy-unattached off`, one
+non-PTY SSH exec channel per session, and pane IDs independent of UI positions.
+The group's own selected window leaves the original session's selection intact.
+The transport's `openTmux` path provides that raw exec channel and scoped cleanup.
+
+- Pane output retains its raw bytes, including UTF-8 split across notifications.
+  Command blocks keep blank lines and rows that resemble protocol guards; only
+  the matching time/command/flags guard completes a reply.
+- Startup replies cannot consume command replies. Canceling a caller retains its
+  response slot; uncertain writes/deadlines close the control stream without
+  replay. Line, reply, command queue and pre-seed output buffers have finite limits.
+- Attach pauses output where supported, reads alternate-screen state, captures
+  history/screen, restores cursor/modes, then resumes. Android also seeds tmux's
+  `bracket_paste_flag`, so paste mode enabled before attachment is retained. Output before capture is
+  discarded; output after capture waits until the snapshot is delivered. Stale
+  seed callbacks cannot revive a detached pane.
+- Layout/zoom changes supply the server's pane grid. Window removal ends affected
+  panes and bursts of topology notifications coalesce. Screen title strings are
+  stripped across chunk boundaries before terminal rendering.
+- Graceful detach requests removal of the phone's grouped session before closing
+  the channel. Abrupt disconnect still requires the provider's future stale-group
+  collection pass. Group discovery/coalescing, inventory/creation/destruction UI,
+  reconnect, and wiring fixed-grid panes into the renderer remain next steps.
+
+**Twelve JVM checks passed without skips**, including a real **tmux 3.7c** process
+on a unique private socket, with an empty temporary HOME/config and `/bin/cat`
+panes. The live test verifies history and pre-existing bracketed-paste mode seed,
+Unicode input, independent selected
+windows, 72×18 geometry, split notifications, grouped-session removal, and the
+original session remaining alive. The other eleven checks exercise stream parsing,
+seed ordering, cancellation, deadlines and owner cleanup. The first live run used
+`client_height`, which tmux leaves empty for non-TTY control clients; the corrected
+assertion checks actual window geometry. Final XML/receipt is in ignored
+`captures/runtime/tmux-control/jvm-final/`. The fixture deletes only its private
+server and temporary directory.
+
+The unchanged raw SSH adapter passed **all fourteen Android transport checks**
+in **13.572 seconds** on API 37 / 16,384-byte pages, including the new non-PTY
+stream check: split UTF-8, NUL/escape/newline bytes without terminal framing,
+Main-thread channel close preserving the SSH session, EOF and owner retirement.
+The test server still executes only synthetic commands. APKs for that adapter run:
+
+- App: `f6717485d7662c53707ab49719c6e9f620f92251820f26c834c6fe6957f5de43`.
+- Instrumentation: `65000d970253fc3d942577abf025d5fde4a1bffb06c0ba8d678763efe5f732a5`.
+
+Receipt: `captures/runtime/tmux-control/android-transport/`. That APK predates the
+last bracketed-paste seed addition, which was subsequently compiled and verified
+by the final twelve JVM/real-tmux checks. The tmux control client itself has not
+been exercised through Android SSH to a real tmux server yet; the separate tests
+establish each layer, not their end-to-end integration. The emulator and fixture
+were stopped afterward; no new signed build or Pixel installation occurred.
+
+Run with tmux installed and the emulator stopped:
+
+```sh
+CMUX_TMUX_TEST_BINARY=/absolute/path/to/tmux ./gradlew --no-daemon --max-workers=1 \
+  :app:testDebugUnitTest --rerun --tests '*SshTmux*'
+```
+
+The real-process case is opt-in and skips without that variable. A normal JVM CI
+pass without it does not establish real-tmux coverage. Neither this fixture nor
+protocol tests establish Android tmux UI, arbitrary TUI, physical-device, mixed
+provider or full-parity acceptance. Source attribution is bundled in Notices.
+Primary protocol reference: [tmux Control Mode](https://github.com/tmux/tmux/wiki/Control-Mode).
+
 ## Plain SSH shell and Ghostty replies (2026-10-01)
 
 Saved SSH computers now expose **New Shell**, open and close actions. Each shell

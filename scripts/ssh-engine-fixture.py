@@ -59,6 +59,18 @@ async def main():
         elif proc.command == "probe":
             proc.stdout.write(nonce + "\n")
             proc.exit(0)
+        elif proc.command == "control-echo":
+            if proc.term_type:
+                proc.stderr.write("Control stream must not allocate a PTY\n")
+                proc.exit(1)
+                return
+            proc.stdout.write("RAW\n")
+            while True:
+                chunk = await proc.stdin.read(8192)
+                if not chunk:
+                    break
+                proc.stdout.write(chunk)
+            proc.exit(0)
         elif proc.command == "wait":
             await proc.stdin.read()
             proc.exit(0)

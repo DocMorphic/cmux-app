@@ -4,6 +4,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.KeyPair
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
@@ -107,6 +108,34 @@ class SshTransportTest {
         val record = try { vault.import("Imported transport fixture", privateBytes, null) } finally { privateBytes.fill(0) }
         hosts.upsert(host.copy(keyId = record.id))
         probe(connect())
+    }
+
+    @Test fun tmuxExecStreamHasNoPtyFramingAndMainThreadClosePreservesSession() = runBlocking {
+        val connection = connect()
+        val pipe = connection.openTmux("control-echo")
+        val payload = "%output %7 control λ 中\u0000\u001b[32m\\134\r\n".toByteArray()
+        val expected = "RAW\n".toByteArray() + payload
+        val received = ByteArrayOutputStream()
+        val echoed = CompletableDeferred<Unit>()
+        val reader = launch {
+            pipe.output.collect { bytes ->
+                received.write(bytes)
+                if (received.size() >= expected.size) echoed.complete(Unit)
+            }
+        }
+        // Split a UTF-8 code point across separate SSH writes.
+        val split = payload.indexOf(0xce.toByte()) + 1
+        pipe.write(payload.copyOfRange(0, split)); pipe.write(payload.copyOfRange(split, payload.size))
+        withTimeout(3000) { echoed.await() }
+        assertArrayEquals(expected, received.toByteArray())
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { pipe.close() }
+        withTimeout(3000) { reader.join() }
+        assertEquals(0, connection.activeChannels)
+        probe(connection)
+        val retired = connection.openTmux("control-echo")
+        owner.cancel(); eventually { !connection.isConnected }
+        assertTrue(runCatching { retired.write("rejected".toByteArray()) }.isFailure)
+        retired.close()
     }
 
     @Test fun twoJumpHopsUseChannelsAndKeepRealEndpointPins() = runBlocking {

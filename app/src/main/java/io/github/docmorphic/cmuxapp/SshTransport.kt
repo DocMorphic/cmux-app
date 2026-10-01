@@ -22,6 +22,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -292,6 +293,47 @@ internal class SshTransport private constructor(
                     require(width > 0 && height > 0); guard(); check(channel.isConnected)
                     channel.setPtySize(width, height, 0, 0); guard()
                 } }, closeBlock = { release(channel) })
+            } catch (failure: Throwable) { release(channel); throw failure }
+        }
+    }
+
+    /** tmux control mode requires a raw exec stream: allocating a PTY would add
+     * terminal echo/framing. The returned pipe belongs to the current route. */
+    suspend fun openTmux(command: String): SshTmuxPipe {
+        val channel = target().openChannel("exec") as ChannelExec
+        own(channel)
+        return blocking(cancel = { release(channel) }) {
+            try {
+                guard(); channel.setCommand(command); channel.setEnv("LANG", "en_US.UTF-8")
+                // Drain stderr without an unbounded pipe. A refused startup is
+                // reported by control EOF; raw remote diagnostics are not UI text.
+                channel.setErrStream(object : OutputStream() { override fun write(value: Int) {} }, true)
+                val input = channel.inputStream; val sink = channel.outputStream
+                channel.connect(CONNECT_TIMEOUT); guard()
+                object : SshTmuxPipe {
+                    private val retired = AtomicBoolean(false)
+                    private val writes = Mutex()
+                    override val output = kotlinx.coroutines.flow.flow {
+                        val buffer = ByteArray(8192)
+                        while (!retired.get()) {
+                            guard(); val count = input.read(buffer)
+                            if (count < 0) break
+                            guard(); if (count > 0) emit(buffer.copyOf(count))
+                        }
+                    }.flowOn(Dispatchers.IO)
+                    override suspend fun write(bytes: ByteArray) {
+                        val owned = bytes.copyOf()
+                        writes.withLock {
+                            blocking(cancel = { close() }) {
+                                try {
+                                    guard(); check(!retired.get() && channel.isConnected)
+                                    sink.write(owned); sink.flush(); guard()
+                                } finally { owned.fill(0) }
+                            }
+                        }
+                    }
+                    override fun close() { if (retired.compareAndSet(false, true)) release(channel) }
+                }
             } catch (failure: Throwable) { release(channel); throw failure }
         }
     }

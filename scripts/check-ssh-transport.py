@@ -18,7 +18,7 @@ def main():
     args = parser.parse_args()
     if args.ui and args.shell_ui:
         parser.error("Choose one UI suite")
-    count = 2 if args.shell_ui else (4 if args.ui else 13)
+    count = 2 if args.shell_ui else (4 if args.ui else 14)
     test_class = "SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")

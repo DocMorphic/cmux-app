@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**tmux control foundation (2026-10-01):** raw non-PTY exec streams, bounded
+control parsing, ordered replies, history/mode seeding, live output, server pane
+geometry and grouped-session teardown are implemented. Twelve JVM checks pass,
+including a real tmux 3.7c process that preserves the original selected window
+and session; fourteen Android transport checks pass. Android adds restoration of
+bracketed-paste mode enabled before attach. The control client is not yet wired
+into the Android workspace list/renderer; real tmux over Android SSH, mixed-provider
+navigation, discovery/actions, reconnect and physical acceptance remain open.
+See [layer-specific receipts and limits](DIRECT_SSH.md). Signed 284 is unchanged.
+
 **Plain SSH shells (2026-10-01):** saved hosts now open account-owned PTYs with
 Ghostty rendering, terminal-query replies, keyboard/composer, toolbar, text paste,
 scrollback, zoom and Text view. Navigation retains the same shell; explicit close

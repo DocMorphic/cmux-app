@@ -75,7 +75,7 @@ The production transport has a separate runner:
 `scripts/check-ssh-transport.py --serial emulator-5554 --output <ignored-directory>`.
 Build `:app:assembleDebug :app:assembleDebugAndroidTest` before starting the
 emulator. This runner installs the debug app and its instrumentation only on an
-emulator, supplies public fixture coordinates at runtime, and requires all thirteen
+emulator, supplies public fixture coordinates at runtime, and requires all fourteen
 transport tests to finish without skips. Unlike this spike's embedded assets,
 those public arguments do not require rebuilding after a fixture restart.
 Use `--ui` for the four saved-host UI checks, or `--shell-ui` for the two

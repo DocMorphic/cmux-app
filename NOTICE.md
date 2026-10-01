@@ -231,3 +231,10 @@ unchanged. Build configuration and Android JNI source are provided in this repo:
 scripts/build-simulator-codecs.py, scripts/build-simulator-video-jni.py and
 app/src/main/c/simulator_video_jni.c. License texts are bundled under
 licenses/simulator-video and included in the app's open-source licenses.
+
+`SshTmuxProtocol.kt` and `SshTmuxControl.kt` adapt control-mode parsing, grouped
+session attachment, pane seeding and geometry behavior from cmux's
+`MobileSSHTmuxControlParser.swift` and `MobileSSHTmuxControlClient.swift` at
+`204a11dfcc76280205e50406ab94270a1c152155`. Copyright (c) 2024-present Manaflow, Inc.;
+GPL-3.0-or-later. Android adds bounded replies/queues, exact reply guards,
+command deadlines, canceled-reply fencing and coroutine-owned stream cleanup.

@@ -219,3 +219,13 @@ passed on API 37 / 16 KiB, with rebuilt native alignment/package gates passing.
 See [DIRECT_SSH.md](DIRECT_SSH.md) for exact receipts and the Main-thread channel
 close regression. This does not advance the broad implemented reference or establish
 mixed tmux/cmux-tui, SSH Files/browser, idle policy or physical-device parity.
+
+### tmux control foundation — 2026-10-01
+
+The upstream grouped-session/control-mode design is ported to Kotlin: raw byte
+parsing, correlated replies, seed/live ordering, pane grids, topology signals and
+scoped cleanup. Android additionally restores pre-existing bracketed-paste mode.
+Twelve JVM checks, including a real tmux 3.7c private-server check, and fourteen
+Android SSH transport checks passed. These verify separate layers; real tmux over
+Android SSH and the mixed-provider UI are next. No broader parity pin or signed
+release was advanced. Exact evidence and limitations: [DIRECT_SSH.md](DIRECT_SSH.md).
