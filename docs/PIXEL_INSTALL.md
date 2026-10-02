@@ -3,7 +3,62 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 376 (2026-10-02)
+## Current signed development APK — build 385 (2026-10-02)
+
+[Build 385](https://github.com/DocMorphic/cmux-app/actions/runs/37017511051)
+passed at `7f8cefdd34811860e268270f96ecbc555dcfb36e`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37017511051/artifacts/11231236946)
+and extract `app-release.apk` (repository access required). This supersedes 376.
+PR #1 remains a draft. This manual integration build did not publish a main-branch
+preview or change the installed physical Pixel app.
+
+- Package `io.github.docmorphic.cmuxapp`, version code **385**, version `0.2.0`.
+- APK SHA-256: `2d9960dd7222f094be44af7fbec96facecc832e32382d2b93a407d1461bce110`.
+- Certificate SHA-256:
+  `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+- Downloaded APK size: **38,686,506 bytes**. Signing identity is unchanged.
+- Adds selected-terminal preparation to start deferred Mac terminals, explicit
+  light system-bar icons on the dark app/browser backgrounds, and push scheduling
+  that lets fresh alerts bypass old retries while preserving priority and expiry.
+
+CI passed the full app/Ghostty JVM tasks, debug/test/release assembly, helper and
+update-policy tests, viewer source hashes, release signature and native/ZIP gates.
+Gradle reported **5m 19s**. The CI artifact does not include individual JVM reports,
+so no full-suite test total is inferred. Focused evidence includes the real Pixel
+lazy-startup/reconnect, live GRID/native input lane and composer/reopen checks,
+seven emulator startup UI checks, and the final six local push scheduling/ingress
+checks. See `NATIVE_RUNTIME_CHECKPOINT.md` and `PUSH_DELIVERY.md` for exact scope.
+
+Independent downloaded-APK checks confirmed **14 packaged viewer hashes**, all
+**six native LOAD/RELRO checks**, 16 KB ZIP alignment, the unchanged signer,
+expected version/package, non-debuggable manifest, disabled backup and absence of
+four debug fixture activities. Firebase initialization/analytics/delegation remain
+disabled; the receiver is nonexported and the SDK fallback display service absent.
+**Live push is not configured.** Token registration and a sender remain required.
+
+The existing API 37 / arm64 / 16,384-byte emulator upgraded **376 → 385** with
+`adb install -r`, without clearing data. Both installed APK hashes matched their
+downloads. First-install time remained `2026-09-30 01:57:49`, and `pageSizeCompat=0`.
+The first post-update launch returned an existing Activity and showed a blank
+frame; it is not counted as cold-start evidence. After installation completed,
+a fresh force-stop/launch reached MainActivity in **2,139 ms**. Its sign-in screen
+was visually checked without a compatibility warning. This is emulator launch
+timing, not physical connection performance. The emulator is stopped.
+
+The baseline was already signed out, so this does not prove authenticated
+migration. The release package is separate from `cmux (debug)`; installing it
+does not transfer the debug app's login. Settled physical keyboard resize, newer
+host browser/identified-input support, live push and broader physical/UI parity
+remain open. Mac UI capture failed during this checkpoint, so nightly Mobile
+listener readiness was not reverified. No account code was requested.
+
+Local APK: `build/signed-run-37017511051/app-release.apk` (ignored). Receipt, CI
+log, package checks and screenshots: `captures/releases/7f8cefd/` (ignored). The
+older tailnet download was not replaced.
+
+<a id="current-signed-development-apk--build-376-2026-10-02"></a>
+
+## Previous signed checkpoint — build 376 (2026-10-02)
 
 [Build 376](https://github.com/DocMorphic/cmux-app/actions/runs/36996321428)
 passed at `420327d855d9521b4117c02bd82cac0cbb631a59`. Download the

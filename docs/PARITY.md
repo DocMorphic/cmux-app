@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Signed build 385 delivered (2026-10-02):** source `7f8cefd` passed the full CI
+pipeline and retained the existing release signer. It includes deferred-terminal
+startup, dark-theme system bars and the push retry-scheduling fix. Independent
+checks passed all 14 packaged viewer hashes, six native-library checks and 16 KB
+alignment. The existing emulator upgraded 376 → 385 without clearing data and
+reached the sign-in screen after a fresh launch; the emulator is stopped.
+[Download, checksum and limits](PIXEL_INSTALL.md#current-signed-development-apk--build-385-2026-10-02).
+Authenticated migration, settled Pixel resizing, newer host capabilities, live
+push and full physical/UI acceptance remain open. PR #1 remains a draft.
+
 **Push retry scheduling fixed (2026-10-02):** a reproduced WorkManager dependency
 bug let an older retry block a new urgent push. Fresh messages now wake independent
 processing, duplicates retain one pending job, and queued priority/expiry survive
