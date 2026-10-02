@@ -163,6 +163,9 @@ async def main():
                 proc.stdout.write(json.dumps({"events": browser.events, "registered": browser.provider is not None,
                     "registrations": browser.registrations, "target": browser.target,
                     "chromePid": browser.chrome.pid, "chromeExited": browser.chrome.returncode is not None})); proc.exit(0); return
+            if tokens == ["fixture-restart-browser-owner"] and browser:
+                await cli("server", "ensure", "--session", session, "--json")
+                await browser.reconnect(wire); proc.exit(0); return
             if tokens == ["fixture-browser-process-stop"] and browser:
                 await browser.stop_chrome(); proc.exit(0); return
             if tokens == ["fixture-browser-process-restart"] and browser:

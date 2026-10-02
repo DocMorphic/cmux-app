@@ -205,6 +205,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         val streamed = opened?.takeIf { it.reference == selection }?.browser
         if (streamed != null) {
             if (browser == null) NativeBrowserView(streamed, streamed.panelId, opened?.title.orEmpty(), ::leave,
+                connectionError = reconnectError ?: failure,
                 onReconnect = { onReconnect(); retry++ }, onOnDevice = { url ->
                     act { presentBrowser(opened?.owner, SshWorkspaceTarget.Browser(streamed.selection), opened?.title.orEmpty(), streamed.panelId, url) }
                 })

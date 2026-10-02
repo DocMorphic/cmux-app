@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--shell-ui", action="store_true", help="Run three production Ghostty SSH shell-screen checks")
     parser.add_argument("--tmux-ui", action="store_true", help="Run the four real tmux workspace checks")
     parser.add_argument("--cmux-ui", action="store_true", help="Run six real mixed cmux-tui/tmux/shell workspace checks")
-    parser.add_argument("--cmux-browser", action="store_true", help="Run four integrated real cmux-tui/Chrome browser workflow and transport/provider/process recovery checks")
+    parser.add_argument("--cmux-browser", action="store_true", help="Run five integrated real cmux-tui/Chrome browser workflow and transport/provider/process/daemon recovery checks")
     parser.add_argument("--ssh-tls", action="store_true", help="Opt-in public HTTPS/WSS and private certificate rejection check")
     parser.add_argument("--ssh-websocket", action="store_true", help="Run real SSH-routed WebView WebSocket text/binary/lifetime check")
     parser.add_argument("--ssh-browser", action="store_true", help="Run five real SSH browser stream, routing, retirement, presentation and mode checks")
@@ -31,7 +31,7 @@ def main():
         parser.error("Choose one UI suite")
     if (args.tmux_ui or args.cmux_ui or args.cmux_install or args.cmux_browser) and not args.fixture:
         parser.error("Real workspace checks require --fixture")
-    count = 1 if args.ssh_tls or args.ssh_websocket else 4 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 8 if args.files_ui else 1 if args.cmux_install else 6 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14)))
+    count = 1 if args.ssh_tls or args.ssh_websocket else 5 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 8 if args.files_ui else 1 if args.cmux_install else 6 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14)))
     test_class = "SshBrowserWorkspaceTest" if args.cmux_browser else "SshBrowserTest" if args.ssh_browser or args.ssh_websocket or args.ssh_tls else "SshFilesScreenTest" if args.files_ui or args.files_pickers else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")

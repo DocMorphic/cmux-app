@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH daemon restart and recovery explanation (2026-10-02):** browser recovery
+now displays workspace errors, including instructions to start a stopped desktop
+service. Five integrated tests passed (82.118 seconds, API 37 / 16 KB, zero skips).
+The new daemon case verifies no implicit desktop restart, restoration of the same
+registry/tab/content on a new generation, preserved page state and no stale-input
+replay. APK alignment and screenshots passed. [Evidence and initial navigation timeout](DIRECT_SSH.md#desktop-daemon-restart-and-browser-recovery-errors-2026-10-02)
+retain hard crashes, unknown delivery and physical acceptance as separate work.
+Signed build 363 is unchanged; the emulator is stopped.
+
 **SSH Chrome process replacement (2026-10-02):** four real SSH/cmux-tui/Chrome
 checks passed (63.5 seconds, API 37 / 16 KB, zero skips). The new case terminates
 the private browser, verifies the visible error and discarded stale tap, then

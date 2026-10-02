@@ -57,7 +57,8 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
 @Composable
 internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, title: String, onBack: () -> Unit,
     recoveryClock: BrowserRecoveryClock = MonotonicBrowserRecoveryClock,
-    onReconnect: (() -> Unit)? = null, onOnDevice: ((String) -> Unit)? = null, onDeviceUnavailable: String? = null) {
+    onReconnect: (() -> Unit)? = null, onOnDevice: ((String) -> Unit)? = null, onDeviceUnavailable: String? = null,
+    connectionError: String? = null) {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
@@ -206,8 +207,9 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
             else BrowserPageSurface(current, queue, scrollMotion, streamGeneration, inputEnabled,
                 onTap = { focusManager.clearFocus() }, pageDescription = client.pageDescription)
         }
-        if (error != null) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(error.orEmpty(), Modifier.weight(1f), color = Color(0xFFFF9999), fontSize = 12.sp)
+        val visibleError = connectionError ?: error
+        if (visibleError != null) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(visibleError, Modifier.weight(1f), color = Color(0xFFFF9999), fontSize = 12.sp)
             TextButton(onClick = { queue.pause(); onReconnect?.invoke(); retry++ }) { Text("Reconnect") }
         }
         if (inputError != null) Column(Modifier.padding(horizontal = 12.dp)) {

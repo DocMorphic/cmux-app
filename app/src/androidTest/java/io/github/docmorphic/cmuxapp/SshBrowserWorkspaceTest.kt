@@ -23,6 +23,7 @@ import java.util.UUID
 /** Real SSH, cmux-tui provider, private Chrome, Compose pixels and routed WebView. */
 class SshBrowserWorkspaceTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule val testName = org.junit.rules.TestName()
     private lateinit var root: File
     private lateinit var session: NativeSshSession
     private lateinit var lifetime: CoroutineScope
@@ -52,8 +53,8 @@ class SshBrowserWorkspaceTest {
     }
     @After fun cleanup() {
         if (::session.isInitialized) {
-            runCatching { capture("ssh-real-chrome-last-state") }
-            runCatching { File(compose.activity.getExternalFilesDir(null), "ssh-real-chrome-semantics.txt").writeText(compose.onRoot().printToString()) }
+            runCatching { capture("ssh-real-chrome-${testName.methodName}-last-state") }
+            runCatching { File(compose.activity.getExternalFilesDir(null), "ssh-real-chrome-${testName.methodName}-semantics.txt").writeText(compose.onRoot().printToString()) }
             compose.runOnIdle { session.close(); lifetime.cancel() }
             session.vault.state.value.toList().forEach { session.vault.delete(it.id) }
         }
@@ -113,7 +114,11 @@ class SshBrowserWorkspaceTest {
         compose.onNodeWithContentDescription("Hide browser keyboard").performClick()
         ready("Show browser keyboard")
         val next = "http://127.0.0.1:${args.getString("cmux_ssh_browserport")}/next"
+        // Enter through the real focus action before editing: a semantics-only
+        // replacement can race the address field's focus initialization.
+        compose.onNodeWithContentDescription("Browser address").performClick().assertIsFocused()
         compose.onNodeWithContentDescription("Browser address").performTextReplacement(next)
+        compose.onNodeWithContentDescription("Browser address").assertTextEquals(next)
         compose.onNodeWithContentDescription("Browser address").performImeAction()
         background(30, 60, 120)
         compose.onNodeWithContentDescription("Browser mode").performClick()
@@ -213,6 +218,54 @@ class SshBrowserWorkspaceTest {
         capture("ssh-chrome-process-recovered")
     }
 
+    @Test fun desktopDaemonRestartExplainsRecoveryAndRestoresTheSameBrowser() {
+        val before = cmux.state.value.providers.single { it.session == "fixture" }
+        val oldTree = before.state.value.tree!!
+        val original = workspace().tabs.single { it.isBrowser }
+        val connection = cmux.connection
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshWorkspacesRoute(session, hostId) {}
+        } } }
+        open(); ready("SSH browser page"); background(18, 95, 55)
+        fun owner() = runBlocking {
+            JSONObject(connection.exec("fixture-owner-status").stdout.toString(Charsets.UTF_8))
+        }
+        fun clicks(): Int = runBlocking {
+            val items = JSONObject(connection.exec("fixture-browser-status").stdout.toString(Charsets.UTF_8)).getJSONArray("events")
+            (0 until items.length()).count { items.getJSONObject(it).has("click") }
+        }
+        fun click() = compose.onNodeWithContentDescription("SSH browser page").performTouchInput {
+            click(Offset(width * .5f, height * .33f))
+        }
+        click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
+        assertEquals(0, runBlocking { connection.exec("fixture-stop-desktop-owner").exitStatus })
+        compose.waitUntil(15000) { compose.onAllNodesWithText("Reconnect").fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(before.state.value.ended); assertTrue(connection.isConnected)
+        assertFalse(owner().getBoolean("desktop"))
+        click(); compose.waitForIdle(); assertEquals(1, clicks())
+        compose.onNodeWithText("Reconnect").performClick()
+        val explanation = "This desktop cmux-tui session is not running. Start it on the computer, then reconnect."
+        compose.waitUntil(15000) { compose.onAllNodesWithText(explanation).fetchSemanticsNodes().isNotEmpty() }
+        assertFalse(owner().getBoolean("desktop")); assertTrue(connection.isConnected)
+        capture("ssh-browser-daemon-stopped")
+        // Only the fixture starts its own desktop service. Android must not
+        // create a new desktop owner or substitute a different browser tab.
+        assertEquals(0, runBlocking { connection.exec("fixture-restart-browser-owner").exitStatus })
+        compose.onNodeWithText("Reconnect").performClick()
+        ready("SSH browser page"); background(90, 40, 110)
+        compose.waitUntil(15000) { compose.onAllNodesWithText("Reconnect").fetchSemanticsNodes().isEmpty() }
+        val after = cmux.state.value.providers.single { it.session == "fixture" }
+        val tree = after.state.value.tree!!
+        assertNotSame(before, after)
+        assertNotEquals(oldTree.generation, tree.generation); assertEquals(oldTree.registry, tree.registry)
+        val tab = workspace().tabs.single { it.isBrowser }
+        assertEquals(original.resource, tab.resource); assertEquals(original.content, tab.content)
+        assertSame(connection, cmux.connection); assertTrue(connection.isConnected)
+        assertEquals(1, clicks())
+        click(); compose.waitUntil(10000) { clicks() == 2 }
+        capture("ssh-browser-daemon-recovered")
+    }
+
     @Test fun liveConnectionLossRestoresSameBrowserAndDoesNotReplayCompletedClick() {
         val original = workspace().tabs.single { it.isBrowser }.resource
         val oldProvider = cmux.state.value.providers.single { it.session == "fixture" }
@@ -221,7 +274,11 @@ class SshBrowserWorkspaceTest {
         } } }
         open(); ready("SSH browser page"); background(18, 95, 55)
         val next = "http://127.0.0.1:${args.getString("cmux_ssh_browserport")}/next"
+        // Enter through the real focus action before editing: a semantics-only
+        // replacement can race the address field's focus initialization.
+        compose.onNodeWithContentDescription("Browser address").performClick().assertIsFocused()
         compose.onNodeWithContentDescription("Browser address").performTextReplacement(next)
+        compose.onNodeWithContentDescription("Browser address").assertTextEquals(next)
         compose.onNodeWithContentDescription("Browser address").performImeAction()
         background(30, 60, 120)
         fun click() = compose.onNodeWithContentDescription("SSH browser page").performTouchInput {

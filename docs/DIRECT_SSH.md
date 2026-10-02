@@ -13,7 +13,49 @@ rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This au
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
-Older checkpoints below retain their original evidence boundaries. The Chrome-process checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
+Older checkpoints below retain their original evidence boundaries. The daemon-restart checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
+
+## Desktop daemon restart and browser recovery errors (2026-10-02)
+
+Fixed a production presentation gap: a failed workspace/browser reacquisition
+could produce a useful host error, but the streamed browser only showed its own
+stream error. The route now forwards that recovery error into the browser's
+existing error row and Reconnect action. In particular, a stopped desktop owner
+explains that it must be started on the computer before retrying.
+
+The real SSH/cmux-tui/Chrome suite now stops the private desktop daemon with a
+browser open. It verifies the SSH connection survives, the old provider ends,
+and a stale-image tap adds no HTTP callback. Tapping Reconnect while the daemon
+is absent displays the specific explanation and does not start that desktop
+service. The fixture then explicitly starts its own service and re-registers
+its existing Chrome target. A second UI Reconnect restores the browser with a
+new daemon generation, the same registry/tab/content identifiers, the same SSH
+transport, and the existing purple DOM state. Earlier input is not replayed;
+a new click produces exactly the second callback.
+
+**Verification:** final **OK (5 tests), 82.118 seconds, zero failures/skips**, on
+API 37 / 16 KB. The other cases cover SSH transport loss, external registration
+loss, Chrome process replacement and Streamed/On Android navigation/input. Both
+APKs built, five native libraries passed LOAD/RELRO alignment, and both APKs
+passed 16 KB ZIP alignment. Stopped/recovered screenshots were inspected.
+Evidence is under ignored `captures/runtime/ssh-audit/daemon-restart/`.
+
+The first run passed the new daemon case but timed out checking blue pixels after
+address navigation in the existing workflow case. Its generic final screenshot
+was overwritten by later tests, so those diagnostics do not establish a definite
+root cause. The test now explicitly focuses the address field and verifies the
+replacement text before submitting; all pixel and remote callback assertions
+remain. Each test also retains its own named final screenshot and semantics file.
+The full final run above passed with these stronger preconditions.
+
+- Debug SHA-256: `9007d2736a4a203e9b709c4de066f3aaa0f68316a1cb5a154bd70e410296f69e`
+- Test SHA-256: `acccc91261f577189d8ccbba62480a455f8eedd5172b161b0926b7db475ea2df`
+
+This proves orderly daemon stop/start with the host's persisted registry and a
+surviving Chrome target. Hard daemon crashes, registry replacement, unknown input
+delivery and physical Pixel/Mac acceptance remain distinct work. Signed build
+363 and upstream parity pins are unchanged. The fixture and existing emulator
+were stopped, with no new AVD.
 
 ## Chrome process replacement recovery (2026-10-02)
 
