@@ -35,7 +35,8 @@ class NativeSimulatorViewTest {
         fun bytes(value: String) = android.util.Base64.decode(value, android.util.Base64.DEFAULT)
         val sets = value.getJSONArray("parameter_sets"); val frames = value.getJSONArray("frames")
         return SimMessage.Config(if (name == "hevc") SimCodec.HEVC else SimCodec.H264,
-            value.getLong("width"), value.getLong("height"), 2f, SimOrientation.PORTRAIT,
+            value.getLong("width"), value.getLong("height"), 2f,
+            if (name.endsWith("-landscape")) SimOrientation.LANDSCAPE_LEFT else SimOrientation.PORTRAIT,
             value.getInt("nal_header_length"), List(sets.length()) { bytes(sets.getString(it)) }) to
             List(frames.length()) { i -> frames.getJSONObject(i).let {
                 SimMessage.Frame(it.getLong("sequence").toULong(), if (it.getBoolean("keyframe")) 1 else 0,
@@ -180,6 +181,76 @@ class NativeSimulatorViewTest {
         capture("simulator-pane-reconnected", true)
         assertTrue(second.lanes.single().sent.none { it is SimMessage.Input })
         compose.onNodeWithContentDescription("Home").assertIsEnabled()
+    }
+
+    @Test fun hostRotationCancelsOldTouchAndMapsFreshInputToTheNewVideoBounds() {
+        resetPreferences()
+        val source = Source()
+        val actions = SimulatorActions(false, false, "w", panel) { _, _ -> error("Unexpected mutation") }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().systemBarsPadding()) {
+            SimulatorPane(source, actions, true, preferences)
+        } } }
+        awaitVideo(source)
+        capture("simulator-rotation-portrait", true)
+        val lane = source.lanes.single()
+        fun touches() = lane.sent.filterIsInstance<SimMessage.Input>().flatMap { it.events }.filterIsInstance<SimInput.Touch>()
+        val bounds = compose.onNodeWithTag("SimulatorVideo").fetchSemanticsNode().boundsInWindow
+        val portrait = SimVideoRect.fit(64, 96, bounds.width.toInt(), bounds.height.toInt())
+        compose.onNodeWithTag("SimulatorVideo").performTouchInput {
+            down(Offset(portrait.left + portrait.width * .25f, portrait.top + portrait.height * .25f))
+        }
+        compose.waitUntil(3000) { touches().size == 1 }
+        assertEquals(SimTouchPhase.BEGAN, touches().single().phase)
+        val landscape = fixture("h264-landscape")
+        compose.runOnIdle {
+            lane.host(landscape.first)
+            lane.host(landscape.second[0].copy(sequence = 3u))
+        }
+        compose.waitUntil(5000) { lane.sent.filterIsInstance<SimMessage.Ack>().any { it.sequence == 3uL } && touches().size == 2 }
+        capture("simulator-rotation-landscape", false)
+        val cancelled = touches().last()
+        assertEquals(SimTouchPhase.CANCELLED, cancelled.phase)
+        assertEquals(.25f, cancelled.x, .01f); assertEquals(.25f, cancelled.y, .01f)
+        // Finishing the physical finger after rotation cannot finish the retired host gesture.
+        compose.onNodeWithTag("SimulatorVideo").performTouchInput { moveBy(Offset(30f, 30f)); up() }
+        compose.waitForIdle()
+        assertEquals(2, touches().size)
+
+        val rect = SimVideoRect.fit(96, 64, bounds.width.toInt(), bounds.height.toInt())
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        // Check the displayed aspect ratio, not just the stream's config or center pixel.
+        compose.waitUntil(5000) {
+            val screenshot = instrumentation.uiAutomation.takeScreenshot()
+            try {
+                val x = bounds.center.x.toInt()
+                val inside = screenshot.getPixel(x, (bounds.top + rect.top + rect.height * .1f).toInt())
+                val outside = screenshot.getPixel(x, (bounds.top + rect.top * .5f).toInt())
+                Color.red(inside) > 180 && Color.green(inside) < 70 &&
+                    Color.red(outside) < 30 && Color.green(outside) < 30 && Color.blue(outside) < 30
+            } finally { screenshot.recycle() }
+        }
+        // Letterbox taps must not become simulator input.
+        compose.onNodeWithTag("SimulatorVideo").performTouchInput { click(Offset(width * .5f, rect.top * .5f)) }
+        compose.onNodeWithTag("SimulatorVideo").performTouchInput {
+            click(Offset(rect.left + rect.width * .75f, rect.top + rect.height * .25f))
+        }
+        compose.waitUntil(3000) { touches().size == 4 }
+        for (event in touches().takeLast(2)) {
+            assertEquals(.75f, event.x, .01f); assertEquals(.25f, event.y, .01f)
+        }
+        assertEquals(listOf(SimTouchPhase.BEGAN, SimTouchPhase.ENDED), touches().takeLast(2).map { it.phase })
+
+        // Rotate back on the same lane and verify the dependent frame is still decoded.
+        val restored = fixture("hevc")
+        compose.runOnIdle {
+            lane.host(restored.first)
+            restored.second.forEachIndexed { index, frame -> lane.host(frame.copy(sequence = (4 + index).toULong())) }
+        }
+        compose.waitUntil(5000) { lane.sent.filterIsInstance<SimMessage.Ack>().any { it.sequence == 5uL } }
+        capture("simulator-rotation-restored", true)
+        assertEquals(1, source.lanes.size)
+        assertEquals(1, lane.sent.filterIsInstance<SimMessage.Start>().size)
+        assertEquals(4, touches().size)
     }
 
     @Test fun workspaceSurfaceRouteOpensTheExactSimulatorThroughABorrowedRpcClient() {

@@ -3,8 +3,9 @@
 Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 This is a required feature, not an Android platform exception. The current
 checkpoint includes the v2 video pane, controls, lifecycle and workspace routing,
-verified against framed fixtures with real Android decoding. **The legacy path
-and real Mac/Pixel acceptance remain incomplete.**
+verified against framed fixtures with real Android decoding. The legacy path is
+also implemented and fixture-verified as recorded below. **Real Mac/Pixel
+acceptance remains incomplete.**
 
 ## Source contract
 
@@ -400,6 +401,43 @@ fixture-generation tool only):
 python3 scripts/generate-simulator-video-fixtures.py
 ```
 
+## Dynamic host rotation checkpoint (2026-10-02)
+
+The v2 production viewer now has an Android runtime test for host rotation during
+an active touch. A new reproducible `h264-landscape.json` fixture contains a real
+96×64 H.264 keyframe and dependent frame. The test starts with 64×96 HEVC, changes
+to landscape H.264 on the same lane, then restores portrait HEVC and decodes its
+keyframe and dependent frame. No production code change was needed.
+
+The test verifies actual red/green decoded pixels, landscape letterboxing, frame
+acknowledgements, one unchanged attachment/Start, cancellation at the original
+normalized touch coordinate, rejection of the old finger's later move/up, ignored
+letterbox taps and correctly normalized fresh touches. Screenshots of portrait,
+landscape and restored portrait were saved; portrait and landscape were inspected.
+The iOS display source at audited candidate `204a11d` was rechecked for its
+aspect-fit renderer and normalized touch contract. Cancellation at a changed
+coordinate space is an Android behavior explicitly exercised here, not a claim
+that Swift `applyConfig` emits cancellation.
+
+**All four `NativeSimulatorViewTest` checks passed in 77.14 seconds**, zero skips,
+on the existing API 37 / 16 KB emulator. This includes quality renegotiation,
+buttons/text/device selection, recovery, disconnect without replay and workspace
+routing through the borrowed RPC client. Both APK ZIP alignment gates and all six
+production native library LOAD/RELRO checks passed; `pageSizeCompat=0`.
+
+Ignored evidence: `captures/runtime/simulator-rotation/` contains build/runtime
+logs, screenshots, alignment output and the APK/source hash receipt. Debug APK:
+`ec50578ae9de0385c429b091e96a5de9a3dce2a455005e40f899b779471c3fe7`;
+test APK:
+`062155677417d9ec2c7a5617ae2c26468373180bee2f21af491c374922e41b7e`.
+Regenerate just the new video with
+`python3 scripts/generate-simulator-video-fixtures.py --only h264-landscape`.
+
+These are encoded synthetic host frames through the production pane and decoder,
+not a Mac Simulator or Pixel hardware run. Full-app system-bar styling, phone
+landscape, large text, TalkBack and real-host performance remain separate checks.
+The emulator is stopped and signed build 369 is unchanged.
+
 ## Next implementation steps
 
 1. Complete physical acceptance and performance checks for the implemented video
@@ -408,8 +446,9 @@ python3 scripts/generate-simulator-video-fixtures.py
 2. Exercise the implemented legacy RPC/image path against a real Mac Simulator,
    including ownership contention, static-screen keepalives and reconnect.
    Its pane and serialized v2 transition passed the fixture checks above.
-3. Check dynamic host rotation, large text, landscape, TalkBack and full-app theme
-   behavior for the implemented v2 pane; fixture screenshots are not full acceptance.
+3. Check large text, phone landscape, TalkBack and full-app theme behavior for the
+   implemented v2 pane; the dynamic host-rotation fixture above is not physical
+   acceptance.
 4. Exercise both paths against framed/native lane fixtures, then a dedicated real
    Mac simulator and the Pixel. Verify reconnect/background, rotation, input
    ordering, device switching, worker recovery, quality and UI parity.

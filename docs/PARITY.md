@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Simulator host rotation verified in the Android fixture (2026-10-02):** the
+production v2 viewer passed real HEVC portrait → H.264 landscape → HEVC portrait
+decoding on one lane, pixel/letterbox checks and touch cancellation/remapping.
+All four viewer tests passed (77.14 seconds, API 37 / 16 KB, zero skips), with six
+native-library and both ZIP alignment gates passing. No production code changed.
+[Evidence and physical/UI boundaries](SIMULATOR_STREAMING.md#dynamic-host-rotation-checkpoint-2026-10-02).
+The emulator is stopped; signed build 369 is unchanged.
+
 **FCM receive path checkpoint (2026-10-02):** added encrypted, account-scoped
 queueing and background delivery with fresh membership checks, SDK banner
 suppression and opt-out/login cleanup. Thirteen focused JVM tests and 12 Android

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Encode synthetic red/green frames with ffmpeg for Android decoder pixel checks."""
 import base64
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -8,19 +9,25 @@ import re
 import subprocess
 import tempfile
 
-WIDTH, HEIGHT = 64, 96
-raw = bytes([255, 0, 0]) * WIDTH * HEIGHT + bytes([0, 255, 0]) * WIDTH * HEIGHT
+specifications = {'h264': ('h264', 64, 96), 'hevc': ('hevc', 64, 96),
+                  'h264-landscape': ('h264', 96, 64)}
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--only', choices=specifications, help='Regenerate only the named fixture')
+args = parser.parse_args()
 version = subprocess.check_output(['ffmpeg', '-version'], text=True).splitlines()[0]
 output = Path('app/src/androidTest/assets/simulator')
 output.mkdir(parents=True, exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='cmux-sim-video-') as folder:
-    for codec in ['h264', 'hevc']:
-        path = Path(folder) / codec
+    for name, (codec, width, height) in specifications.items():
+        if args.only and name != args.only:
+            continue
+        raw = bytes([255, 0, 0]) * width * height + bytes([0, 255, 0]) * width * height
+        path = Path(folder) / name
         options = 'keyint=60:min-keyint=60:scenecut=0:bframes=0:aud=1:repeat-headers=1'
         if codec == 'hevc':
             options += ':pools=1:frame-threads=1:log-level=error'
         command = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24',
-                   '-s', f'{WIDTH}x{HEIGHT}', '-r', '10', '-i', 'pipe:0', '-frames:v', '2', '-pix_fmt', 'yuv420p',
+                   '-s', f'{width}x{height}', '-r', '10', '-i', 'pipe:0', '-frames:v', '2', '-pix_fmt', 'yuv420p',
                    '-c:v', 'libx264' if codec == 'h264' else 'libx265', '-preset', 'ultrafast', '-tune', 'zerolatency',
                    '-x264-params' if codec == 'h264' else '-x265-params', options, '-f', codec, str(path)]
         subprocess.run(command, input=raw, check=True)
@@ -48,7 +55,7 @@ with tempfile.TemporaryDirectory(prefix='cmux-sim-video-') as folder:
                            'expected_rgb': [255, 0, 0] if index == 0 else [0, 255, 0]})
         fixture = {'generator': version, 'raw_rgb_sha256': hashlib.sha256(raw).hexdigest(),
                    'annex_b_sha256': hashlib.sha256(encoded).hexdigest(), 'codec': codec,
-                   'width': WIDTH, 'height': HEIGHT, 'nal_header_length': 4,
+                   'width': width, 'height': height, 'nal_header_length': 4,
                    'parameter_sets': [base64.b64encode(p).decode() for p in parameter_sets], 'frames': frames}
-        (output / f'{codec}.json').write_text(json.dumps(fixture, indent=2) + '\n')
-        print(codec, len(encoded), 'bytes; IDR + dependent frame')
+        (output / f'{name}.json').write_text(json.dumps(fixture, indent=2) + '\n')
+        print(name, len(encoded), 'bytes; IDR + dependent frame')
