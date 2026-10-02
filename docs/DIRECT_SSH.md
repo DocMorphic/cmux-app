@@ -16,6 +16,46 @@ reference or establish which App Store/TestFlight binary contains these features
 Older checkpoints below retain their original evidence boundaries; the SSH
 integrated Android browser checkpoint is the latest implementation status.
 
+## Live SSH browser reconnect (2026-10-02)
+
+The integrated browser runner now requires **two successful tests**, including
+`liveConnectionLossRestoresSameBrowserAndDoesNotReplayCompletedClick`. It opens
+the real streamed browser, navigates to `/next`, clicks the page, and observes
+both the host DOM callback and its changed purple pixels. It then closes the
+actual Android SSH transport while leaving cmux-tui, Chrome, the tab and the
+local provider registration alive. The visible route establishes a replacement
+connection. The check verifies the old provider ended, the replacement transport
+is distinct/connected, the browser resource and URL are unchanged, purple pixels
+return, the completed click still has exactly one callback, and a fresh click
+produces the second callback. No manual Reconnect click or page reload is used.
+
+Final evidence: **OK (2 tests), 51.279 seconds, no skips**, API 37 / 16 KB. The
+existing mode-switch/navigation/input workflow also passed in the same run.
+Ignored logs, APK hashes and the inspected reconnect screenshot are under
+`captures/runtime/ssh-audit/chrome-reconnect-android-2`. The first run caught a
+test race: the old image disappeared between node lookup and pixel capture as
+Compose replaced the stream. The bounded pixel wait now retries that specific
+missing-node assertion; other capture errors still fail. Original diagnostics
+remain in `chrome-reconnect-android` and `chrome-reconnect-failure-semantics.txt`.
+
+The test APK built and its 16 KB ZIP alignment passed. Its SHA-256 is
+`ecb15de8ad8646221fcc1ca07e239dd64102c35c35324e8d1ac049578d61dee2`.
+The production debug APK remains
+`68248760c0ee95ae56613ee81bda0a5e3b78d0a524bab23c4e29ced5c29ace4c`.
+No production code, signed release, upstream pin or extra AVD changed. The
+existing emulator and private host/browser fixture were stopped after testing.
+
+This proves recovery from closing the live client transport. It does not prove
+TCP blackhole detection, a failed redial, an in-flight mutation with an unknown
+outcome, CDP provider/Chrome restart, host daemon restart, process death or a
+physical Pixel/network transition. Those remain separate acceptance cases.
+
+The iOS candidate explicitly uses **vertical-only cmux-tui wheel input** in
+[`MobileShellComposite+SSHBrowserStream.swift`](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite%2BSSHBrowserStream.swift#L135).
+Android's vertical-only forwarding matches that SSH implementation; horizontal
+scroll is a shared cmux-tui limitation, not an Android-only parity regression.
+This statement does not apply to the separate native Mac browser RPC.
+
 ## Integrated Android SSH/Chrome browser (2026-10-02)
 
 `SshBrowserWorkspaceTest` now exercises the actual Android workspace route with

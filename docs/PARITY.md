@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Live SSH browser reconnect (2026-10-02):** closing the actual client transport
+now has integrated coverage: a replacement connection restores the same browser
+resource/URL and existing DOM pixels, a completed click is not replayed, and a
+fresh click succeeds. Both browser workflows passed together (51.279 seconds,
+API 37 / 16 KB, no skips). [Evidence and boundaries](DIRECT_SSH.md) distinguish
+this from provider/daemon restart, unknown-delivery recovery and physical-device
+acceptance. Only the test APK changed; no signed release was published.
+
 **Integrated Android SSH/Chrome browser (2026-10-02):** the real workspace route,
 SSH transport, cmux-tui provider, Chrome pixels/click/keyboard input, address-bar
 navigation, routed On Android mode and mode restoration now pass together on the

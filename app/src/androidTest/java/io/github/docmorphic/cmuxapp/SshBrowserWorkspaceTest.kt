@@ -65,7 +65,14 @@ class SshBrowserWorkspaceTest {
     }
     private fun background(red: Int, green: Int, blue: Int) {
         compose.waitUntil(15000) {
-            val pixels = compose.onNodeWithContentDescription("SSH browser page").captureToImage().toPixelMap()
+            // Reconnect replaces the composition after the old image was found.
+            // A missing node during that transition is not a rendered frame.
+            val image = try { compose.onNodeWithContentDescription("SSH browser page").captureToImage() }
+            catch (failure: AssertionError) {
+                if (failure.message?.contains("could not find any node") == true) return@waitUntil false
+                throw failure
+            }
+            val pixels = image.toPixelMap()
             val pixel = pixels[pixels.width / 2, pixels.height / 10]
             kotlin.math.abs(pixel.red - red / 255f) < .04f && kotlin.math.abs(pixel.green - green / 255f) < .04f &&
                 kotlin.math.abs(pixel.blue - blue / 255f) < .04f
@@ -127,4 +134,42 @@ class SshBrowserWorkspaceTest {
         open(); ready("SSH browser page"); background(30, 60, 120)
         capture("ssh-real-chrome-reopened")
     }
+    @Test fun liveConnectionLossRestoresSameBrowserAndDoesNotReplayCompletedClick() {
+        val original = workspace().tabs.single { it.isBrowser }.resource
+        val oldProvider = cmux.state.value.providers.single { it.session == "fixture" }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshWorkspacesRoute(session, hostId) {}
+        } } }
+        open(); ready("SSH browser page"); background(18, 95, 55)
+        val next = "http://127.0.0.1:${args.getString("cmux_ssh_browserport")}/next"
+        compose.onNodeWithContentDescription("Browser address").performTextReplacement(next)
+        compose.onNodeWithContentDescription("Browser address").performImeAction()
+        background(30, 60, 120)
+        fun click() = compose.onNodeWithContentDescription("SSH browser page").performTouchInput {
+            click(Offset(width * .5f, height * .33f))
+        }
+        fun clicks(): Int {
+            val records = JSONObject("{\"events\":${events()}}").getJSONArray("events")
+            return (0 until records.length()).count { records.getJSONObject(it).has("click") }
+        }
+        click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
+        val oldConnection = cmux.connection
+        // Close the actual transport, leaving its remote owner, tab, Chrome page
+        // and registration wire alive. The visible route owns all reconnection.
+        compose.runOnIdle { oldConnection.close() }
+        compose.waitUntil(20000) {
+            oldProvider.state.value.ended && session.connections.statuses.value[hostId]?.phase == SshConnectionPhase.CONNECTED
+        }
+        cmux = runBlocking { session.cmux.open(hostId) }
+        assertNotSame(oldConnection, cmux.connection)
+        assertTrue(cmux.connection.isConnected)
+        compose.waitUntil(15000) { !cmux.state.value.loading }
+        ready("SSH browser page"); background(90, 40, 110)
+        assertEquals(original, workspace().tabs.single { it.isBrowser }.resource)
+        compose.onNodeWithContentDescription("Browser address").assertTextEquals(next)
+        assertEquals(1, clicks())
+        click(); compose.waitUntil(10000) { clicks() == 2 }
+        capture("ssh-real-chrome-reconnected")
+    }
+
 }

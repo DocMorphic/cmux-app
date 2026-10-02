@@ -26,7 +26,7 @@ class BrowserFixture:
                     color = "30,60,120" if parsed.path == "/next" else "18,95,55"
                     body = f'''<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title}</title>
 <style>body{{margin:0;background:rgb({color});font:20px sans-serif}}button,input,a{{position:absolute;left:15%;width:70%;box-sizing:border-box;height:60px}}button{{top:30%}}input{{top:55%}}a{{top:80%;color:white}}</style>
-<button onclick="document.title='SSH Chrome clicked';fetch('/event?click=1')">Fixture click</button>
+<button onclick="document.title='SSH Chrome clicked';document.body.style.background='rgb(90,40,110)';fetch('/event?click=1')">Fixture click</button>
 <input aria-label="Fixture input" oninput="fetch('/event?text='+encodeURIComponent(this.value))">
 <a href="/next">Next Chrome page</a>'''.encode()
                 writer.write(f"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {len(body)}\r\nConnection: close\r\n\r\n".encode() + body)
