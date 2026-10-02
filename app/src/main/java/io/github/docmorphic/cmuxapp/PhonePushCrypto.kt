@@ -103,10 +103,25 @@ internal object PhonePushCrypto {
     /** Generates a phone envelope with fresh HPKE encapsulation per message. */
     fun encrypt(plaintext: ByteArray, tuple: PhonePushTuple, keyID: String, senderKeyID: String,
         recipientPublicKey: ByteArray, senderPrivateKey: ByteArray): PhonePushEnvelope {
-        require(plaintext.size <= MAX_CIPHERTEXT - 16) { "Push plaintext exceeds limit" }
+        return encryptForInstallation(plaintext, tuple, keyID, senderKeyID, recipientPublicKey, senderPrivateKey,
+            tuple.iosInstallationID, MAX_CIPHERTEXT)
+    }
+
+    /** Reply direction: the recipient is the authenticated Mac installation, not the phone tuple ID. */
+    fun encryptReply(plaintext: ByteArray, tuple: PhonePushTuple, recipient: PhonePushDescriptor,
+        sender: PhonePushIdentity): PhonePushEnvelope {
+        require(sender.installationID == tuple.iosInstallationID) { "Reply sender mismatch" }
+        return encryptForInstallation(plaintext, tuple, recipient.keyID, sender.keyID,
+            Base64.getDecoder().decode(recipient.publicKey), sender.privateKey, recipient.installationID, 64 * 1024)
+    }
+
+    private fun encryptForInstallation(plaintext: ByteArray, tuple: PhonePushTuple, keyID: String, senderKeyID: String,
+        recipientPublicKey: ByteArray, senderPrivateKey: ByteArray, recipientInstallationID: String,
+        maximumCiphertext: Int): PhonePushEnvelope {
+        require(plaintext.size <= maximumCiphertext - 16) { "Encrypted message exceeds limit" }
         val context = binding(tuple, keyID, senderKeyID)
         val sender = suite().setupAuthS(publicKey(recipientPublicKey), context, privateKey(senderPrivateKey))
-        return PhonePushEnvelope(tuple.iosInstallationID, keyID, senderKeyID,
+        return PhonePushEnvelope(recipientInstallationID, keyID, senderKeyID,
             Base64.getEncoder().encodeToString(sender.encapsulation),
             Base64.getEncoder().encodeToString(sender.seal(context, plaintext)), tuple)
     }

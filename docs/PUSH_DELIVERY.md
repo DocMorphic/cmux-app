@@ -191,3 +191,100 @@ passed. SHA-256:
 Ignored evidence: `captures/runtime/push-keys-{build.txt,jvm,android,alignment.txt}`.
 The one existing emulator was stopped after verification. No signed release,
 physical Pixel installation, production key exchange or parity pin changed.
+
+## Encrypted reply relay sender (2026-10-02)
+
+`PhoneReplyRelay.kt` adds the sender for the iOS companion's existing
+`POST /v1/replies/e2e` contract. It is not yet wired to Android notification actions.
+The caller must supply the trusted configured service origin, live account token
+and an admission check for the prepared reply's login, team, saved-Mac origin and
+current pinned key. Relay URLs must never come from incoming notification data.
+
+The implementation follows the pinned
+[iOS relay client](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ReplyRelayClient.swift),
+[relay parser/inbox](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/workers/presence/src/replies.ts)
+and [Mac reply consumer](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Sources/Cloud/PhoneReplyInboxCoordinator.swift).
+
+- A prepared reply binds its account and phone identity to the pinned peer. Its
+  encrypted payload contains reply ID, physical Mac ID, exact surface, optional
+  workspace, explicit retarget permission, literal text and a 15-minute lifetime.
+  Workspace-confined replies require a workspace. The body exposes only the
+  routing/idempotency metadata and encrypted envelope to the relay.
+- Reply encryption addresses the **Mac installation** from authenticated key
+  exchange. The canonical tuple still includes the sending phone's installation.
+  The existing phone-only push decrypt check and 16 KiB incoming-push limit stay
+  intact. Reply encryption permits the relay's larger envelope; final HTTP body
+  bytes must fit 64 KiB. Text is bounded to 8,192 UTF-16 characters and is never
+  silently truncated, including when JSON escaping exceeds the body limit.
+- `PreparedPhoneReply` creates one immutable HTTP body for an intentional reply.
+  Retry callers must reuse it: the relay rejects changed ciphertext under the
+  same reply ID. Each `send` performs one attempt; automatic HTTP retries and
+  redirects are disabled, with a 15-second request deadline and no plaintext
+  endpoint fallback.
+- New attempts stop after the phone's 120-second retry window. A shared sender
+  cooldown honors numeric and HTTP-date `Retry-After` on 429 responses, defaulting
+  to 60 seconds when absent/invalid. The caller receives explicit accepted,
+  retry, expired, retired, sign-in-required or rejected outcomes. HTTP acceptance
+  means the inbox accepted the message, not that the terminal displayed it.
+- Admission is checked before token retrieval, again before sending, and after
+  responses. Lost account/Mac/key admission cannot acknowledge a late success.
+  Closing the sender cancels its active requests; coroutine cancellation cancels
+  the corresponding HTTP call. Once the server accepts an in-flight request,
+  local cancellation cannot recall it; host-side account/target checks still apply.
+
+### Integration still required
+
+The sender is exercised through fixtures only. No request was sent to cmux's
+production relay. It has no notification action/receiver, persistent reply outbox,
+background execution owner, failure notice or production `NativeAppConnections`
+call site yet. Those must keep the same prepared envelope across retries, obtain
+keys from the admitted account store, retire work on account/owner changes, and
+wire the result to actual reply-capable push metadata. The existing feed cannot
+prove reply capability. Delivery-provider selection remains pending; encrypted
+transport compatibility alone does not enable push or inline Reply.
+
+### Reproduction
+
+```sh
+CMUX_REPLY_CROSS_OUTPUT="$PWD/captures/runtime/phone-reply-relay/requests.json" \
+  ./gradlew --no-daemon --max-workers=1 :app:testDebugUnitTest \
+  --tests '*PhoneReplyRelayTest' --tests '*PhonePushCryptoTest' --tests '*PhonePushKeysTest'
+python3 scripts/check-phone-replies.py --upstream /path/to/cmux-checkout \
+  --requests captures/runtime/phone-reply-relay/requests.json
+```
+
+The cross-checker extracts pinned upstream Swift crypto and TypeScript parser/
+inbox source into ignored captures. CryptoKit runs only the crypto prefix, without
+Keychain/storage dependencies. The relay runs locally under Node's TypeScript
+support with an in-memory fixture store. Every key/message is fixed or generated
+public test material; no actual account, cloud API or terminal is accessed.
+
+### Relay sender verification
+
+**19 focused JVM tests passed, zero skips:** eight `PhoneReplyRelayTest` cases,
+five crypto regressions and six key-exchange/storage cases. Real loopback HTTP
+checks cover a 503, loss of the response after the server receives the request,
+exact-body retries and eventual 202 acceptance; global 429 cooldown, HTTP-date/
+large retry deadlines, revoked/expired submissions, revocation during token
+retrieval and after sending, in-flight close, coroutine cancellation, 307 without
+credential forwarding, and 409 without an implicit resend. Payload checks include
+wrong identities, missing confined workspace, blank/oversize text, and preserving
+the smaller incoming-push limit.
+
+The pinned **Apple CryptoKit implementation opened both Android reply fixtures**
+at the Mac installation and checked exact text, reply ID, workspace/surface,
+retarget flag and 15-minute expiry. One fixture contains 8,192 Chinese characters,
+exercising a ciphertext larger than the phone-push limit. Supplying the phone as
+recipient was rejected. The pinned **TypeScript relay parser/inbox accepted both
+requests**, deduplicated exact retries, rejected a different authenticated account,
+and rejected changed envelopes under the same reply ID.
+
+The first test compilation used `Files.writeString`, which is unavailable through
+this project's Android compile API. Replacing that fixture writer with Kotlin
+`File.writeText` resolved compilation; the original log remains. Final evidence:
+`captures/runtime/phone-reply-relay-unknown-outcome-build.txt` and
+`captures/runtime/phone-reply-relay/{verified-jvm,interop,requests.json}`.
+
+This checkpoint compiled production Kotlin and ran JVM/Swift/TypeScript checks.
+It did not rebuild APKs, start an emulator, change a signed release, contact a
+production relay or test physical Pixel/Mac reply delivery.

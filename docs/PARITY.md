@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Encrypted reply relay transport (2026-10-02):** added Mac-addressed HPKE
+reply preparation and a bounded HTTPS sender with immutable retry bodies,
+server cooldowns, ownership checks and cancellation. Nineteen focused JVM checks
+passed, including unknown HTTP outcomes; pinned Apple CryptoKit opened both
+Android reply fixtures and the upstream TypeScript relay accepted/deduplicated
+them. [Evidence and integration boundaries](PUSH_DELIVERY.md#encrypted-reply-relay-sender-2026-10-02)
+explicitly leave notification actions, persistent/background reply lifecycle,
+failure notices and physical delivery open. No APK/emulator or signed release was
+needed for this transport checkpoint; no production relay was contacted.
+
 **Authenticated push/reply peer keys (2026-10-02):** the opted-in notification
 service now performs optional `phone_push.keys.exchange` alongside feed monitoring
 on capable, admitted hosts. Phone keys and bounded Mac peer associations are
