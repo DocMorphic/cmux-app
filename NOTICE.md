@@ -280,3 +280,9 @@ application-pinned platform SHA512 digests, bounded cancellable downloads, SFTP
 staging, version verification and activation that refuses to overwrite an existing
 binary. Downloaded cmux-tui npm platform packages identify their license as MIT;
 they are fetched on demand and are not embedded in this repository or APK.
+
+TerminalSizing.kt adapts shared sizing wire models and MobileTerminalSizingSurface
+from cmux revision 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc:
+Packages/Shared/CmuxTerminalSizing and Packages/iOS/CmuxMobileShellModel.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android adaptation uses Kotlin/JSONObject and conservative unknown-detach handling.

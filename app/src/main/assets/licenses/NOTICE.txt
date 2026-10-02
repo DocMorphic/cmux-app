@@ -232,3 +232,9 @@ Copyright Google LLC. Apache License 2.0 (included in this viewer).
 https://github.com/firebase/firebase-android-sdk/tree/main/firebase-messaging
 Used without modification; project/token registration is not enabled.
 AndroidX DataStore 1.2.1: Apache License 2.0, used without modification.
+
+TerminalSizing.kt adapts shared sizing wire models and MobileTerminalSizingSurface
+from cmux revision 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc:
+Packages/Shared/CmuxTerminalSizing and Packages/iOS/CmuxMobileShellModel.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android adaptation uses Kotlin/JSONObject and conservative unknown-detach handling.

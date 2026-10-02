@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**New NIGHTLY shared-sizing gap identified (2026-10-03):** a physical terminal
+check requested 67×47 while the host returned 67×35, before Gboard input. The
+installed host's source now negotiates against the Mac viewport as well as the
+phone. The revised check separately validates the reported phone viewport and
+negotiated grid; it compiles but awaits an unlocked Pixel. The new sizing/detach
+model has six passing JVM tests, but event/input gating, sizing controls and
+explicit reattach UI remain to be integrated. This is a concrete newer-iOS parity
+gap, not a completed feature. Signed build 397 is unchanged.
+[Contract, evidence and integration requirements](TERMINAL_SHARED_SIZING.md).
+
 **Signed build 397 delivered (2026-10-03):** full CI passed at `8f1ce42`,
 including the production account/credential deadlock fix. Downloaded APK signer,
 14 viewer assets, six native libraries and 16 KB ZIP alignment were independently

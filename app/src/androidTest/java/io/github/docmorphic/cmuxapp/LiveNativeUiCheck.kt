@@ -1,6 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
 import android.app.KeyguardManager
+import android.content.Intent
+import android.net.Uri
 import android.graphics.Bitmap
 import android.os.Build
 import android.view.WindowManager
@@ -11,8 +13,9 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.test.core.app.ActivityScenario
+import androidx.lifecycle.Lifecycle
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.StandardTestDispatcher
 import org.json.JSONObject
@@ -29,15 +32,19 @@ class LiveNativeUiCheck {
     @get:Rule val compose = createEmptyComposeRule(effectContext = StandardTestDispatcher())
 
     @Test fun createdTerminalComposerKeyboardAndReopen() {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("cmux_live_ui_fixture") == "true")
+        val args = InstrumentationRegistry.getArguments()
+        assumeTrue(args.getString("cmux_live_ui_fixture") == "true")
+        val build = args.getString("cmux_live_build")
+        require(build == null || build in setOf("stable", "nightly"))
+        val gboard = args.getString("cmux_live_gboard") == "true"
         check(!Build.FINGERPRINT.contains("generic") && !Build.MODEL.contains("sdk")) { "Physical device required" }
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         check(!context.getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "Unlock the physical device" }
         check(!File(context.filesDir, "live-ui-fixture.json").exists()) { "Inspect the previous UI fixture receipt before rerunning" }
         var stage = "existing account"
-        var scenario: ActivityScenario<MainActivity>? = null
         var activity: MainActivity? = null
+        var selectedCode: String? = null
         var client: MobileRpcClient? = null
         var owned: NativeWorkspace? = null
         var creationAttempted = false
@@ -54,8 +61,10 @@ class LiveNativeUiCheck {
                 check(connections.account.isSignedIn())
                 val team = checkNotNull(connections.teams.refresh().scope)
                 val mac = connections.store.pairedMacs().filter {
-                    connections.connector.allowsSaved(it) && PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Iroh
+                    connections.connector.allowsSaved(it) && PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Iroh &&
+                        (build == null || it.instanceTag == build)
                 }.single()
+                selectedCode = mac.code
                 stage = "native connection"
                 val active = connections.connector.connectSaved(mac, connections.account).also { client = it }
                 mac.requireMatchingHost(active.hostStatus())
@@ -70,17 +79,21 @@ class LiveNativeUiCheck {
                 // Durable private ownership receipt survives an interrupted test runner.
                 File(context.filesDir, "live-ui-fixture.json").writeText(JSONObject()
                     .put("id", workspace.id).put("windowId", workspace.windowId)
-                    .put("title", title).toString())
+                    .put("title", title).put("build", mac.instanceTag).put("deviceId", mac.deviceId)
+                    .put("accountUserId", team.userId).put("accountTeamId", team.teamId).toString())
                 check(workspace.title == title) { "The host did not preserve the unique fixture title" }
                 workspace
             } }
 
             stage = "launch real MainActivity"
-            scenario = ActivityScenario.launch(MainActivity::class.java)
-            scenario.onActivity {
-                activity = it
+            // MainActivity clears a consumed pairing URI; ActivityScenario's
+            // Intent matching would then miss lifecycle events during cleanup.
+            activity = instrumentation.startActivitySync(Intent(context, MainActivity::class.java)
+                .setAction(Intent.ACTION_VIEW).setData(Uri.parse(checkNotNull(selectedCode)))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as MainActivity
+            instrumentation.runOnMainSync {
                 // Temporary Activity flag only; no persistent device sleep or app preference change.
-                it.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
             stage = "find created workspace in real list"
             compose.waitUntil(30_000) { compose.onAllNodesWithText(created.title).fetchSemanticsNodes().isNotEmpty() }
@@ -97,6 +110,7 @@ class LiveNativeUiCheck {
                 val expected = checkNotNull(TerminalViewport.fit(node.boundsInRoot.width.toInt(), node.boundsInRoot.height.toInt(), cells))
                 val terminal = checkNotNull(created.terminals.firstOrNull())
                 val latest = AtomicReference<Pair<Int, Int>?>(null)
+                val sharedSizing = AtomicReference(false)
                 val polling = CoroutineScope(SupervisorJob() + Dispatchers.IO)
                 val result = polling.async {
                     withTimeout(15_000) {
@@ -107,9 +121,25 @@ class LiveNativeUiCheck {
                             val frame = replay.optJSONObject("render_grid") ?: replay
                             val actual = frame.optInt("columns") to frame.optInt("rows")
                             latest.set(actual)
-                            // This disposable terminal has no other mobile viewport owner.
-                            // A smaller previous IME grid is not settled after reopening.
-                            if (actual == (expected.columns to expected.rows))
+                            // NIGHTLY shared sizing includes the Mac's natural viewport.
+                            // Prove our sole mobile participant reported the exact phone
+                            // geometry AND the host grid equals the authoritative minimum.
+                            // The probe deliberately sends no client/viewport fields.
+                            val sizing = replay.optJSONObject("size_state")
+                            val settled = if (sizing == null) actual == (expected.columns to expected.rows) else {
+                                check(sizing.getJSONObject("policy").getString("mode") == "smallest")
+                                val array = sizing.getJSONArray("participants")
+                                val participants = (0 until array.length()).map { array.getJSONObject(it) }
+                                val mobile = participants.filter { it.optString("device_kind") in setOf("iphone", "ipad") }
+                                check(mobile.size <= 1) { "Unexpected extra mobile viewport on owned fixture" }
+                                val reported = mobile.singleOrNull()?.optJSONObject("viewport")
+                                val counting = participants.filter { it.optBoolean("counts") }.mapNotNull { it.optJSONObject("viewport") }
+                                val negotiated = sizing.getInt("cols") to sizing.getInt("rows")
+                                val minimum = if (counting.isEmpty()) null else counting.minOf { it.getInt("cols") } to counting.minOf { it.getInt("rows") }
+                                (reported?.optInt("cols") == expected.columns && reported.optInt("rows") == expected.rows &&
+                                    negotiated == minimum && actual == negotiated).also { if (it) sharedSizing.set(true) }
+                            }
+                            if (settled)
                                 return@withTimeout actual
                             delay(250)
                         }
@@ -126,7 +156,8 @@ class LiveNativeUiCheck {
                     runBlocking { result.join() }
                     println("CMUX_LIVE_UI_VIEWPORT " + JSONObject()
                         .put("expectedColumns", expected.columns).put("expectedRows", expected.rows)
-                        .put("actualColumns", latest.get()?.first).put("actualRows", latest.get()?.second))
+                        .put("actualColumns", latest.get()?.first).put("actualRows", latest.get()?.second)
+                        .put("sharedSizingVerified", sharedSizing.get()))
                 }
             }
             stage = "settled host viewport before keyboard"
@@ -165,6 +196,39 @@ class LiveNativeUiCheck {
                 finally { bitmap.recycle() }
             }
             screenshot("terminal-keyboard.png")
+            if (gboard) {
+                stage = "real Gboard direct input"
+                val device = UiDevice.getInstance(instrumentation)
+                compose.onNodeWithText("Keyboard", useUnmergedTree = true).performClick()
+                compose.waitUntil(15_000) { compose.onAllNodesWithText("Compose").fetchSemanticsNodes().isNotEmpty() }
+                val keyboard = "com.google.android.inputmethod.latin"
+                check(device.wait(Until.hasObject(By.pkg(keyboard)), 10_000))
+                // Retain a private UI diagnostic if this installed keyboard uses
+                // different accessibility labels. Never infer key coordinates.
+                val dir = File(context.getExternalFilesDir(null), "live-ui-check").apply { mkdirs() }
+                device.dumpWindowHierarchy(File(dir, "gboard-direct-private.xml"))
+                fun tap(label: String) {
+                    val key = checkNotNull(device.findObject(By.pkg(keyboard).desc(label))) {
+                        "Expected Gboard key is unavailable"
+                    }
+                    key.click()
+                    compose.waitForIdle()
+                }
+                for (letter in "echo") tap(letter.toString())
+                tap("Space")
+                for (letter in "cmuxgboard") tap(letter.toString())
+                tap("Enter")
+                compose.waitUntil(25_000) {
+                    compose.onAllNodesWithTag("native-terminal").fetchSemanticsNodes()
+                        .flatMap { it.config.getOrNull(SemanticsProperties.Text).orEmpty() }
+                        .sumOf { text -> text.text.lineSequence().count { it.trim() == "cmuxgboard" } } == 1
+                }
+                screenshot("terminal-gboard-direct.png")
+                // Restore the initial compose mode before the existing reopen/grid check.
+                compose.onNodeWithText("Compose", useUnmergedTree = true).performClick()
+                println("CMUX_LIVE_UI_GBOARD " + JSONObject().put("realImeKeyTaps", true)
+                    .put("directTerminalOutputExactlyOnce", true))
+            }
             stage = "return to workspaces and reopen terminal"
             compose.onNodeWithContentDescription("Back to workspaces").performClick()
             compose.waitUntil(15_000) { compose.onAllNodesWithText(created.title).fetchSemanticsNodes().isNotEmpty() }
@@ -186,17 +250,23 @@ class LiveNativeUiCheck {
             // Compose errors can dump private workspace semantics; retain only fixed stage/class labels.
             failure = AssertionError("Live UI check failed at $stage (${problem.javaClass.simpleName})")
         } finally {
-            try { scenario?.close(); compose.waitForIdle() }
+            try {
+                instrumentation.runOnMainSync { activity?.takeUnless { it.isDestroyed }?.finish() }
+                if (activity != null) compose.waitUntil(20_000) { activity.lifecycle.currentState == Lifecycle.State.DESTROYED }
+                compose.waitForIdle()
+            }
             catch (problem: Throwable) {
                 if (failure == null) failure = AssertionError("Live UI Activity cleanup failed (${problem.javaClass.simpleName})")
             }
             val fixture = owned
             if (fixture != null && client != null) runBlocking { withContext(NonCancellable) {
                 try { withTimeout(15_000) {
+                    val receipt = File(context.filesDir, "live-ui-fixture.json")
+                    receipt.writeText(JSONObject(receipt.readText()).put("cleanupAttempted", true).toString())
                     checkNotNull(client).closeWorkspace(fixture.id, fixture.windowId)
                     while (parseAuthoritativeWorkspaces(checkNotNull(client).workspaces()).any { it.id == fixture.id }) delay(250)
                     closed = true
-                    File(context.filesDir, "live-ui-fixture.json").delete()
+                    check(receipt.delete())
                 } } catch (_: Exception) { /* Never repeat an uncertain close. */ }
             } }
             client?.close()
