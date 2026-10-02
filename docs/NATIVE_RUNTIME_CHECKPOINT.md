@@ -1,5 +1,39 @@
 # Native transport and keyboard runtime checkpoints
 
+## Physical MainActivity composer and reopen — 2026-10-02
+
+The unlocked Pixel passed `LiveNativeUiCheck`: **1 test, 16.529 s**, zero skips.
+Using the existing account and saved Mac, it created a uniquely titled workspace,
+opened it through MainActivity and exercised the production lazy-startup fix.
+Gboard was visible; terminal height fell from 1743 to 907 pixels. Framework text
+injection into the real composer followed by Send produced the exact assembled
+marker in terminal semantics. Leaving and reopening the workspace retained that
+marker exactly once. Login was preserved and fixture removal was verified.
+
+Both private screenshots were visually inspected. They show actual shell output
+and the Gboard/composer layout. The keyboard image has smaller terminal text than
+the reopened image; the test did not wait for host-grid convergence. Therefore
+this is not proof of settled resize or direct physical Gboard key taps.
+
+A stronger host-viewport probe subsequently timed out before keyboard entry and
+reported unverified fixture cleanup (41.46 s total). No command was sent. Native
+connection preflight remained healthy (1 test, 4.982 s). A separate authenticated
+inspection identified the generated fixture, and one exact-title close verified
+its removal (1 test, 6.557 s). Existing workspaces were not selected for closure.
+
+The test now keeps Compose effects moving while polling dimensions off-thread,
+logs only numeric geometry, and retains an app-private creation receipt for
+interrupted-run recovery. The revised APK built, but the Pixel disconnected
+before installation, so the stronger resize check remains pending.
+
+The successful UI run used debug APK
+`e5e263d23bb42bc877c66c1a4fa66675d9cf136a9fa114b308055e288b6e42a8`
+and test APK
+`8bb6a49ae31e267ebadfb04395aa381054e3e111f9923d754310d48e50e16d9a`.
+Production code, signed build 376 and persistent phone sleep settings are
+unchanged. No emulator was started. Original successes, failures, recovery and
+screenshots remain ignored in `captures/runtime/pixel-ui-20261002/`.
+
 ## Physical live GRID output and native input lane — 2026-10-02
 
 Extended the opt-in physical terminal check with `cmux_live_terminal_stream=true`.

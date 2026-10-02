@@ -78,13 +78,46 @@ connection into the composer; it does not prove physical taps on Gboard keys,
 candidate selection, direct terminal typing, or rendering before screenshot review.
 Do not run the store-clearing emulator suites on a personal phone.
 
-**Preparation checkpoint (2026-10-02):** the new test APK builds and passes ZIP
-alignment. The first physical invocation stopped at the locked-device guard in
-0.071 s, before acquiring account connections or creating a workspace. This is
-not a UI acceptance pass. A subsequent build strengthens Activity cleanup so an
-Activity-close exception cannot prevent the test workspace cleanup attempt.
-The final unlocked UI run and screenshot review are pending. Local evidence:
-`captures/runtime/pixel-ui-20261002/` (ignored). Production APK is unchanged.
+**Physical checkpoint (2026-10-02):** the unlocked Pixel run passed one test
+in 16.529 s, with real lazy terminal startup, Gboard visible, terminal height
+reduced from 1743 to 907 pixels, composer input/output, navigation/reopen, preserved
+login and verified fixture cleanup. Both screenshots were visually inspected.
+This run did not wait for the host grid to settle after resizing: the keyboard
+screenshot shows smaller terminal text than the reopened screenshot.
+
+A stronger host-grid check then timed out before keyboard entry (41.46 s total),
+and could not confirm fixture cleanup. A separate authenticated inspection found
+the generated fixture; one explicitly selected close verified removal in 6.557 s.
+No command was sent during the failed resize run. Read-only connection preflight
+still passed (4.982 s). The stronger check remains **unverified**, not an app pass.
+
+The updated runner polls network dimensions off-thread while `compose.waitUntil`
+advances UI effects, records only expected/actual numeric dimensions, and saves
+an app-private ownership receipt immediately after creation. This removes the
+blocking poll that could starve the Compose test scheduler; it has built, but the
+Pixel disconnected before installation. Its physical rerun is pending. Production
+APK is unchanged; evidence is ignored under `captures/runtime/pixel-ui-20261002/`.
+The final revised test APK builds and passes 16 KB ZIP alignment; SHA-256:
+`40af9ed095e04ec719247b18404bb97c2787bf7751013cfd6c07ee2c66659934`.
+
+### Inspecting an interrupted UI fixture
+
+`LiveNativeUiRecoveryCheck` is opt-in and physical-only. First run with
+`-e cmux_live_ui_recovery true` and its exact class name. It authenticates the
+single admitted saved Mac and logs only matching generated test-workspace titles
+in `CMUX_LIVE_UI_FIXTURES`. Inspection does not replay or type into terminals.
+Only after correlating the exact title with the failed test's creation may a
+second invocation use `-e cmux_ui_fixture_cleanup_title 'Android UI check XXXXXXXX'`.
+It requires a unique exact match, attempts close once and verifies absence.
+
+Preserve quotes through both the local shell and `adb shell` when passing a
+space-containing title (quote the complete remote command). Never repeat an
+uncertain close blindly, or select an existing user workspace. The UI runner's
+app-private `files/live-ui-fixture.json` records newly created IDs/title/window;
+successful normal cleanup removes it, and a new UI run refuses to overwrite it.
+When a receipt exists, explicit recovery also requires its exact ID/title/window
+to match and deletes it after verified removal. It never automatically selects a
+workspace from that receipt. Both helpers skip by default.
 
 ## Build cadence
 

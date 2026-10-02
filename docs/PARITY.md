@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Physical MainActivity composer/reopen checked (2026-10-02):** the unlocked
+Pixel passed one test in 16.529 s: real workspace creation/lazy startup, Gboard
+visibility, reduced terminal area, composer Send, rendered output and reopening
+with login preserved and fixture cleanup verified. Screenshots were reviewed.
+A stronger host-grid resize check failed before keyboard entry; its generated
+fixture was subsequently removed and verified. The revised nonblocking probe
+builds but awaits the reconnected Pixel. Settled resize remains open.
+[Evidence and limits](NATIVE_RUNTIME_CHECKPOINT.md#physical-mainactivity-composer-and-reopen--2026-10-02).
+
 **Live terminal streaming verified on Pixel (2026-10-02):** the extended physical
 check passed in 11.542 s, including a real native input-lane command, five live GRID
 events carrying its output without a replay read, simultaneous control RPC,

@@ -4,6 +4,7 @@ import android.app.KeyguardManager
 import android.graphics.Bitmap
 import android.os.Build
 import android.view.WindowManager
+import android.util.TypedValue
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
@@ -20,6 +21,7 @@ import org.junit.Rule
 import org.junit.Test
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 
 /** Real account + MainActivity, opt-in physical only. Never run store-clearing fixture setup here. */
 @OptIn(ExperimentalTestApi::class)
@@ -32,6 +34,7 @@ class LiveNativeUiCheck {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         check(!context.getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "Unlock the physical device" }
+        check(!File(context.filesDir, "live-ui-fixture.json").exists()) { "Inspect the previous UI fixture receipt before rerunning" }
         var stage = "existing account"
         var scenario: ActivityScenario<MainActivity>? = null
         var activity: MainActivity? = null
@@ -64,6 +67,10 @@ class LiveNativeUiCheck {
                     JSONObject().put("title", title), timeoutMillis = 30_000)).created
                 check(workspace.id !in existing)
                 owned = workspace
+                // Durable private ownership receipt survives an interrupted test runner.
+                File(context.filesDir, "live-ui-fixture.json").writeText(JSONObject()
+                    .put("id", workspace.id).put("windowId", workspace.windowId)
+                    .put("title", title).toString())
                 check(workspace.title == title) { "The host did not preserve the unique fixture title" }
                 workspace
             } }
@@ -80,6 +87,48 @@ class LiveNativeUiCheck {
             compose.onNodeWithText(created.title).performClick()
             stage = "real UI lazy terminal startup"
             compose.waitUntil(35_000) { compose.onAllNodesWithTag("native-terminal").fetchSemanticsNodes().isNotEmpty() }
+            fun awaitHostViewport(): Pair<Int, Int> {
+                val node = compose.onNodeWithTag("native-terminal").fetchSemanticsNode()
+                val font = checkNotNull(node.config.getOrNull(SemanticsProperties.StateDescription))
+                    .removePrefix("Terminal font size ").toFloat()
+                val metrics = context.resources.displayMetrics
+                val cells = TerminalCellMetrics.fromFontSize(
+                    TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, font, metrics), 2f * metrics.density)
+                val expected = checkNotNull(TerminalViewport.fit(node.boundsInRoot.width.toInt(), node.boundsInRoot.height.toInt(), cells))
+                val terminal = checkNotNull(created.terminals.firstOrNull())
+                val latest = AtomicReference<Pair<Int, Int>?>(null)
+                val polling = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+                val result = polling.async {
+                    withTimeout(15_000) {
+                        while (true) {
+                            val replay = checkNotNull(client).request("mobile.terminal.replay", JSONObject()
+                                .put("workspace_id", created.id).put("surface_id", terminal.id)
+                                .put("anchor", "screen").put("max_scrollback_rows", 0))
+                            val frame = replay.optJSONObject("render_grid") ?: replay
+                            val actual = frame.optInt("columns") to frame.optInt("rows")
+                            latest.set(actual)
+                            if (actual.first in 1..expected.columns && actual.second in 1..expected.rows)
+                                return@withTimeout actual
+                            delay(250)
+                        }
+                        @Suppress("UNREACHABLE_CODE") error("unreachable")
+                    }
+                }
+                try {
+                    // Keep advancing Compose effects while real networking runs off-thread.
+                    // runBlocking here starves the rule's StandardTestDispatcher.
+                    compose.waitUntil(20_000) { result.isCompleted }
+                    return runBlocking { result.await() }
+                } finally {
+                    polling.cancel()
+                    runBlocking { result.join() }
+                    println("CMUX_LIVE_UI_VIEWPORT " + JSONObject()
+                        .put("expectedColumns", expected.columns).put("expectedRows", expected.rows)
+                        .put("actualColumns", latest.get()?.first).put("actualRows", latest.get()?.second))
+                }
+            }
+            stage = "settled host viewport before keyboard"
+            val beforeGrid = awaitHostViewport()
             val before = compose.onNodeWithTag("native-terminal").assertIsDisplayed().fetchSemanticsNode().boundsInRoot.height
             stage = "show physical keyboard"
             compose.onNode(hasSetTextAction()).performClick()
@@ -93,6 +142,9 @@ class LiveNativeUiCheck {
                 compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot.height < before - 100
             }
             val after = compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot.height
+            stage = "settled host viewport with keyboard"
+            val keyboardGrid = awaitHostViewport()
+            check(keyboardGrid.second < beforeGrid.second)
             val suffix = UUID.randomUUID().toString().take(8)
             val marker = "CMUX_UI_" + suffix
             stage = "send through production composer"
@@ -121,12 +173,14 @@ class LiveNativeUiCheck {
             println("CMUX_LIVE_UI_REPORT " + JSONObject().put("openedCreatedWorkspace", true)
                 .put("terminalStartedInMainActivity", true).put("imeVisible", true)
                 .put("terminalHeightBeforeIme", before).put("terminalHeightWithIme", after)
+                .put("hostColumnsBeforeIme", beforeGrid.first).put("hostRowsBeforeIme", beforeGrid.second)
+                .put("hostColumnsWithIme", keyboardGrid.first).put("hostRowsWithIme", keyboardGrid.second)
                 .put("composerOutputRendered", true).put("reopenedOutput", true).put("loginPreserved", true))
         } catch (problem: Throwable) {
             // Compose errors can dump private workspace semantics; retain only fixed stage/class labels.
             failure = AssertionError("Live UI check failed at $stage (${problem.javaClass.simpleName})")
         } finally {
-            try { scenario?.close() }
+            try { scenario?.close(); compose.waitForIdle() }
             catch (problem: Throwable) {
                 if (failure == null) failure = AssertionError("Live UI Activity cleanup failed (${problem.javaClass.simpleName})")
             }
@@ -136,6 +190,7 @@ class LiveNativeUiCheck {
                     checkNotNull(client).closeWorkspace(fixture.id, fixture.windowId)
                     while (parseAuthoritativeWorkspaces(checkNotNull(client).workspaces()).any { it.id == fixture.id }) delay(250)
                     closed = true
+                    File(context.filesDir, "live-ui-fixture.json").delete()
                 } } catch (_: Exception) { /* Never repeat an uncertain close. */ }
             } }
             client?.close()
