@@ -1664,6 +1664,7 @@ fun NativeScreen(
                     }, enabled = signedIn && code.isNotBlank(),
                         modifier = Modifier.semantics { contentDescription = "Background notifications" })
                 }
+                NativeNotificationSettings()
                 }, preferences = {
                 TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
                 NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences)

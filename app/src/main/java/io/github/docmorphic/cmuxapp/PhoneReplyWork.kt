@@ -1,7 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
@@ -75,9 +74,9 @@ class PhoneReplyWorker internal constructor(context: Context, parameters: Worker
         background().use { runtime -> if (runtime.runPass()) Result.retry() else Result.success() }
     }
     override suspend fun getForegroundInfo(): ForegroundInfo {
-        val channel = "cmux_reply_send"
-        applicationContext.getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(channel, "Sending cmux replies", NotificationManager.IMPORTANCE_LOW))
+        val channel = NativeOngoingNotifications.REPLY
+        NativeOngoingNotifications.register(applicationContext.getSystemService(NotificationManager::class.java),
+            channel, "Sending cmux replies")
         val notification = Notification.Builder(applicationContext, channel).setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Sending cmux reply").setOngoing(true).setVisibility(Notification.VISIBILITY_PRIVATE).build()
         return if (Build.VERSION.SDK_INT >= 29) ForegroundInfo(5, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)

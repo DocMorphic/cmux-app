@@ -904,3 +904,75 @@ Evidence: ignored `captures/runtime/phone-reply-direct/` (`final-android.txt`,
 build logs. The single existing AVD was reused and stopped. No signed release,
 physical installation, provider registration, production request, host listener
 or broad parity pin changed.
+
+
+## Android launcher badges and notification settings (2026-10-02)
+
+The pinned iOS coordinator requests badge authorization and lets APNs apply
+`aps.badge`, including on silent dismiss pushes. On the Mac,
+`TerminalNotificationStore` passes `indexes.unreadCount` to both notification and
+dismiss forwarding. That is the emitting store's absolute count, not a number to
+multiply across individual Android banners. Sources at the audited candidate:
+[MobilePushCoordinator](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/MobilePushCoordinator.swift)
+and [TerminalNotificationStore](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Sources/TerminalNotificationStore.swift).
+
+Android's supported launcher badge API is based on active notifications on
+supporting launchers. `setNumber` describes how many messages **one** notification
+represents; it is not an app-wide unread-counter API. Each cmux alert continues to
+represent its own event with Android's default count. Existing authenticated
+Mac-read/dismiss, phone-dismiss, account-retirement and opt-out paths remove the
+corresponding active notifications. The authenticated push `badgeCount` stays
+validated but is not projected onto every banner. No invisible badge-carrier
+notification or launcher-specific broadcast is used. The in-app Notifications
+feed retains its unread count independently of Android's shade/launcher state.
+
+Both ongoing service channels (`cmux_connection` and `cmux_reply_send`) now set
+`showBadge=false` before first creation. Agent alerts and actionable reply-result
+notices keep their existing channel defaults. Android recommends excluding
+ongoing activity from badges; no launcher defect has been reproduced on the
+physical Pixel. Platform sources reviewed October 2:
+[notification badges](https://developer.android.com/develop/ui/views/notifications/badges),
+[channel ownership](https://developer.android.com/develop/ui/compose/notifications/channels)
+and [setShowBadge](https://developer.android.com/reference/android/app/NotificationChannel#setShowBadge(boolean)).
+
+An already-created Android channel's badge setting cannot be changed by the app.
+Its ID is therefore preserved, with no deletion or replacement that could reset
+user mute/sound preferences. **Settings → Android notification settings** opens
+this installation's system page. If an existing ongoing channel allows badges,
+its category shortcut and explanation let the user disable those badges there.
+The screen re-reads channels after returning from Android Settings. If the system
+activity is unavailable, an accessible inline message gives the manual path.
+These links contain only the app package/channel, never account or pairing data.
+
+This is an explicit platform difference: stock supported APIs do not reproduce
+an independent iOS numeric launcher badge after all banners have been cleared.
+A launcher dot/count's final appearance remains launcher- and user-controlled.
+Live provider wake-up/delivery and physical launcher acceptance remain open.
+
+
+### Badge/settings verification
+
+Both APKs built. On the existing API 37 / 16 KB AVD, all sixteen unchanged
+notification-delivery and reply-worker cases passed. The initial nineteen-case
+run had one failure in the new system-settings test: the test searched for a text
+label, whereas Android exposes the collapsing app header as an accessibility
+description. Screenshot and UI hierarchy inspection confirmed the correct cmux
+system page. After correcting only that selector, all three new settings cases
+passed in **18.53 seconds**, zero failures/skips. The production APK digest stayed
+unchanged between runs. The new checks exercise real Android channel immutability,
+fresh-channel badge defaults, existing mute/sound/badge preservation, actual
+system-page navigation, intent scope and the unavailable-settings recovery UI.
+The isolated settings layout and system-page screenshots were inspected; these
+are not full native-screen or physical launcher acceptance.
+
+Both final APKs passed 16 KB ZIP checks; all five native LOAD/RELRO checks passed.
+SHA-256:
+
+- Debug: `faa58413974cbfaebf3a992f05bbcb8d2335cd826e8f2a11ef1d39fc7bffc8ef`
+- Test: `f9a29d0074e8bd07b8a9ccc4773fcfd1582ecc81870325568e1378435320c908`
+
+Evidence: ignored `captures/runtime/notification-badges/`, including the original
+nineteen-case log, repaired three-case log, build/alignment logs, API/page-size
+receipt, system hierarchy and inspected captures. The single AVD was reused and
+stopped. No physical phone installation, signed release, push-provider setup or
+broad parity reference changed.

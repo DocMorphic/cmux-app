@@ -1,7 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
@@ -33,8 +32,7 @@ class NativeNotificationService : Service() {
     override fun onCreate() {
         super.onCreate()
         connectionsHandle = NativeAppConnections.acquire(applicationContext)
-        manager.createNotificationChannel(NotificationChannel(
-            STATUS_CHANNEL, "cmux connection", NotificationManager.IMPORTANCE_LOW))
+        NativeOngoingNotifications.register(manager, STATUS_CHANNEL, "cmux connection")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -148,7 +146,7 @@ class NativeNotificationService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
-        private const val STATUS_CHANNEL = "cmux_connection"
+        private const val STATUS_CHANNEL = NativeOngoingNotifications.CONNECTION
         private const val STATUS_ID = 1
         fun isEnabled(context: android.content.Context): Boolean =
             context.getSharedPreferences("native_notification_settings", MODE_PRIVATE)

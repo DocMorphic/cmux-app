@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Android notification badges/settings (2026-10-02):** newly created connection
+and reply-sending channels now exclude badges. Existing Android channel choices
+are preserved, with settings links for changing ongoing-category badges. iOS's
+absolute APNs count is documented separately from Android's active-notification
+badge model. Sixteen notification/worker regressions passed; all three new Android
+settings checks passed after an API 37 accessibility-selector correction
+(18.53 seconds, zero skips). Both APK/alignment gates passed.
+[Evidence and platform boundary](PUSH_DELIVERY.md#android-launcher-badges-and-notification-settings-2026-10-02)
+retain physical launcher/native-screen acceptance and live provider delivery as
+open work. No signed release changed.
+
 **Direct notification Reply (2026-10-02):** replies can use the current native
 terminal queue or another already-connected Mac's verified feed channel without
 dialing or changing selection. Durable versioned packet fences prevent a worker,
