@@ -20,7 +20,11 @@ disconnection. **29 focused JVM tests and 3 emulator UI tests passed**; the clea
 priority-screen capture was visually reviewed. No new emulator was created, and
 the existing one is stopped. Detach state now also survives cross-Mac navigation, with matching direct-reply
 admission on secondary feed connections; **68 focused JVM tests passed** for that
-logic checkpoint. Bounds/chip fidelity and physical Mac/Pixel checks remain open. Android uses the supported
+logic checkpoint. Settled viewport gating, themed bounds/hatch decoration and
+prompt-safe size chip placement are now implemented; **20 focused JVM tests and
+2 emulator UI tests passed**, with both theme captures reviewed.
+The renderer still needs iOS-style top pinning/width fitting, and physical Mac/Pixel
+checks remain open. Android uses the supported
 `unknown` kind plus its model; upstream's automatic exclusion rules still need an
 Android kind for identical behavior. Signed build 397 and the installed Pixel app
 are unchanged. [Contract, evidence and remaining work](TERMINAL_SHARED_SIZING.md).

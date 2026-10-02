@@ -638,6 +638,11 @@ fun NativeScreen(
     val inputTarget = draftTarget
     val selectedSizing = selectedTerminal?.id?.let(terminalSizingStates::get)
     val terminalAttached = selectedSizing?.allowsTraffic != false
+    // Each viewport effect owns its own confirmation. Old acknowledgements/cleanup
+    // cannot confirm or hide the chrome of a replacement surface or connection.
+    var sizingViewportConfirmed by remember(client, selectedWorkspace?.id, selectedTerminal?.id,
+        selectedTerminal?.isReady, terminalViewport, terminalCells, terminalTransport, terminalAttached,
+        selectedSizing?.viewportRevision, selectedSizing?.reconnecting) { mutableStateOf(false) }
     var outputInput by remember(inputClient, inputTarget) { mutableStateOf<TerminalOutputLaneOwner?>(null) }
     val nativeInput = remember(inputClient, inputTarget, terminalTransport.mode, connectionReady, selectedTerminal?.isReady, terminalAttached) {
         if (terminalAttached && inputClient != null && inputTarget != null && selectedTerminal?.isReady == true && connectionReady && terminalTransport.mode == TerminalOutputMode.GRID)
@@ -1515,6 +1520,8 @@ fun NativeScreen(
             viewportAttempted = true
             runCatching {
                 active.reportViewport(workspace.id, terminal.id, requestedViewport, viewportGeneration)
+            }.onSuccess {
+                if (isCurrent()) sizingViewportConfirmed = true
             }.onFailure {
                 if (it is CancellationException) throw it
                 error = it.message ?: "Terminal resize failed"
@@ -1565,6 +1572,7 @@ fun NativeScreen(
             if (failure is CancellationException) throw failure
             error = failure.message ?: "Terminal subscription failed"
         } finally {
+            sizingViewportConfirmed = false
             inputRegistration?.close(); nativeOutput?.close()
             if (outputInput === nativeOutput) outputInput = null
             scrollQueue.close()
@@ -1911,6 +1919,7 @@ fun NativeScreen(
             }
             selectedTerminal != null -> {
                 val terminal = selectedTerminal!!
+                var showSizing by remember(client, terminal.id) { mutableStateOf(false) }
                 NativeTerminalHeader(terminal, selectedWorkspace, workspaces.size, hostCapabilities, connectionReady, directTyping,
                     onBack = { selectedTerminal = null; selectedWorkspace = null; selectedSurface = null },
                     onSurface = { surface ->
@@ -1926,7 +1935,8 @@ fun NativeScreen(
                         inputModifiers = TerminalInputModifiers()
                         if (directTyping) { rawKeyboardView?.finishComposition(); directTyping = false }
                         else openDirectKeyboard()
-                    }, onBrowser = { browser ->
+                    }, onSizing = if (terminalAttached && selectedSizing?.state != null) ({ showSizing = true }) else null,
+                    onBrowser = { browser ->
                         rawKeyboardView?.finishComposition(); directTyping = false
                         inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
                         selectPane(NativeWorkspacePane(browser = browser))
@@ -2003,15 +2013,14 @@ fun NativeScreen(
                     }
                 }
                 if (terminalAttached) selectedSizing?.state?.let { sizing ->
-                    var showSizing by remember(terminal.id) { mutableStateOf(false) }
-                    TextButton(onClick = { showSizing = true }, modifier = Modifier.align(Alignment.TopEnd)
-                        .padding(6.dp).background(nativePanel, RoundedCornerShape(12.dp))) {
-                        Text("${sizing.grid.columns} × ${sizing.grid.rows} · ${sizing.policy.mode.title}")
-                    }
                     val sheetClient = client
                     val sheetWorkspace = selectedWorkspace
                     val sheetCode = code
                     val presentation = TerminalSizingPresentation(sizing, selectedSizing?.selfId ?: sheetClient?.terminalParticipantId)
+                    if (currentGrid.columns > 0 && currentGrid.rows > 0 && !terminalZoom.overlayVisible &&
+                        TerminalSizingChrome.settled(sizing, presentation.selfId, terminalViewport, sizingViewportConfirmed,
+                            SharedTerminalGrid(currentGrid.columns, currentGrid.rows), connectionReady && selectedSizing?.reconnecting != true))
+                        TerminalSizingOverlay(presentation, currentGrid, terminalCells) { showSizing = true }
                     if (showSizing) TerminalSizeSheet(presentation, enabled = connectionReady && sheetClient != null,
                         onDismiss = { showSizing = false }) { action ->
                         val active = checkNotNull(sheetClient)

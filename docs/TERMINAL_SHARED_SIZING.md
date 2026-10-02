@@ -204,6 +204,58 @@ acceptance and APK hashes above belong to `f02b7a0`; physical Mac/Pixel acceptan
 live provider delivery and bounds/chip fidelity remain open. The Pixel is currently
 disconnected, and no emulator was started for these checks.
 
+## Settled viewport chrome (2026-10-03)
+
+The Android terminal now suppresses its sizing decoration until all of these are
+true: the selected connection is ready, its viewport report succeeded, the host's
+self participant reports that exact local viewport, and the rendered grid matches
+the authoritative shared size. Keyboard/font/viewport changes, connection or
+surface replacement, detach and reconnect invalidate the confirmation. A matching
+phone/shared size has no decoration. The header's **Terminal size** menu still
+opens the controls when sizes match.
+
+The overlay follows the painter's rectangle: faint diagonal hatch in unused
+space, borders only on sides facing that space, and cut-edge gradients where a
+render rectangle extends beyond the viewport. Chip placement tries below, beside,
+then above the grid; otherwise it uses a compact top-right size pill. The full
+label includes the owner and whether the actual rendering is scaled. Theme-derived
+text and borders meet 4.5:1 and 3:1 contrast respectively. Only the chip handles
+touches. Source audit: the installed NIGHTLY revision
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`, specifically `TerminalSizingChromeGate`,
+`TerminalSizingBoundsGeometry`, `TerminalSizingBorderEdges`,
+`TerminalSizingChipPlacement` and `GhosttySurfaceView+SharedSizing`.
+
+**20 focused JVM tests passed**, zero failures/errors/skips: 5 chrome geometry,
+gate/contrast tests, 6 sizing controls and 9 sizing session tests. Production and
+instrumentation APKs built successfully in the same 37-second invocation. The
+initial unscoped Gradle invocation also selected Ghostty's test task, which had no
+matching tests; the corrected invocation explicitly targeted `:app:testDebugUnitTest`.
+
+**2 emulator UI tests passed in 4.578 seconds** on the existing API 37 / 16 KB
+AVD after the final accessibility adjustment. Checks cover dark/light hatch pixels,
+real touch dispatch through the decoration, chip taps, compact placement and its
+accessible action. Both theme captures were visually reviewed: the prompt is
+uncovered and the chip sits below the grid. Captures include the chip's touch
+ripple; these are interaction captures, not a full-screen iOS visual parity proof.
+No Android ANR dialog was present. The final APK build passed in 28 seconds; the
+emulator was stopped afterward. No new virtual device or system image was created.
+
+Final local APK SHA-256 values (not a new signed release):
+
+- Debug: `cf87973f36352ea86d3b82201c258f011b854e7785cb4f8cf283a54e24454f2d`.
+- Instrumentation: `42b5e86c26843f2b5d370c129c0482f89f6413adf9449ee79ae9082941eb236a`.
+
+Ignored evidence: `captures/runtime/sizing-chrome-build.txt`,
+`sizing-chrome-final-build.txt`, `sizing-chrome-ui-final.txt`, and
+`sizing-chrome-screenshots-final/{dark,light}.png`.
+
+This does not change terminal zoom/pan behavior: Android still fits both axes and
+centers the grid. Upstream's width-fitting, top-pinned surface and keyboard movement
+need a separate renderer/input-geometry integration. Cut-edge geometry is covered
+by unit tests but cannot occur with the current fit-both-axes painter. Physical
+policy/detach/reattach acceptance and live viewport confirmation remain pending;
+the Pixel was disconnected during this checkpoint.
+
 ## Full integration acceptance checklist
 
 1. Subscribe to `mobile.terminal.size_state` and `mobile.terminal.detached`; decode

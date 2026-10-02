@@ -33,7 +33,8 @@ internal fun NativeTerminalTabs(terminals: List<NativeTerminal>, selected: Nativ
 internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWorkspace?, workspaceCount: Int,
     capabilities: Set<String>, ready: Boolean, directTyping: Boolean,
     onBack: () -> Unit, onSurface: (NativeSurface) -> Unit, onText: () -> Unit, onFiles: () -> Unit,
-    onNewBrowser: () -> Unit, onKeyboard: () -> Unit, onBrowser: (NativeBrowser) -> Unit) {
+    onNewBrowser: () -> Unit, onKeyboard: () -> Unit, onBrowser: (NativeBrowser) -> Unit,
+    onSizing: (() -> Unit)? = null) {
     val accent = Color(0xFF76B9FF)
     Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
@@ -54,6 +55,7 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
                 }
                 DropdownMenuItem(text = { Text("New Browser") }, onClick = { menu = false; onNewBrowser() }, enabled = workspace != null)
                 DropdownMenuItem(text = { Text("View as Text") }, onClick = { menu = false; onText() }, enabled = terminal.isReady)
+                if (onSizing != null) DropdownMenuItem(text = { Text("Terminal size") }, onClick = { menu = false; onSizing() })
                 if ("terminal.artifact.v1" in capabilities) DropdownMenuItem(text = { Text("Files") },
                     onClick = { menu = false; onFiles() }, enabled = ready)
             }

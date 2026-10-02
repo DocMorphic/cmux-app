@@ -289,3 +289,11 @@ Packages/Shared/CmuxTerminalSizing, Packages/iOS/CmuxMobileShellModel and
 Packages/iOS/CmuxMobileShellUI.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android adaptation uses Kotlin/JSONObject and conservative unknown-detach handling.
+
+TerminalSizingChrome.kt and TerminalSizingOverlay.kt adapt TerminalSizingChromeGate,
+TerminalSizingBoundsGeometry, TerminalSizingBorderEdges, TerminalSizingChipPlacement
+and GhosttySurfaceView+SharedSizing from Packages/iOS/CmuxMobileTerminalKit and
+Packages/iOS/CmuxMobileTerminal at the same 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc
+revision. Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses Compose drawing, its actual fitted render rectangle, theme contrast
+adjustment and connection/viewport-scoped confirmation before displaying chrome.
