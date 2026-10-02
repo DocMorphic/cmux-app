@@ -362,3 +362,120 @@ both APKs passed 16 KB ZIP checks. SHA-256:
 Evidence is in ignored `captures/runtime/phone-reply-outbox-{final-build.txt,jvm,android,alignment.txt}`.
 The existing emulator was reused and stopped. No signed release, production relay
 call, physical-device installation or upstream parity pin changed.
+
+
+## Persistent background reply work and private notices (2026-10-02)
+
+The active iOS [AppCompositionRoot](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/ios/cmux/AppCompositionRoot.swift)
+constructs `SystemReplyRelayClient` with the authenticated account's access token
+and the resolved presence service. [PresenceServiceConfiguration](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/PresenceServiceConfiguration.swift)
+selects `https://presence.cmux.dev` before overrides for release or production
+auth. Android uses production auth and the same fixed origin for its background
+reply worker. No incoming payload can select the service URL. This is separate
+from the Iroh broker endpoint and from APNs/FCM notification delivery.
+
+`PhoneReplyWork` durably schedules each prepared packet's failure check before
+its send job. The serial send chain uses `APPEND_OR_REPLACE`, so a reply queued
+while another drain is finishing gets a subsequent pass. WorkManager input data
+contains no message, credentials, saved pairing or encrypted packet. Packets
+remain in the existing account-encrypted store. Job names contain only fixed
+labels or SHA-256-derived opaque identifiers. Application startup, boot and app
+upgrade recover pending work; a user-action producer must await enqueue before
+finishing its broadcast.
+
+`NativePhoneReplyBackground` refreshes account membership, verifies the current
+login/user and the saved Mac's team/route ownership, and checks pinned keys before
+and after sending. It can send for another still-authorized team without changing
+the UI's selected team. It starts no Iroh, SSH or Mac terminal connection. Each
+pass reloads persisted cooldowns and exact request bytes; cancellation closes
+its HTTP calls and leaves uncertain packets available for the next pass. Relay
+acceptance means the server inbox accepted the packet, not proof that a command
+ran on the Mac.
+
+The send request needs a connected network and requests expedited execution,
+falling back to regular work when quota is exhausted. Retries use linear backoff
+with a ten-second minimum, in addition to the persisted server cooldown. The
+pre-Android-12 foreground fallback has a generic private notification and a
+`dataSync` service declaration. These choices follow Android's
+[WorkManager request guidance](https://developer.android.com/develop/background-work/background-tasks/persistent/getting-started/define-work).
+No exact-alarm permission was added. Android may defer execution under quotas,
+Doze, resource pressure or force-stop; this does not guarantee timely delivery.
+
+Like iOS's [ReplyFailureNotifier](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/ReplyFailureNotifier.swift),
+a separate failure check is scheduled for the two-minute pending lifetime plus
+ten seconds. It has **no network constraint**. This is an earliest requested
+check time, not an exact Android alarm. Expired, rejected or sign-in-required
+receipts produce “Reply delivery unconfirmed” with generic guidance to check the
+Mac before resending. Text, workspace names and pairing data are excluded. An
+immutable explicit tap opens the app; it cannot execute or requeue a reply.
+
+Notices are posted only with notification permission and an enabled channel.
+A bounded encrypted marker prevents a dismissed notice from returning. Account
+replacement/forgetting removes obsolete notices, and a matching late acceptance
+cancels its notice. In-app credential observation also reconciles notices after
+account/key mutations. Notification permission being disabled does not prevent
+queue expiry or change an uncertain result into success.
+
+Delayed execution must not silently erase a failure before its notice runs.
+Unconfirmed/rejected/sign-in-required receipts now survive for up to **seven days**,
+still capped at 128 and scoped to the current login/owned Mac. Accepted receipts
+retain the prior 15-minute bound. Neither the two-minute send window nor the
+15-minute matching late-acceptance window is extended. Receipt storage contains
+no typed reply or request body. This supersedes the uniform 15-minute retention
+at the earlier outbox checkpoint; notices are not promised after seven days or
+when the user has disabled notifications.
+
+The notification action/RemoteInput producer and authenticated reply-capable
+push payload admission still need integration. Ordinary feed notifications do
+not yet advertise the upstream reply capability and must not receive invented
+Reply actions. The push delivery choice remains pending. No production relay
+request or physical Pixel/Mac reply test was performed in this checkpoint.
+
+### Background-work verification
+
+**22 focused JVM tests passed, zero failures/errors/skips:** eight outbox cases,
+eight relay cases and six key cases. The new delayed-first-execution check retires
+an hour-old packet without discarding its failure receipt, rejects late acceptance
+outside the existing window, and expires the content-free failure after seven
+days. The cooldown test still verifies preservation beyond receipt expiry.
+
+**Android: OK (16 tests), 72.271 seconds**, API 37 / 16,384-byte pages, zero skips:
+seven `PhoneReplyWorkTest` cases, two encrypted-storage cases and seven existing
+notification delivery/service/swipe regressions. Worker cases cover:
+
+- actual loopback account verification and reply HTTP, including a 429 cooldown
+  across fresh worker instances and byte-identical retry followed by 202;
+- an authorized Mac in a different selected team, and revoked membership that
+  never submits a relay request;
+- login replacement while HTTP is in flight, and cancellation preserving the
+  uncertain request without claiming acceptance;
+- actual WorkManager execution of the no-network notice worker, generic private
+  content and immutable tap, and cancellation after matching late acceptance;
+- dismissed notices staying dismissed, account replacement clearing others,
+  and a scheduled notice successfully reporting an hour-old failure receipt.
+
+The HTTP worker uses a test constructor with loopback account/relay origins and
+fixture credentials. WorkManager itself executes the notice jobs with its normal
+initializer/database; those jobs have no production account or relay calls.
+No external service was contacted. The age test sets fixture timestamps; it does
+not simulate an hour of Doze. Actual process-kill, reboot, Android job quotas,
+force-stop behavior, the pre-Android-12 foreground fallback, production endpoint
+acceptance and physical Pixel/Mac delivery remain unverified. Incoming push and
+notification Reply actions remain separate integration work.
+
+The first Android test build found a nullable `WorkInfo` access in the test; the
+explicit non-null check fixed it. The first 15-case Android run passed in 64.949
+seconds. Subsequent review found the 15-minute failure-retention gap described
+above; the final 16-case run includes the fix and added delayed test. Original
+logs remain in ignored `captures/runtime/phone-reply-work*`.
+
+Both APK builds and all five native LOAD/RELRO checks passed; both APKs passed
+16 KB ZIP alignment. Final SHA-256:
+
+- Debug: `0fb0139043988b47032236d463d1b09f2906d65da54e1c745a2c72657be2a9e5`
+- Test: `17c78011160f624cb10bb00125311445dc723806815163ac6e735bda5787f252`
+
+Final evidence: `captures/runtime/phone-reply-work-delayed-build.txt` and
+`captures/runtime/phone-reply-work/{final-jvm,final-android.txt,final-alignment.txt,device.txt}`.
+The existing emulator was reused and stopped. No signed release, physical-device
+installation, push registration, native listener or upstream parity pin changed.

@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Background reply scheduling and failure notices (2026-10-02):** added a
+persistent WorkManager send chain, current-account/team/Mac validation, exact-body
+retry recovery, boot/startup recovery and private content-free failure notices.
+Unconfirmed receipts now survive delayed jobs for up to seven days without
+extending send/acceptance windows. All 22 focused JVM checks and 16 Android cases
+passed (72.271 seconds, API 37 / 16 KB, zero skips), plus both APK/alignment gates.
+[Evidence and remaining integration](PUSH_DELIVERY.md#persistent-background-reply-work-and-private-notices-2026-10-02)
+leave Reply action/push admission, physical delivery and Android background fault
+acceptance open. No signed release changed; the push-provider choice is pending.
+
 **Persistent encrypted reply outbox (2026-10-02):** added exact-request
 restoration, bounded queue/receipt storage, persisted retry cooldown and a scoped
 serial drain. Credential transactions retire forgotten/account-replaced work;

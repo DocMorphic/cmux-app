@@ -66,6 +66,10 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     }
 
     init {
+        scope.launch { store.revisions.collect {
+            try { PhoneReplyNotices(context.applicationContext).sync() }
+            catch (_: Exception) { currentCoroutineContext().ensureActive() }
+        } }
         scope.launch {
             while (isActive) {
                 try {

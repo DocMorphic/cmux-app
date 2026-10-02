@@ -73,15 +73,30 @@ class PhoneReplyOutboxTest {
 
     @Test fun retryDeadlineSurvivesRecreationAndReceiptExpiryButNeverSurvivesLoginChange() {
         val state = state(); val queue = PhoneReplyOutbox(state); val prepared = reply(state)
-        queue.enqueue(prepared, now); queue.finish(prepared, PhoneReplyRelayResult.Retry(now + 3_600_000), now)
+        val later = now + 8 * 24 * 60 * 60 * 1000L
+        queue.enqueue(prepared, now); queue.finish(prepared, PhoneReplyRelayResult.Retry(later + 3_600_000), now)
         val restoredState = JSONObject(state.toString()); val restored = PhoneReplyOutbox(restoredState)
-        assertTrue(restored.pending(now + 1_000_000).isEmpty())
-        assertTrue(restored.receipts(now + 1_000_000).isEmpty())
+        assertTrue(restored.pending(later).isEmpty())
+        assertTrue(restored.receipts(later).isEmpty())
         assertTrue(restoredState.has(PhoneReplyOutbox.KEY))
-        assertEquals(ReplyEnqueueResult.QUEUED, restored.enqueue(reply(restoredState, "new", at = now + 1_000_000), now + 1_000_000))
-        assertTrue(restored.pending(now + 1_000_000).isEmpty())
-        restoredState.put("task_session", "new-login"); PhonePushKeyState(restoredState).prune(); restored.prune(now + 1_000_000)
+        assertEquals(ReplyEnqueueResult.QUEUED, restored.enqueue(reply(restoredState, "new", at = later), later))
+        assertTrue(restored.pending(later).isEmpty())
+        restoredState.put("task_session", "new-login"); PhonePushKeyState(restoredState).prune(); restored.prune(later)
         assertFalse(restoredState.has(PhoneReplyOutbox.KEY))
+    }
+
+    @Test fun delayedFirstExecutionRetainsOnlyContentFreeFailureForSevenDays() {
+        val state = state(); val queue = PhoneReplyOutbox(state); val prepared = reply(state)
+        queue.enqueue(prepared, now)
+        val hourLater = now + 3_600_000
+        assertTrue(queue.waiting(hourLater).isEmpty())
+        val restored = PhoneReplyOutbox(JSONObject(state.toString()))
+        assertEquals("unconfirmed", restored.receipts(hourLater).single().status)
+        assertFalse(state.toString().contains(prepared.body))
+        restored.finish(prepared, PhoneReplyRelayResult.Accepted, hourLater)
+        assertEquals("unconfirmed", restored.receipts(hourLater).single().status)
+        assertEquals(1, restored.receipts(now + 7 * 24 * 60 * 60 * 1000L - 1).size)
+        assertTrue(restored.receipts(now + 7 * 24 * 60 * 60 * 1000L).isEmpty())
     }
 
     @Test fun forgetReaddCannotReviveWorkAndKeyRotationNeverReencryptsPendingReply() {

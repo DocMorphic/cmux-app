@@ -2,6 +2,10 @@ package io.github.docmorphic.cmuxapp
 
 import android.os.Bundle
 import android.content.Intent
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +32,10 @@ open class MainActivity : ComponentActivity() {
         }
         if (NativeNotificationService.isEnabled(this)) {
             runCatching { startForegroundService(Intent(this, NativeNotificationService::class.java)) }
+        }
+        lifecycleScope.launch {
+            try { PhoneReplyWork.recover(applicationContext) }
+            catch (_: Exception) { currentCoroutineContext().ensureActive() }
         }
         setContent {
             CmuxTheme {

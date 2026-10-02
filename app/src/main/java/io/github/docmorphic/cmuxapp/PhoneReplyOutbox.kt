@@ -39,6 +39,8 @@ internal class PhoneReplyOutbox(private val state: JSONObject) {
         return ownerCurrent(team(reply), reply.origin) && keys.peer(team(reply), reply.origin) == reply.peer &&
             keys.existingIdentity(reply.login)?.let { it.keyID == reply.senderKeyID && it.installationID == reply.peer.tuple.iosInstallationID } == true
     }
+    fun waiting(now: Long): List<PreparedPhoneReply> { prune(now); return pendingRaw() }
+
     fun pending(now: Long): List<PreparedPhoneReply> {
         prune(now)
         if (now < (root()?.optLong("not_before") ?: 0)) return emptyList()
@@ -108,7 +110,7 @@ internal class PhoneReplyOutbox(private val state: JSONObject) {
         val root = root() ?: return
         if (state.optString("refresh_token").isBlank() || root.optString("login") != state.optString("task_session") ||
             root.optString("login").isBlank()) { state.remove(KEY); return }
-        val receipts = receiptRaw().filter { it.createdAtMillis <= now && now - it.createdAtMillis < 900_000 &&
+        val receipts = receiptRaw().filter { retained(it, now) &&
             ownerCurrent(NativeTeamScope(it.login, it.userID, it.teamID, 0), it.origin) }.toMutableList()
         val pending = pendingRaw().filter { reply ->
             if (!ownerCurrent(team(reply), reply.origin)) return@filter false
@@ -117,8 +119,13 @@ internal class PhoneReplyOutbox(private val state: JSONObject) {
                 false
             } else true
         }
-        save(pending, receipts.distinctBy { it.login to it.replyID }.takeLast(RECEIPTS), now)
+        save(pending, receipts.filter { retained(it, now) }.distinctBy { it.login to it.replyID }.takeLast(RECEIPTS), now)
     }
+    // A regular WorkManager notice may first execute well after the Mac inbox's
+    // 15-minute lifetime. Retain only content-free failures long enough to report
+    // that outcome; this never extends the send window or acceptance deadline.
+    private fun retained(receipt: PhoneReplyReceipt, now: Long) = receipt.createdAtMillis <= now &&
+        now - receipt.createdAtMillis < if (receipt.status == "accepted") 900_000 else FAILURE_RETENTION
     private fun save(pending: List<PreparedPhoneReply>, receipts: List<PhoneReplyReceipt>, now: Long) {
         if (pending.isEmpty() && receipts.isEmpty() && (root()?.optLong("not_before") ?: 0) <= now) { state.remove(KEY); return }
         val value = root() ?: JSONObject().put("login", state.optString("task_session")).also { state.put(KEY, it) }
@@ -135,6 +142,7 @@ internal class PhoneReplyOutbox(private val state: JSONObject) {
         const val KEY = "phone_reply_outbox"
         const val CAPACITY = 20
         private const val RECEIPTS = 128
+        private const val FAILURE_RETENTION = 7 * 24 * 60 * 60 * 1000L
         private val STATUSES = setOf("accepted", "unconfirmed", "rejected", "sign_in_required")
     }
 }
