@@ -193,4 +193,36 @@ class SshBrowserTest {
         compose.waitUntil(15000) { !shown.value }
     }
 
+    @Test fun webSocketTextBinaryUpdatesAndClosingBrowserClosesItsChannel() {
+        assumeTrue(args.containsKey("cmux_ssh_websocketport"))
+        val network = main { session.browsers.network(host.id) }
+        val workspace = sshBrowserWorkspace(SshWorkspaceTarget.Shell("websocket-fixture"), "WebSocket fixture")
+        val shown = mutableStateOf(true)
+        main {
+            network.navigation.restoreRemembered(sshLocalBrowserKey(network, workspace), workspace)
+            network.navigation.state.value.local!!.surface.load("http://ssh-only.invalid:$browserPort/websocket")
+        }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
+            if (shown.value) SshBrowserSheet(SshBrowserPresentation(network, workspace)) { shown.value = false }
+        } } }
+        compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        fun text(value: String) = checkNotNull(device.wait(Until.findObject(By.text(value)), 15000)) { "Missing $value" }
+        fun status() = runBlocking {
+            org.json.JSONObject(connection.exec("fixture-websocket-status").stdout.toString(Charsets.UTF_8))
+        }
+        text("SSH WebSocket ▾"); text("WebSocket binary verified")
+        val initial = status()
+        assertEquals(1, initial.getInt("active"))
+        assertEquals("hello λ 中", initial.getJSONArray("text").getString(0))
+        assertEquals("[0,255,42]", initial.getJSONArray("binary").getJSONArray(0).toString())
+        text("Send live update").click(); text("WebSocket update verified")
+        assertEquals("second", status().getJSONArray("text").getString(1))
+        assertTrue(device.takeScreenshot(File(compose.activity.getExternalFilesDir(null), "ssh-browser-websocket.png")))
+        checkNotNull(device.wait(Until.findObject(By.desc("Back to workspaces")), 15000)).click()
+        compose.waitUntil(15000) { !shown.value && compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) }
+        compose.waitUntil(10000) { status().getInt("active") == 0 }
+        runBlocking { until { connection.activeChannels == 0 } }
+        assertTrue(connection.isConnected)
+    }
+
 }

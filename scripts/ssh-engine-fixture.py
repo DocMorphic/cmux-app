@@ -2,11 +2,13 @@
 """Isolated loopback SSH fixture. No real shell, user credentials or host sshd.
 
 Start before building the opt-in ssh-spike APK; generated import keys go only
-into that APK's test assets. Requires asyncssh[bcrypt]==2.24.0. Stop with Ctrl-C.
+into that APK's test assets. Requires asyncssh[bcrypt]==2.24.0; optional
+--websocket also requires websockets==17.1. Stop with Ctrl-C.
 The fixture accepts valid public-key signatures for a random test username; its
 only commands are synthetic, forwarding targets itself, and SFTP is chrooted to
 a temporary directory. Never expose its port outside loopback.
 """
+import argparse
 import asyncio
 import json
 import os
@@ -18,6 +20,9 @@ import asyncssh
 
 
 async def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--websocket", action="store_true", help="Enable the optional websockets==17.1 browser peer")
+    args = parser.parse_args()
     os.umask(0o077)
     root = Path(__file__).resolve().parents[1]
     assets = root / "ssh-spike/build/fixture-assets"
@@ -28,6 +33,9 @@ async def main():
     port = 0
     silent_port = 0
     browser_port = 0
+    websocket_port = 0
+    websocket_server = None
+    websocket_state = {"active": 0, "opened": 0, "text": [], "binary": []}
     active_shells = 0
     transfer_gate = asyncio.Event()
     transfer_gate.set()
@@ -84,13 +92,15 @@ async def main():
         def connection_requested(self, dest_host, dest_port, orig_host, orig_port):
             if dest_host == "ssh-only.invalid" and dest_port == 7:
                 return echo_after_eof
-            if dest_host in ("localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1", "ssh-only.invalid") and dest_port == browser_port:
-                return self.conn.forward_connection("127.0.0.1", browser_port)
+            if dest_host in ("localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1", "ssh-only.invalid") and dest_port in ({browser_port, websocket_port} if websocket_port else {browser_port}):
+                return self.conn.forward_connection("127.0.0.1", dest_port)
             return dest_host == "127.0.0.1" and dest_port in (port, silent_port)
 
     async def process(proc):
         nonlocal active_shells
-        if proc.command == "files-transfer-arm":
+        if proc.command == "fixture-websocket-status" and args.websocket:
+            proc.stdout.write(json.dumps(websocket_state)); proc.exit(0)
+        elif proc.command == "files-transfer-arm":
             transfer_gate.clear()
             proc.exit(0)
         elif proc.command == "files-transfer-release":
@@ -208,7 +218,21 @@ async def main():
         try:
             header = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 10)
             path = header.split(b" ", 2)[1]
-            if path == b"/api":
+            if path == b"/websocket" and args.websocket:
+                body = ("<!doctype html><meta name='viewport' content='width=device-width,initial-scale=1'>"
+                        "<title>SSH WebSocket loading</title><style>body{background:#112e3c;color:white;font:24px sans-serif;padding:20px}</style>"
+                        "<h1 id='result'>Connecting WebSocket</h1><button id='send' disabled>Send live update</button>"
+                        f"<script>const ws=new WebSocket('ws://ssh-only.invalid:{websocket_port}/live');ws.binaryType='arraybuffer';"
+                        "ws.onmessage=e=>{if(typeof e.data==='string'){"
+                        "if(e.data.startsWith('ready:'))ws.send('hello λ 中');"
+                        "else if(e.data==='hello λ 中'){document.querySelector('#result').textContent='WebSocket text verified';ws.send(new Uint8Array([0,255,42]));}"
+                        "else if(e.data==='second')document.querySelector('#result').textContent='WebSocket update verified';"
+                        "}else{const b=new Uint8Array(e.data);if(b.length===3&&b[0]===0&&b[1]===255&&b[2]===42){"
+                        "document.querySelector('#result').textContent='WebSocket binary verified';document.title='SSH WebSocket';document.querySelector('#send').disabled=false;}}};"
+                        "document.querySelector('#send').onclick=()=>ws.send('second');"
+                        "ws.onerror=()=>{document.querySelector('#result').textContent='WebSocket failed'};</script>").encode()
+                mime = "text/html; charset=utf-8"
+            elif path == b"/api":
                 body = nonce.encode()
                 mime = "text/plain"
             else:
@@ -225,6 +249,20 @@ async def main():
             writer.close()
             await writer.wait_closed()
 
+    if args.websocket:
+        from websockets.asyncio.server import serve
+        async def websocket_peer(socket):
+            websocket_state["active"] += 1; websocket_state["opened"] += 1
+            try:
+                await socket.send("ready:" + nonce)
+                async for message in socket:
+                    if isinstance(message, str): websocket_state["text"].append(message)
+                    else: websocket_state["binary"].append(list(message))
+                    await socket.send(message)
+            finally:
+                websocket_state["active"] -= 1
+        websocket_server = await serve(websocket_peer, "127.0.0.1", 0, max_size=4096, compression=None, close_timeout=2)
+        websocket_port = websocket_server.sockets[0].getsockname()[1]
     browser_server = await asyncio.start_server(browser_peer, "127.0.0.1", 0)
     browser_port = browser_server.sockets[0].getsockname()[1]
     silent = await asyncio.start_server(silent_peer, "127.0.0.1", 0)
@@ -247,13 +285,16 @@ async def main():
                        "hostKey": host_key.export_public_key().decode().strip(),
                        "changedHostKey": asyncssh.generate_private_key("ssh-ed25519")
                            .export_public_key().decode().strip(),
-                       "port": port, "silentPort": silent_port, "browserPort": browser_port, "imports": imports}
+                       "port": port, "silentPort": silent_port, "browserPort": browser_port, "imports": imports,
+                       **({"websocketPort": websocket_port} if websocket_port else {})}
             (assets / "fixture.json").write_text(json.dumps(fixture))
             print(json.dumps({"ready": True, "port": port,
                               "assets": str(assets)}), flush=True)
             try:
                 await asyncio.Event().wait()
             finally:
+                if websocket_server:
+                    websocket_server.close(); await websocket_server.wait_closed()
                 browser_server.close()
                 await browser_server.wait_closed()
                 silent.close()

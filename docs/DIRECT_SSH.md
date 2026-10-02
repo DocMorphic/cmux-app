@@ -16,6 +16,57 @@ reference or establish which App Store/TestFlight binary contains these features
 Older checkpoints below retain their original evidence boundaries; the SSH
 integrated Android browser checkpoint is the latest implementation status.
 
+## SSH-routed WebSocket browser acceptance (2026-10-02)
+
+The actual On Android WebView now has a dedicated `--ssh-websocket` acceptance
+check. Its HTTP page and `ws:` connection use `ssh-only.invalid`, a name resolved
+only by the private SSH fixture. Only the SSH port is forwarded by adb; neither
+the page port nor WebSocket port is forwarded to the phone. The test verifies:
+
+- The server sends its initial message; the page responds with Unicode text and
+  then binary bytes `[0,255,42]`, verified independently in the host's records.
+- Both replies reach the WebView JavaScript, update visible page content and title,
+  and enable a button whose next message updates the same page without reloading.
+- Leaving the browser closes the peer connection and all transport channels, while
+  the shared SSH transport remains connected.
+
+**OK (1 test), 13.813 seconds, no skips**, API 37 / 16 KB. The inspected screenshot,
+runner receipt, filtered logcat and result are in ignored
+`captures/runtime/ssh-audit/websocket-browser-android`. Test APK SHA-256:
+`0295a1a84968a0bcb25f7eac573024b81681657bc0beee6b40ef6709ad3edd21`.
+It built successfully and passed 16 KB ZIP alignment. The production debug APK
+remains `68248760c0ee95ae56613ee81bda0a5e3b78d0a524bab23c4e29ced5c29ace4c`.
+No production code or signed release changed. The existing AVD was stopped after
+verification; no additional emulator or profile was created.
+
+This check uses the standard `websockets==17.1` Python package in the existing
+ignored fixture virtualenv (a roughly 214 KB wheel), not a custom WebSocket frame
+implementation. The option is explicit; normal SSH/SFTP fixtures do not import or
+require it. `--ssh-browser` still selects exactly its five original methods;
+`--ssh-websocket` selects exactly this new method and rejects a skipped result.
+The fixture forwards only its existing destination allowlist plus the exact
+optional WebSocket port. It does not enable arbitrary host forwarding.
+
+```sh
+captures/runtime/ssh-engine/venv/bin/python -m pip install 'websockets==17.1'
+captures/runtime/ssh-engine/venv/bin/python scripts/ssh-engine-fixture.py --websocket
+python3 scripts/check-ssh-transport.py --serial emulator-5554 --ssh-websocket \
+  --output captures/runtime/ssh-audit/websocket-browser-android
+```
+
+The peer reported TCP closure without a WebSocket close frame when the WebView
+was destroyed. The test proves resource closure, not a graceful close handshake.
+It does not cover `wss:`, TLS certificate policy, large/fragmented WebSocket
+messages, connection loss during a WebSocket message, uploads, service workers,
+physical Pixel behavior or the separate paired-Mac browser tunnel.
+
+A targeted gesture audit also found no missing exposed long-press action:
+[`BrowserStreamContentView.swift`](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileBrowserStream/Sources/CmuxMobileBrowserStream/BrowserStreamContentView.swift)
+uses tap/click-count, scroll, pinch and local zoomed pan. Although the shell
+adapter accepts separate down/up inputs, that current iOS content view emits
+clicks and has no long-press selection recognizer. This is a source comparison,
+not new visual or physical gesture acceptance.
+
 ## Live SSH browser reconnect (2026-10-02)
 
 The integrated browser runner now requires **two successful tests**, including

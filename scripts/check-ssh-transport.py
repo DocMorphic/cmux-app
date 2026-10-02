@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--tmux-ui", action="store_true", help="Run the four real tmux workspace checks")
     parser.add_argument("--cmux-ui", action="store_true", help="Run six real mixed cmux-tui/tmux/shell workspace checks")
     parser.add_argument("--cmux-browser", action="store_true", help="Run two integrated real cmux-tui/Chrome browser workflow and reconnect checks")
+    parser.add_argument("--ssh-websocket", action="store_true", help="Run real SSH-routed WebView WebSocket text/binary/lifetime check")
     parser.add_argument("--ssh-browser", action="store_true", help="Run five real SSH browser stream, routing, retirement, presentation and mode checks")
     parser.add_argument("--files-ui", action="store_true", help="Run eight real SFTP transfer/browser/system-picker checks")
     parser.add_argument("--files-pickers", action="store_true", help="Run only the two real Android system-picker upload checks")
@@ -25,12 +26,12 @@ def main():
     parser.add_argument("--cmux-renderer", action="store_true", help="Run three cmux-tui provider/renderer component checks without an SSH fixture")
     parser.add_argument("--fixture", type=Path, help="Generated coordinates from ssh-tmux-fixture.py")
     args = parser.parse_args()
-    if sum((args.ui, args.shell_ui, args.tmux_ui, args.cmux_ui, args.cmux_install, args.cmux_renderer, args.files_ui, args.files_pickers, args.ssh_browser, args.cmux_browser)) > 1:
+    if sum((args.ui, args.shell_ui, args.tmux_ui, args.cmux_ui, args.cmux_install, args.cmux_renderer, args.files_ui, args.files_pickers, args.ssh_browser, args.cmux_browser, args.ssh_websocket)) > 1:
         parser.error("Choose one UI suite")
     if (args.tmux_ui or args.cmux_ui or args.cmux_install or args.cmux_browser) and not args.fixture:
         parser.error("Real workspace checks require --fixture")
-    count = 2 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 8 if args.files_ui else 1 if args.cmux_install else 6 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14)))
-    test_class = "SshBrowserWorkspaceTest" if args.cmux_browser else "SshBrowserTest" if args.ssh_browser else "SshFilesScreenTest" if args.files_ui or args.files_pickers else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
+    count = 1 if args.ssh_websocket else 2 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 8 if args.files_ui else 1 if args.cmux_install else 6 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14)))
+    test_class = "SshBrowserWorkspaceTest" if args.cmux_browser else "SshBrowserTest" if args.ssh_browser or args.ssh_websocket else "SshFilesScreenTest" if args.files_ui or args.files_pickers else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")
     root = Path(__file__).resolve().parents[1]
@@ -64,6 +65,15 @@ def main():
         run(["reverse", port, port])
     try:
         selected = "io.github.docmorphic.cmuxapp." + test_class
+        if args.ssh_websocket:
+            selected += "#webSocketTextBinaryUpdatesAndClosingBrowserClosesItsChannel"
+        elif args.ssh_browser:
+            selected = ",".join(selected + "#" + method for method in (
+                "directStreamPreservesLargeBinaryPayloadAndResponseAfterHalfClose",
+                "socksUsesServerNamesReconnectsAndNeverFallsBackToPhone",
+                "routeChangesRetireIdleProxyAndCannotReviveItsStorageIdentity",
+                "terminalMenuOpensRealSshBrowserAndRetirementClosesIt",
+                "linkedModeRestoresPhonePageAndReturnsToTheExactStreamedTab"))
         if args.files_pickers:
             selected = ",".join(selected + "#" + method for method in (
                 "documentPickerCancelsReopensAndUploadsMultipleFilesWithoutReplacingExistingFile",
@@ -73,8 +83,10 @@ def main():
         # server's generated private import examples remain in its build folder.
         public = {"port": fixture["port"], "user": fixture["username"],
                   "nonce": fixture["nonce"], "hostkey": fixture["hostKey"], "silentport": fixture["silentPort"]} if fixture else {}
-        if args.ssh_browser or args.cmux_browser:
+        if args.ssh_browser or args.cmux_browser or args.ssh_websocket:
             public["browserport"] = fixture["browserPort"]
+        if args.ssh_websocket:
+            public["websocketport"] = fixture["websocketPort"]
         # adb shell joins arguments through the device shell. Quote each value.
         import shlex
         for name, value in public.items():
