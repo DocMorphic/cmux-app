@@ -3,6 +3,17 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
+## Latest physical debug update — 2026-10-03
+
+The Pixel debug package now includes the account/credential deadlock fix from
+`1c62eab`, installed with `-r` and existing sign-in preserved. **23 focused JVM tests**
+passed. The full real NIGHTLY pairing/browser UI journey also passed **1 test in
+35.604 s**, including Back/Forward, workspace return/reopen and fixture cleanup.
+Screenshots were inspected; phone sleep setting restored to 0. See
+[browser acceptance and limits](BROWSER_TUNNEL.md#physical-pairing-and-browser-ui-acceptance--2026-10-03).
+Debug SHA-256: `739142be417613109675d7e39a563b1d959941f7744e85098f8f94f5a2e9c49a`.
+The signed release package remains build 385 below and does **not** include this fix.
+
 ## Current signed development APK — build 385 (2026-10-02)
 
 ### Physical debug update and resumed check — 2026-10-02

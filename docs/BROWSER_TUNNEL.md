@@ -1,5 +1,32 @@
 # Mac browser tunnel — 2026-09-30
 
+## Physical pairing and browser UI acceptance — 2026-10-03
+
+The complete physical Pixel 6a / authenticated NIGHTLY Mac journey now passes:
+**OK (1 test), 35.604 s**, with no skipped assertions. This supersedes the earlier
+ANR and teardown failures below.
+
+- Production native pairing link accepted and NIGHTLY pairing retained.
+- Owned workspace opened, streamed browser created, switched to On Android.
+- Real address field entered; WebView rendered the exact Mac-loopback fixture.
+- Page navigation, Back, Forward, workspace return and committed-page reopen passed.
+- Both final screenshots visually inspected: expected page, marker and controls.
+- Existing login/prior pairings preserved; exact test workspace closed, absence
+  verified and private receipt removed. No user workspace was mutated.
+- Mac fixture saw `start,next,start,next,next`, listener closed, original plugged-in
+  sleep setting restored to **0** and independently checked afterward.
+
+Installed production debug SHA-256:
+`739142be417613109675d7e39a563b1d959941f7744e85098f8f94f5a2e9c49a` (lock fix).
+Installed instrumentation SHA-256:
+`82c5224e6af6412e99d1d50f35275662c96e8c600d8ad324272030d3189dbc1a`.
+Evidence: `captures/runtime/pixel-resume-20261002/browser-ui-direct-lifecycle/`
+and its `screenshots/` (ignored). Signed build 385 is unchanged and lacks the
+production lock fix; no emulator was started.
+
+This verifies the described HTTP UI journey, not HTTPS, upload/download, network
+handoff, process-death recovery or live push. Those retain their separate gates.
+
 ## Browser journey works after lock fix; test teardown pending — 2026-10-02
 
 With the lock fix installed, the physical run reached every browser assertion:
@@ -17,9 +44,17 @@ main thread idle, rather than the previously observed account/credential deadloc
 Workspace close and receipt removal were verified; the HTTP listener closed and
 sleep setting returned to 0. This is not a clean acceptance pass yet.
 
-Test teardown now waits for the final child result/workspace UI, requests parent
-finish and pumps its lifecycle through destruction before calling blocking close.
-A rerun is pending. No additional production behavior changed.
+The first teardown adjustment pumped lifecycle destruction, but a second physical
+run still failed only at `ActivityScenario.close`, after all browser assertions
+passed again. Local inspection of AndroidX Test core 1.7.0 bytecode identified the
+actual cause: its observer ignores lifecycle events when Activity Intent data no
+longer matches the original launch URI. MainActivity deliberately clears consumed
+pairing URI data. Actual lifecycle reached DESTROYED while the scenario retained
+its previous state. This supersedes the initial dispatcher-starvation hypothesis.
+
+The test now launches the real pairing Intent using instrumentation, retains the
+exact returned Activity, and verifies its lifecycle destruction directly. No
+pairing behavior or production Intent handling is changed. A rerun is pending.
 Evidence: `captures/runtime/pixel-resume-20261002/browser-ui-lock-fixed/` (ignored).
 
 ## Account/credential deadlock identified — 2026-10-02

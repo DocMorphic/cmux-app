@@ -9,7 +9,6 @@ import android.view.WindowManager
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.lifecycle.Lifecycle
-import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.*
 import kotlinx.coroutines.*
@@ -76,7 +75,6 @@ class LiveNativeBrowserUiCheck {
         }
         var client: MobileRpcClient? = null
         var owned: NativeWorkspace? = null
-        var scenario: ActivityScenario<MainActivity>? = null
         var activity: MainActivity? = null
         var failure: Throwable? = null
         var closed = false
@@ -115,11 +113,14 @@ class LiveNativeBrowserUiCheck {
                 Triple(team, expected, created)
             } }
             stage = "production account pairing link"
-            scenario = ActivityScenario.launch(Intent(context, MainActivity::class.java)
-                .setAction(Intent.ACTION_VIEW).setData(Uri.parse(expected.code)))
-            scenario.onActivity {
-                activity = it
-                it.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            // ActivityScenario matches lifecycle events by the original Intent
+            // data. MainActivity intentionally clears a consumed pairing URI,
+            // so own this real deep-link Activity directly instead.
+            activity = instrumentation.startActivitySync(Intent(context, MainActivity::class.java)
+                .setAction(Intent.ACTION_VIEW).setData(Uri.parse(expected.code))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as MainActivity
+            instrumentation.runOnMainSync {
+                activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
             compose.waitUntil(35_000) {
                 connections.store.pairedMacs().any { it.deviceId == expected.deviceId && it.instanceTag == "nightly" &&
@@ -179,17 +180,16 @@ class LiveNativeBrowserUiCheck {
             failure = AssertionError("Live browser UI failed at $stage (${problem.javaClass.simpleName})")
         } finally {
             try {
-                // Pump the Compose test dispatcher through child-result delivery
-                // and parent destruction before ActivityScenario's blocking close.
+                // Pump the test dispatcher through child-result delivery and
+                // destruction of the exact Activity launched by this test.
                 if (activity?.lifecycle?.currentState?.let { it < Lifecycle.State.STARTED && it != Lifecycle.State.DESTROYED } == true) {
                     device.findObject(By.desc("Back to workspaces"))?.click()
                     compose.waitUntil(20_000) { activity?.lifecycle?.currentState?.let {
                         it >= Lifecycle.State.STARTED || it == Lifecycle.State.DESTROYED
                     } == true }
                 }
-                scenario?.onActivity { it.finish() }
-                if (scenario != null) compose.waitUntil(20_000) { activity?.lifecycle?.currentState == Lifecycle.State.DESTROYED }
-                scenario?.close()
+                instrumentation.runOnMainSync { activity?.takeUnless { it.isDestroyed }?.finish() }
+                if (activity != null) compose.waitUntil(20_000) { activity.lifecycle.currentState == Lifecycle.State.DESTROYED }
                 compose.waitForIdle()
             }
             catch (problem: Throwable) { if (failure == null) failure = AssertionError("Browser Activity cleanup failed (${problem.javaClass.simpleName})") }
