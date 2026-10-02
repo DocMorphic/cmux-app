@@ -78,13 +78,15 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
     }
     /** Opening a saved terminal can restart our own owner, never a desktop
      * owner's session. It neither installs software nor creates new terminals. */
-    suspend fun forSelection(selection: SshCmuxSelection): SshCmuxProvider = withContext(Dispatchers.Main.immediate) {
+    suspend fun forSelection(selection: SshCmuxSelection): SshCmuxProvider = forSession(selection.session)
+    suspend fun forSelection(selection: SshCmuxBrowserSelection): SshCmuxProvider = forSession(selection.session)
+    private suspend fun forSession(session: String): SshCmuxProvider = withContext(Dispatchers.Main.immediate) {
         operations.withLock {
-            guard(); require(SshCmuxDiscovery.validSession(selection.session)) { "Invalid cmux-tui session" }
-            val id = SshCmuxDiscovery.digest(selection.session)
+            guard(); require(SshCmuxDiscovery.validSession(session)) { "Invalid cmux-tui session" }
+            val id = SshCmuxDiscovery.digest(session)
             providers[id]?.takeUnless { it.state.value.ended } ?: run {
                 val binary = checkNotNull(remote.locateBinary()) { "cmux-tui is no longer installed on this computer" }
-                guard(); acquire(binary, selection.session)
+                guard(); acquire(binary, session)
             }
         }
     }

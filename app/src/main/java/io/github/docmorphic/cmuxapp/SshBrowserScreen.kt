@@ -13,6 +13,8 @@ internal fun sshBrowserWorkspace(target: SshWorkspaceTarget, title: String): Nat
     val id = when (target) {
         is SshWorkspaceTarget.Shell -> JSONArray(listOf("shell", target.id))
         is SshWorkspaceTarget.Tmux -> JSONArray(listOf("tmux", target.workspace))
+        is SshWorkspaceTarget.Browser -> target.selection.let { ref -> JSONArray(listOf("cmux", ref.session, ref.registry,
+            ref.workspaceKey ?: ref.workspaceResource ?: "${ref.generation}:${ref.workspace}")) }
         is SshWorkspaceTarget.Cmux -> target.selection.let { ref -> JSONArray(listOf("cmux", ref.session, ref.registry,
             ref.workspaceKey ?: ref.workspaceResource ?: "${ref.generation}:${ref.workspace}")) }
     }.toString()

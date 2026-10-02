@@ -48,6 +48,14 @@ internal data class BrowserFrame(val sequence: Long, val image: ImageBitmap, val
 @Composable
 internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: String, onBack: () -> Unit,
     recoveryClock: BrowserRecoveryClock = MonotonicBrowserRecoveryClock) {
+    val stream = remember(client) { MacBrowserStreamClient(client) }
+    NativeBrowserView(stream, panelId, title, onBack, recoveryClock)
+}
+
+@Composable
+internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, title: String, onBack: () -> Unit,
+    recoveryClock: BrowserRecoveryClock = MonotonicBrowserRecoveryClock,
+    onReconnect: (() -> Unit)? = null) {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
@@ -68,13 +76,12 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
     var appliedViewport by remember(client, panelId) { mutableStateOf<Triple<Int, Int, Double>?>(null) }
     val viewport = Triple((measured.width / density.density).roundToInt().coerceIn(1, 4096),
         (measured.height / density.density).roundToInt().coerceIn(1, 4096), density.density.toDouble())
-    val latestViewport by rememberUpdatedState(viewport)
     val back by rememberUpdatedState(onBack)
     val session = remember(client, panelId) { Mutex() }
     val recovery = remember(client, panelId, recoveryClock) { BrowserStreamRecovery(scope, recoveryClock) { retry++ } }
     val queue = remember(client, panelId, recovery) { BrowserInputQueue(scope) {
         recovery.noteInput()
-        client.request(it.method, it.parameters(panelId)); Unit
+        client.input(panelId, it)
     } }
     val scrollMotion = rememberBrowserScrollMotion(queue)
     val inputError by queue.error.collectAsState()
@@ -97,6 +104,9 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
         snapshotFlow { measured }.first { it.width > 0 && it.height > 0 }
         session.withLock {
             ready = false; error = null; appliedViewport = null
+            // SSH attachments must acquire fresh pointer authority. Native Mac
+            // reconnects keep their last image while awaiting replacement pixels.
+            if (client.clearsFrameOnRestart) frame = null
             val generation = recovery.started().also { streamGeneration = it }
             var newestSequence = -1L
             var stateEvents = 0
@@ -114,6 +124,7 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
                         }
                         "browser.state" -> {
                             stateEvents++; page = BrowserPageState.read(event.payload)
+                            if (event.payload.has("stream_error")) error = event.payload.opt("stream_error") as? String
                             policy = policy.pageFocus(page.editableFocused)
                         }
                         "browser.frame" -> {
@@ -127,10 +138,11 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
                 }
             }
             try {
-                val subscribed = client.subscribe(listOf("browser.frame", "browser.state", "browser.closed", "browser.dialog", "browser.dialog.resolved"), streamId)
-                check(subscribed.optString("stream_id") == streamId) { "Browser subscription identity changed" }
-                val initial = latestViewport
-                val descriptor = client.startBrowserStream(panelId, initial.first, initial.second, initial.third)
+                // onSizeChanged can wake snapshotFlow before recomposition
+                // updates derived state. Read the measured pixels directly.
+                val initial = Triple((measured.width / density.density).roundToInt().coerceIn(1, 4096),
+                    (measured.height / density.density).roundToInt().coerceIn(1, 4096), density.density.toDouble())
+                val descriptor = client.start(panelId, streamId, initial.first, initial.second, initial.third)
                 ensureActive()
                 // A push received during stream.start is newer than its descriptor.
                 if (stateEvents == 0) page = BrowserPageState.read(descriptor)
@@ -145,8 +157,7 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
                 ready = false; recovery.stopped(); collector.cancel()
                 withContext(NonCancellable) {
                     collector.join()
-                    runCatching { withTimeout(2_000) { client.stopBrowserStream(panelId) } }
-                    runCatching { withTimeout(2_000) { client.unsubscribe(streamId) } }
+                    runCatching { client.stop(panelId, streamId) }
                 }
             }
         }
@@ -159,7 +170,7 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
         if (!foreground || !ready || appliedViewport == viewport) return@LaunchedEffect
         delay(60)
         try {
-            client.browserViewport(panelId, viewport.first, viewport.second, viewport.third)
+            client.viewport(panelId, viewport.first, viewport.second, viewport.third)
             ensureActive(); appliedViewport = viewport
         } catch (failure: Exception) {
             rethrowBrowserCancellation(failure)
@@ -171,7 +182,7 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
         if (!foreground || current.generation != streamGeneration) return@LaunchedEffect
         withFrameNanos { }
         recovery.noteDisplayedFrame(current.generation)
-        try { client.acknowledgeBrowserFrame(panelId, current.sequence) }
+        try { client.displayed(panelId, current.sequence) }
         catch (failure: Exception) { rethrowBrowserCancellation(failure); error = failure.message }
     }
     val inputEnabled = foreground && ready && inputError == null && dialog == null
@@ -182,17 +193,19 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
         Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { policy = policy.hide(); focusManager.clearFocus(); keyboard?.hide(); onBack() }) { Text("‹  Workspaces") }
             Text(page.title.ifBlank { title.ifBlank { "Browser" } }, modifier = Modifier.weight(1f), maxLines = 1)
+            // Android requires nonzero bounds for IME focus. Keep this endpoint
+            // in the header so its invisible View cannot intercept page taps.
+            key(queue) { BrowserKeyboardProxy(queue, policy.focus && !addressFocused && dialog == null, inputEnabled, keyboardRequest, Modifier.size(1.dp)) }
         }
         Box(Modifier.fillMaxWidth().weight(1f).onSizeChanged { measured = it }, contentAlignment = Alignment.Center) {
             val current = frame
             if (current == null) Text(if (ready && page.url in setOf("", "about:blank")) "Search or enter an address below." else "Waiting for browser…", color = Color(0xFF969AA3))
             else BrowserPageSurface(current, queue, scrollMotion, streamGeneration, inputEnabled,
-                onTap = { focusManager.clearFocus() })
-            key(queue) { BrowserKeyboardProxy(queue, policy.focus && !addressFocused && dialog == null, inputEnabled, keyboardRequest, Modifier.size(1.dp)) }
+                onTap = { focusManager.clearFocus() }, pageDescription = client.pageDescription)
         }
         if (error != null) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(error.orEmpty(), Modifier.weight(1f), color = Color(0xFFFF9999), fontSize = 12.sp)
-            TextButton(onClick = { queue.pause(); retry++ }) { Text("Reconnect") }
+            TextButton(onClick = { queue.pause(); onReconnect?.invoke(); retry++ }) { Text("Reconnect") }
         }
         if (inputError != null) Column(Modifier.padding(horizontal = 12.dp)) {
             Text(inputError.orEmpty(), color = Color(0xFFFF9999), fontSize = 12.sp)
@@ -202,8 +215,8 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
             shape = RoundedCornerShape(28.dp), color = Color(0xFF202226)) {
             Column {
                 Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    BrowserChromeButton("Browser Back", R.drawable.ic_browser_back, inputEnabled && page.canGoBack) { queue.offer(BrowserInput.Navigation("back")) }
-                    BrowserChromeButton("Browser Forward", R.drawable.ic_browser_forward, inputEnabled && page.canGoForward) { queue.offer(BrowserInput.Navigation("forward")) }
+                    BrowserChromeButton("Browser Back", R.drawable.ic_browser_back, inputEnabled && (!client.reportsHistory || page.canGoBack)) { queue.offer(BrowserInput.Navigation("back")) }
+                    BrowserChromeButton("Browser Forward", R.drawable.ic_browser_forward, inputEnabled && (!client.reportsHistory || page.canGoForward)) { queue.offer(BrowserInput.Navigation("forward")) }
                     BasicTextField(address, { address = it }, Modifier.weight(1f).heightIn(min = 44.dp)
                         .background(Color(0xFF303238), RoundedCornerShape(22.dp)).padding(horizontal = 12.dp, vertical = 12.dp)
                         .semantics { contentDescription = "Browser address" }
@@ -245,7 +258,7 @@ private fun BrowserChromeButton(label: String, icon: Int, enabled: Boolean, onCl
 }
 
 @Composable
-private fun BrowserDialog(value: JSONObject, client: MobileRpcClient, panel: String, onResolved: (String) -> Unit, onError: (String) -> Unit) {
+private fun BrowserDialog(value: JSONObject, client: BrowserStreamClient, panel: String, onResolved: (String) -> Unit, onError: (String) -> Unit) {
     val id = value.optString("dialog_id")
     val scope = rememberCoroutineScope()
     var text by remember(client, panel, id) { mutableStateOf(value.optJSONObject("text_field")?.optString("initial").orEmpty()) }
@@ -259,7 +272,7 @@ private fun BrowserDialog(value: JSONObject, client: MobileRpcClient, panel: Str
         busy = true
         scope.launch {
             try {
-                client.respondBrowserDialog(panel, id, button.optString("id"), text.takeIf { value.optJSONObject("text_field") != null })
+                client.respondDialog(panel, id, button.optString("id"), text.takeIf { value.optJSONObject("text_field") != null })
                 ensureActive(); resolved(id)
             } catch (failure: Exception) {
                 rethrowBrowserCancellation(failure)

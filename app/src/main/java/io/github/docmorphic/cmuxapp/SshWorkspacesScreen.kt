@@ -69,7 +69,8 @@ internal fun SshWorkspacesRoute(session: NativeSshSession, hostId: UUID, onBack:
     }
 }
 
-private data class SshWorkspaceView(val reference: String, val terminal: SshTerminal, val owner: SshCmuxProvider? = null)
+private data class SshWorkspaceView(val reference: String, val terminal: SshTerminal? = null, val owner: SshCmuxProvider? = null,
+    val browser: SshCmuxBrowserStream? = null, val title: String = "Browser")
 private data class SshWorkspaceEnd(val name: String, val action: suspend () -> Unit)
 
 @Composable
@@ -94,7 +95,10 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     fun select(target: SshWorkspaceTarget) { selection = "$hostId\n${target.encode()}"; failure = null }
     fun leave() { selection = null; opened = null; failure = null }
     val view = opened
-    DisposableEffect(view) { onDispose { (view?.terminal as? SshCmuxTerminal)?.let { view.owner?.release(it) } } }
+    DisposableEffect(view) { onDispose {
+        (view?.terminal as? SshCmuxTerminal)?.let { view.owner?.release(it) }
+        view?.browser?.close()
+    } }
     fun act(action: suspend () -> Unit) {
         if (busy) return
         busy = true; failure = null
@@ -110,13 +114,23 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     LaunchedEffect(tmux, cmux, recovery, selection, retry, cmuxState.providers) {
         val expected = selection ?: return@LaunchedEffect
         val current = opened
-        if (current?.reference == expected && current.terminal.state.value.phase != SshShellPhase.ENDED &&
+        if (current?.reference == expected && ((current.terminal != null && current.terminal.state.value.phase != SshShellPhase.ENDED) || current.browser?.closed == false) &&
             (current.owner == null || current.owner in cmuxState.providers)) return@LaunchedEffect
         restoring = true; failure = null
         try {
             check(expected.startsWith("$hostId\n")) { "This saved terminal belongs to another computer" }
             val target = checkNotNull(SshWorkspaceTarget.decode(expected.substringAfter('\n'))) { "Could not restore this saved terminal" }
             val next = when (target) {
+                is SshWorkspaceTarget.Browser -> {
+                    cmux.state.first { !it.loading }
+                    val provider = cmux.forSelection(target.selection)
+                    val state = provider.state.first { !it.loading }
+                    check(!state.ended && state.error == null) { state.error ?: "cmux-tui session disconnected" }
+                    val row = checkNotNull(state.tree?.let { target.selection.resolve(provider.session, it) }) {
+                        "This browser moved, ended or was replaced"
+                    }.second
+                    SshWorkspaceView(expected, owner = provider, browser = provider.browser(target.selection), title = row.name ?: row.title)
+                }
                 is SshWorkspaceTarget.Shell -> {
                     val shell = checkNotNull(shells.firstOrNull { it.hostId == hostId && it.id == target.id }) {
                         "This local shell ended. Go back to open a new shell."
@@ -139,7 +153,10 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                 }
             }
             if (selection == expected) opened = next
-            else (next.terminal as? SshCmuxTerminal)?.let { next.owner?.release(it) }
+            else {
+                (next.terminal as? SshCmuxTerminal)?.let { next.owner?.release(it) }
+                next.browser?.close()
+            }
         } catch (error: Exception) {
             currentCoroutineContext().ensureActive()
             if (selection == expected) failure = error.message ?: "Could not open terminal"
@@ -156,7 +173,10 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         }
         if (files && terminal != null) SshFilesSheet(session, hostId, terminal) { files = false }
         browser?.let { SshBrowserSheet(it) { browser = null } }
-        if (terminal != null) SshShellScreen(terminal, reconnecting || restoring || busy, reconnectError ?: failure, reconnect, onFiles = { files = true },
+        val streamed = opened?.takeIf { it.reference == selection }?.browser
+        if (streamed != null) NativeBrowserView(streamed, streamed.panelId, opened?.title.orEmpty(), ::leave,
+            onReconnect = { onReconnect(); retry++ })
+        else if (terminal != null) SshShellScreen(terminal, reconnecting || restoring || busy, reconnectError ?: failure, reconnect, onFiles = { files = true },
             onBrowser = { act {
                 val target = checkNotNull(SshWorkspaceTarget.decode(checkNotNull(selection).substringAfter('\n')))
                 browser = SshBrowserPresentation(session.browsers.network(hostId), sshBrowserWorkspace(target, terminal.title))
@@ -226,10 +246,12 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                                     }
                                     for (tab in pane.tabs) {
                                         val title = tab.name?.takeIf { it.isNotBlank() } ?: tab.title.ifBlank { if (tab.isBrowser) "Browser" else "Terminal" }
-                                        TextButton(onClick = { select(SshWorkspaceTarget.Cmux(SshCmuxSelection.capture(provider.session, checkNotNull(tree), workspace, tab))) },
-                                            enabled = available && !state.ended && tab.isTerminal && !tab.dead,
+                                        TextButton(onClick = {
+                                            if (tab.isBrowser) select(SshWorkspaceTarget.Browser(SshCmuxBrowserSelection.capture(provider.session, checkNotNull(tree), workspace, tab)))
+                                            else select(SshWorkspaceTarget.Cmux(SshCmuxSelection.capture(provider.session, checkNotNull(tree), workspace, tab)))
+                                        }, enabled = available && !state.ended && (tab.isTerminal || tab.isBrowser) && !tab.dead,
                                             modifier = Modifier.testTag("ssh.cmux.terminal.${workspace.key}.${tab.surface}")) {
-                                            Text(title + when { tab.dead -> " · Ended"; !tab.isTerminal -> " · Unavailable"; else -> "" })
+                                            Text(title + when { tab.dead -> " · Ended"; !tab.isTerminal && !tab.isBrowser -> " · Unavailable"; else -> "" })
                                         }
                                     }
                                 }

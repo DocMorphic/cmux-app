@@ -28,6 +28,7 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
     private var subscribeAgain = false
     private var closed = false
     private var resourceScope: Pair<String, String>? = null
+    private val browsers = mutableSetOf<SshCmuxBrowserStream>()
     private val terminals = mutableMapOf<String, SshCmuxTerminal>()
     init {
         scope.launch(start = CoroutineStart.UNDISPATCHED) { try { awaitCancellation() } finally { close() } }
@@ -52,6 +53,8 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
             if (row == null || row.surface != terminal.tab.surface) { terminals.remove(id); terminal.close() }
             else terminal.update(row)
         }
+        browsers.toList().forEach { it.validate(tree) }
+        browsers.removeAll { it.closed }
         return tree
     }
     fun refresh() {
@@ -194,6 +197,16 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
           throw failure
       }
     }
+    fun browser(selection: SshCmuxBrowserSelection): SshCmuxBrowserStream {
+        guard()
+        browsers.removeAll { it.closed }
+        check(browsers.size < 16) { "Close a browser before opening another" }
+        return SshCmuxBrowserStream(selection, control, scope, resolve = {
+            operations.withLock {
+                checkNotNull(selection.resolve(session, read())) { "This browser moved, ended or was replaced" }.second
+            }
+        }, admitted = ::allowed).also { browsers.add(it) }
+    }
     private fun allowed() = !closed && job.isActive && admitted() && !control.closed
     fun release(terminal: SshCmuxTerminal) {
         terminal.visible(false)
@@ -203,6 +216,7 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
     }
     override fun close() {
         if (closed) return
+        browsers.toList().forEach { it.close() }; browsers.clear()
         closed = true; control.onEvent = null; job.cancel(); control.close()
         terminals.values.toList().forEach { it.close() }; terminals.clear()
         mutable.value = mutable.value.copy(loading = false, ended = true)

@@ -42,11 +42,11 @@ internal class BrowserLens {
 
 @Composable
 internal fun BrowserPageSurface(frame: BrowserFrame, queue: BrowserInputQueue, motion: BrowserScrollMotion,
-    generation: Long, enabled: Boolean, onTap: () -> Unit, modifier: Modifier = Modifier) {
+    generation: Long, enabled: Boolean, onTap: () -> Unit, modifier: Modifier = Modifier, pageDescription: String = "Mac browser page") {
     val lens = remember(queue) { BrowserLens() }
     var measured by remember(queue) { mutableStateOf(IntSize.Zero) }
     Canvas(modifier.fillMaxSize().clipToBounds().onSizeChanged { measured = it }
-        .semantics { contentDescription = "Mac browser page" }
+        .semantics { contentDescription = pageDescription }
         .browserScrollGestures(motion, frame.pageWidth, frame.pageHeight, measured, generation, enabled, lens) { point, clicks ->
             onTap(); queue.offer(BrowserInput.Click(point.x, point.y, clicks))
         }) {

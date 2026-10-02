@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Streamed SSH browser renderer (2026-10-02):** existing browser rows now
+resolve stable browser/workspace identities and open the shared renderer through
+an SSH-only adapter. Guarded frame acknowledgements, PNG validation, viewport,
+input and attachment retirement are integrated. Thirty JVM checks and ten Android
+checks passed (73.315 seconds, API 37 / 16 KiB), including all seven native Mac
+browser regressions. Fixed a stale initial viewport and an invisible IME endpoint
+intercepting center taps; keyboard focus remains functional. Debug/test APKs and
+16 KB validation passed; screenshot inspected. Mode switching, live CDP and
+physical/workspace-route acceptance remain open. [Evidence](DIRECT_SSH.md).
+
 **Streamed SSH browser protocol (2026-10-02):** added separate guarded browser
 attachments, frame/token presentation tracking, CDP input/navigation, resize and
 lease detach. Twenty-five JVM checks passed, including the pinned cmux-tui binary's

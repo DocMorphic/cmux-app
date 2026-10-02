@@ -14,7 +14,79 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the SSH
-streamed-browser protocol checkpoint is the latest implementation status.
+streamed-browser renderer checkpoint is the latest implementation status.
+
+## Streamed SSH browser renderer and selection (2026-10-02)
+
+Existing cmux-tui browser rows now open the shared Android streamed-browser UI.
+`BrowserStreamClient` gives the native Mac and SSH routes distinct adapters:
+SSH browser identities never enter `MobileRpcClient`. The SSH adapter emits the
+same PNG/page-state shapes consumed by the existing decoder, lens/gesture surface,
+address controls, keyboard, ordered input queue and lifecycle recovery. The Mac
+adapter preserves subscriptions, dialogs, navigation and last-image reconnect
+behavior. SSH restarts clear the old image and acquire new presentation authority.
+
+`SshCmuxBrowserSelection` and saved workspace targets carry browser content,
+workspace, registry, owner generation and tab identities separately from terminal
+selections. Every attachment re-lists and resolves its content. Numeric identities
+cannot restore across owner generations, browser content cannot resolve a PTY,
+and provider refresh retires an attachment whose content disappears or changes
+surface. Account/transport retirement closes the provider. A late old-stream stop
+cannot detach a new attachment. Frame buffering is bounded; overflow retires the
+view instead of silently losing metadata while continuing input.
+
+The viewport uses measured CSS points and the owner's cell dimensions, with no
+terminal-exclusive sizing. Only a changed cell grid sends a resize. PNG headers,
+encoded size and decoded dimensions are checked before display; only displayed
+image sequences enter the existing pointer-token acknowledgement path. Unknown
+input delivery still pauses the queue and is never replayed. A gesture definitely
+not sent because resize revoked its pointer token is discarded, matching iOS,
+without incorrectly pausing subsequent keyboard/navigation input. SSH history
+availability is not advertised by this wire protocol, so back/forward commands
+remain available while attached instead of being permanently disabled.
+
+Runtime checks exposed two shared-renderer issues. The initial size callback could
+wake the stream before recomposition updated the derived viewport, producing a
+1×1 attach; stream startup now reads the measured dimensions directly. The invisible
+IME endpoint over the center of the image intercepted center taps. It now occupies
+a 1 dp layout slot in the header; a zero-size experiment restored taps but
+prevented Android IME focus and was rejected. Native Mac reconnects retain their
+last image; changing that behavior in the first adapter revision was reverted.
+The SSH wire fixture also now emits fresh frames after resize, as a live provider
+must, rather than expecting revoked pointer permission to remain usable.
+
+**Verification:** all **30 focused JVM tests** passed with no skipped cases:
+six new selection/adapter checks, fourteen wire/guard/control checks, eight provider
+checks and two saved-target checks. Both debug and instrumentation APKs built.
+The final API 37 / **16,384-byte page** emulator run passed **10 Android tests in
+73.315 seconds**, with no skipped cases: three new SSH renderer tests and all seven
+existing native Mac browser tests. The SSH cases assert actual decoded pixel color,
+center-tap coordinates and pointer tokens, malformed-image rejection, address/back
+commands, initial nonzero viewport, background detach, lower frame sequences on
+reattach and exit cleanup. Mac keyboard/IME, dialogs, navigation, viewport, frame
+filtering, scroll and reconnect checks also passed. The final screenshot was
+inspected. These are deterministic wire fixtures, not a live CDP provider.
+
+All packaged native ELF LOAD/RELRO segments and both APK ZIP alignments passed
+16 KB validation. Final local APK SHA-256 values:
+
+- Debug: `633392d600a4e17def04b0cd06accb3d20fd7c96e5b9860605ba3700b6cafc0b`
+- Instrumentation: `630d5f44e58f4e70e5e3a8de56e11a3ffb57b761558a172856683ebceaf77efd`
+
+Final build/run/logcat/command/screenshot evidence is ignored under
+`captures/runtime/ssh-audit/ssh-stream-renderer-ime-*`; JVM XML is under
+`ssh-stream-renderer-jvm`. Earlier failed build/runtime logs remain under the
+`ssh-stream-renderer-*`, `-resize-*` and `-viewport-*` prefixes. The single existing
+`cmux_api37_16k` AVD was stopped before each build and after verification; no AVD
+was added and no physical device was connected.
+
+This checkpoint does not prove a real CDP provider, remote Chrome pointer effects,
+workspace-row navigation against a real SSH host, physical Pixel/Mac acceptance,
+or complete iOS visual parity. Remaining: Streamed/On Android mode switching with
+linked-page preference, full workspace browser inventory, real CDP frames/input,
+reconnect/content replacement on a live server, and physical acceptance. The
+on-device SSH browser's HTTPS/WebSocket/upload and broader retirement checks also
+remain open. No signed release or broad upstream implementation pin is advanced.
 
 ## Streamed SSH browser protocol (2026-10-02)
 
