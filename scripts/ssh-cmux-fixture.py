@@ -29,7 +29,9 @@ async def main():
     parser.add_argument("--tmux", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--install", action="store_true", help="Require the phone to install into the private HOME over SFTP")
+    parser.add_argument("--chrome", type=Path, help="Opt-in private real Chrome browser fixture")
     args = parser.parse_args()
+    if args.chrome and args.install: parser.error("Choose browser or installation fixture")
     binary = str(args.cmux_tui.resolve(strict=True)); tmux = str(args.tmux.resolve(strict=True))
     root = Path(tempfile.mkdtemp(prefix="cs-", dir="/tmp"))
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -105,7 +107,9 @@ async def main():
             await control.request(operation="terminal.close", params={**scope, "terminal": terminal["id"]})
         tree = await control.request("list-workspaces")
         for workspace in tree["workspaces"]: await control.request("close-workspace", {"key": workspace["key"]})
+    browser = None
     async def reset():
+        if browser: await browser.detach()
         await cli("server", "ensure", "--session", session, "--json")
         control = await wire()
         try:
@@ -115,6 +119,7 @@ async def main():
             created = await control.request("create-terminal", {"key": key, "argv": ["/bin/cat"], "cols": 100, "rows": 30})
             await control.request("send", {"surface": created["surface"], "bytes": base64.b64encode("\x1b[32mRemote cmux λ 中\x1b[0m\x1b[?2004h\n".encode()).decode()})
         finally: await control.close()
+        if browser: await browser.reset(wire)
         if "cmux-android" in owned_sessions:
             await cli("server", "ensure", "--session", "cmux-android", "--json")
             phone = await wire("cmux-android")
@@ -129,11 +134,16 @@ async def main():
     key = asyncssh.generate_private_key("ssh-ed25519")
     user = "cmux-fixture-" + secrets.token_hex(12)
     class Server(asyncssh.SSHServer):
+        def connection_requested(self, dest_host, dest_port, orig_host, orig_port):
+            return bool(browser and dest_host in ("127.0.0.1", "localhost") and dest_port == browser.port)
         def begin_auth(self, username): return True
         def public_key_auth_supported(self): return True
         def validate_public_key(self, username, public_key): return username == user
     allowed = {"identify", "set-client-info", "subscribe", "list-workspaces", "create-workspace", "create-terminal", "close-workspace",
                "new-screen", "new-tab", "split", "attach-surface", "set-client-sizing", "send", "resize-attached-view", "resize-surface", "release-attached-view-size", "detach-attached-view"}
+    if args.chrome:
+        allowed.update({"get-cell-pixels", "browser-frame-presented", "browser-mouse-guarded", "browser-wheel-guarded",
+            "browser-insert-text", "browser-key-press", "browser-navigate", "browser-back", "browser-forward", "browser-reload"})
     def relay_line(line):
         if len(line.encode()) > 1024 * 1024: raise ValueError("Oversized fixture request")
         value = json.loads(line)
@@ -149,6 +159,8 @@ async def main():
         child = None
         try:
             tokens = shlex.split(proc.command or "")
+            if tokens == ["fixture-browser-status"] and browser:
+                proc.stdout.write(json.dumps({"events": browser.events})); proc.exit(0); return
             if tokens == ["fixture-owner-status"]:
                 proc.stdout.write(json.dumps({"phone": socket.with_name("cmux-android.sock").is_socket(),
                     "desktop": socket.is_socket(), "phoneEnsures": phone_ensures})); proc.exit(0); return
@@ -244,16 +256,23 @@ async def main():
         await cli("server", "ensure", "--session", session, "--json")
         socket = root / "run" / f"cmux-tui-{os.getuid()}" / f"{session}.sock"
         assert socket.is_socket(), socket
+        if args.chrome:
+            browser_spec = importlib.util.spec_from_file_location("browser_fixture", Path(__file__).with_name("ssh-cmux-browser-fixture.py"))
+            browser_module = importlib.util.module_from_spec(browser_spec); browser_spec.loader.exec_module(browser_module)
+            browser = browser_module.BrowserFixture(args.chrome.resolve(strict=True), root, spawn)
+            await browser.start()
         await reset()
         listener = await asyncssh.create_server(Server, "127.0.0.1", 0, server_host_keys=[key], process_factory=handle, sftp_factory=install.sftp if args.install else None, encoding="utf-8")
         args.output.write_text(json.dumps({"port": listener.get_port(), "username": user, "hostKey": key.export_public_key().decode().strip(),
-                                           "nonce": "cmux-install" if args.install else "cmux", "silentPort": 0}) + "\n")
+                                           "nonce": "cmux-install" if args.install else "cmux-browser" if browser else "cmux", "silentPort": 0,
+                                           **({"browserPort": browser.port} if browser else {})}) + "\n")
         print(json.dumps({"ready": True, "port": listener.get_port(), "root": str(root)}), flush=True)
         await stop.wait()
     finally:
         if listener: listener.close(); await listener.wait_closed()
         for child in list(children):
             if child.returncode is None: child.terminate(); await child.wait()
+        if browser: await browser.close()
         await tmux_run("kill-server", allow_failure=True)
         # Do not erase durable state if terminal-host cleanup fails.
         for owner in owned_sessions:

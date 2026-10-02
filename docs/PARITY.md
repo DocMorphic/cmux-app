@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Integrated Android SSH/Chrome browser (2026-10-02):** the real workspace route,
+SSH transport, cmux-tui provider, Chrome pixels/click/keyboard input, address-bar
+navigation, routed On Android mode and mode restoration now pass together on the
+API 37 / 16 KB emulator (one full workflow, 35.223 seconds, no skips). Eighteen
+focused JVM checks and both APK builds/alignment checks also passed. The external
+provider still reports URL-based streamed titles; this is recorded as an open
+metadata gap. [Evidence and remaining boundaries](DIRECT_SSH.md) include HTTPS,
+provider reconnect and physical Pixel/Mac acceptance. No signed release changed.
+
 **Real browser-provider HTTP startup (2026-10-02):** resolved the private Chrome
 fixture's stalled cookie-key initialization using Chromium's mock-keychain test
 option. The actual cmux-tui/CDP test now defaults to HTTP and passes all frame,

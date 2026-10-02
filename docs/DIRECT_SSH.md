@@ -14,7 +14,68 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the SSH
-real browser-provider checkpoint is the latest implementation status.
+integrated Android browser checkpoint is the latest implementation status.
+
+## Integrated Android SSH/Chrome browser (2026-10-02)
+
+`SshBrowserWorkspaceTest` now exercises the actual Android workspace route with
+production SSH, the pinned cmux-tui 0.13.4 binary and a private Chrome 153 provider.
+The strict emulator runner reports **OK (1 test), 35.223 seconds, no skips**, on
+API 37 with a **16,384-byte kernel page size**. This closes the earlier separation
+between JVM/CDP tests and Android component fixtures for this HTTP workflow:
+
+- Open the browser from the real cmux-tui workspace inventory; inspect decoded
+  green page pixels in Compose.
+- Tap the rendered button and type `a` using Android keyboard input; independently
+  observe the page's HTTP DOM callbacks on the host fixture.
+- Navigate using the app's address bar and verify the next page's blue pixels.
+- Switch to On Android, render the host page through SSH direct-tcpip, return to
+  workspaces, reopen the remembered phone mode, switch back to Streamed, and
+  reopen the same surviving browser resource with the expected blue page.
+
+Only the SSH port is forwarded by adb. The HTTP port is reachable through the
+fixture's exact-host/exact-port SSH allowlist; no phone-side HTTP forwarding is
+installed. Provider registration uses a separate persistent local wire. Chrome
+has a disposable profile and mock-keychain flag; cleanup stops that browser,
+private cmux/tmux owners, and removes their temporary state. No personal sessions
+or browser profile are used. Only the existing `cmux_api37_16k` AVD was used and
+it was stopped after the test; no AVD was added.
+
+The first two runs exposed a provider metadata limitation: this external CDP
+provider supplied the URL as its streamed title even when Chrome's target title
+was the document title. The Android header faithfully displays that value.
+The final test asserts pixels, DOM effects and routed WebView titles independently;
+it does **not** establish streamed document-title parity. Initial failed logs and
+an inspected screenshot remain in `chrome-workspace-android{,-2}`. Final logs,
+APK hashes and inspected Streamed/On Android screenshots are in ignored
+`captures/runtime/ssh-audit/chrome-workspace-android-4` (the earlier full pass was
+42.08 seconds in `chrome-workspace-android-3`). Reset after the final full run was
+also checked: exactly one fresh `/start` target remained, the old `/next` target
+was closed, its target ID changed, and DOM callback state was empty. The fixture
+therefore does not depend on page state from a previous run.
+
+Both APKs built; 18 focused JVM checks passed with no skips. Native LOAD/RELRO
+and both APK ZIP alignments passed the 16 KB checks. Debug APK SHA-256:
+`68248760c0ee95ae56613ee81bda0a5e3b78d0a524bab23c4e29ced5c29ace4c`.
+Final test APK SHA-256:
+`e651d6e1530fee6d41f5f2224b7198a26fda2bb95df6f438c73df513ea502a9b`.
+No signed APK was published. This is not physical Pixel/Mac acceptance, HTTPS,
+WebSocket, upload, provider reconnect, account or process-death coverage.
+
+Run the opt-in fixture with the existing AsyncSSH environment, then the runner:
+
+```sh
+python scripts/ssh-cmux-fixture.py --cmux-tui /absolute/path/to/cmux-tui \
+  --tmux /absolute/path/to/tmux --chrome /absolute/path/to/Chrome \
+  --output captures/runtime/ssh-audit/browser-fixture.json
+python3 scripts/check-ssh-transport.py --serial emulator-5554 --cmux-browser \
+  --fixture captures/runtime/ssh-audit/browser-fixture.json \
+  --output captures/runtime/ssh-audit/browser-android
+```
+
+Build before starting the emulator on this 8 GB Mac. Stop the fixture with SIGINT
+or SIGTERM so its scoped cleanup runs. The runner rejects physical-device serials
+and a wrong/missing fixture cannot count as a successful skipped test.
 
 ## Real browser provider HTTP startup resolved (2026-10-02)
 
