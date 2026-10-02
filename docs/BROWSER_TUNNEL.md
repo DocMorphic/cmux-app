@@ -1,5 +1,42 @@
 # Mac browser tunnel — 2026-09-30
 
+## Prepared full physical browser UI journey — 2026-10-02
+
+`LiveNativeBrowserUiCheck` is prepared to exercise the actual MainActivity pairing-link
+path and browser presentation against the existing account's single discovered
+NIGHTLY Mac. It creates only its own uniquely named workspace, retains the
+intended NIGHTLY pairing, verifies that prior saved pairings/sign-in remain, opens
+the terminal menu's New Browser action, switches Streamed → On Android, edits
+the production address field, follows a real page link, checks browser back/forward
+and returns through the workspace list to the last committed page. Screenshots
+are saved privately. The workspace is closed once and its absence verified; an
+app-private ownership receipt guards interrupted runs against blind retries.
+
+The companion runner owns a Mac loopback-only HTTP fixture serving two generated
+pages, installs only the test APK with `-r`, captures instrumentation evidence and
+screenshots, closes the fixture listener and restores the original plugged-in
+screen setting in `finally`. It requires an unlocked physical Pixel, the existing
+signed-in debug app, and a built test APK:
+
+```sh
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 ANDROID_HOME=/Users/dharmaydave/Library/Android/sdk \
+  ./gradlew --no-daemon --max-workers=1 :app:assembleDebugAndroidTest
+python3 scripts/check-live-browser-ui.py --serial DEVICE
+```
+
+**Runtime is pending.** Test assembly passed in 29 s and test APK 16 KB ZIP
+alignment passed; Python syntax and CLI help checks passed. The initial runner
+attempt exited 2 at its locked-device guard, before creating its output directory,
+starting the listener, installing the test APK or launching instrumentation.
+Phone sleep setting remains 0. This is gate evidence, not a passing browser test.
+Built test APK SHA-256:
+`e96fb173e4ec4a16e9c3ff670317f99c16d95b2bc6d76ba7f2b0395e634fe94d`.
+It has **not** been installed; the Pixel retains the prior retry-check test APK
+`487a41d96b480338d54ed79d51932faef310541fc3ee1e5b844b882e89746ef9`.
+Production debug APK and signed build 385 are unchanged. Ignored build/guard logs
+are in `captures/runtime/pixel-resume-20261002/browser-ui-*`. The phone unlock
+request is pending; no full UI/browser acceptance is claimed.
+
 ## Physical NIGHTLY discovery and native HTTP — 2026-10-02
 
 The physical Pixel authenticated to the staged official NIGHTLY host through

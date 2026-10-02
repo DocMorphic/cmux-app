@@ -12,6 +12,13 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Full physical browser journey prepared (2026-10-02):** a real MainActivity
+pairing/New Browser/On Android/address/history/reopen check and owned Mac HTTP
+runner now compile. The runner stopped at the Pixel lock guard before any install,
+listener or pairing change, so UI acceptance remains pending. Existing signed
+build 385 and phone installation are unchanged.
+[Run command and exact scope](BROWSER_TUNNEL.md#prepared-full-physical-browser-ui-journey--2026-10-02).
+
 **Real identified-input duplicate suppression verified (2026-10-02):** the
 Pixel/NIGHTLY check passed in 10.71 s: retry identical bytes/identity after a new
 connection, require DUPLICATE, send the next sequence and require APPLIED, then
