@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Authenticated notify/dismiss ingress (2026-10-02):** added pinned-peer payload
+opening, strict expiry/content/identity checks, bounded encrypted replay/dismiss
+state and a provider-neutral Android notification delivery entry point. Mac
+notification IDs remain distinct from local fallback IDs; routes commit before
+banners appear. All 28 JVM checks passed, including real Swift/CryptoKit vectors;
+13 Android regression cases passed, followed by four final delivery cases after
+the route-ordering fix (18.5 seconds, API 37 / 16 KB, zero skips). Both APK/alignment
+gates passed. [Evidence and remaining integration](PUSH_DELIVERY.md#authenticated-notifydismiss-ingress-2026-10-02)
+leave provider registration/delivery, RemoteInput, foreground suppression, badge
+behavior and physical acceptance open. No signed release changed.
+
 **Background reply scheduling and failure notices (2026-10-02):** added a
 persistent WorkManager send chain, current-account/team/Mac validation, exact-body
 retry recovery, boot/startup recovery and private content-free failure notices.

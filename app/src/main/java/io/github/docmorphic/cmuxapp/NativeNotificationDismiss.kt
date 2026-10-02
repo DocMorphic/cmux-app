@@ -22,6 +22,7 @@ internal class NativeNotificationDismissOutbox(private val state: JSONObject) {
         }.distinct()
     }
     fun enqueue(route: NotificationDestination) {
+        if (!route.dismissible) return
         prune()
         val login = login() ?: return
         if (route.login != login) return

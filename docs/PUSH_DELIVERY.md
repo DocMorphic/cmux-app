@@ -479,3 +479,110 @@ Final evidence: `captures/runtime/phone-reply-work-delayed-build.txt` and
 `captures/runtime/phone-reply-work/{final-jvm,final-android.txt,final-alignment.txt,device.txt}`.
 The existing emulator was reused and stopped. No signed release, physical-device
 installation, push registration, native listener or upstream parity pin changed.
+
+
+## Authenticated notify/dismiss ingress (2026-10-02)
+
+`PhonePushMessage` opens the `cmux` dictionary's `encryptedPayloads` using the
+current account's existing phone key and the independently pinned Mac tuple/key.
+The caller supplies an independently admitted team and saved Mac; ciphertext
+cannot enroll a key, select credentials or authorize its own source. Recipient
+build, account, installation, sender and saved route are checked. Ambiguous
+matching envelopes, plaintext-only messages, invalid UTF-8/JSON, expired payloads,
+wrong types and oversize fields fail before delivery. Unencrypted outer content,
+identity, expiry and Reply metadata are ignored.
+
+The typed notify/dismiss fields follow the pinned Mac
+[PhonePushRequestEnvelope](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/macOS/CmuxPhonePush/Sources/CmuxPhonePush/PhonePushRequestEnvelope.swift).
+The active [Mac encoder](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Sources/Cloud/PhonePushClient.swift)
+uses a 120-second event lifetime and places the Mac's installation/build/public
+key in the encrypted plaintext. Android rejects any provided plaintext identity
+that contradicts the pinned envelope. The [iOS notification extension](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/ios/NotificationService/NotificationService.swift)
+opens notify content, while the [app delegate](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/ios/cmux/CmuxAppDelegate.swift)
+opens silent dismissal content and refuses to establish a peer pin from push data.
+Android applies expiry checks to both operations.
+
+Only authenticated `category == cmux.terminal.reply` plus `replyShape == text`
+and a usable surface/workspace-or-retarget destination classify as reply-capable.
+This flag does **not yet add a RemoteInput action**. Hidden-content messages are
+redacted before creating the native notification model. A missing Mac notification
+ID gets a local correlation-based identifier for presentation, with dismissal
+explicitly disabled; that synthetic identifier is never sent to the Mac.
+
+`PhonePushInbox` stores bounded, content-free correlation records and dismissal
+tombstones in the account-encrypted transaction. It retains unexpired protection
+when full and returns `FULL` rather than evicting an older protected event. Limits
+are 4,096 correlations and 4,096 dismissed IDs across the login. Duplicate events
+and a late notify following its dismissal cannot repost within the retained
+window. Expiry, login replacement, forgotten Macs and safe pairing alias repair
+are reconciled on credential updates. Key rotation does not let an already opened
+message adopt the new peer key.
+
+`NativeNotificationDelivery.receivePush` requires explicit current account/team
+admission and the existing notification opt-in. Under the credential transaction,
+it rechecks ownership, admits replay state, then stores the opaque tap route and
+posts/cancels the system banner. Push notifications can arrive before the first
+feed baseline; later feed observation stays quiet. Feed/push duplication is
+suppressed by the shared notification ledger. Programmatic remote dismissal never
+queues an Android-to-Mac swipe. Disabled system channels prevent notify delivery;
+authenticated dismissals can still clean up.
+
+This entry point is independent of a push provider. **No FCM registration/service,
+Mac forwarding helper or production payload delivery is wired yet.** The pending
+provider decision still applies. Its future receiver must refresh/verify account
+membership and supply the current-admission callback, constrain the provider's
+wire size, and handle lifecycle/cancellation. Numeric badge updates, foreground
+selection suppression, RemoteInput actions and physical push/reply acceptance
+remain open. Ordinary feed banners still have no Reply action.
+
+### Notify/dismiss verification
+
+**28 focused JVM tests passed, zero failures/errors/skips:** seven message/inbox
+cases, five HPKE cases, ten notification-ledger cases and six dismissal cases.
+The new cases open actual pinned-Mac payloads encrypted with Apple CryptoKit and
+cover trusted notify/dismiss fields, outer-metadata injection, no plaintext
+fallback, expiry/types/bounds, reply confinement, redaction, absent IDs,
+replay/dismiss ordering, saturated-cache behavior and key/account/forget fences.
+
+`scripts/check-phone-push-messages.py` compiles the pinned Mac payload encoder
+and CryptoKit implementation. The crypto source is copied unchanged up to its
+existing Keychain boundary. The payload encoder only loses its package import;
+an inert fixture `AuthenticatedSessionSnapshot` satisfies its unused `belongs`
+method. Payload construction/encryption code is unchanged. The fixture uses
+fixed public test keys and accesses no Keychain, account or network service.
+The committed vectors make ordinary JVM tests independent of macOS/Swift.
+
+Regenerate intentionally with:
+
+```sh
+python3 scripts/check-phone-push-messages.py --upstream /path/to/cmux-checkout \
+  --write-vectors app/src/test/resources/push/apple-push-messages.json
+```
+
+**Android initial regression run: OK (13 tests), 64.427 seconds**, API 37 /
+16,384-byte pages, zero skips. Four new push-delivery cases, two encrypted-key/
+reply-storage cases and seven notification service/delivery/swipe cases passed.
+The push cases use actual encrypted storage, local HPKE and NotificationManager;
+they do not register with or contact a remote push provider.
+
+Review then found that the new delivery method posted its banner inside the
+route-store transaction, before that transaction committed. Posting now occurs
+only after route persistence completes, while account mutation is still fenced.
+The final **four affected Android cases passed in 18.5 seconds**, zero skips.
+The strengthened test reconstructs the route from another store/delivery object
+at the final admission gate, asserts no banner is visible yet, then verifies
+normal delivery. Other checks cover duplicate/feed-baseline behavior, remote
+cancellation without a swipe outbox entry, dismiss-before-notify, missing-ID
+banners without a DeleteIntent, and expiry/opt-out/account retirement.
+This is not a real process-kill, Doze, physical Pixel/Mac or provider-delivery test.
+
+Final APK builds, all five native LOAD/RELRO checks and both 16 KB ZIP checks
+passed. Final SHA-256:
+
+- Debug: `7b4e67ab34ed49d3f22fed7d3109b9cb04bd22b8774aedf3fb070ad3a7b673de`
+- Test: `6a13936aae0d8750c34fd4ab434971585cc1b3406d3d09d22cda20cf41be3944`
+
+Evidence: ignored `captures/runtime/push-messages/`, including upstream source
+hashes/Swift output, JVM XML, both Android runs, final alignment and device receipts.
+The existing emulator was reused and stopped. No signed release, production
+registration, listener, physical installation or broad parity reference changed.

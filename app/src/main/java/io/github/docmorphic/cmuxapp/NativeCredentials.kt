@@ -135,6 +135,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         transform(value)
         NativeNotificationDismissOutbox(value).prune()
         PhonePushKeyState(value).prune()
+        PhonePushInbox(value).prune()
         PhoneReplyOutbox(value).prune()
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key())

@@ -65,6 +65,50 @@ internal class NativeNotificationDelivery(private val context: Context) {
         if (isCurrent()) ids else emptyList()
     }
 
+    /** Provider-neutral encrypted-push lane. The transport must supply current account/team admission. */
+    fun receivePush(message: PhonePushMessage, isCurrent: () -> Boolean): PhonePushAdmission = synchronized(lock) {
+        if (!NativeNotificationService.isEnabled(context) || !isCurrent()) return@synchronized PhonePushAdmission.RETIRED
+        var result = PhonePushAdmission.RETIRED
+        val account = NativeCredentialStore(context)
+        account.update { state ->
+            if (!NativeNotificationService.isEnabled(context) || !isCurrent() || !message.permits(state)) return@update
+            val origin = checkNotNull(PhonePushKeyState(state).canonicalOrigin(message.team, message.origin))
+            val mac = account.pairedMacs().singleOrNull { it.origin == origin } ?: return@update
+            val item = message.notification
+            // Dismissals still reconcile while the system notification channel is disabled.
+            if (item != null) {
+                manager.createNotificationChannel(NotificationChannel(ALERT_CHANNEL,
+                    "cmux agent notifications", NotificationManager.IMPORTANCE_HIGH))
+                if (!manager.areNotificationsEnabled() || manager.getNotificationChannel(ALERT_CHANNEL)?.importance == NotificationManager.IMPORTANCE_NONE)
+                    return@update
+            }
+            result = PhonePushInbox(state).admit(message, System.currentTimeMillis())
+            if (result != PhonePushAdmission.ACCEPTED) return@update
+            var destination: NotificationDestination? = null
+            var cancelled = emptyList<String>()
+            store.update { notifications ->
+                val ledger = NativeNotificationLedger(notifications)
+                ledger.coalesce(origin, mac.previousOrigins)
+                if (item == null) {
+                    ledger.rememberHandled(origin, message.dismissedIDs)
+                    cancelled = ledger.destinations().filter { it.origin == origin && it.login == message.team.login &&
+                        it.notificationId in message.dismissedIDs }.map { it.routeId }
+                } else if (!ledger.wasHandled(origin, item.id)) {
+                    destination = ledger.stage(origin, item, message.team.login, message.hasNotificationID)
+                }
+            }
+            cancelled.forEach(::cancel)
+            // The encrypted route transaction must commit before NotificationManager
+            // exposes its PendingIntent, including an immediate tap or process death.
+            destination?.let { route ->
+                if (!isCurrent()) { result = PhonePushAdmission.RETIRED; return@let }
+                manager.notify(tag(route.routeId), ALERT_ID, buildAlert(route, mac.name, checkNotNull(item)))
+                store.update { NativeNotificationLedger(it).rememberHandled(origin, listOf(item.id)) }
+            }
+        }
+        result
+    }
+
     fun clearHandled(origin: String, ids: List<String>, isCurrent: () -> Boolean) = synchronized(lock) {
         if (ids.isEmpty() || !isCurrent()) return@synchronized
         var routes = emptyList<String>()
@@ -119,7 +163,7 @@ internal class NativeNotificationDelivery(private val context: Context) {
             .setContentTitle(NativeSearchText.prefix(item.title.ifBlank { "cmux" }, 160))
             .setSubText(computer).setContentText(body)
             .setStyle(Notification.BigTextStyle().bigText(body))
-            .setContentIntent(pending).setDeleteIntent(dismiss).setAutoCancel(true).setOnlyAlertOnce(true)
+            .setContentIntent(pending).setDeleteIntent(if (destination.dismissible) dismiss else null).setAutoCancel(true).setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PRIVATE).build()
     }
 
