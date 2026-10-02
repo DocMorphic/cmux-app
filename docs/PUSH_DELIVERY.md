@@ -1091,3 +1091,24 @@ nineteen-case log, repaired three-case log, build/alignment logs, API/page-size
 receipt, system hierarchy and inspected captures. The single AVD was reused and
 stopped. No physical phone installation, signed release, push-provider setup or
 broad parity reference changed.
+
+
+### NIGHTLY detach semantics for direct replies — 2026-10-03
+
+Audited the installed NIGHTLY source at `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
+`MobileShellComposite.sendRemoteTerminalPaste` gates direct traffic on the retained
+terminal attachment state, while `MobilePushCoordinator.applyPendingReplyIfReady`
+may use the encrypted relay when direct paste returns false. Consequently, detach
+is not treated as revocation of a fresh notification-reply action.
+
+Android now retains detach per account/team/Mac/build/surface across navigation and
+applies it to both selected-terminal and secondary-feed direct attempts. Secondary
+leases also check the owner's gate at the RPC write boundary. Already-prepared
+attempts that become detached before delivery are unavailable without writing.
+The existing encrypted relay remains usable for provably unwritten actions; the
+durable fence still prohibits relaying an uncertain direct write.
+
+The combined sizing/feed/direct/outbox regression run passed **68 JVM tests** with
+no failures/errors/skips. This is deterministic/local-socket evidence, not live push
+provider acceptance. No provider setup, cloud deployment or phone installation was
+performed. See `TERMINAL_SHARED_SIZING.md` for exact scope and remaining physical gates.

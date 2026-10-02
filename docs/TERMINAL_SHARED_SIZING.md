@@ -43,7 +43,7 @@ and policy, stale/new-participant generations, explicit detach persistence,
 network recovery/reassertion and unknown reasons. Notices attribute the upstream
 adaptation. This model is not wired into the app yet and is not in signed build 397.
 
-## Foreground integration — 2026-10-03
+## First foreground integration (`0f9cddc`) — 2026-10-03
 
 The foreground Android session now subscribes to the two sizing topics only when
 `terminal.shared_sizing.v1` is advertised. It retains explicit detach across
@@ -83,7 +83,7 @@ discard, explicit detach across replacement, stale acknowledgements/events,
 malformed metadata, consumer isolation and negotiated Android identity. The runner
 also passed Python syntax compilation; no new device execution is claimed.
 
-Still open: editable size policies, counts/priority/fixed controls, participant
+At that checkpoint, remaining work included editable policies, counts/priority/fixed controls, participant
 removal, iOS bounds presentation, retention across switching away to another Mac,
 and background notification-reply connections. The current admission binding
 covers the foreground terminal session; it must not be described as global
@@ -154,6 +154,55 @@ Tested APK SHA-256 values:
 
 Ignored evidence: `captures/runtime/sizing-controls-final-build.txt`,
 `sizing-controls-ui-final.txt`, and `sizing-controls-screenshots-final/priority.png`.
+
+## Cross-Mac retention and direct notification replies — 2026-10-03
+
+Detach state is now stored per login/user/team/Mac/build/surface within the retained
+feed ViewModel. Returning to Computers or selecting another Mac no longer erases
+it. Only published size/participant state is reset on connection replacement; an
+explicit detach still requires reattach. Account replacement and explicit clear
+retire every remembered owner. Binding/clearing and selection updates share one
+monitor, with observer removal outside it and subscription-generation checks on
+old callbacks. UUID device IDs are canonicalized consistently between foreground
+and feed owners; opaque IDs remain unchanged.
+
+Secondary feed leases now consult the same owner's retained detach state before
+terminal writes. Foreground and secondary direct notification attempts check that
+admission before preparation and again before delivery. A prepared attempt whose
+terminal becomes detached returns unavailable without a terminal write; it never
+switches selection or opens another connection to circumvent the detach.
+
+**The encrypted reply relay remains available.** A fresh upstream audit at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` found:
+
+- `MobileShellComposite.sendRemoteTerminalPaste` checks `terminalAllowsTraffic`
+  before both exactly-once and legacy direct delivery.
+- `MobilePushCoordinator.applyPendingReplyIfReady` may relay a notification reply
+  when direct delivery is unavailable or returns false. Detach ends the terminal
+  view; it is not an account-wide revocation of an explicit notification reply.
+- Android retains its existing stricter duplicate protection: an uncertain direct
+  write cannot become a relay retry. A provably unwritten attempt can use the relay.
+  No relay code, durable reply format, provider configuration or account grant was
+  changed in this checkpoint.
+
+The retention is in memory, including Activity recreation; it is not a new persisted
+terminal permission database. The iOS sizing dictionary is likewise initialized
+in its composite and cleared by its account reset. Account/membership checks remain
+necessary independently of the sizing cache.
+
+**68 focused JVM tests passed**, zero failures/errors/skips, in a **22 s** Gradle
+invocation that compiled the production sources. Breakdown: 6 sizing reducer,
+6 sizing controls, 9 sizing session/identity, 11 retained input, 19 feed coordinator,
+5 direct reply and 12 outbox tests. New evidence covers A → Computers → B → A,
+colliding surface IDs across Mac/build/team, stale callbacks, account reset,
+canonical owner keys and secondary direct-reply admission. An initial new test
+fixture lacked a terminal in its workspace listing; that fixture was corrected
+before the passing run.
+
+No APK was rebuilt or installed for this logic checkpoint. The last sheet UI
+acceptance and APK hashes above belong to `f02b7a0`; physical Mac/Pixel acceptance,
+live provider delivery and bounds/chip fidelity remain open. The Pixel is currently
+disconnected, and no emulator was started for these checks.
 
 ## Full integration acceptance checklist
 

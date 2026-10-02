@@ -21,9 +21,14 @@ internal class NativeFeedSession(
     private var localRouteKeys = emptyMap<NativeMacIdentity, String>()
     private val browserHolds = mutableMapOf<Any, String>()
     private var viewModelCleared = false
+    val terminalSizing = NativeTerminalSizingSession()
     val workspaceSnapshots = NativeWorkspaceSnapshots(store::taskSession)
     val coordinator = NativeFeedCoordinator(scope, connect = { mac ->
-        connector.connectSaved(mac, account)
+        connector.connectSaved(mac, account).also { client ->
+            val owner = nativeTerminalInputOwner(mac, store.taskSession())
+            client.terminalTrafficAllowed = { surface -> owner != null && allowsTerminalInput(owner) &&
+                terminalSizing.allowsTraffic(owner, surface) }
+        }
     }, isAllowed = { mac -> account.isSignedIn() && store.pairedMacs().contains(mac) &&
         connector.allowsSaved(mac) }, workspaceSnapshots = workspaceSnapshots)
 
@@ -37,7 +42,6 @@ internal class NativeFeedSession(
     val terminalStartup = NativeTerminalStartup()
     val paneNavigation = NativePaneNavigation()
     val terminalInputs = NativeTerminalInputSession(scope)
-    val terminalSizing = NativeTerminalSizingSession()
     fun configureFeed(macs: List<NativeCredentialStore.PairedMac>, routes: Map<String, String>,
         localRoutes: Map<NativeMacIdentity, String>, active: Boolean) {
         feedMacs = macs; routeKeys = routes; localRouteKeys = localRoutes; foreground = active

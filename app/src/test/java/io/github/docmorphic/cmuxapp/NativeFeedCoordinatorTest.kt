@@ -44,6 +44,33 @@ class NativeFeedCoordinatorTest {
         } }
     }
 
+    @Test fun directReplyRespectsDetachOnSecondaryMacAndRechecksPreparedAttempts() = runBlocking {
+        FeedPeer("b").use { peer ->
+            peer.workspaceResponse = JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w").put("title", "W")
+                .put("terminals", JSONArray().put(JSONObject().put("id", "s").put("title", "S")))))
+            val detached = java.util.concurrent.atomic.AtomicBoolean(false)
+            val coordinator = NativeFeedCoordinator(this, { peer.connect().also { client ->
+                client.terminalTrafficAllowed = { surface -> surface != "s" || !detached.get() }
+            } }, { true })
+            val target = PhoneReplyDirectTarget(NativeTeamScope("login", "user", "team", 0), mac("b").origin, "epoch",
+                PhonePushPeer(PhonePushTuple("user", null, "fixture", "phone", "physical-b", "stable", "fixture.mac"),
+                    PhonePushIdentity.generate().descriptor()), "w", "s", false)
+            try {
+                coordinator.updateMacs(listOf(mac("b")))
+                awaitState { coordinator.sources.value[mac("b").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                val prepared = checkNotNull(coordinator.replyAttempt(mac("b"), target) { true })
+                detached.set(true)
+                assertNull(coordinator.replyAttempt(mac("b"), target) { true })
+                assertEquals(PhoneReplyDirectResult.UNAVAILABLE, prepared.send("must not write") { true })
+                assertTrue(peer.requests.none { it.optString("method") == "terminal.paste" })
+                detached.set(false) // Explicit reattach restores direct eligibility.
+                val fresh = checkNotNull(coordinator.replyAttempt(mac("b"), target) { true })
+                assertEquals(PhoneReplyDirectResult.DELIVERED, fresh.send("new reply") { true })
+                assertEquals(1, peer.requests.count { it.optString("method") == "terminal.paste" })
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun malformedWorkspaceSnapshotPreservesLastInventoryUntilConfirmedEmpty() = runBlocking<Unit> {
         FeedPeer("a").use { peer ->
             val paired = mac("a")

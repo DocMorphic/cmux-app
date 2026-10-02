@@ -252,10 +252,7 @@ fun NativeScreen(
     val localBrowserState by localBrowsers.state.collectAsState()
     val localBrowser = localBrowserState.local
     val browserLogin = if (signedIn) store.taskSession() else null
-    fun inputOwner(mac: NativeCredentialStore.PairedMac, login: String?) = login?.let {
-        TerminalInputSender.Owner(it, mac.accountUserId ?: it, mac.accountTeamId,
-            canonicalMacDeviceId(mac.deviceId), mac.instanceTag?.trim()?.takeIf(String::isNotEmpty))
-    }
+    fun inputOwner(mac: NativeCredentialStore.PairedMac, login: String?) = nativeTerminalInputOwner(mac, login)
     SideEffect {
         val owner = pairedMacs.singleOrNull { it.code == code }?.let { inputOwner(it, browserLogin) }
         terminalInputs.retainOwner(owner); terminalSizing.retainOwner(owner)
@@ -684,7 +681,8 @@ fun NativeScreen(
             val active = client
             val workspace = target.resolve(workspaces)
             fun ready() = admitted() && active != null && client === active && !active.isClosed &&
-                connectionReady && connectedCode == mac.code && code == mac.code && target.resolve(workspaces) == workspace
+                connectionReady && connectedCode == mac.code && code == mac.code && target.resolve(workspaces) == workspace &&
+                active.terminalTrafficAllowed(target.surface)
             if (active == null || workspace == null || !ready()) null else {
                 val queue = if (inputClient === active && inputTarget?.workspace == workspace && inputTarget?.surface == target.surface)
                     inputQueue else terminalInputs.orderedQueue(active, workspace, target.surface)

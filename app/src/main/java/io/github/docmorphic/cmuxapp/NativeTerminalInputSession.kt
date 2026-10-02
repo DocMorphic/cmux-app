@@ -7,6 +7,11 @@ import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 import java.util.UUID
 
+internal fun nativeTerminalInputOwner(mac: NativeCredentialStore.PairedMac, login: String?): TerminalInputSender.Owner? = login?.let {
+    TerminalInputSender.Owner(it, mac.accountUserId ?: it, mac.accountTeamId,
+        canonicalMacDeviceId(mac.deviceId), mac.instanceTag?.trim()?.takeIf(String::isNotEmpty))
+}
+
 /** Retained foreground-Mac input ownership. Every method except the RPC hook uses the session dispatcher. */
 internal class NativeTerminalInputSession(private val scope: CoroutineScope) : AutoCloseable {
     data class Target(val workspace: String, val surface: String)

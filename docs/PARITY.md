@@ -18,8 +18,9 @@ explicit reattach. The size sheet now edits all five policies, fixed dimensions,
 priority order and this phone's counts override, plus individual/confirmed batch
 disconnection. **29 focused JVM tests and 3 emulator UI tests passed**; the clean
 priority-screen capture was visually reviewed. No new emulator was created, and
-the existing one is stopped. Bounds/chip fidelity, cross-Mac/background-reply
-retention and physical Mac/Pixel checks remain open. Android uses the supported
+the existing one is stopped. Detach state now also survives cross-Mac navigation, with matching direct-reply
+admission on secondary feed connections; **68 focused JVM tests passed** for that
+logic checkpoint. Bounds/chip fidelity and physical Mac/Pixel checks remain open. Android uses the supported
 `unknown` kind plus its model; upstream's automatic exclusion rules still need an
 Android kind for identical behavior. Signed build 397 and the installed Pixel app
 are unchanged. [Contract, evidence and remaining work](TERMINAL_SHARED_SIZING.md).

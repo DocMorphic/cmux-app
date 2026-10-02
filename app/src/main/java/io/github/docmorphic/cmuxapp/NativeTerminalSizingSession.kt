@@ -13,7 +13,7 @@ internal object TerminalSizingTraffic {
         "terminal.viewport", "terminal.replay")
 }
 
-/** Retained with the foreground account/Mac, including across Activity and connection replacement.
+/** Retains per-account/team/Mac surface state across navigation, Activity and connection replacement.
  * No RPC or external callbacks run while holding this monitor (wire callbacks take it too).
  */
 internal class NativeTerminalSizingSession {
@@ -25,32 +25,44 @@ internal class NativeTerminalSizingSession {
     private var owner: TerminalInputSender.Owner? = null
     private var client: MobileRpcClient? = null
     private var observer: AutoCloseable? = null
-    private val surfaces = linkedMapOf<String, TerminalSizingSurface>()
+    private data class Account(val login: String, val user: String)
+    private var account: Account? = null
+    private val owners = linkedMapOf<TerminalInputSender.Owner, MutableMap<String, TerminalSizingSurface>>()
+    private var surfaces: MutableMap<String, TerminalSizingSurface> = linkedMapOf()
     private val rendered = mutableMapOf<String, SharedTerminalGrid>()
     private val snapshots = MutableStateFlow<Map<String, Snapshot>>(emptyMap())
     val state = snapshots.asStateFlow()
     private var stream: String? = null
 
+    private fun selectOwnerLocked(next: TerminalInputSender.Owner?) {
+        if (owner == next) return
+        surfaces.values.forEach { it.connectionEnded() }
+        val nextAccount = next?.let { Account(it.login, it.user) }
+        if (nextAccount != null && account != nextAccount) { owners.clear(); account = nextAccount }
+        owner = next; client = null; stream = null
+        surfaces = next?.let { owners.getOrPut(it) { linkedMapOf() } } ?: linkedMapOf()
+        rendered.clear(); publish()
+    }
     fun retainOwner(next: TerminalInputSender.Owner?) {
         val previous = synchronized(lock) {
             if (owner == next) return
-            owner = next; client = null; stream = null; surfaces.clear(); rendered.clear(); publish()
+            selectOwnerLocked(next)
             observer.also { observer = null }
         }
         previous?.close()
     }
     fun bind(nextOwner: TerminalInputSender.Owner, next: MobileRpcClient): String {
-        retainOwner(nextOwner)
         val id = UUID.randomUUID().toString()
         val previous = synchronized(lock) {
+            selectOwnerLocked(nextOwner)
             client = next; stream = id
             surfaces.values.forEach { it.connectionEnded() }; rendered.clear(); publish()
+            next.terminalTrafficAllowed = { surface -> synchronized(lock) {
+                client === next && stream == id && surfaces[surface]?.allowsTraffic != false
+            } }
             observer.also { observer = null }
         }
         previous?.close()
-        next.terminalTrafficAllowed = { surface -> synchronized(lock) {
-            client === next && surfaces[surface]?.allowsTraffic != false
-        } }
         val registration = next.observeTerminalSizing { event -> receive(next, id, event) }
         val kept = synchronized(lock) {
             if (client === next && stream == id) { observer = registration; true } else false
@@ -108,7 +120,18 @@ internal class NativeTerminalSizingSession {
         if (client === source) rendered[surface] = grid
     }
     fun subscription(source: MobileRpcClient): String? = synchronized(lock) { stream.takeIf { client === source } }
-    fun clear() = retainOwner(null)
+    /** Secondary feed leases consult the original Mac's state without selecting it or opening a terminal. */
+    fun allowsTraffic(owner: TerminalInputSender.Owner, surface: String): Boolean = synchronized(lock) {
+        owners[owner]?.get(surface)?.allowsTraffic != false
+    }
+    fun clear() {
+        val registration = synchronized(lock) {
+            owner = null; client = null; stream = null; account = null
+            owners.clear(); surfaces = linkedMapOf(); rendered.clear(); publish()
+            observer.also { observer = null }
+        }
+        registration?.close()
+    }
     private fun model(surface: String) = surfaces.getOrPut(surface) { TerminalSizingSurface() }
     private fun selfId(value: JSONObject) = if (value.isNull("self_participant_id")) null else
         value.optString("self_participant_id").takeIf { it.isNotBlank() }

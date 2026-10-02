@@ -126,6 +126,67 @@ class NativeTerminalSizingSessionTest {
         }
     }
 
+    @Test fun detachSurvivesComputerListOtherMacAndBuildNavigationWithoutLeaking() = runBlocking<Unit> {
+        val firstWire = Wire(); val otherWire = Wire(); val returnedWire = Wire()
+        MobileRpcClient(firstWire, { "fixture" }).use { first ->
+            MobileRpcClient(otherWire, { "fixture" }).use { other ->
+                MobileRpcClient(returnedWire, { "fixture" }).use { returned ->
+                    first.connect(); other.connect(); returned.connect()
+                    val session = NativeTerminalSizingSession()
+                    val oldStream = session.bind(owner, first); detach(firstWire, first, oldStream)
+                    session.retainOwner(null) // Computers list is not an account reset.
+                    assertTrue(session.state.value.isEmpty())
+                    assertFalse(session.allowsTraffic(owner, surface))
+                    val otherOwner = owner.copy(device = "another-mac")
+                    session.bind(otherOwner, other)
+                    assertTrue(other.terminalTrafficAllowed(surface))
+                    assertTrue(session.allowsTraffic(otherOwner, surface))
+                    assertTrue(session.allowsTraffic(owner.copy(build = "stable"), surface))
+                    assertTrue(session.allowsTraffic(owner.copy(team = "another-team"), surface))
+                    assertFalse(session.allowsTraffic(owner, surface))
+                    session.bind(owner, returned)
+                    assertFalse(returned.terminalTrafficAllowed(surface))
+                    val expected = session.state.value.getValue(surface)
+                    assertNotNull(expected.detached); assertNull(expected.state)
+                    assertTrue(session.reattached(returned, surface, JSONObject(), expected))
+                    assertTrue(session.allowsTraffic(owner, surface))
+                    detach(firstWire, first, oldStream) // Deselected wire cannot re-detach the returned view.
+                    assertTrue(session.allowsTraffic(owner, surface))
+                    session.clear()
+                }
+            }
+        }
+    }
+
+    @Test fun accountReplacementAndExplicitClearRetireAllRememberedDetachStates() = runBlocking<Unit> {
+        val wire = Wire()
+        MobileRpcClient(wire, { "fixture" }).use { client ->
+            client.connect(); val session = NativeTerminalSizingSession()
+            var stream = session.bind(owner, client); detach(wire, client, stream)
+            session.retainOwner(null)
+            session.bind(owner.copy(login = "next-login"), client)
+            assertTrue(client.terminalTrafficAllowed(surface))
+            session.bind(owner, client)
+            assertTrue(client.terminalTrafficAllowed(surface)) // Old account cache was erased.
+            stream = checkNotNull(session.subscription(client)); detach(wire, client, stream)
+            session.retainOwner(null); session.clear()
+            session.bind(owner, client)
+            assertTrue(client.terminalTrafficAllowed(surface))
+            session.clear()
+        }
+    }
+
+    @Test fun ownerKeyCanonicalizesUuidAndKeepsAccountTeamAndBuildSeparate() {
+        val mac = NativeCredentialStore.PairedMac("fixture", "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE", "Fixture",
+            " nightly ", accountUserId = "user", accountTeamId = "team")
+        val key = checkNotNull(nativeTerminalInputOwner(mac, "login"))
+        assertEquals("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", key.device)
+        assertEquals("nightly", key.build); assertEquals("user", key.user); assertEquals("team", key.team)
+        assertNotEquals(key, nativeTerminalInputOwner(mac.copy(instanceTag = "stable"), "login"))
+        assertNotEquals(key, nativeTerminalInputOwner(mac.copy(accountTeamId = "other"), "login"))
+        assertNull(nativeTerminalInputOwner(mac, null))
+    }
+
     @Test fun policyAcknowledgementCannotReplacePhoneIdentityWithMacIdentity() = runBlocking<Unit> {
         val wire = Wire()
         MobileRpcClient(wire, { "fixture" }).use { client ->

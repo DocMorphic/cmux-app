@@ -105,7 +105,7 @@ internal class NativeFeedCoordinator(
         val client = handle.client?.takeUnless { it.isClosed } ?: return null
         val workspace = target.resolve(mutableSources.value[mac.origin]?.workspaces.orEmpty()) ?: return null
         fun ready() = permits() && current(handle, client) && handle.verified && !client.isClosed &&
-            target.resolve(mutableSources.value[mac.origin]?.workspaces.orEmpty()) == workspace
+            target.resolve(mutableSources.value[mac.origin]?.workspaces.orEmpty()) == workspace && client.terminalTrafficAllowed(target.surface)
         if (!ready()) return null
         return PhoneReplyDirectAttempt(target, ::ready) { text, allowed ->
             if (!allowed()) false else {
