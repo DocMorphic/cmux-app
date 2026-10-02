@@ -47,6 +47,45 @@ Temporary viewport/subscription resources belong only to the disposable terminal
 This option does not test native raw-byte output, UI rendering or the full input
 sender's retry/recovery policy.
 
+## Opt-in physical MainActivity UI acceptance
+
+`LiveNativeUiCheck` is a separate, opt-in test for the real installed app and
+existing account. It requires an unlocked physical device; that check precedes
+account acquisition and workspace creation. It creates one uniquely titled
+workspace, opens it from the real list in MainActivity, waits for the actual
+terminal, shows the IME, verifies reduced terminal height, enters one generated
+command into the focused composer and taps Send. It checks the output marker in
+the rendered terminal semantics, leaves/reopens the workspace and checks the same
+marker exactly once. The marker is assembled by `printf`, so command echo cannot
+satisfy the assertion. It never clears credential, pairing or draft stores.
+
+```sh
+adb -s DEVICE shell am instrument -w -r \
+  -e class io.github.docmorphic.cmuxapp.LiveNativeUiCheck \
+  -e cmux_live_ui_fixture true \
+  io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+The Activity receives only a temporary keep-screen-on flag. Cleanup closes the
+Activity and only the workspace identified by this run's creation response; a
+failed close is not retried. Fixed-label `CMUX_LIVE_UI_REPORT` and
+`CMUX_LIVE_UI_CLEANUP` records contain no account/host/terminal content. A run is
+successful only if the UI assertions and verified fixture cleanup both pass.
+Two private screenshots are saved under the app's external `live-ui-check/`
+directory for local visual inspection. Do not commit them: a real shell prompt
+can include personal paths or names. Text entry uses the test framework's input
+connection into the composer; it does not prove physical taps on Gboard keys,
+candidate selection, direct terminal typing, or rendering before screenshot review.
+Do not run the store-clearing emulator suites on a personal phone.
+
+**Preparation checkpoint (2026-10-02):** the new test APK builds and passes ZIP
+alignment. The first physical invocation stopped at the locked-device guard in
+0.071 s, before acquiring account connections or creating a workspace. This is
+not a UI acceptance pass. A subsequent build strengthens Activity cleanup so an
+Activity-close exception cannot prevent the test workspace cleanup attempt.
+The final unlocked UI run and screenshot review are pending. Local evidence:
+`captures/runtime/pixel-ui-20261002/` (ignored). Production APK is unchanged.
+
 ## Build cadence
 
 Commit feature work as it is completed. Run focused checks for changed behavior;
