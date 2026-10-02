@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Browser download gate prepared (2026-10-02):** rechecked the Mac download
+delegate and both iOS browser interfaces at audited candidate `204a11d`. Streamed
+downloads follow Mac save preferences; the reviewed phone-local wrapper has no
+download delegate. Added a loopback-only fixture with unique generated downloads
+and a saved-file hash verifier, plus an explicit Pixel/Mac acceptance procedure.
+The local HTTP/verifier checks passed; physical cmux download acceptance remains
+open. [Source contract, procedure and evidence](BROWSER_DOWNLOADS.md).
+No APK build, emulator or Mac settings change was needed.
+
 **SSH Files mutation outcomes (2026-10-02):** refresh failures now preserve the
 original mutation error, successful mutations with failed refreshes report that
 the change completed, and unconfirmed upload publication asks users to check the
