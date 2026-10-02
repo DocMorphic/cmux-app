@@ -288,3 +288,77 @@ this project's Android compile API. Replacing that fixture writer with Kotlin
 This checkpoint compiled production Kotlin and ran JVM/Swift/TypeScript checks.
 It did not rebuild APKs, start an emulator, change a signed release, contact a
 production relay or test physical Pixel/Mac reply delivery.
+
+## Persistent encrypted reply queue (2026-10-02)
+
+`PhoneReplyOutbox.kt` now owns prepared relay requests inside the existing
+Keystore-encrypted account transaction. Restoration validates versions, bounded
+IDs/timestamps, exact routing and key/tuple metadata, ciphertext/encapsulation
+sizes and complete JSON. It preserves the original HTTP body string byte for
+byte; reconstruction never encrypts again. The plaintext message is not stored.
+
+The queue allows 20 pending replies, matching the server inbox capacity. A full
+queue returns `FULL` instead of evicting an earlier user action. Exact duplicates
+return `DUPLICATE`; a reused reply ID with a different packet returns `CONFLICT`.
+An expired packet cannot be newly queued. Same-login identity/key and pinned peer
+checks are required before admitting work; runtime account/team/route admission
+remains an additional requirement before any send.
+
+Server retry deadlines are stored with the login and apply to all pending replies.
+They survive state reconstruction and the expiry of individual reply receipts.
+The queue's two-minute send window is unchanged. Expired or key-retired requests
+become content-free `unconfirmed` receipts: an unknown HTTP outcome cannot prove
+that the Mac did not receive the reply. Accepted, rejected and sign-in-required
+outcomes also receive explicit receipts. Up to 128 receipts are retained for at
+most 15 minutes; they contain scope, ID, request digest and status, not message
+text or the encrypted request body.
+
+`NativeCredentialStore.update` now prunes the queue atomically with credential
+and peer-key changes. Forgotten/re-added Macs cannot resurrect removed work;
+login changes/sign-out remove pending packets, receipts and cooldowns. Safe pairing
+alias repair preserves the original packet and its trusted owner association.
+Key rotation retires the old encrypted packet without re-encrypting its reply ID.
+
+A bounded serial drain function selects currently admitted work, persists each
+result before proceeding, and stops on retry/retirement. An unavailable owner
+cannot prevent another admitted reply from being selected. Post-response admission
+checks prevent a late callback from acknowledging replacement work. If an in-flight
+request confirms acceptance just after local expiry, only its matching retained
+receipt can advance to accepted; a different packet or retired owner cannot.
+
+This is storage and drain infrastructure. Notification reply actions, the production
+background execution owner/scheduler, user-visible failure notices and incoming
+reply-capable push metadata are still required. The queue does not start network
+work by itself, and object/store reconstruction tests do not establish full app
+process-kill or Doze recovery. No production reply endpoint was contacted.
+
+### Reply-queue verification
+
+**21 focused JVM tests passed, zero skips:** seven queue tests, eight relay tests
+and six key tests. Coverage includes exact-body reconstruction (including the
+large Unicode envelope), strict local metadata/body validation, duplicates and ID
+conflicts, capacity without eviction, expiry/unknown-outcome receipts, cooldown
+persistence beyond receipt expiry, account/forget/re-add/key retirement, alias
+repair, bounded draining across unavailable owners and post-response revocation.
+A final race check expires the pending row before a late 2xx: the original packet
+can confirm its receipt, while altered local metadata cannot.
+
+**Android: OK (9 tests), 40.118 seconds**, API 37 / 16,384-byte pages, zero skips.
+Two `PhonePushKeyStorageTest` cases verify actual encrypted identity/peer storage
+and reply storage; seven notification delivery/service/swipe regressions also
+passed. A fresh credential-store instance recovered identical HTTP bodies, a
+confirmed reply was replaced with its receipt, and account replacement removed
+both queued replies and keys in one transaction. Reusing the old login label did
+not restore deleted packets. Preferences did not expose fixture text, HTTP body,
+login or physical Mac ID. This is storage reconstruction, not a process-kill or
+physical Pixel/Mac workflow claim.
+
+Both APK builds passed, all five native libraries passed LOAD/RELRO checks, and
+both APKs passed 16 KB ZIP checks. SHA-256:
+
+- Debug: `ba88768ab39fb5acb7ab6e3d984214cce4029318fc980a2b9757a3b2c11b271b`
+- Test: `0b644fac4e8d85df3b99a6c4b1dc49977c10e0ebb623bef1944121c3e9d26739`
+
+Evidence is in ignored `captures/runtime/phone-reply-outbox-{final-build.txt,jvm,android,alignment.txt}`.
+The existing emulator was reused and stopped. No signed release, production relay
+call, physical-device installation or upstream parity pin changed.

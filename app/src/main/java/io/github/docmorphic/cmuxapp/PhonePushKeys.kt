@@ -58,6 +58,14 @@ internal data class PhonePushPeer(val tuple: PhonePushTuple, val descriptor: Pho
 
 /** Lives inside the account's Keystore-encrypted transaction; no plaintext key preferences. */
 internal class PhonePushKeyState(private val state: JSONObject) {
+    fun existingIdentity(login: String): PhonePushIdentity? {
+        if (login != currentLogin()) return null
+        val root = state.optJSONObject(KEY)?.takeIf { it.optString("login") == login } ?: return null
+        return root.optJSONObject("identity")?.let { runCatching { PhonePushIdentity.parse(it) }.getOrNull() }
+    }
+    fun canonicalOrigin(team: NativeTeamScope, origin: String): String? =
+        if (team.login == currentLogin()) owner(origin, team.userId, team.teamId)?.origin else null
+
     fun identity(login: String): PhonePushIdentity {
         require(login == currentLogin()) { "Account changed during push setup" }
         prune()

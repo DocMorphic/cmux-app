@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Persistent encrypted reply outbox (2026-10-02):** added exact-request
+restoration, bounded queue/receipt storage, persisted retry cooldown and a scoped
+serial drain. Credential transactions retire forgotten/account-replaced work;
+key changes never silently re-encrypt a reply ID. Late acceptance after local
+expiry updates only its matching retained receipt. All 21 focused JVM checks and
+nine Android cases passed (40.118 seconds, API 37 / 16 KB, zero skips), plus both
+APK/alignment gates. [Evidence and integration still required](PUSH_DELIVERY.md#persistent-encrypted-reply-queue-2026-10-02)
+leave notification actions, production background scheduling, failure notices,
+push metadata and physical Pixel/Mac acceptance open. No signed release changed.
+
 **Encrypted reply relay transport (2026-10-02):** added Mac-addressed HPKE
 reply preparation and a bounded HTTPS sender with immutable retry bodies,
 server cooldowns, ownership checks and cancellation. Nineteen focused JVM checks

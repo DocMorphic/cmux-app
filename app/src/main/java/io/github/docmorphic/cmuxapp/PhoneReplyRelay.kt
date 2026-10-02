@@ -20,7 +20,43 @@ internal class PreparedPhoneReply private constructor(
     // The phone's retry window is shorter than the Mac inbox's encrypted 15-minute lifetime.
     fun isFresh(nowMillis: Long) = nowMillis >= createdAtMillis && nowMillis - createdAtMillis < 120_000
 
+    fun persisted() = JSONObject().put("version", 1).put("reply_id", replyID).put("login", login)
+        .put("origin", origin).put("team_id", teamID).put("peer", peer.wire()).put("sender_key_id", senderKeyID)
+        .put("created_at", createdAtMillis).put("body", body)
+
     companion object {
+        /** Only restore from authenticated local storage; the exact body string is never re-encoded. */
+        fun restore(value: JSONObject): PreparedPhoneReply {
+            require(value.opt("version") == 1)
+            fun id(name: String, limit: Int = 128) = (value.opt(name) as? String)?.also {
+                require(it.isNotBlank() && it == it.trim() && it.length <= limit)
+            } ?: error("Invalid saved reply")
+            val replyID = id("reply_id", 64); val login = id("login"); val origin = id("origin")
+            val team = id("team_id"); val sender = id("sender_key_id")
+            val created = value.opt("created_at").let { if (it is Long) it else if (it is Int) it.toLong() else error("Invalid reply time") }
+            require(created > 0 && created <= Long.MAX_VALUE - 900_000)
+            val peer = PhonePushPeer.parse(value.getJSONObject("peer"))
+            require(peer.tuple.accountID != null && peer.tuple.macDeviceID != null && peer.tuple.macInstanceTag != null && peer.tuple.macBuildID != null)
+            val body = value.opt("body") as? String ?: error("Missing saved reply body")
+            require(body.toByteArray(Charsets.UTF_8).size <= 64 * 1024)
+            val request = MobileJson.objectValue(body, requireComplete = true)
+            require(request.keys().asSequence().toSet() == setOf("replyId", "macDeviceId", "macInstanceTag", "encryptedPayload"))
+            require(request.opt("replyId") == replyID && request.opt("macDeviceId") == peer.tuple.macDeviceID &&
+                request.opt("macInstanceTag") == peer.tuple.macInstanceTag)
+            val envelope = request.getJSONObject("encryptedPayload")
+            require(envelope.keys().asSequence().toSet() == setOf("version", "installationID", "keyID", "senderKeyID", "encapsulatedKey", "ciphertext", "tuple"))
+            require(envelope.opt("version") == 2 && envelope.opt("installationID") == peer.descriptor.installationID &&
+                envelope.opt("keyID") == peer.descriptor.keyID && envelope.opt("senderKeyID") == sender &&
+                PhonePushTuple.parse(envelope.getJSONObject("tuple")) == peer.tuple)
+            fun bytes(name: String, max: Int): ByteArray {
+                val encoded = envelope.opt(name) as? String ?: error("Invalid saved reply envelope")
+                require(encoded.length <= ((max + 2) / 3) * 4)
+                return java.util.Base64.getDecoder().decode(encoded).also { require(it.size <= max) }
+            }
+            require(bytes("encapsulatedKey", 32).size == 32 && bytes("ciphertext", 64 * 1024).size >= 16)
+            return PreparedPhoneReply(replyID, login, origin, team, peer, sender, created, body)
+        }
+
         fun prepare(replyID: String, team: NativeTeamScope, origin: String, peer: PhonePushPeer,
             identity: PhonePushIdentity, workspaceID: String?, surfaceID: String,
             retarget: Boolean, text: String, nowMillis: Long): PreparedPhoneReply {
