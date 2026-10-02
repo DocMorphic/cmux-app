@@ -43,18 +43,18 @@ internal class NativeAccountTeams(
     base: OkHttpClient = OkHttpClient(),
     private val refreshCredential: () -> String? = { null },
     private val backendOrigin: HttpUrl = "https://cmux.com/".toHttpUrl(),
-    private val cache: NativeAccountProfileCache? = null
+    private val cache: NativeAccountProfileCache? = null,
+    private val lock: Any = Any()
 ) : AutoCloseable {
     constructor(account: NativeAccount, store: NativeCredentialStore) : this(
         { force -> account.accessToken(force) }, { store.taskSession() },
         refreshCredential = { store.load()?.optString("refresh_token") },
-        cache = NativeAccountProfileCache(store::load, store::update))
+        cache = NativeAccountProfileCache(store::load, store::update), lock = store.accountStateLock)
 
     private class StackFailure(val status: Int) : IOException("Account request failed ($status)")
     private val client = base.newBuilder().followRedirects(false).followSslRedirects(false)
         .retryOnConnectionFailure(false).callTimeout(20, TimeUnit.SECONDS).build()
     private val operations = Mutex()
-    private val lock = Any()
     private val calls = mutableSetOf<Call>()
     private var closed = false
     private var run = 0L

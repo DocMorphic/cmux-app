@@ -1,6 +1,59 @@
 # Mac browser tunnel — 2026-09-30
 
-## Physical browser UI ANR; recovery pending — 2026-10-02
+## Account/credential deadlock identified — 2026-10-02
+
+Two diagnostic runs stalled during production account pairing, before requesting
+any fixture page. Fixed-label thread samples show the lock cycle: native connection
+admission enters `NativeAccountTeams.isCurrent` while holding its team monitor and
+waits in `NativeCredentialStore.taskSession`; notification push-key setup holds the
+credential transaction monitor and waits in `NativeAccountTeams.isCurrent` through
+`connector.allowsSaved`. The instrumented test also blocks on credential reads.
+This is a production lock inversion, not evidence of a WebView rendering failure.
+
+The production account-team controller now shares the credential transaction
+monitor, preserving atomic account/retirement checks without taking those two
+monitors in opposite orders. The regression deliberately races connection
+admission with a credential transaction, then retires the login before the waiting
+connection proceeds. Main/test and relevant worker code frames are captured by the
+test sampler, without values or arguments.
+
+Both diagnostic runs were stopped after collecting the blocked stacks. Each Mac
+fixture listener closed and phone sleep setting returned to 0. Receipt-bound
+cleanup verified both disposable workspaces removed. The first recovery inspection
+had a transient workspace-list timeout; the succeeding recovery verified exact
+ownership before closing. No existing user workspace was closed.
+
+Verification: **23 JVM tests passed** (17 account/team, 6 push-key), debug and
+test APK assembly passed in **57 s**, Python syntax and APK ZIP 16 KB checks passed.
+The debug APK installed on the Pixel with `-r`; physical browser follow-up awaits
+unlock. Debug SHA-256:
+`739142be417613109675d7e39a563b1d959941f7744e85098f8f94f5a2e9c49a`;
+test APK: `8e0a04d56ce8857852d08cb0035a9b58e2cea30ba717fde3519ef1a82e3e53b0`.
+Signed delivery remains build 385 and does not yet contain this fix. Evidence:
+`captures/runtime/pixel-resume-20261002/browser-ui-diagnostic/`,
+`browser-ui-worker-diagnostic/` and `browser-anr-recovery/` (ignored).
+
+## Browser ANR workspace recovered — 2026-10-02
+
+After USB reconnection, the prepared recovery APK was installed with `-r`.
+Read-only receipt ownership verification passed (**1 test, 11.516 s**), followed
+by explicit cleanup (**1 test, 11.783 s**). Reports confirmed exact ownership,
+workspace closure and receipt removal; a separate app-private file check confirmed
+receipt absence. Existing sign-in and user workspaces were preserved.
+
+`dumpsys activity lastanr` retained the earlier MainActivity input-dispatch timeout,
+but no thread stack. DropBox had no `data_app_anr` entry. These do not establish
+the freeze's cause. The instrumented browser test now samples only main/test thread
+code frames every 15 seconds with its generated run marker and current stage;
+the runner retains only that run's diagnostic reports. No intent, UI content,
+account value or exception message is included in those samples.
+
+Evidence: `captures/runtime/pixel-resume-20261002/browser-anr-recovery/` (ignored;
+the raw activity dump and receipt contain private identifiers and must not be
+published). Production APKs are unchanged. The browser journey still needs a
+successful rerun and visual inspection.
+
+## Earlier physical browser UI ANR — 2026-10-02
 
 The Pixel subsequently became unlocked and the runner installed test APK
 `e96fb173e4ec4a16e9c3ff670317f99c16d95b2bc6d76ba7f2b0395e634fe94d`

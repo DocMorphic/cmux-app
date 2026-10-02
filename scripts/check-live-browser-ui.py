@@ -86,7 +86,8 @@ def main():
         logs = subprocess.check_output(adb + ["logcat", "-d", "-v", "brief", "-s", "System.out:I"], text=True, timeout=15)
         (args.output / "reports.txt").write_text("\n".join(line for line in logs.splitlines()
             if marker in line and any(prefix in line for prefix in (
-                "CMUX_LIVE_BROWSER_UI_STAGE ", "CMUX_LIVE_BROWSER_UI_REPORT ", "CMUX_LIVE_BROWSER_UI_CLEANUP "))) + "\n")
+                "CMUX_LIVE_BROWSER_UI_STAGE ", "CMUX_LIVE_BROWSER_UI_STACK ",
+                "CMUX_LIVE_BROWSER_UI_REPORT ", "CMUX_LIVE_BROWSER_UI_CLEANUP "))) + "\n")
         if "OK (1 test)" not in result or "FAILURES!!!" in result:
             raise RuntimeError("Browser UI check did not pass; inspect runtime.txt and any private fixture receipt before rerunning")
         if not {"start", "next"}.issubset(requests):

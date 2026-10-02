@@ -4,6 +4,7 @@ import android.app.KeyguardManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Looper
 import android.view.WindowManager
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -15,11 +16,14 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import org.json.JSONObject
+import org.json.JSONArray
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 import kotlin.properties.Delegates
 
 /** Real pairing link, MainActivity and routed browser process; retains the intended NIGHTLY pairing. */
@@ -44,8 +48,31 @@ class LiveNativeBrowserUiCheck {
         val connections = handle.connections
         val probe = Any()
         connections.setProbeActive(probe, true)
+        val diagnosticStage = AtomicReference("existing account")
         var stage by Delegates.observable("existing account") { _, _, value ->
+            diagnosticStage.set(value)
             println("CMUX_LIVE_BROWSER_UI_STAGE " + JSONObject().put("runMarker", marker).put("stage", value))
+        }
+        // Instrumented ANRs may leave no DropBox trace. Capture only code frames,
+        // never arguments, intents, UI text, account state or exception messages.
+        val testThread = Thread.currentThread()
+        val stackSampler = thread(name = "browser-ui-test-stacks", isDaemon = true) {
+            try {
+                while (!Thread.currentThread().isInterrupted) {
+                    Thread.sleep(15_000)
+                    println("CMUX_LIVE_BROWSER_UI_STACK " + JSONObject().put("runMarker", marker)
+                        .put("stage", diagnosticStage.get())
+                        .put("main", JSONArray(Looper.getMainLooper().thread.stackTrace.take(16).map { it.toString() }))
+                        .put("test", JSONArray(testThread.stackTrace.take(12).map { it.toString() })))
+                    Thread.getAllStackTraces().values.filter { frames ->
+                        frames.any { it.className.startsWith("io.github.docmorphic.cmuxapp.") }
+                    }.forEach { frames ->
+                        println("CMUX_LIVE_BROWSER_UI_STACK " + JSONObject().put("runMarker", marker)
+                            .put("stage", diagnosticStage.get())
+                            .put("worker", JSONArray(frames.take(20).map { it.toString() })))
+                    }
+                }
+            } catch (_: InterruptedException) { /* Test ended. */ }
         }
         var client: MobileRpcClient? = null
         var owned: NativeWorkspace? = null
@@ -165,6 +192,7 @@ class LiveNativeBrowserUiCheck {
             client?.close()
             connections.setProbeActive(probe, false)
             handle.close()
+            stackSampler.interrupt()
         }
         println("CMUX_LIVE_BROWSER_UI_CLEANUP " + JSONObject().put("runMarker", marker)
             .put("creationAttempted", creationAttempted).put("fixtureClosed", closed))

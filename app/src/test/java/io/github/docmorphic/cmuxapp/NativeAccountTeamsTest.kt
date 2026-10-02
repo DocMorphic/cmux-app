@@ -9,9 +9,58 @@ import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 class NativeAccountTeamsTest {
+    @Test fun credentialTransactionAndConnectionAdmissionShareLockWithoutWeakeningRetirement() = runBlocking<Unit> {
+        val credentialLock = Any()
+        var login: String? = "login"
+        MockWebServer().use { server ->
+            val account = NativeAccountTeams({ "fixture-token" }, { synchronized(credentialLock) { login } },
+                server.url("/api/v1/"), lock = credentialLock)
+            server.profile()
+            val scope = checkNotNull(account.refresh().scope)
+            val holdingCredentials = CountDownLatch(1)
+            val checkAdmission = CountDownLatch(1)
+            val finished = CountDownLatch(2)
+            val problem = AtomicReference<Throwable?>()
+            val admitted = AtomicReference<Boolean?>()
+            val retired = AtomicReference<Boolean?>()
+            thread(isDaemon = true, name = "fixture-credential-transaction") {
+                try {
+                    synchronized(credentialLock) {
+                        holdingCredentials.countDown()
+                        check(checkAdmission.await(5, TimeUnit.SECONDS))
+                        admitted.set(account.isCurrent(scope))
+                        login = null
+                    }
+                } catch (failure: Throwable) { problem.set(failure) }
+                finally { finished.countDown() }
+            }
+            assertTrue(holdingCredentials.await(5, TimeUnit.SECONDS))
+            val reader = thread(isDaemon = true, name = "fixture-connection-admission") {
+                try { retired.set(!account.isCurrent(scope)) }
+                catch (failure: Throwable) { problem.set(failure) }
+                finally { finished.countDown() }
+            }
+            try {
+                val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+                while (reader.state != Thread.State.BLOCKED && System.nanoTime() < deadline) Thread.sleep(1)
+                assertEquals(Thread.State.BLOCKED, reader.state)
+            } finally { checkAdmission.countDown() }
+            // With separate monitors, reader owns the team lock while awaiting
+            // credentials, and the transaction waits forever for that team lock.
+            assertTrue("Account/credential lock inversion", finished.await(5, TimeUnit.SECONDS))
+            problem.get()?.let { throw it }
+            assertEquals(true, admitted.get())
+            assertEquals(true, retired.get())
+            assertFalse(account.isCurrent(scope))
+            account.close()
+        }
+    }
+
     private fun user(selected: String? = "one", id: String = "user") = JSONObject().put("id", id)
         .put("selected_team", selected?.let { JSONObject().put("id", it) } ?: JSONObject.NULL)
     private fun teams(vararg ids: String) = JSONObject().put("items", JSONArray(ids.map {

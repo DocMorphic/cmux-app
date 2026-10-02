@@ -21,6 +21,9 @@ import javax.crypto.spec.GCMParameterSpec
 
 /** Android Keystore-backed storage for the official cmux pairing and account session. */
 class NativeCredentialStore(context: Context, storageName: String = "native_cmux") {
+    // Team admission is called both inside credential transactions and before
+    // credential reads. Share their monitor to avoid reversing two lock orders.
+    internal val accountStateLock: Any get() = storageLock
     private val preferences = context.getSharedPreferences(storageName, Context.MODE_PRIVATE)
     private val changeState = synchronized(storageLock) {
         changes.getOrPut(context.applicationInfo.dataDir + "/" + storageName) { kotlinx.coroutines.flow.MutableStateFlow(0L) }
