@@ -14,7 +14,73 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the SSH
-streamed-browser renderer checkpoint is the latest implementation status.
+browser mode-switch checkpoint is the latest implementation status.
+
+## SSH browser mode switching and remembered pages (2026-10-02)
+
+SSH streamed browsers now offer **Streamed / On Android**. On Android opens the
+current HTTP(S) page through the SSH computer's existing isolated browser route;
+non-web seeds use the default start page. Each streamed panel remembers its phone
+page and mode independently. Leaving and reopening uses that phone URL even if the
+remote tab has navigated elsewhere. Explicitly switching back to Streamed returns
+to the linked browser tab and forgets its phone page/preference. A generic phone
+browser can select the first existing streamed tab; the choice explains its
+unavailability when no browser exists. It does not create a browser provider.
+
+This follows the candidate's [BrowserSurfaceStore.swift](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileBrowser/Sources/CmuxMobileBrowser/BrowserSurfaceStore.swift)
+and [SSH workspace mode picker](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/SSHFiles/WorkspaceDetailView+SSH.swift).
+The retained state is the current page, not full WebView history across remounts.
+Stable panel IDs include SSH owner/registry/workspace/content/tab identities;
+durable content can survive a new owner generation while numeric-only identities
+cannot. Removed tabs and retired account/host/workspace owners close cached pages.
+The routed browser receives the full live cmux-tui workspace inventory, allowing
+pane selection back into its terminal or browser. An authoritative disappearance
+of the workspace closes the presentation. Streamed attachment composition stops
+while the on-device page is open.
+
+**Verification:** 32 focused JVM tests passed without skips: five mode/state
+checks, eight local surface checks, thirteen navigation checks and six SSH stream
+checks. Both APKs built. Runtime checks on the single API 37 / 16,384-byte-page
+emulator were incremental:
+
+- Five component checks passed in 51.514 seconds: four SSH stream tests (including
+  current-URL handoff and stream detach on mode change) and the existing native Mac
+  routed presentation/pane-selection regression. These preceded the subsequent
+  SSH presentation opening correction; the tested component code did not change.
+- The four existing real SSH browser checks passed on the final production APK
+  (binary/half-close, server DNS/reconnect/no fallback, route retirement, terminal
+  menu presentation). That five-test run still failed the new reopen check; it is
+  preserved as a failed run, not reported as an all-green suite.
+- The new linked-mode check then passed independently in **35.802 seconds**. It
+  navigates a real private HTTP page over SSH, leaves/reopens at the phone URL,
+  returns to the exact second streamed tab, confirms preference reset, reopens
+  from the original seed and exits on owner retirement. The screenshot was inspected.
+
+The first failure exposed a production opening race: the initialization effect
+published a destination before Compose's collector observed it, so the exit effect
+could prematurely dismiss the sheet. Exit now checks authoritative navigation
+state as well. Later reopen failures were test synchronization: after a Compose
+click, UIAutomator waited without advancing the Compose test clock. Explicitly
+waiting for the host Activity transition fixes that test, without weakening the
+page, identity or preference assertions. Failure logs and callback traces remain
+in ignored evidence; temporary diagnostic code was removed.
+
+Final APK SHA-256 values:
+
+- Debug: `21f7ff6cb07ad2c063a4175ffb0b7825125c8e20fd6af72087ed010c8dd412c0`
+- Instrumentation: `cc5899f66f7d3030c7a96941a0b902bfcc876f9df042dae9d357bfa9d8059cfa`
+
+All packaged native LOAD/RELRO segments and both APK ZIP alignments pass 16 KB
+validation. Evidence lives under ignored `captures/runtime/ssh-audit/`:
+`browser-modes-jvm`, `browser-modes-components-android`,
+`browser-modes-opening-ssh-android`, and the final `browser-modes-clock-*` files.
+Earlier `browser-modes-*` failures are retained. The emulator and generated SSH
+fixture were stopped after verification; no AVD was added or Pixel data touched.
+
+Remaining: native paired-Mac mode-picker integration/capability reasons, actual
+CDP frames/input, integrated workspace rows and live topology/reconnect acceptance,
+SSH HTTPS/WebSocket/uploads, visual/accessibility checks and physical Pixel/Mac
+acceptance. No signed release or broad upstream implementation reference changed.
 
 ## Streamed SSH browser renderer and selection (2026-10-02)
 

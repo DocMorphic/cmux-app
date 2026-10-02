@@ -4,6 +4,9 @@ package io.github.docmorphic.cmuxapp
 internal data class SshCmuxBrowserSelection(val session: String, val registry: String?, val generation: String?,
     val workspace: Int, val workspaceKey: String?, val workspaceResource: String?, val surface: Int,
     val tabResource: String?, val contentResource: String?) {
+    val panelId: String get() = "cmux-ssh-browser:" + org.json.JSONArray(listOf(session, registry,
+        workspaceKey ?: workspaceResource ?: "$generation:$workspace",
+        contentResource ?: "$generation:$surface", tabResource)).toString()
     fun resolve(session: String, tree: SshCmuxTree): Pair<SshCmuxWorkspace, SshCmuxTab>? {
         if (this.session != session || registry != null && registry != tree.registry) return null
         val sameOwner = generation != null && generation == tree.generation

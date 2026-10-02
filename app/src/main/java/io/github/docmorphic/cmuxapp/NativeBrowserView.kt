@@ -55,7 +55,7 @@ internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: 
 @Composable
 internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, title: String, onBack: () -> Unit,
     recoveryClock: BrowserRecoveryClock = MonotonicBrowserRecoveryClock,
-    onReconnect: (() -> Unit)? = null) {
+    onReconnect: (() -> Unit)? = null, onOnDevice: ((String) -> Unit)? = null) {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
@@ -193,6 +193,7 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
         Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { policy = policy.hide(); focusManager.clearFocus(); keyboard?.hide(); onBack() }) { Text("‹  Workspaces") }
             Text(page.title.ifBlank { title.ifBlank { "Browser" } }, modifier = Modifier.weight(1f), maxLines = 1)
+            if (onOnDevice != null) BrowserModePicker(BrowserMode.STREAMED) { onOnDevice(page.url) }
             // Android requires nonzero bounds for IME focus. Keep this endpoint
             // in the header so its invisible View cannot intercept page taps.
             key(queue) { BrowserKeyboardProxy(queue, policy.focus && !addressFocused && dialog == null, inputEnabled, keyboardRequest, Modifier.size(1.dp)) }

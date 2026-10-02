@@ -16,7 +16,7 @@ internal class SshCmuxBrowserStream(
     private val resolve: suspend () -> SshCmuxTab,
     private val admitted: () -> Boolean
 ) : BrowserStreamClient, AutoCloseable {
-    val panelId = "cmux-ssh-browser:" + java.util.UUID.randomUUID()
+    val panelId = selection.panelId
     private val updates = MutableSharedFlow<BrowserStreamClient.Event>(extraBufferCapacity = 4)
     private val failures = MutableSharedFlow<Throwable>(replay = 1)
     override val events = updates.asSharedFlow()

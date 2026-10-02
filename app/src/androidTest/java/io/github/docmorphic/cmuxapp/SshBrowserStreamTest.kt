@@ -86,9 +86,9 @@ class SshBrowserStreamTest {
         compose.activity.finish()
         runBlocking(Dispatchers.Main) { stream.close(); control.close(); scope.cancel() }
     }
-    private fun show() {
+    private fun show(onDevice: ((String) -> Unit)? = null) {
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-            if (visible) NativeBrowserView(stream, stream.panelId, "Browser", onBack = { visible = false })
+            if (visible) NativeBrowserView(stream, stream.panelId, "Browser", onBack = { visible = false }, onOnDevice = onDevice)
         } } }
         compose.waitUntil(15_000) { compose.onAllNodesWithText("SSH streamed fixture").fetchSemanticsNodes().isNotEmpty() }
     }
@@ -153,4 +153,15 @@ class SshBrowserStreamTest {
         assertTrue(pipe.requests("browser-mouse-guarded").all { it.getLong("frame_seq") == newToken })
         assertEquals(2, pipe.requests("attach-surface").size)
     }
+    @Test fun onAndroidModeReceivesCurrentPageAndDisposesTheStream() {
+        var requested: String? = null
+        show { url -> requested = url; visible = false }
+        awaitPresentation()
+        compose.onNodeWithContentDescription("Browser mode").performClick()
+        compose.onNodeWithText("On Android").performClick()
+        compose.waitUntil(10_000) { pipe.requests("detach-attached-view").size == 1 }
+        assertEquals("http://localhost:8080/", requested)
+        assertFalse(control.closed)
+    }
+
 }

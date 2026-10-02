@@ -93,7 +93,22 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     var browser by remember(session, hostId) { mutableStateOf<SshBrowserPresentation?>(null) }
     var ending by remember(session, hostId) { mutableStateOf<SshWorkspaceEnd?>(null) }
     fun select(target: SshWorkspaceTarget) { selection = "$hostId\n${target.encode()}"; failure = null }
-    fun leave() { selection = null; opened = null; failure = null }
+    fun leave() { selection = null; opened = null; browser = null; failure = null }
+    fun presentBrowser(provider: SshCmuxProvider?, target: SshWorkspaceTarget, title: String, panel: String? = null, url: String? = null) {
+        val tree = provider?.state?.value?.tree
+        val row = when (target) {
+            is SshWorkspaceTarget.Cmux -> tree?.let { target.selection.resolve(checkNotNull(provider).session, it)?.first }
+            is SshWorkspaceTarget.Browser -> tree?.let { target.selection.resolve(checkNotNull(provider).session, it)?.first }
+            else -> null
+        }
+        if (provider != null) check(tree != null && row != null) { "Workspace inventory changed. Refresh before opening the browser." }
+        val workspace = if (tree != null && row != null) sshCmuxBrowserWorkspace(checkNotNull(provider).session, tree, row)
+            else sshBrowserWorkspace(target, title)
+        val seed = url?.takeIf { it.isNotBlank() } ?: (target as? SshWorkspaceTarget.Browser)?.let { ref ->
+            tree?.let { ref.selection.resolve(checkNotNull(provider).session, it)?.second?.url }
+        }
+        browser = SshBrowserPresentation(session.browsers.network(hostId), workspace, panel, seed, provider)
+    }
     val view = opened
     DisposableEffect(view) { onDispose {
         (view?.terminal as? SshCmuxTerminal)?.let { view.owner?.release(it) }
@@ -129,6 +144,10 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                     val row = checkNotNull(state.tree?.let { target.selection.resolve(provider.session, it) }) {
                         "This browser moved, ended or was replaced"
                     }.second
+                    val network = session.browsers.network(hostId)
+                    val workspace = sshBrowserWorkspace(target, row.title)
+                    if (network.navigation.prefersOnDevice(sshLocalBrowserKey(network, workspace), target.selection.panelId))
+                        presentBrowser(provider, target, row.title, target.selection.panelId, row.url)
                     SshWorkspaceView(expected, owner = provider, browser = provider.browser(target.selection), title = row.name ?: row.title)
                 }
                 is SshWorkspaceTarget.Shell -> {
@@ -172,14 +191,28 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
             } else { onReconnect(); retry++ }
         }
         if (files && terminal != null) SshFilesSheet(session, hostId, terminal) { files = false }
-        browser?.let { SshBrowserSheet(it) { browser = null } }
+        browser?.let { presentation -> SshBrowserSheet(presentation, onRoute = { route ->
+            val target = if (route.browserId != null) {
+                val provider = presentation.provider
+                val tree = provider?.state?.value?.tree
+                tree?.workspaces?.asSequence()?.flatMap { workspace -> workspace.tabs.asSequence().filter { it.isBrowser && !it.dead }.map {
+                    SshWorkspaceTarget.Browser(SshCmuxBrowserSelection.capture(checkNotNull(provider).session, tree, workspace, it))
+                } }?.singleOrNull { it.selection.panelId == route.browserId }
+            } else route.terminalId?.let(SshWorkspaceTarget::decode)
+            browser = null
+            if (target != null) select(target) else leave()
+        }) { if (presentation.linkedPanel != null) leave() else browser = null } }
         val streamed = opened?.takeIf { it.reference == selection }?.browser
-        if (streamed != null) NativeBrowserView(streamed, streamed.panelId, opened?.title.orEmpty(), ::leave,
-            onReconnect = { onReconnect(); retry++ })
+        if (streamed != null) {
+            if (browser == null) NativeBrowserView(streamed, streamed.panelId, opened?.title.orEmpty(), ::leave,
+                onReconnect = { onReconnect(); retry++ }, onOnDevice = { url ->
+                    act { presentBrowser(opened?.owner, SshWorkspaceTarget.Browser(streamed.selection), opened?.title.orEmpty(), streamed.panelId, url) }
+                })
+        }
         else if (terminal != null) SshShellScreen(terminal, reconnecting || restoring || busy, reconnectError ?: failure, reconnect, onFiles = { files = true },
             onBrowser = { act {
                 val target = checkNotNull(SshWorkspaceTarget.decode(checkNotNull(selection).substringAfter('\n')))
-                browser = SshBrowserPresentation(session.browsers.network(hostId), sshBrowserWorkspace(target, terminal.title))
+                presentBrowser(opened?.owner, target, terminal.title)
             } }, onBack = ::leave)
         else Column(Modifier.fillMaxSize().padding(16.dp)) {
             BackHandler(onBack = ::leave)

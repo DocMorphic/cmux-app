@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH browser mode switching (2026-10-02):** Streamed / On Android now follows
+per-panel phone-page preferences and returns to the exact linked streamed tab.
+Live workspace inventory reaches the routed browser; removed owners/tabs retire
+cached pages. Thirty-two JVM checks passed. Incremental Android runs covered five
+component checks, four existing SSH browser checks and the new page-reopen/mode
+check (35.802 seconds after an opening-race fix and test-clock correction).
+[Exact run boundaries and evidence](DIRECT_SSH.md) retain the failed five-test run.
+16 KB checks passed and screenshot inspected. Native Mac mode UI, live CDP,
+workspace-route and physical-device acceptance remain open; no signed APK changed.
+
 **Streamed SSH browser renderer (2026-10-02):** existing browser rows now
 resolve stable browser/workspace identities and open the shared renderer through
 an SSH-only adapter. Guarded frame acknowledgements, PNG validation, viewport,

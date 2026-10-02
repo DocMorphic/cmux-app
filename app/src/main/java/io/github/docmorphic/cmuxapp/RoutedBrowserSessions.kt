@@ -24,7 +24,7 @@ internal object RoutedBrowserSessions {
     private var completed: Entry? = null
 
     internal class Entry(val id: String, val network: RoutedBrowserNetwork, val destination: LocalBrowserDestination,
-        var workspace: NativeWorkspace, val release: () -> Unit, val probe: (Boolean) -> Unit) {
+        var workspace: NativeWorkspace, val release: () -> Unit, val probe: (Boolean) -> Unit, val modes: Boolean = false) {
         val exited = CompletableDeferred<Unit>()
         var surfaceWatch: Job? = null
         var peer: Messenger? = null
@@ -35,7 +35,7 @@ internal object RoutedBrowserSessions {
     }
 
     suspend fun register(context: Context, network: RoutedBrowserNetwork, destination: LocalBrowserDestination,
-        workspace: NativeWorkspace, release: () -> Unit, probe: (Boolean) -> Unit): Entry = transitions.withLock {
+        workspace: NativeWorkspace, release: () -> Unit, probe: (Boolean) -> Unit, modes: Boolean = false): Entry = transitions.withLock {
         val app = context.applicationContext
         stopBrowserProcess(app)
         active?.let(::finished)
@@ -50,7 +50,7 @@ internal object RoutedBrowserSessions {
         }
         cleanStorage(app)
         check(!network.retired.isCompleted) { "Browser account or computer changed" }
-        Entry(UUID.randomUUID().toString(), network, destination, workspace, release, probe).also { entry ->
+        Entry(UUID.randomUUID().toString(), network, destination, workspace, release, probe, modes).also { entry ->
             active = entry; probe(true)
             entry.surfaceWatch = scope.launch {
                 destination.surface.state.first { it.closed }
@@ -70,7 +70,7 @@ internal object RoutedBrowserSessions {
     }
     fun refresh(id: String?, workspace: NativeWorkspace) {
         val entry = live(id) ?: return
-        if (entry.workspace != workspace) { entry.workspace = workspace; entry.send(RoutedBrowserProtocol.CONTEXT, RoutedBrowserProtocol.context(workspace)) }
+        if (entry.workspace != workspace) { entry.workspace = workspace; entry.send(RoutedBrowserProtocol.CONTEXT, RoutedBrowserProtocol.context(workspace, entry.modes, entry.destination.surface.linkedStreamPanelId)) }
     }
     fun finished(entry: Entry) {
         if (entry.exited.isCompleted) return

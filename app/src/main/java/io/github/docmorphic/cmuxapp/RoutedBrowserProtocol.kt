@@ -17,7 +17,8 @@ internal object RoutedBrowserProtocol {
     fun panes(workspace: NativeWorkspace) = workspace.terminals.map { Pane("terminal", it.id, it.title.ifBlank { "Terminal" }) } +
         workspace.browsers.map { Pane("browser", it.id, it.title.ifBlank { "Browser" }) } +
         workspace.macSurfaces.map { Pane("surface", it.id, it.displayTitle) }
-    fun context(workspace: NativeWorkspace) = Bundle().apply {
+    fun context(workspace: NativeWorkspace, modes: Boolean = false, linkedPanel: String? = null) = Bundle().apply {
+        putBoolean("modes", modes); putString("linked_panel", linkedPanel)
         putString("workspace", workspace.title)
         putString("panes", JSONArray().also { rows -> panes(workspace).forEach {
             rows.put(JSONObject().put("kind", it.kind).put("id", it.id).put("title", it.title))

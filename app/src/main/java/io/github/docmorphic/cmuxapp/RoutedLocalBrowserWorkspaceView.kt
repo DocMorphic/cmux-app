@@ -23,7 +23,7 @@ internal class RoutedBrowserHostLease(private val release: () -> Unit, private v
 @Composable
 internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestination, navigation: LocalBrowserNavigation,
     workspace: NativeWorkspace, network: () -> RoutedBrowserNetwork?, retainHost: () -> RoutedBrowserHostLease,
-    onClose: () -> Unit, onRoute: (NativeWorkspaceRoute) -> Unit) {
+    onClose: () -> Unit, onRoute: (NativeWorkspaceRoute) -> Unit, browserModes: Boolean = false) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var requestId by rememberSaveable(destination.surface.id) { mutableStateOf<String?>(null) }
@@ -43,6 +43,10 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
                 val paneId = result.data?.getStringExtra("pane")
                 val panel = RoutedBrowserProtocol.panes(currentWorkspace).singleOrNull { it.kind == kind && it.id == paneId }
                 when {
+                    action == "stream" && browserModes && panel?.kind == "browser" &&
+                        navigation.switchToStream(destination.key, currentWorkspace, panel.id) -> {
+                        onRoute(NativeWorkspaceRoute(destination.key.computerId, workspace.id, browserId = panel.id))
+                    }
                     action == "pane" && panel != null -> {
                         navigation.leave(close = true)
                         onRoute(NativeWorkspaceRoute(destination.key.computerId, workspace.id,
@@ -72,7 +76,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             routed = true; failure = null
             lease = retainHost()
             val held = lease
-            val entry = RoutedBrowserSessions.register(context, owner, destination, workspace, held::close, held::foreground)
+            val entry = RoutedBrowserSessions.register(context, owner, destination, workspace, held::close, held::foreground, browserModes)
             registered = entry.id; requestId = entry.id
             launcher.launch(Intent(context, RoutedBrowserActivity::class.java).putExtra(RoutedBrowserProtocol.EXTRA, entry.id))
         } catch (error: Exception) {

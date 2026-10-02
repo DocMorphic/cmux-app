@@ -154,4 +154,43 @@ class SshBrowserTest {
         assertTrue(network.retired.isCompleted)
         compose.onNodeWithTag("ssh.shell").assertIsDisplayed()
     }
+    @Test fun linkedModeRestoresPhonePageAndReturnsToTheExactStreamedTab() {
+        val network = main { session.browsers.network(host.id) }
+        val workspace = sshBrowserWorkspace(SshWorkspaceTarget.Shell("mode-fixture"), "Workspace").copy(
+            browsers = listOf(NativeBrowser("first", "First browser"), NativeBrowser("second", "Second browser")))
+        val key = sshLocalBrowserKey(network, workspace)
+        val shown = mutableStateOf(true)
+        var returned: NativeWorkspaceRoute? = null
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
+            if (shown.value) SshBrowserSheet(SshBrowserPresentation(network, workspace, "second", "http://localhost:$browserPort/page"),
+                onRoute = { returned = it; shown.value = false }) { shown.value = false }
+            else androidx.compose.material3.Button(onClick = { shown.value = true }) { androidx.compose.material3.Text("Reopen linked browser") }
+        } } }
+        fun text(value: String) = checkNotNull(device.wait(Until.findObject(By.text(value)), 15000)) { "Missing $value" }
+        fun description(value: String) = checkNotNull(device.wait(Until.findObject(By.desc(value)), 15000)) { "Missing $value" }
+        text("SSH routed fixture ▾")
+        val remembered = main { checkNotNull(network.navigation.state.value.local).surface }
+        text("Next SSH page").click(); text("SSH next ▾")
+        description("Back to workspaces").click()
+        compose.waitUntil(15000) { !shown.value }
+        assertEquals("http://localhost:$browserPort/next", main { remembered.state.value.url })
+        assertTrue(main { network.navigation.prefersOnDevice(key, "second") })
+        assertFalse(main { network.navigation.prefersOnDevice(key, "first") })
+        compose.onNodeWithText("Reopen linked browser").assertIsDisplayed().performClick()
+        // Pump the Compose test clock until the host launches the separate browser Activity.
+        compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        text("SSH next ▾") // Existing phone URL wins over the seed /page URL.
+        description("Browser mode").click(); text("Streamed").click()
+        compose.waitUntil(15000) { returned != null && !shown.value }
+        assertEquals("second", returned!!.browserId)
+        assertFalse(main { network.navigation.prefersOnDevice(key, "second") })
+        compose.onNodeWithText("Reopen linked browser").assertIsDisplayed().performClick()
+        // Pump the Compose test clock until the host launches the separate browser Activity.
+        compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        text("SSH routed fixture ▾") // Switching back forgot the phone page.
+        assertTrue(device.takeScreenshot(File(compose.activity.getExternalFilesDir(null), "ssh-browser-mode.png")))
+        main { session.close() }
+        compose.waitUntil(15000) { !shown.value }
+    }
+
 }

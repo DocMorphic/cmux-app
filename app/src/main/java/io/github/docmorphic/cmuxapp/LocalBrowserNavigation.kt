@@ -126,6 +126,24 @@ internal class LocalBrowserNavigation(private val scope: CoroutineScope,
     fun restoreFromMemory(key: LocalBrowserKey, workspace: NativeWorkspace, remembered: NativeWorkspaceTab?): Boolean =
         if (remembered == NativeWorkspaceTab.LocalBrowser) restoreRemembered(key, workspace)
         else remembered == null && restore(key, workspace)
+    fun prefersOnDevice(key: LocalBrowserKey, panel: String) = store.prefersOnDevice(key, panel)
+    fun openOnDevice(key: LocalBrowserKey, workspace: NativeWorkspace, panel: String, url: String?) {
+        require(workspace.id == key.workspaceId && workspace.browsers.any { it.id == panel }) { "Browser tab is no longer available" }
+        cancelRequest()
+        mutable.value = LocalBrowserNavigationState(LocalBrowserDestination(key, workspace,
+            workspace.terminals.firstOrNull()?.id, store.openOnDevice(key, panel, url)))
+    }
+    fun switchToStream(key: LocalBrowserKey, workspace: NativeWorkspace, panel: String): Boolean {
+        if (state.value.local?.key != key || workspace.id != key.workspaceId || workspace.browsers.none { it.id == panel }) return false
+        store.forgetOnDevice(key, panel)
+        leave(close = true)
+        return true
+    }
+    fun retainPanels(key: LocalBrowserKey, workspace: NativeWorkspace) {
+        require(workspace.id == key.workspaceId)
+        store.retainPanels(key, workspace.browsers.map { it.id }.toSet())
+        if (state.value.local?.surface?.state?.value?.closed == true) leave(close = true)
+    }
     fun clear() { cancelRequest(); store.clear(); returnTerminals.clear(); mutable.value = LocalBrowserNavigationState(); accountScope = null; loginScope = null }
     companion object {
         fun canCreate(ready: Boolean, capabilities: Set<String>) = ready &&

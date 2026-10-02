@@ -14,7 +14,7 @@ internal data class LocalBrowserWork(val url: String?, val command: LocalBrowser
 
 /** Local state survives workspace inventory refreshes; it never owns or borrows a Mac RPC client. */
 internal class LocalBrowserSurface(val id: String, initialUrl: String? = null,
-    private val resolver: LocalBrowserAddress = LocalBrowserAddress()) {
+    private val resolver: LocalBrowserAddress = LocalBrowserAddress(), val linkedStreamPanelId: String? = null) {
     private val mutable = MutableStateFlow(LocalBrowserSnapshot(address = initialUrl.orEmpty(), url = initialUrl))
     val state = mutable.asStateFlow()
     private var pendingUrl = initialUrl
@@ -80,22 +80,58 @@ internal class LocalBrowserStore(private val defaultUrl: String? = "https://duck
     private val makeId: () -> String = { UUID.randomUUID().toString() }) {
     private val surfaces = mutableMapOf<LocalBrowserKey, LocalBrowserSurface>()
     private val restores = mutableSetOf<LocalBrowserKey>()
+    private data class Panel(val key: LocalBrowserKey, val id: String)
+    private val onDevice = mutableMapOf<Panel, LocalBrowserSurface>()
+    fun prefersOnDevice(key: LocalBrowserKey, panel: String) = Panel(key, panel) in onDevice
+    fun openOnDevice(key: LocalBrowserKey, panel: String, url: String?): LocalBrowserSurface {
+        require(panel.isNotBlank())
+        val surface = onDevice.getOrPut(Panel(key, panel)) {
+            val web = url?.takeIf { runCatching { java.net.URI(it).scheme?.lowercase() in setOf("http", "https") }.getOrDefault(false) }
+            LocalBrowserSurface(makeId(), web ?: defaultUrl, linkedStreamPanelId = panel)
+        }
+        val previous = surfaces.put(key, surface)
+        if (previous != null && previous !== surface && previous !in onDevice.values) previous.close()
+        return surface
+    }
+    fun forgetOnDevice(key: LocalBrowserKey, panel: String) {
+        val removed = onDevice.remove(Panel(key, panel)) ?: return
+        if (surfaces[key] !== removed) removed.close()
+    }
+    /** Authoritative live inventories retire pages for removed browser tabs. */
+    fun retainPanels(key: LocalBrowserKey, ids: Set<String>) {
+        onDevice.keys.filter { it.key == key && it.id !in ids }.forEach { panel ->
+            val removed = onDevice.remove(panel) ?: return@forEach
+            if (surfaces[key] === removed) { surfaces.remove(key); restores.remove(key) }
+            removed.close()
+        }
+    }
+    private fun keys() = surfaces.keys + onDevice.keys.map { it.key } + restores
+    private fun retire(key: LocalBrowserKey) {
+        restores.remove(key)
+        val owned = mutableSetOf<LocalBrowserSurface>()
+        surfaces.remove(key)?.let(owned::add)
+        onDevice.keys.filter { it.key == key }.forEach { onDevice.remove(it)?.let(owned::add) }
+        owned.forEach { it.close() }
+    }
     fun active(key: LocalBrowserKey): LocalBrowserSurface? = surfaces[key]
     fun open(key: LocalBrowserKey) = surfaces.getOrPut(key) { LocalBrowserSurface(makeId(), defaultUrl) }
-    fun close(key: LocalBrowserKey) { restores.remove(key); surfaces.remove(key)?.close() }
+    fun close(key: LocalBrowserKey) {
+        restores.remove(key)
+        surfaces.remove(key)?.let { if (it !in onDevice.values) it.close() }
+    }
     fun requestRestore(key: LocalBrowserKey) { restores += key }
     fun consumeRestore(key: LocalBrowserKey): LocalBrowserSurface? = if (restores.remove(key)) open(key) else null
     fun retainAccount(accountId: String, teamId: String?) {
-        surfaces.keys.filter { it.accountId != accountId || it.teamId != teamId }.forEach(::close)
+        keys().filter { it.accountId != accountId || it.teamId != teamId }.forEach(::retire)
         restores.removeAll { it.accountId != accountId || it.teamId != teamId }
     }
     fun retainComputers(computerIds: Set<String>) {
-        surfaces.keys.filter { it.computerId !in computerIds }.forEach(::close)
+        keys().filter { it.computerId !in computerIds }.forEach(::retire)
         restores.removeAll { it.computerId !in computerIds }
     }
     fun retainWorkspaces(computerId: String, workspaceIds: Set<String>) {
-        surfaces.keys.filter { it.computerId == computerId && it.workspaceId !in workspaceIds }.forEach(::close)
+        keys().filter { it.computerId == computerId && it.workspaceId !in workspaceIds }.forEach(::retire)
         restores.removeAll { it.computerId == computerId && it.workspaceId !in workspaceIds }
     }
-    fun clear() { surfaces.values.forEach { it.close() }; surfaces.clear(); restores.clear() }
+    fun clear() { keys().toList().forEach(::retire) }
 }

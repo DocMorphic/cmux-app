@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 internal data class RoutedBrowserUi(val surface: LocalBrowserSurface? = null,
     val panes: List<RoutedBrowserProtocol.Pane> = emptyList(), val error: String? = null,
-    val retired: Boolean = false, val restart: Boolean = false)
+    val retired: Boolean = false, val restart: Boolean = false, val modes: Boolean = false, val linkedPanel: String? = null)
 
 internal class RoutedBrowserController(application: Application) : AndroidViewModel(application) {
     private val app = application.applicationContext
@@ -47,7 +47,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         when (message.what) {
             RoutedBrowserProtocol.RETIRE -> mutable.value = state.value.copy(retired = true)
-            RoutedBrowserProtocol.CONTEXT -> mutable.value = state.value.copy(panes = RoutedBrowserProtocol.panes(message.data))
+            RoutedBrowserProtocol.CONTEXT -> mutable.value = state.value.copy(panes = RoutedBrowserProtocol.panes(message.data),
+                modes = message.data.getBoolean("modes"), linkedPanel = message.data.getString("linked_panel"))
             else -> replies.remove(message.arg1)?.complete(Bundle(message.data))
         }
         true
@@ -63,7 +64,7 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
                     RoutedBrowserEnvironment.requireReady(configured)
                     binding = configured
                     val surface = LocalBrowserSurface(checkNotNull(response.getString("surface")), response.getString("url"))
-                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(response))
+                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(response), modes = response.getBoolean("modes"), linkedPanel = response.getString("linked_panel"))
                     publishForeground()
                     surface.state.collect { snapshot ->
                         request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(snapshot))
@@ -163,6 +164,13 @@ class RoutedBrowserActivity : ComponentActivity() {
                             ui.panes.forEach { pane -> DropdownMenuItem(text = { Text(pane.title) }, onClick = { menu = false; leave("pane", pane) }) }
                             DropdownMenuItem(text = { Text("✓  New Browser") }, onClick = { menu = false })
                         }
+                    }
+                }
+                if (ui.modes) {
+                    val target = ui.panes.firstOrNull { it.kind == "browser" && it.id == ui.linkedPanel }
+                        ?: ui.panes.firstOrNull { it.kind == "browser" }
+                    BrowserModePicker(BrowserMode.ON_DEVICE, if (target == null) "Needs cmux Browser running on the computer" else null) {
+                        target?.let { leave("stream", it) }
                     }
                 }
                 when {
