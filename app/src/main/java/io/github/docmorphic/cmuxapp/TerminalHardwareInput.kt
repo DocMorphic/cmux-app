@@ -12,6 +12,9 @@ class TerminalHardwareInput {
             if (command) TerminalInputModifiers.commandText(it) else TerminalKeyEncoding.text(it, control, alt, shift)
         }
         if (event.action != KeyEvent.ACTION_DOWN) return null
+        // Modifier presses carry no character and must not consume a pending
+        // dead key (for example pressing Right Alt again for a second accent).
+        if (KeyEvent.isModifierKey(event.keyCode)) return null
         val key = when (event.keyCode) {
             KeyEvent.KEYCODE_ESCAPE -> "Esc"
             KeyEvent.KEYCODE_TAB -> "Tab"
@@ -37,10 +40,21 @@ class TerminalHardwareInput {
                 shift || event.isShiftPressed, applicationCursorKeys)
         }
         val textModifiers = event.metaState and (KeyEvent.META_CTRL_MASK or KeyEvent.META_ALT_MASK or KeyEvent.META_META_MASK).inv()
-        val character = event.getUnicodeChar(textModifiers)
+        val baseCharacter = event.getUnicodeChar(textModifiers)
+        // Right Alt can select a printable/dead-key level in the active Android
+        // layout (AltGr). Left Alt and explicit terminal modifier chords retain
+        // their escape-prefix behavior. Unmapped right-Alt keys also fall back.
+        val layoutCharacter = if (!control && !alt && !command && !event.isCtrlPressed && !event.isMetaPressed &&
+            event.metaState and KeyEvent.META_ALT_RIGHT_ON != 0 && event.metaState and KeyEvent.META_ALT_LEFT_ON == 0)
+            event.getUnicodeChar(textModifiers or KeyEvent.META_ALT_ON or KeyEvent.META_ALT_RIGHT_ON) else 0
+        val layoutAlt = layoutCharacter != 0 && layoutCharacter != baseCharacter
+        val character = if (layoutAlt) layoutCharacter else baseCharacter
+        if (control || command || event.isCtrlPressed || alt || (event.isAltPressed && !layoutAlt)) accent = 0
         if (character and KeyCharacterMap.COMBINING_ACCENT != 0) {
-            accent = character and KeyCharacterMap.COMBINING_ACCENT_MASK
-            return ""
+            val next = character and KeyCharacterMap.COMBINING_ACCENT_MASK
+            val previous = accent
+            accent = if (previous == next) 0 else next
+            return if (previous == 0) "" else String(Character.toChars(previous))
         }
         if (character < 32 || character > 0x10ffff) return null
         val text = if (accent != 0) {
@@ -51,6 +65,6 @@ class TerminalHardwareInput {
             result
         } else String(Character.toChars(character))
         return if (command) TerminalInputModifiers.commandText(text)
-            else TerminalKeyEncoding.text(text, control || event.isCtrlPressed, alt || event.isAltPressed, shift)
+            else TerminalKeyEncoding.text(text, control || event.isCtrlPressed, alt || (event.isAltPressed && !layoutAlt), shift)
     }
 }

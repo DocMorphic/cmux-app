@@ -97,3 +97,66 @@ Physical Pixel/Mac acceptance, exact iOS visual comparison, per-terminal zoom
 policy and broader keyboard-layout/terminal-mode checks remain open. The Pixel
 was not visible to adb during this work and was not changed. Published signed
 build 157 remains the last verified published main app at this checkpoint.
+
+## Android hardware layout follow-up — 2026-10-02
+
+Rechecked `TerminalKeyEncoder`, `TerminalHardwareKeyResolver` and
+`TerminalInputTextView` at audited candidate
+`204a11dfcc76280205e50406ab94270a1c152155`. iOS special/control mappings remain
+consistent with the existing Android path. Ordinary Unicode composition is
+provided through UIKit's text-input system; Android must respect its own active
+key character map. This narrow audit does not advance the broad parity pin.
+
+Android previously removed every Alt flag before `getUnicodeChar`, preventing
+right-Alt layout characters and accents from being interpreted. The hardware
+adapter now uses a distinct nonzero right-Alt mapping when present. Left Alt,
+Ctrl+Alt, explicit toolbar Alt/Control/Command and unmapped right-Alt keys preserve
+the existing terminal escape/control behavior. Navigation remains terminal input,
+including application-cursor mode and readline Alt+Left/Right.
+
+Android's [key character map format](https://source.android.com/docs/core/interaction/input/key-character-map-files)
+supports separate right-Alt mappings. Its [generic map](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/data/keyboards/Generic.kcm)
+also supplies Alt character levels and combining accents. Tests use the actual
+Android virtual keyboard map rather than mocking Unicode lookup. Right-Alt
+character selection is an Android policy; it is not an iOS hardware-key protocol.
+
+Repeated dead accents emit the previous accent instead of silently losing it.
+A different second accent emits the first and retains the new pending accent;
+incompatible base characters retain both characters. Navigation and explicit
+terminal modifier chords cancel the pending accent so Ctrl+C cannot accidentally
+become accented text. Physical keyboard layouts, manufacturer-specific key maps
+and the Pixel/Mac workflow still require acceptance.
+
+### Verification
+
+All **seven focused JVM checks passed**, zero failures/errors/skips. All **six
+final Android tests passed in 40.53 seconds**, API 37 / 16 KB, zero skips:
+
+- Three actual-key-map cases verify right-Alt characters, left/explicit Alt and
+  Ctrl+Alt behavior, dead accents, repeated/different accents with real modifier
+  presses, incompatible bases, key-up handling, navigation and cursor modes.
+- The full NativeScreen flow sends exactly `ç`, `é`, Alt+Left, an application-mode
+  Up and Ctrl+C through the real IME endpoint/input queue/framed RPC client, all
+  to the original terminal. A live output event changes the Ghostty cursor mode;
+  the next Up uses normal CSI encoding. Its final screenshot was inspected.
+- Existing early hardware-focus and direct IME composition/pause/target-switch
+  regressions pass on the same final build.
+
+The initial run passed five cases; the new flow timed out after its fixture
+returned an obsolete replay snapshot during keyboard resizing. The fixture now
+advances its snapshot and sequence with the output event, matching a real host's
+current state. That flow passed alone in 16.827 seconds. Final review added the
+modifier-only guard so pressing Right Alt again does not erase a pending accent;
+all six cases above then passed together. Original failure diagnostics remain
+under `captures/runtime/hardware-layout/` beside `modifier-build.txt`,
+`modifier-android.txt`, JVM XML and the final screenshot.
+
+Both APKs build and pass 16 KB ZIP alignment; all five native libraries pass
+LOAD/RELRO checks. SHA-256:
+
+- Debug: `390efda4fffbae6244b9232bd3b997812e58b665d6fd738a2b931e6cf4eab7d2`
+- Test: `1b143547596026f9242c3f7a1efa29e49c8c2c917ee0aefd40f61af8ab826fc4`
+
+This verifies synthetic events using Android's real virtual key map and a
+loopback Mac fixture. It does not claim physical keyboard layout, Pixel/Mac or
+latency acceptance. No signed release changed; the existing emulator was stopped.

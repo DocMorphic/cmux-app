@@ -1237,6 +1237,55 @@ class NativeFlowTest {
         assertTrue(peer.requests.none { it.optJSONObject("params")?.optString("text") == "stale input" })
     }
 
+    @Test fun hardwareLayoutCharactersAndCursorModesReachTheOriginalTerminal() {
+        peer.rawTerminal = true
+        peer.rawReplayText = "\u001b[?1hHardware layout fixture"
+        peer.rawReplaySequence = 100
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalFixture(10_000) { compose.onAllNodesWithText("Hardware layout fixture", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Keyboard").performClick()
+        lateinit var connection: InputConnection
+        val right = KeyEvent.META_ALT_ON or KeyEvent.META_ALT_RIGHT_ON
+        val left = KeyEvent.META_ALT_ON or KeyEvent.META_ALT_LEFT_ON
+        fun key(code: Int, meta: Int = 0, action: Int = KeyEvent.ACTION_DOWN) =
+            KeyEvent(0, 0, action, code, 0, meta, android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, android.view.InputDevice.SOURCE_KEYBOARD)
+        compose.runOnIdle {
+            connection = findTerminalKeyboard(compose.activity.window.decorView)!!.onCreateInputConnection(EditorInfo())!!
+            connection.sendKeyEvent(key(KeyEvent.KEYCODE_C, right))
+            connection.sendKeyEvent(key(KeyEvent.KEYCODE_C, right, KeyEvent.ACTION_UP))
+            connection.sendKeyEvent(key(KeyEvent.KEYCODE_E, right))
+            connection.sendKeyEvent(key(KeyEvent.KEYCODE_E))
+            connection.sendKeyEvent(key(KeyEvent.KEYCODE_DPAD_LEFT, left))
+            connection.sendKeyEvent(key(KeyEvent.KEYCODE_DPAD_UP))
+            connection.sendKeyEvent(key(KeyEvent.KEYCODE_E, right))
+            connection.sendKeyEvent(key(KeyEvent.KEYCODE_C, KeyEvent.META_CTRL_ON))
+        }
+        fun sent() = peer.requests.filter { it.optString("method") == "terminal.input" }
+        waitForTerminalFixture(10_000) { sent().size == 5 }
+        assertEquals(listOf("ç", "é", "\u001bb", "\u001bOA", "\u0003"), sent().map { it.getJSONObject("params").getString("text") })
+        val modeChange = "\u001b[?1l\r\nNormal cursor mode"
+        // The IME can trigger a viewport replay while this event is in flight.
+        // A real host's fresh snapshot already includes its latest mode/output.
+        peer.rawReplayText += modeChange
+        peer.rawReplaySequence = 100 + modeChange.toByteArray().size.toLong()
+        peer.pushBytes(modeChange.toByteArray(), 100)
+        waitForTerminalFixture(10_000) { compose.onAllNodesWithText("Normal cursor mode", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnIdle {
+            connection = findTerminalKeyboard(compose.activity.window.decorView)!!.onCreateInputConnection(EditorInfo())!!
+            assertTrue(connection.sendKeyEvent(key(KeyEvent.KEYCODE_DPAD_UP)))
+        }
+        waitForTerminalFixture(10_000) { sent().size == 6 }
+        assertEquals("\u001b[A", sent().last().getJSONObject("params").getString("text"))
+        assertEquals(setOf("terminal-1"), sent().map { it.getJSONObject("params").getString("surface_id") }.toSet())
+        screenshot("terminal-hardware-layout")
+    }
+
     @Test fun rawTerminalStreamsSplitBytesSwitchesScreensAndRecoversMissingOutput() {
         peer.rawTerminal = true
         peer.rawReplayText = "\u001b[2J\u001b[HRaw VT stream\r\n\u001b[6n"

@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Hardware layout input (2026-10-02):** fixed right-Alt character/dead-accent
+lookup while preserving left-Alt terminal shortcuts. Repeated accents survive
+modifier presses; explicit control chords cancel pending accents. Seven JVM and
+six final Android checks passed (40.53 seconds, API 37 / 16 KB, zero skips),
+including full-screen IME-to-RPC text and live application/normal cursor modes.
+APK/alignment checks and screenshot inspection passed.
+[Source audit, fixture correction and limits](TERMINAL_SHORTCUTS.md#android-hardware-layout-follow-up--2026-10-02)
+retain physical keyboard layouts and Pixel/Mac acceptance as open. No signed
+release changed; the emulator is stopped.
+
 **Account process-death acceptance (2026-10-02):** three tests now kill and restart
 a dedicated emulator process with real encrypted storage and production account
 components. Cached display restores without authority, fresh membership enables
