@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Full unsigned SSH browser sequences (2026-10-02):** removed the signed-64-bit
+restriction on remote frame IDs and pointer tokens. Exact JSON parsing and numeric
+serialization preserve the full iOS UInt64 range; local renderer IDs fence old
+presentation callbacks across reattachment. Thirty-five JVM checks and all five
+Android rendering/input component cases passed (34.362 seconds, API 37 / 16 KB,
+no skips), including maximum-token pixels and guarded taps. Both APKs and alignment
+checks passed. [Evidence and limits](DIRECT_SSH.md) distinguish this fixture
+coverage from live host/device acceptance. No signed release or parity pin changed.
+
 **SSH HTTPS/WSS and certificate-error recovery (2026-10-02):** verified public
 HTTPS and secure WebSocket text/binary echoes in the real On Android WebView.
 Fixed missing error feedback for provisional TLS failures and Retry targeting the

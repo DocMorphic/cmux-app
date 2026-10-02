@@ -54,8 +54,8 @@ class SshCmuxBrowserControlTest {
         assertTrue(pipe.sent[1].getJSONArray("capabilities").toString().contains(SshCmuxBrowserWire.CAPABILITY))
         assertEquals(listOf("identify", "set-client-info", "attach-surface"), pipe.sent.map { it.getString("cmd") })
         assertFalse(client.browserInput(view, BrowserInput.Click(3.0, 4.0)))
-        assertTrue(client.browserFrameDisplayed(view, 9)); assertEquals(40, pipe.sent.last().getInt("frame_seq"))
-        assertFalse(client.browserFrameDisplayed(view, 9))
+        assertTrue(client.browserFrameDisplayed(view, 9uL)); assertEquals(40, pipe.sent.last().getInt("frame_seq"))
+        assertFalse(client.browserFrameDisplayed(view, 9uL))
         assertTrue(client.browserInput(view, BrowserInput.Click(3.0, 4.0, 2)))
         val click = pipe.sent.takeLast(2)
         assertEquals(listOf("down", "up"), click.map { it.getString("kind") })
@@ -68,14 +68,14 @@ class SshCmuxBrowserControlTest {
     @Test fun authorityRevokedDuringAcknowledgementNeverBecomesClickable() = runTest {
         val pipe = Pipe(); val client = SshCmuxControl(pipe, backgroundScope); val view = ready(pipe, client)
         pipe.presentedState = pipe.state(41, false)
-        assertFalse(client.browserFrameDisplayed(view, 9))
+        assertFalse(client.browserFrameDisplayed(view, 9uL))
         assertFalse(client.browserInput(view, BrowserInput.Click(1.0, 1.0)))
         assertEquals(4, pipe.sent.size)
         client.close()
     }
     @Test fun rejectedPointerIsNotReplayedOrReauthorizedOnResume() = runTest {
         val pipe = Pipe(); val client = SshCmuxControl(pipe, backgroundScope); val view = ready(pipe, client)
-        client.browserFrameDisplayed(view, 9); pipe.fail = "browser-mouse-guarded"
+        client.browserFrameDisplayed(view, 9uL); pipe.fail = "browser-mouse-guarded"
         assertTrue(runCatching { client.browserInput(view, BrowserInput.Click(1.0, 1.0)) }.isFailure)
         assertEquals("down", pipe.sent.last().getString("kind"))
         assertEquals(1, pipe.sent.count { it.optString("cmd") == "browser-mouse-guarded" })
@@ -85,7 +85,7 @@ class SshCmuxBrowserControlTest {
     @Test fun resizeAndNavigationRevokeOldPixelsAndKeysUseCdpFields() = runTest {
         val pipe = Pipe(); val client = SshCmuxControl(pipe, backgroundScope); val view = ready(pipe, client)
         assertEquals(8 to 16, client.browserCellPixels())
-        client.browserFrameDisplayed(view, 9)
+        client.browserFrameDisplayed(view, 9uL)
         assertTrue(client.resizeBrowser(view, 90, 30)); assertNull(view.pointer.token)
         assertFalse(pipe.sent.any { it.optString("cmd") == "set-client-sizing" })
         client.browserInput(view, BrowserInput.Key("return", listOf("control")))
@@ -98,7 +98,7 @@ class SshCmuxBrowserControlTest {
     @Test fun detachIsFencedAndAReattachedSurfaceDoesNotInheritTokens() = runTest {
         val pipe = Pipe(); val client = SshCmuxControl(pipe, backgroundScope)
         val events = mutableListOf<SshCmuxBrowserEvent>(); val view = ready(pipe, client, events)
-        client.browserFrameDisplayed(view, 9)
+        client.browserFrameDisplayed(view, 9uL)
         assertTrue(runCatching { client.attach(7, 80, 24) {} }.isFailure)
         client.detach(view); assertEquals(1, events.count { it is SshCmuxBrowserEvent.Ended })
         assertTrue(runCatching { client.browserInput(view, BrowserInput.Text("stale")) }.isFailure)

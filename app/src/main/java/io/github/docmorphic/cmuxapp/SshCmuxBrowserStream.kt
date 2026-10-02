@@ -27,6 +27,19 @@ internal class SshCmuxBrowserStream(
     private val operations = Mutex()
     private var attachment: SshCmuxBrowserAttachment? = null
     private var streamId: String? = null
+    // Shared renderer IDs are local signed integers. Remote UInt64 sequence and
+    // pointer authority stay exact; an old presentation can never alias a restart.
+    private var renderSequence = 0L
+    private val renderedFrames = sortedMapOf<Long, ULong>()
+    private fun image(frame: SshCmuxBrowserFrame): JSONObject {
+        check(renderSequence < Long.MAX_VALUE) { "Browser presentation sequence exhausted" }
+        val sequence = ++renderSequence
+        renderedFrames[sequence] = frame.sequence
+        while (renderedFrames.size > 8) renderedFrames.remove(renderedFrames.firstKey())
+        return JSONObject().put("format", "png").put("seq", sequence)
+            .put("page_width", frame.width).put("page_height", frame.height)
+            .put("pixel_width", frame.imageWidth).put("pixel_height", frame.imageHeight).put("data_b64", frame.png)
+    }
     private var cell = 1 to 1
     private var appliedGrid: Pair<Int, Int>? = null
     private var descriptor = JSONObject()
@@ -87,7 +100,7 @@ internal class SshCmuxBrowserStream(
         if (streamId == stream) detach()
     }
     private suspend fun detach() {
-        streamId = null; appliedGrid = null
+        streamId = null; appliedGrid = null; renderedFrames.clear()
         val current = attachment; attachment = null
         if (current != null) withTimeout(2_000) { control.detach(current) }
     }
@@ -108,7 +121,10 @@ internal class SshCmuxBrowserStream(
         }
     }
     override suspend fun displayed(panel: String, sequence: Long) = operations.withLock {
-        control.browserFrameDisplayed(view(panel), sequence); Unit
+        val current = view(panel)
+        renderedFrames.keys.filter { it < sequence }.forEach { renderedFrames.remove(it) }
+        val remoteSequence = renderedFrames.remove(sequence) ?: return@withLock
+        control.browserFrameDisplayed(current, remoteSequence); Unit
     }
     override suspend fun respondDialog(panel: String, id: String, button: String, text: String?) {
         guard(panel); error("This SSH browser does not expose native dialog responses")
@@ -130,8 +146,5 @@ internal class SshCmuxBrowserStream(
             require(width in 1..4096 && height in 1..4096)
             return (width / maxOf(1, cell.first)).coerceIn(1, 1000) to (height / maxOf(1, cell.second)).coerceIn(1, 1000)
         }
-        fun image(frame: SshCmuxBrowserFrame) = JSONObject().put("format", "png").put("seq", frame.sequence)
-            .put("page_width", frame.width).put("page_height", frame.height)
-            .put("pixel_width", frame.imageWidth).put("pixel_height", frame.imageHeight).put("data_b64", frame.png)
     }
 }

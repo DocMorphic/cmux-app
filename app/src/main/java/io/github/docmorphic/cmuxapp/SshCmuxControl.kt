@@ -6,7 +6,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
-import org.json.JSONTokener
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
@@ -28,10 +27,7 @@ internal class SshCmuxLines(private val limit: Int = 16 * 1024 * 1024) {
                     val decoder = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT)
                     val text = decoder.decode(ByteBuffer.wrap(buffer.toByteArray())).toString()
                     boundNesting(text)
-                    val parser = JSONTokener(text)
-                    val objectValue = parser.nextValue() as? JSONObject ?: error("cmux-tui line is not an object")
-                    check(parser.nextClean() == '\u0000') { "Trailing cmux-tui JSON content" }
-                    result += objectValue
+                    result += MobileJson.objectValue(text, requireComplete = true)
                 }
                 buffer.reset(); start = i + 1
             }
@@ -130,7 +126,7 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
     }
     suspend fun request(command: String, params: JSONObject = JSONObject()): JSONObject {
         require(!params.has("id") && !params.has("cmd"))
-        val response = exchange(JSONObject(params.toString()).put("cmd", command))
+        val response = exchange(MobileJson.objectValue(params.toString()).put("cmd", command))
         if (response.opt("ok") != true) throw SshCmuxFailure(command, response.opt("error") as? String ?: "cmux-tui command failed", response.opt("error_code") as? String)
         return response.optJSONObject("data") ?: JSONObject()
     }
@@ -233,13 +229,13 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
             return attachment
         } catch (failure: Exception) { finish(); throw failure }
     }
-    suspend fun browserFrameDisplayed(attachment: SshCmuxBrowserAttachment, sequence: Long): Boolean = attachment.operations.withLock {
+    suspend fun browserFrameDisplayed(attachment: SshCmuxBrowserAttachment, sequence: ULong): Boolean = attachment.operations.withLock {
         live(attachment)
         attachment.frames.keys.filter { it < sequence }.forEach { attachment.frames.remove(it) }
         val token = attachment.frames.remove(sequence) ?: return@withLock false
         if (!attachment.pointer.canAcknowledge(token)) return@withLock false
         try {
-            request("browser-frame-presented", JSONObject().put("surface", attachment.surface).put("frame_seq", token))
+            request("browser-frame-presented", JSONObject().put("surface", attachment.surface).put("frame_seq", token.toString().toBigInteger()))
             live(attachment); attachment.pointer.acknowledge(token)
         } catch (failure: Exception) { attachment.pointer.revoke(); throw failure }
     }
@@ -250,7 +246,7 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
             is BrowserInput.Click -> {
                 require(input.x.isFinite() && input.y.isFinite() && input.count > 0)
                 val token = attachment.pointer.token ?: return@withLock false
-                params.put("x_px", input.x).put("y_px", input.y).put("frame_seq", token).put("button", "left").put("click_count", input.count)
+                params.put("x_px", input.x).put("y_px", input.y).put("frame_seq", token.toString().toBigInteger()).put("button", "left").put("click_count", input.count)
                 try {
                     request("browser-mouse-guarded", params.put("kind", "down")); live(attachment)
                     // Both halves keep the same token. Never release onto a newer frame.
@@ -262,7 +258,7 @@ internal class SshCmuxControl(private val pipe: SshExecPipe, lifetime: Coroutine
                 val token = attachment.pointer.token ?: return@withLock false
                 if (input.dy == 0.0) return@withLock false
                 try { request("browser-wheel-guarded", params.put("x_px", input.x).put("y_px", input.y)
-                    .put("delta_y_px", input.dy).put("frame_seq", token)) }
+                    .put("delta_y_px", input.dy).put("frame_seq", token.toString().toBigInteger())) }
                 catch (failure: Exception) { attachment.pointer.revoke(); throw failure }
             }
             is BrowserInput.Text -> request("browser-insert-text", params.put("text", input.text))

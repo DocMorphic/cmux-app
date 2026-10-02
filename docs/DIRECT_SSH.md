@@ -13,7 +13,58 @@ rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This au
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
-Older checkpoints below retain their original evidence boundaries; the HTTPS/WSS checkpoint below is the latest browser implementation status.
+Older checkpoints below retain their original evidence boundaries; the unsigned-sequence checkpoint below is the latest browser implementation status.
+
+## Full unsigned browser sequences and pointer tokens (2026-10-02)
+
+Matched the audited iOS `UInt64` frame sequence and pointer-token types in
+[`CmuxTUIBrowser.swift`](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileSSH/Sources/CmuxMobileSSH/CmuxTUI/CmuxTUIBrowser.swift).
+Android previously rejected the upper half of their valid range. The SSH wire,
+attachment ordering and pointer guard now accept exact values through
+`18446744073709551615`. Negative, fractional, string and overflowing values still
+fail parsing; duplicate, older and wrapped image sequences cannot become new pixels.
+
+SSH line decoding and outgoing request cloning now use the existing exact-integer
+JSON reader. This matters on Android, whose normal
+[JSONTokener](https://developer.android.com/reference/org/json/JSONTokener)
+represents numbers with signed integer or floating-point types. The line length,
+UTF-8, nesting and trailing-content checks remain enforced. Unsigned pointer tokens
+are serialized as numeric decimal integers, never strings or rounded doubles.
+
+The shared renderer receives monotonic local presentation IDs mapped to remote
+unsigned image sequences. That map is bounded to eight entries, is cleared on
+detach, and never reuses an ID within the adapter. A late acknowledgement from an
+old attachment cannot authorize input after reconnect. Remote frame ordering and
+pointer authority remain independent: only acknowledged displayed pixels admit
+clicks, both click phases keep the same token, and unsigned range comparisons
+retain the existing state-only revocation behavior.
+
+**Verification:** 35 focused JVM tests passed without failures or skips (JSON,
+control, browser wire/guard and stream adapter). They exercise zero, the signed
+boundary and its successor, adjacent values at the unsigned maximum, exact frame
+acknowledgement/click/wheel serialization, duplicate/wrapped frames, malformed
+numbers, reversed ranges, and stale presentation callbacks after reattachment.
+
+The actual Android parser, production control/adapter and Compose renderer passed
+**OK (5 tests), 34.362 seconds, no skips**, on API 37 / 16 KB. The new case decodes
+and displays unsigned frames, checks generated green pixels and verifies exact
+maximum-token acknowledgement and both tap commands. Four existing cases cover
+ordinary pixels/taps/detach, malformed-image rejection and recovery, background
+reattachment with lower remote sequences, and On Android mode disposal. The
+ordinary generated-page screenshot was also inspected. These are component
+checks with a private in-process wire fixture, not a new real CDP/SSH server or
+physical Pixel acceptance run.
+
+Both APKs built successfully; all five native libraries passed LOAD/RELRO alignment
+and both APKs passed 16 KB ZIP alignment. Evidence is retained under ignored
+`captures/runtime/ssh-audit/unsigned-browser-{build.txt,jvm,android}`. APK SHA-256:
+
+- Debug: `8882d6c4ce017dd512c59c44b075fd62aea82a0aba06f84f0aa00742bba0fa35`
+- Test: `79722f50b04a084313a7f62473e4cca3af6c6c3e510598aaac2cc86b3cab0009`
+
+No signed release or upstream parity pin changed. The existing emulator was
+stopped after verification; no additional AVD was created. Provider/daemon restart,
+unknown-delivery recovery and physical Pixel/Mac acceptance remain open.
 
 ## SSH-routed HTTPS/WSS and certificate-error recovery (2026-10-02)
 

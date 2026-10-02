@@ -6,7 +6,12 @@ import java.math.BigInteger
 
 /** Android JSONTokener rounds integers outside Long through Double. Preserve wire cursors. */
 internal object MobileJson {
-    fun objectValue(text: String): JSONObject = JSONObject(ExactIntegers(text))
+    fun objectValue(text: String, requireComplete: Boolean = false): JSONObject {
+        val parser = ExactIntegers(text)
+        val value = JSONObject(parser)
+        if (requireComplete) check(parser.nextClean() == '\u0000') { "Trailing JSON content" }
+        return value
+    }
 
     private class ExactIntegers(text: String) : JSONTokener(text) {
         override fun nextValue(): Any {

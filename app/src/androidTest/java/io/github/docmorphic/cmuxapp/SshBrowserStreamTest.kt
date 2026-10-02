@@ -39,8 +39,8 @@ class SshBrowserStreamTest {
         override val output = incoming.receiveAsFlow()
         val sent = CopyOnWriteArrayList<JSONObject>()
         @Volatile var malformed = false
-        @Volatile var sequence = 9L
-        @Volatile var token = 40L
+        @Volatile var sequence = 9uL
+        @Volatile var token = 40uL
         private val png = Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888).let { bitmap ->
             bitmap.eraseColor(Color.rgb(20, 150, 100))
             val bytes = ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
@@ -48,12 +48,12 @@ class SshBrowserStreamTest {
         }
         fun feed(value: JSONObject) { check(incoming.trySend((value.toString() + "\n").toByteArray()).isSuccess) }
         fun state() = JSONObject().put("event", "browser-state").put("surface", 7).put("status", "live")
-            .put("pointer_frame_seq", token).put("cols", 80).put("rows", 24)
+            .put("pointer_frame_seq", token.toString().toBigInteger()).put("cols", 80).put("rows", 24)
             .put("url", "http://localhost:8080/").put("title", "SSH streamed fixture")
-            .put("frame", JSONObject().put("seq", sequence).put("width", 100).put("height", 200)
+            .put("frame", JSONObject().put("seq", sequence.toString().toBigInteger()).put("width", 100).put("height", 200)
                 .put("image_width", if (malformed) 101 else 100).put("image_height", 200).put("data", png))
         override suspend fun write(bytes: ByteArray) {
-            val request = JSONObject(bytes.toString(Charsets.UTF_8)); sent += request
+            val request = MobileJson.objectValue(bytes.toString(Charsets.UTF_8)); sent += request
             val data = when (request.getString("cmd")) {
                 "identify" -> JSONObject().put("app", "cmux-tui").put("version", "fixture").put("protocol", 12).put("session", "fixture").put("pid", 123)
                     .put("capabilities", JSONArray(listOf("workspace-registry-v1", "attach-initial-size", "view-attachment-lease-v1",
@@ -94,7 +94,7 @@ class SshBrowserStreamTest {
     }
     private fun awaitPresentation() {
         compose.waitForIdle()
-        compose.waitUntil(10_000) { pipe.requests("browser-frame-presented").lastOrNull()?.optLong("frame_seq") == pipe.token }
+        compose.waitUntil(10_000) { pipe.requests("browser-frame-presented").lastOrNull()?.opt("frame_seq")?.toString() == pipe.token.toString() }
         compose.waitForIdle()
     }
     @Test fun decodedPixelsAreVisibleBeforeGuardedTapAndExitDetachesWithoutClosingControl() {
@@ -123,12 +123,33 @@ class SshBrowserStreamTest {
         compose.waitUntil(10_000) { pipe.requests("detach-attached-view").size == 1 }
         assertFalse(control.closed)
     }
+    @Test fun unsignedFramesRenderAndAcknowledgementsAndClicksKeepExactWireTokens() {
+        pipe.sequence = 9223372036854775808uL
+        pipe.token = 18446744073709551000uL
+        show(); awaitPresentation()
+        pipe.sequence = ULong.MAX_VALUE; pipe.token = ULong.MAX_VALUE
+        pipe.feed(pipe.state()); awaitPresentation()
+        val page = compose.onNodeWithContentDescription("SSH browser page").assertIsDisplayed()
+        val pixels = page.captureToImage().toPixelMap()
+        assertEquals(150 / 255f, pixels[pixels.width / 2, pixels.height / 2].green, 0.03f)
+        page.performTouchInput { click(center) }
+        compose.waitUntil(10_000) { pipe.requests("browser-mouse-guarded").size == 2 }
+        val commands = listOf(pipe.requests("browser-frame-presented").last()) + pipe.requests("browser-mouse-guarded")
+        assertTrue(commands.all { it.get("frame_seq").toString() == "18446744073709551615" })
+        assertTrue(commands.all { it.toString().contains("\"frame_seq\":18446744073709551615") })
+        assertFalse(control.closed)
+        // Older/wrapped wire sequences cannot replace the latest pixels or authority.
+        val count = pipe.requests("browser-frame-presented").size
+        pipe.sequence = 0uL; pipe.token = 0uL; pipe.feed(pipe.state())
+        compose.waitForIdle()
+        assertEquals(count, pipe.requests("browser-frame-presented").size)
+    }
     @Test fun malformedPixelsNeverAcknowledgeThenFreshFrameEnablesNavigation() {
         pipe.malformed = true; show()
         compose.waitForIdle()
         compose.onNodeWithContentDescription("SSH browser page").assertDoesNotExist()
         assertTrue(pipe.requests("browser-frame-presented").isEmpty())
-        pipe.malformed = false; pipe.sequence = 10; pipe.token = 41; pipe.feed(pipe.state())
+        pipe.malformed = false; pipe.sequence = 10uL; pipe.token = 41uL; pipe.feed(pipe.state())
         awaitPresentation()
         assertTrue(pipe.requests("browser-frame-presented").all { it.getLong("frame_seq") >= 41L })
         compose.onNodeWithContentDescription("Browser Back").assertIsEnabled().performClick()
@@ -143,7 +164,7 @@ class SshBrowserStreamTest {
         val oldToken = pipe.requests("browser-frame-presented").last().getLong("frame_seq")
         compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
         compose.waitUntil(10_000) { pipe.requests("detach-attached-view").size == 1 }
-        pipe.sequence = 1; pipe.token = 2
+        pipe.sequence = 1uL; pipe.token = 2uL
         compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
         awaitPresentation()
         val newToken = pipe.requests("browser-frame-presented").last().getLong("frame_seq")

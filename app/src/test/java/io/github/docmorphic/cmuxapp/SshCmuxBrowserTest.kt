@@ -6,54 +6,54 @@ import org.junit.Test
 
 class SshCmuxBrowserTest {
     private fun frame(seq: Long = 1, token: Long? = 40, floor: Long? = token, status: SshCmuxBrowserStatus? = SshCmuxBrowserStatus.LIVE) =
-        SshCmuxBrowserFrame(seq, 640, 480, 1280, 960, "png", status, null, floor, token)
+        SshCmuxBrowserFrame(seq.toULong(), 640, 480, 1280, 960, "png", status, null, floor?.toULong(), token?.toULong())
     private fun state(frame: SshCmuxBrowserFrame? = null, floor: Long? = 40, token: Long? = 40, status: SshCmuxBrowserStatus = SshCmuxBrowserStatus.LIVE) =
-        SshCmuxBrowserState(80, 24, "http://localhost", "Page", status, null, false, floor, token, frame)
+        SshCmuxBrowserState(80, 24, "http://localhost", "Page", status, null, false, floor?.toULong(), token?.toULong(), frame)
     @Test fun pixelsAndExplicitPresentationAreRequiredBeforePointerInput() {
         val guard = SshCmuxBrowserPointerGuard()
-        guard.apply(state()); assertNull(guard.token); assertFalse(guard.acknowledge(40))
+        guard.apply(state()); assertNull(guard.token); assertFalse(guard.acknowledge(40uL))
         guard.apply(state(frame())); assertNull(guard.token)
-        assertTrue(guard.acknowledge(40)); assertEquals(40L, guard.token)
-        assertFalse(guard.acknowledge(40)); assertFalse(guard.acknowledge(41))
-        guard.apply(state()); assertEquals(40L, guard.token)
-        guard.apply(state(floor = 41, token = 41)); assertNull(guard.token); assertFalse(guard.acknowledge(41))
+        assertTrue(guard.acknowledge(40uL)); assertEquals(40uL, guard.token)
+        assertFalse(guard.acknowledge(40uL)); assertFalse(guard.acknowledge(41uL))
+        guard.apply(state()); assertEquals(40uL, guard.token)
+        guard.apply(state(floor = 41, token = 41)); assertNull(guard.token); assertFalse(guard.acknowledge(41uL))
     }
     @Test fun newPixelsMayRetainPresentedTokenOnlyWithinTheirRange() {
         val guard = SshCmuxBrowserPointerGuard()
-        guard.apply(frame()); assertTrue(guard.acknowledge(40))
-        guard.apply(frame(2, 43, 39)); assertEquals(40L, guard.token)
-        assertTrue(guard.acknowledge(43)); assertFalse(guard.acknowledge(40))
+        guard.apply(frame()); assertTrue(guard.acknowledge(40uL))
+        guard.apply(frame(2, 43, 39)); assertEquals(40uL, guard.token)
+        assertTrue(guard.acknowledge(43uL)); assertFalse(guard.acknowledge(40uL))
         guard.apply(frame(3, 44, 44)); assertNull(guard.token)
-        assertTrue(guard.acknowledge(44))
+        assertTrue(guard.acknowledge(44uL))
         guard.apply(frame(4, 46, 47)); assertNull(guard.token)
     }
     @Test fun unknownStatusMissingAuthorityAndFailuresRevokePresentation() {
         for (invalid in listOf(frame(status = null), frame(status = SshCmuxBrowserStatus.FAILED), frame(token = null))) {
-            val guard = SshCmuxBrowserPointerGuard(); guard.apply(frame()); assertTrue(guard.acknowledge(40))
+            val guard = SshCmuxBrowserPointerGuard(); guard.apply(frame()); assertTrue(guard.acknowledge(40uL))
             guard.apply(invalid); assertNull(guard.token)
         }
-        val guard = SshCmuxBrowserPointerGuard(); guard.apply(frame()); guard.acknowledge(40)
+        val guard = SshCmuxBrowserPointerGuard(); guard.apply(frame()); guard.acknowledge(40uL)
         guard.apply(state(status = SshCmuxBrowserStatus.STARTING)); assertNull(guard.token)
     }
     @Test fun attachmentMapsImageSequenceToDifferentPointerTokenAndBoundsUndisplayedFrames() {
         val received = mutableListOf<SshCmuxBrowserEvent>()
         val attachment = SshCmuxBrowserAttachment(5, received::add)
         attachment.receive(SshCmuxBrowserEvent.State(state(frame())))
-        assertEquals(40L, attachment.frames[1L]); assertTrue(attachment.seeded)
+        assertEquals(40uL, attachment.frames[1uL]); assertTrue(attachment.seeded)
         for (i in 2L..20L) attachment.receive(SshCmuxBrowserEvent.Frame(frame(i, 100 + i, 40)))
-        assertEquals((13L..20L).toList(), attachment.frames.keys.toList())
+        assertEquals((13uL..20uL).toList(), attachment.frames.keys.toList())
         val count = received.size
         attachment.receive(SshCmuxBrowserEvent.Frame(frame(3, 999))); assertEquals(count, received.size)
         attachment.receive(SshCmuxBrowserEvent.State(state(frame(1, 999), 999, 999)))
         assertNull((received.last() as SshCmuxBrowserEvent.State).value.frame)
-        assertFalse(attachment.pointer.acknowledge(999))
+        assertFalse(attachment.pointer.acknowledge(999uL))
         attachment.receive(SshCmuxBrowserEvent.Ended(true)); assertTrue(attachment.frames.isEmpty())
     }
     @Test fun nestedStateFrameInheritsAuthorityAndHasDistinctImageDimensions() {
         val raw = JSONObject("""{"event":"browser-state","surface":7,"status":"live","pointer_frame_seq":42,"pointer_frame_floor_seq":40,
             "frame":{"seq":9,"width":640,"height":480,"image_width":1280,"image_height":960,"data":"AA=="}}""")
         val state = (SshCmuxBrowserWire.parse(raw) as SshCmuxBrowserEvent.State).value
-        assertEquals(9L, state.frame!!.sequence); assertEquals(42L, state.frame.token)
+        assertEquals(9uL, state.frame!!.sequence); assertEquals(42uL, state.frame.token)
         assertEquals(1280, state.frame.imageWidth); assertEquals(SshCmuxBrowserStatus.LIVE, state.frame.status)
         raw.put("status", "new-future-state")
         assertEquals(SshCmuxBrowserStatus.STARTING, (SshCmuxBrowserWire.parse(raw) as SshCmuxBrowserEvent.State).value.status)
@@ -67,6 +67,32 @@ class SshCmuxBrowserTest {
         assertThrows(Exception::class.java) { SshCmuxBrowserWire.parse(JSONObject(raw.toString()).put("image_width", 16384).put("image_height", 16384)) }
         val parsed = (SshCmuxBrowserWire.parse(raw.put("image_width", 0)) as SshCmuxBrowserEvent.Frame).value
         assertEquals(10, parsed.imageWidth)
+    }
+    @Test fun unsignedWireBoundariesAndPointerOrderingNeverRoundOrWrap() {
+        fun event(sequence: String, token: String = sequence, floor: String = token) =
+            SshCmuxBrowserWire.parse(SshCmuxLines().feed(
+                """{"event":"frame","surface":7,"seq":$sequence,"width":1,"height":1,"data":"AA==","status":"live","pointer_frame_seq":$token,"pointer_frame_floor_seq":$floor}
+""".toByteArray()).single()) as SshCmuxBrowserEvent.Frame
+        val guard = SshCmuxBrowserPointerGuard()
+        val delivered = mutableListOf<SshCmuxBrowserEvent>()
+        val attachment = SshCmuxBrowserAttachment(7, delivered::add)
+        for (value in listOf(0uL, Long.MAX_VALUE.toULong(), 9223372036854775808uL, ULong.MAX_VALUE - 1uL, ULong.MAX_VALUE)) {
+            val next = event(value.toString())
+            assertEquals(value, next.value.sequence); assertEquals(value, next.value.token)
+            guard.apply(next.value); assertTrue(guard.acknowledge(value)); assertEquals(value, guard.token)
+            assertFalse(guard.acknowledge(value))
+            attachment.receive(next)
+        }
+        assertEquals(5, delivered.size)
+        attachment.receive(event("0")); attachment.receive(event(ULong.MAX_VALUE.toString()))
+        assertEquals(5, delivered.size) // Neither wraparound nor duplicates become new pixels.
+        guard.apply(event(ULong.MAX_VALUE.toString(), "9223372036854775808", ULong.MAX_VALUE.toString()).value)
+        assertNull(guard.token) // Reversed unsigned range cannot authorize a pointer.
+        for (bad in listOf("-1", "18446744073709551616", "184467440737095516150", "1.5", "1e2", "\"9223372036854775808\"")) {
+            assertThrows(Exception::class.java) { event(bad) }
+            assertThrows(Exception::class.java) { event("1", bad) }
+            assertThrows(Exception::class.java) { event("1", "1", bad) }
+        }
     }
     @Test fun keyMappingKeepsModifiedEnterOutOfTextAndUsesCdpModifiers() {
         assertEquals("\r", SshCmuxBrowserKeys.named("return", listOf("shift"))!!.getString("text"))

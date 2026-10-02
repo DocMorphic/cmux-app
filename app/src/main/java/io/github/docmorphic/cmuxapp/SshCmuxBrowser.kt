@@ -3,14 +3,15 @@ package io.github.docmorphic.cmuxapp
 import kotlinx.coroutines.sync.Mutex
 import org.json.JSONObject
 import java.util.Locale
+import java.math.BigInteger
 
 internal enum class SshCmuxBrowserStatus { STARTING, LIVE, FAILED }
-internal data class SshCmuxBrowserFrame(val sequence: Long, val width: Int, val height: Int,
+internal data class SshCmuxBrowserFrame(val sequence: ULong, val width: Int, val height: Int,
     val imageWidth: Int, val imageHeight: Int, val png: String, val status: SshCmuxBrowserStatus?,
-    val error: String?, val floor: Long?, val token: Long?)
+    val error: String?, val floor: ULong?, val token: ULong?)
 internal data class SshCmuxBrowserState(val columns: Int, val rows: Int, val url: String, val title: String,
     val status: SshCmuxBrowserStatus, val error: String?, val stalled: Boolean,
-    val floor: Long?, val token: Long?, val frame: SshCmuxBrowserFrame?)
+    val floor: ULong?, val token: ULong?, val frame: SshCmuxBrowserFrame?)
 internal sealed interface SshCmuxBrowserEvent {
     data class State(val value: SshCmuxBrowserState) : SshCmuxBrowserEvent
     data class Frame(val value: SshCmuxBrowserFrame) : SshCmuxBrowserEvent
@@ -25,6 +26,12 @@ internal object SshCmuxBrowserWire {
         val raw = value.get(key)
         require(raw is Int || raw is Long) { "Invalid browser $key" }
         return (raw as Number).toLong().also { require(it >= 0) { "Invalid browser $key" } }
+    }
+    private fun unsigned(value: JSONObject, key: String): ULong? {
+        if (!value.has(key) || value.isNull(key)) return null
+        val raw = value.get(key)
+        require(raw is Int || raw is Long || raw is BigInteger) { "Invalid browser $key" }
+        return raw.toString().toULongOrNull() ?: error("Invalid browser $key")
     }
     private fun dimension(value: JSONObject, key: String, fallback: Int = 0): Int =
         checkNotNull(number(value, key, fallback.toLong())).also { require(it <= 16384) }.toInt()
@@ -41,15 +48,15 @@ internal object SshCmuxBrowserWire {
         val png = value.get("data") as? String ?: error("Invalid browser frame data")
         require(png.length <= 12 * 1024 * 1024) { "Browser image exceeds its encoded limit" }
         val authority = state ?: value
-        return SshCmuxBrowserFrame(checkNotNull(number(value, "seq")), width, height, iw, ih, png,
+        return SshCmuxBrowserFrame(checkNotNull(unsigned(value, "seq")), width, height, iw, ih, png,
             if (state == null && !value.has("status")) null else status(authority), authority.opt("error") as? String,
-            number(authority, "pointer_frame_floor_seq"), number(authority, "pointer_frame_seq"))
+            unsigned(authority, "pointer_frame_floor_seq"), unsigned(authority, "pointer_frame_seq"))
     }
     fun parse(value: JSONObject): SshCmuxBrowserEvent? = when (value.opt("event")) {
         "browser-state" -> SshCmuxBrowserEvent.State(SshCmuxBrowserState(
             dimension(value, "cols"), dimension(value, "rows"), value.opt("url") as? String ?: "",
             value.opt("title") as? String ?: "", status(value), value.opt("error") as? String,
-            value.opt("frames_stalled") == true, number(value, "pointer_frame_floor_seq"), number(value, "pointer_frame_seq"),
+            value.opt("frames_stalled") == true, unsigned(value, "pointer_frame_floor_seq"), unsigned(value, "pointer_frame_seq"),
             value.optJSONObject("frame")?.let { frame(it, value) }))
         "frame" -> SshCmuxBrowserEvent.Frame(frame(value))
         else -> null
@@ -59,15 +66,15 @@ internal object SshCmuxBrowserWire {
 /** New pointer authority must arrive with pixels; metadata alone can retain or revoke it. */
 internal class SshCmuxBrowserPointerGuard {
     private var status = SshCmuxBrowserStatus.STARTING
-    private var range: LongRange? = null
-    private var presented: Long? = null
-    val token: Long? get() {
+    private var range: ULongRange? = null
+    private var presented: ULong? = null
+    val token: ULong? get() {
         val current = presented ?: return null
         return current.takeIf { status == SshCmuxBrowserStatus.LIVE && range?.contains(it) == true }
     }
-    private fun range(floor: Long?, token: Long?): LongRange? = token?.let { last ->
+    private fun range(floor: ULong?, token: ULong?): ULongRange? = token?.let { last ->
         val first = floor ?: last
-        if (first >= 0 && first <= last) first..last else null
+        if (first <= last) first..last else null
     }
     fun apply(state: SshCmuxBrowserState) {
         status = state.status
@@ -80,9 +87,9 @@ internal class SshCmuxBrowserPointerGuard {
         range = if (frame.status == SshCmuxBrowserStatus.LIVE) range(frame.floor, frame.token) else null
         retain()
     }
-    fun canAcknowledge(token: Long) = status == SshCmuxBrowserStatus.LIVE && range?.contains(token) == true &&
+    fun canAcknowledge(token: ULong) = status == SshCmuxBrowserStatus.LIVE && range?.contains(token) == true &&
         (presented == null || token > checkNotNull(presented))
-    fun acknowledge(token: Long): Boolean {
+    fun acknowledge(token: ULong): Boolean {
         if (!canAcknowledge(token)) return false
         presented = token; return true
     }
@@ -97,8 +104,8 @@ internal class SshCmuxBrowserAttachment internal constructor(val surface: Int, i
     internal var detaching = false
     internal val operations = Mutex()
     internal val pointer = SshCmuxBrowserPointerGuard()
-    internal val frames = sortedMapOf<Long, Long>()
-    internal var newest = -1L
+    internal val frames = sortedMapOf<ULong, ULong>()
+    internal var newest: ULong? = null
     internal fun receive(event: SshCmuxBrowserEvent) {
         fun admit(frame: SshCmuxBrowserFrame) {
             newest = frame.sequence
@@ -107,13 +114,13 @@ internal class SshCmuxBrowserAttachment internal constructor(val surface: Int, i
         }
         when (event) {
             is SshCmuxBrowserEvent.State -> {
-                val fresh = event.value.frame?.takeIf { it.sequence > newest }
+                val fresh = event.value.frame?.takeIf { newest?.let { last -> it.sequence > last } != false }
                 val state = event.value.copy(frame = fresh)
                 pointer.apply(state); seeded = true
                 fresh?.let(::admit)
                 events(SshCmuxBrowserEvent.State(state))
             }
-            is SshCmuxBrowserEvent.Frame -> if (event.value.sequence > newest) {
+            is SshCmuxBrowserEvent.Frame -> if (newest?.let { event.value.sequence > it } != false) {
                 pointer.apply(event.value); admit(event.value); events(event)
             }
             is SshCmuxBrowserEvent.Ended -> {

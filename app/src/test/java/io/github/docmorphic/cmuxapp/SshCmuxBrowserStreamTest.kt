@@ -15,8 +15,8 @@ class SshCmuxBrowserStreamTest {
         val incoming = Channel<ByteArray>(Channel.UNLIMITED)
         override val output = incoming.receiveAsFlow()
         val sent = mutableListOf<JSONObject>()
-        var sequence = 9L
-        var token = 40L
+        var sequence: Number = 9L
+        var token: Number = 40L
         var hold: String? = null
         var held: JSONObject? = null
         fun feed(value: JSONObject) { check(incoming.trySend((value.toString() + "\n").toByteArray()).isSuccess) }
@@ -29,7 +29,7 @@ class SshCmuxBrowserStreamTest {
         fun reply(request: JSONObject, data: JSONObject = JSONObject()) =
             feed(JSONObject().put("id", request.getString("id")).put("ok", true).put("data", data))
         override suspend fun write(bytes: ByteArray) {
-            val request = JSONObject(bytes.toString(Charsets.UTF_8)); sent += request
+            val request = MobileJson.objectValue(bytes.toString(Charsets.UTF_8)); sent += request
             val command = request.getString("cmd")
             if (command == hold) { held = request; return }
             val data = when (command) {
@@ -64,7 +64,7 @@ class SshCmuxBrowserStreamTest {
         assertNull(legacy.resolve("fixture", tree(generation = "owner-b")))
         assertNull(selected.resolve("fixture", tree.copy(workspaces = listOf(tree.workspaces.single().copy(key = "new-workspace")))))
     }
-    @Test fun initialPixelsKeepTheirImageSequenceAndOnlyDisplayedFramesAuthorizeInput() = runTest {
+    @Test fun initialPixelsUseLocalPresentationSequenceAndOnlyDisplayedFramesAuthorizeInput() = runTest {
         val pipe = Pipe(); val control = SshCmuxControl(pipe, backgroundScope); control.handshake("fixture")
         var resolutions = 0
         val stream = SshCmuxBrowserStream(selection(tree()), control, backgroundScope, { resolutions++; tree().tabs.single() }, { true })
@@ -75,15 +75,51 @@ class SshCmuxBrowserStreamTest {
         assertEquals(listOf("browser.frame", "browser.state"), events.map { it.topic })
         assertTrue(events.all { it.streamId == "first" && it.payload.getString("panel_id") == stream.panelId })
         val image = events.first().payload
-        assertEquals(9L, image.getLong("seq")); assertEquals(320, image.getInt("page_width")); assertEquals(640, image.getInt("pixel_width"))
+        assertEquals(1L, image.getLong("seq")); assertEquals(320, image.getInt("page_width")); assertEquals(640, image.getInt("pixel_width"))
         assertEquals("png", image.getString("format")); assertEquals("fixture-png", image.getString("data_b64"))
         val attach = pipe.sent.single { it.getString("cmd") == "attach-surface" }
         assertEquals(49, attach.getInt("cols")); assertEquals(40, attach.getInt("rows")) // CSS points, not density-scaled pixels
         stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
         assertFalse(pipe.sent.any { it.getString("cmd") == "browser-mouse-guarded" })
-        stream.displayed(stream.panelId, 8); assertFalse(pipe.sent.any { it.getString("cmd") == "browser-frame-presented" })
-        stream.displayed(stream.panelId, 9); stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
+        stream.displayed(stream.panelId, 0); assertFalse(pipe.sent.any { it.getString("cmd") == "browser-frame-presented" })
+        stream.displayed(stream.panelId, 1); stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
         assertEquals(listOf(40L, 40L), pipe.sent.takeLast(2).map { it.getLong("frame_seq") })
+        stream.close(); runCurrent(); control.close()
+    }
+    @Test fun maximumUnsignedWireFramesUseExactTokensAndNeverAliasRestartedPresentations() = runTest {
+        val pipe = Pipe().apply {
+            sequence = (ULong.MAX_VALUE - 1uL).toString().toBigInteger()
+            token = "9223372036854775808".toBigInteger()
+        }
+        val control = SshCmuxControl(pipe, backgroundScope); control.handshake("fixture")
+        val stream = SshCmuxBrowserStream(selection(tree()), control, backgroundScope, { tree().tabs.single() }, { true })
+        val frames = mutableListOf<Long>()
+        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            stream.events.collect { if (it.topic == "browser.frame") frames += it.payload.getLong("seq") }
+        }
+        stream.start(stream.panelId, "one", 400, 640, 1.0); runCurrent()
+        assertEquals(listOf(1L), frames)
+        stream.displayed(stream.panelId, frames.last())
+        assertEquals("9223372036854775808", pipe.sent.last().get("frame_seq").toString())
+        pipe.sequence = ULong.MAX_VALUE.toString().toBigInteger(); pipe.token = pipe.sequence
+        pipe.feed(pipe.state()); runCurrent()
+        assertEquals(listOf(1L, 2L), frames)
+        stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
+        assertFalse(pipe.sent.any { it.optString("cmd") == "browser-mouse-guarded" })
+        stream.displayed(stream.panelId, 2)
+        stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
+        stream.input(stream.panelId, BrowserInput.Scroll(1.0, 2.0, 0.0, 4.0, "changed"))
+        assertTrue(pipe.sent.takeLast(4).all { it.get("frame_seq").toString() == "18446744073709551615" })
+        assertTrue(pipe.sent.takeLast(4).all { it.toString().contains("\"frame_seq\":18446744073709551615") })
+        stream.stop(stream.panelId, "one")
+        pipe.sequence = 0L; pipe.token = 0L
+        stream.start(stream.panelId, "two", 400, 640, 1.0); runCurrent()
+        assertEquals(listOf(1L, 2L, 3L), frames)
+        val before = pipe.sent.size
+        stream.displayed(stream.panelId, 2); stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
+        assertEquals(before, pipe.sent.size)
+        stream.displayed(stream.panelId, 3); stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
+        assertEquals("0", pipe.sent.last().get("frame_seq").toString())
         stream.close(); runCurrent(); control.close()
     }
     @Test fun viewportOnlyChangesCellGridAndOldStreamStopCannotDetachNewAttachment() = runTest {
@@ -100,17 +136,17 @@ class SshCmuxBrowserStreamTest {
         stream.start(stream.panelId, "second", 400, 650, 2.0)
         stream.stop(stream.panelId, "first")
         assertEquals(1, pipe.sent.count { it.getString("cmd") == "detach-attached-view" })
-        stream.displayed(stream.panelId, 9)
+        stream.displayed(stream.panelId, 1)
         stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
         assertFalse(pipe.sent.any { it.getString("cmd") == "browser-mouse-guarded" })
-        stream.displayed(stream.panelId, 1); stream.input(stream.panelId, BrowserInput.Text("second"))
+        stream.displayed(stream.panelId, 2); stream.input(stream.panelId, BrowserInput.Text("second"))
         assertEquals(2, resolutions)
         stream.close(); runCurrent(); assertFalse(control.closed); control.close()
     }
     @Test fun replacementRevokesInputAndRetiresOnlyItsAttachment() = runTest {
         val pipe = Pipe(); val control = SshCmuxControl(pipe, backgroundScope); control.handshake("fixture")
         val stream = SshCmuxBrowserStream(selection(tree()), control, backgroundScope, { tree().tabs.single() }, { true })
-        stream.start(stream.panelId, "first", 393, 655, 3.0); stream.displayed(stream.panelId, 9)
+        stream.start(stream.panelId, "first", 393, 655, 3.0); stream.displayed(stream.panelId, 1)
         stream.validate(tree(content = "replacement"))
         assertTrue(stream.closed)
         assertTrue(runCatching { stream.input(stream.panelId, BrowserInput.Text("not sent")) }.isFailure)
