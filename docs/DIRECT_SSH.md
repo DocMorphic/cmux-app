@@ -16,6 +16,35 @@ reference or establish which App Store/TestFlight binary contains these features
 Older checkpoints below retain their original evidence boundaries; the SSH
 real browser-provider checkpoint is the latest implementation status.
 
+## Real browser provider HTTP startup resolved (2026-10-02)
+
+The live provider test now uses **loopback HTTP by default**. Chrome's network
+log localized the earlier stall: `COOKIE_PERSISTENT_STORE_KEY_LOAD_STARTED`
+appeared without completion, and the document never reached HTTP header sending.
+Adding Chromium's test-only `--use-mock-keychain` to this disposable profile made
+the same HTTP case pass without changing production Android code. This removes
+the fixture's dependency on the Mac's real Safe Storage keychain. The flag is
+supported in [Chromium's Mac testing documentation](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/mac_build_instructions.md);
+it is never applied to a personal browser profile or system configuration.
+
+The first successful HTTP run took **4.429 seconds**. The final default-HTTP run,
+with Chrome background networking disabled again, passed in **3.469 seconds**,
+with one test, no failures and no skipped cases. It retains the preceding check's
+actual PNG/color, DOM click/text/delete, Control-A/F6 event, document navigation,
+resize-authority recovery and detach assertions, now against generated pages from
+a private HTTP server. The earlier file-page result is superseded for HTTP startup;
+HTTPS, production SSH/Android renderer integration, real-host topology/reconnect,
+physical keyboard shortcuts and Pixel/Mac acceptance remain open.
+
+Run the same opt-in command below without `CMUX_BROWSER_TEST_HTTP` to exercise
+HTTP. Set it to `0` only for the generated-file diagnostic variant. HTTP failures
+retain a private-profile network log alongside the generated fixture state; the
+profile itself is removed after Chrome stops. Default capture mode is used, and
+these logs remain ignored. Evidence: `cdp-browser-netlog-failure`,
+`cdp-browser-keychain-jvm`, `cdp-browser-default-http-jvm` and corresponding build
+logs under `captures/runtime/ssh-audit/`. No emulator, APK, published release,
+upstream reference, real Keychain setting or personal Chrome state changed.
+
 ## Real browser provider and Android key tokens (2026-10-02)
 
 A new opt-in JVM check exercises production `SshCmuxControl` against the published
@@ -54,7 +83,7 @@ Successful XML and build evidence are under ignored
 `captures/runtime/ssh-audit/cdp-browser-final-jvm` and `cdp-browser-keys-build.txt`.
 The initial key failure and inspected PNG are in `cdp-browser-key-failure`.
 
-**HTTP remains unresolved:** with both MockWebServer and a minimal loopback HTTP
+**Historical HTTP failure (resolved by the checkpoint above):** with both MockWebServer and a minimal loopback HTTP
 server, the private Chrome instance reported starting a document request but
 never sent HTTP headers and remained at `about:blank`; a Java HTTP request to the
 same server succeeded. Literal IPv4, direct proxy configuration and the upstream
@@ -73,8 +102,8 @@ CMUX_BROWSER_TEST_CHROME=/absolute/path/to/Chrome \
   --tests '*SshCmuxBrowserProcessTest' --tests '*SshCmuxBrowserTest' --tests '*SshCmuxControlTest'
 ```
 
-Set `CMUX_BROWSER_TEST_HTTP=1` to reproduce the still-failing loopback HTTP variant;
-it retains the same document/pixel/input assertions. With the two binary variables
+The current test defaults to loopback HTTP; set `CMUX_BROWSER_TEST_HTTP=0` for
+the older file-page isolation variant. Both retain the document/pixel/input assertions. With the two binary variables
 absent the process test is explicitly skipped; that is not a passing live check.
 Fixture browser/session processes are stopped and their Chrome profiles removed
 in cleanup. A successful run removes the entire temporary root; failures retain

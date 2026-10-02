@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /** Opt-in real Chrome + published cmux-tui, with private HOME, profile and generated pages.
- * Defaults to private file pages; CMUX_BROWSER_TEST_HTTP=1 exercises loopback HTTP instead.
+ * Defaults to loopback HTTP; CMUX_BROWSER_TEST_HTTP=0 isolates generated file pages.
  * No personal browser, cmux socket, account, SSH service or desktop tab is consulted. */
 class SshCmuxBrowserProcessTest {
     private class Inspector(url: String) : AutoCloseable {
@@ -114,7 +114,7 @@ class SshCmuxBrowserProcessTest {
                 }.apply { isDaemon = true; start() }
             } } catch (_: java.net.SocketException) { }
         }.apply { isDaemon = true; start() }
-        val httpFixture = System.getenv("CMUX_BROWSER_TEST_HTTP") == "1"
+        val httpFixture = System.getenv("CMUX_BROWSER_TEST_HTTP") != "0"
         for (name in listOf("start", "next", "health")) root.resolve("$name.html").writeText(page("/$name"))
         fun url(path: String) = if (httpFixture) "http://127.0.0.1:${pageServer.localPort}$path"
             else root.resolve("${path.removePrefix("/")}.html").toURI().toASCIIString()
@@ -128,9 +128,12 @@ class SshCmuxBrowserProcessTest {
             }
             check(response.toString(Charsets.UTF_8).contains("CDP fixture /health"))
             val profile = root.resolve("chrome-profile")
-            chrome = spawn(listOf(chromeBinary, "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
-                "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding", "--no-proxy-server", "--disable-extensions", "--remote-debugging-address=127.0.0.1",
-                "--remote-debugging-port=0", "--user-data-dir=${profile.path}", url("/start")))
+            // A disposable test profile must not wait on, or use, the user's
+            // macOS Safe Storage keychain. Chromium documents this test-only flag.
+            chrome = spawn(listOf(chromeBinary, "--headless=new", "--disable-gpu", "--use-mock-keychain", "--no-first-run", "--no-default-browser-check",
+                "--disable-background-networking", "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding", "--no-proxy-server", "--disable-extensions", "--remote-debugging-address=127.0.0.1",
+                "--remote-debugging-port=0", "--user-data-dir=${profile.path}") +
+                (if (httpFixture) listOf("--log-net-log=${root.resolve("network.json").path}") else emptyList()) + url("/start"))
             val portFile = profile.resolve("DevToolsActivePort")
             until("Chrome endpoint") { check(chrome.isAlive) { "Private Chrome exited; $root" }; portFile.isFile }
             val port = portFile.readLines().first().toInt()

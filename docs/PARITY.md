@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Real browser-provider HTTP startup (2026-10-02):** resolved the private Chrome
+fixture's stalled cookie-key initialization using Chromium's mock-keychain test
+option. The actual cmux-tui/CDP test now defaults to HTTP and passes all frame,
+DOM input, navigation, resize and detach assertions (3.469 seconds, no skips).
+[Evidence and isolation boundary](DIRECT_SSH.md) preserve the original network
+log and exclude production Keychain changes. HTTPS, Android/SSH integration and
+physical Pixel/Mac acceptance remain open; no APK changed.
+
 **Real SSH browser provider/key input (2026-10-02):** a published cmux-tui
 process and private Chrome now pass decoded-frame, guarded-click, text, delete,
 Control-A/F6 event, navigation and pointer-authority recovery after resize checks. Fixed Android
