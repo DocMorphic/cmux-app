@@ -4,10 +4,15 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -42,7 +47,7 @@ class NativeSimulatorViewTest {
                 SimMessage.Frame(it.getLong("sequence").toULong(), if (it.getBoolean("keyframe")) 1 else 0,
                     (i * 100000).toULong(), bytes(it.getString("payload"))) } }
     }
-    private inner class Source : SimLaneSource {
+    private inner class Source(private val recoverFirst: Boolean = false) : SimLaneSource {
         val lanes = CopyOnWriteArrayList<Lane>()
         inner class Lane : SimStreamLane {
             val incoming = Channel<ByteArray>(Channel.UNLIMITED)
@@ -53,6 +58,10 @@ class NativeSimulatorViewTest {
             override suspend fun write(bytes: ByteArray) {
                 val value = SimStreamWire.decode(bytes.copyOfRange(4, bytes.size)); sent += value
                 if (value is SimMessage.Start) {
+                    if (recoverFirst && lanes.size == 1) {
+                        host(SimMessage.State(SimHostStatus.WORKER_CRASHED, "private diagnostic"))
+                        return
+                    }
                     val qualityChange = sent.filterIsInstance<SimMessage.Start>().size > 1
                     val data = fixture(if (qualityChange) "h264" else "hevc")
                     host(data.first); host(data.second[0]); if (!qualityChange) host(data.second[1])
@@ -251,6 +260,48 @@ class NativeSimulatorViewTest {
         assertEquals(1, source.lanes.size)
         assertEquals(1, lane.sent.filterIsInstance<SimMessage.Start>().size)
         assertEquals(4, touches().size)
+    }
+
+    @Test fun largeTextRecoveryRemainsReachableInAShortViewportWithSeparateTouchTargets() {
+        resetPreferences()
+        val source = Source(recoverFirst = true)
+        val calls = CopyOnWriteArrayList<String>()
+        val actions = SimulatorActions(false, true, "w", panel) { method, _ -> calls += method; JSONObject() }
+        var density = 0f
+        compose.setContent {
+            val native = LocalDensity.current
+            density = native.density
+            CompositionLocalProvider(LocalDensity provides Density(native.density, fontScale = 2f)) {
+                CmuxTheme { Surface(Modifier.fillMaxSize().systemBarsPadding()) {
+                    Box(Modifier.fillMaxSize()) {
+                        Box(Modifier.size(320.dp, 280.dp)) { SimulatorPane(source, actions, true, preferences) }
+                    }
+                } }
+            }
+        }
+        val pane = compose.onNodeWithTag("SimulatorPane").fetchSemanticsNode().boundsInWindow
+        assertEquals(320f, pane.width / density, 1f)
+        assertEquals(280f, pane.height / density, 1f)
+        compose.waitUntil(5000) { source.lanes.firstOrNull()?.sent?.any { it is SimMessage.Start } == true }
+        compose.onNodeWithText("Simulator Needs Recovery").assertExists()
+        compose.onNodeWithContentDescription("Home").assertIsNotEnabled()
+        compose.onNodeWithTag("SimulatorText").assertIsNotEnabled()
+        compose.onNodeWithText("Recover").performScrollTo().assertIsDisplayed()
+        capture("simulator-large-text-recovery")
+        // Inject a real touch, exercising the overlay's interception and scrolling.
+        compose.onNodeWithText("Recover").performTouchInput { click(center) }
+        compose.waitUntil(8000) { source.lanes.size == 2 && source.lanes.last().sent.filterIsInstance<SimMessage.Ack>().size == 2 }
+        assertEquals(listOf("mobile.simulator.recover"), calls.toList())
+        assertTrue(source.lanes.first().closed.get())
+        assertTrue(source.lanes.all { lane -> lane.sent.none { it is SimMessage.Input } })
+        capture("simulator-large-text-recovered", true)
+        val buttons = listOf("Send Text", "Home", "Lock", "More Buttons").map { label ->
+            compose.onNodeWithContentDescription(label).assertIsDisplayed().fetchSemanticsNode().boundsInWindow
+        }
+        buttons.forEach { assertTrue(it.width / density >= 47.9f); assertTrue(it.height / density >= 47.9f) }
+        buttons.zipWithNext().forEach { (left, right) -> assertTrue(left.right <= right.left) }
+        compose.onNodeWithContentDescription("Home").performTouchInput { click(center) }
+        compose.waitUntil(3000) { source.lanes.last().sent.filterIsInstance<SimMessage.Input>().any { SimInput.Button(SimButton.HOME) in it.events } }
     }
 
     @Test fun workspaceSurfaceRouteOpensTheExactSimulatorThroughABorrowedRpcClient() {

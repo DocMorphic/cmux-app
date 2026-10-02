@@ -438,6 +438,43 @@ not a Mac Simulator or Pixel hardware run. Full-app system-bar styling, phone
 landscape, large text, TalkBack and real-host performance remain separate checks.
 The emulator is stopped and signed build 369 is unchanged.
 
+## Large-text recovery and input controls (2026-10-02)
+
+The shared legacy/v2 recovery overlay now scrolls when its content exceeds the
+available height. Previously a short viewport with enlarged text could leave
+Recover outside the visible area with no way to reach it. Shared toolbar buttons
+now reserve separate 48×48 dp areas, following the
+[Android touch-target guidance](https://developer.android.com/develop/ui/compose/accessibility/api-defaults),
+instead of laying out adjacent 44 dp buttons with expanded hit areas.
+
+V2 worker-failure, failed and device-unavailable states now apply the existing
+video-touch input restriction to toolbar buttons and text as well. The lane stays
+available for host recovery; these states do not implicitly close it. Fresh video
+or explicit successful recovery restores ordinary controls.
+
+**Ten Android tests passed in 84.843 seconds**, zero skips: all five v2 pane cases
+and all five legacy image/pane cases. The new case uses a measured **320×280 dp**
+container and Compose font scale **2.0**, scrolls to Recover, injects a real tap,
+observes the scoped recovery RPC and new decoded video, and confirms no input
+leaked through the overlay. It also checks disabled text/Home during failure,
+separate 48 dp toolbar bounds and a fresh Home event after recovery. Recovery and
+restored-video screenshots were inspected. Existing tests cover host rotation,
+disconnect, controls, device selection, legacy ownership and v1-to-v2 handoff.
+
+Both debug/test APK ZIP alignment and all six native LOAD/RELRO checks passed on
+API 37 / 16 KB; compatibility mode remains off. Ignored evidence lives in
+`captures/runtime/simulator-layout/`, including logs, screenshots and the receipt.
+Debug APK SHA-256:
+`6945867969160ae32e60350ae5dec19dc9b5131f5de746ec89e25d0122782b9a`;
+test APK SHA-256:
+`8aecdb9712404d6b1f01fa231636b86b4d1c32f21e493b9b9aec9315ed89c1b4`.
+
+This verifies a constrained short viewport and Compose text scaling. It does not
+establish physical screen rotation, Android system-font scaling, spoken TalkBack
+navigation, full-app system bars or Mac/Pixel acceptance. The existing emulator
+was reused and is stopped. Signed build 369 remains the last delivered APK at
+this checkpoint.
+
 ## Next implementation steps
 
 1. Complete physical acceptance and performance checks for the implemented video
@@ -446,9 +483,9 @@ The emulator is stopped and signed build 369 is unchanged.
 2. Exercise the implemented legacy RPC/image path against a real Mac Simulator,
    including ownership contention, static-screen keepalives and reconnect.
    Its pane and serialized v2 transition passed the fixture checks above.
-3. Check large text, phone landscape, TalkBack and full-app theme behavior for the
-   implemented v2 pane; the dynamic host-rotation fixture above is not physical
-   acceptance.
+3. Check system font scaling, phone landscape, TalkBack and full-app theme behavior
+   for the implemented v2 pane; the dynamic host-rotation and constrained
+   large-text fixtures above are not physical acceptance.
 4. Exercise both paths against framed/native lane fixtures, then a dedicated real
    Mac simulator and the Pixel. Verify reconnect/background, rotation, input
    ordering, device switching, worker recovery, quality and UI parity.

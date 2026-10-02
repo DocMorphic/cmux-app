@@ -3,6 +3,8 @@ package io.github.docmorphic.cmuxapp
 import android.view.Surface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -163,7 +165,7 @@ internal fun SimulatorPane(source: SimLaneSource?, actions: SimulatorActions, re
             finally { if (currentActions === captured) busy = false }
         }
     }
-    val canInput = ready && foreground && source != null && state.phase in
+    val canInput = ready && foreground && source != null && !state.hostStatus.needsRecovery && state.phase in
         setOf(SimViewerLifecycle.Phase.STARTING, SimViewerLifecycle.Phase.STREAMING)
     fun send(value: SimInput): Boolean = canInput && binding?.controller?.input(value) == true
     fun submitText() { if (text.isNotEmpty() && send(SimInput.Text(text))) text = "" }
@@ -177,7 +179,7 @@ internal fun SimulatorPane(source: SimLaneSource?, actions: SimulatorActions, re
             AndroidView(factory = { viewContext -> SimulatorVideoView(viewContext,
                 surfaceCreated = { surface -> binding?.close(); binding = SimulatorSurfaceBinding(scope, surface) },
                 surfaceDestroyed = { binding?.close(); binding = null }) },
-                update = { it.update(state, canInput && !state.hostStatus.needsRecovery, ::send) },
+                update = { it.update(state, canInput, ::send) },
                 onRelease = { it.release() }, modifier = Modifier.fillMaxSize().testTag("SimulatorVideo"))
             if (state.hostStatus.needsRecovery) SimulatorOverlay("Simulator Needs Recovery",
                 "The Simulator session on the Mac stopped and is showing its last frame.",
@@ -250,7 +252,7 @@ internal fun SimulatorOverlay(title: String, detail: String, action: String?, en
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .72f)).pointerInput(Unit) {
         awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } }
     }, contentAlignment = Alignment.Center) {
-        Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally,
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SimulatorGlyph(glyph, Color.White, Modifier.size(36.dp))
             Text(title, color = Color.White, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
@@ -262,7 +264,7 @@ internal fun SimulatorOverlay(title: String, detail: String, action: String?, en
 
 @Composable
 internal fun SimulatorChromeButton(label: String, glyph: String, enabled: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(44.dp).semantics { contentDescription = label }) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp).semantics { contentDescription = label }) {
         SimulatorGlyph(glyph, if (enabled) Color.White else Color(0xFF707276), Modifier.size(22.dp))
     }
 }

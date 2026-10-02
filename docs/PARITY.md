@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Simulator large-text recovery fixed (2026-10-02):** recovery content now scrolls
+in short viewports, shared toolbar buttons reserve separate 48 dp targets, and
+worker failures disable toolbar/text input consistently with video touches.
+All 10 v2/legacy Android checks passed (84.843 seconds, API 37 / 16 KB, zero skips),
+including a measured 320×280 dp viewport at 200% Compose text size, actual recovery
+tap, decoded video and restored input. Screenshots and native/ZIP gates passed.
+[Exact scope and physical/accessibility gaps](SIMULATOR_STREAMING.md#large-text-recovery-and-input-controls-2026-10-02).
+The emulator is stopped; signed build 369 is unchanged at this checkpoint.
+
 **Simulator host rotation verified in the Android fixture (2026-10-02):** the
 production v2 viewer passed real HEVC portrait → H.264 landscape → HEVC portrait
 decoding on one lane, pixel/letterbox checks and touch cancellation/remapping.
