@@ -64,7 +64,10 @@ class BrowserInteractionTest {
         try {
             queue.offer(BrowserInput.committed("first\nnever replay"))
             release.complete(Unit)
-            assertNotNull(queue.error.value)
+            val deliveryWarning = queue.error.value
+            assertTrue(deliveryWarning!!.contains("Delivery was not confirmed"))
+            queue.pause() // The control stream's disconnect can arrive afterwards.
+            assertEquals(deliveryWarning, queue.error.value)
             assertFalse(queue.offer(BrowserInput.Text("paused")))
             assertEquals(listOf(BrowserInput.Text("first")), received)
             assertTrue(queue.resume()); queue.offer(BrowserInput.Text("explicit new input"))

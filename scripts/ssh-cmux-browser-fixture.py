@@ -14,6 +14,8 @@ class BrowserFixture:
         self.tab_resource = None
         self.registrations = 0
         self.chrome_generation = 0
+        self.reply_loss_armed = False
+        self.reply_losses = self.mouse_releases = 0
 
     async def start(self):
         async def http(reader, writer):
@@ -78,6 +80,8 @@ class BrowserFixture:
 
     async def reset(self, wire):
         self.events.clear()
+        self.reply_loss_armed = False
+        self.reply_losses = self.mouse_releases = 0
         # A previous run may leave Chrome at /next with edited DOM state. Create
         # a fresh target before registering the replacement tab, and close only
         # our previously recorded target. Repeated tests share no page state.

@@ -59,7 +59,9 @@ internal class BrowserInputQueue(scope: CoroutineScope, private val deliver: sus
         if (closed || inFlight) return false
         failure.value = null; return true
     }
-    @Synchronized fun pause() { if (!closed) fail("Browser input paused. Check the page before resuming.") }
+    // A later stream/lifecycle edge must not erase an already known delivery
+    // uncertainty (or overflow reason). Every failed state already cleared input.
+    @Synchronized fun pause() { if (!closed && failure.value == null) fail("Browser input paused. Check the page before resuming.") }
     @Synchronized fun pauseIfPending() { if (!closed && (inFlight || pending.isNotEmpty())) pause() }
     @Synchronized fun discardPendingScroll(): Boolean {
         val scrolls = pending.filterIsInstance<BrowserInput.Scroll>()

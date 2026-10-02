@@ -19,6 +19,7 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.abs
@@ -46,7 +47,7 @@ internal fun BrowserPageSurface(frame: BrowserFrame, queue: BrowserInputQueue, m
     val lens = remember(queue) { BrowserLens() }
     var measured by remember(queue) { mutableStateOf(IntSize.Zero) }
     Canvas(modifier.fillMaxSize().clipToBounds().onSizeChanged { measured = it }
-        .semantics { contentDescription = pageDescription }
+        .semantics { contentDescription = pageDescription; if (!enabled) disabled() }
         .browserScrollGestures(motion, frame.pageWidth, frame.pageHeight, measured, generation, enabled, lens) { point, clicks ->
             onTap(); queue.offer(BrowserInput.Click(point.x, point.y, clicks))
         }) {

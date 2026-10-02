@@ -64,6 +64,11 @@ class SshBrowserWorkspaceTest {
     private fun ready(description: String) {
         compose.waitUntil(15000) { compose.onAllNodesWithContentDescription(description).fetchSemanticsNodes().isNotEmpty() }
     }
+    private fun pointerReady() {
+        compose.waitUntil(15000) {
+            compose.onAllNodes(hasContentDescription("SSH browser page") and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
     private fun background(red: Int, green: Int, blue: Int) {
         compose.waitUntil(15000) {
             // Reconnect replaces the composition after the old image was found.
@@ -104,9 +109,9 @@ class SshBrowserWorkspaceTest {
         val page = compose.onNodeWithContentDescription("SSH browser page").assertIsDisplayed()
         background(18, 95, 55)
         capture("ssh-real-chrome-stream")
-        page.performTouchInput { click(Offset(width * .5f, height * .33f)) }
+        pointerReady(); page.performTouchInput { click(Offset(width * .5f, height * .33f)) }
         compose.waitUntil(10000) { events().contains("\"click\":[\"1\"]") }
-        page.performTouchInput { click(Offset(width * .5f, height * .58f)) }
+        pointerReady(); page.performTouchInput { click(Offset(width * .5f, height * .58f)) }
         compose.onNodeWithContentDescription("Show browser keyboard").performClick()
         ready("Hide browser keyboard")
         device.pressKeyCode(KeyEvent.KEYCODE_A)
@@ -120,6 +125,7 @@ class SshBrowserWorkspaceTest {
         compose.onNodeWithContentDescription("Browser address").performTextReplacement(next)
         compose.onNodeWithContentDescription("Browser address").assertTextEquals(next)
         compose.onNodeWithContentDescription("Browser address").performImeAction()
+        ready("Show browser keyboard")
         background(30, 60, 120)
         compose.onNodeWithContentDescription("Browser mode").performClick()
         compose.onNodeWithText("On Android").performClick()
@@ -155,7 +161,7 @@ class SshBrowserWorkspaceTest {
         fun click() = compose.onNodeWithContentDescription("SSH browser page").performTouchInput {
             click(Offset(width * .5f, height * .33f))
         }
-        click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
+        pointerReady(); click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
         compose.waitUntil(15000) { compose.onAllNodesWithContentDescription("Browser loading").fetchSemanticsNodes().isEmpty() }
         val before = status()
         assertEquals(0, runBlocking { connection.exec("fixture-browser-provider-detach").exitStatus })
@@ -174,7 +180,7 @@ class SshBrowserWorkspaceTest {
         assertEquals(original, workspace().tabs.single { it.isBrowser }.resource)
         assertSame(connection, cmux.connection); assertTrue(connection.isConnected)
         assertEquals(1, clicks())
-        click(); compose.waitUntil(10000) { clicks() == 2 }
+        pointerReady(); click(); compose.waitUntil(10000) { clicks() == 2 }
         capture("ssh-provider-recovered")
     }
 
@@ -194,7 +200,7 @@ class SshBrowserWorkspaceTest {
         fun click() = compose.onNodeWithContentDescription("SSH browser page").performTouchInput {
             click(Offset(width * .5f, height * .33f))
         }
-        click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
+        pointerReady(); click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
         compose.waitUntil(15000) { compose.onAllNodesWithContentDescription("Browser loading").fetchSemanticsNodes().isEmpty() }
         val before = status()
         assertEquals(0, runBlocking { connection.exec("fixture-browser-process-stop").exitStatus })
@@ -214,7 +220,7 @@ class SshBrowserWorkspaceTest {
         assertEquals(original, workspace().tabs.single { it.isBrowser }.resource)
         assertSame(connection, cmux.connection); assertTrue(connection.isConnected)
         assertEquals(1, clicks())
-        click(); compose.waitUntil(10000) { clicks() == 2 }; background(90, 40, 110)
+        pointerReady(); click(); compose.waitUntil(10000) { clicks() == 2 }; background(90, 40, 110)
         capture("ssh-chrome-process-recovered")
     }
 
@@ -237,7 +243,7 @@ class SshBrowserWorkspaceTest {
         fun click() = compose.onNodeWithContentDescription("SSH browser page").performTouchInput {
             click(Offset(width * .5f, height * .33f))
         }
-        click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
+        pointerReady(); click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
         assertEquals(0, runBlocking { connection.exec("fixture-stop-desktop-owner").exitStatus })
         compose.waitUntil(15000) { compose.onAllNodesWithText("Reconnect").fetchSemanticsNodes().isNotEmpty() }
         assertTrue(before.state.value.ended); assertTrue(connection.isConnected)
@@ -262,8 +268,48 @@ class SshBrowserWorkspaceTest {
         assertEquals(original.resource, tab.resource); assertEquals(original.content, tab.content)
         assertSame(connection, cmux.connection); assertTrue(connection.isConnected)
         assertEquals(1, clicks())
-        click(); compose.waitUntil(10000) { clicks() == 2 }
+        pointerReady(); click(); compose.waitUntil(10000) { clicks() == 2 }
         capture("ssh-browser-daemon-recovered")
+    }
+
+    @Test fun lostReplyAfterRealClickPausesAndReconnectsWithoutReplay() {
+        val before = cmux.state.value.providers.single { it.session == "fixture" }
+        val original = workspace().tabs.single { it.isBrowser }.resource
+        val generation = before.state.value.tree!!.generation
+        val connection = cmux.connection
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshWorkspacesRoute(session, hostId) {}
+        } } }
+        open(); ready("SSH browser page"); background(18, 95, 55)
+        fun status() = runBlocking {
+            JSONObject(connection.exec("fixture-browser-status").stdout.toString(Charsets.UTF_8))
+        }
+        fun clicks(): Int = status().getJSONArray("events").let { items ->
+            (0 until items.length()).count { items.getJSONObject(it).has("click") }
+        }
+        fun click() = compose.onNodeWithContentDescription("SSH browser page").performTouchInput {
+            click(Offset(width * .5f, height * .33f))
+        }
+        assertEquals(0, runBlocking { connection.exec("fixture-browser-drop-next-click-reply").exitStatus })
+        pointerReady(); click()
+        compose.waitUntil(15000) { status().getInt("replyLosses") == 1 && clicks() == 1 }
+        compose.waitUntil(15000) { compose.onAllNodesWithText("Reconnect").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(15000) { compose.onAllNodesWithText("Delivery was not confirmed", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(before.state.value.ended); assertTrue(connection.isConnected)
+        assertEquals(1, status().getInt("mouseReleases"))
+        capture("ssh-browser-unconfirmed-click")
+        compose.onNodeWithText("Reconnect").performClick()
+        ready("SSH browser page"); background(90, 40, 110)
+        compose.waitUntil(15000) { compose.onAllNodesWithText("Reconnect").fetchSemanticsNodes().isEmpty() }
+        val after = cmux.state.value.providers.single { it.session == "fixture" }
+        assertNotSame(before, after); assertEquals(generation, after.state.value.tree!!.generation)
+        assertEquals(original, workspace().tabs.single { it.isBrowser }.resource)
+        assertSame(connection, cmux.connection); assertTrue(connection.isConnected)
+        assertEquals(1, status().getInt("replyLosses")); assertFalse(status().getBoolean("replyLossArmed"))
+        assertEquals(1, status().getInt("mouseReleases")); assertEquals(1, clicks())
+        pointerReady(); click(); compose.waitUntil(10000) { clicks() == 2 }
+        assertEquals(2, status().getInt("mouseReleases"))
+        capture("ssh-browser-unconfirmed-recovered")
     }
 
     @Test fun liveConnectionLossRestoresSameBrowserAndDoesNotReplayCompletedClick() {
@@ -280,6 +326,7 @@ class SshBrowserWorkspaceTest {
         compose.onNodeWithContentDescription("Browser address").performTextReplacement(next)
         compose.onNodeWithContentDescription("Browser address").assertTextEquals(next)
         compose.onNodeWithContentDescription("Browser address").performImeAction()
+        ready("Show browser keyboard")
         background(30, 60, 120)
         fun click() = compose.onNodeWithContentDescription("SSH browser page").performTouchInput {
             click(Offset(width * .5f, height * .33f))
@@ -288,7 +335,7 @@ class SshBrowserWorkspaceTest {
             val records = JSONObject("{\"events\":${events()}}").getJSONArray("events")
             return (0 until records.length()).count { records.getJSONObject(it).has("click") }
         }
-        click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
+        pointerReady(); click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
         val oldConnection = cmux.connection
         // Close the actual transport, leaving its remote owner, tab, Chrome page
         // and registration wire alive. The visible route owns all reconnection.
@@ -304,7 +351,7 @@ class SshBrowserWorkspaceTest {
         assertEquals(original, workspace().tabs.single { it.isBrowser }.resource)
         compose.onNodeWithContentDescription("Browser address").assertTextEquals(next)
         assertEquals(1, clicks())
-        click(); compose.waitUntil(10000) { clicks() == 2 }
+        pointerReady(); click(); compose.waitUntil(10000) { clicks() == 2 }
         capture("ssh-real-chrome-reconnected")
     }
 

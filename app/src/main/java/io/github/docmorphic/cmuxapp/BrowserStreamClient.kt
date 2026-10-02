@@ -1,5 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
@@ -11,6 +12,8 @@ internal interface BrowserStreamClient {
     val clearsFrameOnRestart: Boolean get() = false
     val pageDescription: String get() = "Mac browser page"
     val reportsHistory: Boolean get() = true
+    /** SSH pointer authority follows displayed-frame acknowledgement, independently of transport. */
+    val pointerReady: StateFlow<Boolean>? get() = null
     val events: Flow<Event>
     val disconnected: Flow<Throwable>
     suspend fun start(panel: String, stream: String, width: Int, height: Int, scale: Double): JSONObject

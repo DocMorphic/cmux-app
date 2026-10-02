@@ -13,7 +13,62 @@ rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This au
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
-Older checkpoints below retain their original evidence boundaries. The daemon-restart checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
+Older checkpoints below retain their original evidence boundaries. The lost-reply/readiness checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
+
+## Lost click replies, resize cancellation and pointer readiness (2026-10-02)
+
+The integrated fixture can now deliver a real guarded click to cmux-tui, consume
+its successful mouse-up reply, and close only the Android control relay without
+forwarding that reply. It records actual mouse-up command counts and the page's
+HTTP callbacks. Chrome, the cmux daemon and the SSH transport stay alive.
+
+The new acceptance case verifies one command and one page callback, paused input,
+and an explicit delivery-not-confirmed warning. Reconnect opens a new control for
+the same tab and daemon generation, displaying the changed DOM. The command and
+callback counts stay at one; a fresh user click produces exactly the second of
+each. Nothing replays the unconfirmed click.
+
+This work exposed and fixed three production gaps:
+
+- A later disconnect/lifecycle pause could overwrite the more specific delivery
+  warning. `BrowserInputQueue.pause()` now preserves an existing failure reason.
+- A resize may reach the host before coroutine cancellation. The renderer and
+  SSH adapter now invalidate their remembered size before sending it, so returning
+  to the old dimensions sends a restoring resize instead of trusting stale state.
+- Displayed pixels could become visible before host acknowledgement admitted
+  pointer input. SSH streams now expose their actual pointer-authority state.
+  The page's tap surface and accessibility enabled state require that authority
+  and settled viewport sizing. The existing guarded command checks still apply
+  at dispatch; this does not queue or replay gestures during revocation.
+
+**Final verification:** 29 focused JVM tests passed with zero failures/skips
+(input ordering, scrolling, recovery and SSH stream adaptation). The deterministic
+resize case cancels a transmitted small-grid request before its reply and verifies
+that restoring the original dimensions sends another request. Pointer readiness
+stays false until new pixels are acknowledged.
+
+The real SSH/cmux-tui/Chrome suite passed **OK (6 tests), 94.736 seconds, zero
+failures/skips**, on API 37 / 16 KB. Positive taps now wait for the production
+surface's enabled semantics; stale-image rejection checks still tap the disabled
+surface. The suite retains exact command/callback, pixel, identity and navigation
+assertions. Both APKs built, all five native libraries passed LOAD/RELRO alignment,
+and both APKs passed 16 KB ZIP alignment. The warning and restored page screenshots
+were inspected. Final evidence uses the `readiness-*` files under ignored
+`captures/runtime/ssh-audit/lost-browser-reply/`.
+
+Earlier runs are retained: the initial lost-reply suite passed before warning
+review; subsequent runs exposed missed clicks and an isolated page left at the
+keyboard-sized viewport. One intermediate suite exceeded the runner deadline in
+the daemon test and was force-stopped; its exact cause was not established. These
+runs are not substituted for the final result above.
+
+- Debug SHA-256: `d89a32e70a84c4af7d05e6e97bcc06e235cc0e5bd64d9504220c81e141b97a56`
+- Test SHA-256: `421112508aa853c349fc8af4f6a3495980b943f5e8e3eed58219fe44cf77d4a3`
+
+This specifically covers loss after a successful complete click, rather than all
+possible failures midway through arbitrary keyboard/drag sequences. Physical
+Pixel/Mac acceptance remains open. Signed build 363 and upstream pins are
+unchanged; the private fixture and existing emulator were stopped.
 
 ## Desktop daemon restart and browser recovery errors (2026-10-02)
 

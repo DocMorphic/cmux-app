@@ -1,6 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
@@ -23,6 +25,11 @@ internal class SshCmuxBrowserStream(
     override val disconnected = failures.asSharedFlow()
     override val clearsFrameOnRestart = true
     override val reportsHistory = false
+    private val mutablePointerReady = MutableStateFlow(false)
+    override val pointerReady = mutablePointerReady.asStateFlow()
+    private fun refreshPointerReady() {
+        mutablePointerReady.value = !closed && attachment?.pointer?.token != null
+    }
     override val pageDescription = "SSH browser page"
     private val operations = Mutex()
     private var attachment: SshCmuxBrowserAttachment? = null
@@ -76,6 +83,7 @@ internal class SshCmuxBrowserStream(
             is SshCmuxBrowserEvent.Frame -> emit("browser.frame", image(event.value), stream)
             is SshCmuxBrowserEvent.Ended -> fail(IllegalStateException("SSH browser stream ended. Reopen the browser to reconnect."))
         }
+        refreshPointerReady()
     }
     override suspend fun start(panel: String, stream: String, width: Int, height: Int, scale: Double): JSONObject = operations.withLock {
         guard(panel); check(attachment == null && streamId == null) { "SSH browser already attached" }
@@ -87,7 +95,7 @@ internal class SshCmuxBrowserStream(
             // Initial frames arrive before attach's reply. The renderer's collector
             // is running already; keep the stream identity in this callback.
             attachment = control.attachBrowser(row.surface, size.first, size.second) { receive(it, stream) }
-            guard(panel); appliedGrid = size
+            guard(panel); appliedGrid = size; refreshPointerReady()
             descriptor
         } catch (failure: Exception) {
             withContext(NonCancellable) { detach() }
@@ -100,6 +108,7 @@ internal class SshCmuxBrowserStream(
         if (streamId == stream) detach()
     }
     private suspend fun detach() {
+        mutablePointerReady.value = false
         streamId = null; appliedGrid = null; renderedFrames.clear()
         val current = attachment; attachment = null
         if (current != null) withTimeout(2_000) { control.detach(current) }
@@ -111,20 +120,26 @@ internal class SshCmuxBrowserStream(
         // False means definitely not sent (e.g. pointer authority was revoked
         // by resize). Like iOS, discard that gesture without pausing later input.
         // An uncertain delivery still throws and pauses BrowserInputQueue.
-        control.browserInput(current, input); Unit
+        try { control.browserInput(current, input); Unit }
+        finally { refreshPointerReady() }
     }
     override suspend fun viewport(panel: String, width: Int, height: Int, scale: Double) = operations.withLock {
         val current = view(panel); val size = grid(width, height, cell)
         if (size != appliedGrid) {
-            check(control.resizeBrowser(current, size.first, size.second)) { "Remote browser did not accept the viewport" }
-            appliedGrid = size
+            // The host may apply this resize even if its caller is cancelled.
+            appliedGrid = null; mutablePointerReady.value = false
+            try {
+                check(control.resizeBrowser(current, size.first, size.second)) { "Remote browser did not accept the viewport" }
+                appliedGrid = size
+            } finally { refreshPointerReady() }
         }
     }
     override suspend fun displayed(panel: String, sequence: Long) = operations.withLock {
         val current = view(panel)
         renderedFrames.keys.filter { it < sequence }.forEach { renderedFrames.remove(it) }
         val remoteSequence = renderedFrames.remove(sequence) ?: return@withLock
-        control.browserFrameDisplayed(current, remoteSequence); Unit
+        try { control.browserFrameDisplayed(current, remoteSequence); Unit }
+        finally { refreshPointerReady() }
     }
     override suspend fun respondDialog(panel: String, id: String, button: String, text: String?) {
         guard(panel); error("This SSH browser does not expose native dialog responses")
@@ -136,7 +151,7 @@ internal class SshCmuxBrowserStream(
     override fun close() = retire(IllegalStateException("SSH browser connection ended"))
     private fun retire(failure: Throwable) {
         if (closed) return
-        closed = true
+        closed = true; mutablePointerReady.value = false
         failures.tryEmit(failure)
         attachment?.pointer?.revoke()
         scope.launch { operations.withLock { runCatching { detach() } } }

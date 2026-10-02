@@ -79,10 +79,12 @@ class SshCmuxBrowserStreamTest {
         assertEquals("png", image.getString("format")); assertEquals("fixture-png", image.getString("data_b64"))
         val attach = pipe.sent.single { it.getString("cmd") == "attach-surface" }
         assertEquals(49, attach.getInt("cols")); assertEquals(40, attach.getInt("rows")) // CSS points, not density-scaled pixels
+        assertFalse(stream.pointerReady.value)
         stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
         assertFalse(pipe.sent.any { it.getString("cmd") == "browser-mouse-guarded" })
         stream.displayed(stream.panelId, 0); assertFalse(pipe.sent.any { it.getString("cmd") == "browser-frame-presented" })
-        stream.displayed(stream.panelId, 1); stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
+        stream.displayed(stream.panelId, 1); assertTrue(stream.pointerReady.value)
+        stream.input(stream.panelId, BrowserInput.Click(1.0, 2.0))
         assertEquals(listOf(40L, 40L), pipe.sent.takeLast(2).map { it.getLong("frame_seq") })
         stream.close(); runCurrent(); control.close()
     }
@@ -143,6 +145,31 @@ class SshCmuxBrowserStreamTest {
         assertEquals(2, resolutions)
         stream.close(); runCurrent(); assertFalse(control.closed); control.close()
     }
+    @Test fun cancelledResizeCannotSkipRestoringThePreviouslyAcknowledgedGrid() = runTest {
+        val pipe = Pipe(); val control = SshCmuxControl(pipe, backgroundScope); control.handshake("fixture")
+        val stream = SshCmuxBrowserStream(selection(tree()), control, backgroundScope, { tree().tabs.single() }, { true })
+        stream.start(stream.panelId, "first", 400, 640, 1.0)
+        stream.displayed(stream.panelId, 1); assertTrue(stream.pointerReady.value)
+        pipe.hold = "resize-surface"
+        val resizing = launch { stream.viewport(stream.panelId, 400, 320, 1.0) }
+        runCurrent()
+        val applied = checkNotNull(pipe.held)
+        assertFalse(stream.pointerReady.value)
+        assertEquals(20, applied.getInt("rows"))
+        // The host received the small grid, but keyboard dismissal cancels the
+        // caller before its reply. Its late success does not restore the old grid.
+        resizing.cancelAndJoin()
+        pipe.reply(applied, JSONObject().put("accepted", true)); runCurrent()
+        pipe.hold = null
+        stream.viewport(stream.panelId, 400, 640, 1.0)
+        assertEquals(listOf(20, 40), pipe.sent.filter { it.getString("cmd") == "resize-surface" }.map { it.getInt("rows") })
+        assertFalse(stream.pointerReady.value)
+        pipe.sequence = 10L; pipe.token = 41L; pipe.feed(pipe.state()); runCurrent()
+        assertFalse(stream.pointerReady.value)
+        stream.displayed(stream.panelId, 2); assertTrue(stream.pointerReady.value)
+        stream.close(); runCurrent(); control.close()
+    }
+
     @Test fun replacementRevokesInputAndRetiresOnlyItsAttachment() = runTest {
         val pipe = Pipe(); val control = SshCmuxControl(pipe, backgroundScope); control.handshake("fixture")
         val stream = SshCmuxBrowserStream(selection(tree()), control, backgroundScope, { tree().tabs.single() }, { true })

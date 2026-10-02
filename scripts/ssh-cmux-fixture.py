@@ -162,7 +162,11 @@ async def main():
             if tokens == ["fixture-browser-status"] and browser:
                 proc.stdout.write(json.dumps({"events": browser.events, "registered": browser.provider is not None,
                     "registrations": browser.registrations, "target": browser.target,
-                    "chromePid": browser.chrome.pid, "chromeExited": browser.chrome.returncode is not None})); proc.exit(0); return
+                    "chromePid": browser.chrome.pid, "chromeExited": browser.chrome.returncode is not None,
+                    "replyLossArmed": browser.reply_loss_armed, "replyLosses": browser.reply_losses,
+                    "mouseReleases": browser.mouse_releases})); proc.exit(0); return
+            if tokens == ["fixture-browser-drop-next-click-reply"] and browser:
+                browser.reply_loss_armed = True; proc.exit(0); return
             if tokens == ["fixture-restart-browser-owner"] and browser:
                 await cli("server", "ensure", "--session", session, "--json")
                 await browser.reconnect(wire); proc.exit(0); return
@@ -230,12 +234,28 @@ async def main():
             else: raise ValueError("Unexpected fixture exec or PTY")
             children.add(child)
             if os.environ.get("CMUX_SSH_TRACE") == "1": print(json.dumps({"started": kind}), flush=True)
+            drop_reply = None
             async def output():
+                if browser and kind == "cmux":
+                    # Fault injection belongs only to this private Chrome fixture.
+                    # Deliver the real command to cmux-tui, consume its successful
+                    # response, then end this Android relay without forwarding it.
+                    while data := await child.stdout.readline():
+                        value = json.loads(data)
+                        if drop_reply is not None and value.get("id") == drop_reply:
+                            if value.get("ok") is not True:
+                                raise RuntimeError("Cannot inject reply loss after a rejected browser click")
+                            browser.reply_losses += 1
+                            child.stdin.close()
+                            return
+                        proc.stdout.write(data.decode("utf-8"))
+                    return
                 import codecs
                 decoder = codecs.getincrementaldecoder("utf-8")()
                 while data := await child.stdout.read(8192): proc.stdout.write(decoder.decode(data))
                 proc.stdout.write(decoder.decode(b"", final=True))
             async def input_stream():
+                nonlocal drop_reply
                 try:
                     while True:
                         try:
@@ -246,7 +266,15 @@ async def main():
                             # dedicated PTY fixture verifies actual OS resizing.
                             continue
                         if not data: break
-                        if kind == "cmux": encoded = relay_line(data)
+                        if kind == "cmux":
+                            encoded = relay_line(data)
+                            if browser:
+                                value = json.loads(data)
+                                if value.get("cmd") == "browser-mouse-guarded" and value.get("kind") == "up":
+                                    browser.mouse_releases += 1
+                                    if browser.reply_loss_armed:
+                                        browser.reply_loss_armed = False
+                                        drop_reply = value["id"]
                         else:
                             if kind == "tmux" and not tmux_fixture.approved(shlex.split(data.rstrip("\r\n"))): raise ValueError("tmux control command refused")
                             encoded = data.encode()

@@ -88,6 +88,7 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
     } }
     val scrollMotion = rememberBrowserScrollMotion(queue)
     val inputError by queue.error.collectAsState()
+    val pointerReady = client.pointerReady?.collectAsState()?.value ?: true
     DisposableEffect(queue, recovery) { onDispose { recovery.close(); queue.close() } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var foreground by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
@@ -173,6 +174,9 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
         if (!foreground || !ready || appliedViewport == viewport) return@LaunchedEffect
         delay(60)
         try {
+            // Cancellation can follow remote application but precede the reply.
+            // Returning to the old size must still send a restoring resize.
+            appliedViewport = null
             client.viewport(panelId, viewport.first, viewport.second, viewport.third)
             ensureActive(); appliedViewport = viewport
         } catch (failure: Exception) {
@@ -204,7 +208,8 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
         Box(Modifier.fillMaxWidth().weight(1f).onSizeChanged { measured = it }, contentAlignment = Alignment.Center) {
             val current = frame
             if (current == null) Text(if (ready && page.url in setOf("", "about:blank")) "Search or enter an address below." else "Waiting for browser…", color = Color(0xFF969AA3))
-            else BrowserPageSurface(current, queue, scrollMotion, streamGeneration, inputEnabled,
+            else BrowserPageSurface(current, queue, scrollMotion, streamGeneration,
+                inputEnabled && pointerReady && (client.pointerReady == null || appliedViewport == viewport),
                 onTap = { focusManager.clearFocus() }, pageDescription = client.pageDescription)
         }
         val visibleError = connectionError ?: error

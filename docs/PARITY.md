@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH lost-reply and input-readiness fixes (2026-10-02):** preserved unconfirmed
+delivery warnings, fixed stale size tracking after cancelled resize, and exposed
+actual pointer authority to the page's enabled/accessibility state. All 29 focused
+JVM tests and six final real SSH/cmux-tui/Chrome tests passed (94.736 seconds,
+API 37 / 16 KB, zero skips), plus APK alignment and screenshot inspection. The
+new case loses a successful click reply and proves reconnection does not duplicate
+either the command or page callback. [Evidence, intermediate failures and limits](DIRECT_SSH.md#lost-click-replies-resize-cancellation-and-pointer-readiness-2026-10-02)
+retain physical acceptance and broader input interruption cases as open work.
+Signed build 363 is unchanged; the emulator is stopped.
+
 **SSH daemon restart and recovery explanation (2026-10-02):** browser recovery
 now displays workspace errors, including instructions to start a stopped desktop
 service. Five integrated tests passed (82.118 seconds, API 37 / 16 KB, zero skips).
