@@ -790,3 +790,117 @@ presenter, lifecycle binding and fixture delivery; full native-screen navigation
 secure-keyguard/multi-window behavior and physical Pixel/Mac acceptance remain
 open. The Pixel was absent from ADB. No signed release, push provider, production
 backend, Mac listener or broad parity pin changed.
+
+
+## Direct notification Reply delivery (2026-10-02)
+
+Reply now prefers an admitted connection already held by the foreground native
+screen. The current Mac uses its existing terminal input dispatcher and ordered
+queue; another connected Mac uses its verified feed channel. It does not dial,
+refresh topology, select a Mac, change the selected workspace/tab, or start the
+foreground application runtime from a background broadcast. With no ready
+foreground target, the previously implemented encrypted relay path remains the
+normal background lane.
+
+The authenticated action captures login/team, Mac origin, peer enrollment/key,
+workspace, surface and retarget policy. Local resolution requires a ready terminal
+in the original workspace; only a retargetable notification may choose the unique
+live surface owner. Selection and account ownership are rechecked immediately
+before delivery and again after ordered input waits. The direct RPC uses literal
+`text` and `submit_key=return`, leaving agent-aware Return/Ctrl+Enter choice to the
+Mac. Workspace confinement was checked against upstream `TerminalController.swift`
+at `204a11dfcc76280205e50406ab94270a1c152155`: `v2ResolveWorkspace` (5194–5213),
+`v2MobileTerminalPaste` (15906–16036), and `mobileResolveWorkspaceAndSurface`
+(16325 onward), plus `TerminalController+ControlTerminalBinding.swift` (164–180).
+An explicit workspace must own the explicit surface; there is no selected-tab
+fallback when a supplied workspace is missing.
+
+### Durable separation between direct and relay attempts
+
+Before any direct write, action consumption and its encrypted packet are saved
+in one account transaction with `direct_only=true` and local record version 2.
+Older builds only accept version 1 and therefore cannot reinterpret a direct
+packet as a relay retry after a downgrade. Releasing a provably unwritten packet
+to the relay restores version 1 without re-encrypting. These local fields are never
+sent over the wire. Relay candidate enumeration, background worker admission and
+the HTTP transport all reject this packet. Expiry reporting is durably scheduled
+before writing; if the process dies, restart/boot recovery keeps the fence and
+reports an unconfirmed result after the send window. It cannot blindly relay a
+possibly applied write. No plaintext reply is persisted for direct recovery.
+
+A live attempt is single-use and bounded to four seconds within the receiver's
+eight-second work window. If its ready connection retires before entering the
+write, it can prove that no text was sent and atomically release the original
+ciphertext to the relay. If writing starts but the acknowledgement is lost,
+delivery becomes unconfirmed, the packet is erased into a content-free receipt,
+and no automatic resend crosses into the relay lane. A successful direct response
+consumes the packet. Cancellation invalidates the permission closure of queued
+work, so an ordered action waiting behind earlier typing cannot begin a new write
+after its caller has timed out. An input already admitted to the existing exact
+input sender retains that sender's duplicate protection; the relay stays fenced.
+
+The upstream paste result can contain `submitted=false` after text was accepted
+but its submit key failed. Android preserves a `submit_required` receipt and shows
+**Reply needs submission**, advising the user to submit the pasted text from the
+terminal. It never pastes that text again. Missing or malformed submission
+confirmation, including a duplicate acknowledgement without submit evidence,
+remains unconfirmed. This avoids falsely claiming that an agent received a prompt.
+
+This deliberately tightens the pinned iOS fallback behavior described in the
+preceding audit: direct and relay delivery have separate host duplicate tracking.
+An ambiguous direct write requires checking the terminal unless upstream provides
+shared tracking. It is not an Android networking restriction. Live push-provider
+integration and physical end-to-end acceptance remain separate open requirements.
+
+
+### Direct-reply verification
+
+**61 focused JVM checks passed**, zero failures/errors/skips: five direct policy/
+ordering cases, twelve outbox cases, seven action cases, nine relay cases,
+eighteen foreground feed coordinator cases and ten terminal input session cases.
+New coverage includes confinement and moved-surface resolution, readiness/account
+retirement, exact Unicode/newline preservation, one-use attempts, queue ordering,
+lost acknowledgements, cancellation of future writes, partial submission, strict
+record-version restoration, restart fencing, unchanged-ciphertext fallback and
+late acceptance. A two-Mac socket fixture verifies only the requested existing
+connection receives `terminal.paste`, with no extra connection or selection RPC.
+The HTTP fixture verifies direct-only packets cannot even request a token.
+
+**Final Android run: OK (23 tests), 118.321 seconds**, API 37 / 16,384-byte pages,
+zero failures/skips: eight Reply action cases, eight worker/notice cases and seven
+encrypted push cases. The actual manifest receiver consumes RemoteInput through
+the notification PendingIntent and selects a Compose-registered foreground owner.
+A framed MobileRpcClient transport fixture captures exact paste text, workspace,
+surface and Return intent, confirms the encrypted fence exists before the write,
+and returns or deliberately loses the host acknowledgement. Assertions verify no
+relay job for applied/uncertain/partial replies, exactly one write, specific
+submission advice, and an unchanged encrypted fallback for an unwritten attempt.
+The reconstructed real worker makes zero account/relay HTTP requests for fenced
+work, but still reports expiry. Existing shade Reply, push suppression/dismissal,
+key/account retirement and background retry tests pass in the same final run.
+
+The direct transport fixture uses no socket or production server. Its action
+suite keeps emulator radios off before fixture credentials exist and cancels work
+and erases credentials before restoring connectivity. Worker HTTP tests remain
+loopback-only. Real native-screen navigation, host terminal effects, secure
+keyguard/Doze, process-kill timing and physical Pixel/Mac delivery remain unverified.
+
+The first JVM compile failed on a malformed test fixture expression; it was fixed.
+The initial 23-case Android run had four failures in new-test cleanup because the
+Compose rule only permits `setContent` once. Cleanup now removes the registered
+owner through Compose state, and all eight action cases passed in 60.844 seconds.
+The later record-version compatibility change was then rebuilt and checked by
+all 61 JVM and all 23 Android cases above. Original logs are retained; the failed
+run is not counted as a pass.
+
+Both final APK builds, all five native LOAD/RELRO checks and both 16 KB ZIP checks
+passed. SHA-256:
+
+- Debug: `2bbd854a4ea1c5f5a6d0030df11e985c82140ef904a15adb35827718206065eb`
+- Test: `5bfa56c587bff23fc1bf68feb22048bd57970a5db29852d1c6cb3ff9b781c20c`
+
+Evidence: ignored `captures/runtime/phone-reply-direct/` (`final-android.txt`,
+`final-jvm/`, `final-alignment.txt`, device receipts, earlier runs) and adjacent
+build logs. The single existing AVD was reused and stopped. No signed release,
+physical installation, provider registration, production request, host listener
+or broad parity pin changed.

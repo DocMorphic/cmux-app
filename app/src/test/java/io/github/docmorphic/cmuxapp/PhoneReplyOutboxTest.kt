@@ -26,6 +26,67 @@ class PhoneReplyOutboxTest {
             "workspace", "surface", false, text, at)
     }
 
+    @Test fun directFenceSurvivesRestartAndCanOnlyFallbackAfterProofOfNoWrite() {
+        val state = state(); val direct = reply(state).withDirectFence(true)
+        PhoneReplyOutbox(state).enqueue(direct, now)
+        val restored = JSONObject(state.toString()); val queue = PhoneReplyOutbox(restored)
+        assertTrue(queue.pending(now).isEmpty())
+        val saved = queue.waiting(now).single(); assertTrue(saved.directOnly)
+        assertEquals(2, saved.persisted().getInt("version")) // Previous builds require version == 1 and reject this packet.
+        assertTrue(runCatching { PreparedPhoneReply.restore(saved.persisted().put("version", 1)) }.isFailure)
+        assertEquals(direct.body, saved.body)
+        // A competing relay candidate cannot replace or finish the direct row.
+        assertEquals(ReplyEnqueueResult.CONFLICT, queue.enqueue(direct.withDirectFence(false), now))
+        queue.finish(direct.withDirectFence(false), PhoneReplyRelayResult.Accepted, now)
+        assertTrue(queue.pending(now).isEmpty()); assertEquals(1, queue.waiting(now).size)
+        queue.finishDirect(saved, PhoneReplyDirectResult.UNAVAILABLE, now + 1)
+        val relay = queue.pending(now + 1).single()
+        assertFalse(relay.directOnly); assertEquals(saved.body, relay.body)
+        assertEquals(1, relay.persisted().getInt("version"))
+        // A stale outcome for the former direct incarnation cannot touch the relay row.
+        queue.finishDirect(saved, PhoneReplyDirectResult.UNKNOWN, now + 2)
+        assertEquals(1, queue.pending(now + 2).size)
+        assertTrue(runCatching { PreparedPhoneReply.restore(saved.persisted().put("direct_only", "false")) }.isFailure)
+    }
+
+    @Test fun unknownOrLostDirectAttemptNeverReentersRelayAndAcceptanceClearsItsNotice() {
+        for (outcome in listOf(PhoneReplyDirectResult.UNKNOWN, PhoneReplyDirectResult.DELIVERED)) {
+            val state = state(); val direct = reply(state).withDirectFence(true); val queue = PhoneReplyOutbox(state)
+            queue.enqueue(direct, now); queue.finishDirect(direct, outcome, now + 1)
+            assertTrue(queue.waiting(now + 1).isEmpty()); assertTrue(queue.pending(now + 1).isEmpty())
+            assertEquals(if (outcome == PhoneReplyDirectResult.DELIVERED) "accepted" else "unconfirmed", queue.receipts(now + 1).single().status)
+        }
+        val state = state(); val direct = reply(state).withDirectFence(true)
+        PhoneReplyOutbox(state).enqueue(direct, now)
+        val restarted = PhoneReplyOutbox(JSONObject(state.toString()))
+        assertTrue(restarted.pending(now + 119_000).isEmpty())
+        assertTrue(restarted.waiting(now + 120_000).isEmpty())
+        assertEquals("unconfirmed", restarted.receipts(now + 120_000).single().status)
+        restarted.finishDirect(direct, PhoneReplyDirectResult.DELIVERED, now + 120_001)
+        assertEquals("accepted", restarted.receipts(now + 120_001).single().status)
+    }
+
+    @Test fun pastedButUnsubmittedReplyErasesPacketAndPersistsSpecificPrivateReceipt() {
+        val state = state(); val direct = reply(state).withDirectFence(true); val queue = PhoneReplyOutbox(state)
+        queue.enqueue(direct, now); queue.finishDirect(direct, PhoneReplyDirectResult.SUBMIT_REQUIRED, now + 1)
+        val restored = PhoneReplyOutbox(JSONObject(state.toString()))
+        assertTrue(restored.waiting(now + 1).isEmpty()); assertTrue(restored.pending(now + 1).isEmpty())
+        assertEquals("submit_required", restored.receipts(now + 1).single().status)
+        assertFalse(state.toString().contains("literal reply"))
+    }
+
+    @Test fun retiredDirectAttemptCannotReleaseAPacketForAnotherAccountOrKey() {
+        val state = state(); val direct = reply(state).withDirectFence(true)
+        PhoneReplyOutbox(state).enqueue(direct, now)
+        PhonePushKeyState(state).pin(team, mac.origin, direct.peer.copy(descriptor = PhonePushIdentity.generate().descriptor()))
+        PhoneReplyOutbox(state).finishDirect(direct, PhoneReplyDirectResult.UNAVAILABLE, now + 1)
+        assertTrue(PhoneReplyOutbox(state).pending(now + 1).isEmpty())
+        assertEquals("unconfirmed", PhoneReplyOutbox(state).receipts(now + 1).single().status)
+        state.put("task_session", "other")
+        PhoneReplyOutbox(state).finishDirect(direct, PhoneReplyDirectResult.DELIVERED, now + 2)
+        assertFalse(state.has(PhoneReplyOutbox.KEY))
+    }
+
     @Test fun reconstructionPreservesExactBodyAndAcceptedReceiptStopsDuplicateIntent() {
         val state = state(); val prepared = reply(state); val queue = PhoneReplyOutbox(state)
         assertEquals(ReplyEnqueueResult.QUEUED, queue.enqueue(prepared, now))

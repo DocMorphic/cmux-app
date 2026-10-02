@@ -20,12 +20,19 @@ class PhoneReplyReceiver : BroadcastReceiver() {
             var active: android.service.notification.StatusBarNotification? = null
             try {
                 withTimeout(8_000) {
+                    val store = NativeCredentialStore(app)
+                    val target = store.load()?.let { PhoneReplyActions(it).directTarget(route, action) }
+                    val direct = target?.let { withContext(Dispatchers.Main.immediate) { PhoneReplyDirect.prepare(it) } }
+                    var packet: PreparedPhoneReply? = null
                     var result = PhoneReplySubmission.RETIRED
                     synchronized(NativeNotificationDelivery.lock) {
                         active = PhoneReplyNotification.active(app, route, action)
                         val notice = active ?: return@synchronized
-                        if (NativeNotificationService.isEnabled(app)) NativeCredentialStore(app).update {
-                            result = PhoneReplyActions(it).submit(route, action, text, System.currentTimeMillis())
+                        if (NativeNotificationService.isEnabled(app)) store.update {
+                            val now = System.currentTimeMillis()
+                            result = PhoneReplyActions(it).submit(route, action, text, now, direct?.target)
+                            if (result == PhoneReplySubmission.QUEUED && direct != null)
+                                packet = PhoneReplyOutbox(it).waiting(now).singleOrNull { queued -> queued.replyID == action && queued.directOnly }
                         }
                         when (result) {
                             PhoneReplySubmission.QUEUED, PhoneReplySubmission.ALREADY_QUEUED ->
@@ -39,7 +46,21 @@ class PhoneReplyReceiver : BroadcastReceiver() {
                         }
                     }
                     if (result in setOf(PhoneReplySubmission.QUEUED, PhoneReplySubmission.ALREADY_QUEUED)) {
+                        // Schedule expiry reporting before any terminal write. Process death keeps the direct fence.
                         PhoneReplyWork.recover(app)
+                        packet?.let { queued ->
+                            val outcome = withContext(Dispatchers.Main.immediate) {
+                                checkNotNull(direct).send(text) {
+                                    queued.isFresh(System.currentTimeMillis()) && store.load()?.let {
+                                        PhoneReplyOutbox(it).permits(queued)
+                                    } == true
+                                }
+                            }
+                            store.update { PhoneReplyOutbox(it).finishDirect(queued, outcome, System.currentTimeMillis()) }
+                            // A confirmed terminal write needs no further job scheduling. Do not turn
+                            // a later scheduler failure into a misleading delivery failure banner.
+                            if (outcome != PhoneReplyDirectResult.DELIVERED) PhoneReplyWork.recover(app)
+                        }
                         synchronized(NativeNotificationDelivery.lock) { NativeNotificationDelivery(app).cancel(route) }
                     }
                 }

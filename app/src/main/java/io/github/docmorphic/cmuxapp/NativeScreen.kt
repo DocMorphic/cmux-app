@@ -650,6 +650,32 @@ fun NativeScreen(
                 inputClient.input(inputTarget.workspace, inputTarget.surface, entry.text)
         }
     }
+    ObservePhoneReplyDirect(lifecycle) { target ->
+        val mac = pairedMacs.singleOrNull { it.ownsOrigin(target.origin) }
+        fun admitted() = feedForeground && signedIn && store.taskSession() == target.team.login &&
+            teamState.scope?.let { accountTeams.isCurrent(it) && it.login == target.team.login &&
+                it.userId == target.team.userId && it.teamId == target.team.teamId } == true &&
+            mac != null && store.pairedMacs().contains(mac) && connection.allowsSaved(mac)
+        if (mac == null || !admitted()) null
+        else if (mac.code == code) {
+            val active = client
+            val workspace = target.resolve(workspaces)
+            fun ready() = admitted() && active != null && client === active && !active.isClosed &&
+                connectionReady && connectedCode == mac.code && code == mac.code && target.resolve(workspaces) == workspace
+            if (active == null || workspace == null || !ready()) null else {
+                val queue = if (inputClient === active && inputTarget?.workspace == workspace && inputTarget?.surface == target.surface)
+                    inputQueue else terminalInputs.orderedQueue(active, workspace, target.surface)
+                PhoneReplyDirectAttempt(target, ::ready) { text, allowed ->
+                    suspend fun paste(): Boolean {
+                        if (!allowed()) return false
+                        checkPhoneReplyPaste(active.paste(workspace, target.surface, text, submit = true))
+                        return true
+                    }
+                    if (queue != null) queue.performOrdered { paste() } else paste()
+                }
+            }
+        } else feedCoordinator.replyAttempt(mac, target, ::admitted)
+    }
     val inputStatus by inputQueue.status.collectAsState()
     DisposableEffect(inputQueue) { onDispose { if (inputQueue !== retainedInputQueue) inputQueue.close() } }
     val deliveryStates by terminalInputs.status.collectAsState()

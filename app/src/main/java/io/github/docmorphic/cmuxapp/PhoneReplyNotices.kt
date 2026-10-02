@@ -33,21 +33,22 @@ internal class PhoneReplyNotices(private val context: Context) {
                 if (current.none { it == receipt } || receipt.status == "accepted") return@update
                 val seen = state.optJSONArray(SEEN)?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()
                 if (key in seen) return@update
-                manager.notify(key, 4, notification(key))
+                manager.notify(key, 4, notification(key, receipt.status))
                 val retained = current.map(::key).toSet()
                 state.put(SEEN, JSONArray((seen.filter { it in retained } + key).distinct().takeLast(128)))
             }
         }
     }
 
-    private fun notification(key: String): Notification {
+    private fun notification(key: String, status: String): Notification {
         val open = Intent(context, MainActivity::class.java)
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             .setData(Uri.Builder().scheme("cmux-reply-status").authority(context.packageName).appendPath(key).build())
         val pending = PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Reply delivery unconfirmed")
-            .setContentText("Open cmux to check your Mac before sending it again.")
+            .setContentTitle(if (status == "submit_required") "Reply needs submission" else "Reply delivery unconfirmed")
+            .setContentText(if (status == "submit_required") "Check the terminal on your Mac and submit the pasted reply."
+                else "Open cmux to check your Mac before sending it again.")
             .setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PRIVATE).build()
     }

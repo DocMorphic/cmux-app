@@ -113,6 +113,96 @@ class PhoneReplyActionTest {
         RemoteInput.addResultsToIntent(button.remoteInputs, fill, Bundle().apply { putCharSequence(PhoneReplyNotification.TEXT, text) })
         button.actionIntent.send(context, 0, fill)
     }
+    private val directEnabled = androidx.compose.runtime.mutableStateOf(true)
+    private fun clearDirect() { compose.runOnUiThread { directEnabled.value = false }; compose.waitForIdle() }
+    private fun registerDirect(client: MobileRpcClient, ready: () -> Boolean = { true }) {
+        compose.setContent {
+            if (directEnabled.value) ObservePhoneReplyDirect(compose.activity.lifecycle) { target ->
+                PhoneReplyDirectAttempt(target, ready) { text, allowed ->
+                    if (!allowed()) false else {
+                        checkPhoneReplyPaste(client.paste(checkNotNull(target.workspace), target.surface, text, submit = true))
+                        true
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+    }
+    private fun receipts() = store.load()?.let { PhoneReplyOutbox(it).receipts(System.currentTimeMillis()) }.orEmpty()
+    private fun sendJobs() = WorkManager.getInstance(context).getWorkInfosByTag(PhoneReplyWork.SEND)
+        .get(2, TimeUnit.SECONDS).filterNot { it.state.isFinished }
+
+    @Test fun foregroundReplyUsesExistingRpcAfterDurableFenceAndNeverSchedulesRelay() {
+        var fencedAtWrite = false; var plaintext: JSONObject? = null
+        val peer = ReplyActionRpcPeer { _ ->
+            val packet = queued().single()
+            fencedAtWrite = packet.directOnly && PhoneReplyOutbox(store.load()!!).pending(System.currentTimeMillis()).isEmpty()
+            plaintext = openAtMac(packet)
+        }
+        val client = MobileRpcClient(peer, { "fixture-token" })
+        try {
+            kotlinx.coroutines.runBlocking { client.connect() }; registerDirect(client)
+            val button = post("direct").notification.actions.single()
+            send(button, " literal direct λ 中\n")
+            waitFor { receipts().singleOrNull()?.status == "accepted" }
+            waitFor { alerts().isEmpty() }
+            assertTrue(fencedAtWrite); assertTrue(queued().isEmpty()); assertTrue(sendJobs().isEmpty())
+            val params = peer.requests.single().getJSONObject("params")
+            assertEquals("terminal.paste", peer.requests.single().getString("method"))
+            assertEquals("workspace", params.getString("workspace_id")); assertEquals("surface", params.getString("surface_id"))
+            assertEquals("return", params.getString("submit_key")); assertEquals(" literal direct λ 中\n", params.getString("text"))
+            assertEquals(params.getString("text"), plaintext!!.getString("text")); assertEquals(1, peer.connects)
+            send(button, "duplicate")
+            waitFor { alerts().isEmpty() }; assertEquals(1, peer.requests.size)
+        } finally { clearDirect(); client.close() }
+    }
+
+    @Test fun lostRpcAcknowledgementReportsUnconfirmedWithoutRelayOrSecondWrite() {
+        val peer = ReplyActionRpcPeer(dropAck = true) { }
+        val client = MobileRpcClient(peer, { "fixture-token" })
+        try {
+            kotlinx.coroutines.runBlocking { client.connect() }; registerDirect(client)
+            val button = post("lost-ack").notification.actions.single(); send(button, "uncertain reply")
+            waitFor { peer.requests.size == 1 }
+            assertTrue(queued().single().directOnly); assertTrue(sendJobs().isEmpty())
+            waitFor { receipts().singleOrNull()?.status == "unconfirmed" }
+            waitFor { manager.activeNotifications.any { it.notification.channelId == PhoneReplyNotices.CHANNEL } }
+            assertTrue(queued().isEmpty()); assertTrue(sendJobs().isEmpty())
+            send(button, "must not retry"); assertEquals(1, peer.requests.size)
+            // Restore the encrypted store and run recovery again: there is still no relay candidate.
+            kotlinx.coroutines.runBlocking { PhoneReplyWork.recover(context) }
+            assertTrue(sendJobs().isEmpty()); assertEquals(1, peer.requests.size)
+        } finally { clearDirect(); client.close() }
+    }
+
+    @Test fun partialPasteShowsSubmissionAdviceAndCannotEnqueueARelayDuplicate() {
+        val peer = ReplyActionRpcPeer(submitted = false) { }
+        val client = MobileRpcClient(peer, { "fixture-token" })
+        try {
+            kotlinx.coroutines.runBlocking { client.connect() }; registerDirect(client)
+            send(post("partial-paste").notification.actions.single(), "already pasted")
+            waitFor { receipts().singleOrNull()?.status == "submit_required" }
+            waitFor { manager.activeNotifications.any {
+                it.notification.extras.getString(Notification.EXTRA_TITLE) == "Reply needs submission"
+            } }
+            assertTrue(queued().isEmpty()); assertTrue(sendJobs().isEmpty()); assertEquals(1, peer.requests.size)
+            assertFalse(store.load()!!.toString().contains("already pasted"))
+        } finally { clearDirect(); client.close() }
+    }
+
+    @Test fun connectionRetiredBeforeDirectWriteFallsBackToOriginalEncryptedPacket() {
+        val peer = ReplyActionRpcPeer { error("Retired connection must not write") }
+        val client = MobileRpcClient(peer, { "fixture-token" })
+        try {
+            kotlinx.coroutines.runBlocking { client.connect() }; registerDirect(client) { false }
+            send(post("unavailable").notification.actions.single(), "relay fallback λ")
+            waitFor { queued().singleOrNull()?.directOnly == false && sendJobs().size == 1 }
+            assertTrue(peer.requests.isEmpty()); assertEquals(1, peer.connects)
+            assertEquals("relay fallback λ", openAtMac(queued().single()).getString("text"))
+            assertTrue(receipts().isEmpty())
+        } finally { clearDirect(); client.close() }
+    }
+
     private fun openAtMac(reply: PreparedPhoneReply): JSONObject {
         val packet = JSONObject(reply.body).getJSONObject("encryptedPayload")
         assertEquals(remote.installationID, packet.getString("installationID"))
@@ -209,4 +299,25 @@ class PhoneReplyActionTest {
         delivery.receivePush(message("feed-first")) { true }
         assertTrue(alerts().isEmpty())
     }
+}
+
+
+/** Framed mobile RPC fixture. It never opens a socket or contacts an account server. */
+private class ReplyActionRpcPeer(private val dropAck: Boolean = false, private val submitted: Boolean = true,
+    private val onPaste: (JSONObject) -> Unit) : MobileRpcTransport {
+    private val incoming = kotlinx.coroutines.channels.Channel<ByteArray>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+    private val decoder = MobileFrameDecoder()
+    val requests = java.util.concurrent.CopyOnWriteArrayList<JSONObject>()
+    @Volatile var connects = 0
+    override suspend fun connect() { connects++ }
+    override suspend fun read(): ByteArray? = incoming.receiveCatching().getOrNull()
+    override suspend fun write(bytes: ByteArray) {
+        for (frame in decoder.feed(bytes)) {
+            val request = JSONObject(frame.toString(Charsets.UTF_8)); requests += request
+            onPaste(request)
+            if (!dropAck) incoming.send(MobileFrameCodec.encode(JSONObject().put("id", request.getString("id"))
+                .put("ok", true).put("result", JSONObject().put("submitted", submitted)).toString().toByteArray()))
+        }
+    }
+    override fun close() { incoming.close() }
 }

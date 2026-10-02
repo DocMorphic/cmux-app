@@ -14,6 +14,36 @@ class NativeFeedCoordinatorTest {
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 
+    @Test fun replyUsesOnlyTheRequestedExistingMacAndCannotSurviveItsRetirement() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            val listing = JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w").put("title", "W")
+                .put("terminals", JSONArray().put(JSONObject().put("id", "s").put("title", "S")))))
+            a.workspaceResponse = listing; b.workspaceResponse = listing
+            var connects = 0; var allowed = true
+            val coordinator = NativeFeedCoordinator(this, { row -> connects++; (if (row.deviceId == "a") a else b).connect() }, { allowed })
+            val target = PhoneReplyDirectTarget(NativeTeamScope("login", "user", "team", 0), mac("b").origin, "epoch",
+                PhonePushPeer(PhonePushTuple("user", null, "fixture", "phone", "physical-b", "stable", "fixture.mac"),
+                    PhonePushIdentity.generate().descriptor()), "w", "s", false)
+            try {
+                assertNull(coordinator.replyAttempt(mac("b"), target) { true }); assertEquals(0, connects)
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                assertNull(coordinator.replyAttempt(mac("a"), target) { true })
+                val attempt = checkNotNull(coordinator.replyAttempt(mac("b"), target) { true })
+                assertEquals(PhoneReplyDirectResult.DELIVERED, attempt.send(" literal λ 中\n") { true })
+                assertEquals(2, connects); assertTrue(a.requests.none { it.optString("method") == "terminal.paste" })
+                val sent = b.requests.single { it.optString("method") == "terminal.paste" }.getJSONObject("params")
+                assertEquals("w", sent.getString("workspace_id")); assertEquals("s", sent.getString("surface_id"))
+                assertEquals(" literal λ 中\n", sent.getString("text")); assertEquals("return", sent.getString("submit_key"))
+                assertEquals(PhoneReplyDirectResult.UNKNOWN, attempt.send("must not repeat") { true })
+                val retired = checkNotNull(coordinator.replyAttempt(mac("b"), target) { true })
+                allowed = false
+                assertEquals(PhoneReplyDirectResult.UNAVAILABLE, retired.send("must not write") { true })
+                assertEquals(1, b.requests.count { it.optString("method") == "terminal.paste" })
+            } finally { coordinator.close() }
+        } }
+    }
+
     @Test fun malformedWorkspaceSnapshotPreservesLastInventoryUntilConfirmedEmpty() = runBlocking<Unit> {
         FeedPeer("a").use { peer ->
             val paired = mac("a")
@@ -444,6 +474,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                     "mobile.workspace.list" -> workspaceResponse ?: JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w")
                         .put("window_id", "window-" + id).put("title", workspaceTitle)))
                         .put("groups", JSONArray().put(JSONObject().put("id", "g").put("name", "Group " + id)))
+                    "terminal.paste" -> JSONObject().put("submitted", true)
                     "workspace.action" -> JSONObject().also {
                         if (!rejectWorkspaceAction && request.getJSONObject("params").optString("action") == "rename")
                             workspaceTitle = request.getJSONObject("params").getString("title")

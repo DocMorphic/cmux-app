@@ -45,7 +45,7 @@ internal class PhoneReplyOutbox(private val state: JSONObject) {
     fun pending(now: Long): List<PreparedPhoneReply> {
         prune(now)
         if (now < (root()?.optLong("not_before") ?: 0)) return emptyList()
-        return pendingRaw()
+        return pendingRaw().filterNot { it.directOnly }
     }
     fun receipts(now: Long): List<PhoneReplyReceipt> { prune(now); return receiptRaw() }
 
@@ -106,6 +106,19 @@ internal class PhoneReplyOutbox(private val state: JSONObject) {
         }
     }
 
+    /** Only the originating in-process attempt can prove no direct write began. */
+    fun finishDirect(reply: PreparedPhoneReply, result: PhoneReplyDirectResult, now: Long) {
+        if (!reply.directOnly) return
+        val match = pendingRaw().singleOrNull { same(it, reply) }
+        if (result == PhoneReplyDirectResult.UNAVAILABLE && match != null && permits(match) && match.isFresh(now)) {
+            save(pendingRaw().map { if (same(it, match)) it.withDirectFence(false) else it }, receiptRaw(), now)
+        } else if (result == PhoneReplyDirectResult.SUBMIT_REQUIRED && match != null && permits(match)) {
+            save(pendingRaw().filterNot { same(it, match) }, (receiptRaw() + receipt(match, "submit_required")).takeLast(RECEIPTS), now)
+            prune(now)
+        } else finish(reply, if (result == PhoneReplyDirectResult.DELIVERED) PhoneReplyRelayResult.Accepted
+            else PhoneReplyRelayResult.Expired, now)
+    }
+
     /** Credential mutation runs this atomically, including forget/re-add and key rotation. */
     fun prune(now: Long = System.currentTimeMillis()) {
         val root = root() ?: return
@@ -136,7 +149,7 @@ internal class PhoneReplyOutbox(private val state: JSONObject) {
     private fun receipt(reply: PreparedPhoneReply, status: String) = PhoneReplyReceipt(reply.replyID, reply.login,
         checkNotNull(reply.peer.tuple.accountID), reply.teamID, reply.origin, digest(reply), reply.createdAtMillis, status)
     private fun same(a: PreparedPhoneReply, b: PreparedPhoneReply) = a.replyID == b.replyID && a.login == b.login &&
-        a.origin == b.origin && a.teamID == b.teamID && a.peer == b.peer && a.peerEpoch == b.peerEpoch &&
+        a.origin == b.origin && a.teamID == b.teamID && a.peer == b.peer && a.peerEpoch == b.peerEpoch && a.directOnly == b.directOnly &&
         a.senderKeyID == b.senderKeyID && a.createdAtMillis == b.createdAtMillis && a.body == b.body
     private fun digest(reply: PreparedPhoneReply) = MessageDigest.getInstance("SHA-256").digest(reply.body.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
@@ -145,7 +158,7 @@ internal class PhoneReplyOutbox(private val state: JSONObject) {
         const val CAPACITY = 20
         private const val RECEIPTS = 128
         private const val FAILURE_RETENTION = 7 * 24 * 60 * 60 * 1000L
-        private val STATUSES = setOf("accepted", "unconfirmed", "rejected", "sign_in_required")
+        private val STATUSES = setOf("accepted", "unconfirmed", "rejected", "sign_in_required", "submit_required")
     }
 }
 

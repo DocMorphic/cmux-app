@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Direct notification Reply (2026-10-02):** replies can use the current native
+terminal queue or another already-connected Mac's verified feed channel without
+dialing or changing selection. Durable versioned packet fences prevent a worker,
+restart or older app build from relaying a possibly applied direct write. A
+provably unwritten attempt retains the same ciphertext for relay fallback;
+partial paste reports that submission is still needed. All 61 JVM and 23 Android
+cases passed (118.321 seconds, API 37 / 16 KB, zero skips), plus APK/alignment gates.
+[Implementation, initial test failures and final evidence](PUSH_DELIVERY.md#direct-notification-reply-delivery-2026-10-02)
+leave physical terminal effects, native-screen/lifecycle acceptance and live push
+provider delivery open. No signed release changed.
+
 **Foreground notification presentation (2026-10-02):** resumed native screens
 now suppress new feed/push banners for the displayed terminal (or workspace-only
 notifications), scoped to login and paired Mac. Pause, disposal, screen-off and

@@ -38,6 +38,20 @@ class PhoneReplyActionsTest {
             item.retargetsToLiveSurfaceOwner, team.login)
     }
 
+    @Test fun directReservationMustMatchTheAuthenticatedActionAndConsumesItAtomically() {
+        val state = state(); val value = message(state); val route = route(value)
+        val actions = PhoneReplyActions(state); val id = actions.stage(value, route, now)!!
+        val target = actions.directTarget(route.routeId, id)!!
+        assertEquals(route.workspaceId, target.workspace); assertEquals(route.surfaceId, target.surface)
+        assertEquals(PhoneReplySubmission.RETIRED, actions.submit(route.routeId, id, "reply", now, target.copy(surface = "other")))
+        assertTrue(PhoneReplyOutbox(state).waiting(now).isEmpty())
+        assertEquals(PhoneReplySubmission.QUEUED, actions.submit(route.routeId, id, "reply", now, target))
+        assertTrue(PhoneReplyOutbox(state).waiting(now).single().directOnly)
+        assertTrue(PhoneReplyOutbox(state).pending(now).isEmpty())
+        assertNull(actions.directTarget(route.routeId, id))
+        assertEquals(PhoneReplySubmission.ALREADY_QUEUED, actions.submit(route.routeId, id, "changed", now, target))
+    }
+
     @Test fun replyActionStartsItsWindowAtSubmissionAndOneTransactionConsumesIt() {
         val state = state(); val message = message(state, target = "s".repeat(200)); val route = route(message)
         val actions = PhoneReplyActions(state); val action = checkNotNull(actions.stage(message, route, now))

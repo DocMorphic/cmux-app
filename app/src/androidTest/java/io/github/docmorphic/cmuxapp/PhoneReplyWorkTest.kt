@@ -51,10 +51,10 @@ class PhoneReplyWorkTest {
         store.clear(); PhoneReplyNotices(context).sync()
         WorkManager.getInstance(context).cancelAllWorkByTag("reply-work-fixture").result.get(5, TimeUnit.SECONDS)
     }
-    private fun queue(id: String = "worker-reply", now: Long = System.currentTimeMillis()): PreparedPhoneReply {
+    private fun queue(id: String = "worker-reply", now: Long = System.currentTimeMillis(), direct: Boolean = false): PreparedPhoneReply {
         val keys = PhonePushKeyState(store.load()!!)
         val reply = PreparedPhoneReply.prepare(id, team, mac.origin, keys.peer(team, mac.origin)!!,
-            keys.existingIdentity(team.login)!!, "workspace", "surface", false, text, now)
+            keys.existingIdentity(team.login)!!, "workspace", "surface", false, text, now).withDirectFence(direct)
         store.update { assertEquals(ReplyEnqueueResult.QUEUED, PhoneReplyOutbox(it).enqueue(reply, now)) }
         return reply
     }
@@ -91,6 +91,20 @@ class PhoneReplyWorkTest {
         work.enqueue(job).await()
         waitFor { work.getWorkInfoById(job.id).get(2, TimeUnit.SECONDS)?.state?.isFinished == true }
         assertEquals(WorkInfo.State.SUCCEEDED, checkNotNull(work.getWorkInfoById(job.id).get(2, TimeUnit.SECONDS)).state)
+    }
+
+    @Test fun recreatedWorkerCannotRelayAPossiblyAppliedDirectReplyAndExpiryStillNotifies() = runBlocking<Unit> {
+        var clock = System.currentTimeMillis(); queue(now = clock, direct = true)
+        MockWebServer().use { server ->
+            assertEquals(ListenableWorker.Result.success(), worker(server) { clock }.doWork())
+            assertEquals(0, server.requestCount) // No account refresh and no relay request.
+            assertTrue(PhoneReplyOutbox(NativeCredentialStore(context).load()!!).waiting(clock).single().directOnly)
+            clock += 120_001
+            assertEquals(ListenableWorker.Result.success(), worker(server) { clock }.doWork())
+            waitFor { alerts().size == 1 }
+            assertEquals("unconfirmed", PhoneReplyOutbox(store.load()!!).receipts(clock).single().status)
+            assertEquals(0, server.requestCount)
+        }
     }
 
     @Test fun recreatedWorkerPreservesCiphertextAndServerCooldownThenAccepts() = runBlocking<Unit> {

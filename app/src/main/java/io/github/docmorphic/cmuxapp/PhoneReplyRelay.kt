@@ -15,20 +15,23 @@ import java.util.concurrent.TimeUnit
 /** Created once per intentional reply and reused verbatim after uncertain HTTP outcomes. */
 internal class PreparedPhoneReply private constructor(
     val replyID: String, val login: String, val origin: String, val teamID: String,
-    val peer: PhonePushPeer, val senderKeyID: String, val createdAtMillis: Long, val body: String, val peerEpoch: String? = null
+    val peer: PhonePushPeer, val senderKeyID: String, val createdAtMillis: Long, val body: String, val peerEpoch: String? = null, val directOnly: Boolean = false
 ) {
     // The phone's retry window is shorter than the Mac inbox's encrypted 15-minute lifetime.
     fun isFresh(nowMillis: Long) = nowMillis >= createdAtMillis && nowMillis - createdAtMillis < 120_000
-    fun boundTo(epoch: String) = PreparedPhoneReply(replyID, login, origin, teamID, peer, senderKeyID, createdAtMillis, body, epoch)
+    fun boundTo(epoch: String) = PreparedPhoneReply(replyID, login, origin, teamID, peer, senderKeyID, createdAtMillis, body, epoch, directOnly)
+    fun withDirectFence(value: Boolean) = PreparedPhoneReply(replyID, login, origin, teamID, peer, senderKeyID, createdAtMillis, body, peerEpoch, value)
 
-    fun persisted() = JSONObject().put("version", 1).put("reply_id", replyID).put("login", login)
+    // Version 2 fences direct packets from older clients that only understand relay version 1.
+    fun persisted() = JSONObject().put("version", if (directOnly) 2 else 1).put("reply_id", replyID).put("login", login)
         .put("origin", origin).put("team_id", teamID).put("peer", peer.wire()).put("sender_key_id", senderKeyID)
-        .put("created_at", createdAtMillis).put("body", body).put("peer_epoch", peerEpoch)
+        .put("created_at", createdAtMillis).put("body", body).put("peer_epoch", peerEpoch).put("direct_only", directOnly)
 
     companion object {
         /** Only restore from authenticated local storage; the exact body string is never re-encoded. */
         fun restore(value: JSONObject): PreparedPhoneReply {
-            require(value.opt("version") == 1)
+            val version = value.opt("version")
+            require(version == 1 || version == 2)
             fun id(name: String, limit: Int = 128) = (value.opt(name) as? String)?.also {
                 require(it.isNotBlank() && it == it.trim() && it.length <= limit)
             } ?: error("Invalid saved reply")
@@ -57,7 +60,9 @@ internal class PreparedPhoneReply private constructor(
             require(bytes("encapsulatedKey", 32).size == 32 && bytes("ciphertext", 64 * 1024).size >= 16)
             val epoch = if (!value.has("peer_epoch") || value.isNull("peer_epoch")) null else
                 (value.opt("peer_epoch") as? String)?.also { require(it.isNotBlank() && it.length <= 128) } ?: error("Invalid enrollment")
-            return PreparedPhoneReply(replyID, login, origin, team, peer, sender, created, body, epoch)
+            val direct = if (!value.has("direct_only")) false else value.opt("direct_only") as? Boolean ?: error("Invalid delivery lane")
+            require((version == 2) == direct) { "Invalid delivery lane version" }
+            return PreparedPhoneReply(replyID, login, origin, team, peer, sender, created, body, epoch, direct)
         }
 
         fun prepare(replyID: String, team: NativeTeamScope, origin: String, peer: PhonePushPeer,
@@ -122,6 +127,7 @@ internal class PhoneReplyRelay(
     }
 
     suspend fun send(reply: PreparedPhoneReply): PhoneReplyRelayResult {
+        if (reply.directOnly) return PhoneReplyRelayResult.Retired // Never cross lanes after a possible terminal write.
         fun ownership(): PhoneReplyRelayResult? = synchronized(lock) {
             if (closed || !runCatching { permits(reply) }.getOrDefault(false)) PhoneReplyRelayResult.Retired else null
         }

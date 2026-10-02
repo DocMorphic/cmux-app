@@ -97,6 +97,24 @@ internal class NativeFeedCoordinator(
             checkNotNull(client.browserListeningPorts()) { "Browser route has no listing lane" }
         }
     }
+    /** Borrow only a verified live feed channel; never refresh, reconnect or select a workspace. */
+    fun replyAttempt(mac: NativeCredentialStore.PairedMac, target: PhoneReplyDirectTarget,
+        permits: () -> Boolean): PhoneReplyDirectAttempt? {
+        if (!mac.ownsOrigin(target.origin)) return null
+        val handle = handles[mac.origin]?.takeIf { it.mac == mac && it.verified && current(it) } ?: return null
+        val client = handle.client?.takeUnless { it.isClosed } ?: return null
+        val workspace = target.resolve(mutableSources.value[mac.origin]?.workspaces.orEmpty()) ?: return null
+        fun ready() = permits() && current(handle, client) && handle.verified && !client.isClosed &&
+            target.resolve(mutableSources.value[mac.origin]?.workspaces.orEmpty()) == workspace
+        if (!ready()) return null
+        return PhoneReplyDirectAttempt(target, ::ready) { text, allowed ->
+            if (!allowed()) false else {
+                checkPhoneReplyPaste(client.paste(workspace, target.surface, text, submit = true))
+                true
+            }
+        }
+    }
+
     private fun current(handle: Handle, client: MobileRpcClient? = handle.client) =
         handles[handle.mac.origin] === handle && handle.client === client && isAllowed(handle.mac)
     private fun publish(handle: Handle, source: NativeFeedSource) {

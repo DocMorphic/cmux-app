@@ -27,7 +27,7 @@ internal class NativePhoneReplyBackground(
         if (store.load()?.has(PhoneReplyOutbox.KEY) != true) return emptyList()
         var items = emptyList<PreparedPhoneReply>()
         store.update { items = PhoneReplyOutbox(it).waiting(now()) }
-        return items
+        return items.filterNot { it.directOnly }
     }
     private fun permits(reply: PreparedPhoneReply): Boolean {
         val state = store.load() ?: return false
@@ -120,7 +120,7 @@ internal object PhoneReplyWork {
                 .addTag(NOTICES).build()
             work.enqueueUniqueWork(PhoneReplyNotices.key(reply), ExistingWorkPolicy.KEEP, failure).await()
         }
-        if (pending.isNotEmpty()) {
+        if (pending.any { !it.directOnly }) {
             val send = OneTimeWorkRequestBuilder<PhoneReplyWorker>()
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)

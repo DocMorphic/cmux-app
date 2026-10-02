@@ -24,6 +24,16 @@ class PhoneReplyRelayTest {
     private fun prepared(text: String = "Fixture reply λ 中", replyID: String = "fixture-reply") =
         PreparedPhoneReply.prepare(replyID, team, "origin", peer, phone, "workspace", "surface", false, text, time)
 
+    @Test fun directFenceCannotReachHttpOrRequestAnAccountToken() = runBlocking {
+        MockWebServer().use { server ->
+            server.start()
+            PhoneReplyRelay(server.url("/"), { error("Must not fetch a token") }, { true }, now = { time }).use { relay ->
+                assertEquals(PhoneReplyRelayResult.Retired, relay.send(prepared().withDirectFence(true)))
+                assertEquals(0, server.requestCount)
+            }
+        }
+    }
+
     @Test fun replyTargetsMacAndPreservesUnicodeWithoutChangingIncomingPushLimits() {
         val messages = listOf("Fixture reply λ 中", "中".repeat(8192))
         val records = messages.mapIndexed { index, text ->

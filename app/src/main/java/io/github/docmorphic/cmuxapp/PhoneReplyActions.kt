@@ -54,15 +54,24 @@ internal class PhoneReplyActions(private val state: JSONObject) {
         save(rows().filterNot { it.optString("route") == destination.routeId } + row)
         return id
     }
-    fun submit(routeID: String, actionID: String, text: String, now: Long): PhoneReplySubmission {
+    fun directTarget(routeID: String, actionID: String): PhoneReplyDirectTarget? {
+        prune()
+        val row = rows().singleOrNull { it.optString("action") == actionID && it.optString("route") == routeID &&
+            !it.optBoolean("consumed") } ?: return null
+        return PhoneReplyDirectTarget(scope(row), row.getString("origin"), row.getString("epoch"),
+            PhonePushPeer.parse(row.getJSONObject("peer")), row.opt("workspace") as? String,
+            row.getString("surface"), row.getBoolean("retarget"))
+    }
+    fun submit(routeID: String, actionID: String, text: String, now: Long, direct: PhoneReplyDirectTarget? = null): PhoneReplySubmission {
         prune()
         val row = rows().singleOrNull { it.optString("action") == actionID && it.optString("route") == routeID }
             ?: return PhoneReplySubmission.RETIRED
         if (row.optBoolean("consumed")) return PhoneReplySubmission.ALREADY_QUEUED
         if (text.isBlank() || text.length > 8192) return PhoneReplySubmission.INVALID_TEXT
+        if (direct != null && directTarget(routeID, actionID) != direct) return PhoneReplySubmission.RETIRED
         val scope = scope(row); val local = PhonePushKeyState(state).existingIdentity(scope.login) ?: return PhoneReplySubmission.RETIRED
         val prepared = runCatching { PreparedPhoneReply.prepare(actionID, scope, row.getString("origin"), PhonePushPeer.parse(row.getJSONObject("peer")),
-            local, row.opt("workspace") as? String, row.getString("surface"), row.getBoolean("retarget"), text, now).boundTo(row.getString("epoch"))
+            local, row.opt("workspace") as? String, row.getString("surface"), row.getBoolean("retarget"), text, now).boundTo(row.getString("epoch")).withDirectFence(direct != null)
         }.getOrElse { return PhoneReplySubmission.INVALID_TEXT }
         return when (PhoneReplyOutbox(state).enqueue(prepared, now)) {
             ReplyEnqueueResult.QUEUED, ReplyEnqueueResult.DUPLICATE -> {
