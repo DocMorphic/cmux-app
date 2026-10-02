@@ -1,4 +1,41 @@
-# Native transport and keyboard runtime checkpoint — 2026-09-28
+# Native transport and keyboard runtime checkpoints
+
+## Physical upgrade and system-bar contrast — 2026-10-02
+
+Updated the Pixel's existing debug installation without clearing app data. The
+first-install timestamp remained unchanged, the existing account refreshed, and
+the Workspaces screen displayed the saved Mac's workspaces. The installed debug
+APK matches local SHA-256
+`831db310ff7bba2a5732fd6bf075ceaafc571c97e439e9ae4a2e496dd4a5d058`.
+This is a local debug update; signed build 376 remains unchanged.
+
+The explicitly read-only `LiveNativeBrowserCheck` passed **1 test in 5.181 s**
+without skips, using the existing single admitted saved Mac. It verified host
+identity, current account access and a workspace read over **LAN or Private VPN**.
+The native transport supports browser lanes, but this host did **not** advertise
+`browser.tunnel.v1`; no browser listing was requested. An initial attempt with a
+hardcoded `stable` instance-tag selector failed to select a saved Mac before
+connecting. Removing that optional selector used the existing saved identity;
+this was not an authentication fix or new pairing. No terminal input, workspace
+mutation or account-store reset was performed.
+
+The physical screen exposed dark status-bar icons against the app's dark
+background. MainActivity and RoutedBrowserActivity now explicitly request light
+system-bar icons. The debug build succeeded in 29 s; all six native libraries
+passed LOAD/RELRO checks, ZIP alignment passed and the phone reports
+`pageSizeCompat=0`. After installation, the MainActivity screenshot visibly shows
+readable light status icons and navigation indicator. The routed-browser change
+compiled but was not physically exercised. The read-only connection check
+preceded this system-bar-only change; it was not repeated on the final APK.
+
+The temporary USB stay-awake setting was restored to its original value `0` and
+read back. No emulator was started. Private evidence remains ignored under
+`captures/runtime/pixel-376/`: test reports, package/hash receipts, build/alignment
+logs and before/after screenshots. Screenshots and UI dumps contain real workspace
+content and must not be committed. This closes this upgrade/contrast check, not
+the remaining browser, live push or full-app acceptance requirements.
+
+## Earlier checkpoints — starting 2026-09-28
 
 The sections below record Android 17 emulator, physical Pixel fixture and live
 authenticated Mac checkpoints. Native sign-in, terminal input/resize, restart
