@@ -3,6 +3,44 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
+## Current signed development APK — build 397 (2026-10-03)
+
+[Build 397](https://github.com/DocMorphic/cmux-app/actions/runs/37070675174)
+passed at `8f1ce4233581b3f1f33154d8f3c468895b7e117f`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37070675174/artifacts/11254943027)
+and extract `app-release.apk` (repository access required). This supersedes 385
+and adds the account/credential deadlock fix exercised in real NIGHTLY pairing.
+Later commits add tests/docs without changing production code. PR #1 remains a
+draft; no main-branch preview or GitHub release was published.
+
+- Package `io.github.docmorphic.cmuxapp`, version code **397**, version `0.2.0`.
+- SHA-256: `96ce8a68f11dbd93bcb8c36e5fef5fc290c57d628b22d33752d8aa043e7ff69a`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK size: **38,686,506 bytes**; min SDK 26, target SDK 36.
+- Local file: `build/signed-run-37070675174/app-release.apk` (ignored).
+
+Full CI app/Ghostty JVM tests and debug/test/release assembly passed (**7m 25s**),
+as did four helper tests, ten update-policy tests, signature and asset/alignment
+gates. No full JVM test total is inferred from the CI logs. Independent checks of
+the downloaded APK confirmed all 14 packaged viewer hashes, six native LOAD/RELRO
+checks, 16 KB ZIP alignment, signer, package/version, disabled backup and absence
+of debug fixture activities. The initial local signature command lacked JAVA_HOME;
+it was rerun successfully with the configured JDK 17.
+
+The single existing API 37 / 16,384-byte emulator upgraded **385 → 397** using
+`install -r`; first-install time remained `2026-09-30 01:57:49`. A cold launch
+reached the sign-in screen in **2,202 ms**, visually checked without a compatibility
+warning. The baseline was already signed out, so authenticated migration remains
+unverified. No new AVD was created; the emulator was shut down afterward.
+
+The physical Pixel retains its signed-in **debug** package with the same production
+lock fix. The release package is separate and was not installed on the Pixel.
+Real native pairing/browser and checklist UI acceptance are documented below and
+in [Todo scope](TODO.md#physical-checklist-ui-acceptance--2026-10-03). Background
+push is still unconfigured; this remains a development build, not full completion.
+Ignored evidence: `captures/runtime/pixel-resume-20261002/build397-*` and
+`signed-lock-fix-ci.txt`.
+
 ## Latest physical debug update — 2026-10-03
 
 The Pixel debug package now includes the account/credential deadlock fix from
@@ -12,9 +50,9 @@ passed. The full real NIGHTLY pairing/browser UI journey also passed **1 test in
 Screenshots were inspected; phone sleep setting restored to 0. See
 [browser acceptance and limits](BROWSER_TUNNEL.md#physical-pairing-and-browser-ui-acceptance--2026-10-03).
 Debug SHA-256: `739142be417613109675d7e39a563b1d959941f7744e85098f8f94f5a2e9c49a`.
-The signed release package remains build 385 below and does **not** include this fix.
+Signed build 397 above now includes this fix; the physical release package was not installed.
 
-## Current signed development APK — build 385 (2026-10-02)
+## Previous signed development APK — build 385 (2026-10-02)
 
 ### Physical debug update and resumed check — 2026-10-02
 

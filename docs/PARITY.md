@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Signed build 397 delivered (2026-10-03):** full CI passed at `8f1ce42`,
+including the production account/credential deadlock fix. Downloaded APK signer,
+14 viewer assets, six native libraries and 16 KB ZIP alignment were independently
+verified. The existing emulator upgraded 385 → 397 without clearing data and
+cold-launched the sign-in UI; it is now stopped. No additional AVD was created.
+The Pixel retains the verified debug build; signed-in release migration and live
+push remain open. [Download and limits](PIXEL_INSTALL.md#current-signed-development-apk--build-397-2026-10-03).
+
 **Physical checklist UI passed (2026-10-03):** **1 test, 29.055 s**, using actual
 MainActivity and the saved NIGHTLY Mac. Add/edit/state changes, touchscreen drag,
 manual status, workspace reopen and swipe delete were checked against authoritative
@@ -29,8 +37,7 @@ an account/credential lock inversion and fixed in `1c62eab`; **23 focused JVM te
 passed. A separate test lifecycle issue caused by consumed pairing URI matching
 was resolved without changing production behavior. No fixture receipt remains.
 [Evidence and exact limits](BROWSER_TUNNEL.md#physical-pairing-and-browser-ui-acceptance--2026-10-03).
-The physical debug app has the fix; signed build 385 does not yet include it.
-A newer signed integration build is underway. HTTPS, transfers, network handoff,
+The physical debug app and signed build 397 contain the fix. HTTPS, transfers, network handoff,
 process-death recovery, direct physical keyboard composition and live push remain
 open. Historical checkpoints below retain their original scope; later verified
 results supersede earlier pending statements.
@@ -71,7 +78,7 @@ startup, dark-theme system bars and the push retry-scheduling fix. Independent
 checks passed all 14 packaged viewer hashes, six native-library checks and 16 KB
 alignment. The existing emulator upgraded 376 → 385 without clearing data and
 reached the sign-in screen after a fresh launch; the emulator is stopped.
-[Download, checksum and limits](PIXEL_INSTALL.md#current-signed-development-apk--build-385-2026-10-02).
+[Download, checksum and limits](PIXEL_INSTALL.md#previous-signed-development-apk--build-385-2026-10-02).
 Authenticated migration, settled Pixel resizing, newer host capabilities, live
 push and full physical/UI acceptance remain open. PR #1 remains a draft.
 
