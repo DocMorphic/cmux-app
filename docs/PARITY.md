@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Physical browser UI exposed an ANR (2026-10-02):** MainActivity's input dispatch
+timed out before the owned test page was requested. The temporary server closed
+and phone sleep was restored, but the test-workspace receipt remains and cleanup
+is unverified. The Pixel disconnected before diagnostics/recovery. A receipt-bound
+recovery check and run-specific stage logging compile but have not run. This is
+an unresolved failure, not UI acceptance or an ANR fix.
+[Evidence and exact recovery steps](BROWSER_TUNNEL.md#physical-browser-ui-anr-recovery-pending--2026-10-02).
+
 **Full physical browser journey prepared (2026-10-02):** a real MainActivity
 pairing/New Browser/On Android/address/history/reopen check and owned Mac HTTP
 runner now compile. The runner stopped at the Pixel lock guard before any install,

@@ -20,6 +20,7 @@ import org.junit.Rule
 import org.junit.Test
 import java.io.File
 import java.util.UUID
+import kotlin.properties.Delegates
 
 /** Real pairing link, MainActivity and routed browser process; retains the intended NIGHTLY pairing. */
 @OptIn(ExperimentalTestApi::class)
@@ -43,7 +44,9 @@ class LiveNativeBrowserUiCheck {
         val connections = handle.connections
         val probe = Any()
         connections.setProbeActive(probe, true)
-        var stage = "existing account"
+        var stage by Delegates.observable("existing account") { _, _, value ->
+            println("CMUX_LIVE_BROWSER_UI_STAGE " + JSONObject().put("runMarker", marker).put("stage", value))
+        }
         var client: MobileRpcClient? = null
         var owned: NativeWorkspace? = null
         var scenario: ActivityScenario<MainActivity>? = null
@@ -79,7 +82,8 @@ class LiveNativeBrowserUiCheck {
                 check(created.id !in existing)
                 owned = created
                 receipt.writeText(JSONObject().put("id", created.id).put("windowId", created.windowId)
-                    .put("title", title).put("build", "nightly").toString())
+                    .put("title", title).put("build", "nightly").put("deviceId", expected.deviceId)
+                    .put("accountUserId", team.userId).put("accountTeamId", team.teamId).toString())
                 check(created.title == title)
                 Triple(team, expected, created)
             } }
@@ -140,6 +144,7 @@ class LiveNativeBrowserUiCheck {
             check(connections.store.taskSession() == login && connections.account.isSignedIn())
             check(connections.store.pairedMacs().containsAll(previous))
             println("CMUX_LIVE_BROWSER_UI_REPORT " + JSONObject().put("nightlyPairingSaved", true)
+                .put("runMarker", marker)
                 .put("streamedBrowserCreated", true).put("onAndroidMode", true).put("ownedMacPageRendered", true)
                 .put("backForwardVerified", true).put("committedPageReopened", true).put("loginPreserved", true))
         } catch (problem: Throwable) {
@@ -150,6 +155,7 @@ class LiveNativeBrowserUiCheck {
             val fixture = owned
             if (fixture != null && client != null) runBlocking { withContext(NonCancellable) {
                 try { withTimeout(15_000) {
+                    receipt.writeText(JSONObject(receipt.readText()).put("cleanupAttempted", true).toString())
                     checkNotNull(client).closeWorkspace(fixture.id, fixture.windowId)
                     while (parseAuthoritativeWorkspaces(checkNotNull(client).workspaces()).any { it.id == fixture.id }) delay(250)
                     closed = true
@@ -160,7 +166,8 @@ class LiveNativeBrowserUiCheck {
             connections.setProbeActive(probe, false)
             handle.close()
         }
-        println("CMUX_LIVE_BROWSER_UI_CLEANUP " + JSONObject().put("creationAttempted", creationAttempted).put("fixtureClosed", closed))
+        println("CMUX_LIVE_BROWSER_UI_CLEANUP " + JSONObject().put("runMarker", marker)
+            .put("creationAttempted", creationAttempted).put("fixtureClosed", closed))
         failure?.let { throw it }
         check(closed) { "Browser UI fixture cleanup was not verified" }
     }

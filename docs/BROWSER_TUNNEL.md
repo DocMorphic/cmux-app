@@ -1,5 +1,55 @@
 # Mac browser tunnel — 2026-09-30
 
+## Physical browser UI ANR; recovery pending — 2026-10-02
+
+The Pixel subsequently became unlocked and the runner installed test APK
+`e96fb173e4ec4a16e9c3ff670317f99c16d95b2bc6d76ba7f2b0395e634fe94d`
+successfully with `-r`. Instrumentation started but terminated with
+`keyDispatchingTimedOut`: MainActivity did not respond to a MotionEvent within
+**60,002 ms**. There is no JUnit success result. The owned HTTP fixture observed
+zero page requests. Its listener was closed and the original phone sleep setting
+was restored to **0**, both recorded by the runner.
+
+The private `files/live-browser-ui-fixture.json` receipt still existed immediately
+afterward, so test-workspace cleanup is **not verified**. The Pixel disconnected
+before ANR diagnostics or the receipt could be retrieved. The attempted diagnostic
+captures are empty and do not establish a root cause. Do not rerun the browser
+journey or close a workspace based only on a matching-looking title. NIGHTLY may
+have been saved during the UI flow; that state has not yet been inspected after
+the ANR. Existing user workspaces were never selected for mutation by this test.
+
+`LiveNativeBrowserUiRecoveryCheck` now provides receipt-based inspection on the
+existing authenticated account and single verified nightly host. It matches exact
+workspace ID, title and window, plus host/account fields when present. The initial
+receipt predates those extra fields. Inspection is read-only; explicit cleanup
+records a close attempt before sending it, verifies absence and removes the
+receipt. A prior uncertain close is not sent again. If an authoritative inventory
+already shows the recorded ID absent, cleanup can remove only the stale receipt.
+
+After reconnecting the Pixel, install the rebuilt test APK and inspect first:
+
+```sh
+adb -s DEVICE install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -s DEVICE shell am instrument -w -r \
+  -e class io.github.docmorphic.cmuxapp.LiveNativeBrowserUiRecoveryCheck \
+  -e cmux_live_browser_ui_recovery true \
+  io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+After confirming ownership/absence, add `-e cmux_live_browser_ui_cleanup true` to
+perform the single cleanup. Collect the app's ANR trace before retrying the UI
+journey. New browser-test stage reports include a generated run marker; the
+runner now filters logs to that run. New receipts bind host/account identity and
+record cleanup attempts. These are diagnostic/recovery changes, **not an ANR fix**.
+
+Recovery/test assembly passed in 25 s, Python syntax and 16 KB ZIP checks passed.
+Built test APK:
+`3c63d75f38275d8c126065455c219e473a1fe86a2f136033080bec51c2008899`.
+It is not installed because the Pixel is absent; recovery has not run. Production
+debug APK and signed build 385 remain unchanged. Evidence:
+`captures/runtime/pixel-resume-20261002/browser-ui-first-run/` and
+`browser-ui-first-run-launch.txt` (ignored). A USB reconnect request is pending.
+
 ## Prepared full physical browser UI journey — 2026-10-02
 
 `LiveNativeBrowserUiCheck` is prepared to exercise the actual MainActivity pairing-link
