@@ -1,5 +1,65 @@
 # Native transport and keyboard runtime checkpoints
 
+## Lazy terminal startup and live reconnect — 2026-10-02
+
+A new opt-in physical test exposed a real startup deadlock: native
+`workspace.create` succeeded, but polling `is_ready` alone never started its
+terminal. The first run failed after **27.252 s**, before sending any input, and
+verified cleanup of its disposable workspace. This failure is retained rather
+than counted as a passing creation/input check.
+
+At audited upstream `204a11d`, `v2MobileWorkspaceCreate` forces
+`eager_load_terminal = false`. `mobileResolveWorkspaceAndSurface` materializes a
+selected terminal when a terminal request resolves it. Android had withheld all
+terminal requests until inventory readiness was true, creating a circular wait.
+
+`MobileRpcClient.prepareTerminal` now requests a scoped replay without a client
+viewport or input. `NativeScreen` invokes it once per selected unready terminal
+and active lifecycle interval. Its response is discarded; the authoritative
+inventory poll, existing startup deadline and disabled-input UI retain ownership
+of readiness/recovery. A transient preparation error does not restart creation or
+send keystrokes. Switching the pane/connection or leaving the foreground cancels
+the effect. No preparation runs merely from enumerating other workspaces.
+
+With that preparation step, the final physical Pixel/Mac check passed **1 test in
+6.731 s**, without skips. It used the existing account and saved Iroh Mac, verified
+host identity, created a dedicated workspace, sent one `printf` command, decoded
+its exact output through the production `TerminalStreamMirror`, closed the native
+connection, reconnected to the same terminal and decoded the same output without
+resending input. Distinct underlying event streams prove this was a new connection,
+not another lease on the original shared wire. An earlier 8.818 s run also passed,
+but lacked that explicit connection-identity assertion; these are two runs of one
+case, not two different cases. The selected output mode was **GRID**. It then closed the created
+workspace and verified its absence. Existing terminals received no input and no
+credentials/pairings were cleared. The printed marker was assembled from separate
+shell arguments, so command echo alone could not satisfy the output assertion.
+
+All **7 startup UI regressions passed in 86.741 s**, without skips, on the reused
+Android 17 / 16 KiB emulator. The corrected case requires exactly one initial
+preparation for the exact owning workspace while keyboard input stays disabled,
+then requires a normal viewport-bearing replay after inventory readiness. The
+other cases retain sibling selection, timeout/late readiness, explicit retry,
+disappearance, delayed-create navigation and partial workspace-list behavior.
+Earlier assertions that forbade every terminal request before readiness encoded
+the faulty assumption; they now permit only the viewport-free preparation and
+still reject input/resize calls. The delayed response for a workspace that was
+left still requires zero terminal calls. The startup screenshot was visually
+checked with the selected pending tab and disabled Keyboard control. The emulator
+was stopped after the run; no additional virtual device was created.
+
+The updated main debug APK is installed on the Pixel; its installed hash matches
+`e5e263d23bb42bc877c66c1a4fa66675d9cf136a9fa114b308055e288b6e42a8`.
+All six native LOAD/RELRO checks and both main/test APK ZIP alignment checks pass.
+The phone's stay-awake setting remains `0`; this test did not change it.
+Signed build 376 is unchanged. The live test exercises the production RPC and
+decoder, not Compose pixels, Gboard, native output-lane streaming or network
+switching. The full app goal and browser/push-provider acceptance remain open.
+
+Ignored local evidence: `captures/runtime/pixel-terminal-20261002/`, including
+the original readiness failure, corrected physical run, fixed-label report,
+build logs and installed APK/hash/alignment receipts. See
+[the opt-in procedure](ANDROID_TESTING.md#opt-in-physical-terminal-acceptance).
+
 ## Physical upgrade and system-bar contrast — 2026-10-02
 
 Updated the Pixel's existing debug installation without clearing app data. The

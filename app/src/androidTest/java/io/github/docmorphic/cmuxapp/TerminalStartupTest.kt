@@ -52,18 +52,32 @@ class TerminalStartupTest {
     private fun terminalCalls(id: String) = peer.requests.filter { it.optString("method").startsWith("mobile.terminal.") &&
         it.optJSONObject("params")?.optString("surface_id") == id }
     private fun assertCreatedOnce() = assertEquals(1, peer.requests.count { it.optString("method") == "terminal.create" })
+    private fun assertOnlyPreparation(id: String) {
+        val calls = terminalCalls(id)
+        assertTrue("An unready terminal must never receive input or viewport mutations", calls.all { call ->
+            val params = call.getJSONObject("params")
+            call.getString("method") == "mobile.terminal.replay" && !params.has("client_id") &&
+                !params.has("viewport_columns") && !params.has("viewport_rows") &&
+                params.getString("surface_id") == id && params.getInt("max_scrollback_rows") == 0
+        })
+    }
 
-    @Test fun createdTerminalStaysSelectedAndAttachesOnlyAfterReadiness() {
+    @Test fun createdTerminalPreparesLazySurfaceBeforeAttachingAndKeepsInputDisabled() {
         launch(); create(); waitFor("Starting terminal…")
         compose.onNodeWithText("New shell ▾").assertExists()
         compose.onNodeWithText("Keyboard").assertIsNotEnabled()
         compose.onNodeWithTag("native-terminal").assertDoesNotExist()
-        assertTrue(terminalCalls("new-terminal").isEmpty())
+        compose.waitUntil(10_000) { terminalCalls("new-terminal").isNotEmpty() }
+        assertEquals(1, terminalCalls("new-terminal").size)
+        assertEquals("workspace-1", terminalCalls("new-terminal").single().getJSONObject("params").getString("workspace_id"))
+        assertOnlyPreparation("new-terminal")
         val directory = java.io.File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
         val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         java.io.File(directory, "terminal-starting.png").outputStream().use { screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; screenshot.recycle()
         listing(ready = true)
-        compose.waitUntil(15_000) { terminalCalls("new-terminal").any { it.optString("method") == "mobile.terminal.replay" } }
+        compose.waitUntil(15_000) { terminalCalls("new-terminal").any {
+            it.optString("method") == "mobile.terminal.replay" && it.getJSONObject("params").has("viewport_columns")
+        } }
         compose.onNodeWithTag("native-terminal").assertExists(); compose.onNodeWithText("New shell ▾").assertExists()
         assertCreatedOnce()
     }
@@ -73,12 +87,12 @@ class TerminalStartupTest {
         listing(ready = true)
         compose.onNodeWithContentDescription("Back to workspaces").performClick(); waitFor("Startup workspace")
         compose.onNodeWithText("Startup workspace").performClick(); waitFor("Ready shell ▾")
-        assertTrue(terminalCalls("new-terminal").isEmpty()); assertCreatedOnce()
+        assertOnlyPreparation("new-terminal"); assertCreatedOnce()
     }
     @Test fun timeoutFallsBackAndLateReadinessClearsBannerWithoutSwitchingBack() {
         launch(); create(); waitFor("Starting terminal…")
         waitFor(NativeTerminalStartup.TIMEOUT_MESSAGE, 40_000); waitFor("Ready shell ▾")
-        assertTrue(terminalCalls("new-terminal").isEmpty()); assertCreatedOnce()
+        assertOnlyPreparation("new-terminal"); assertCreatedOnce()
         listing(ready = true)
         compose.waitUntil(15_000) { compose.onAllNodesWithText(NativeTerminalStartup.TIMEOUT_MESSAGE).fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithText("Ready shell ▾").assertExists(); assertCreatedOnce()
@@ -102,13 +116,13 @@ class TerminalStartupTest {
         compose.onNodeWithTag("MobileTerminalCreationRetry").performClick(); waitFor("Retry shell ▾")
         compose.onNodeWithTag("MobileTerminalCreationRecovery").assertDoesNotExist()
         assertEquals(2, peer.requests.count { it.optString("method") == "terminal.create" })
-        assertTrue(terminalCalls("new-terminal").isEmpty())
+        assertOnlyPreparation("new-terminal")
     }
     @Test fun confirmedDisappearanceReturnsToReadySibling() {
         launch(); create(); waitFor("Starting terminal…")
         listing(created = false); waitFor("Ready shell ▾")
         compose.onNodeWithText(NativeTerminalStartup.TIMEOUT_MESSAGE).assertDoesNotExist()
-        assertTrue(terminalCalls("new-terminal").isEmpty()); assertCreatedOnce()
+        assertOnlyPreparation("new-terminal"); assertCreatedOnce()
     }
     @Test fun delayedCreateResponseDoesNotInterruptAnotherWorkspace() {
         val gate = CountDownLatch(1)
@@ -135,7 +149,7 @@ class TerminalStartupTest {
         }
         launch(); compose.onNodeWithText("+").performClick(); compose.onNodeWithText("New workspace").performClick()
         waitFor("Starting terminal…"); compose.onNodeWithText("New shell ▾").assertExists()
-        assertTrue(terminalCalls("new-terminal").isEmpty())
+        assertOnlyPreparation("new-terminal")
         compose.onNodeWithContentDescription("Back to workspaces").performClick()
         waitFor("Startup workspace"); waitFor("Other workspace"); waitFor("Created workspace")
         assertEquals(1, peer.requests.count { it.optString("method") == "workspace.create" })

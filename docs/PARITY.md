@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Lazy terminal startup fixed and physically checked (2026-10-02):** a new live
+test exposed creation waiting forever for a deferred Mac terminal. Android now
+prepares only the selected pending terminal using a viewport-free replay while
+input remains disabled. The final Pixel/Mac test passed in 6.731 s: creation, one input,
+real GRID output, a fresh native reconnect, retained output and verified test
+workspace cleanup. All seven startup UI regressions passed on the existing
+16 KiB emulator in 86.741 s; it is stopped. The fixed debug app is installed on the
+Pixel; signed build 376 is unchanged. [Failure, source contract, evidence and
+limits](NATIVE_RUNTIME_CHECKPOINT.md#lazy-terminal-startup-and-live-reconnect--2026-10-02)
+leave physical UI/input-lane, browser and live push acceptance open.
+
 **Signed build 376 delivered (2026-10-02):** source `420327d` passed the full CI
 test/build pipeline and was signed with the existing certificate. Independent
 checks verified 14 packaged viewer assets, six native libraries, 16 KB alignment

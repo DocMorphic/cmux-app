@@ -1,5 +1,38 @@
 # Android runtime checks
 
+## Opt-in physical terminal acceptance
+
+`LiveNativeTerminalCheck` uses the existing signed-in account and requires exactly
+one admitted Iroh Mac. It creates a disposable workspace, sends one `printf`
+command only to its new terminal, decodes actual output with `TerminalStreamMirror`,
+disconnects/reconnects and verifies the same output without resending input. It
+requires distinct underlying event streams to exclude reuse of the same shared
+connection through a different lease. It
+closes only the workspace identified by that invocation's creation response.
+It does not clear credentials, pairings, preferences or existing workspaces.
+
+Run only the named test on the intended physical device after installing its
+matching instrumentation APK:
+
+```sh
+adb -s DEVICE shell am instrument -w -r \
+  -e class io.github.docmorphic.cmuxapp.LiveNativeTerminalCheck \
+  -e cmux_live_terminal_fixture true \
+  io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Default suite execution skips this test. `CMUX_LIVE_TERMINAL_REPORT` in logcat
+contains booleans, a request count and output mode, never terminal content or
+account/host identifiers. Failures give a fixed stage and cleanup state. Creation,
+input and close are not automatically retried after an uncertain acknowledgement;
+if creation was attempted but closure is unverified, inspect the Mac for a leftover
+test workspace before deciding how to clean it up. Do not rerun blindly.
+
+This check establishes native control-RPC, replay decoding and fresh-connection
+acceptance. It does not establish UI pixels, Gboard, output-lane streaming, network
+switching, notifications or full parity. Even a replay can resume a hibernated
+agent in upstream cmux, so this check never replays arbitrary existing terminals.
+
 ## Build cadence
 
 Commit feature work as it is completed. Run focused checks for changed behavior;

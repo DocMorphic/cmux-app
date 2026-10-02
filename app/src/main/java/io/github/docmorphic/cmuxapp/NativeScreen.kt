@@ -69,6 +69,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.CoroutineStart
@@ -1323,6 +1324,22 @@ fun NativeScreen(
                 }
                 delay(if (selectedTerminal?.isReady == false || terminalStartupState.failure != null) 2_000 else 5_000)
             }
+        }
+    }
+
+    LaunchedEffect(client, selectedWorkspace?.id, selectedTerminal?.id, selectedTerminal?.isReady) {
+        val active = client ?: return@LaunchedEffect
+        val workspace = selectedWorkspace ?: return@LaunchedEffect
+        val terminal = selectedTerminal?.takeUnless { it.isReady } ?: return@LaunchedEffect
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            try {
+                active.prepareTerminal(workspace.id, terminal.id)
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                // The existing inventory poll/startup deadline owns readiness and recovery.
+                // A first replay may start the surface before returning a transient error.
+            }
+            awaitCancellation()
         }
     }
 

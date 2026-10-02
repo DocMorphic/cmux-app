@@ -415,6 +415,14 @@ class MobileRpcClient internal constructor(
         return request("mobile.terminal.scroll", params.withInputDelivery(delivery))
     }
 
+    /** Materialize a selected lazy terminal without sending input or registering a viewport.
+     * Inventory readiness alone cannot start a never-foregrounded Mac surface.
+     */
+    internal suspend fun prepareTerminal(workspaceId: String, surfaceId: String): Unit {
+        request("mobile.terminal.replay", JSONObject().put("workspace_id", workspaceId)
+            .put("surface_id", surfaceId).put("anchor", "screen").put("max_scrollback_rows", 0))
+    }
+
     suspend fun replay(workspaceId: String, surfaceId: String, columns: Int, rows: Int, viewportGeneration: Long,
                        screenAnchor: Boolean = true, maxScrollbackRows: Int = 10_000): JSONObject {
         val params = JSONObject().put("workspace_id", workspaceId).put("surface_id", surfaceId)
