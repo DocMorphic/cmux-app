@@ -443,6 +443,20 @@ Native Mobile readiness, phone enrollment for this separate build and advertised
 browser capability remain unverified; the user has been asked to report the
 Mobile pane's status. Account sign-in alone does not prove those three gates.
 
+**Native listener follow-up (2026-10-02):** app UI access recovered. The
+nightly Mobile pane initially showed “Enable iOS pairing” off. Using the user's
+existing approval for native mobile pairing, that toggle was enabled through the
+app UI. Its status moved from “Starting the pairing listener…” to reachable Iroh
+addresses, with **zero attached devices**. The preferred port 58465 was in use;
+cmux selected **60215** automatically. No preferred-port edit was needed.
+
+This verifies the nightly app's listener setting/startup status. It does not
+verify Android enrollment, an authenticated Android-to-nightly connection,
+`browser.tunnel.v1`, or `terminal.input.exactly_once.v1`. The Pixel is currently
+absent from ADB, so the next step is discovery/pairing from the existing signed-in
+Android app, followed by the explicitly nightly-selected native checks. The
+listener remains enabled for that test. No new Android build was required.
+
 The live check now accepts `-e cmux_live_build nightly`: it requires exactly one
 eligible saved Iroh pairing with that build tag, then verifies the host identity.
 It fails instead of falling back to stable or choosing between multiple matches.
