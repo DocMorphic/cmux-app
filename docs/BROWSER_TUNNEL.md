@@ -1,5 +1,27 @@
 # Mac browser tunnel — 2026-09-30
 
+## Browser journey works after lock fix; test teardown pending — 2026-10-02
+
+With the lock fix installed, the physical run reached every browser assertion:
+NIGHTLY pairing saved, streamed browser created, switched to On Android, typed the
+Mac-loopback fixture address, rendered its exact marker, navigated Back/Forward,
+returned to workspaces and reopened the committed next page. The final report
+confirmed sign-in/prior pairings preserved. Both screenshots were visually inspected:
+the expected green fixture page, title, marker and browser controls are visible.
+The Mac HTTP fixture saw `start,next,start,next,next`.
+
+However, the overall test **failed (78.028 s)** because `ActivityScenario.close`
+timed out while the Compose test dispatcher was not being advanced. Stack samples
+show the test waiting in `ActivityScenario.waitForActivityToBecomeAnyOf`, with the
+main thread idle, rather than the previously observed account/credential deadlock.
+Workspace close and receipt removal were verified; the HTTP listener closed and
+sleep setting returned to 0. This is not a clean acceptance pass yet.
+
+Test teardown now waits for the final child result/workspace UI, requests parent
+finish and pumps its lifecycle through destruction before calling blocking close.
+A rerun is pending. No additional production behavior changed.
+Evidence: `captures/runtime/pixel-resume-20261002/browser-ui-lock-fixed/` (ignored).
+
 ## Account/credential deadlock identified — 2026-10-02
 
 Two diagnostic runs stalled during production account pairing, before requesting

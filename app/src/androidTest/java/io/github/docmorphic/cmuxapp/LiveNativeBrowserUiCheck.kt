@@ -167,7 +167,8 @@ class LiveNativeBrowserUiCheck {
             compose.onNodeWithText(fixture.title).performClick()
             awaitBrowserProcess(); page("Next Mac page")
             check(device.takeScreenshot(File(shots, "native-browser-reopened.png")))
-            desc("Back to workspaces").click(); compose.waitForIdle()
+            desc("Back to workspaces").click()
+            compose.waitUntil(20_000) { compose.onAllNodesWithText(fixture.title).fetchSemanticsNodes().isNotEmpty() }
             check(connections.store.taskSession() == login && connections.account.isSignedIn())
             check(connections.store.pairedMacs().containsAll(previous))
             println("CMUX_LIVE_BROWSER_UI_REPORT " + JSONObject().put("nightlyPairingSaved", true)
@@ -177,7 +178,20 @@ class LiveNativeBrowserUiCheck {
         } catch (problem: Throwable) {
             failure = AssertionError("Live browser UI failed at $stage (${problem.javaClass.simpleName})")
         } finally {
-            try { scenario?.close(); compose.waitForIdle() }
+            try {
+                // Pump the Compose test dispatcher through child-result delivery
+                // and parent destruction before ActivityScenario's blocking close.
+                if (activity?.lifecycle?.currentState?.let { it < Lifecycle.State.STARTED && it != Lifecycle.State.DESTROYED } == true) {
+                    device.findObject(By.desc("Back to workspaces"))?.click()
+                    compose.waitUntil(20_000) { activity?.lifecycle?.currentState?.let {
+                        it >= Lifecycle.State.STARTED || it == Lifecycle.State.DESTROYED
+                    } == true }
+                }
+                scenario?.onActivity { it.finish() }
+                if (scenario != null) compose.waitUntil(20_000) { activity?.lifecycle?.currentState == Lifecycle.State.DESTROYED }
+                scenario?.close()
+                compose.waitForIdle()
+            }
             catch (problem: Throwable) { if (failure == null) failure = AssertionError("Browser Activity cleanup failed (${problem.javaClass.simpleName})") }
             val fixture = owned
             if (fixture != null && client != null) runBlocking { withContext(NonCancellable) {
