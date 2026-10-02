@@ -703,3 +703,90 @@ original/final build logs, both Android runs, final alignment/device receipts an
 notification-shade images/XML. The existing emulator was reused and stopped.
 No signed release, production push registration, listener, physical installation
 or broad upstream parity pin changed.
+
+
+## Foreground notification presentation (2026-10-02)
+
+The native screen now publishes an ephemeral selection to the notification
+presenter. A resumed screen suppresses a new banner only for its current login,
+paired Mac/installation and workspace, and, when supplied, the exact displayed
+terminal ID. A workspace-only notification is quiet in that workspace. A browser
+tab never borrows the previously selected terminal ID. Other Macs, build variants,
+workspaces and terminals still alert. Authorized origin aliases follow the saved
+Mac; arbitrary matching workspace IDs on different Macs do not.
+
+The presentation rule follows `MobilePushCoordinator.shouldPresentInForeground`
+at audited candidate `204a11dfcc76280205e50406ab94270a1c152155` (lines 963–1004).
+Android additionally requires a resumed lifecycle, an interactive screen and an
+unlocked keyguard. Settings, SSH navigation, licenses, pairing/restore transitions
+and leaving the native screen clear the published selection. Lifecycle pause
+clears it immediately without waiting for recomposition. Closing one screen does
+not clear another window's selection. Nothing is persisted or restored after
+process death; a saved workspace checkpoint cannot suppress a background alert.
+
+Both the live-feed and authenticated-push presenter apply the rule. Suppression
+records local handling so a later feed or a new correlation for the same Mac
+notification cannot resurrect the banner. It does not enqueue `notification.dismiss`,
+mark the Mac notification read, or remove the notification from the in-app feed.
+Incoming dismiss messages still cancel previously posted banners. Previously
+posted banners are not removed merely because the user opens their terminal.
+
+### Direct Reply path audit
+
+The same pinned iOS coordinator resolves the reply's explicit Mac/workspace/surface
+against local topology, sends through an already-ready terminal channel without
+changing UI selection, and otherwise uses the HTTPS relay (lines 1427–1609).
+After a failed direct send it also falls back to the relay. Android currently
+retains the relay-only path; adding direct delivery remains required.
+
+The audit found an acknowledgement ambiguity that must be handled during that
+integration. `PhoneReplyInboxCoordinator` deduplicates relay sweeps by `replyId`
+(lines 135–139, 174–194), but injects only `surface_id`, optional `workspace_id`,
+`text` and `submit_key=return`. It does not pass the relay ID to the terminal input
+ledger. `MobileHostTerminalInputApplier` deduplicates direct input with a separate
+surface/stream/sequence identity. The coordinator's direct call does not carry
+`replyId`. Consequently, a direct write whose acknowledgement is lost cannot be
+assumed safe to resend through the relay. This is a source-based risk assessment,
+not a reproduction on the user's Mac or a claim about later upstream versions.
+
+Before enabling the direct path, persist a send-state fence together with the
+existing outbox transaction, use only an admitted existing foreground connection,
+preserve ordering and workspace confinement, and prevent a concurrent worker or
+process restart from relaying a possibly applied direct write. A confirmed send
+can consume its packet; a provably unwritten action can fall back; an ambiguous
+write must surface unconfirmed delivery unless the host supplies shared duplicate
+tracking. Tests must cover lost acknowledgements, account/key changes, process
+death and the worker/receiver race. No Mac/backend protocol change was made here.
+
+
+### Foreground-presentation verification
+
+**14 JVM checks passed**, zero failures/errors/skips: four presentation-policy
+cases plus ten ledger regressions. They cover exact-terminal and workspace-only
+matching; different logins, Macs, builds, workspaces and tabs; authorized aliases;
+missing workspace IDs; non-inferred retargeting; multiple owners and empty
+process-local state after reconstruction.
+
+**Android: OK (19 tests), 103.39 seconds**, API 37 / 16,384-byte pages, zero
+skips. Eight notification delivery cases, seven encrypted-push cases and four
+Reply-action cases passed. The new delivery case uses the real LifecycleRegistry
+and NotificationManager to verify resume/pause/dispose, cross-Mac delivery and
+no queued Mac dismissal. Push cases verify quiet delivery while the terminal is
+selected, no resurrection after leaving it, alerts for a different selected
+terminal, and incoming dismiss processing while selected. A screen-off case
+uses the emulator's real power state and deliberately leaves a stale selection
+registered: the banner still posts. Existing actual notification-shade Reply and
+system-swipe tests passed in the same run.
+
+Both final APK builds, all five native LOAD/RELRO checks and both 16 KB ZIP checks
+passed. SHA-256:
+
+- Debug: `eeb0c7c192bd4c88879c27a3bea9d43a2170f9423e2d99baf830ffdf600d4398`
+- Test: `53b10b00d962ce3e4dd7175c0ebf42be4158878fb690187a003a3c8ca011c3c5`
+
+Evidence is in ignored `captures/runtime/notification-visibility/` and the
+adjacent build logs. The existing AVD was reused and stopped. This verifies the
+presenter, lifecycle binding and fixture delivery; full native-screen navigation,
+secure-keyguard/multi-window behavior and physical Pixel/Mac acceptance remain
+open. The Pixel was absent from ADB. No signed release, push provider, production
+backend, Mac listener or broad parity pin changed.

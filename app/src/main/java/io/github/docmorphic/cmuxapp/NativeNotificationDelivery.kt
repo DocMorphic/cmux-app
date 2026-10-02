@@ -42,6 +42,10 @@ internal class NativeNotificationDelivery(private val context: Context) {
         if (baseline) return@synchronized
         for (item in pending) {
             if (!isCurrent()) break
+            if (NativeNotificationVisibility.suppresses(context, NativeCredentialStore(context).taskSession(), mac, item)) {
+                store.update { NativeNotificationLedger(it).rememberHandled(origin, listOf(item.id)) }
+                continue
+            }
             var route: NotificationDestination? = null
             store.update { route = NativeNotificationLedger(it).stage(origin, item, NativeCredentialStore(context).taskSession()) }
             val destination = requireNotNull(route)
@@ -126,7 +130,9 @@ internal class NativeNotificationDelivery(private val context: Context) {
                 store.update { NativeNotificationLedger(it).rememberHandled(origin, message.dismissedIDs) }
                 cancelled.forEach(::cancel)
             } else destination?.let { route ->
-                manager.notify(tag(route.routeId), ALERT_ID, buildAlert(route, computer, item, actionID))
+                val mac = account.pairedMacs().singleOrNull { it.origin == origin }
+                if (!NativeNotificationVisibility.suppresses(context, message.team.login, mac, item))
+                    manager.notify(tag(route.routeId), ALERT_ID, buildAlert(route, computer, item, actionID))
                 store.update { NativeNotificationLedger(it).rememberHandled(origin, listOf(item.id)) }
             }
         }

@@ -422,6 +422,14 @@ fun NativeScreen(
         aggregateNativeFeed(feedSources.values, selectedOrigin, appearances::name)
     }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val visibleNotificationMac = if (localBrowser != null)
+        pairedMacs.singleOrNull { it.ownsOrigin(localBrowser.key.computerId) }
+        else pairedMacs.singleOrNull { it.code == code }
+    ObserveNativeNotificationSelection(lifecycle,
+        if (displayedTab == null || browserLogin == null || visibleNotificationMac == null ||
+            pendingPairingCode != null || screenResume.pending != null || showSshComputers || showLicenses) null
+        else NativeNotificationSelection(browserLogin, visibleNotificationMac.origin, displayedTab.first.workspaceId,
+            displayedTab.second?.takeIf { it.kind == NativeWorkspaceTabKind.TERMINAL }?.id))
     var feedForeground by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
     DisposableEffect(lifecycle, sharedConnections) {
         val probeOwner = Any()

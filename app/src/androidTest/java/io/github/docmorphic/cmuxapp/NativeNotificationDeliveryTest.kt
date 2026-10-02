@@ -46,6 +46,42 @@ class NativeNotificationDeliveryTest {
         NativeCredentialStore(context).clear()
     }
 
+    @Test fun resumedOwnerSuppressesOnlyItsFeedAndPauseImmediatelyRestoresAlerts() {
+        val account = NativeCredentialStore(context)
+        account.update { it.put("task_session", "visibility-login").put("refresh_token", "fixture-refresh") }
+        val origin = pairingOrigin(a, "a", "stable")
+        val other = pairingOrigin(b, "b", "stable")
+        val lifecycleOwner = object : androidx.lifecycle.LifecycleOwner {
+            val registry = androidx.lifecycle.LifecycleRegistry(this)
+            override val lifecycle get() = registry
+        }
+        lateinit var visibility: NativeNotificationVisibilityOwner
+        compose.runOnUiThread {
+            lifecycleOwner.registry.currentState = androidx.lifecycle.Lifecycle.State.RESUMED
+            visibility = NativeNotificationVisibilityOwner(lifecycleOwner.lifecycle)
+            visibility.update(NativeNotificationSelection("visibility-login", origin, "workspace", "surface"))
+        }
+        try {
+            val delivery = NativeNotificationDelivery(context)
+            delivery.refresh(origin, "First Mac", emptyList()) { true }
+            delivery.refresh(other, "Second Mac", emptyList()) { true }
+            delivery.refresh(origin, "First Mac", listOf(item("visible"))) { true }
+            assertTrue(alerts().isEmpty())
+            delivery.refresh(other, "Second Mac", listOf(item("other-mac"))) { true }
+            waitFor { alerts().size == 1 }
+            compose.runOnUiThread { lifecycleOwner.registry.currentState = androidx.lifecycle.Lifecycle.State.STARTED }
+            delivery.refresh(origin, "First Mac", listOf(item("visible"), item("paused"))) { true }
+            waitFor { alerts().size == 2 }
+            compose.runOnUiThread { lifecycleOwner.registry.currentState = androidx.lifecycle.Lifecycle.State.RESUMED }
+            delivery.refresh(origin, "First Mac", listOf(item("resumed"))) { true }
+            assertEquals(2, alerts().size)
+            compose.runOnUiThread { visibility.close(); lifecycleOwner.registry.currentState = androidx.lifecycle.Lifecycle.State.DESTROYED }
+            delivery.refresh(origin, "First Mac", listOf(item("disposed"))) { true }
+            waitFor { alerts().size == 3 }
+            assertTrue(NativeNotificationDismissOutbox(account.load()!!).pending().isEmpty())
+        } finally { compose.runOnUiThread { visibility.close() } }
+    }
+
     @Test fun independentAlertsPersistWithoutPairingDataInIntentsAndReadCancelsOnlyItsMac() {
         val delivery = NativeNotificationDelivery(context)
         delivery.refresh(pairingOrigin(a, "a", "stable"), "First Mac", emptyList()) { true }

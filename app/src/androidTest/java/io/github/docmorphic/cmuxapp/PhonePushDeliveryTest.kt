@@ -128,6 +128,48 @@ class PhonePushDeliveryTest {
         assertTrue(NativeNotificationDismissOutbox(store.load()!!).pending().isEmpty())
     }
 
+    @Test fun visibleTerminalSuppressesPushAndLateFeedWithoutMarkingMacNotificationRead() {
+        val owner = Any(); val visibility = NativeNotificationVisibility.shared
+        val delivery = NativeNotificationDelivery(context); val value = message(id = "visible-terminal")
+        try {
+            visibility.update(owner, NativeNotificationSelection(team.login, mac.origin, "workspace", "surface"))
+            assertEquals(PhonePushAdmission.ACCEPTED, delivery.receivePush(value) { true })
+            assertTrue(alerts().isEmpty())
+            assertTrue(NativeNotificationDismissOutbox(store.load()!!).pending().isEmpty())
+            visibility.update(owner, null)
+            // Neither a fresh correlation nor the late feed resurrects the suppressed alert.
+            delivery.receivePush(message(id = "visible-terminal")) { true }
+            delivery.refresh(mac.origin, "Fixture Mac", listOf(value.notification!!)) { true }
+            assertTrue(alerts().isEmpty())
+            delivery.receivePush(message(id = "after-leaving")) { true }
+            waitFor { alerts().size == 1 }
+        } finally { visibility.update(owner, null) }
+    }
+
+    @Test fun screenOffCannotSuppressUsingAStaleSelection() {
+        check(Build.MODEL.startsWith("sdk_gphone")) { "Screen-state fixture requires the emulator" }
+        val owner = Any(); val visibility = NativeNotificationVisibility.shared
+        val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val power = context.getSystemService(android.os.PowerManager::class.java)
+        try {
+            visibility.update(owner, NativeNotificationSelection(team.login, mac.origin, "workspace", "surface"))
+            device.sleep(); waitFor { !power.isInteractive }
+            assertEquals(PhonePushAdmission.ACCEPTED, NativeNotificationDelivery(context).receivePush(message()) { true })
+            waitFor { alerts().size == 1 }
+        } finally { visibility.update(owner, null); device.wakeUp(); device.pressMenu() }
+    }
+
+    @Test fun otherVisibleTerminalDoesNotHidePushAndDismissStillWorks() {
+        val owner = Any(); val visibility = NativeNotificationVisibility.shared
+        try {
+            visibility.update(owner, NativeNotificationSelection(team.login, mac.origin, "workspace", "other-surface"))
+            val delivery = NativeNotificationDelivery(context)
+            delivery.receivePush(message()) { true }; waitFor { alerts().size == 1 }
+            visibility.update(owner, NativeNotificationSelection(team.login, mac.origin, "workspace", "surface"))
+            delivery.receivePush(message("dismiss")) { true }; waitFor { alerts().isEmpty() }
+        } finally { visibility.update(owner, null) }
+    }
+
     @Test fun expiredOptedOutRevokedAndReplacedAccountsCannotPost() {
         val delivery = NativeNotificationDelivery(context); val value = message()
         assertEquals(PhonePushAdmission.EXPIRED, delivery.receivePush(message(at = System.currentTimeMillis() - 180_000)) { true })

@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Foreground notification presentation (2026-10-02):** resumed native screens
+now suppress new feed/push banners for the displayed terminal (or workspace-only
+notifications), scoped to login and paired Mac. Pause, disposal, screen-off and
+keyguard prevent stale suppression; late feed/push copies stay quiet without
+marking Mac notifications read. All 14 JVM and 19 Android cases passed (103.39
+seconds, API 37 / 16 KB, zero skips), along with APK/alignment gates.
+[Evidence and direct-reply audit](PUSH_DELIVERY.md#foreground-notification-presentation-2026-10-02)
+retain native-screen/physical acceptance, live push integration and direct Reply
+as open work. The direct/relay paths have distinct host duplicate tracking;
+unknown direct outcomes need a durable fence before that path is enabled.
+
 **Android notification Reply action (2026-10-02):** authenticated push banners
 now expose native text Reply, backed by account-encrypted one-use action grants,
 atomic outbox enqueue/consumption and a manifest receiver that persists background
