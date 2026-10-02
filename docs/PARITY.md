@@ -12,6 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Android notification Reply action (2026-10-02):** authenticated push banners
+now expose native text Reply, backed by account-encrypted one-use action grants,
+atomic outbox enqueue/consumption and a manifest receiver that persists background
+work. Local enrollment IDs retire stale actions/packets after forget/re-pair or
+key changes. Feed-first banners gain Reply without resurrecting cleared or
+submitted alerts. All 35 JVM checks and 24 Android cases passed (111.978 seconds,
+API 37 / 16 KB, zero skips), including actual shade input/Send, ciphertext opening,
+intent tampering and final screenshot inspection. Both APK/alignment gates passed.
+[Evidence and remaining integration](PUSH_DELIVERY.md#android-notification-reply-actions-2026-10-02)
+leave live push-provider setup, the foreground direct-send lane, physical delivery
+and lifecycle acceptance open. No signed release changed.
+
 **Authenticated notify/dismiss ingress (2026-10-02):** added pinned-peer payload
 opening, strict expiry/content/identity checks, bounded encrypted replay/dismiss
 state and a provider-neutral Android notification delivery entry point. Mac

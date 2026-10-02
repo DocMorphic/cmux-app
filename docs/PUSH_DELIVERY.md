@@ -586,3 +586,120 @@ Evidence: ignored `captures/runtime/push-messages/`, including upstream source
 hashes/Swift output, JVM XML, both Android runs, final alignment and device receipts.
 The existing emulator was reused and stopped. No signed release, production
 registration, listener, physical installation or broad parity reference changed.
+
+
+## Android notification Reply actions (2026-10-02)
+
+Authenticated reply-capable push banners now contain Android's native **Reply**
+action with the iOS “Message the agent…” prompt. The action targets an explicit,
+non-exported broadcast receiver. Its mutable PendingIntent is required for
+RemoteInput; fixed component/action/data contain only independent opaque route
+and action UUIDs. Input extras cannot select a different Mac, workspace, surface,
+account or pairing. Generated replies/contextual actions are disabled. This uses
+Android's [direct-reply API](https://developer.android.com/develop/ui/compose/notifications/create-notification#reply-action),
+including a notification update to finish the system input UI.
+
+The [iOS category setup](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/MobilePushCoordinator.swift)
+uses a text Reply action, and [PendingReplyState](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/PendingReplyState.swift)
+starts the 120-second reply lifetime at user submission. Android likewise permits
+replying to an older, still-displayed banner; the short incoming-push expiry does
+not shorten that interaction. A cancelled/dismissed banner cannot submit through
+a cached PendingIntent. Invalid, unavailable or full-queue actions show generic
+feedback without claiming delivery; an accepted local submission first shows
+“Reply queued”, then removes the original banner after durable job scheduling.
+The existing private failure-notice worker handles unconfirmed delivery.
+
+`PhoneReplyActions` saves bounded ready/consumed grants with the authenticated
+route and peer metadata in the **same account-encrypted transaction** as the
+outbox. There are at most 512 grants. Consumption and prepared-packet enqueue
+commit together. The first successful submission chooses the packet once; a
+repeated broadcast cannot encrypt/send a different message under the same action
+ID, even after the old delivery receipt expires. A full queue retains older
+replies and leaves the action retryable. Literal text is preserved without
+trimming or adding a newline, with the existing text/encrypted-size bounds.
+The action store contains routing/public-key metadata, never typed text.
+
+Each peer pin now carries a local enrollment UUID. Repeating the same authenticated
+exchange preserves it; changing a key or forgetting/re-adding a Mac creates a new
+one. Actions, already opened messages and action-created queued packets retain
+that incarnation, preventing old work from reviving when the same Mac key is
+paired again. This field stays local and does not alter the cmux wire protocol.
+Pre-existing pins without an incarnation can still receive notifications; Reply
+becomes available after their next authenticated exchange. Workspace/surface IDs
+now accept the Mac payload encoder's 200-character bound.
+
+Push delivery has two persistence phases: it previews replay admission, saves the
+tap route/action grant, commits both stores, then rechecks ownership and posts.
+The replay record is committed after posting. Thus death before posting leaves
+the event retryable, while any exposed action already has a durable grant. The
+receiver checks the actual active notification action and saved grant, atomically
+queues/consumes it, and awaits WorkManager scheduling within a bounded background
+broadcast. It creates no new Mac terminal connection.
+
+A feed banner that appeared first can gain Reply when its matching authenticated
+push arrives. This upgrade requires the original banner still to be displayed.
+A marker prevents later duplicate pushes from re-arming a reply/status banner;
+cleared banners stay cleared. Ordinary feed-only banners remain without Reply.
+Push-only delivery now also applies the existing 512-route notification bound.
+
+The receiver currently uses the encrypted HTTPS relay lane even when the app is
+foregrounded. iOS's direct send through an already-ready foreground terminal is
+still an integration task. FCM/provider registration and incoming message delivery,
+foreground-selection suppression, badge behavior, physical Pixel/Mac submission,
+locked-screen behavior and background lifecycle fault acceptance remain open.
+No production reply endpoint was contacted by these tests.
+
+### Reply-action verification
+
+**35 focused JVM tests passed, zero failures/errors/skips:** six new action-state
+cases, seven message/inbox cases, six peer-key cases, eight outbox cases and eight
+relay cases. The new coverage includes submission after the original push expires,
+200-character destinations, exact packet restoration with enrollment binding,
+repeated/changed broadcasts after receipt expiry, invalid/oversize input,
+full-queue behavior, no action without authenticated capability, wrong routes,
+key refresh versus rotation, forget/re-add, login replacement and bounded-grant
+eviction. Existing transport/crypto/replay regressions also passed.
+
+**Android: OK (24 tests), 111.978 seconds**, API 37 / 16,384-byte pages, zero skips:
+four action cases, four push-delivery cases, seven background reply/notice cases,
+two encrypted-storage cases and seven notification delivery/service/swipe cases.
+The new action cases exercise the actual notification-shade **Reply → type Unicode
+text → Send** flow through the manifest receiver and encrypted outbox into a
+persisted WorkManager job. The Mac fixture key opens the queued ciphertext and
+checks exact text, workspace/surface and confinement. The original banner is
+removed after scheduling; replaying its PendingIntent keeps the same one packet.
+
+The action fixture asserts it is running on an emulator and disables Wi-Fi/mobile
+data before installing fixture credentials. It confirms no active network and
+an enqueued send job. Cleanup erases the fixture account/outbox and cancels the
+jobs before restoring the emulator's prior radio settings. No fixture token was
+sent to the production service. Separate worker tests retain their loopback-only
+account and relay servers. The user's physical phone was not modified.
+
+A second case submits RemoteInput through the real PendingIntent while attempting
+to replace its component, data and destination extras with another notification's
+values: only the original surface is present in the resulting Mac plaintext.
+Other cases verify invalid input leaves the action available, account replacement
+retires it, plain notifications have no Reply, a visible feed banner gains an
+authenticated Reply, and queued/cleared banners are not reactivated by later push.
+
+The first test compilation used an unavailable `By.textMatches` API; using the
+supported `By.text(Pattern)` overload fixed it. The initial three UI cases passed
+in 30.258 seconds. Review then added the feed-before-push upgrade and its fourth
+case, followed by the full final run above. Screenshot capture now waits for the
+input accessibility value and UI idle; the final input image was visually checked
+and displays the complete fixture text “literal reply λ 中” with the Send button.
+These are emulator/component fixtures, not physical delivery, locked-screen,
+process-death or Doze acceptance.
+
+Both final APK builds, all five native LOAD/RELRO checks and both 16 KB ZIP checks
+passed. Final SHA-256:
+
+- Debug: `7e7b63bbeba1ddd0a48a05ae2c8b040837fe33377a7f24c35a48c2bbd96ec0d8`
+- Test: `ae5a3e56a74281266ceca924f8f80b394fa9b50f24e14976b1060a92b482e7df`
+
+Evidence: ignored `captures/runtime/phone-reply-actions*`, including JVM XML,
+original/final build logs, both Android runs, final alignment/device receipts and
+notification-shade images/XML. The existing emulator was reused and stopped.
+No signed release, production push registration, listener, physical installation
+or broad upstream parity pin changed.

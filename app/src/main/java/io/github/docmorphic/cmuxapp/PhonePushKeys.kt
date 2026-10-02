@@ -81,9 +81,19 @@ internal class PhonePushKeyState(private val state: JSONObject) {
         require(peer.tuple.accountID == team.userId && (peer.tuple.teamID == null || peer.tuple.teamID == team.teamId) &&
             peer.tuple.iosInstallationID == identity.installationID)
         val root = state.getJSONObject(KEY)
+        val previous = rows().singleOrNull { it.optString("origin") == owner.origin }
+        val epoch = previous?.takeIf { runCatching { PhonePushPeer.parse(it) == peer }.getOrDefault(false) }
+            ?.optString("epoch")?.takeIf { it.isNotBlank() } ?: java.util.UUID.randomUUID().toString()
         val rows = rows().filterNot { it.optString("origin") == owner.origin }
         root.put("peers", JSONArray((rows + peer.wire().put("origin", owner.origin)
-            .put("user", team.userId).put("team", team.teamId)).takeLast(128)))
+            .put("user", team.userId).put("team", team.teamId).put("epoch", epoch)).takeLast(128)))
+    }
+
+    /** Local enrollment incarnation; forget/re-add or a changed key retires old actions. */
+    fun peerEpoch(team: NativeTeamScope, origin: String): String? {
+        if (peer(team, origin) == null) return null
+        val canonical = canonicalOrigin(team, origin) ?: return null
+        return rows().singleOrNull { it.optString("origin") == canonical }?.optString("epoch")?.takeIf { it.isNotBlank() }
     }
 
     fun peer(team: NativeTeamScope, origin: String): PhonePushPeer? {

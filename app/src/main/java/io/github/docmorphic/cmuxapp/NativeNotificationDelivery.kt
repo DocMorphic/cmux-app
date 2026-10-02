@@ -70,42 +70,67 @@ internal class NativeNotificationDelivery(private val context: Context) {
         if (!NativeNotificationService.isEnabled(context) || !isCurrent()) return@synchronized PhonePushAdmission.RETIRED
         var result = PhonePushAdmission.RETIRED
         val account = NativeCredentialStore(context)
+        var destination: NotificationDestination? = null
+        var actionID: String? = null
+        var computer = "cmux"
+        var origin = message.origin
+        var cancelled = emptyList<String>()
+        val item = message.notification
+        // Phase one durably stores the tap route and action grant. Replay admission
+        // is previewed on a copy, so death before posting can still retry the event.
         account.update { state ->
             if (!NativeNotificationService.isEnabled(context) || !isCurrent() || !message.permits(state)) return@update
-            val origin = checkNotNull(PhonePushKeyState(state).canonicalOrigin(message.team, message.origin))
+            origin = checkNotNull(PhonePushKeyState(state).canonicalOrigin(message.team, message.origin))
             val mac = account.pairedMacs().singleOrNull { it.origin == origin } ?: return@update
-            val item = message.notification
-            // Dismissals still reconcile while the system notification channel is disabled.
+            computer = mac.name
             if (item != null) {
                 manager.createNotificationChannel(NotificationChannel(ALERT_CHANNEL,
                     "cmux agent notifications", NotificationManager.IMPORTANCE_HIGH))
                 if (!manager.areNotificationsEnabled() || manager.getNotificationChannel(ALERT_CHANNEL)?.importance == NotificationManager.IMPORTANCE_NONE)
                     return@update
             }
-            result = PhonePushInbox(state).admit(message, System.currentTimeMillis())
+            result = PhonePushInbox(org.json.JSONObject(state.toString())).admit(message, System.currentTimeMillis())
             if (result != PhonePushAdmission.ACCEPTED) return@update
-            var destination: NotificationDestination? = null
-            var cancelled = emptyList<String>()
             store.update { notifications ->
                 val ledger = NativeNotificationLedger(notifications)
                 ledger.coalesce(origin, mac.previousOrigins)
                 if (item == null) {
-                    ledger.rememberHandled(origin, message.dismissedIDs)
                     cancelled = ledger.destinations().filter { it.origin == origin && it.login == message.team.login &&
                         it.notificationId in message.dismissedIDs }.map { it.routeId }
-                } else if (!ledger.wasHandled(origin, item.id)) {
-                    destination = ledger.stage(origin, item, message.team.login, message.hasNotificationID)
+                } else {
+                    // A feed can win the race and post before authenticated Reply
+                    // metadata arrives. Upgrade only a still-visible plain banner;
+                    // never resurrect a cleared one or re-arm a submitted action.
+                    val existing = ledger.destinations().singleOrNull { it.origin == origin &&
+                        it.notificationId == item.id && it.login == message.team.login }
+                    val upgrade = message.canReply && existing != null && manager.activeNotifications.any {
+                        it.tag == tag(existing.routeId) && it.notification.channelId == ALERT_CHANNEL &&
+                            !it.notification.extras.getBoolean(PhoneReplyNotification.OFFERED, false)
+                    }
+                    if (!ledger.wasHandled(origin, item.id) || upgrade)
+                        destination = ledger.stage(origin, item, message.team.login, message.hasNotificationID)
                 }
             }
-            cancelled.forEach(::cancel)
-            // The encrypted route transaction must commit before NotificationManager
-            // exposes its PendingIntent, including an immediate tap or process death.
-            destination?.let { route ->
-                if (!isCurrent()) { result = PhonePushAdmission.RETIRED; return@let }
-                manager.notify(tag(route.routeId), ALERT_ID, buildAlert(route, mac.name, checkNotNull(item)))
+            destination?.let { actionID = PhoneReplyActions(state).stage(message, it) }
+        }
+        if (result != PhonePushAdmission.ACCEPTED) return@synchronized result
+        // Both durable stores are now committed. Recheck admission before exposing
+        // the PendingIntents; recording the replay ID still follows OS delivery.
+        account.update { state ->
+            if (!NativeNotificationService.isEnabled(context) || !isCurrent() || !message.permits(state)) {
+                result = PhonePushAdmission.RETIRED; return@update
+            }
+            result = PhonePushInbox(state).admit(message, System.currentTimeMillis())
+            if (result != PhonePushAdmission.ACCEPTED) return@update
+            if (item == null) {
+                store.update { NativeNotificationLedger(it).rememberHandled(origin, message.dismissedIDs) }
+                cancelled.forEach(::cancel)
+            } else destination?.let { route ->
+                manager.notify(tag(route.routeId), ALERT_ID, buildAlert(route, computer, item, actionID))
                 store.update { NativeNotificationLedger(it).rememberHandled(origin, listOf(item.id)) }
             }
         }
+        prune(account.pairedMacs().map { it.origin }.toSet())
         result
     }
 
@@ -150,7 +175,8 @@ internal class NativeNotificationDelivery(private val context: Context) {
 
     fun cancel(routeId: String) { manager.cancel(tag(routeId), ALERT_ID) }
 
-    internal fun buildAlert(destination: NotificationDestination, computer: String, item: NativeNotification): Notification {
+    internal fun buildAlert(destination: NotificationDestination, computer: String, item: NativeNotification,
+        replyActionID: String? = null): Notification {
         val pending = PendingIntent.getActivity(context, 0, launchIntent(context, destination.routeId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val dismiss = PendingIntent.getBroadcast(context, 0,
@@ -164,14 +190,19 @@ internal class NativeNotificationDelivery(private val context: Context) {
             .setSubText(computer).setContentText(body)
             .setStyle(Notification.BigTextStyle().bigText(body))
             .setContentIntent(pending).setDeleteIntent(if (destination.dismissible) dismiss else null).setAutoCancel(true).setOnlyAlertOnce(true)
-            .setVisibility(Notification.VISIBILITY_PRIVATE).build()
+            .setVisibility(Notification.VISIBILITY_PRIVATE)
+            .addExtras(android.os.Bundle().apply { putBoolean(PhoneReplyNotification.OFFERED, replyActionID != null) })
+            .apply {
+                if (android.os.Build.VERSION.SDK_INT >= 29) setAllowSystemGeneratedContextualActions(false)
+                replyActionID?.let { addAction(PhoneReplyNotification.action(context, destination.routeId, it)) }
+            }.build()
     }
 
     companion object {
         internal val lock = Any()
         const val ALERT_CHANNEL = "cmux_alerts"
         private const val ALERT_ID = 2
-        private fun tag(routeId: String) = "cmux.native.$routeId"
+        internal fun tag(routeId: String) = "cmux.native.$routeId"
         fun launchIntent(context: Context, routeId: String) = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             data = Uri.Builder().scheme("cmux-notification").authority(context.packageName).appendPath(routeId).build()

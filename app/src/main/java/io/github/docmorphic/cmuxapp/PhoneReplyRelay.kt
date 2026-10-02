@@ -15,14 +15,15 @@ import java.util.concurrent.TimeUnit
 /** Created once per intentional reply and reused verbatim after uncertain HTTP outcomes. */
 internal class PreparedPhoneReply private constructor(
     val replyID: String, val login: String, val origin: String, val teamID: String,
-    val peer: PhonePushPeer, val senderKeyID: String, val createdAtMillis: Long, val body: String
+    val peer: PhonePushPeer, val senderKeyID: String, val createdAtMillis: Long, val body: String, val peerEpoch: String? = null
 ) {
     // The phone's retry window is shorter than the Mac inbox's encrypted 15-minute lifetime.
     fun isFresh(nowMillis: Long) = nowMillis >= createdAtMillis && nowMillis - createdAtMillis < 120_000
+    fun boundTo(epoch: String) = PreparedPhoneReply(replyID, login, origin, teamID, peer, senderKeyID, createdAtMillis, body, epoch)
 
     fun persisted() = JSONObject().put("version", 1).put("reply_id", replyID).put("login", login)
         .put("origin", origin).put("team_id", teamID).put("peer", peer.wire()).put("sender_key_id", senderKeyID)
-        .put("created_at", createdAtMillis).put("body", body)
+        .put("created_at", createdAtMillis).put("body", body).put("peer_epoch", peerEpoch)
 
     companion object {
         /** Only restore from authenticated local storage; the exact body string is never re-encoded. */
@@ -54,7 +55,9 @@ internal class PreparedPhoneReply private constructor(
                 return java.util.Base64.getDecoder().decode(encoded).also { require(it.size <= max) }
             }
             require(bytes("encapsulatedKey", 32).size == 32 && bytes("ciphertext", 64 * 1024).size >= 16)
-            return PreparedPhoneReply(replyID, login, origin, team, peer, sender, created, body)
+            val epoch = if (!value.has("peer_epoch") || value.isNull("peer_epoch")) null else
+                (value.opt("peer_epoch") as? String)?.also { require(it.isNotBlank() && it.length <= 128) } ?: error("Invalid enrollment")
+            return PreparedPhoneReply(replyID, login, origin, team, peer, sender, created, body, epoch)
         }
 
         fun prepare(replyID: String, team: NativeTeamScope, origin: String, peer: PhonePushPeer,
@@ -63,8 +66,8 @@ internal class PreparedPhoneReply private constructor(
             fun id(value: String, limit: Int = 128) = require(value.isNotBlank() && value == value.trim() && value.length <= limit) {
                 "Invalid reply destination"
             }
-            id(replyID, 64); id(surfaceID); id(origin); id(team.login); id(team.userId); id(team.teamId)
-            workspaceID?.let { id(it) }; require(retarget || workspaceID != null) { "Reply requires its original workspace" }
+            id(replyID, 64); id(surfaceID, 200); id(origin); id(team.login); id(team.userId); id(team.teamId)
+            workspaceID?.let { id(it, 200) }; require(retarget || workspaceID != null) { "Reply requires its original workspace" }
             require(text.isNotBlank() && text.length <= 8192) { "Reply must contain 1–8192 characters" }
             require(nowMillis > 0 && nowMillis <= Long.MAX_VALUE - 900_000) { "Invalid reply time" }
             val tuple = peer.tuple
@@ -72,7 +75,7 @@ internal class PreparedPhoneReply private constructor(
                 tuple.iosInstallationID == identity.installationID) { "Reply key belongs to another account or installation" }
             listOfNotNull(tuple.accountID, tuple.teamID, tuple.iosBuildID, tuple.iosInstallationID,
                 tuple.macDeviceID, tuple.macInstanceTag, tuple.macBuildID, peer.descriptor.installationID,
-                peer.descriptor.keyID, identity.keyID).forEach { id(it) }
+                peer.descriptor.keyID, identity.keyID).forEach { id(it, 1024) }
             require(tuple.macDeviceID != null && tuple.macBuildID != null && tuple.macInstanceTag != null) { "Missing Mac reply identity" }
             PhonePushDescriptor.parse(peer.descriptor.wire())
             val plaintext = JSONObject().put("replyId", replyID).put("accountID", team.userId)

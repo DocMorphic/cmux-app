@@ -37,6 +37,7 @@ internal class PhoneReplyOutbox(private val state: JSONObject) {
     fun permits(reply: PreparedPhoneReply): Boolean {
         val keys = PhonePushKeyState(state)
         return ownerCurrent(team(reply), reply.origin) && keys.peer(team(reply), reply.origin) == reply.peer &&
+            (reply.peerEpoch == null || keys.peerEpoch(team(reply), reply.origin) == reply.peerEpoch) &&
             keys.existingIdentity(reply.login)?.let { it.keyID == reply.senderKeyID && it.installationID == reply.peer.tuple.iosInstallationID } == true
     }
     fun waiting(now: Long): List<PreparedPhoneReply> { prune(now); return pendingRaw() }
@@ -135,7 +136,8 @@ internal class PhoneReplyOutbox(private val state: JSONObject) {
     private fun receipt(reply: PreparedPhoneReply, status: String) = PhoneReplyReceipt(reply.replyID, reply.login,
         checkNotNull(reply.peer.tuple.accountID), reply.teamID, reply.origin, digest(reply), reply.createdAtMillis, status)
     private fun same(a: PreparedPhoneReply, b: PreparedPhoneReply) = a.replyID == b.replyID && a.login == b.login &&
-        a.origin == b.origin && a.teamID == b.teamID && a.peer == b.peer && a.senderKeyID == b.senderKeyID && a.createdAtMillis == b.createdAtMillis && a.body == b.body
+        a.origin == b.origin && a.teamID == b.teamID && a.peer == b.peer && a.peerEpoch == b.peerEpoch &&
+        a.senderKeyID == b.senderKeyID && a.createdAtMillis == b.createdAtMillis && a.body == b.body
     private fun digest(reply: PreparedPhoneReply) = MessageDigest.getInstance("SHA-256").digest(reply.body.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
     companion object {

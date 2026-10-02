@@ -8,7 +8,7 @@ import java.util.UUID
 
 /** Only authenticated plaintext can create this value. Its default description excludes content. */
 internal class PhonePushMessage private constructor(
-    val team: NativeTeamScope, val origin: String, val peer: PhonePushPeer, private val recipientKeyID: String,
+    val team: NativeTeamScope, val origin: String, val peer: PhonePushPeer, val recipientKeyID: String, val peerEpoch: String?,
     val correlationID: String, val expiresAtMillis: Long, val badgeCount: Int,
     val notification: NativeNotification?, val hasNotificationID: Boolean, val canReply: Boolean,
     val dismissedIDs: List<String>
@@ -16,7 +16,8 @@ internal class PhonePushMessage private constructor(
     fun isFresh(now: Long) = now >= 0 && now < expiresAtMillis
     fun permits(state: JSONObject): Boolean {
         val keys = PhonePushKeyState(state)
-        if (keys.existingIdentity(team.login)?.keyID != recipientKeyID || keys.peer(team, origin) != peer) return false
+        if (keys.existingIdentity(team.login)?.keyID != recipientKeyID || keys.peer(team, origin) != peer ||
+            keys.peerEpoch(team, origin) != peerEpoch) return false
         val rows = state.optJSONArray("pairings") ?: return false
         val mac = (0 until rows.length()).mapNotNull { rows.optJSONObject(it)?.let(NativePairingRecords::decode) }
             .singleOrNull { it.ownsOrigin(origin) } ?: return false
@@ -93,7 +94,7 @@ internal class PhonePushMessage private constructor(
                 }
                 else -> error("Unknown push operation")
             }
-            return PhonePushMessage(team, canonical, peer, identity.keyID, correlation, expiration * 1000,
+            return PhonePushMessage(team, canonical, peer, identity.keyID, keys.peerEpoch(team, canonical), correlation, expiration * 1000,
                 badge.toInt(), item, hasID, reply, dismissed).also { require(it.permits(state)) }
         }
     }
