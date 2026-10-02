@@ -281,8 +281,11 @@ staging, version verification and activation that refuses to overwrite an existi
 binary. Downloaded cmux-tui npm platform packages identify their license as MIT;
 they are fetched on demand and are not embedded in this repository or APK.
 
-TerminalSizing.kt adapts shared sizing wire models and MobileTerminalSizingSurface
+TerminalSizing.kt, TerminalSizingControls.kt and TerminalSizeSheet.kt adapt shared
+sizing wire models, MobileTerminalSizingSurface, MobileTerminalSizingPresentation
+and the iOS TerminalSizeSheet
 from cmux revision 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc:
-Packages/Shared/CmuxTerminalSizing and Packages/iOS/CmuxMobileShellModel.
+Packages/Shared/CmuxTerminalSizing, Packages/iOS/CmuxMobileShellModel and
+Packages/iOS/CmuxMobileShellUI.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android adaptation uses Kotlin/JSONObject and conservative unknown-detach handling.

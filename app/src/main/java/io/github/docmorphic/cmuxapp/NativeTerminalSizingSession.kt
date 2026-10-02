@@ -97,6 +97,13 @@ internal class NativeTerminalSizingSession {
         model(surface).reattached(response.optJSONObject("size_state")?.let { runCatching { TerminalSizeState.decode(it) }.getOrNull() }, selfId(response))
         publish(); true
     }
+    /** Policy/disconnect replies describe the Mac's self participant. Never adopt that ID as this phone. */
+    fun mutation(source: MobileRpcClient, surface: String, response: JSONObject) = synchronized(lock) {
+        if (client !== source || response.optString("surface_id") != surface) return@synchronized
+        val next = response.optJSONObject("size_state")?.let { runCatching { TerminalSizeState.decode(it) }.getOrNull() }
+            ?: return@synchronized
+        model(surface).apply(next, null, rendered[surface]); publish()
+    }
     fun rendered(source: MobileRpcClient, surface: String, grid: SharedTerminalGrid) = synchronized(lock) {
         if (client === source) rendered[surface] = grid
     }

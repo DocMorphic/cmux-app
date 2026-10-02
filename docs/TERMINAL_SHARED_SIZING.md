@@ -102,6 +102,59 @@ check, and restores the original sleep setting in `finally`. Install the matchin
 debug APK with `adb install -r` before checking new production behavior. Review the
 saved terminal screenshots before calling a pass visual acceptance.
 
+## Editable size sheet — 2026-10-03
+
+The read-only dialog from `0f9cddc` is now an editable bottom sheet, adapted from
+the installed NIGHTLY's `TerminalSizeSheet.swift` and
+`MobileTerminalSizingPresentation.swift` at the same `0fc35d6` reference. It has:
+
+- All five policies, preserving inactive fixed/priority options.
+- Fixed columns/rows with iOS limits (20–300 and 5–120), applied explicitly.
+- Priority drag ordering, menu and accessibility move actions, stable ordering for
+  unranked participants, deduplicated priority keys, and preserved disconnected keys.
+- Current owner/participant dimensions and this phone's counts toggle, including
+  **Use automatic rule** to clear the override with JSON null.
+- Individual disconnect actions and confirmed **Disconnect Others**, bound to the
+  IDs shown at confirmation. Newly attached devices are not swept into that batch.
+- Pending/error presentation without optimistically claiming the Mac changed.
+
+Mutations carry the foreground lease's client ID, original workspace/surface,
+current natural viewport and the existing viewport generation. Selection/admission
+is rechecked just before writing and after acknowledgement; geometry changes also
+invalidate a pending counts report. No mutation is automatically resent. A failed
+multi-disconnect stops the batch and tells the user to review partial results.
+Policy/disconnect replies describe the Mac's self ID: only their size state is
+applied, so they cannot overwrite this phone's participant identity.
+
+Verification on this source:
+
+- **29 JVM tests passed**, zero failures/errors/skips: 6 reducer, 6 controls/RPC,
+  6 session/identity and 11 RPC transport tests.
+- Debug and instrumentation APK builds passed in **35 s** after the final fixes.
+- **3 emulator UI tests passed in 11.002 s**: fixed limits, policy selection,
+  counts/reset, accessible and long-press priority moves, cancellation/confirmation,
+  and pending/failure/offline admission. The actual priority screenshot was reviewed:
+  all three participants, toggle, owner, menu handles and destructive action visible.
+- The first run's screenshot showed a System UI ANR from emulator startup and was
+  rejected. A separate ambiguous test selector was fixed. The final run used a clean
+  boot of the same AVD with host graphics, after building; no ANR event/dialog was
+  observed. The emulator was then stopped and its process exit verified. No new AVD.
+
+These UI tests use deterministic participant snapshots; RPC tests use an in-memory
+wire. They do **not** prove Mac policy negotiation, real participant disconnection,
+Pixel layout, TalkBack, or the complete iOS bounds/chip presentation. The Pixel
+was locked and later disconnected; no app/data change was made there. Signed build 397 remains the
+last delivered signed APK. Physical acceptance and cross-Mac/background reply
+retention are still open.
+
+Tested APK SHA-256 values:
+
+- Debug: `75a7cc7eb3a877b4c4a11570b853c1afe2ae3d66e21734eae3bae6fa63746cde`
+- Instrumentation: `e7ec9bd3886f9e17388a7960cde2ea2c3e600987077da367be9e6df65e5c29d3`
+
+Ignored evidence: `captures/runtime/sizing-controls-final-build.txt`,
+`sizing-controls-ui-final.txt`, and `sizing-controls-screenshots-final/priority.png`.
+
 ## Full integration acceptance checklist
 
 1. Subscribe to `mobile.terminal.size_state` and `mobile.terminal.detached`; decode

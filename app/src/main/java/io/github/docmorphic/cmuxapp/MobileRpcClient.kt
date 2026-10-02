@@ -593,6 +593,43 @@ class MobileRpcClient internal constructor(
             }
         }
 
+    internal val terminalParticipantId: String get() = "mobile:$clientId"
+
+    internal suspend fun changeTerminalSizing(workspace: String, surface: String, action: TerminalSizingAction,
+        viewport: TerminalViewport?, generation: Long, isCurrent: () -> Boolean): JSONObject {
+        val base = JSONObject().put("workspace_id", workspace).put("surface_id", surface).put("client_id", clientId)
+        fun admitted() { check(isCurrent()) { "Terminal selection changed. Open its size controls again." }; checkTerminalTraffic(surface) }
+        admitted()
+        suspend fun send(method: String, params: JSONObject): JSONObject {
+            val result = requestAdmitted(method, params, 15_000, ::admitted)
+            admitted()
+            return result
+        }
+        return when (action) {
+            is TerminalSizingAction.Policy -> {
+                val policy = action.policy
+                require(policy.priority.size <= 1024 && policy.priority.all { it.isNotBlank() && it.length <= 1024 })
+                if (policy.mode == TerminalSizeMode.FIXED) require(policy.fixed != null)
+                policy.fixed?.let { require(it.columns in 20..300 && it.rows in 5..120) }
+                send("mobile.terminal.size_policy.set", base.put("policy", policy.wire()))
+            }
+            is TerminalSizingAction.Counts -> {
+                val size = checkNotNull(viewport) { "Wait for this phone's terminal viewport." }
+                require(generation >= 0)
+                send("mobile.terminal.viewport", base.put("viewport_columns", size.columns).put("viewport_rows", size.rows)
+                    .put("viewport_generation", generation).put("counts_override", action.counts ?: JSONObject.NULL).withTerminalDevice())
+            }
+            is TerminalSizingAction.Disconnect -> {
+                require(action.ids.isNotEmpty() && action.ids.size <= 1024 && action.ids.distinct().size == action.ids.size &&
+                    action.ids.all { it.isNotBlank() && it.length <= 4096 && it != terminalParticipantId })
+                var result = JSONObject()
+                for (id in action.ids) result = send("mobile.terminal.participant.disconnect",
+                    JSONObject(base.toString()).put("participant_id", id))
+                result
+            }
+        }
+    }
+
     internal suspend fun reattachTerminal(workspace: String, surface: String, viewer: Boolean,
         viewport: TerminalViewport?): JSONObject = request("mobile.terminal.reattach", JSONObject()
         .put("workspace_id", workspace).put("surface_id", surface).put("client_id", clientId)

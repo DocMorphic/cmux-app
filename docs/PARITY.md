@@ -12,16 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-**NIGHTLY shared-sizing integration in progress (2026-10-03):** the foreground
-session now receives sizing/detach events, gates RPC/native-lane traffic, discards
-pending input on explicit detach, and exposes explicit reattach actions. A size
-chip and read-only participants dialog show the host's negotiated grid. Editable
-policy controls, cross-Mac/background-reply retention, and physical acceptance
-remain open. Android reports the supported `unknown` kind plus its actual model;
-upstream needs an Android kind for the same automatic exclusion rules as iOS.
-The Pixel remains locked, so the revised shared-size/Gboard check has not run.
-Signed build 397 and the installed Pixel debug app are unchanged.
-[Contract, tests and remaining integration](TERMINAL_SHARED_SIZING.md).
+**NIGHTLY shared-sizing controls implemented, live acceptance pending (2026-10-03):**
+the foreground session handles sizing/detach events, gates traffic and provides
+explicit reattach. The size sheet now edits all five policies, fixed dimensions,
+priority order and this phone's counts override, plus individual/confirmed batch
+disconnection. **29 focused JVM tests and 3 emulator UI tests passed**; the clean
+priority-screen capture was visually reviewed. No new emulator was created, and
+the existing one is stopped. Bounds/chip fidelity, cross-Mac/background-reply
+retention and physical Mac/Pixel checks remain open. Android uses the supported
+`unknown` kind plus its model; upstream's automatic exclusion rules still need an
+Android kind for identical behavior. Signed build 397 and the installed Pixel app
+are unchanged. [Contract, evidence and remaining work](TERMINAL_SHARED_SIZING.md).
 
 **Signed build 397 delivered (2026-10-03):** full CI passed at `8f1ce42`,
 including the production account/credential deadlock fix. Downloaded APK signer,

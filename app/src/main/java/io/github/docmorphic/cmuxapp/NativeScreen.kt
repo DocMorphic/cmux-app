@@ -2010,18 +2010,25 @@ fun NativeScreen(
                         .padding(6.dp).background(nativePanel, RoundedCornerShape(12.dp))) {
                         Text("${sizing.grid.columns} × ${sizing.grid.rows} · ${sizing.policy.mode.title}")
                     }
-                    if (showSizing) AlertDialog(onDismissRequest = { showSizing = false },
-                        title = { Text("Shared terminal size") },
-                        text = { Column(Modifier.verticalScroll(rememberScrollState())) {
-                            Text("${sizing.grid.columns} columns × ${sizing.grid.rows} rows")
-                            Text(sizing.policy.mode.title)
-                            sizing.participants.forEach { participant ->
-                                Text(listOfNotNull(participant.deviceName ?: participant.displayName,
-                                    participant.viewport?.let { "${it.columns} × ${it.rows}" },
-                                    if (participant.counts) "Counts toward size" else "Viewer").joinToString(" · "),
-                                    Modifier.padding(top = 12.dp))
-                            }
-                        } }, confirmButton = { TextButton(onClick = { showSizing = false }) { Text("Done") } })
+                    val sheetClient = client
+                    val sheetWorkspace = selectedWorkspace
+                    val sheetCode = code
+                    val presentation = TerminalSizingPresentation(sizing, selectedSizing?.selfId ?: sheetClient?.terminalParticipantId)
+                    if (showSizing) TerminalSizeSheet(presentation, enabled = connectionReady && sheetClient != null,
+                        onDismiss = { showSizing = false }) { action ->
+                        val active = checkNotNull(sheetClient)
+                        val workspace = checkNotNull(sheetWorkspace)
+                        val viewport = terminalViewport
+                        val viewportGeneration = viewportRequestGeneration
+                        if (action is TerminalSizingAction.Disconnect) require(action.ids.none { it == presentation.selfId })
+                        fun current() = client === active && selectedWorkspace?.id == workspace.id &&
+                            selectedTerminal?.id == terminal.id && code == sheetCode && signedIn && connectionReady &&
+                            TerminalSizingTraffic.CAPABILITY in hostCapabilities &&
+                            (action !is TerminalSizingAction.Counts ||
+                                (terminalViewport == viewport && viewportRequestGeneration == viewportGeneration))
+                        val response = active.changeTerminalSizing(workspace.id, terminal.id, action, viewport, viewportGeneration, ::current)
+                        terminalSizing.mutation(active, terminal.id, response)
+                    }
                 }
                 selectedSizing?.detached?.let { detached ->
                     Column(Modifier.fillMaxSize().background(nativePanel).padding(24.dp),

@@ -126,6 +126,30 @@ class NativeTerminalSizingSessionTest {
         }
     }
 
+    @Test fun policyAcknowledgementCannotReplacePhoneIdentityWithMacIdentity() = runBlocking<Unit> {
+        val wire = Wire()
+        MobileRpcClient(wire, { "fixture" }).use { client ->
+            client.connect()
+            val session = NativeTerminalSizingSession(); session.bind(owner, client)
+            val state = JSONObject("""{"generation":1,"cols":80,"rows":24,"reason":"smallest","owners":["mac"],
+                "policy":{"mode":"smallest","priority":[],"fixed":null},"participants":[
+                {"id":"mac","display_name":"Fixture","device_kind":"mac","counts":true,"priority_key":"mac"},
+                {"id":"phone","display_name":"Fixture","device_kind":"unknown","counts":true,"priority_key":"phone"}]}""")
+            session.replay(client, surface, JSONObject().put("size_state", state).put("self_participant_id", "phone"))
+            session.rendered(client, surface, SharedTerminalGrid(80, 24))
+            val reply = JSONObject().put("surface_id", surface).put("size_state", state.put("generation", 2).put("cols", 100))
+                .put("self_participant_id", "mac")
+            session.mutation(client, surface, reply)
+            assertEquals("phone", session.state.value.getValue(surface).selfId)
+            assertEquals(100, session.state.value.getValue(surface).state!!.grid.columns)
+            assertEquals(1L, session.state.value.getValue(surface).viewportRevision)
+            reply.put("surface_id", "another-terminal").getJSONObject("size_state").put("cols", 120)
+            session.mutation(client, surface, reply)
+            assertEquals(100, session.state.value.getValue(surface).state!!.grid.columns)
+            session.clear()
+        }
+    }
+
     @Test fun androidReportsTruthfulDeviceIdentityOnlyWhenNegotiated() = runBlocking<Unit> {
         val wire = Wire()
         MobileRpcClient(wire, { "fixture" }).use { client ->
