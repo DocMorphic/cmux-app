@@ -161,7 +161,12 @@ async def main():
             tokens = shlex.split(proc.command or "")
             if tokens == ["fixture-browser-status"] and browser:
                 proc.stdout.write(json.dumps({"events": browser.events, "registered": browser.provider is not None,
-                    "registrations": browser.registrations, "target": browser.target})); proc.exit(0); return
+                    "registrations": browser.registrations, "target": browser.target,
+                    "chromePid": browser.chrome.pid, "chromeExited": browser.chrome.returncode is not None})); proc.exit(0); return
+            if tokens == ["fixture-browser-process-stop"] and browser:
+                await browser.stop_chrome(); proc.exit(0); return
+            if tokens == ["fixture-browser-process-restart"] and browser:
+                await browser.restart_chrome(wire); proc.exit(0); return
             if tokens == ["fixture-browser-provider-detach"] and browser:
                 await browser.detach(); proc.exit(0); return
             if tokens == ["fixture-browser-provider-reconnect"] and browser:

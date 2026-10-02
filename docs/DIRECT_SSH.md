@@ -13,7 +13,42 @@ rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This au
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
-Older checkpoints below retain their original evidence boundaries. The provider-registration checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
+Older checkpoints below retain their original evidence boundaries. The Chrome-process checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
+
+## Chrome process replacement recovery (2026-10-02)
+
+The integrated browser fixture now terminates its actual private Chrome process,
+then starts another with a new private profile, debug endpoint and CDP target.
+The host registers that new target against the existing cmux browser tab. Android
+keeps its SSH connection; no app restart, navigation away or manual Reconnect tap
+is used. This is a host-provided replacement, not Android launching Chrome on a
+remote computer.
+
+The new case verifies the old process exited, the replacement PID and target
+differ, and the selected cmux tab resource and SSH connection remain the same.
+A pre-disruption click turns the real page purple and produces one HTTP callback.
+While Chrome is stopped, Android shows the host error with Reconnect; tapping the
+old image does not add a callback. After replacement registration, the error clears
+and actual decoded green pixels prove the new page replaced the retained image.
+No old input is replayed. A new click produces the second callback and changes
+the replacement page to purple.
+
+**Verification:** **OK (4 tests), 63.5 seconds, zero failures/skips**, on API 37 /
+16 KB. This includes provider registration recovery, actual SSH connection loss,
+and Streamed/On Android navigation and input. Both APKs built, five native
+libraries passed LOAD/RELRO alignment, and both APKs passed 16 KB ZIP alignment.
+Stopped/recovered screenshots were inspected. Evidence is retained under ignored
+`captures/runtime/ssh-audit/chrome-restart/`.
+
+- Debug SHA-256: `390efda4fffbae6244b9232bd3b997812e58b665d6fd738a2b931e6cf4eab7d2`
+- Test SHA-256: `09fe1b2fdc603381438509684836fdddb51bd4597d6bb0abcb1f985c60dea433`
+
+This uses normal process termination with bounded forced cleanup, not an injected
+Chrome crash. A fresh profile intentionally loses the old DOM; this does not
+promise restoration of unsaved browser state. Host daemon restart, unknown input
+delivery and physical Pixel/Mac acceptance remain open. No production source,
+signed build or parity pin changed. The fixture and existing emulator were stopped;
+no additional AVD was created.
 
 ## External browser provider registration recovery (2026-10-02)
 

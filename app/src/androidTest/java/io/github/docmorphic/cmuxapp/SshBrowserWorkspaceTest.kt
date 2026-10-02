@@ -173,6 +173,46 @@ class SshBrowserWorkspaceTest {
         capture("ssh-provider-recovered")
     }
 
+    @Test fun browserProcessReplacementShowsFreshPageAndDoesNotReplayOldInput() {
+        val original = workspace().tabs.single { it.isBrowser }.resource
+        val connection = cmux.connection
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshWorkspacesRoute(session, hostId) {}
+        } } }
+        open(); ready("SSH browser page"); background(18, 95, 55)
+        fun status() = runBlocking {
+            JSONObject(connection.exec("fixture-browser-status").stdout.toString(Charsets.UTF_8))
+        }
+        fun clicks(): Int = status().getJSONArray("events").let { items ->
+            (0 until items.length()).count { items.getJSONObject(it).has("click") }
+        }
+        fun click() = compose.onNodeWithContentDescription("SSH browser page").performTouchInput {
+            click(Offset(width * .5f, height * .33f))
+        }
+        click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
+        compose.waitUntil(15000) { compose.onAllNodesWithContentDescription("Browser loading").fetchSemanticsNodes().isEmpty() }
+        val before = status()
+        assertEquals(0, runBlocking { connection.exec("fixture-browser-process-stop").exitStatus })
+        assertTrue(status().getBoolean("chromeExited")); assertTrue(connection.isConnected)
+        compose.waitUntil(15000) { compose.onAllNodesWithText("Reconnect").fetchSemanticsNodes().isNotEmpty() }
+        click(); compose.waitForIdle(); assertEquals(1, clicks())
+        capture("ssh-chrome-process-stopped")
+        assertEquals(0, runBlocking { connection.exec("fixture-browser-process-restart").exitStatus })
+        compose.waitUntil(15000) { compose.onAllNodesWithText("Reconnect").fetchSemanticsNodes().isEmpty() }
+        // Replacing Chrome loses its old DOM. Require actual new green pixels,
+        // not the last purple image retained during the disconnect.
+        ready("SSH browser page"); background(18, 95, 55)
+        val after = status()
+        assertNotEquals(before.getInt("chromePid"), after.getInt("chromePid"))
+        assertFalse(after.getBoolean("chromeExited"))
+        assertNotEquals(before.getString("target"), after.getString("target"))
+        assertEquals(original, workspace().tabs.single { it.isBrowser }.resource)
+        assertSame(connection, cmux.connection); assertTrue(connection.isConnected)
+        assertEquals(1, clicks())
+        click(); compose.waitUntil(10000) { clicks() == 2 }; background(90, 40, 110)
+        capture("ssh-chrome-process-recovered")
+    }
+
     @Test fun liveConnectionLossRestoresSameBrowserAndDoesNotReplayCompletedClick() {
         val original = workspace().tabs.single { it.isBrowser }.resource
         val oldProvider = cmux.state.value.providers.single { it.session == "fixture" }

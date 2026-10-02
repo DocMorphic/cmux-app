@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH Chrome process replacement (2026-10-02):** four real SSH/cmux-tui/Chrome
+checks passed (63.5 seconds, API 37 / 16 KB, zero skips). The new case terminates
+the private browser, verifies the visible error and discarded stale tap, then
+confirms fresh pixels/input from a replacement process in the same cmux tab,
+without replaying earlier input. APK alignment and screenshots were checked.
+[Evidence and limits](DIRECT_SSH.md#chrome-process-replacement-recovery-2026-10-02)
+leave host daemon restart, unknown delivery and physical acceptance open.
+Production code and signed build 363 are unchanged; the emulator is stopped.
+
 **SSH browser provider registration recovery (2026-10-02):** the real SSH,
 cmux-tui and private Chrome suite now verifies provider detachment/re-registration
 with the same page and SSH connection. Stale-image clicks are discarded, prior

@@ -13,6 +13,7 @@ class BrowserFixture:
         self.events = []
         self.tab_resource = None
         self.registrations = 0
+        self.chrome_generation = 0
 
     async def start(self):
         async def http(reader, writer):
@@ -40,7 +41,14 @@ class BrowserFixture:
                 await writer.wait_closed()
         self.server = await asyncio.start_server(http, "127.0.0.1", 0)
         self.port = self.server.sockets[0].getsockname()[1]
-        profile = self.root / "chrome-profile"
+        await self.start_chrome()
+
+    async def start_chrome(self):
+        assert self.chrome is None or self.chrome.returncode is not None
+        self.chrome_generation += 1
+        # Each process owns a fresh private profile, preventing a stale debug
+        # endpoint or restored tab from masquerading as the replacement browser.
+        profile = self.root / f"chrome-profile-{self.chrome_generation}"
         # This disposable profile must never use or prompt for macOS Safe Storage.
         self.chrome = await self.spawn(str(self.binary), "--headless=new", "--disable-gpu", "--use-mock-keychain",
             "--no-first-run", "--no-default-browser-check", "--disable-background-networking",
@@ -106,12 +114,20 @@ class BrowserFixture:
             await self.detach()
             raise
 
-    async def close(self):
-        await self.detach()
+    async def stop_chrome(self):
         if self.chrome and self.chrome.returncode is None:
             self.chrome.terminate()
             try: await asyncio.wait_for(self.chrome.wait(), 5)
             except asyncio.TimeoutError: self.chrome.kill(); await self.chrome.wait()
+
+    async def restart_chrome(self, wire):
+        assert self.chrome is not None and self.chrome.returncode is not None
+        await self.start_chrome()
+        await self.reconnect(wire)
+
+    async def close(self):
+        await self.detach()
+        await self.stop_chrome()
         if self.server:
             self.server.close()
             await self.server.wait_closed()
