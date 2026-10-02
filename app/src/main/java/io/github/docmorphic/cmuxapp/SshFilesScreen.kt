@@ -123,9 +123,9 @@ internal fun SshFilesScreen(session: NativeSshSession, hostId: UUID, terminal: S
                     filename to size
                 }
                 check(SshFilePaths.validName(filename)) { "This upload has an invalid name" }
-                try { remote.upload(target, filename, size, { checkNotNull(context.contentResolver.openInputStream(uri)) { "Could not open this upload" } }) { bytes, total ->
+                sshFileMutationAndRefresh(action = { remote.upload(target, filename, size, { checkNotNull(context.contentResolver.openInputStream(uri)) { "Could not open this upload" } }) { bytes, total ->
                     transfers.value = SshFileProgress(filename, true, bytes, total)
-                } } finally { load(target) }
+                } }, refresh = { load(target) })
             }
         }
     }
@@ -236,13 +236,13 @@ internal fun SshFilesScreen(session: NativeSshSession, hostId: UUID, terminal: S
         text = { OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("Name") }, modifier = Modifier.testTag("ssh.files.name")) },
         confirmButton = { TextButton(enabled = SshFilePaths.validName(name.trim()) && (newFolder || name.trim() != naming?.name), onClick = {
             val target = naming; val value = name.trim(); naming = null; newFolder = false
-            act { try { if (target == null) remote.mkdir(checkNotNull(directory), value) else remote.rename(checkNotNull(directory), target, value) }
-                finally { directory?.let { load(it) } } }
+            act { sshFileMutationAndRefresh(action = { if (target == null) remote.mkdir(checkNotNull(directory), value) else remote.rename(checkNotNull(directory), target, value) },
+                refresh = { directory?.let { load(it) } }) }
         }) { Text(if (newFolder) "Create" else "Rename") } },
         dismissButton = { TextButton(onClick = { newFolder = false; naming = null }) { Text("Cancel") } })
     deleting?.let { entry -> AlertDialog(onDismissRequest = { deleting = null }, title = { Text("Delete “${entry.name}”?") },
         text = { Text("This deletes it from the computer. You can't undo this.") },
-        confirmButton = { TextButton(onClick = { deleting = null; act { try { remote.delete(checkNotNull(directory), entry) } finally { directory?.let { load(it) } } } }) { Text("Delete") } },
+        confirmButton = { TextButton(onClick = { deleting = null; act { sshFileMutationAndRefresh(action = { remote.delete(checkNotNull(directory), entry) }, refresh = { directory?.let { load(it) } }) } }) { Text("Delete") } },
         dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } }) }
 }
 internal fun sshFileError(error: Exception): String = if (error is com.jcraft.jsch.SftpException) when (error.id) {

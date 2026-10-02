@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH Files mutation outcomes (2026-10-02):** refresh failures now preserve the
+original mutation error, successful mutations with failed refreshes report that
+the change completed, and unconfirmed upload publication asks users to check the
+folder before retrying. Fourteen focused JVM tests and nine real SFTP/picker tests
+passed (131.497 seconds, API 37 / 16 KB, zero skips). The new case loses a real
+publication reply and verifies the warning in the Files screen, original bytes,
+no automatic repeat and a separate copy only after an explicit second upload.
+[Evidence and boundaries](DIRECT_SSH.md#sftp-publication-replies-and-refresh-outcomes-2026-10-02).
+Signed build 369 is unchanged; the emulator and fixture are stopped.
+
 **Signed build 369 checkpoint (2026-10-02):** source `59f279c` passed the full
 CI pipeline and was packaged with the existing release signer. Independent
 checks verified all 14 viewer assets and five native libraries, 16 KB alignment,

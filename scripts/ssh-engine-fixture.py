@@ -47,8 +47,21 @@ async def main():
     transfer_gate = asyncio.Event()
     transfer_gate.set()
     waiting = {"reads": 0, "writes": 0}
+    publication = {"dropNextReply": False, "published": 0, "droppedReplies": 0}
 
     class FixtureSFTP(asyncssh.SFTPServer):
+        async def link(self, oldpath, newpath):
+            # Perform the actual filesystem publication, then lose its reply.
+            # The subsequent client listing must use a new SSH connection.
+            result = super().link(oldpath, newpath)
+            publication["published"] += 1
+            if publication["dropNextReply"]:
+                publication["dropNextReply"] = False
+                publication["droppedReplies"] += 1
+                self._chan.get_connection().abort()
+                await asyncio.sleep(0)
+            return result
+
         async def hold(self, kind):
             waiting[kind] += 1
             try:
@@ -123,6 +136,12 @@ async def main():
             proc.exit(0)
         elif proc.command == "files-transfer-status":
             proc.stdout.write(json.dumps(waiting) + "\n")
+            proc.exit(0)
+        elif proc.command == "files-publication-drop-reply":
+            publication.update(dropNextReply=True, published=0, droppedReplies=0)
+            proc.exit(0)
+        elif proc.command == "files-publication-status":
+            proc.stdout.write(json.dumps(publication) + "\n")
             proc.exit(0)
         elif proc.command == "files-fixture-link":
             # Fixture-owned symlink setup avoids JSch's OpenSSH-style symlink

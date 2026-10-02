@@ -126,7 +126,8 @@ internal class SshFiles(private val connection: suspend () -> SshTransport) {
     /** Source is opened on the network worker and always closed there. */
     suspend fun upload(directory: String, name: String, total: Long?, source: () -> InputStream, progress: (Long, Long?) -> Unit): String {
         require(SshFilePaths.validName(name)); val context = currentCoroutineContext()
-        return run { channel ->
+        var publishing = false
+        try { return run { channel ->
             val chosen = SshFilePaths.unique(name, list(channel, directory).map { it.name }.toSet())
             val destination = SshFilePaths.join(directory, chosen)
             val temporary = SshFilePaths.join(directory, ".cmux-upload-${UUID.randomUUID()}")
@@ -144,6 +145,7 @@ internal class SshFiles(private val connection: suspend () -> SshTransport) {
                 // OpenSSH's hardlink extension publishes without replacing a
                 // concurrently created destination. Other servers use rename
                 // after the existence check; v3 has no portable atomic CAS.
+                publishing = true
                 if (channel.getExtension("hardlink@openssh.com") == "1") channel.hardlink(SshFilePaths.literal(temporary), SshFilePaths.literal(destination))
                 else channel.rename(SshFilePaths.literal(temporary), SshFilePaths.literal(destination))
                 chosen
@@ -152,6 +154,10 @@ internal class SshFiles(private val connection: suspend () -> SshTransport) {
                 // uniquely named partial file; never replay the upload itself.
                 try { channel.rm(SshFilePaths.literal(temporary)) } catch (_: Exception) { }
             }
+        } } catch (failure: Exception) {
+            context.ensureActive()
+            if (publishing) throw SshUploadUnconfirmed(failure)
+            throw failure
         }
     }
 }

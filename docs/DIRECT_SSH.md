@@ -15,6 +15,56 @@ establishes the required behavior at upstream candidate
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries. The lost-reply/readiness checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
 
+## SFTP publication replies and refresh outcomes (2026-10-02)
+
+Fixed a Files error-handling gap: the folder refresh in a mutation's `finally`
+block could replace its original failure. Upload, rename, new-folder and delete
+now preserve the mutation's error when the following listing also fails. A
+successful change followed by a failed listing instead says the change completed
+and asks for a refresh. Cancelling the calling coroutine does not start another
+listing or turn into a recoverable file error. None of these paths repeats the mutation.
+
+Once an upload begins publishing its final name, an unsuccessful return is now
+reported as unconfirmed: the file may already be saved, so the user should refresh
+before uploading again. Cancellation still propagates. This is deliberately
+conservative; it does not infer failure or success from a disconnected channel.
+Failures before publication retain their original reason.
+
+The private SFTP fixture performs a real hardlink publication, then aborts that
+SSH connection before returning the publication reply. The strengthened Android
+case uploads through the actual system document picker and production Files
+screen. It verifies the unconfirmed warning remains visible alongside the saved
+file after a fresh-connection listing, exactly one publication occurred, and the
+original downloaded bytes match. A second copy appears only after another
+explicit picker upload, with a suffixed name; the original remains unchanged.
+The warning clears after that acknowledged action. Any private staging residue
+is explicitly removed at the end of the test.
+
+**Verification:** all **14 focused JVM tests** passed (five mutation-outcome,
+five path and four presentation cases), with zero failures/skips. Debug and test
+APKs built; all five native LOAD/RELRO checks and both APK ZIP alignment checks
+passed. The final real SFTP suite passed **OK (9 tests), 131.497 seconds**, API 37 /
+16 KB, zero failures/skips, including document/photo pickers, cancellation, source
+failure, literal paths, rename/delete and account retirement. The actual Files
+warning screenshot was inspected. This is screen-content evidence in a fixture
+Activity, not production system-bar or physical Pixel visual acceptance.
+
+An earlier nine-case run passed in 94.157 seconds but rendered the warning alone
+in a test component. The test was strengthened to exercise the actual picker and
+Files error row; production APK bytes were unchanged between these runs.
+
+- Debug SHA-256: `9c0feea8ca597315d5fbc602f51d52222d5948b753a46f6cd3ff7dba9feb98d2`
+- Final test SHA-256: `0f4c7ec38a107ea3b3fceb744cb94466b12e6bab493aa117988ffc9a7cc0cdde`
+- Evidence: ignored `captures/runtime/ssh-audit/publication-reply/`; final run
+  and warning screenshot are in `android-ui/`.
+
+This covers the hardlink publication path. Concurrent writers on servers using
+the existing non-atomic rename fallback, cloud document providers and physical
+Pixel/Mac acceptance remain open. Transport loss may leave a uniquely named
+`.cmux-upload-*` staging file; it is not silently removed on a new connection.
+Signed build 369 and upstream pins are unchanged. The private fixture and single
+existing emulator were stopped; no new AVD was created.
+
 ## Lost click replies, resize cancellation and pointer readiness (2026-10-02)
 
 The integrated fixture can now deliver a real guarded click to cmux-tui, consume

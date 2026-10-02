@@ -220,6 +220,43 @@ class SshFilesScreenTest {
         assertEquals("unknown.bin", remote.upload(directory, "unknown.bin", null, { byteArrayOf(1, 2).inputStream() }) { _, _ -> })
         assertEquals(2L, remote.list(directory).single().size)
     }
+    @Test fun lostPublicationReplyKeepsTheSavedFileAndWarnsWithoutReplaying() {
+        assumeTrue(Build.VERSION.SDK_INT >= 29)
+        val name = "cmux-reply-${UUID.randomUUID()}.txt"
+        val duplicate = name.removeSuffix(".txt") + " 2.txt"
+        val bytes = "Published once λ".toByteArray()
+        val uri = media(name, "text/plain", bytes)
+        try {
+            show()
+            runBlocking { assertEquals(0, connection.exec("files-publication-drop-reply").exitStatus) }
+            picker(); documentRow(name).click()
+            val warning = "The upload could not be confirmed. It may already be saved on the computer. Refresh the folder before uploading again."
+            shown(warning)
+            compose.onNodeWithTag("ssh.files.error").assertTextEquals(warning).assertIsDisplayed()
+            ready("ssh.files.row.$name")
+            assertFalse(connection.isConnected)
+            runBlocking {
+                val fresh = session.connections.autoConnect(hostId)!!
+                assertNotSame(connection, fresh)
+                val status = JSONObject(fresh.exec("files-publication-status").stdout.toString(Charsets.UTF_8))
+                assertEquals(1, status.getInt("published")); assertEquals(1, status.getInt("droppedReplies"))
+                assertTrue(remote.list(directory).none { it.name == duplicate })
+            }
+            verifyRemote(name, bytes)
+            capture("ssh-files-unconfirmed-publication")
+            // Only this explicit subsequent picker action creates another copy.
+            picker(); documentRow(name).click()
+            ready("ssh.files.row.$duplicate")
+            compose.onNodeWithTag("ssh.files.error").assertDoesNotExist()
+            verifyRemote(name, bytes); verifyRemote(duplicate, bytes)
+            runBlocking {
+                val fresh = session.connections.autoConnect(hostId)!!
+                val status = JSONObject(fresh.exec("files-publication-status").stdout.toString(Charsets.UTF_8))
+                assertEquals(2, status.getInt("published")); assertEquals(1, status.getInt("droppedReplies"))
+                remote.list(directory).filter { it.name.startsWith(".cmux-upload-") }.forEach { remote.delete(directory, it) }
+            }
+        } finally { compose.activity.contentResolver.delete(uri, null, null) }
+    }
     private val device get() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
     private fun media(name: String, mime: String, bytes: ByteArray, image: Boolean = false): Uri {
         val resolver = compose.activity.contentResolver
