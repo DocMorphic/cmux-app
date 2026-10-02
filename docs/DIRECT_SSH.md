@@ -13,7 +13,50 @@ rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This au
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
-Older checkpoints below retain their original evidence boundaries; the unsigned-sequence checkpoint below is the latest browser implementation status.
+Older checkpoints below retain their original evidence boundaries. The provider-registration checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
+
+## External browser provider registration recovery (2026-10-02)
+
+The real SSH/cmux-tui/Chrome suite now disconnects and replaces the connection
+which owns the external browser provider registration. Chrome, its CDP target,
+the current DOM, cmux tab resource and Android SSH transport stay alive. The
+private fixture exposes only two explicit detach/re-register commands; it does
+not accept arbitrary shell commands or touch personal Chrome profiles.
+
+The new production-UI test verifies:
+
+- A page click changes the actual decoded pixels and produces exactly one HTTP
+  callback before the disruption.
+- Provider detachment changes the page to loading while keeping its old pixels.
+  A tap on that image produces no additional callback.
+- Re-registering the same target clears loading automatically. The same tab,
+  target and SSH connection remain selected, and the changed DOM survives.
+- The earlier completed click and the disconnected tap are not replayed. A new
+  click after recovery produces the second callback.
+
+The first attempt incorrectly expected a failed-state Reconnect button. Retained
+UI diagnostics showed the provider instead reports a starting/loading state;
+this also matches the adapter's existing STARTING handling and the audited iOS
+pointer guard, which requires LIVE status. The corrected test verifies the
+loading transition in both directions and keeps all input/callback assertions.
+No production behavior was changed to satisfy the test.
+
+**Verification:** the final integrated suite passed **OK (3 tests), 54.732 seconds,
+zero skips**, on the existing API 37 / 16 KB emulator. Its other two cases still
+cover actual SSH connection loss and the Streamed/On Android workflow with
+navigation, typing and mode restoration. The recovered screenshot was inspected.
+Both APKs built, all five native libraries passed LOAD/RELRO checks, and both APKs
+passed 16 KB ZIP alignment. Evidence is under ignored
+`captures/runtime/ssh-audit/provider-restart/`, including the initial failed
+assertion, final instrumentation, APK hashes, and screenshots.
+
+- Debug SHA-256: `390efda4fffbae6244b9232bd3b997812e58b665d6fd738a2b931e6cf4eab7d2`
+- Test SHA-256: `046a952ef149408e2be69a2942b1cbc94ba4850275f26d7ae58055289028e8c9`
+
+This establishes registration recovery only. Chrome process replacement, cmux-tui
+daemon restart, unknown input-delivery outcomes and physical Pixel/Mac acceptance
+remain open. Signed build 363 and both upstream parity references are unchanged.
+The private fixture and emulator were stopped; no additional AVD was created.
 
 ## Full unsigned browser sequences and pointer tokens (2026-10-02)
 

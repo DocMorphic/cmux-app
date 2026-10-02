@@ -160,7 +160,12 @@ async def main():
         try:
             tokens = shlex.split(proc.command or "")
             if tokens == ["fixture-browser-status"] and browser:
-                proc.stdout.write(json.dumps({"events": browser.events})); proc.exit(0); return
+                proc.stdout.write(json.dumps({"events": browser.events, "registered": browser.provider is not None,
+                    "registrations": browser.registrations, "target": browser.target})); proc.exit(0); return
+            if tokens == ["fixture-browser-provider-detach"] and browser:
+                await browser.detach(); proc.exit(0); return
+            if tokens == ["fixture-browser-provider-reconnect"] and browser:
+                await browser.reconnect(wire); proc.exit(0); return
             if tokens == ["fixture-owner-status"]:
                 proc.stdout.write(json.dumps({"phone": socket.with_name("cmux-android.sock").is_socket(),
                     "desktop": socket.is_socket(), "phoneEnsures": phone_ensures})); proc.exit(0); return

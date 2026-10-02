@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH browser provider registration recovery (2026-10-02):** the real SSH,
+cmux-tui and private Chrome suite now verifies provider detachment/re-registration
+with the same page and SSH connection. Stale-image clicks are discarded, prior
+clicks are not replayed, and new input works after recovery. All three integrated
+checks passed (54.732 seconds, API 37 / 16 KB, zero skips), plus APK alignment
+and screenshot inspection. [Evidence and initial assertion correction](DIRECT_SSH.md#external-browser-provider-registration-recovery-2026-10-02)
+leave Chrome process/daemon restart, unknown delivery and physical acceptance
+open. Production code and signed build 363 are unchanged; the emulator is stopped.
+
 **Signed integration build 363 (2026-10-02):** the accumulated source at
 `47f63aa` passed full app/Ghostty JVM tasks, all APK assembly, helper/update-policy
 tests, viewer hashes and signing/alignment gates in CI. Independent signed-APK

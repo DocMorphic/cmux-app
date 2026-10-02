@@ -134,6 +134,45 @@ class SshBrowserWorkspaceTest {
         open(); ready("SSH browser page"); background(30, 60, 120)
         capture("ssh-real-chrome-reopened")
     }
+    @Test fun providerRegistrationRestartRecoversSamePageWithoutStaleOrReplayedClicks() {
+        val original = workspace().tabs.single { it.isBrowser }.resource
+        val connection = cmux.connection
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshWorkspacesRoute(session, hostId) {}
+        } } }
+        open(); ready("SSH browser page"); background(18, 95, 55)
+        fun status() = runBlocking {
+            JSONObject(connection.exec("fixture-browser-status").stdout.toString(Charsets.UTF_8))
+        }
+        fun clicks(): Int = status().getJSONArray("events").let { items ->
+            (0 until items.length()).count { items.getJSONObject(it).has("click") }
+        }
+        fun click() = compose.onNodeWithContentDescription("SSH browser page").performTouchInput {
+            click(Offset(width * .5f, height * .33f))
+        }
+        click(); compose.waitUntil(10000) { clicks() == 1 }; background(90, 40, 110)
+        compose.waitUntil(15000) { compose.onAllNodesWithContentDescription("Browser loading").fetchSemanticsNodes().isEmpty() }
+        val before = status()
+        assertEquals(0, runBlocking { connection.exec("fixture-browser-provider-detach").exitStatus })
+        // cmux-tui reports STARTING while the external provider is absent, not
+        // FAILED. The old pixels remain visible but lose pointer authority.
+        compose.waitUntil(15000) { compose.onAllNodesWithContentDescription("Browser loading").fetchSemanticsNodes().isNotEmpty() }
+        assertFalse(status().getBoolean("registered")); assertTrue(connection.isConnected)
+        click(); compose.waitForIdle(); assertEquals(1, clicks())
+        capture("ssh-provider-disconnected")
+        assertEquals(0, runBlocking { connection.exec("fixture-browser-provider-reconnect").exitStatus })
+        compose.waitUntil(15000) { compose.onAllNodesWithContentDescription("Browser loading").fetchSemanticsNodes().isEmpty() }
+        ready("SSH browser page"); background(90, 40, 110)
+        val after = status()
+        assertEquals(before.getString("target"), after.getString("target"))
+        assertEquals(before.getInt("registrations") + 1, after.getInt("registrations"))
+        assertEquals(original, workspace().tabs.single { it.isBrowser }.resource)
+        assertSame(connection, cmux.connection); assertTrue(connection.isConnected)
+        assertEquals(1, clicks())
+        click(); compose.waitUntil(10000) { clicks() == 2 }
+        capture("ssh-provider-recovered")
+    }
+
     @Test fun liveConnectionLossRestoresSameBrowserAndDoesNotReplayCompletedClick() {
         val original = workspace().tabs.single { it.isBrowser }.resource
         val oldProvider = cmux.state.value.providers.single { it.session == "fixture" }

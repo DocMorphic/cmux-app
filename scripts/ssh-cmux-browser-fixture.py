@@ -11,6 +11,8 @@ class BrowserFixture:
         self.server = self.chrome = self.provider = None
         self.port = 0
         self.events = []
+        self.tab_resource = None
+        self.registrations = 0
 
     async def start(self):
         async def http(reader, writer):
@@ -83,10 +85,26 @@ class BrowserFixture:
         tree = await self.provider.request("list-workspaces")
         tab = next(tab for ws in tree["workspaces"] for screen in ws["screens"]
                    for pane in screen["panes"] for tab in pane["tabs"] if tab["surface"] == surface)
+        self.tab_resource = tab["tab_resource_id"]
+        await self.register()
+        # Keep this wire alive: provider registration belongs to its connection.
+
+    async def register(self):
+        assert self.provider and self.tab_resource
         await self.provider.request("register-browser-provider", {"provider_id": "private-android-browser",
             "endpoint": self.endpoint, "authentication": "none",
-            "targets": [{"tab_id": tab["tab_resource_id"], "target_id": self.target}]})
-        # Keep this wire alive: provider registration belongs to its connection.
+            "targets": [{"tab_id": self.tab_resource, "target_id": self.target}]})
+        self.registrations += 1
+
+    async def reconnect(self, wire):
+        # Replace only the fixture's registration owner. Keep Chrome, its target,
+        # current DOM and cmux tab resource intact, without navigation or replay.
+        await self.detach()
+        self.provider = await wire()
+        try: await self.register()
+        except BaseException:
+            await self.detach()
+            raise
 
     async def close(self):
         await self.detach()
