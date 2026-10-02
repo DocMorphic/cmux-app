@@ -432,9 +432,17 @@ group and bundle-specific session snapshot. It was launched with
 `CMUX_DISABLE_SESSION_RESTORE=1`; the stable installation remains running and
 unchanged. This does not imply all configuration directories are isolated.
 
-The user reports signing in through Account settings. Screen capture is failing
-and accessibility currently exposes window titles without controls, so nightly
-account/pairing status and its advertised browser capability remain unverified.
+**Account follow-up (2026-10-02):** Mac accessibility briefly recovered. The
+separate `com.cmuxterm.app.nightly` process is running, and its Account settings
+show a signed-in account, active team and Sign Out control. Nightly account sign-in
+is now verified; no credentials were entered or changed during this inspection.
+A pre-existing quit confirmation was cancelled, preserving its workspace.
+Navigating to Mobile settings then failed with ScreenCaptureKit error `-3812`,
+including a fresh app binding attempt. No listener/pairing toggle was changed.
+Native Mobile readiness, phone enrollment for this separate build and advertised
+browser capability remain unverified; the user has been asked to report the
+Mobile pane's status. Account sign-in alone does not prove those three gates.
+
 The live check now accepts `-e cmux_live_build nightly`: it requires exactly one
 eligible saved Iroh pairing with that build tag, then verifies the host identity.
 It fails instead of falling back to stable or choosing between multiple matches.
