@@ -3,6 +3,56 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
+## Current signed development APK — build 363 (2026-10-02)
+
+[Build 363](https://github.com/DocMorphic/cmux-app/actions/runs/36979580273)
+passed at `47f63aa872765960a0e7778e3fef361271b2aa2c`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36979580273/artifacts/11215555782)
+and extract `app-release.apk` (repository access required). This supersedes build
+284 as the newest independently verified signed development APK. PR #1 remains
+a draft; this was a manual batch build, not a main-branch preview publication.
+
+- Package `io.github.docmorphic.cmuxapp`, version code **363**, version `0.2.0`.
+- APK SHA-256: `d75f4ee2df24fb833011332df491a710e05d7915ba6a24dace223cf6c601e0f4`.
+- Certificate SHA-256:
+  `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+- Downloaded APK size: **38,068,600 bytes**. The signer matches earlier releases.
+- Includes the accumulated browser/SSH recovery, notification dismissal,
+  encrypted push/reply handling and scheduling, foreground presentation/badges,
+  account deletion/restoration, and right-Alt/dead-accent input fixes. Push ingress
+  and reply code are present; a live Android push provider is still unconfigured.
+
+CI passed both full `:ghostty:testDebugUnitTest` and `:app:testDebugUnitTest` tasks,
+debug/test/release assembly, four helper tests, ten update-policy tests, source
+viewer hashes, signature verification and native/ZIP alignment gates. The app
+test/build step completed in **7m 37s**. Individual JVM totals are not published
+by this workflow, so no count is inferred from earlier focused runs.
+
+Independent checks of the downloaded signed APK confirmed the package/version,
+non-debuggable manifest with backup disabled, all **14 packaged viewer hashes**,
+all **five native LOAD/RELRO** checks and 16 KB ZIP alignment. The recent account,
+reply and keyboard feature classes are present; the four debug fixture activities
+are absent from both the manifest and DEX classes.
+
+The existing API 37 / arm64 / 16,384-byte emulator upgraded **284 → 363** with
+`adb install -r`, without clearing data. Before installation, the installed 284
+hash matched its recorded release. After installation, the installed base APK
+matches the downloaded 363 hash; the first-install timestamp is unchanged and
+`pageSizeCompat=0`. The first immediate launch overlapped Android's package-update
+Activity. A subsequent force-stop/cold launch reached the actual MainActivity in
+**1,235 ms**, and its sign-in screen was visually inspected with no compatibility
+warning. This is launch timing, not connection latency. The emulator was stopped.
+
+The baseline was signed out, so this upgrade does not establish authenticated
+session migration. No physical Pixel was available, no phone app/data was changed,
+and no account email was sent. Physical account/Mac use, native notifications and
+live provider delivery remain open. The full parity goal is not complete.
+
+Local APK: `build/signed-run-36979580273/app-release.apk` (ignored). Verification
+receipt, CI log, before/after package/hash records and screenshots are under
+`captures/releases/47f63aa/` (ignored). The older tailnet download was not replaced;
+use the artifact link above for this signed checkpoint.
+
 ## Current installed checkpoint — isolated browser integration (2026-09-30)
 
 Debug production `9efef27` was installed in place on the connected Pixel. The
@@ -135,7 +185,8 @@ foundation, all file formats, full notifications, or complete iOS parity.
 passed at `0db3c178d69facb8468d62e6bca42e951d34c2b1`. Download the
 [stable signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36691406643/artifacts/11086635606)
 and extract `app-release.apk` (repository access required). This is the newest
-verified signed development APK, superseding 274.
+verified signed development APK at that checkpoint, superseding 274; build 363
+above is now newer.
 
 - Package `io.github.docmorphic.cmuxapp`, version code **284**, version `0.2.0`.
 - APK SHA-256: `1482af3e6c56ab75643371ac6edef3ee757cf61565ff3e4f6d073c089fca46cd`.

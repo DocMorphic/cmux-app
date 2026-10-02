@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Signed integration build 363 (2026-10-02):** the accumulated source at
+`47f63aa` passed full app/Ghostty JVM tasks, all APK assembly, helper/update-policy
+tests, viewer hashes and signing/alignment gates in CI. Independent signed-APK
+verification confirmed the original signing identity, 14 packaged viewer hashes,
+five native libraries and absent debug fixture activities. The existing Android
+17 / 16 KB emulator upgraded signed 284 → 363 without clearing data; installed
+APK hash, unchanged first-install time, native page compatibility and cold launch
+to sign-in were verified. [Download, evidence and limits](PIXEL_INSTALL.md#current-signed-development-apk--build-363-2026-10-02)
+leave authenticated upgrade, physical Pixel/Mac acceptance and live push provider
+delivery open. No phone was changed; the emulator is stopped and PR #1 is a draft.
+
 **Hardware layout input (2026-10-02):** fixed right-Alt character/dead-accent
 lookup while preserving left-Alt terminal shortcuts. Repeated accents survive
 modifier presses; explicit control chords cancel pending accents. Seven JVM and
