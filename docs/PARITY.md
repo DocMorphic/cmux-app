@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Live terminal streaming verified on Pixel (2026-10-02):** the extended physical
+check passed in 11.542 s, including a real native input-lane command, five live GRID
+events carrying its output without a replay read, simultaneous control RPC,
+fresh-connection replay and verified test-workspace cleanup. This host does not
+advertise identified-input support, so ACK/deduplication acceptance remains open.
+[Evidence and exact scope](NATIVE_RUNTIME_CHECKPOINT.md#physical-live-grid-output-and-native-input-lane--2026-10-02)
+distinguish this from UI/Gboard, raw-byte lanes and network-switching acceptance.
+Production APK and signed build 376 are unchanged; no emulator was started.
+
 **Lazy terminal startup fixed and physically checked (2026-10-02):** a new live
 test exposed creation waiting forever for a deferred Mac terminal. Android now
 prepares only the selected pending terminal using a viewport-free replay while

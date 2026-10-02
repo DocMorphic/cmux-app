@@ -33,6 +33,20 @@ acceptance. It does not establish UI pixels, Gboard, output-lane streaming, netw
 switching, notifications or full parity. Even a replay can resume a hibernated
 agent in upstream cmux, so this check never replays arbitrary existing terminals.
 
+For a host selecting GRID output, add `-e cmux_live_terminal_stream true` to the
+same command to check continuous terminal output and the independent native input
+lane. It subscribes using the production event path, establishes one baseline,
+then sends a second generated `printf` command through `TerminalInputLaneOwner`.
+Only subsequent live grid events can satisfy that marker; no replay is requested
+after this send until the separate reconnect phase. Control RPC must remain usable
+while the input lane is open. If the host advertises identified-input support,
+the test requires an APPLIED acknowledgement for the exact stream and sequence;
+otherwise it records that acknowledgement verification is unavailable. It never
+forces an unadvertised identified-input format or falls back to RPC for this send.
+Temporary viewport/subscription resources belong only to the disposable terminal.
+This option does not test native raw-byte output, UI rendering or the full input
+sender's retry/recovery policy.
+
 ## Build cadence
 
 Commit feature work as it is completed. Run focused checks for changed behavior;

@@ -1,5 +1,41 @@
 # Native transport and keyboard runtime checkpoints
 
+## Physical live GRID output and native input lane — 2026-10-02
+
+Extended the opt-in physical terminal check with `cmux_live_terminal_stream=true`.
+The final Pixel/Mac run passed **1 test in 11.542 s**, without skips. It retained
+the existing login and saved Mac, verified identity/account access, and used one
+new disposable workspace. The baseline RPC command/replay and distinct-connection
+reconnect checks still passed.
+
+For the additional live check, the host selected **GRID** output. The test used
+production `subscribe`, `TerminalStreamMirror`, and `TerminalInputLaneOwner`, with
+a temporary 80×24 viewport on that disposable terminal. It established one replay
+baseline, sent a second generated command through the independent native input
+lane and received its exact output through **five applied live grid events**.
+No replay after that send could satisfy this assertion. The assembled output marker
+was absent from the echoed command, and control RPC remained usable while the
+input lane was open. A later separate reconnect verified preserved baseline output
+on a genuinely different underlying connection.
+
+The host did **not** advertise `terminal.input.exactly_once.v1`:
+`identifiedInputAdvertised=false`, `inputAcknowledgementVerified=false`.
+The test therefore sent the supported legacy native frame. This is proof of live
+native input/output, not physical verification of identified input, its ACKs or
+deduplication. Those need a compatible host. Fixture coverage for identified input
+remains recorded separately in `TERMINAL_INPUT_DELIVERY.md`.
+
+Temporary stream/viewport resources were released, the test workspace was closed
+and its absence verified, and the app was reopened. No existing terminal received
+input. The phone's stay-awake setting remained `0`; no emulator was started.
+Production code/APK is unchanged from the lazy-startup fix: installed debug SHA-256
+`e5e263d23bb42bc877c66c1a4fa66675d9cf136a9fa114b308055e288b6e42a8`.
+The test APK built and passed ZIP alignment, SHA-256
+`f31011c4462e9713d2acbbcb09745328166d11551108d781fcfe26044a36edff`.
+Signed build 376 remains unchanged. This check does not establish raw-byte output
+lanes, Compose pixels, Gboard, network switching, full sender recovery or live push.
+Evidence is ignored under `captures/runtime/pixel-stream-20261002/`.
+
 ## Lazy terminal startup and live reconnect — 2026-10-02
 
 A new opt-in physical test exposed a real startup deadlock: native

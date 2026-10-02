@@ -3,6 +3,7 @@ package io.github.docmorphic.cmuxapp
 import android.os.Build
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -10,11 +11,12 @@ import java.util.UUID
 
 /** Opt-in physical acceptance. Only the newly created workspace receives input or is closed.
  * Existing account/pairing/preferences are never reset. Reports omit terminal text and host IDs.
- * This tests real RPC and production replay decoding, not Gboard, screen pixels or output lanes.
+ * Optional stream acceptance covers GRID events and the native input lane, not Gboard or pixels.
  */
 class LiveNativeTerminalCheck {
     @Test fun disposableTerminalOutputSurvivesNativeReconnect() = runBlocking<Unit> {
         assumeTrue(InstrumentationRegistry.getArguments().getString("cmux_live_terminal_fixture") == "true")
+        val streamCheck = InstrumentationRegistry.getArguments().getString("cmux_live_terminal_stream") == "true"
         check(!Build.FINGERPRINT.contains("generic") && !Build.MODEL.contains("sdk")) { "Physical device required" }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         var stage = "existing account"
@@ -109,6 +111,10 @@ class LiveNativeTerminalCheck {
 
                         stage = "real terminal replay decoding"
                         val mode = requireOutput(first)
+                        val streamReport = if (streamCheck) {
+                            stage = "live grid events and native input lane"
+                            verifyLiveGrid(first, created.id, terminal.id) { check(connections.teams.isCurrent(team)) }
+                        } else null
                         stage = "native disconnect and reconnect"
                         first.close(); active = null
                         active = connect()
@@ -129,10 +135,11 @@ class LiveNativeTerminalCheck {
                         fixtureClosed = true
                         println("CMUX_LIVE_TERMINAL_REPORT " + JSONObject()
                             .put("identityVerified", true).put("accountAccessVerified", true)
-                            .put("createdWorkspace", true).put("inputRequests", 1)
+                            .put("createdWorkspace", true).put("inputRequests", if (streamCheck) 2 else 1)
                             .put("decodedOutput", true).put("reconnectedSameTerminal", true)
                             .put("freshConnection", true)
                             .put("outputAfterReconnect", true).put("outputMode", mode)
+                            .put("liveStream", streamReport ?: JSONObject.NULL)
                             .put("fixtureClosed", true))
                     } finally {
                         // Cleanup only a positively identified workspace created by this invocation.
@@ -153,6 +160,93 @@ class LiveNativeTerminalCheck {
         } catch (failure: Throwable) {
             throw AssertionError("Live terminal check failed at $stage (${failure.javaClass.simpleName}); " +
                 "creationAttempted=$creationAttempted, fixtureCreated=$fixtureCreated, fixtureClosed=$fixtureClosed")
+        }
+    }
+
+    /** No replay is requested after sending the marker: only live events may satisfy this check. */
+    private suspend fun verifyLiveGrid(client: MobileRpcClient, workspace: String, surface: String,
+        requireCurrent: () -> Unit): JSONObject = withContext(Dispatchers.Main) {
+        coroutineScope {
+            val status = client.hostStatus()
+            val values = status.getJSONArray("capabilities")
+            val capabilities = (0 until values.length()).map { values.getString(it) }.toSet()
+            val transport = TerminalTransport.resolve(capabilities, status.optString("terminal_fidelity"))
+            check(transport.mode == TerminalOutputMode.GRID) { "This live case requires the host's GRID mode" }
+            val identified = TerminalInputDelivery.CAPABILITY in capabilities
+            val delivery = TerminalInputDelivery(UUID.fromString(surface), UUID.randomUUID(), 1uL)
+            val suffix = UUID.randomUUID().toString().replace("-", "")
+            val marker = "CMUX_STREAM_" + suffix
+            val output = CompletableDeferred<Unit>()
+            val acknowledgement = CompletableDeferred<Unit>()
+            val subscription = UUID.randomUUID().toString()
+            val viewport = TerminalViewport(80, 24)
+            var subscribed = false
+            var reportedViewport = false
+            var sending = false
+            var gridEvents = 0
+            var input: TerminalInputLaneOwner? = null
+            val mirror = TerminalStreamMirror(surface, transport, viewport,
+                ghosttyTerminalFactory(TerminalCellMetrics(8f, 16f, 14f)))
+            val events = launch(start = CoroutineStart.UNDISPATCHED) {
+                client.events.collect { event ->
+                    if (event.topic != "terminal.render_grid" ||
+                        (event.streamId != null && event.streamId != subscription)) return@collect
+                    val frame = event.payload.optJSONObject("render_grid") ?: event.payload
+                    if (frame.optString("surface_id") != surface) return@collect
+                    requireCurrent()
+                    val result = mirror.grid(event.payload)
+                    if (sending) {
+                        check(result != TerminalStreamMirror.Result.REPLAY) { "Live grid lost continuity" }
+                        if (result == TerminalStreamMirror.Result.APPLIED) {
+                            gridEvents++
+                            if (mirror.display.visibleLines().any { spans ->
+                                spans.joinToString("") { it.text }.trim() == marker
+                            }) output.complete(Unit)
+                        }
+                    }
+                }
+            }
+            try {
+                subscribed = true
+                withContext(NonCancellable) { client.subscribe(transport.topics, subscription, transport.screenAnchor) }
+                reportedViewport = true
+                client.reportViewport(workspace, surface, viewport, 1)
+                val baseline = TerminalReplayRecovery().replay {
+                    client.replay(workspace, surface, viewport.columns, viewport.rows, 1,
+                        transport.screenAnchor, maxScrollbackRows = 0)
+                }
+                check(mirror.replay(baseline) == TerminalStreamMirror.Result.APPLIED)
+                input = TerminalInputLaneOwner(this, onAcknowledgement = { ack ->
+                    check(identified && ack.stream == delivery.stream && ack.sequence == delivery.sequence &&
+                        ack.status == TerminalInputAcknowledgement.Status.APPLIED) { "Unexpected live input acknowledgement" }
+                    acknowledgement.complete(Unit)
+                }) { use -> client.useTerminalInputLane(surface, use) }
+                withTimeout(15_000) { input.ready.first { it } }
+                requireCurrent()
+                sending = true
+                val command = "printf '%s%s\\n' 'CMUX_STREAM_' '$suffix'\r"
+                check(if (identified) input.sendIdentified(command, delivery) else input.send(command))
+                // Control remains usable while the independent terminal input lane is open.
+                client.hostStatus()
+                withTimeout(15_000) {
+                    output.await()
+                    if (identified) acknowledgement.await()
+                }
+                check(gridEvents > 0)
+                JSONObject().put("nativeInputLane", true).put("liveGridOutput", true)
+                    .put("gridEventsAfterInput", gridEvents).put("identifiedInputAdvertised", identified)
+                    .put("inputAcknowledgementVerified", identified && acknowledgement.isCompleted)
+            } finally {
+                withContext(NonCancellable) {
+                    input?.close()
+                    events.cancelAndJoin()
+                    mirror.close()
+                    runCatching { withTimeout(10_000) {
+                        if (reportedViewport) runCatching { client.clearViewport(workspace, surface, 2) }
+                        if (subscribed) runCatching { client.unsubscribe(subscription) }
+                    } }
+                }
+            }
         }
     }
 }
