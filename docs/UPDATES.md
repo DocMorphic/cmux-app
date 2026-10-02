@@ -146,3 +146,10 @@ No emulator or APK build was needed for this release-policy check.
 No issue, preview release, production release, main merge or phone update was
 performed by this verification. CI publication/promotion still needs its first
 main-branch run after activation.
+
+A later read-only check during build 369 verification detected
+`644fd5eb60874322d7f5a8005607d0c75ea39b48`, **871 commits** after the same audited
+candidate. Both API inventories remain incomplete, and the report again requires
+review. Neither reference was advanced and no bot issue was published. This is
+detection evidence, not a new audit of those commits or their release policy.
+The report is retained in ignored `captures/releases/59f279c/upstream-review/`.

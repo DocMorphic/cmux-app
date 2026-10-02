@@ -3,13 +3,59 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 363 (2026-10-02)
+## Current signed development APK — build 369 (2026-10-02)
+
+[Build 369](https://github.com/DocMorphic/cmux-app/actions/runs/36987796472)
+passed at `59f279cbed609ad73c255bb192f2c02dbe2f14be`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36987796472/artifacts/11218422694)
+and extract `app-release.apk` (repository access required). This supersedes 363.
+PR #1 remains a draft; this manual batch build did not publish a main-branch preview.
+
+- Package `io.github.docmorphic.cmuxapp`, version code **369**, version `0.2.0`.
+- APK SHA-256: `eb9dac571fefbd2a7bfc6f55679f5db4933fe92a1296754fd3f843db824f7795`.
+- Certificate SHA-256:
+  `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+- Downloaded APK size: **38,068,600 bytes**. Signing identity is unchanged.
+- Includes all of 363 plus browser provider/Chrome/desktop restart recovery,
+  visible workspace recovery errors, preserved unconfirmed-delivery warnings,
+  cancelled-resize recovery and pointer-readiness gating.
+
+CI passed the full app and Ghostty JVM tasks, debug/test/release assembly, four
+helper tests, ten update-policy tests, viewer hashes, signature and native/ZIP
+alignment gates. The Gradle step took **7m 42s**. This workflow does not publish
+individual JVM totals; no total is inferred. The source's six real SSH/cmux-tui/
+Chrome integration cases passed separately in **94.736 seconds** on API 37 / 16 KB;
+see [the focused evidence and limits](DIRECT_SSH.md#lost-click-replies-resize-cancellation-and-pointer-readiness-2026-10-02).
+
+Independent downloaded-APK checks confirmed all **14 packaged viewer hashes**,
+all **five native LOAD/RELRO checks**, 16 KB ZIP alignment, the expected signer,
+version and package, a non-debuggable manifest with backup disabled, and absence
+of the four debug fixture activities from the release manifest.
+
+The existing API 37 / arm64 / 16,384-byte emulator upgraded **363 → 369** with
+`adb install -r`, without clearing data. The installed hashes before and after
+matched their respective releases. The first-install time remained
+`2026-09-30 01:57:49`, and `pageSizeCompat=0`. A cold launch reached the actual
+MainActivity in **615 ms**; the sign-in screen was visually checked with no
+compatibility warning. This is launch timing, not connection latency. The single
+existing emulator was stopped afterward; no new virtual device was created.
+
+The baseline was signed out, so this does not verify authenticated session
+migration. No physical Pixel was connected, and no account email was sent.
+Physical account/Mac acceptance and live Android push-provider delivery remain
+open. This is a development checkpoint, not a completed parity release.
+
+Local APK: `build/signed-run-36987796472/app-release.apk` (ignored). Receipt,
+CI log, packaging checks, before/after package/hash records and screenshots:
+`captures/releases/59f279c/` (ignored). The older tailnet download was not replaced.
+
+## Previous signed checkpoint — build 363 (2026-10-02)
 
 [Build 363](https://github.com/DocMorphic/cmux-app/actions/runs/36979580273)
 passed at `47f63aa872765960a0e7778e3fef361271b2aa2c`. Download the
 [signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36979580273/artifacts/11215555782)
 and extract `app-release.apk` (repository access required). This supersedes build
-284 as the newest independently verified signed development APK. PR #1 remains
+284 at that checkpoint; build 369 above is now newer. PR #1 remains
 a draft; this was a manual batch build, not a main-branch preview publication.
 
 - Package `io.github.docmorphic.cmuxapp`, version code **363**, version `0.2.0`.

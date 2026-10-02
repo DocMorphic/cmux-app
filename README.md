@@ -6,14 +6,13 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 284 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36691406643/artifacts/11086635606)
-from `0db3c17` adds identified terminal input, bounded recovery and composer
-settlement across Activity recreation. Signature, 16 KB packaging, upgrade from
-274 and emulator launch are verified. Native lane and lost-reply behavior have
-separate automated runtime evidence; the new capability still needs physical
-Mac/Pixel acceptance. Later event-stream fixes are committed for the next APK.
-The signed package's account workflow and full parity remain pending. See the
-[install guide](docs/PIXEL_INSTALL.md) for exact evidence, checksums and identity.
+**Signed download:** [build 369 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36987796472/artifacts/11218422694)
+from `59f279c` includes the accumulated account, notification, keyboard and
+browser recovery work, including lost-click replies and pointer readiness.
+The full CI test/build pipeline, signature, 16 KB packaging, upgrade from 363,
+and emulator launch passed. Physical Pixel/Mac acceptance and live Android push
+provider delivery remain open. See the [install guide](docs/PIXEL_INSTALL.md)
+for checksums and the exact verification scope.
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
 Android now wires Iroh/V2 discovery and admitted RPC connections into the app and
@@ -25,7 +24,7 @@ See [the connection migration](docs/IROH_V2.md).
 **Continuing on another laptop:** start with [HANDOFF.md](docs/HANDOFF.md) for the
 working branch, source research, implementation map, unfinished checks, release
 state, setup commands, and next steps. The latest feature work is on
-`feature/local-mac-bridge`, ahead of the last signed APK.
+`feature/local-mac-bridge`; the signed checkpoint is identified above.
 
 ## What was researched
 

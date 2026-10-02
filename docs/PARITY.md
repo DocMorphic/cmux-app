@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Signed build 369 checkpoint (2026-10-02):** source `59f279c` passed the full
+CI pipeline and was packaged with the existing release signer. Independent
+checks verified all 14 viewer assets and five native libraries, 16 KB alignment,
+and an in-place emulator upgrade from 363 with unchanged first-install time.
+Cold MainActivity launch and its sign-in screen passed; the emulator was stopped.
+[Download, checksum and exact scope](PIXEL_INSTALL.md#current-signed-development-apk--build-369-2026-10-02).
+The baseline was signed out; physical Pixel/Mac acceptance, authenticated migration
+and live Android push-provider delivery remain open. Historical checkpoint notes
+below describe the signed version available at the time of each check.
+
 **SSH lost-reply and input-readiness fixes (2026-10-02):** preserved unconfirmed
 delivery warnings, fixed stale size tracking after cancelled resize, and exposed
 actual pointer authority to the page's enabled/accessibility state. All 29 focused
@@ -56,7 +66,7 @@ verification confirmed the original signing identity, 14 packaged viewer hashes,
 five native libraries and absent debug fixture activities. The existing Android
 17 / 16 KB emulator upgraded signed 284 → 363 without clearing data; installed
 APK hash, unchanged first-install time, native page compatibility and cold launch
-to sign-in were verified. [Download, evidence and limits](PIXEL_INSTALL.md#current-signed-development-apk--build-363-2026-10-02)
+to sign-in were verified. [Download, evidence and limits](PIXEL_INSTALL.md#previous-signed-checkpoint--build-363-2026-10-02)
 leave authenticated upgrade, physical Pixel/Mac acceptance and live push provider
 delivery open. No phone was changed; the emulator is stopped and PR #1 is a draft.
 
