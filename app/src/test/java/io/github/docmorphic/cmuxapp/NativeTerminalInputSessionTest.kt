@@ -62,6 +62,30 @@ class NativeTerminalInputSessionTest {
         }
     }
 
+    @Test fun detachedSurfaceDiscardsPendingUnitsBeforeExplicitReattach() = runBlocking<Unit> {
+        val wire = Wire(); val client = MobileRpcClient(wire, { "fixture" })
+        NativeTerminalInputSession(this).use { session ->
+            try {
+                client.connect(); session.attach(owner, client, capabilities, targets) { true }
+                val sent = Channel<TerminalInputDelivery>(4)
+                val registration = session.registerLane(client, "workspace", surface, MutableStateFlow(true)) { _, d -> sent.send(d); true }
+                val oldQueue = session.orderedQueue(client, "workspace", surface)!!
+                oldQueue.offer("unconfirmed"); withTimeout(3000) { sent.receive() }
+                oldQueue.offer("queued before detach")
+                client.terminalTrafficAllowed = { false }
+                session.forgetDetachedSurface(client, surface)
+                assertFalse(oldQueue.offer("after detach"))
+                assertTrue(runCatching { client.input("workspace", surface, "blocked") }.isFailure)
+                registration.close()
+                client.terminalTrafficAllowed = { true }
+                val newQueue = session.orderedQueue(client, "workspace", surface)!!
+                assertNotSame(oldQueue, newQueue)
+                client.input("workspace", surface, "explicit new input")
+                assertEquals(listOf("explicit new input"), wire.requests.map { it.getJSONObject("params").getString("text") })
+            } finally { client.close() }
+        }
+    }
+
     @Test fun allFivePublicMethodsUseOneOrderedIdentityStreamAndPreserveRpcFields() = runBlocking<Unit> {
         val wire = Wire(); val client = MobileRpcClient(wire, { "fixture" })
         NativeTerminalInputSession(this).use { session ->

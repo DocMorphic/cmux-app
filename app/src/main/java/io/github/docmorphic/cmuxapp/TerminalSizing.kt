@@ -92,6 +92,7 @@ internal class TerminalSizingSurface {
     var detached: TerminalDetach? = null; private set
     var reconnecting = false; private set
     var viewportRevision = 0L; private set
+    var detachRevision = 0L; private set
     val allowsTraffic get() = detached == null
 
     fun apply(next: TerminalSizeState, selfId: String?, rendered: SharedTerminalGrid?): TerminalSizingEffect {
@@ -115,6 +116,7 @@ internal class TerminalSizingSurface {
             return TerminalSizingEffect.RECONNECT
         }
         detached = event
+        detachRevision++
         reconnecting = false
         return TerminalSizingEffect.NONE
     }

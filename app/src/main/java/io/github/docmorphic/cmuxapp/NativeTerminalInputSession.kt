@@ -79,6 +79,11 @@ internal class NativeTerminalInputSession(private val scope: CoroutineScope) : A
         }
         ctx.changed.value++
     }
+    fun forgetDetachedSurface(client: MobileRpcClient, surface: String) {
+        val ctx = context?.takeIf { it.client === client } ?: return
+        ctx.records.values.filter { it.target.surface.equals(surface, ignoreCase = true) }.toList().forEach(::remove)
+        ctx.changed.value++
+    }
     fun updateTargets(client: MobileRpcClient, targets: Set<Target>) {
         context?.takeIf { it.client === client }?.let { updateTargets(it, targets) }
     }
@@ -146,6 +151,7 @@ internal class NativeTerminalInputSession(private val scope: CoroutineScope) : A
     private suspend fun awaitConnection(ctx: Context, target: Target): MobileRpcClient {
         withTimeout(30_000) { ctx.changed.first { !valid(ctx) || ctx.client != null } }
         check(valid(ctx) && target in ctx.targets) { "The original terminal is no longer available" }
+        ctx.client?.checkTerminalTraffic(target.surface)
         return checkNotNull(ctx.client).also { check(!it.isClosed) { "Terminal reconnecting" } }
     }
     private fun record(ctx: Context, target: Target): Record? {
@@ -166,7 +172,8 @@ internal class NativeTerminalInputSession(private val scope: CoroutineScope) : A
         val client = ctx.client ?: return
         val transport = object : TerminalInputSender.Transport<Payload> {
             override val supportsIdentifiedInput = TerminalInputDelivery.CAPABILITY in ctx.capabilities
-            private fun current() = valid(ctx) && ctx.client === client && record.target in ctx.targets && !client.isClosed
+            private fun current() = valid(ctx) && ctx.client === client && record.target in ctx.targets && !client.isClosed &&
+                client.terminalTrafficAllowed(record.target.surface)
             override suspend fun sendOnLane(payload: Payload, delivery: TerminalInputDelivery): TerminalInputSender.SendResult {
                 if (!current()) return TerminalInputSender.SendResult.Unavailable
                 val text = payload.operation as? TerminalInputOperation.Text ?: return TerminalInputSender.SendResult.Unavailable

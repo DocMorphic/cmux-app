@@ -12,15 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-**New NIGHTLY shared-sizing gap identified (2026-10-03):** a physical terminal
-check requested 67×47 while the host returned 67×35, before Gboard input. The
-installed host's source now negotiates against the Mac viewport as well as the
-phone. The revised check separately validates the reported phone viewport and
-negotiated grid; it compiles but awaits an unlocked Pixel. The new sizing/detach
-model has six passing JVM tests, but event/input gating, sizing controls and
-explicit reattach UI remain to be integrated. This is a concrete newer-iOS parity
-gap, not a completed feature. Signed build 397 is unchanged.
-[Contract, evidence and integration requirements](TERMINAL_SHARED_SIZING.md).
+**NIGHTLY shared-sizing integration in progress (2026-10-03):** the foreground
+session now receives sizing/detach events, gates RPC/native-lane traffic, discards
+pending input on explicit detach, and exposes explicit reattach actions. A size
+chip and read-only participants dialog show the host's negotiated grid. Editable
+policy controls, cross-Mac/background-reply retention, and physical acceptance
+remain open. Android reports the supported `unknown` kind plus its actual model;
+upstream needs an Android kind for the same automatic exclusion rules as iOS.
+The Pixel remains locked, so the revised shared-size/Gboard check has not run.
+Signed build 397 and the installed Pixel debug app are unchanged.
+[Contract, tests and remaining integration](TERMINAL_SHARED_SIZING.md).
 
 **Signed build 397 delivered (2026-10-03):** full CI passed at `8f1ce42`,
 including the production account/credential deadlock fix. Downloaded APK signer,

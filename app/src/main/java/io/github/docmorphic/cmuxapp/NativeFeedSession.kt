@@ -37,6 +37,7 @@ internal class NativeFeedSession(
     val terminalStartup = NativeTerminalStartup()
     val paneNavigation = NativePaneNavigation()
     val terminalInputs = NativeTerminalInputSession(scope)
+    val terminalSizing = NativeTerminalSizingSession()
     fun configureFeed(macs: List<NativeCredentialStore.PairedMac>, routes: Map<String, String>,
         localRoutes: Map<NativeMacIdentity, String>, active: Boolean) {
         feedMacs = macs; routeKeys = routes; localRouteKeys = localRoutes; foreground = active
@@ -64,7 +65,7 @@ internal class NativeFeedSession(
         }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { browserHolds.clear(); feedMacs = emptyList(); foreground = false; browserNetworks.clear(); terminalInputs.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { browserHolds.clear(); feedMacs = emptyList(); foreground = false; browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
     override fun onCleared() { viewModelCleared = true; foreground = false; if (browserHolds.isEmpty()) dispose() else reconcileFeed() }
 

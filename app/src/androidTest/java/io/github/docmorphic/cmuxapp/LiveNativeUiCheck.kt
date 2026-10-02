@@ -130,7 +130,7 @@ class LiveNativeUiCheck {
                                 check(sizing.getJSONObject("policy").getString("mode") == "smallest")
                                 val array = sizing.getJSONArray("participants")
                                 val participants = (0 until array.length()).map { array.getJSONObject(it) }
-                                val mobile = participants.filter { it.optString("device_kind") in setOf("iphone", "ipad") }
+                                val mobile = participants.filter { it.optString("id").startsWith("mobile:") }
                                 check(mobile.size <= 1) { "Unexpected extra mobile viewport on owned fixture" }
                                 val reported = mobile.singleOrNull()?.optJSONObject("viewport")
                                 val counting = participants.filter { it.optBoolean("counts") }.mapNotNull { it.optJSONObject("viewport") }

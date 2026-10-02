@@ -43,7 +43,66 @@ and policy, stale/new-participant generations, explicit detach persistence,
 network recovery/reassertion and unknown reasons. Notices attribute the upstream
 adaptation. This model is not wired into the app yet and is not in signed build 397.
 
-## Required integration
+## Foreground integration — 2026-10-03
+
+The foreground Android session now subscribes to the two sizing topics only when
+`terminal.shared_sizing.v1` is advertised. It retains explicit detach across
+Activity/connection replacement within the selected account/Mac. Sizing events
+update admission synchronously before the bounded, lossy display-event flow;
+subscription IDs and replaced connection checks isolate consumers. Malformed
+sizing metadata cannot break terminal replay; malformed detach metadata with a
+surface ID conservatively stops traffic.
+
+RPC admission is checked again immediately before writing, including after token
+lookup, waiting for the wire, or control repair. Consuming leases wrap both native
+terminal lanes, gating legacy and identified input and output reads. The foreground
+input owner discards pending units on explicit detach. Late replay and network
+recovery cannot reopen traffic. Only an acknowledged explicit reattach on the same
+connection and detach revision reopens it; the normal replay pipeline then restores
+output. A new detach while reattach is pending wins.
+
+The terminal displays its negotiated grid and a read-only participant dialog.
+Detached terminals show actor/time when provided, plus **Reattach** and **Reattach
+as viewer**. Toolbar, composer and direct keyboard admission reflect detachment.
+The dedicated subscription is cleaned up through its borrowed event-session scope.
+These screens compile but have not yet been visually or physically accepted.
+
+On capable hosts, viewport/replay/reattach now identify Android with the supported
+`unknown` device kind and actual `Build.MODEL`; older hosts keep their legacy
+request shape. Upstream has no Android enum. Its automatic same-user mobile
+exclusion for latest/priority/fixed policies specifically names iPhone/iPad;
+`unknown` does not establish identical policy behavior. The planned counts override
+UI and an upstream Android-kind change remain necessary for full parity. No host
+policy has been silently changed.
+
+Verification: **35 focused JVM tests passed**, zero failures/errors/skips
+(6 reducer, 5 sizing-session, 11 retained-input, 11 RPC transport, 2 event-session).
+The final debug APK and instrumentation APK build passed in **54 s**. Cases include
+both native lane forms, RPC aliases, detach during token lookup, pending-input
+discard, explicit detach across replacement, stale acknowledgements/events,
+malformed metadata, consumer isolation and negotiated Android identity. The runner
+also passed Python syntax compilation; no new device execution is claimed.
+
+Still open: editable size policies, counts/priority/fixed controls, participant
+removal, iOS bounds presentation, retention across switching away to another Mac,
+and background notification-reply connections. The current admission binding
+covers the foreground terminal session; it must not be described as global
+cross-session detach enforcement. Real detach/reattach and Gboard checks are pending.
+Signed build 397 and the installed Pixel app are unchanged by this source work.
+
+A repeatable physical runner is available:
+
+```sh
+python3 scripts/check-live-terminal-ui.py --serial DEVICE_SERIAL --build nightly --gboard
+```
+
+It requires an unlocked physical phone, preserves app data, refuses an outstanding
+ownership receipt, installs only the built test APK, runs the actual MainActivity
+check, and restores the original sleep setting in `finally`. Install the matching
+debug APK with `adb install -r` before checking new production behavior. Review the
+saved terminal screenshots before calling a pass visual acceptance.
+
+## Full integration acceptance checklist
 
 1. Subscribe to `mobile.terminal.size_state` and `mobile.terminal.detached`; decode
    sizing fields from replay, retain detach per account/Mac/terminal across reconnect,
@@ -80,7 +139,7 @@ No guessed key coordinates or framework text injection are used for that branch.
 The existing composer portion still uses framework injection and is labelled so.
 
 Both test APK builds passed (42 s initially, 19 s with shared-size assertions).
-The revised APK has not run: Pixel remains locked. A private keyboard hierarchy
+The revised check has not run: Pixel remains locked. A private keyboard hierarchy
 is saved only if the test reaches the installed Gboard; it may contain personal
 keyboard suggestions and must not be committed or published. The earlier failed
 run did not reach this capture, so stale screenshot files pulled from its shared

@@ -119,6 +119,8 @@ fun NativeScreen(
             .get(NativeFeedSession::class.java)
     }
     val terminalInputs = feedSession.terminalInputs
+    val terminalSizing = feedSession.terminalSizing
+    val terminalSizingStates by terminalSizing.state.collectAsState()
     val scope = rememberCoroutineScope()
     val terminalFocusRequester = remember { FocusRequester() }
     var signedIn by remember { mutableStateOf(account.isSignedIn()) }
@@ -254,7 +256,10 @@ fun NativeScreen(
         TerminalInputSender.Owner(it, mac.accountUserId ?: it, mac.accountTeamId,
             canonicalMacDeviceId(mac.deviceId), mac.instanceTag?.trim()?.takeIf(String::isNotEmpty))
     }
-    SideEffect { terminalInputs.retainOwner(pairedMacs.singleOrNull { it.code == code }?.let { inputOwner(it, browserLogin) }) }
+    SideEffect {
+        val owner = pairedMacs.singleOrNull { it.code == code }?.let { inputOwner(it, browserLogin) }
+        terminalInputs.retainOwner(owner); terminalSizing.retainOwner(owner)
+    }
     fun inputTargets(rows: List<NativeWorkspace>) = rows.flatMap { workspace -> workspace.terminals.filter { it.isReady }
         .map { NativeTerminalInputSession.Target(workspace.id, it.id) } }.toSet()
     val screenResume = rememberNativeScreenResume()
@@ -634,9 +639,11 @@ fun NativeScreen(
     val hardwareInput = remember(draftTarget, client) { TerminalHardwareInput() }
     val inputClient = client
     val inputTarget = draftTarget
+    val selectedSizing = selectedTerminal?.id?.let(terminalSizingStates::get)
+    val terminalAttached = selectedSizing?.allowsTraffic != false
     var outputInput by remember(inputClient, inputTarget) { mutableStateOf<TerminalOutputLaneOwner?>(null) }
-    val nativeInput = remember(inputClient, inputTarget, terminalTransport.mode, connectionReady, selectedTerminal?.isReady) {
-        if (inputClient != null && inputTarget != null && selectedTerminal?.isReady == true && connectionReady && terminalTransport.mode == TerminalOutputMode.GRID)
+    val nativeInput = remember(inputClient, inputTarget, terminalTransport.mode, connectionReady, selectedTerminal?.isReady, terminalAttached) {
+        if (terminalAttached && inputClient != null && inputTarget != null && selectedTerminal?.isReady == true && connectionReady && terminalTransport.mode == TerminalOutputMode.GRID)
             TerminalInputLaneOwner(scope, onAcknowledgement = { terminalInputs.receive(inputClient, inputTarget.surface, it) }) { use ->
                 inputClient.useTerminalInputLane(inputTarget.surface, use)
             }
@@ -647,14 +654,20 @@ fun NativeScreen(
             terminalInputs.registerLane(inputClient, inputTarget.workspace, inputTarget.surface, nativeInput.ready, nativeInput::sendIdentified) else null
         onDispose { registration?.close(); nativeInput?.close() }
     }
-    val retainedInputQueue = remember(inputClient, inputTarget, hostCapabilities) {
-        if (inputClient != null && inputTarget != null) terminalInputs.orderedQueue(inputClient, inputTarget.workspace, inputTarget.surface) else null
+    LaunchedEffect(client, terminalSizingStates) {
+        client?.let { active -> terminalSizingStates.filterValues { !it.allowsTraffic }.keys.forEach {
+            terminalInputs.forgetDetachedSurface(active, it)
+        } }
+    }
+    val retainedInputQueue = remember(inputClient, inputTarget, hostCapabilities, terminalAttached) {
+        if (terminalAttached && inputClient != null && inputTarget != null) terminalInputs.orderedQueue(inputClient, inputTarget.workspace, inputTarget.surface) else null
     }
     val inputQueue = remember(inputClient, inputTarget, nativeInput, retainedInputQueue) {
         retainedInputQueue ?: TerminalInputQueue(scope) { entry ->
             check(TerminalInputDelivery.CAPABILITY !in hostCapabilities) { "Could not reserve this terminal's input queue" }
             check(inputClient != null && inputTarget != null && client === inputClient &&
                 code == inputTarget.pairing && signedIn && selectedTerminal?.id == inputTarget.surface && selectedTerminal?.isReady == true) { "Terminal connection changed" }
+            inputClient.checkTerminalTraffic(inputTarget.surface)
             if (entry.paste) inputClient.paste(inputTarget.workspace, inputTarget.surface, entry.text, submit = false)
             else if (nativeInput?.send(entry.text) != true && outputInput?.send(entry.text) != true)
                 inputClient.input(inputTarget.workspace, inputTarget.surface, entry.text)
@@ -698,7 +711,7 @@ fun NativeScreen(
 
     fun queueInput(value: String, paste: Boolean = false): Boolean {
         val target = draftTarget ?: return false
-        if (client == null || inputFailure != null || selectedTerminal?.isReady != true || drafts.state.value[target]?.operation != null) return false
+        if (!terminalAttached || client == null || inputFailure != null || selectedTerminal?.isReady != true || drafts.state.value[target]?.operation != null) return false
         stopTerminalScrolling(); scrollPosition = 0.0
         return inputQueue.offer(value, paste)
     }
@@ -851,7 +864,7 @@ fun NativeScreen(
     fun sendComposer(submit: Boolean) {
         val target = draftTarget ?: return
         val active = client ?: return
-        if (preparingAttachments || inputFailure != null || selectedTerminal?.isReady != true) return
+        if (!terminalAttached || preparingAttachments || inputFailure != null || selectedTerminal?.isReady != true) return
         val send = drafts.begin(target) ?: return
         val supportsFiles = ComposerAttachment.FILE_CAPABILITY in hostCapabilities
         stopTerminalScrolling(); scrollPosition = 0.0
@@ -1256,6 +1269,13 @@ fun NativeScreen(
                 terminalTransport = TerminalTransport.resolve(capabilities, status.optString("terminal_fidelity"))
                 applyListing(listing); notifications = feed
                 inputOwner(remembered, store.taskSession())?.let { owner ->
+                    val sizingStream = terminalSizing.bind(owner, active)
+                    if (TerminalSizingTraffic.CAPABILITY in capabilities) {
+                        // Upstream has no Android enum; use its truthful unknown kind and actual model name.
+                        active.terminalDeviceName = android.os.Build.MODEL
+                        try { active.subscribe(TerminalSizingTraffic.topics, sizingStream) }
+                        catch (failure: Throwable) { terminalSizing.unbind(active); throw failure }
+                    }
                     terminalInputs.attach(owner, active, capabilities, inputTargets(workspaces)) { feedSession.allowsTerminalInput(owner) }
                 }
                 client = active; connectedCode = requestedCode
@@ -1273,6 +1293,15 @@ fun NativeScreen(
             retry++
         }
         busy = false
+    }
+
+    LaunchedEffect(client) {
+        val active = client ?: return@LaunchedEffect
+        val subscription = terminalSizing.subscription(active) ?: return@LaunchedEffect
+        active.useEventSession { wire ->
+            try { awaitCancellation() }
+            finally { withContext(NonCancellable) { runCatching { wire.unsubscribe(subscription) } } }
+        }
     }
 
     LaunchedEffect(client) {
@@ -1343,10 +1372,11 @@ fun NativeScreen(
         }
     }
 
-    LaunchedEffect(client, selectedWorkspace?.id, selectedTerminal?.id, selectedTerminal?.isReady, terminalColumns, terminalRows, terminalCells, terminalTransport) {
+    LaunchedEffect(client, selectedWorkspace?.id, selectedTerminal?.id, selectedTerminal?.isReady, terminalColumns, terminalRows, terminalCells, terminalTransport, terminalAttached, selectedSizing?.viewportRevision, selectedSizing?.reconnecting) {
         val active = client ?: return@LaunchedEffect
         val workspace = selectedWorkspace ?: return@LaunchedEffect
         val terminal = selectedTerminal?.takeIf { it.isReady } ?: return@LaunchedEffect
+        if (!terminalAttached) return@LaunchedEffect
         val requestedViewport = terminalViewport ?: return@LaunchedEffect
         val generation = ++replayGeneration
         val viewportGeneration = ++viewportRequestGeneration
@@ -1375,10 +1405,11 @@ fun NativeScreen(
             else scrollPosition = TerminalScrollViewport.at(scrollPosition, next.historyLineCount, next.activeScreen).position
             previousScrollAnchor = anchor
             grid = next
+            terminalSizing.rendered(active, terminal.id, SharedTerminalGrid(next.columns, next.rows))
             gridRevision++
         }
         suspend fun replayTerminal() {
-            if (replayRunning || recoveryFailed) return
+            if (replayRunning || recoveryFailed || !active.terminalTrafficAllowed(terminal.id)) return
             nativeOutput?.pause()
             replayRunning = true
             mirror.beginReplay()
@@ -1393,6 +1424,8 @@ fun NativeScreen(
                             maxScrollbackRows = if (mirror.historyLineCount == 0) 10_000 else 0)
                     }
                     if (generation != replayGeneration || client !== active) return
+                    terminalSizing.replay(active, terminal.id, snapshot)
+                    active.checkTerminalTraffic(terminal.id)
                     val result = mirror.replay(snapshot)
                     publish()
                     if (result != TerminalStreamMirror.Result.REPLAY && !replayAgain) {
@@ -1410,6 +1443,7 @@ fun NativeScreen(
             } finally { replayRunning = false }
         }
         fun requestReplay() {
+            if (!active.terminalTrafficAllowed(terminal.id)) return
             nativeOutput?.pause()
             mirror.beginReplay()
             if (replayRunning) replayAgain = true
@@ -1418,7 +1452,7 @@ fun NativeScreen(
         val eventJob = launch(start = CoroutineStart.UNDISPATCHED) {
             var lastDelivery: Long? = null
             active.events.collect { event ->
-                if (generation != replayGeneration || client !== active) return@collect
+                if (generation != replayGeneration || client !== active || !active.terminalTrafficAllowed(terminal.id)) return@collect
                 if (event.deliverySequence > 0) {
                     if (lastDelivery?.let { event.deliverySequence != it + 1 } == true) requestReplay()
                     lastDelivery = event.deliverySequence
@@ -1453,7 +1487,7 @@ fun NativeScreen(
                 }
             }
         }
-        fun isCurrent() = generation == replayGeneration && client === active &&
+        fun isCurrent() = generation == replayGeneration && client === active && active.terminalTrafficAllowed(terminal.id) &&
             selectedWorkspace?.id == workspace.id && selectedTerminal?.id == terminal.id
         val scrollQueue = TerminalScrollQueue(this, onFailure = { failure ->
             if (generation == replayGeneration && client === active && selectedWorkspace?.id == workspace.id &&
@@ -1552,7 +1586,7 @@ fun NativeScreen(
     // Reading the mutable state inside it can assign the next session to old cleanup.
     val disposableClient = client
     DisposableEffect(disposableClient) {
-        onDispose { disposableClient?.let { terminalInputs.detach(it); it.close() } }
+        onDispose { disposableClient?.let { terminalSizing.unbind(it); terminalInputs.detach(it); it.close() } }
     }
     BackHandler(enabled = signedIn && code.isNotBlank() && searchState.active != null && selectedTerminal == null &&
         selectedBrowser == null && selectedChangesWorkspace == null && !showSettings && !showTaskComposer) { finishSearch(cancel = true) }
@@ -1970,13 +2004,59 @@ fun NativeScreen(
                         stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
                     }
                 }
+                if (terminalAttached) selectedSizing?.state?.let { sizing ->
+                    var showSizing by remember(terminal.id) { mutableStateOf(false) }
+                    TextButton(onClick = { showSizing = true }, modifier = Modifier.align(Alignment.TopEnd)
+                        .padding(6.dp).background(nativePanel, RoundedCornerShape(12.dp))) {
+                        Text("${sizing.grid.columns} × ${sizing.grid.rows} · ${sizing.policy.mode.title}")
+                    }
+                    if (showSizing) AlertDialog(onDismissRequest = { showSizing = false },
+                        title = { Text("Shared terminal size") },
+                        text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+                            Text("${sizing.grid.columns} columns × ${sizing.grid.rows} rows")
+                            Text(sizing.policy.mode.title)
+                            sizing.participants.forEach { participant ->
+                                Text(listOfNotNull(participant.deviceName ?: participant.displayName,
+                                    participant.viewport?.let { "${it.columns} × ${it.rows}" },
+                                    if (participant.counts) "Counts toward size" else "Viewer").joinToString(" · "),
+                                    Modifier.padding(top = 12.dp))
+                            }
+                        } }, confirmButton = { TextButton(onClick = { showSizing = false }) { Text("Done") } })
+                }
+                selectedSizing?.detached?.let { detached ->
+                    Column(Modifier.fillMaxSize().background(nativePanel).padding(24.dp),
+                        verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Terminal disconnected", color = Color.White, fontSize = 20.sp)
+                        Text(listOfNotNull(detached.byName, detached.byDevice, detached.at).joinToString(" · ")
+                            .ifBlank { "Reattach to continue using this terminal." }, color = nativeMuted)
+                        var reattaching by remember(terminal.id, detached) { mutableStateOf(false) }
+                        fun reattach(viewer: Boolean) {
+                            val active = client ?: return
+                            val workspace = selectedWorkspace ?: return
+                            val expected = selectedSizing ?: return
+                            reattaching = true
+                            scope.launch {
+                                try {
+                                    val result = active.reattachTerminal(workspace.id, terminal.id, viewer, terminalViewport)
+                                    if (!terminalSizing.reattached(active, terminal.id, result, expected))
+                                        error = "Terminal connection changed. Check its status before retrying."
+                                } catch (failure: Exception) {
+                                    if (failure is CancellationException) throw failure
+                                    error = failure.message ?: "Could not reattach terminal"
+                                } finally { reattaching = false }
+                            }
+                        }
+                        Button(enabled = connectionReady && !reattaching, onClick = { reattach(false) }) { Text("Reattach") }
+                        TextButton(enabled = connectionReady && !reattaching, onClick = { reattach(true) }) { Text("Reattach as viewer") }
+                    }
+                }
                 TerminalZoomOverlay(terminalZoom, displayPreferences,
                     foreground = runCatching { Color(android.graphics.Color.parseColor(currentGrid.foreground)) }.getOrDefault(Color.White),
                     background = runCatching { Color(android.graphics.Color.parseColor(currentGrid.background)) }.getOrDefault(nativePanel),
                     modifier = Modifier.align(Alignment.Center))
                 }
                 TerminalToolbarView(toolbarStore.layout, inputModifiers,
-                    canInput = selectedTerminal?.isReady == true && connectionReady && client != null && inputFailure == null && terminalDraft.operation == null,
+                    canInput = terminalAttached && selectedTerminal?.isReady == true && connectionReady && client != null && inputFailure == null && terminalDraft.operation == null,
                     filesEnabled = artifactsReady,
                     onModifier = { inputModifiers = inputModifiers.tap(it, android.os.SystemClock.uptimeMillis()) },
                     onButton = { button ->
@@ -2002,7 +2082,7 @@ fun NativeScreen(
                     }, onCustomize = {
                         rawKeyboardView?.finishComposition(); inputModifiers = TerminalInputModifiers()
                         softwareKeyboard?.hide(); showShortcuts = true
-                    }, insert = if (!directTyping && client != null && terminalDraft.operation == null && !preparingAttachments &&
+                    }, insert = if (terminalAttached && !directTyping && client != null && terminalDraft.operation == null && !preparingAttachments &&
                         (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty())) ({ sendComposer(submit = false) }) else null)
                 inputFailure?.let { message ->
                     Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(8.dp),
@@ -2020,7 +2100,7 @@ fun NativeScreen(
                         AndroidView(factory = { viewContext ->
                             TerminalKeyboardView(viewContext).also { rawKeyboardView = it }
                         }, update = { view ->
-                            val enabled = client != null && inputFailure == null && terminalDraft.operation == null
+                            val enabled = terminalAttached && client != null && inputFailure == null && terminalDraft.operation == null
                             val resumed = enabled && !view.isEnabled
                             view.isEnabled = enabled
                             if (resumed) view.restartKeyboard()
@@ -2067,7 +2147,7 @@ fun NativeScreen(
                                 }
                             }
                             RichContentEditor(owner = draftTarget to client,
-                                enabled = client != null && terminalDraft.operation == null && !preparingAttachments,
+                                enabled = terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments,
                                 onContent = ::acceptTerminalPaste, onError = { error = it }) {
                                 OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
                                     Modifier.weight(1f).onPreviewKeyEvent { event ->
@@ -2081,7 +2161,7 @@ fun NativeScreen(
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
                                     keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
                             }
-                            val canSend = client != null && (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty()) &&
+                            val canSend = terminalAttached && client != null && (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty()) &&
                                 terminalDraft.operation == null && !preparingAttachments
                             TextButton(onClick = { sendComposer(submit = true) }, enabled = canSend) {
                                 Text(if (terminalDraft.operation == null) "Send" else "Sending…")

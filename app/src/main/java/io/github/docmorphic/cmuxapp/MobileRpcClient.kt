@@ -54,6 +54,22 @@ class MobileRpcClient internal constructor(
     private suspend fun terminalOperation(operation: TerminalInputOperation): JSONObject =
         terminalInputDispatcher?.invoke(operation) ?: operation.rpc(this, null)
 
+    @Volatile internal var terminalDeviceName: String? = null
+    private fun JSONObject.withTerminalDevice(): JSONObject = apply {
+        terminalDeviceName?.let { put("device_kind", "unknown"); put("device_name", it) }
+    }
+    @Volatile internal var terminalTrafficAllowed: (String) -> Boolean = { true }
+    internal fun checkTerminalTraffic(surface: String) {
+        check(terminalTrafficAllowed(surface)) { "This terminal was disconnected. Reattach before continuing." }
+    }
+    private val terminalEventObservers = java.util.concurrent.CopyOnWriteArrayList<(Event) -> Unit>()
+    /** Synchronous admission updates precede the lossy display-event flow. Callbacks must not call RPC. */
+    internal fun observeTerminalSizing(observer: (Event) -> Unit): AutoCloseable {
+        if (delegate != null) return delegate.observeTerminalSizing(observer)
+        terminalEventObservers += observer
+        return AutoCloseable { terminalEventObservers -= observer }
+    }
+
     data class Event(val topic: String, val payload: JSONObject, val streamId: String?, val deliverySequence: Long = 0)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -61,7 +77,7 @@ class MobileRpcClient internal constructor(
     private val stateLock = Any()
     private class Pending(val answer: CompletableDeferred<JSONObject>, val frame: ByteArray,
                           val resend: Boolean, val inbound: Long, val epoch: Long,
-                          val startedNanos: Long, val deadlineNanos: Long, var generation: Long? = null, var sequence: Long = 0)
+                          val startedNanos: Long, val deadlineNanos: Long, val admitted: () -> Unit, var generation: Long? = null, var sequence: Long = 0)
     private val pending = linkedMapOf<String, Pending>()
     private val leaseOperations = mutableSetOf<Job>()
     private val eventsMutable = MutableSharedFlow<Event>(
@@ -140,7 +156,16 @@ class MobileRpcClient internal constructor(
         params: JSONObject = JSONObject(),
         timeoutMillis: Long = 15_000
     ): JSONObject {
-        if (delegate != null) return borrowing { it.request(method, params, timeoutMillis) }
+        val surface = params.optString("surface_id")
+        return requestAdmitted(method, params, timeoutMillis) {
+            if (TerminalSizingTraffic.guarded(method)) checkTerminalTraffic(surface)
+        }
+    }
+
+    private suspend fun requestAdmitted(method: String, params: JSONObject, timeoutMillis: Long,
+        admitted: () -> Unit): JSONObject {
+        admitted()
+        if (delegate != null) return borrowing { it.requestAdmitted(method, params, timeoutMillis, admitted) }
         require(method.isNotBlank())
         val id = UUID.randomUUID().toString()
         val parameters = MobileJson.objectValue(params.toString())
@@ -164,7 +189,7 @@ class MobileRpcClient internal constructor(
             val started = System.nanoTime()
             Pending(answer, MobileFrameCodec.encode(body.toString().toByteArray(Charsets.UTF_8)),
                 MobileControlResendPolicy.allows(method, parameters), inboundDelivery, silenceEpoch, started,
-                started + timeoutMillis.coerceIn(0, 86_400_000) * 1_000_000).also { pending[id] = it }
+                started + timeoutMillis.coerceIn(0, 86_400_000) * 1_000_000, admitted).also { pending[id] = it }
         }
         try {
             return withTimeout(timeoutMillis) {
@@ -174,6 +199,7 @@ class MobileRpcClient internal constructor(
                     // that frame once started; abandoning it would corrupt every consumer's wire.
                     withContext(NonCancellable + Dispatchers.IO) {
                         caller.ensureActive() // Cancellation before writing sends nothing.
+                        admitted() // Recheck after token lookup and waiting behind another write.
                         synchronized(stateLock) { check(!closed && connected) { "Connection closed" } }
                         val remaining = ((entry.deadlineNanos - System.nanoTime()) / 1_000_000).coerceAtLeast(0)
                         withTimeout(remaining) {
@@ -240,6 +266,8 @@ class MobileRpcClient internal constructor(
                             } else true
                         }
                         if (resend) {
+                            try { request.admitted() }
+                            catch (failure: Exception) { request.answer.completeExceptionally(failure); continue }
                             val remaining = ((request.deadlineNanos - System.nanoTime()) / 1_000_000).coerceIn(1, 5000)
                             val generation = withTimeout(remaining) { transport.writeWithGeneration(request.frame) }
                             synchronized(stateLock) { request.generation = generation }
@@ -429,7 +457,7 @@ class MobileRpcClient internal constructor(
             .put("client_id", clientId).put("viewport_columns", columns).put("viewport_rows", rows)
             .put("viewport_generation", viewportGeneration)
         if (screenAnchor) params.put("anchor", "screen").put("max_scrollback_rows", maxScrollbackRows.coerceIn(0, 10_000))
-        return request("mobile.terminal.replay", params)
+        return request("mobile.terminal.replay", params.withTerminalDevice())
     }
 
     suspend fun reportViewport(
@@ -438,7 +466,7 @@ class MobileRpcClient internal constructor(
         .put("workspace_id", workspaceId).put("surface_id", surfaceId)
         .put("client_id", clientId)
         .put("viewport_columns", viewport.columns).put("viewport_rows", viewport.rows)
-        .put("viewport_generation", generation))
+        .put("viewport_generation", generation).withTerminalDevice())
 
     suspend fun clearViewport(workspaceId: String, surfaceId: String, generation: Long): JSONObject =
         request("mobile.terminal.viewport", JSONObject()
@@ -517,9 +545,12 @@ class MobileRpcClient internal constructor(
 
     /** The consuming lease owns this coroutine and cancels it when released. */
     internal suspend fun useTerminalInputLane(surfaceId: String, use: suspend (TerminalInputLane) -> Unit): Boolean {
-        if (delegate != null) return borrowing { it.useTerminalInputLane(surfaceId, use) }
+        checkTerminalTraffic(surfaceId)
+        if (delegate != null) return borrowing { it.useTerminalInputLane(surfaceId) { lane ->
+            use(guardedInputLane(surfaceId, lane))
+        } }
         synchronized(stateLock) { check(!closed && connected) }
-        val lane = transport.openTerminalInput(surfaceId) ?: return false
+        val lane = transport.openTerminalInput(surfaceId)?.let { guardedInputLane(surfaceId, it) } ?: return false
         try {
             currentCoroutineContext().ensureActive()
             synchronized(stateLock) { check(!closed && connected) }
@@ -529,9 +560,12 @@ class MobileRpcClient internal constructor(
     }
 
     internal suspend fun useTerminalOutputLane(surfaceId: String, cursor: ULong?, use: suspend (TerminalOutputLane) -> Unit): Boolean {
-        if (delegate != null) return borrowing { it.useTerminalOutputLane(surfaceId, cursor, use) }
+        checkTerminalTraffic(surfaceId)
+        if (delegate != null) return borrowing { it.useTerminalOutputLane(surfaceId, cursor) { lane ->
+            use(guardedOutputLane(surfaceId, lane))
+        } }
         synchronized(stateLock) { check(!closed && connected) }
-        val lane = transport.openTerminalOutput(surfaceId, cursor) ?: return false
+        val lane = transport.openTerminalOutput(surfaceId, cursor)?.let { guardedOutputLane(surfaceId, it) } ?: return false
         try {
             currentCoroutineContext().ensureActive()
             synchronized(stateLock) { check(!closed && connected) }
@@ -539,6 +573,32 @@ class MobileRpcClient internal constructor(
             return true
         } finally { lane.close() }
     }
+
+    private fun guardedInputLane(surface: String, lane: TerminalInputLane): TerminalInputLane =
+        object : TerminalInputLane by lane {
+            override suspend fun send(text: String) { checkTerminalTraffic(surface); lane.send(text) }
+            override suspend fun sendIdentified(text: String, delivery: TerminalInputDelivery) {
+                checkTerminalTraffic(surface); lane.sendIdentified(text, delivery)
+            }
+        }
+    private fun guardedOutputLane(surface: String, lane: TerminalOutputLane): TerminalOutputLane =
+        object : TerminalOutputLane by lane {
+            override suspend fun receive(): TerminalLaneProtocol.Output? {
+                checkTerminalTraffic(surface)
+                return lane.receive().also { checkTerminalTraffic(surface) }
+            }
+            override suspend fun send(text: String) { checkTerminalTraffic(surface); lane.send(text) }
+            override suspend fun sendIdentified(text: String, delivery: TerminalInputDelivery) {
+                checkTerminalTraffic(surface); lane.sendIdentified(text, delivery)
+            }
+        }
+
+    internal suspend fun reattachTerminal(workspace: String, surface: String, viewer: Boolean,
+        viewport: TerminalViewport?): JSONObject = request("mobile.terminal.reattach", JSONObject()
+        .put("workspace_id", workspace).put("surface_id", surface).put("client_id", clientId)
+        .put("as_viewer", viewer).withTerminalDevice().apply {
+            viewport?.let { put("viewport_columns", it.columns); put("viewport_rows", it.rows) }
+        })
 
     suspend fun input(workspaceId: String, surfaceId: String, text: String): JSONObject =
         terminalOperation(TerminalInputOperation.Text(workspaceId, surfaceId, text))
@@ -686,12 +746,12 @@ class MobileRpcClient internal constructor(
         silentTimeouts = 0
         if (envelope.optString("kind") == "event") {
             val topic = envelope.optString("topic")
-            if (topic.isNotBlank()) eventsMutable.tryEmit(Event(
-                topic,
-                envelope.optJSONObject("payload") ?: JSONObject(),
-                envelope.optString("stream_id").takeIf { it.isNotBlank() },
-                ++eventDeliverySequence
-            ))
+            if (topic.isNotBlank()) {
+                val event = Event(topic, envelope.optJSONObject("payload") ?: JSONObject(),
+                    envelope.optString("stream_id").takeIf { it.isNotBlank() }, ++eventDeliverySequence)
+                if (topic in TerminalSizingTraffic.topics) terminalEventObservers.forEach { it(event) }
+                eventsMutable.tryEmit(event)
+            }
             return@synchronized
         }
         val id = envelope.optString("id")
