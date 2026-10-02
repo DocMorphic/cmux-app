@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Push encryption compatibility (2026-10-02):** added the upstream authenticated
+HPKE v2 envelope codec. Android opens two Apple CryptoKit vectors; Apple opens two
+Android-generated envelopes. Nine focused JVM cases pass without skips, including
+identity/tamper/size rejection and signing regressions. The codec is not yet wired
+to notification delivery. [Delivery decision and remaining work](PUSH_DELIVERY.md)
+record the APNs-only upstream service and the pending choice of a private Firebase
+project/helper or official backend extension. No APK or emulator run was needed.
+
 **Full unsigned SSH browser sequences (2026-10-02):** removed the signed-64-bit
 restriction on remote frame IDs and pointer tokens. Exact JSON parsing and numeric
 serialization preserve the full iOS UInt64 range; local renderer IDs fence old
