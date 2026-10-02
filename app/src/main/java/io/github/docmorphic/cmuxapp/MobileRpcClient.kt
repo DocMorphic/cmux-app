@@ -276,6 +276,11 @@ class MobileRpcClient internal constructor(
         if (read) "notification.feed.mark_read" else "notification.feed.mark_unread",
         JSONObject().put("notification_ids", org.json.JSONArray().put(id))
     )
+    suspend fun dismissNotifications(ids: List<String>): JSONObject {
+        require(ids.isNotEmpty() && ids.size <= 128 && ids.all { it.isNotBlank() && it.length <= 1024 })
+        return request("notification.dismiss", JSONObject().put("notification_ids", org.json.JSONArray(ids.distinct()))
+            .put("client_id", clientId))
+    }
     suspend fun markAllNotificationsRead(): JSONObject = request("notification.feed.mark_all_read")
     suspend fun workspaceAction(
         workspaceId: String,

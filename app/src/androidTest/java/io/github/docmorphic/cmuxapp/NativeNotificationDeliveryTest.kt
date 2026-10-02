@@ -77,6 +77,50 @@ class NativeNotificationDeliveryTest {
         assertNull(delivery.destination(routes.single { it.origin == pairingOrigin(b, "b", "stable") }.routeId))
     }
 
+    @Test fun systemSwipeQueuesDurableDismissalAndAccountChangeRetiresIt() {
+        val account = NativeCredentialStore(context)
+        account.update { it.put("task_session", "dismiss-fixture-login").put("refresh_token", "fixture-refresh") }
+        val delivery = NativeNotificationDelivery(context)
+        val origin = pairingOrigin(a, "a", "stable")
+        delivery.refresh(origin, "First Mac", emptyList()) { true }
+        delivery.refresh(origin, "First Mac", listOf(item("swiped").copy(title = "Dismiss fixture"))) { true }
+        waitFor { alerts().size == 1 }
+        val dismiss = alerts().single().notification.deleteIntent
+        assertNotNull(dismiss); if (Build.VERSION.SDK_INT >= 31) assertTrue(dismiss.isImmutable)
+        val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        try {
+            device.openNotification()
+            val banner = checkNotNull(device.wait(androidx.test.uiautomator.Until.findObject(
+                androidx.test.uiautomator.By.text("Dismiss fixture")), 5000))
+            device.takeScreenshot(java.io.File(context.getExternalFilesDir(null), "notification-dismiss-before.png"))
+            // The title's bounds cover only a short label. Swipe the card across
+            // the display so System UI actually crosses its dismissal threshold.
+            val y = banner.visibleCenter.y
+            device.swipe(device.displayWidth / 4, y, device.displayWidth - 10, y, 15)
+            waitFor { NativeNotificationDismissOutbox(account.load()!!).pending().size == 1 }
+            waitFor { alerts().isEmpty() }
+        } finally {
+            device.takeScreenshot(java.io.File(context.getExternalFilesDir(null), "notification-dismiss-after.png"))
+            device.dumpWindowHierarchy(java.io.File(context.getExternalFilesDir(null), "notification-dismiss-window.xml"))
+            java.io.File(context.getExternalFilesDir(null), "notification-dismiss-state.txt").writeText(
+                "pending=" + account.load()?.let { NativeNotificationDismissOutbox(it).pending().size } + "; alerts=" + alerts().size)
+            device.pressBack()
+        }
+        val restored = NativeCredentialStore(context).load()!!
+        assertEquals(PendingNotificationDismiss("dismiss-fixture-login", origin, "swiped"),
+            NativeNotificationDismissOutbox(restored).pending().single())
+        val encrypted = context.getSharedPreferences("native_cmux", Context.MODE_PRIVATE).getString("state", "")!!
+        assertFalse(encrypted.contains("swiped")); assertFalse(encrypted.contains("dismiss-fixture-login"))
+        // The actual immutable PendingIntent may outlive sign-out: its old login
+        // must not be rebound to a new login even if the saved locator is reused.
+        account.update { it.put("task_session", "replacement-login") }
+        assertTrue(NativeNotificationDismissOutbox(account.load()!!).pending().isEmpty())
+        dismiss.send()
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        Thread.sleep(150)
+        assertTrue(NativeNotificationDismissOutbox(account.load()!!).pending().isEmpty())
+    }
+
     @Test fun lateFeedCannotPublishAndUntrustedIntentCannotSelectMac() {
         val delivery = NativeNotificationDelivery(context)
         delivery.refresh(pairingOrigin(a, "a", "stable"), "First Mac", emptyList()) { true }

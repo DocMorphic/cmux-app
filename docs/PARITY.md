@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Android alert dismissal sync (2026-10-02):** system swipes now persist an
+encrypted, account/Mac-scoped dismissal and send the official `notification.dismiss`
+RPC through admitted saved-Mac connections. Confirmed delivery removes only its
+rows; failures retain them and account/forget mutations prune them. Six Android
+notification tests passed (34.3 seconds), including a real shade swipe and stale
+action rejection after login change; 16 JVM checks and both APK/alignment gates
+passed. [Evidence and limits](NOTIFICATION_DISMISS.md) distinguish isolated sender
+and system-UI checks from physical Pixel/Mac delivery. Inline reply and push remain
+open; no signed release changed.
+
 **Push encryption compatibility (2026-10-02):** added the upstream authenticated
 HPKE v2 envelope codec. Android opens two Apple CryptoKit vectors; Apple opens two
 Android-generated envelopes. Nine focused JVM cases pass without skips, including

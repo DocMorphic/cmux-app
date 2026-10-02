@@ -43,7 +43,7 @@ internal class NativeNotificationDelivery(private val context: Context) {
         for (item in pending) {
             if (!isCurrent()) break
             var route: NotificationDestination? = null
-            store.update { route = NativeNotificationLedger(it).stage(origin, item) }
+            store.update { route = NativeNotificationLedger(it).stage(origin, item, NativeCredentialStore(context).taskSession()) }
             val destination = requireNotNull(route)
             // Store first: even immediate taps and process death have a durable destination.
             if (!isCurrent()) break
@@ -78,13 +78,17 @@ internal class NativeNotificationDelivery(private val context: Context) {
     internal fun buildAlert(destination: NotificationDestination, computer: String, item: NativeNotification): Notification {
         val pending = PendingIntent.getActivity(context, 0, launchIntent(context, destination.routeId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val dismiss = PendingIntent.getBroadcast(context, 0,
+            launchIntent(context, destination.routeId).setClass(context, NativeNotificationDismissReceiver::class.java)
+                .setAction(NativeNotificationDismissReceiver.ACTION).setFlags(0),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val body = NativeSearchText.prefix(item.body.ifBlank { item.subtitle.orEmpty() }, 1000)
         return Notification.Builder(context, ALERT_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(NativeSearchText.prefix(item.title.ifBlank { "cmux" }, 160))
             .setSubText(computer).setContentText(body)
             .setStyle(Notification.BigTextStyle().bigText(body))
-            .setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true)
+            .setContentIntent(pending).setDeleteIntent(dismiss).setAutoCancel(true).setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PRIVATE).build()
     }
 

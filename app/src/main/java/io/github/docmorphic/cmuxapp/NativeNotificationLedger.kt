@@ -13,18 +13,18 @@ internal fun pairingOrigin(code: String, deviceId: String = "", instanceTag: Str
 /** Only this random identifier crosses the Android notification/Intent boundary. */
 internal data class NotificationDestination(
     val routeId: String, val origin: String, val notificationId: String,
-    val workspaceId: String, val surfaceId: String?, val retarget: Boolean
+    val workspaceId: String, val surfaceId: String?, val retarget: Boolean, val login: String? = null
 ) {
     fun notification() = NativeNotification(notificationId, workspaceId, surfaceId, "", "", false,
         retargetsToLiveSurfaceOwner = retarget)
     fun json() = JSONObject().put("route", routeId).put("origin", origin).put("id", notificationId)
-        .put("workspace", workspaceId).put("surface", surfaceId).put("retarget", retarget)
+        .put("workspace", workspaceId).put("surface", surfaceId).put("retarget", retarget).put("login", login)
 
     companion object {
         fun parse(value: JSONObject) = NotificationDestination(value.getString("route"),
             value.getString("origin"), value.getString("id"), value.getString("workspace"),
             value.optString("surface").takeIf { !value.isNull("surface") && it.isNotBlank() },
-            value.optBoolean("retarget"))
+            value.optBoolean("retarget"), value.opt("login") as? String)
     }
 }
 
@@ -69,10 +69,10 @@ internal class NativeNotificationLedger(private val state: JSONObject) {
         return (0 until array.length()).map { array.getString(it) }
     }
     /** Persist before posting, acknowledge only after NotificationManager accepts the post. */
-    fun stage(origin: String, item: NativeNotification): NotificationDestination {
-        val previous = destinations().firstOrNull { it.origin == origin && it.notificationId == item.id }
+    fun stage(origin: String, item: NativeNotification, login: String? = null): NotificationDestination {
+        val previous = destinations().firstOrNull { it.origin == origin && it.notificationId == item.id && it.login == login }
         val next = NotificationDestination(previous?.routeId ?: UUID.randomUUID().toString(), origin,
-            item.id, item.workspaceId, item.surfaceId, item.retargetsToLiveSurfaceOwner)
+            item.id, item.workspaceId, item.surfaceId, item.retargetsToLiveSurfaceOwner, login)
         routes.put(next.routeId, next.json().put("updated", System.currentTimeMillis()))
         return next
     }

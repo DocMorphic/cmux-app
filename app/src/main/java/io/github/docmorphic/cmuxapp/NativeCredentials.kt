@@ -133,6 +133,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     fun update(transform: (JSONObject) -> Unit): Unit = synchronized(storageLock) {
         val value = load() ?: JSONObject()
         transform(value)
+        NativeNotificationDismissOutbox(value).prune()
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key())
         val encoded = Base64.encodeToString(cipher.iv + cipher.doFinal(value.toString().toByteArray()), Base64.NO_WRAP)

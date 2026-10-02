@@ -29,6 +29,7 @@
         <activity android:name=".RoutedBrowserActivity" android:exported="false"
             android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize"
             android:process=":browser" android:windowSoftInputMode="adjustResize" />
+        <receiver android:name=".NativeNotificationDismissReceiver" android:exported="false" />
         <receiver android:name=".NativeNotificationRestartReceiver"
             android:exported="true">
             <intent-filter>

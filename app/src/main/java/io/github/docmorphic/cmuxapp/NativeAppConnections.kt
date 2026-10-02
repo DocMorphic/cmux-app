@@ -66,6 +66,19 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     }
 
     init {
+        scope.launch {
+            while (isActive) {
+                try {
+                    val pending = store.load()?.let { NativeNotificationDismissOutbox(it).pending() }.orEmpty()
+                    if (pending.isNotEmpty()) flushNativeNotificationDismissals(pending, store.pairedMacs(),
+                        permits = { item, mac -> store.taskSession() == item.login &&
+                            store.pairedMacs().contains(mac) && connector.allowsSaved(mac) },
+                        connect = { connector.connectSaved(it, account) },
+                        acknowledge = { sent -> if (sent.isNotEmpty()) store.update { NativeNotificationDismissOutbox(it).acknowledge(sent) } })
+                } catch (_: Exception) { currentCoroutineContext().ensureActive() }
+                delay(5_000)
+            }
+        }
         scope.launch { teams.state.collect { tailscale.retireInvalid() } }
         scope.launch {
             var observedLogin: String? = null
