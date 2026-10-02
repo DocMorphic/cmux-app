@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.channels.Channel
 import org.json.JSONObject
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -18,6 +19,8 @@ class LiveNativeTerminalCheck {
     @Test fun disposableTerminalOutputSurvivesNativeReconnect() = runBlocking<Unit> {
         assumeTrue(InstrumentationRegistry.getArguments().getString("cmux_live_terminal_fixture") == "true")
         val streamCheck = InstrumentationRegistry.getArguments().getString("cmux_live_terminal_stream") == "true"
+        val retryCheck = InstrumentationRegistry.getArguments().getString("cmux_live_input_retry") == "true"
+        require(!retryCheck || streamCheck) { "Input retry acceptance requires live stream acceptance" }
         val discoveredBuild = InstrumentationRegistry.getArguments().getString("cmux_live_discovered_build")
         require(discoveredBuild == null || discoveredBuild.matches(Regex("[a-z0-9][a-z0-9._-]{0,63}")))
         check(!Build.FINGERPRINT.contains("generic") && !Build.MODEL.contains("sdk")) { "Physical device required" }
@@ -146,6 +149,13 @@ class LiveNativeTerminalCheck {
                         })
                         stage = "same terminal output after reconnect"
                         check(requireOutput(second) == mode)
+                        val retryReport = if (retryCheck) {
+                            stage = "identified input retry after fresh reconnect"
+                            verifyDuplicateInput(second, created.id, checkNotNull(streamReport?.retry),
+                                onStage = { stage = it }) {
+                                check(connections.teams.isCurrent(team))
+                            }
+                        } else null
                         stage = "close disposable workspace"
                         owned = null // Do not repeat a close even if its acknowledgement is lost.
                         second.closeWorkspace(created.id, created.windowId)
@@ -156,12 +166,13 @@ class LiveNativeTerminalCheck {
                         check(receipt.delete())
                         println("CMUX_LIVE_TERMINAL_REPORT " + JSONObject()
                             .put("identityVerified", true).put("accountAccessVerified", true)
-                            .put("createdWorkspace", true).put("inputRequests", if (streamCheck) 2 else 1)
+                            .put("createdWorkspace", true).put("inputRequests", if (retryCheck) 4 else if (streamCheck) 2 else 1)
                             .put("decodedOutput", true).put("reconnectedSameTerminal", true)
                             .put("freshConnection", true)
                             .put("discoveredBuildMatched", discoveredBuild != null && mac.instanceTag == discoveredBuild)
                             .put("outputAfterReconnect", true).put("outputMode", mode)
-                            .put("liveStream", streamReport ?: JSONObject.NULL)
+                            .put("liveStream", streamReport?.report ?: JSONObject.NULL)
+                            .put("identifiedRetry", retryReport ?: JSONObject.NULL)
                             .put("fixtureClosed", true))
                     } finally {
                         // Cleanup only a positively identified workspace created by this invocation.
@@ -186,9 +197,12 @@ class LiveNativeTerminalCheck {
         }
     }
 
+    private data class IdentifiedProbe(val surfaceId: String, val delivery: TerminalInputDelivery, val command: String, val marker: String)
+    private data class LiveGridEvidence(val report: JSONObject, val retry: IdentifiedProbe?)
+
     /** No replay is requested after sending the marker: only live events may satisfy this check. */
     private suspend fun verifyLiveGrid(client: MobileRpcClient, workspace: String, surface: String,
-        requireCurrent: () -> Unit): JSONObject = withContext(Dispatchers.Main) {
+        requireCurrent: () -> Unit): LiveGridEvidence = withContext(Dispatchers.Main) {
         coroutineScope {
             val status = client.hostStatus()
             val values = status.getJSONArray("capabilities")
@@ -256,9 +270,10 @@ class LiveNativeTerminalCheck {
                     if (identified) acknowledgement.await()
                 }
                 check(gridEvents > 0)
-                JSONObject().put("nativeInputLane", true).put("liveGridOutput", true)
+                val report = JSONObject().put("nativeInputLane", true).put("liveGridOutput", true)
                     .put("gridEventsAfterInput", gridEvents).put("identifiedInputAdvertised", identified)
                     .put("inputAcknowledgementVerified", identified && acknowledgement.isCompleted)
+                LiveGridEvidence(report, if (identified) IdentifiedProbe(surface, delivery, command, marker) else null)
             } finally {
                 withContext(NonCancellable) {
                     input?.close()
@@ -269,6 +284,66 @@ class LiveNativeTerminalCheck {
                         if (subscribed) runCatching { client.unsubscribe(subscription) }
                     } }
                 }
+            }
+        }
+    }
+
+    /** Retry identical bytes/identity, then send a new ordered shell fence before counting output. */
+    private suspend fun verifyDuplicateInput(client: MobileRpcClient, workspace: String, probe: IdentifiedProbe,
+        onStage: (String) -> Unit,
+        requireCurrent: () -> Unit): JSONObject = withContext(Dispatchers.Main) {
+        coroutineScope {
+            // Keep the exact host wire ID for replay matching; UUID encoding is binary-only.
+            val surface = probe.surfaceId
+            onStage("reconnected identified-input capability")
+            val values = client.hostStatus().getJSONArray("capabilities")
+            val capabilities = (0 until values.length()).map { values.getString(it) }.toSet()
+            check(TerminalInputDelivery.CAPABILITY in capabilities)
+            val transport = TerminalTransport.resolve(capabilities)
+            val acknowledgements = Channel<TerminalInputAcknowledgement>(Channel.UNLIMITED)
+            val input = TerminalInputLaneOwner(this, onAcknowledgement = {
+                check(acknowledgements.trySend(it).isSuccess)
+            }) { use -> client.useTerminalInputLane(surface, use) }
+            suspend fun expect(sequence: ULong, status: TerminalInputAcknowledgement.Status) {
+                val ack = withTimeout(15_000) { acknowledgements.receive() }
+                check(ack.stream == probe.delivery.stream && ack.sequence == sequence && ack.status == status)
+                requireCurrent()
+            }
+            try {
+                withTimeout(15_000) { input.ready.first { it } }
+                requireCurrent()
+                onStage("duplicate command acknowledgement after reconnect")
+                check(input.sendIdentified(probe.command, probe.delivery))
+                expect(probe.delivery.sequence, TerminalInputAcknowledgement.Status.DUPLICATE)
+                val suffix = UUID.randomUUID().toString().replace("-", "")
+                val fence = "CMUX_FENCE_" + suffix
+                val next = probe.delivery.copy(sequence = probe.delivery.sequence + 1uL)
+                onStage("next input sequence and fence acknowledgement")
+                check(input.sendIdentified("printf '%s%s\\n' 'CMUX_FENCE_' '$suffix'\r", next))
+                expect(next.sequence, TerminalInputAcknowledgement.Status.APPLIED)
+                onStage("single original output after ordered shell fence")
+                withTimeout(15_000) {
+                    while (true) {
+                        requireCurrent()
+                        val replay = client.request("mobile.terminal.replay", JSONObject()
+                            .put("workspace_id", workspace).put("surface_id", surface)
+                            .put("anchor", "screen").put("max_scrollback_rows", 0))
+                        val lines = TerminalStreamMirror(surface, transport, TerminalViewport(80, 24),
+                            ghosttyTerminalFactory(TerminalCellMetrics(8f, 16f, 14f))).use { mirror ->
+                            check(mirror.replay(replay) == TerminalStreamMirror.Result.APPLIED)
+                            mirror.display.visibleLines().map { spans -> spans.joinToString("") { it.text }.trim() }
+                        }
+                        if (lines.count { it == fence } == 1) {
+                            check(lines.count { it == probe.marker } == 1)
+                            break
+                        }
+                        delay(250)
+                    }
+                }
+                JSONObject().put("duplicateAcknowledgement", true).put("nextSequenceApplied", true)
+                    .put("singleOutputAfterFence", true).put("afterFreshConnection", true)
+            } finally {
+                withContext(NonCancellable) { input.close(); acknowledgements.close() }
             }
         }
     }

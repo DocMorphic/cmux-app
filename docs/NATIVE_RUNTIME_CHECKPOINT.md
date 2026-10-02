@@ -1,5 +1,41 @@
 # Native transport and keyboard runtime checkpoints
 
+## Physical identified-input retry after reconnect — 2026-10-02
+
+The extended NIGHTLY check passed **1 test in 10.71 s**, zero skips, on the
+physical Pixel. After the initial identified command's APPLIED acknowledgement
+and two live GRID events, it releases the first connection and verifies a new
+underlying connection. It then resends the **identical command bytes and original
+surface/stream/sequence identity** on the new input lane. The Mac must return a
+matching **DUPLICATE** acknowledgement. A distinct command at the next sequence
+must return **APPLIED** and print an assembled fence marker. Only after observing
+that ordered shell fence does the replay check require exactly one original
+output line. Command echo cannot satisfy either generated marker assertion.
+
+The report counts four sends: baseline RPC, initial identified command, identical
+retry, and next-sequence fence. Both native sessions verify the intended nightly
+host. The unique test workspace was removed and its absence verified; the private
+receipt was removed. No existing terminal received input or pairing was persisted.
+
+The first retry run failed in 15.755 s with an IllegalArgumentException in the
+retry/replay phase, but verified cleanup. The new test had reconstructed its replay
+surface string with `UUID.toString()`, changing its casing; the production replay
+mirror correctly requires the original host wire identity. Retaining that original
+string fixed the test. This was a test correction, not a production app change.
+The failure is retained alongside the passing result.
+
+Opt in with `cmux_live_terminal_fixture=true`, `cmux_live_terminal_stream=true`,
+`cmux_live_input_retry=true`, and `cmux_live_discovered_build=nightly` on
+`LiveNativeTerminalCheck`. This verifies real host duplicate suppression across a
+fresh connection, not an injected mid-write connection loss, full production
+outbox recovery, process death or Gboard input.
+
+Final test APK SHA-256:
+`487a41d96b480338d54ed79d51932faef310541fc3ee1e5b844b882e89746ef9`.
+Assembly and 16 KB ZIP alignment passed. Production debug APK and signed build
+385 are unchanged. No emulator was started or screen setting changed (still 0).
+Ignored logs: `captures/runtime/pixel-resume-20261002/nightly-retry-*`.
+
 ## Physical NIGHTLY identified input acknowledgement — 2026-10-02
 
 The real Pixel/NIGHTLY check passed **1 test in 10.56 s**, zero skips. The test

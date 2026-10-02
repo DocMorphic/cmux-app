@@ -1,5 +1,13 @@
 # Identified terminal input — protocol, lanes and session sender
 
+**Physical duplicate retry follow-up (2026-10-02):** one Pixel/NIGHTLY test passed
+in 10.71 s. An identical identified command retried after a fresh native connection
+received DUPLICATE, the next sequence received APPLIED, and an ordered shell fence
+preceded the assertion of exactly one original output line. Cleanup was verified.
+[Evidence, initial test correction and limits](NATIVE_RUNTIME_CHECKPOINT.md#physical-identified-input-retry-after-reconnect--2026-10-02)
+supersede the earlier lack of real duplicate-suppression acceptance. Mid-write
+failure injection and complete production outbox/process-death recovery remain open.
+
 **Physical NIGHTLY follow-up (2026-10-02):** the Pixel passed one test in 10.56 s
 with real identified input, a matching APPLIED acknowledgement, two live GRID
 events carrying generated output, simultaneous control RPC, a fresh reconnect and

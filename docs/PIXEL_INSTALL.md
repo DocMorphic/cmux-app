@@ -32,6 +32,14 @@ Debug production APK remains the hash above; temporary stay-awake was restored t
 
 ### Signed APK verification
 
+**Latest physical retry checkpoint:** a real duplicate input after reconnect now
+passes against NIGHTLY (1 test, 10.71 s), with DUPLICATE/APPLIED acknowledgements
+and exactly one original output after a shell fence. See
+[evidence and limits](NATIVE_RUNTIME_CHECKPOINT.md#physical-identified-input-retry-after-reconnect--2026-10-02).
+Final installed instrumentation SHA-256:
+`487a41d96b480338d54ed79d51932faef310541fc3ee1e5b844b882e89746ef9`.
+The production debug APK and signed build 385 remain unchanged.
+
 **Later NIGHTLY checkpoint:** account discovery/authentication, native browser
 HTTP and identified terminal-input acknowledgement now pass on the real Pixel/Mac.
 See [native terminal scope](NATIVE_RUNTIME_CHECKPOINT.md#physical-nightly-identified-input-acknowledgement--2026-10-02)

@@ -12,6 +12,14 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Real identified-input duplicate suppression verified (2026-10-02):** the
+Pixel/NIGHTLY check passed in 10.71 s: retry identical bytes/identity after a new
+connection, require DUPLICATE, send the next sequence and require APPLIED, then
+require exactly one original output after an ordered shell fence. Fixture cleanup
+was verified. The initial failed run exposed ID casing normalization in the new
+test; preserving the original wire ID fixed it. Production code/APK is unchanged.
+[Scope and remaining recovery cases](NATIVE_RUNTIME_CHECKPOINT.md#physical-identified-input-retry-after-reconnect--2026-10-02).
+
 **NIGHTLY native interoperability verified (2026-10-02):** Android discovered
 and authenticated the intended nightly host without changing saved pairings.
 A real native browser lane returned the exact body of an owned Mac loopback HTTP
