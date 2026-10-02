@@ -8,6 +8,7 @@ import org.json.JSONObject
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.util.UUID
+import java.io.File
 
 /** Opt-in physical acceptance. Only the newly created workspace receives input or is closed.
  * Existing account/pairing/preferences are never reset. Reports omit terminal text and host IDs.
@@ -17,8 +18,12 @@ class LiveNativeTerminalCheck {
     @Test fun disposableTerminalOutputSurvivesNativeReconnect() = runBlocking<Unit> {
         assumeTrue(InstrumentationRegistry.getArguments().getString("cmux_live_terminal_fixture") == "true")
         val streamCheck = InstrumentationRegistry.getArguments().getString("cmux_live_terminal_stream") == "true"
+        val discoveredBuild = InstrumentationRegistry.getArguments().getString("cmux_live_discovered_build")
+        require(discoveredBuild == null || discoveredBuild.matches(Regex("[a-z0-9][a-z0-9._-]{0,63}")))
         check(!Build.FINGERPRINT.contains("generic") && !Build.MODEL.contains("sdk")) { "Physical device required" }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val receipt = File(context.filesDir, "live-terminal-fixture.json")
+        check(!receipt.exists()) { "Inspect the previous terminal fixture receipt before rerunning" }
         var stage = "existing account"
         var creationAttempted = false
         var fixtureCreated = false
@@ -35,13 +40,24 @@ class LiveNativeTerminalCheck {
                     try {
                         stage = "account refresh"
                         val team = checkNotNull(connections.teams.refresh().scope)
-                        val mac = connections.store.pairedMacs().filter {
+                        val mac = if (discoveredBuild != null) {
+                            stage = "single discovered Mac selection for requested build"
+                            val directory = withTimeout(30_000) {
+                                connections.native.state.first { it.account == team && it.ready }
+                            }
+                            val selected = directory.computers.single { it.buildTag == discoveredBuild }
+                            NativeCredentialStore.PairedMac(PairingCodeParser.computer(selected, team),
+                                selected.deviceId, selected.name, selected.buildTag,
+                                accountUserId = team.userId, accountTeamId = team.teamId)
+                        } else connections.store.pairedMacs().filter {
                             connections.connector.allowsSaved(it) &&
                                 PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Iroh
                         }.single()
                         suspend fun connect(): MobileRpcClient {
                             check(connections.teams.isCurrent(team) && connections.connector.allowsSaved(mac))
-                            val next = connections.connector.connectSaved(mac, connections.account)
+                            val next = if (discoveredBuild != null) connections.connector.connectPairing(
+                                PairingCodeParser.parse(mac.code).getOrThrow(), connections.account)
+                            else connections.connector.connectSaved(mac, connections.account)
                             try { mac.requireMatchingHost(next.hostStatus()); return next }
                             catch (failure: Throwable) { next.close(); throw failure }
                         }
@@ -52,11 +68,15 @@ class LiveNativeTerminalCheck {
                         stage = "create disposable workspace"
                         // Never retry creation or input: a lost reply may already have applied it.
                         creationAttempted = true
+                        val title = "Android terminal check " + UUID.randomUUID().toString().take(8)
                         val created = TaskCreationResult.parse(first.request("workspace.create",
-                            JSONObject().put("title", "Android acceptance fixture"), timeoutMillis = 30_000)).created
+                            JSONObject().put("title", title), timeoutMillis = 30_000)).created
                         check(created.id !in originalIds)
                         owned = created
                         fixtureCreated = true
+                        receipt.writeText(JSONObject().put("id", created.id).put("windowId", created.windowId)
+                            .put("title", title).put("build", discoveredBuild).toString())
+                        check(created.title == title)
                         stage = "prepare lazy terminal"
                         val initial = checkNotNull(created.terminals.firstOrNull())
                         try { first.prepareTerminal(created.id, initial.id) }
@@ -133,11 +153,13 @@ class LiveNativeTerminalCheck {
                             while (parseAuthoritativeWorkspaces(second.workspaces()).any { it.id == created.id }) delay(250)
                         }
                         fixtureClosed = true
+                        check(receipt.delete())
                         println("CMUX_LIVE_TERMINAL_REPORT " + JSONObject()
                             .put("identityVerified", true).put("accountAccessVerified", true)
                             .put("createdWorkspace", true).put("inputRequests", if (streamCheck) 2 else 1)
                             .put("decodedOutput", true).put("reconnectedSameTerminal", true)
                             .put("freshConnection", true)
+                            .put("discoveredBuildMatched", discoveredBuild != null && mac.instanceTag == discoveredBuild)
                             .put("outputAfterReconnect", true).put("outputMode", mode)
                             .put("liveStream", streamReport ?: JSONObject.NULL)
                             .put("fixtureClosed", true))
@@ -150,6 +172,7 @@ class LiveNativeTerminalCheck {
                                 checkNotNull(active).closeWorkspace(cleanup.id, cleanup.windowId)
                                 fixtureClosed = parseAuthoritativeWorkspaces(checkNotNull(active).workspaces())
                                     .none { it.id == cleanup.id }
+                                if (fixtureClosed) check(receipt.delete())
                             } }
                         }
                         active?.close()

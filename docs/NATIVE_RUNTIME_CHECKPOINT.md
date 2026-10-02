@@ -1,5 +1,37 @@
 # Native transport and keyboard runtime checkpoints
 
+## Physical NIGHTLY identified input acknowledgement — 2026-10-02
+
+The real Pixel/NIGHTLY check passed **1 test in 10.56 s**, zero skips. The test
+selected exactly one `nightly` entry from the existing account's authenticated
+directory and checked host identity/build on both connections. It created only
+its own uniquely titled workspace, prepared its lazy terminal, sent one baseline
+RPC command, and verified that output through the production replay decoder.
+
+NIGHTLY advertises `terminal.input.exactly_once.v1`. The second generated command
+was sent on the native input lane with a surface/stream/sequence identity and
+received a matching **APPLIED** acknowledgement. Its exact output arrived through
+**two applied live GRID events**, with no replay request after sending that
+command allowed to satisfy the live-output assertion. Control RPC remained
+usable while the input lane was open. A genuinely new underlying connection
+then retained the baseline output; the fixture workspace was closed and verified
+absent. Its private creation receipt was removed.
+
+This proves native identified-input acknowledgement on a real host, not duplicate
+retry suppression or a full interrupted-session recovery scenario. It also does
+not exercise Gboard, saved-pairing UI or raw terminal-byte output. The new
+`cmux_live_discovered_build=nightly` selector does not persist a pairing; the
+default still selects exactly one eligible saved Mac. A private ownership receipt
+and unique title now guard all terminal fixture runs against blind reruns after
+interruption.
+
+Final installed test APK SHA-256:
+`955a273af1b086832254843f279045c91a88189ece190ebd2cf704e4e9d808dc`.
+Assembly and 16 KB ZIP alignment passed. Production debug APK remains
+`f72f05838b1e441c43bdc154840b3796b4d696f28ec6eaf2297c3435b969e1cb`;
+signed build 385 is unchanged. No emulator or phone sleep-setting change was
+needed. Ignored evidence: `captures/runtime/pixel-resume-20261002/nightly-input-*`.
+
 ## Settled Pixel viewport and reopen — 2026-10-02
 
 The revised physical MainActivity check passed **1 test in 21.902 s**, zero

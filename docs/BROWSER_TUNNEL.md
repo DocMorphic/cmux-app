@@ -1,5 +1,42 @@
 # Mac browser tunnel — 2026-09-30
 
+## Physical NIGHTLY discovery and native HTTP — 2026-10-02
+
+The physical Pixel authenticated to the staged official NIGHTLY host through
+its existing account directory without adding or replacing a saved pairing.
+The directory contained two computers and exactly one `nightly` match; both
+host device identity and build tag were verified. The read-only discovery case
+passed **1 test in 11.755 s**. NIGHTLY advertises `browser.tunnel.v1` and
+`terminal.input.exactly_once.v1`; native browser-port listing succeeds. This first
+connection reported the **Relay** route. Its loopback-only browser policy is
+retained (`allowsNonLoopbackHosts=false`).
+
+A second run passed **1 test in 7.253 s** using a disposable HTTP server bound
+only to Mac `127.0.0.1` on an ephemeral port. The phone opened a native browser
+lane to that port, sent one GET for its generated fixture path, and received HTTP
+200 plus the exact generated body through EOF. An authenticated host-status RPC
+still worked afterward. The server observed exactly one fixture request, closed
+its listener and exited. This connection reported **LAN or Private VPN**; these
+two runs do not prove network-switch continuity. Test APK SHA-256:
+`9cf830a18bd978856833278716ed8b958e91710c68415533dcde5f0908e468a0`.
+
+`LiveNativeBrowserCheck` now supports `cmux_live_discovered=true` together with an
+explicit `cmux_live_build=nightly`. It selects one authorized directory entry,
+connects through the production connector, and compares the host against that
+expected identity. Missing/ambiguous matches fail; it never falls back to stable.
+No account stores, user workspaces or terminal input are changed. Optional
+`cmux_live_browser_fixture_port` and `cmux_live_browser_fixture_marker` must be
+supplied together and target an owned Mac loopback fixture; the marker format is
+`CMUX_BROWSER_` followed by 32 lowercase hex characters. Without those arguments,
+the check only inspects identity, capabilities, inventory and listening ports.
+
+This establishes real native-lane HTTP interoperability, **not** the full
+WebView/SOCKS presentation, saved-pairing UI, HTTPS, file upload/download or browser
+reconnect workflow. Those remain open. Debug production APK is unchanged at
+`f72f05838b1e441c43bdc154840b3796b4d696f28ec6eaf2297c3435b969e1cb`;
+signed build 385 is unchanged. No emulator, cloud configuration or persistent
+phone setting was changed. Ignored logs: `captures/runtime/pixel-resume-20261002/nightly-*`.
+
 Status: native tunnel client, SOCKS/router, owner/capability checks, dedicated
 WebView process, production presentation, storage retirement and mode controls
 are implemented. The dated checkpoints below distinguish fixture verification

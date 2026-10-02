@@ -32,6 +32,14 @@ Debug production APK remains the hash above; temporary stay-awake was restored t
 
 ### Signed APK verification
 
+**Later NIGHTLY checkpoint:** account discovery/authentication, native browser
+HTTP and identified terminal-input acknowledgement now pass on the real Pixel/Mac.
+See [native terminal scope](NATIVE_RUNTIME_CHECKPOINT.md#physical-nightly-identified-input-acknowledgement--2026-10-02)
+and [browser scope](BROWSER_TUNNEL.md#physical-nightly-discovery-and-native-http--2026-10-02).
+Only the instrumentation APK changed, finally to SHA-256
+`955a273af1b086832254843f279045c91a88189ece190ebd2cf704e4e9d808dc`.
+No nightly pairing was persisted, and no production/release APK was rebuilt.
+
 [Build 385](https://github.com/DocMorphic/cmux-app/actions/runs/37017511051)
 passed at `7f8cefdd34811860e268270f96ecbc555dcfb36e`. Download the
 [signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37017511051/artifacts/11231236946)

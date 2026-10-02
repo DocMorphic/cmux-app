@@ -1,5 +1,12 @@
 # Identified terminal input — protocol, lanes and session sender
 
+**Physical NIGHTLY follow-up (2026-10-02):** the Pixel passed one test in 10.56 s
+with real identified input, a matching APPLIED acknowledgement, two live GRID
+events carrying generated output, simultaneous control RPC, a fresh reconnect and
+verified disposable-workspace cleanup. This supersedes earlier lack of a capable
+physical host. [Exact evidence and limits](NATIVE_RUNTIME_CHECKPOINT.md#physical-nightly-identified-input-acknowledgement--2026-10-02)
+leave real duplicate-retry suppression and interrupted-session recovery open.
+
 Checkpoint: 2026-09-30. Source contract:
 [`204a11dfcc76280205e50406ab94270a1c152155`](https://github.com/manaflow-ai/cmux/commit/204a11dfcc76280205e50406ab94270a1c152155).
 The protocol, lanes and retained sender are now integrated into the production

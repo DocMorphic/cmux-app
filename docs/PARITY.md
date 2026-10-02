@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**NIGHTLY native interoperability verified (2026-10-02):** Android discovered
+and authenticated the intended nightly host without changing saved pairings.
+A real native browser lane returned the exact body of an owned Mac loopback HTTP
+fixture (1 test, 7.253 s). A separate terminal run verified identified input with
+an APPLIED acknowledgement, live GRID output and fresh reconnect (1 test, 10.56 s).
+Fixtures were removed and the temporary HTTP listener closed. See
+[browser scope](BROWSER_TUNNEL.md#physical-nightly-discovery-and-native-http--2026-10-02)
+and [terminal scope](NATIVE_RUNTIME_CHECKPOINT.md#physical-nightly-identified-input-acknowledgement--2026-10-02).
+Saved-pairing UI, full WebView workflow, real duplicate-input suppression and live
+push remain open. Production APK and signed build 385 are unchanged.
+
 **Physical resize and Todo RPC verified (2026-10-02):** the real MainActivity
 test passed in 21.902 s with exact host grids 67×47 → 67×24 with Gboard → 67×47
 after reopening, actual composer output, inspected settled screenshots, retained
