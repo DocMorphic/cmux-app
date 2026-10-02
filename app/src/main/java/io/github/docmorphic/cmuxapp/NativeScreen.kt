@@ -121,6 +121,15 @@ fun NativeScreen(
     val scope = rememberCoroutineScope()
     val terminalFocusRequester = remember { FocusRequester() }
     var signedIn by remember { mutableStateOf(account.isSignedIn()) }
+    val accountDeletion = remember(sharedConnections, account, store) {
+        sharedConnections?.accountDeletion ?: NativeAccountDeletionController(scope, store::load, store::update) { login ->
+            NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
+        }
+    }
+    val deletionReceipt by accountDeletion.state.collectAsState()
+    LaunchedEffect(store, accountDeletion) {
+        store.revisions.collect { accountDeletion.reconcile(); signedIn = account.isSignedIn() }
+    }
     val accountTeams = remember(account, store) { sharedConnections?.teams ?: NativeAccountTeams(account, store) }
     val teamState by accountTeams.state.collectAsState()
     val appearances = nativeMacAppearances(teamState.scope)
@@ -1574,6 +1583,21 @@ fun NativeScreen(
 
     if (signedIn) sharedConnections?.ssh?.let { NativeSshPromptHost(it) }
 
+    fun signOutCurrentAccount(owner: String? = null): Boolean = try {
+        if (account.signOut(owner)) {
+            // Retire credentials first: service/connection teardown cannot leave a
+            // deleted account admitted if stopping a background component fails.
+            runCatching { NativeNotificationService.setEnabled(context, false) }
+            backgroundNotifications = NativeNotificationService.isEnabled(context)
+            drafts.clear(); accountTeams.clear(); TaskDraftRepository.clearAttachments(context)
+            signedIn = false; client?.close(); client = null
+        }
+        accountDeletion.reconcile()
+        true // A different login is intentionally untouched.
+    } catch (failure: Exception) { error = "Could not sign out on this device"; false }
+
+    NativeAccountDeletionAlerts(deletionReceipt, ::signOutCurrentAccount, accountDeletion::acknowledge)
+
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding()) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
         if (signedIn && terminalStartupState.failure?.key?.let { it == displayedTab?.first } == true) {
@@ -1612,6 +1636,9 @@ fun NativeScreen(
                         accountTeams.state.value.createdTeam != null
                     }
                 })
+                TextButton(onClick = { signOutCurrentAccount() },
+                    modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
+                NativeAccountDeletionButton(browserLogin, deletionReceipt, accountDeletion::begin)
                 }, computers = {
                 Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
                 if (sharedConnections != null) TextButton(onClick = { showSshComputers = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.computers")) { Text("SSH Computers") }
@@ -1633,14 +1660,6 @@ fun NativeScreen(
                         showSettings = false
                     }.onFailure { error = it.message }
                 }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Remove local pairing", color = Color(0xFFFF9999)) }
-                Spacer(Modifier.height(24.dp))
-                TextButton(onClick = {
-                    NativeNotificationService.setEnabled(context, false)
-                    backgroundNotifications = false
-                    drafts.clear()
-                    accountTeams.clear(); account.signOut(); TaskDraftRepository.clearAttachments(context); signedIn = false; client?.close(); client = null
-                },
-                    modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
                 }, notifications = {
                 Text("NOTIFICATIONS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                     color = nativeMuted, fontSize = 11.sp)

@@ -109,6 +109,51 @@ class NativeEmailSignInTest {
         assertFalse(saved)
     }
 
+    @Test fun conditionalSignOutRetiresOnlyTheMatchingSessionsChallenge() = runBlocking {
+        for (matching in listOf(false, true)) {
+            val started = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            var saved = false
+            val flow = NativeEmailSignIn({ path, _ ->
+                if (path.endsWith("send-sign-in-code")) JSONObject().put("nonce", "challenge")
+                else { started.complete(Unit); release.await(); session() }
+            }) { _, _ -> saved = true }
+            flow.sendCode("person@example.test")
+            val exchange = async { runCatching { flow.signIn("ABC123") } }
+            started.await()
+            assertEquals(matching, flow.clearIf { matching })
+            release.complete(Unit)
+            assertEquals(matching, exchange.await().isFailure)
+            assertEquals(!matching, saved)
+        }
+    }
+
+    @Test fun sessionRetirementAndChallengeInvalidationExcludeConcurrentPublication() = runBlocking {
+        val started = CompletableDeferred<Unit>()
+        val response = CompletableDeferred<Unit>()
+        val responseReturned = CompletableDeferred<Unit>()
+        val retiring = CompletableDeferred<Unit>()
+        val finishRetiring = java.util.concurrent.CountDownLatch(1)
+        val published = CompletableDeferred<Unit>()
+        val flow = NativeEmailSignIn({ path, _ ->
+            if (path.endsWith("send-sign-in-code")) JSONObject().put("nonce", "challenge")
+            else { started.complete(Unit); response.await(); responseReturned.complete(Unit); session() }
+        }) { _, _ -> published.complete(Unit) }
+        flow.sendCode("person@example.test")
+        val exchange = async(Dispatchers.IO) { runCatching { flow.signIn("ABC123") } }
+        started.await()
+        val signOut = async(Dispatchers.IO) { flow.clearIf {
+            retiring.complete(Unit)
+            check(finishRetiring.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            true
+        } }
+        try {
+            retiring.await(); response.complete(Unit); responseReturned.await()
+            assertNull(withTimeoutOrNull(150) { published.await() })
+        } finally { finishRetiring.countDown() }
+        assertTrue(signOut.await()); assertTrue(exchange.await().isFailure); assertFalse(published.isCompleted)
+    }
+
     @Test fun incompleteSessionCannotBePublished() = runBlocking {
         val flow = NativeEmailSignIn({ path, _ ->
             if (path.endsWith("send-sign-in-code")) JSONObject().put("nonce", "challenge")

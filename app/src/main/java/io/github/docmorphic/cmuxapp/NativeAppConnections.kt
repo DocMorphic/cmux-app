@@ -30,6 +30,9 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) },
         savedTailscale = savedTailscale)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->
+        NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
+    }
     val ssh = NativeSshRuntime(context.applicationContext, store, scope)
     private val tailscale = TailscaleConnector(context, store, teams)
     val connector = object : NativeConnector {
@@ -67,6 +70,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
 
     init {
         scope.launch { store.revisions.collect {
+            accountDeletion.reconcile()
             try { PhoneReplyNotices(context.applicationContext).sync() }
             catch (_: Exception) { currentCoroutineContext().ensureActive() }
         } }

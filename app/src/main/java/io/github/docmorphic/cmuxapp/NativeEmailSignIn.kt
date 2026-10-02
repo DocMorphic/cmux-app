@@ -52,4 +52,9 @@ internal class NativeEmailSignIn(
     }
 
     fun clear() = synchronized(lock) { nonce = null; generation++ }
+
+    /** Same lock order as signIn's publish: challenge lock, then credential transaction. */
+    fun clearIf(retireSession: () -> Boolean): Boolean = synchronized(lock) {
+        retireSession().also { if (it) { nonce = null; generation++ } }
+    }
 }

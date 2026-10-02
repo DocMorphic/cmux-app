@@ -86,6 +86,27 @@ class NativeFlowTest {
         TerminalDraftRepository.get(context).drafts.clear()
     }
 
+    @Test fun accountDeletionConfirmationCancelsInNativeSettingsWithoutChangingSession() {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        val login = NativeCredentialStore(context).taskSession()
+        compose.onNodeWithContentDescription("cmux settings").performClick()
+        compose.onNodeWithText("Delete Account").performScrollTo().performClick()
+        compose.onNodeWithText("Delete Account?").assertIsDisplayed()
+        compose.onNodeWithText("This permanently deletes your cmux account and cmux data. You will be signed out on this device.").assertIsDisplayed()
+        screenshot("native-account-delete-confirmation")
+        compose.onNodeWithText("Cancel").performClick()
+        assertEquals(login, NativeCredentialStore(context).taskSession())
+        assertNull(NativeAccountDeletionRecord.read(NativeCredentialStore(context).load()))
+        compose.onNodeWithText("Sign out").performScrollTo().performClick()
+        compose.waitUntil(5_000) { NativeCredentialStore(context).taskSession() == null }
+        assertFalse(NativeAccount(NativeCredentialStore(context)).isSignedIn())
+    }
+
     @Test fun terminalFilesChipAndRelativePathTapUseNativeTerminalRoute() {
         context.getSharedPreferences("native_display", android.content.Context.MODE_PRIVATE).edit().putFloat("terminal_scale", 1f).commit()
         peer.artifactsSupported = true

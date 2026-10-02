@@ -133,6 +133,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     fun update(transform: (JSONObject) -> Unit): Unit = synchronized(storageLock) {
         val value = load() ?: JSONObject()
         transform(value)
+        NativeAccountDeletionRecord.prune(value)
         NativeNotificationDismissOutbox(value).prune()
         PhonePushKeyState(value).prune()
         PhonePushInbox(value).prune()
@@ -233,13 +234,28 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
         } finally { connection.disconnect() }
     }
 
-    fun signOut() {
-        emailSignIn.clear()
-        store.update {
-            it.put("access_token", "").put("refresh_token", "")
-            it.remove("task_session"); it.remove("task_drafts")
+    internal suspend fun deletionCredentials(login: String): NativeDeletionCredentials? {
+        if (store.taskSession() != login) throw kotlinx.coroutines.CancellationException("Account changed")
+        val access = accessToken() ?: return null
+        val state = store.load() ?: return null
+        if (state.optString("task_session") != login || state.optString("access_token") != access)
+            throw kotlinx.coroutines.CancellationException("Account changed")
+        return NativeDeletionCredentials(access, state.optString("refresh_token"))
+    }
+
+    fun signOut(expectedLogin: String? = null): Boolean {
+        val applied = emailSignIn.clearIf {
+            var retired = false
+            store.update {
+                if (expectedLogin != null && it.optString("task_session") != expectedLogin) return@update
+                it.put("access_token", "").put("refresh_token", "")
+                it.remove("task_session"); it.remove("task_drafts")
+                retired = true
+            }
+            retired
         }
-        TaskDraftRepository.clearMemory()
+        if (applied) TaskDraftRepository.clearMemory()
+        return applied
     }
 
     private fun expiresSoon(token: String): Boolean = runCatching {
