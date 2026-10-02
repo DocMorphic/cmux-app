@@ -14,7 +14,72 @@ establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries; the SSH
-browser mode-switch checkpoint is the latest implementation status.
+real browser-provider checkpoint is the latest implementation status.
+
+## Real browser provider and Android key tokens (2026-10-02)
+
+A new opt-in JVM check exercises production `SshCmuxControl` against the published
+cmux-tui 0.13.4 process and an actual private headless Chrome provider. The test
+uses a generated HOME/runtime/config, Chrome profile and HTML files; registers
+one exact canonical tab target through the trusted-local relay; and never reads
+personal browser profiles, Mac sockets, SSH accounts or terminal sessions.
+Provider registration attaches an existing page; it does not navigate that page
+on registration. The fixture loads its own generated page and sends explicit
+production navigation commands after the provider reports live.
+
+The first local-page run proved decoded 640×480 pixels, exact green background,
+guarded clicks with a real DOM counter, and text insertion. It then failed because
+Android emits `forward_delete`, while the SSH mapping only accepted
+`forwarddelete`. Hardware `page_up`/`page_down`, Insert, F1–F12 and modified
+characters were also absent from that mapping. They are now supported. Modified
+character keys preserve CDP modifier bits without also inserting text; letters
+and digits carry their corresponding physical code, while international characters
+do not invent a physical key. Named-key handling keeps modified Enter out of text.
+
+**Verification:** all **19 focused JVM tests** passed, without skips: eight
+browser wire/key/guard cases, ten control cases and the real-provider case. The
+real-provider test took **8.470 seconds**. After the fix it proves forward-delete
+changes the input value, Control-A reaches the page as `KeyA` with Control set,
+F6 reaches the page, navigation changes the actual document, resize revokes pointer
+input until a new frame is acknowledged, and detach leaves the control usable.
+The captured real frame from the failing key run was inspected. This exercises
+the published relay and browser/CDP implementation, not an Android WebView or the
+production SSH transport, Compose renderer, provider reconnect or physical Pixel.
+Control-A/F6 assertions prove DOM key events; browser/OS shortcut side effects
+beyond those assertions remain unverified.
+
+Chrome was **153.0.8010.53**. The existing cmux-tui binary SHA-256 was
+`5f8621fd269820d2ccf4c51790d1fff0928c677ede03269caa8023af7eb994f2`.
+Successful XML and build evidence are under ignored
+`captures/runtime/ssh-audit/cdp-browser-final-jvm` and `cdp-browser-keys-build.txt`.
+The initial key failure and inspected PNG are in `cdp-browser-key-failure`.
+
+**HTTP remains unresolved:** with both MockWebServer and a minimal loopback HTTP
+server, the private Chrome instance reported starting a document request but
+never sent HTTP headers and remained at `about:blank`; a Java HTTP request to the
+same server succeeded. Literal IPv4, direct proxy configuration and the upstream
+background-throttling launch flags did not resolve it. Earlier compile and runtime
+failures, CDP network diagnostics and server logs remain under `cdp-browser-*`.
+The successful run used generated `file:` pages to isolate the actual rendering
+and input channel. It is not HTTP/HTTPS acceptance or evidence of an unavoidable
+Android limitation. Do not replace the remaining HTTP gate with this result.
+
+Run explicitly with absolute fixture binary paths:
+
+```sh
+CMUX_TUI_TEST_BINARY=/absolute/path/to/cmux-tui \
+CMUX_BROWSER_TEST_CHROME=/absolute/path/to/Chrome \
+./gradlew --no-daemon --max-workers=1 :app:testDebugUnitTest \
+  --tests '*SshCmuxBrowserProcessTest' --tests '*SshCmuxBrowserTest' --tests '*SshCmuxControlTest'
+```
+
+Set `CMUX_BROWSER_TEST_HTTP=1` to reproduce the still-failing loopback HTTP variant;
+it retains the same document/pixel/input assertions. With the two binary variables
+absent the process test is explicitly skipped; that is not a passing live check.
+Fixture browser/session processes are stopped and their Chrome profiles removed
+in cleanup. A successful run removes the entire temporary root; failures retain
+small diagnostic/state files. No emulator was started, no APK was assembled or
+published, and no upstream reference changed for this checkpoint.
 
 ## SSH browser mode switching and remembered pages (2026-10-02)
 

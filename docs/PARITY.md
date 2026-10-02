@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Real SSH browser provider/key input (2026-10-02):** a published cmux-tui
+process and private Chrome now pass decoded-frame, guarded-click, text, delete,
+Control-A/F6 event, navigation and pointer-authority recovery after resize checks. Fixed Android
+keyboard tokens that the SSH mapper dropped. Nineteen JVM tests passed without
+skips; the live-provider case took 8.470 seconds. [Exact evidence](DIRECT_SSH.md)
+records that the successful pages were generated local files: Chrome's loopback
+HTTP startup remains unresolved. Android SSH/renderer integration, browser/OS
+shortcut effects and physical-device acceptance remain open. No APK was built.
+
 **Paired-Mac browser mode switching (2026-10-02):** added the Streamed / On
 Android picker, iOS capability explanations, fresh admission checks and remembered
 phone-page restoration. Explicit return selects the linked tab; authoritative Mac

@@ -76,4 +76,18 @@ class SshCmuxBrowserTest {
         assertEquals("Delete", SshCmuxBrowserKeys.named("forwarddelete", emptyList())!!.getString("code"))
         assertNull(SshCmuxBrowserKeys.named("unsupported", emptyList()))
     }
+    @Test fun androidKeyboardTokensReachCdpWithoutDroppingShortcuts() {
+        for ((token, expected) in mapOf("forward_delete" to "Delete", "page_up" to "PageUp", "page_down" to "PageDown", "insert" to "Insert"))
+            assertEquals(expected, SshCmuxBrowserKeys.named(token, emptyList())!!.getString("key"))
+        for (number in 1..12) assertEquals("F$number", SshCmuxBrowserKeys.named("f$number", emptyList())!!.getString("code"))
+        val shortcut = SshCmuxBrowserKeys.named("a", listOf("control", "shift"))!!
+        assertEquals("A", shortcut.getString("key")); assertEquals("KeyA", shortcut.getString("code"))
+        assertEquals(10, shortcut.getInt("modifiers")); assertFalse(shortcut.has("text"))
+        assertEquals("Space", SshCmuxBrowserKeys.named("space", listOf("control"))!!.getString("code"))
+        val international = SshCmuxBrowserKeys.named("é", listOf("option"))!!
+        assertEquals("é", international.getString("key")); assertEquals("", international.getString("code")); assertFalse(international.has("text"))
+        assertNull(SshCmuxBrowserKeys.named("f13", emptyList()))
+        assertNull(SshCmuxBrowserKeys.named("\u0001", emptyList()))
+    }
+
 }

@@ -129,15 +129,33 @@ internal object SshCmuxBrowserKeys {
         for (name in modifiers) bits = bits or when (name.lowercase(Locale.ROOT)) {
             "option", "alt" -> 1; "control", "ctrl" -> 2; "command", "cmd", "meta" -> 4; "shift" -> 8; else -> 0
         }
-        val (key, code) = when (token.lowercase(Locale.ROOT)) {
+        val name = token.lowercase(Locale.ROOT).replace("_", "")
+        val named = when (name) {
             "return", "enter" -> "Enter" to 13; "delete", "backspace" -> "Backspace" to 8
             "forwarddelete" -> "Delete" to 46; "tab" -> "Tab" to 9; "escape", "esc" -> "Escape" to 27
             "up" -> "ArrowUp" to 38; "down" -> "ArrowDown" to 40; "left" -> "ArrowLeft" to 37; "right" -> "ArrowRight" to 39
             "home" -> "Home" to 36; "end" -> "End" to 35; "pageup" -> "PageUp" to 33; "pagedown" -> "PageDown" to 34
-            else -> return null
+            "insert" -> "Insert" to 45
+            else -> name.takeIf { it.startsWith("f") }?.drop(1)?.toIntOrNull()?.takeIf { it in 1..12 }?.let { "F$it" to (111 + it) }
         }
-        return JSONObject().put("key", key).put("code", key).put("windows_virtual_key_code", code).put("modifiers", bits).also {
-            if (key == "Enter" && bits and 7 == 0) it.put("text", "\r")
+        val character = if (name == "space") " " else token.takeIf {
+            it.isNotEmpty() && it.codePointCount(0, it.length) == 1 && !Character.isISOControl(it.codePointAt(0))
         }
+        if (named == null && character == null) return null
+        val key = named?.first ?: checkNotNull(character).let { if (bits and 8 != 0) it.uppercase(Locale.ROOT) else it }
+        val physical = named?.first ?: when {
+            character == " " -> "Space"
+            character?.singleOrNull()?.lowercaseChar() in 'a'..'z' -> "Key${character!!.uppercase(Locale.ROOT)}"
+            character?.singleOrNull() in '0'..'9' -> "Digit$character"
+            else -> "" // A character does not identify a physical key on every keyboard layout.
+        }
+        return JSONObject().put("key", key).put("code", physical)
+            .put("windows_virtual_key_code", named?.second ?: 0).put("modifiers", bits).also {
+                // Shortcut keys must not also insert text into the focused element.
+                if (bits and 7 == 0) {
+                    if (key == "Enter") it.put("text", "\r")
+                    else if (character != null) it.put("text", key)
+                }
+            }
     }
 }
