@@ -41,7 +41,11 @@ class NativeNotificationService : Service() {
         } else startForeground(STATUS_ID, statusNotification())
         if (!isEnabled(this)) { connectionsHandle?.connections?.setProbeActive(this, false); stopSelf(); return START_NOT_STICKY }
         connectionsHandle?.connections?.setProbeActive(this, true)
-        if (worker?.isActive != true) worker = scope.launch { monitor() }
+        if (worker?.isActive != true) worker = scope.launch {
+            try { PhoneFcmWork.recover(applicationContext) }
+            catch (failure: Exception) { if (failure is CancellationException) throw failure }
+            monitor()
+        }
         return START_STICKY
     }
 
@@ -162,6 +166,8 @@ class NativeNotificationService : Service() {
                 val intent = Intent(context, NativeNotificationService::class.java)
                 if (enabled) context.startForegroundService(intent) else {
                     context.stopService(intent)
+                    val credentials = NativeCredentialStore(context)
+                    if (credentials.load()?.has(PhoneFcmQueue.KEY) == true) credentials.update { it.remove(PhoneFcmQueue.KEY) }
                     NativeNotificationDelivery(context).prune(emptySet())
                 }
             } catch (failure: Exception) {

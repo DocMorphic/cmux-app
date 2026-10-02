@@ -1,5 +1,13 @@
 # Attribution
 
+Firebase Cloud Messaging Android SDK 25.0.1 is used without modification.
+Copyright Google LLC; Apache License 2.0. Source:
+https://github.com/firebase/firebase-android-sdk/tree/main/firebase-messaging
+The full Apache 2.0 license is included in the app's license viewer. Project
+configuration and token registration are not included in this checkpoint.
+AndroidX DataStore 1.2.1 is used without modification (Apache License 2.0),
+overriding the older transitive version for 16 KiB native alignment.
+
 `LocalBrowserAddress.kt`, `LocalBrowserState.kt`, `LocalBrowserPane.kt` and
 `LocalBrowserWebHost.kt` follow cmux's `Packages/iOS/CmuxMobileBrowser`
 resolver, surface/store and pane behavior at revision

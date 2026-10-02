@@ -227,3 +227,8 @@ revision's CmuxTUIControl.swift and MobileSSHCmuxTUIProvider.swift lifecycle,
 creation, termination, replay and geometry behavior (Manaflow, GPL-3.0-or-later).
 Android adds account/coroutine ownership, bounded retained renderers and input,
 content-set confirmation checks and exact resource-session resolution.
+Firebase Cloud Messaging Android SDK 25.0.1
+Copyright Google LLC. Apache License 2.0 (included in this viewer).
+https://github.com/firebase/firebase-android-sdk/tree/main/firebase-messaging
+Used without modification; project/token registration is not enabled.
+AndroidX DataStore 1.2.1: Apache License 2.0, used without modification.

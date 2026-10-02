@@ -36,6 +36,8 @@ open class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try { PhoneReplyWork.recover(applicationContext) }
             catch (_: Exception) { currentCoroutineContext().ensureActive() }
+            try { PhoneFcmWork.recover(applicationContext) }
+            catch (_: Exception) { currentCoroutineContext().ensureActive() }
         }
         setContent {
             CmuxTheme {

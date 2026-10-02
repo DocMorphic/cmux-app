@@ -29,10 +29,78 @@ A delivery choice has been requested from the user and is pending:
    established by permission to reuse the source repository.
 
 No Firebase project, service account, cloud deployment, new Mac listener or push
-device registration has been created. The app currently has no FCM integration.
+device registration has been created. The app now has a locally tested, disabled
+until configured FCM receive path, described below; live provider delivery remains
+unverified.
 The [Firebase client setup](https://firebase.google.com/docs/cloud-messaging/android/get-started)
 requires app/project configuration and a messaging service for data payloads.
 Notification permission and explicit user opt-in must precede registration.
+
+## FCM receive path checkpoint (2026-10-02)
+
+Both proposed senders can use the same receiver. `PhoneFcmService` accepts only
+data messages with the single `cmux` key containing the existing encrypted
+`encryptedPayloads` object. Firebase automatic initialization, analytics collection
+and notification delegation are disabled. No Firebase client configuration,
+token request or registration is included; token rotation, unregister and sender
+deployment remain required before live push can work.
+
+The pinned Firebase Messaging 25.0.1 SDK displays notification payloads before
+calling `onMessageReceived`. The service therefore sanitizes both SDK notification
+key prefixes at `handleIntent`, retaining only its message ID for acknowledgement.
+That public SDK method is marked `@hide` in source: upgrades must recheck this
+behavior and the guard tests. The manifest removes the SDK fallback service and
+registers the app service as nonexported, without direct-boot access. Plaintext
+provider banners cannot bypass the app's encrypted-payload checks through either
+of the reviewed SDK notification prefixes.
+
+`PhoneFcmQueue` stores ciphertext inside the existing Keystore-encrypted account
+record, with a 64-item limit, 4096-byte local input bound and 15-minute retention.
+Duplicate receipt does not extend retention. Senders must also respect FCM's total
+message size limit, including the data key and other provider overhead. WorkManager
+holds no message or credential in its input. Connected work uses bounded-retention
+retries and requests expedited execution for effective high-priority messages.
+App, service and boot/package-replacement startup recover persisted work.
+
+Before displaying an alert, the worker refreshes account membership over HTTPS,
+requires the current login and a saved, cryptographically pinned Mac, and uses the
+existing expiry, replay, opt-out and notification-delivery checks. A Mac belonging
+to another verified member team can still notify when a different team is selected.
+Membership outages retain the queue for retry; fresh revocation cannot post.
+Sign-out/login replacement and opt-out discard pending ciphertext. The worker does
+not open Mac, Iroh or SSH connections.
+
+### Receiver verification
+
+- **13 focused JVM tests passed**, zero failures or skips: six queue/admission
+  cases and seven existing message cases.
+- **12 Android checks passed in 72.806 seconds**, zero skips, on the existing
+  API 37 emulator with a 16384-byte page size: five ingress cases and seven
+  notification-delivery regressions. Tests exercise actual system notifications,
+  duplicate suppression, dismissal, local membership HTTP failure/revocation,
+  expiry, forgotten Macs, opt-out and login replacement. SDK `RemoteMessage`
+  parsing confirms sanitized notification prefixes cannot become notification
+  content; runtime inspection confirms no Firebase app is initialized.
+- Both debug and test APK ZIP alignment checks and all **six** packaged native
+  library LOAD/RELRO checks passed. Firebase initially resolved DataStore 1.1.7,
+  whose added native counter library failed RELRO alignment. The explicit,
+  unmodified DataStore 1.2.1 dependency fixes that failure. The incompatible APK
+  was not installed.
+
+The membership endpoint and worker construction are injected for these tests.
+They do not establish Google transport, actual cloud-to-service handoff, token
+lifecycle, Doze/process-death delivery or physical Pixel/Mac acceptance.
+
+Ignored evidence: `captures/runtime/fcm-ingress/`, including the original alignment
+failure, corrected gates, build logs, JVM XML, instrumentation output and
+`receipt.json`. Debug APK SHA-256:
+`ec50578ae9de0385c429b091e96a5de9a3dce2a455005e40f899b779471c3fe7`;
+test APK SHA-256:
+`7adadbc0fffb1ee6a85ecec4378e5eddc44c88ad160e63d9443752f1c091a364`.
+The emulator is stopped. Signed build 369 is unchanged.
+
+The following dated sections retain the implementation history; statements about
+features not yet integrated describe the checkpoint in that section.
 
 ## Encrypted envelope compatibility (2026-10-02)
 

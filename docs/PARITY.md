@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**FCM receive path checkpoint (2026-10-02):** added encrypted, account-scoped
+queueing and background delivery with fresh membership checks, SDK banner
+suppression and opt-out/login cleanup. Thirteen focused JVM tests and 12 Android
+checks passed (72.806 seconds, API 37 / 16 KB, zero skips). All six native libraries
+and both APK ZIP alignment gates pass after updating the new DataStore dependency
+to 1.2.1. No Firebase project, token registration or sender is configured; live
+provider, Doze/process-death and physical acceptance remain open.
+[Implementation, evidence and remaining setup](PUSH_DELIVERY.md#fcm-receive-path-checkpoint-2026-10-02).
+Signed build 369 is unchanged; the emulator is stopped.
+
 **Browser download gate prepared (2026-10-02):** rechecked the Mac download
 delegate and both iOS browser interfaces at audited candidate `204a11d`. Streamed
 downloads follow Mac save preferences; the reviewed phone-local wrapper has no

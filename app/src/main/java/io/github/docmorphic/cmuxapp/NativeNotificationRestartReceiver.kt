@@ -12,7 +12,10 @@ class NativeNotificationRestartReceiver : BroadcastReceiver() {
         val pending = goAsync()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope.launch {
-            try { withTimeout(8_000) { PhoneReplyWork.recover(context.applicationContext) } }
+            try { withTimeout(8_000) {
+                PhoneReplyWork.recover(context.applicationContext)
+                PhoneFcmWork.recover(context.applicationContext)
+            } }
             catch (_: Exception) { /* Durable queue is recovered again at app startup. */ }
             finally { pending.finish(); scope.cancel() }
         }

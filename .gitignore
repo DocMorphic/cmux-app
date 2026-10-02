@@ -11,3 +11,4 @@ local.properties
 *.keystore
 captures/
 __pycache__/
+**/google-services.json

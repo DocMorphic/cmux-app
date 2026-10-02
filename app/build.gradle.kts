@@ -127,6 +127,10 @@ dependencies {
     implementation("androidx.collection:collection:1.5.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
+    implementation("com.google.firebase:firebase-messaging:25.0.1")
+    // FCM resolves 1.1.7, whose arm64 counter library has a 4 KiB RELRO end.
+    // 1.2.1's published library passes our 16 KiB LOAD/RELRO gate unchanged.
+    implementation("androidx.datastore:datastore-preferences:1.2.1")
     implementation("com.github.mwiede:jsch:2.28.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     implementation("androidx.activity:activity-compose:1.10.1")
