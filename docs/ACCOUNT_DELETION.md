@@ -85,8 +85,8 @@ retry of local cleanup; it does not send another DELETE.
 
 Implementation verification uses loopback HTTP and generated fixture credentials.
 It must never call the production deletion endpoint as a test or delete the
-user's account. Physical confirmation/cancellation and real OS process-kill
-acceptance remain separate from component, persistence and UI-recreation checks.
+user's account. Physical confirmation/cancellation and full NativeScreen lifecycle
+acceptance remain separate from the component and process-kill checks below.
 Production account deletion can only be exercised by a deliberate user action on
 an account the user intends to delete. No real account was changed in this work.
 
@@ -128,6 +128,30 @@ passed LOAD/RELRO checks. SHA-256:
 
 - Debug: `0cf37dc93abb666b66fc3204c4aa2996247c822d487d000943211b05be1b4813`
 - Test: `84ff17d206049006359f02756fedf519e7fb3ff4a443c1b1f7d1bcdc70df7757`
+
+## Process-death follow-up — 2026-10-02
+
+The three-case account process suite passed in **56.968 seconds**, API 37 / 16 KB,
+zero failures/skips. Two deletion cases use the real encrypted store, production
+deletion controller/client and account UI in a dedicated debug process:
+
+- After receiving exactly one DELETE, the loopback server withholds its response.
+  The test kills the UI process. A fresh process restores the durable in-flight
+  receipt as unknown, displays the uncertainty dialog and retains sign-in after
+  acknowledgement. No second DELETE is sent; the dialog pixels were inspected.
+- After an HTTP 204 is durably recorded, a fixture flag defers outcome display.
+  The test kills the process before acknowledgement. On ordinary presentation in
+  a new process, the receipt signs out through `NativeAccount.signOut`. A second
+  kill/relaunch remains signed out, cannot open deletion confirmation and sends
+  no additional DELETE. This tests the completion/presentation crash window.
+
+The instrumentation process remains alive as the fixture server; separate child
+PIDs prove actual OS process death. No production account is deleted. These tests
+do not cover Android saved-task restoration, force-stop/Doze, production network
+delivery, the full NativeScreen owner or physical Pixel/Mac acceptance.
+[Harness](ANDROID_TESTING.md#account-process-death-harness) and
+[final APK hashes, initial selector failures and evidence](ACCOUNT_RESTORATION.md#process-death-follow-up--2026-10-02)
+record the exact scope. No production source or signed release changed.
 
 Ignored evidence: `captures/runtime/account-deletion/` contains JVM XML, both
 Android logs, build/alignment logs, device receipts and inspected captures. The

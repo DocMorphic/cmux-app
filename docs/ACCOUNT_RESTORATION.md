@@ -55,10 +55,10 @@ are never accepted as evidence of account or team authorization.
 
 ## Acceptance boundary
 
-Tests use generated identities and loopback HTTP. Controller reconstruction with
-real encrypted Android storage is covered. Actual OS process-kill restoration,
-physical Pixel/Mac account acceptance, biometric/device-unlock behavior and older
-Android API coverage remain open. These checks do not establish full app parity
+Tests use generated identities and loopback HTTP. Controller reconstruction and
+actual process-kill/cold-launch restoration with real encrypted Android storage
+are covered. Full NativeScreen/physical Pixel/Mac account acceptance,
+biometric/device-unlock behavior and older Android API coverage remain open. These checks do not establish full app parity
 or production push delivery. No production account or signed release was changed.
 
 ## Verification — 2026-10-02
@@ -86,3 +86,30 @@ LOAD/RELRO alignment checks. SHA-256:
 Ignored local evidence is under `captures/runtime/account-profile/`, including
 `final-build.txt`, `final-android.txt`, JVM XML and the two account screenshots.
 The existing emulator was stopped after testing; no new AVD was created.
+
+## Process-death follow-up — 2026-10-02
+
+All three `NativeAccountProcessDeathTest` cases passed in **56.968 seconds** on
+API 37 / 16 KB pages. The profile case kills the separate UI process after a real
+HTTP refresh and restarts it with the same encrypted store. Saved name/email/team
+appear with no live scope and no network requests. Tapping cached team/create
+controls does nothing. A 503 preserves that state; a successful refresh establishes
+fresh authority and allows a confirmed team PATCH. The refreshed screenshot was
+inspected. The other two cases verify account-deletion recovery; see
+[ACCOUNT_DELETION.md](ACCOUNT_DELETION.md#process-death-follow-up--2026-10-02).
+
+The first run passed interrupted deletion but failed two assertions against the
+enabled state of child text labels. Compose's disabled enclosing button was not
+what those UIAutomator selectors measured. The final tests tap the controls and
+assert their actual effects instead. All three final results passed with no skips;
+four process transitions report different killed/restarted PIDs. Both final APKs
+passed ZIP alignment and the unchanged debug native libraries passed LOAD/RELRO.
+
+- Debug SHA-256: `8f7c1f3c95ea6c75eea2613ef1ddcea1ea492b2bd1b5bf3bde4aab90f18ca9aa`
+- Test SHA-256: `bdbfa21b565816d4904b68e2755ab9d1abdcdfcf80c3433df8b35472125b72ef`
+
+Evidence: `captures/runtime/account-process/`, including initial/final logs and
+screenshots. A launch before Android services finished booting failed before tests
+started; the final run waited for boot completion. The emulator was stopped after
+verification. Harness design and rerun command are in
+[ANDROID_TESTING.md](ANDROID_TESTING.md#account-process-death-harness).

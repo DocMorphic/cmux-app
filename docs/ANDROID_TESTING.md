@@ -587,3 +587,36 @@ The APK served to the phone matches SHA-256
 (9052151 bytes). The download was fetched back over HTTP and matched the
 verified artifact. Detailed local receipt: `captures/releases/8667887-verification.json`.
 The full app parity goal and physical Pixel/Mac acceptance remain open.
+
+## Account process-death harness
+
+`NativeAccountProcessDeathTest` launches the debug-only, non-exported
+`NativeAccountProcessTestActivity` in `:account_restore_test`. It refuses physical
+devices, uses a unique encrypted fixture store, and accepts only a validated
+loopback port. The instrumentation process hosts MockWebServer and survives while
+the test sends SIGKILL to the distinct account UI process. A PID marker and
+ActivityManager observations verify death and a different PID after relaunch.
+
+The child uses the production account team controller, profile cache, deletion
+controller/client and Compose account components. Initial fake credentials are
+seeded once; relaunch cannot recreate a signed-out session. The test parent never
+reads or modifies the child's SharedPreferences while it is live. No production
+authentication/deletion endpoint, personal store or native Mac connection is used.
+
+Cases cover cold account restoration and revalidation, process death during an
+unanswered DELETE, and death after the completed receipt is durable but before
+its UI handles sign-out. For that last case only, a fixture flag defers outcome
+presentation until relaunch; the deletion request and receipt are real production
+code. These are cold-launch process-death checks, not Android saved-task bundle,
+force-stop/Doze delivery or full NativeScreen acceptance.
+
+Run after installing the debug and Android-test APKs on the existing emulator:
+
+```sh
+adb -s emulator-5554 shell am instrument -w -r \
+  -e class io.github.docmorphic.cmuxapp.NativeAccountProcessDeathTest \
+  io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Status code `2` records process-transition evidence; test starts/results still use
+`1`/`0`. Require the final `OK (3 tests)` and inspect all status codes for failures.
