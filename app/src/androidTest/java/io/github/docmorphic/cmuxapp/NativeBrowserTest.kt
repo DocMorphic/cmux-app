@@ -73,6 +73,56 @@ class NativeBrowserTest {
         return checkNotNull(find(compose.activity.window.decorView))
     }
 
+    @Test fun macModeReasonsAndFreshAdmissionPreserveCurrentPage() {
+        var availability = MacBrowserAvailability.NEEDS_MAC_UPDATE
+        var revision by mutableIntStateOf(0)
+        var opened: String? = null
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeRemoteBrowserPane(client, NativeBrowser(panel, "Browser"), false, null, {}, {},
+                modeRevision = revision, availability = { availability }, onOnDevice = { opened = it })
+        } } }
+        compose.waitUntil(15000) { requests("stream.start").isNotEmpty() }
+        compose.onNodeWithContentDescription("Browser mode").performClick()
+        compose.onNodeWithText("On Android").assertIsNotEnabled()
+        compose.onNodeWithText("Update cmux on this Mac").assertIsDisplayed()
+        compose.onNodeWithText("✓  Streamed").performClick()
+        compose.runOnIdle { availability = MacBrowserAvailability.ROUTE_WITHOUT_LANES; revision++ }
+        compose.onNodeWithContentDescription("Browser mode").performClick()
+        compose.onNodeWithText("On Android").assertIsNotEnabled()
+        compose.onNodeWithText("Not available on this connection").assertIsDisplayed()
+        compose.onNodeWithText("✓  Streamed").performClick()
+        compose.runOnIdle { availability = MacBrowserAvailability.AVAILABLE; revision++ }
+        pushState(url = "http://localhost:3000/phone-page")
+        compose.onNodeWithContentDescription("Browser mode").performClick()
+        compose.onNodeWithText("On Android").assertIsEnabled()
+        // Revoke admission without recomposing the visible menu.
+        compose.runOnIdle { availability = MacBrowserAvailability.NOT_CONNECTED }
+        compose.onNodeWithText("On Android").performClick()
+        compose.runOnIdle { assertNull(opened) }
+        compose.runOnIdle { availability = MacBrowserAvailability.AVAILABLE; revision++ }
+        compose.onNodeWithContentDescription("Browser mode").performClick()
+        compose.onNodeWithText("On Android").performClick()
+        compose.waitUntil(10000) { opened != null }
+        assertEquals("http://localhost:3000/phone-page", opened)
+    }
+
+    @Test fun rememberedMacModeRestoresWhileDisconnectedButNotOnLegacyRoute() {
+        var availability = MacBrowserAvailability.NEEDS_MAC_UPDATE
+        var revision by mutableIntStateOf(0)
+        var opened = 0
+        val checked = java.util.concurrent.CopyOnWriteArrayList<MacBrowserAvailability>()
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeRemoteBrowserPane(null, NativeBrowser(panel, "Browser"), false, null, {}, {},
+                modeRevision = revision, prefersOnDevice = true, availability = { availability.also { checked += it } }, onOnDevice = { opened++ })
+        } } }
+        compose.waitUntil(10000) { checked.lastOrNull() == MacBrowserAvailability.NEEDS_MAC_UPDATE }
+        compose.runOnIdle { assertEquals(0, opened); availability = MacBrowserAvailability.ROUTE_WITHOUT_LANES; revision++ }
+        compose.waitUntil(10000) { checked.lastOrNull() == MacBrowserAvailability.ROUTE_WITHOUT_LANES }
+        compose.runOnIdle { assertEquals(0, opened); availability = MacBrowserAvailability.NOT_CONNECTED; revision++ }
+        compose.waitUntil(10000) { checked.lastOrNull() == MacBrowserAvailability.NOT_CONNECTED }
+        compose.runOnIdle { assertEquals("Availability checks: $checked", 1, opened) }
+    }
+
     @Test fun remoteNavigationAddressEditingAndViewportDoNotRestartStream() {
         show()
         compose.onNodeWithContentDescription("Browser Back").assertIsNotEnabled()

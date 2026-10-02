@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Paired-Mac browser mode switching (2026-10-02):** added the Streamed / On
+Android picker, iOS capability explanations, fresh admission checks and remembered
+phone-page restoration. Explicit return selects the linked tab; authoritative Mac
+inventory retires pages for deleted panels. Twenty-five JVM checks passed;
+incremental Android runs passed nine browser regressions/route cases and then both
+new mode UI checks (21.524 seconds). [Exact evidence](BROWSER_TUNNEL.md) preserves
+the initial two test failures, corrections and final APK identities. Alignment and
+screenshot checks passed. Live Mac/Pixel, full-screen and visual acceptance remain
+open; no signed APK changed.
+
 **SSH browser mode switching (2026-10-02):** Streamed / On Android now follows
 per-panel phone-page preferences and returns to the exact linked streamed tab.
 Live workspace inventory reaches the routed browser; removed owners/tabs retire

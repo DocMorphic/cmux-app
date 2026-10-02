@@ -105,6 +105,11 @@ internal class LocalBrowserStore(private val defaultUrl: String? = "https://duck
             removed.close()
         }
     }
+    fun retainWorkspacePanels(computer: String, workspace: NativeWorkspace) {
+        keys().filter { it.computerId == computer && it.workspaceId == workspace.id }.forEach { key ->
+            retainPanels(key, workspace.browsers.map { it.id }.toSet())
+        }
+    }
     private fun keys() = surfaces.keys + onDevice.keys.map { it.key } + restores
     private fun retire(key: LocalBrowserKey) {
         restores.remove(key)

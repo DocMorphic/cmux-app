@@ -41,7 +41,7 @@ class RoutedBrowserPresentationTest {
     private val releases = AtomicInteger()
     private val probes = CopyOnWriteArrayList<Boolean>()
     private val key = LocalBrowserKey("generated-account", "generated-team", "generated-mac", "workspace")
-    private val workspace = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"workspace","title":"Fixture workspace","terminals":[{"id":"terminal","title":"Fixture shell"}]}]}""")).single()
+    private val workspace = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"workspace","title":"Fixture workspace","terminals":[{"id":"terminal","title":"Fixture shell"}]}]}""")).single().copy(browsers = listOf(NativeBrowser("first", "First"), NativeBrowser("second", "Second")))
     private lateinit var network: NativeMacBrowserNetwork
     private lateinit var navigation: LocalBrowserNavigation
     private lateinit var server: MockWebServer
@@ -102,7 +102,7 @@ class RoutedBrowserPresentationTest {
             else RoutedLocalBrowserWorkspaceView(destination, navigation, workspace, { network }, {
                 holds.incrementAndGet()
                 RoutedBrowserHostLease({ holds.decrementAndGet(); releases.incrementAndGet() }, { probes += it })
-            }, {}, { route = it })
+            }, {}, { route = it }, browserModes = true)
         } } }
     }
     @After fun cleanup() {
@@ -131,6 +131,20 @@ class RoutedBrowserPresentationTest {
         assertEquals("terminal", main { route?.terminalId })
         assertTrue(main { surface.state.value.closed })
         assertEquals(2, releases.get())
+    }
+    @Test fun macRoutedModeSwitchReturnsLinkedPanelAndForgetsItsPhonePage() {
+        browser("Routed fixture ▾")
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
+        main { navigation.openOnDevice(key, workspace, "second", "http://localhost:34876/next") }
+        browser("Next ▾")
+        assertTrue(main { navigation.prefersOnDevice(key, "second") })
+        desc("Browser mode").click(); text("Streamed").click()
+        compose.waitUntil(15000) { route != null }
+        assertEquals("second", main { route?.browserId })
+        assertFalse(main { navigation.prefersOnDevice(key, "second") })
+        assertNull(main { navigation.state.value.local })
+        until { holds.get() == 0 }
     }
     @Test fun retiredOwnerClosesPresentationReleasesHostAndRemovesOnlyItsStorage() {
         browser("Routed fixture ▾")

@@ -6,6 +6,11 @@ import kotlinx.coroutines.sync.withLock
 
 internal enum class MacBrowserAvailability {
     AVAILABLE, NOT_CONNECTED, NEEDS_MAC_UPDATE, ROUTE_WITHOUT_LANES;
+    val onDeviceUnavailableReason: String? get() = when (this) {
+        AVAILABLE -> null
+        NEEDS_MAC_UPDATE -> "Update cmux on this Mac"
+        NOT_CONNECTED, ROUTE_WITHOUT_LANES -> "Not available on this connection"
+    }
     val bindsBrowserToMac get() = this == AVAILABLE || this == NOT_CONNECTED
 }
 

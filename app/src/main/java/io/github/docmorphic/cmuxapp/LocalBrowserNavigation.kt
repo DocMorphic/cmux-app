@@ -61,10 +61,11 @@ internal class LocalBrowserNavigation(private val scope: CoroutineScope,
         val ids = source.workspaces.map { it.id }.toSet()
         fun absent(key: LocalBrowserKey) = key.computerId == source.mac.origin && key.workspaceId !in ids
         store.retainWorkspaces(source.mac.origin, ids)
+        source.workspaces.forEach { store.retainWorkspacePanels(source.mac.origin, it) }
         returnTerminals.keys.removeAll(::absent)
         state.value.local?.takeIf { it.key.computerId == source.mac.origin }?.let { local ->
             val workspace = source.workspaces.singleOrNull { it.id == local.key.workspaceId }
-            mutable.value = state.value.copy(local = workspace?.let { local.copy(workspace = it) })
+            mutable.value = state.value.copy(local = workspace?.takeUnless { local.surface.state.value.closed }?.let { local.copy(workspace = it) })
         }
         if (state.value.creating?.let(::absent) == true) cancelRequest()
     }

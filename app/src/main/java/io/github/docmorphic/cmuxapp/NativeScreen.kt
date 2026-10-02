@@ -1756,7 +1756,7 @@ fun NativeScreen(
                             { active -> connectionHandle?.connections?.setProbeActive(held, active) })
                     },
                     onClose = { displayedTab?.first?.let { key -> browserLogin?.let { workspaceTabs.forget(it, key) } } },
-                    onRoute = { workspaceRoute = it })
+                    onRoute = { workspaceRoute = it }, browserModes = true)
             }
             code.isBlank() -> NativeComputerPicker(teamState, computerState, runtime = sharedConnections?.native,
                 onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
@@ -2023,8 +2023,29 @@ fun NativeScreen(
                         color = Color(0xFFFFAAAA), fontSize = 12.sp)
                 }
             }
-            selectedBrowser != null -> NativeRemoteBrowserPane(client, selectedBrowser!!, busy, connectionError,
-                onBack = { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }, onReconnect = { retry++ })
+            selectedBrowser != null -> {
+                val browser = selectedBrowser!!
+                val workspace = selectedWorkspace
+                val mac = pairedMacs.singleOrNull { it.code == code }
+                val browserKey = if (mac != null && workspace != null) localBrowserKey(browserLogin, teamState.scope, mac, workspace.id) else null
+                NativeRemoteBrowserPane(client, browser, busy, connectionError,
+                    onBack = { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }, onReconnect = { retry++ },
+                    modeRevision = listOf(connectionReady, hostCapabilities, mac, feedSources[mac?.origin]?.availability),
+                    prefersOnDevice = browserKey?.let { localBrowsers.prefersOnDevice(it, browser.id) } == true,
+                    availability = { mac?.let { feedSession.browserNetworks.network(it)?.availability() } ?: MacBrowserAvailability.NOT_CONNECTED },
+                    onOnDevice = { url ->
+                        if (browserKey != null && workspace != null && mac != null && signedIn && store.taskSession() == browserLogin &&
+                            selectedBrowser?.id == browser.id && selectedWorkspace?.browsers?.any { it.id == browser.id } == true &&
+                            selectedWorkspace?.id == workspace.id && code == mac.code &&
+                            browserKey == localBrowserKey(store.taskSession(), teamState.scope, mac, workspace.id) &&
+                            store.pairedMacs().contains(mac) && connection.allowsSaved(mac)) {
+                            focusManager.clearFocus(); softwareKeyboard?.hide(); workspaceTabs.cancel()
+                            localBrowsers.openOnDevice(browserKey, workspace, browser.id, url)
+                            selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null
+                            selectedChangesWorkspace = null; error = null
+                        }
+                    })
+            }
             selectedChangesWorkspace != null -> {
                 val active = client
                 val workspace = selectedChangesWorkspace!!

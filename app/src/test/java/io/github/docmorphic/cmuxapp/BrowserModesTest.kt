@@ -69,4 +69,23 @@ class BrowserModesTest {
         assertEquals(emptyList<NativeTerminal>(), sshBrowserWorkspace(SshWorkspaceTarget.Browser(ref), "Browser").terminals)
         assertEquals(ref.panelId, sshBrowserWorkspace(SshWorkspaceTarget.Browser(ref), "Browser").browsers.single().id)
     }
+    @Test fun macInventoryRetiresLinkedTabsOnlyWhenAuthoritative() = runTest {
+        val mac = NativeCredentialStore.PairedMac("fixture-code", "mac", "Mac", accountUserId = "account", accountTeamId = "team")
+        val scoped = key.copy(computerId = mac.origin)
+        val navigation = LocalBrowserNavigation(backgroundScope)
+        navigation.openOnDevice(scoped, workspace, "a", "https://a.example/")
+        val a = navigation.state.value.local!!.surface
+        navigation.openOnDevice(scoped, workspace, "b", "https://b.example/")
+        val b = navigation.state.value.local!!.surface
+        val source = NativeFeedSource(mac, availability = NativeFeedAvailability.OFFLINE,
+            hasWorkspaceSnapshot = true, workspaces = listOf(workspace.copy(browsers = emptyList())))
+        navigation.observeWorkspaces(source)
+        navigation.observeWorkspaces(source.copy(availability = NativeFeedAvailability.CONNECTED, hasWorkspaceSnapshot = false))
+        assertFalse(a.state.value.closed); assertFalse(b.state.value.closed)
+        navigation.observeWorkspaces(source.copy(availability = NativeFeedAvailability.CONNECTED))
+        assertTrue(a.state.value.closed); assertTrue(b.state.value.closed)
+        assertNull(navigation.state.value.local)
+        assertFalse(navigation.prefersOnDevice(scoped, "a")); assertFalse(navigation.prefersOnDevice(scoped, "b"))
+    }
+
 }

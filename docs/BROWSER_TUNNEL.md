@@ -1,11 +1,59 @@
 # Mac browser tunnel — 2026-09-30
 
-Status: native tunnel client and SOCKS/router implemented, with JVM and Android
-socket checks. The phone-local WebView does **not yet route through the Mac**.
-Session owner/capability wiring and policy refresh are implemented. A dedicated
-WebView process adapter passes isolated browser runtime checks. Production
-presentation, storage retirement and physical browser acceptance remain open.
-Signed 284 predates this work.
+Status: native tunnel client, SOCKS/router, owner/capability checks, dedicated
+WebView process, production presentation, storage retirement and mode controls
+are implemented. The dated checkpoints below distinguish fixture verification
+from the still-outstanding real Mac/Pixel browser acceptance. Signed build 284
+predates this work; debug fixture results do not establish signed delivery.
+
+## Paired-Mac browser modes — 2026-10-02
+
+The paired-Mac streamed browser now offers **Streamed / On Android**, following
+[the iOS mode picker at audited candidate 204a11d](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/SSHFiles/WorkspaceDetailView+SSH.swift).
+The phone option remains visible but disabled with “Update cmux on this Mac” for
+an old host, or “Not available on this connection” for a disconnected connection
+or transport without tunnel lanes. A manual switch rechecks fresh network
+admission, rather than trusting the capability displayed when the menu opened.
+Account login, saved Mac and selected workspace/panel are checked before opening.
+
+On Android loads the current streamed HTTP(S) URL through the existing Mac-bound
+network and remembers the phone page for that panel. A remembered page restores
+during temporary disconnection, preserving its Mac routing; legacy routes do not
+automatically restore that mode. The routed browser can return to its linked
+streamed panel (or the first available panel for an unlinked page), forgetting the
+phone preference on an explicit mode switch. Older hosts' generic local-browser
+fallback keeps no mode picker, matching iOS. Full WebView history across remounts
+is not retained. Fresh authoritative Mac inventory also retires active and cached
+phone pages for deleted browser tabs; offline and incomplete inventories do not.
+
+**Verification:** 25 focused JVM tests passed without skips (six browser-mode,
+thirteen navigation and six network/owner tests). Both APKs built. On the existing
+API 37 / 16,384-byte-page emulator, the first 11-case run passed all seven existing
+streamed-browser regressions and two production routed-presentation checks,
+including exact second-panel selection and preference removal. Its two new mode
+UI cases failed: one awaited the wrong RPC name; the other did not wait for each
+simulated availability transition to be evaluated. Both test synchronizations
+were corrected, preserving the assertions. Those two checks then passed in
+**21.524 seconds** on the final APKs, covering reasons, revocation between display
+and tap, current-page handoff, and disconnected remembered-mode restoration.
+This is incremental evidence, not an all-green 11-case run on the final APK.
+The last production change was an additional login/selected-panel guard in
+`NativeScreen`; the tested browser components were unchanged between these runs.
+
+Final APK SHA-256:
+
+- Debug: `b1f6b5838b1dc2577274322dd1e548308ee3abdb6540bfc747b67fb57ca0bb93`
+- Instrumentation: `05da695ae160365065c3c2509626f4d7d0759756b49385bd41dbddacaef7719d`
+
+Packaged native LOAD/RELRO segments and both APK ZIP alignments pass 16 KB checks.
+The routed-page screenshot from the first run was inspected. Build, JVM XML,
+failed and passing runtime logs, APK receipts and screenshot remain in ignored
+`captures/runtime/ssh-audit/mac-browser-modes-*`. The single existing emulator was
+stopped after testing; no AVD or physical-device state was added or changed.
+
+Real Mac/Pixel mode switching, capability transitions, full-screen integration,
+visual/accessibility acceptance and signed delivery remain open. No signed release
+or broad upstream implementation reference was advanced.
 
 ## Audited upstream contract
 
