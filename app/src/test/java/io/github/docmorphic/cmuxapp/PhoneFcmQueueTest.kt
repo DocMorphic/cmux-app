@@ -34,6 +34,32 @@ class PhoneFcmQueueTest {
         assertTrue(restored.waiting(first.expires).isEmpty())
         assertFalse(state.toString().contains("Choose the next step"))
     }
+    @Test fun enqueueDecisionDistinguishesNewDuplicateAndRejectedWithoutChangingRetention() {
+        val queue = PhoneFcmQueue(state())
+        assertEquals(PhoneFcmQueue.EnqueueResult.NEW, queue.offer(raw, now))
+        val original = queue.waiting(now).single()
+        assertEquals(PhoneFcmQueue.EnqueueResult.DUPLICATE, queue.offer(raw, now + 1000))
+        assertEquals(original, queue.waiting(now + 1000).single())
+        assertEquals(PhoneFcmQueue.EnqueueResult.REJECTED, queue.offer("{}", now))
+        assertEquals(PhoneFcmQueue.EnqueueResult.NEW, queue.offer(raw, original.expires))
+        assertEquals(original.expires + PhoneFcmQueue.LIFETIME, queue.waiting(original.expires).single().expires)
+    }
+    @Test fun prioritySurvivesLaterNormalMessagesAndDuplicateUpgradeDoesNotRenewExpiry() {
+        val state = state(); val queue = PhoneFcmQueue(state)
+        assertEquals(PhoneFcmQueue.EnqueueResult.NEW, queue.offer(raw, now))
+        val first = queue.waiting(now).single()
+        assertEquals(PhoneFcmQueue.EnqueueResult.PRIORITY_UPGRADE, queue.offer(raw, now + 1000, true))
+        assertEquals(first.copy(highPriority = true), queue.waiting(now + 1000).single())
+        assertEquals(PhoneFcmQueue.EnqueueResult.DUPLICATE, queue.offer(raw, now + 2000, true))
+        assertEquals(PhoneFcmQueue.EnqueueResult.DUPLICATE, queue.offer(raw, now + 2000, false))
+        assertEquals(PhoneFcmQueue.EnqueueResult.NEW, queue.offer(raw + " ", now + 2000, false))
+        val restored = PhoneFcmQueue(JSONObject(state.toString())).waiting(now + 2000)
+        assertEquals(listOf(true, false), restored.map { it.highPriority })
+        assertEquals(first.expires, restored.first().expires)
+        assertFalse(PhoneFcmQueue(state).waiting(first.expires).any { it.highPriority })
+        state.optJSONArray(PhoneFcmQueue.KEY)!!.getJSONObject(1).remove("high_priority")
+        assertFalse(PhoneFcmQueue(state).waiting(first.expires).single().highPriority)
+    }
     @Test fun loginReplacementAndSignOutDiscardQueuedCiphertext() {
         val state = state(); val queue = PhoneFcmQueue(state); queue.enqueue(raw, now)
         state.put("task_session", "replacement"); queue.prune(now)

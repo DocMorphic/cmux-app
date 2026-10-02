@@ -4,10 +4,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
 
-internal data class QueuedPhonePush(val id: String, val login: String, val raw: String, val expires: Long)
+internal data class QueuedPhonePush(val id: String, val login: String, val raw: String, val expires: Long, val highPriority: Boolean = false)
 
 /** Ciphertext waits inside the account's Keystore-encrypted transaction, never WorkManager Data. */
 internal class PhoneFcmQueue(private val state: JSONObject) {
+    enum class EnqueueResult { NEW, PRIORITY_UPGRADE, DUPLICATE, REJECTED }
     private fun login() = state.optString("task_session").takeIf { it.isNotBlank() && state.optString("refresh_token").isNotBlank() }
     fun waiting(now: Long): List<QueuedPhonePush> {
         val owner = login() ?: return emptyList()
@@ -16,23 +17,31 @@ internal class PhoneFcmQueue(private val state: JSONObject) {
             val row = rows.optJSONObject(i) ?: return@mapNotNull null
             val raw = row.optString("raw"); val expires = row.optLong("expires")
             if (row.optString("login") != owner || expires <= now || expires - now > LIFETIME || !valid(raw)) null
-            else QueuedPhonePush(row.optString("id"), owner, raw, expires)
+            else QueuedPhonePush(row.optString("id"), owner, raw, expires, row.optBoolean("high_priority"))
         }
     }
     fun prune(now: Long = System.currentTimeMillis()) = save(waiting(now))
     private fun save(items: List<QueuedPhonePush>) {
         if (items.isEmpty()) state.remove(KEY)
-        else state.put(KEY, JSONArray(items.map { JSONObject().put("id", it.id).put("login", it.login).put("raw", it.raw).put("expires", it.expires) }))
+        else state.put(KEY, JSONArray(items.map { JSONObject().put("id", it.id).put("login", it.login).put("raw", it.raw).put("expires", it.expires).put("high_priority", it.highPriority) }))
     }
-    fun enqueue(raw: String, now: Long): Boolean {
-        val owner = login() ?: return false
-        if (!valid(raw) || now < 0 || now > Long.MAX_VALUE - LIFETIME) return false
+    fun enqueue(raw: String, now: Long): Boolean = offer(raw, now) != EnqueueResult.REJECTED
+    fun offer(raw: String, now: Long, highPriority: Boolean = false): EnqueueResult {
+        val owner = login() ?: return EnqueueResult.REJECTED
+        if (!valid(raw) || now < 0 || now > Long.MAX_VALUE - LIFETIME) return EnqueueResult.REJECTED
         val id = MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString("") { "%02x".format(it) }
         val items = waiting(now)
-        if (items.any { it.id == id }) return true // Do not extend retention on redelivery.
-        if (items.size >= CAPACITY) return false
-        save(items + QueuedPhonePush(id, owner, raw, now + LIFETIME))
-        return true
+        val existing = items.firstOrNull { it.id == id }
+        if (existing != null) {
+            if (highPriority && !existing.highPriority) {
+                save(items.map { if (it.id == id) it.copy(highPriority = true) else it })
+                return EnqueueResult.PRIORITY_UPGRADE
+            }
+            return EnqueueResult.DUPLICATE // Never extend retention on redelivery.
+        }
+        if (items.size >= CAPACITY) return EnqueueResult.REJECTED
+        save(items + QueuedPhonePush(id, owner, raw, now + LIFETIME, highPriority))
+        return EnqueueResult.NEW
     }
     fun remove(item: QueuedPhonePush, now: Long) = save(waiting(now).filterNot { it.id == item.id && it.login == item.login })
     companion object {

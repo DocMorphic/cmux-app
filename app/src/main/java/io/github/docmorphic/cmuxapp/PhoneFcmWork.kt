@@ -77,18 +77,27 @@ internal object PhoneFcmWork {
         if (!NativeNotificationService.isEnabled(context) || !PhoneFcmQueue.valid(raw)) return@withContext false
         val store = NativeCredentialStore(context)
         if (store.taskSession() == null) return@withContext false
-        var queued = false
-        store.update { if (NativeNotificationService.isEnabled(context)) queued = PhoneFcmQueue(it).enqueue(raw, System.currentTimeMillis()) }
-        if (queued) recover(context, highPriority)
-        queued
+        var result = PhoneFcmQueue.EnqueueResult.REJECTED
+        store.update { if (NativeNotificationService.isEnabled(context)) result = PhoneFcmQueue(it).offer(raw, System.currentTimeMillis(), highPriority) }
+        if (result != PhoneFcmQueue.EnqueueResult.REJECTED)
+            recover(context, replacePending = result == PhoneFcmQueue.EnqueueResult.NEW ||
+                result == PhoneFcmQueue.EnqueueResult.PRIORITY_UPGRADE)
+        result != PhoneFcmQueue.EnqueueResult.REJECTED
     }
-    suspend fun recover(context: Context, highPriority: Boolean = false) = withContext(Dispatchers.IO) {
+    suspend fun recover(context: Context, replacePending: Boolean = false) = withContext(Dispatchers.IO) {
         val store = NativeCredentialStore(context)
-        if (!NativeNotificationService.isEnabled(context) || store.load()?.has(PhoneFcmQueue.KEY) != true) return@withContext
+        if (!NativeNotificationService.isEnabled(context)) return@withContext
+        val state = store.load() ?: return@withContext
+        val pending = PhoneFcmQueue(state).waiting(System.currentTimeMillis())
+        if (pending.isEmpty()) return@withContext
         val request = OneTimeWorkRequestBuilder<PhoneFcmWorker>()
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS).addTag(NAME)
-            .apply { if (highPriority) setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST) }.build()
-        WorkManager.getInstance(context).enqueueUniqueWork(NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request).await()
+            .apply { if (pending.any { it.highPriority }) setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST) }.build()
+        // New ciphertext must not wait behind an earlier membership retry. The
+        // durable inbox survives cancellation, and delivery handles redelivery.
+        // Duplicates/startup keep pending work but recreate a missing worker.
+        val policy = if (replacePending) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP
+        WorkManager.getInstance(context).enqueueUniqueWork(NAME, policy, request).await()
     }
 }

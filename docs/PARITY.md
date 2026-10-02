@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Push retry scheduling fixed (2026-10-02):** a reproduced WorkManager dependency
+bug let an older retry block a new urgent push. Fresh messages now wake independent
+processing, duplicates retain one pending job, and queued priority/expiry survive
+reconstruction. Fifteen JVM checks, one real WorkManager test and five Android
+ingress regressions passed on the existing 16 KB emulator; native/ZIP gates passed.
+[Failure, evidence and delivery limits](PUSH_DELIVERY.md#push-scheduling-follow-up-2026-10-02).
+The emulator is stopped. Live push setup and physical acceptance remain open;
+signed build 376 and the Pixel installation are unchanged.
+
 **Physical MainActivity composer/reopen checked (2026-10-02):** the unlocked
 Pixel passed one test in 16.529 s: real workspace creation/lazy startup, Gboard
 visibility, reduced terminal area, composer Send, rendered output and reopening

@@ -36,6 +36,53 @@ The [Firebase client setup](https://firebase.google.com/docs/cloud-messaging/and
 requires app/project configuration and a messaging service for data payloads.
 Notification permission and explicit user opt-in must precede registration.
 
+## Push scheduling follow-up (2026-10-02)
+
+A new WorkManager regression exposed an urgent-delivery delay: the receive path
+used `APPEND_OR_REPLACE`, so a new high-priority message became a child of an
+older retrying worker. The baseline test failed in 0.297 s with two pending
+workers where one independent worker was required. The scheduling relationship
+matches Android's [unique-work policy contract](https://developer.android.com/reference/androidx/work/ExistingWorkPolicy).
+
+New ciphertext and a normal-to-high priority upgrade now replace pending receive
+work. The encrypted inbox survives cancellation; the existing authenticated,
+idempotent delivery path drains it. Ordinary duplicates and startup recovery keep
+an existing worker, creating one if absent, rather than adding another child.
+Duplicate receipt and priority upgrades do not renew the 15-minute retention.
+Priority is retained in the encrypted queue, including reconstruction, so a later
+normal message cannot downgrade an already queued urgent message. Older queue
+records without that field default to normal priority. Scheduling priority never
+establishes message authenticity or account authorization.
+
+Verification on the single existing API 37 / 16 KB emulator:
+
+- **15 JVM tests passed**, zero failures/skips: eight queue/admission/priority
+  cases and seven message regressions.
+- **1 real WorkManager scheduling test passed in 0.749 s**. Its local worker
+  deliberately retries. The check requires new work to be independent of that
+  retry, 20 duplicate deliveries and three recovery calls to retain one pending
+  job and unchanged ciphertext/expiry, and missing-job recovery to retain both
+  queued messages. This uses a test scheduler and synthetic worker, not FCM.
+- **5 Android ingress checks passed in 35.222 s**, zero skips: encrypted delivery
+  and dismissal, membership failure/revocation, expiry/forgotten Macs, opt-out/
+  account replacement and plaintext SDK-banner suppression. Membership HTTP and
+  push payloads are local fixtures; no cloud token or provider was created.
+- A final combined run passed **all six cases in 38.477 s**, zero skips, with
+  the scheduling test first. It closes its test WorkManager and restores the
+  normal manager before the delivery cases run in the same process.
+- Debug/test APK builds and both 16 KB ZIP gates passed. All six packaged native
+  libraries passed LOAD/RELRO alignment. The emulator was stopped after testing.
+
+Debug APK SHA-256:
+`f72f05838b1e441c43bdc154840b3796b4d696f28ec6eaf2297c3435b969e1cb`.
+Test APK SHA-256:
+`f86df702928d6a0e9cc6b52032a8c1740bed2b0ab70c4351552f22f13ab821c1`.
+Ignored evidence: `captures/runtime/fcm-scheduling/`, including the failing
+baseline, final build/JVM/runtime results and receipt. Signed build 376 and the
+physical Pixel installation are unchanged. Live provider/token registration,
+Doze/process-death delivery and physical push acceptance remain open; the private
+Firebase/helper recommendation still awaits the user's delivery choice.
+
 ## FCM receive path checkpoint (2026-10-02)
 
 Both proposed senders can use the same receiver. `PhoneFcmService` accepts only
