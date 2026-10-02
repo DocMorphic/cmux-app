@@ -83,20 +83,35 @@ class NativeNotificationService : Service() {
                             val login = store.taskSession()
                             client = connector.connectSaved(mac, account)
                             val active = client
-                            mac.requireMatchingHost(active.hostStatus())
+                            val status = active.hostStatus()
+                            mac.requireMatchingHost(status)
                             val isCurrent = {
                                 isActive && login != null && store.taskSession() == login &&
                                     isEnabled(this@NativeNotificationService) && account.isSignedIn() &&
                                     store.pairedMacs().contains(mac) && connector.allowsSaved(mac)
                             }
-                            monitorNativeNotificationFeed(active, NativeNotificationSync(
-                                delivered = { delivery.deliveredIDs(mac.origin, isCurrent) },
-                                handled = { delivery.clearHandled(mac.origin, it, isCurrent) }
-                            )) { feed ->
-                                val team = connections.teams.state.value.scope?.takeIf(connections.teams::isCurrent)
-                                val displayName = team?.let { NativeMacAppearanceStore.create(this@NativeNotificationService, it)
-                                    .state.value.name(mac) } ?: mac.name
-                                delivery.refresh(mac.origin, displayName, feed, isCurrent)
+                            coroutineScope {
+                                val team = connections.teams.state.value.scope
+                                if (team != null) launch {
+                                    val permits = { isCurrent() && connections.teams.isCurrent(team) }
+                                    exchangePhonePushKeys(active, status, mac, team, packageName, permits,
+                                        identity = {
+                                            var identity: PhonePushIdentity? = null
+                                            store.update { if (permits()) identity = PhonePushKeyState(it).identity(team.login) }
+                                            checkNotNull(identity) { "Account changed during push setup" }
+                                        }, pin = { peer ->
+                                            store.update { if (permits()) PhonePushKeyState(it).pin(team, mac.origin, peer) }
+                                        })
+                                }
+                                monitorNativeNotificationFeed(active, NativeNotificationSync(
+                                    delivered = { delivery.deliveredIDs(mac.origin, isCurrent) },
+                                    handled = { delivery.clearHandled(mac.origin, it, isCurrent) }
+                                )) { feed ->
+                                    val team = connections.teams.state.value.scope?.takeIf(connections.teams::isCurrent)
+                                    val displayName = team?.let { NativeMacAppearanceStore.create(this@NativeNotificationService, it)
+                                        .state.value.name(mac) } ?: mac.name
+                                    delivery.refresh(mac.origin, displayName, feed, isCurrent)
+                                }
                             }
                         } catch (failure: Exception) {
                             if (failure is CancellationException) throw failure

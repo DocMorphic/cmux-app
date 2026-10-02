@@ -60,8 +60,9 @@ Compatibility includes:
   its provider's smaller message limit.
 
 **This is a crypto foundation, not active push delivery.** It is not yet called by
-a notification receiver. Sender enrollment/key storage, registration/token
-rotation, current account/team/forgotten-computer admission, payload freshness,
+a notification receiver. Authenticated key exchange and account-encrypted key storage
+now have the checkpoint below. Registration/token rotation, delivery-time current
+account/team/forgotten-computer admission, payload freshness,
 duplicate/dismiss ordering, opt-out/unregister and notification presentation must
 be implemented before any decrypted envelope may become an alert. Decryption alone
 never establishes freshness, current authorization or freedom from replay.
@@ -108,3 +109,85 @@ Swift build log, JVM XML, Android envelopes and Apple verification result. No AP
 was assembled or published and no emulator was started for this checkpoint.
 Android runtime validation belongs in the next push integration build. Reliable
 Doze/process-death delivery and physical Pixel/Mac acceptance remain open.
+
+## Authenticated Mac key exchange and encrypted phone key storage (2026-10-02)
+
+The opted-in notification service now performs `phone_push.keys.exchange` on its
+existing authenticated saved-Mac connection when host status advertises
+`phone_push.keys.exchange.v1`. It runs alongside feed monitoring: notification
+feed readiness does not wait for it. Each connection permits at most three
+attempts, with three-second RPC deadlines and one/two-second retry delays. The
+Android package name is sent in the upstream `ios_build_id` field; the app does
+not claim an official iOS bundle ID.
+
+The implementation follows the pinned upstream
+[wire DTOs](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/MobilePhonePushKeyExchange.swift),
+[iOS exchange flow](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite+PhonePushKeyExchange.swift)
+and [host implementation](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Sources/Mobile/MobileHostService+PhonePushKeyExchange.swift):
+
+- Descriptor version 1, raw X25519 public key, independent installation/key UUIDs
+  and envelope version 2. Only the public descriptor is sent over RPC.
+- The service validates the saved computer against host status first. The key
+  response must match the current account, host instance and `mac:` namespace
+  derived from its build ID; a supplied team must match the active team.
+- Host status uses a **directory computer ID**, while the exchange returns its
+  **physical push device ID**. These are intentionally not compared directly.
+  The trusted connection associates the returned physical ID with this saved
+  computer; they are never inferred from incoming push data. The response's Mac
+  installation ID is retained separately for encrypted reply addressing.
+- Invalid descriptor/version/type/size and low-order public keys are rejected.
+  Returned keys are trusted only through this admitted host RPC, not a relay.
+- Phone key material and at most 128 saved-Mac peer associations live inside the
+  existing Android Keystore AES-GCM account store. Identity survives ordinary
+  app reconstruction. Login replacement/sign-out removes keys and peers; a new
+  login creates a fresh phone identity. This intentionally scopes key lifetime to
+  a login, unlike iOS's installation-level Keychain record.
+- Credential transactions prune forgotten owners and stale logins. Safe pairing
+  alias repair keeps the peer association; ambiguous aliases drop it and require
+  a fresh exchange. Current login/team/pairing/opt-in checks run before and after
+  the RPC and again inside the storage transaction before persistence.
+
+No push device/token registration, Firebase configuration, cloud request, Mac
+listener or user-account migration is part of this change. Opting out still stops
+the service; it does not erase the same-login private key. Future push delivery
+must independently enforce opt-out and unregister its token when configured.
+
+### Why inline Reply is not exposed yet
+
+The audited iOS app enables Reply using reply-capable **push** metadata. Its
+`notification.feed.list` item DTO has no reply-shape field, so the current Android
+feed cannot prove which notifications accept text. iOS's background reply relay
+also requires the authenticated Mac peer key and installation/build context. This
+checkpoint supplies key exchange/storage first. Inline reply UI, reply envelope
+addressing, relay submission/retries/failure feedback and push metadata admission
+remain required; no functional Reply control is claimed by this checkpoint.
+
+### Key-exchange verification
+
+**21 JVM tests passed, no skips:** six `PhonePushKeysTest` cases, five push crypto
+regressions, six dismissal cases and four reconciliation cases. A framed mobile
+RPC fixture checks the actual method, request versions, Android build label,
+public-only descriptor and installation/client-ID separation. A valid response
+pins the physical identity even when it differs from the saved directory ID.
+Contradictory account/team/instance/build/version replies never pin and stop after
+three attempts. Other cases cover unsupported hosts, revocation after the reply,
+cancellation during retry, malformed/low-order keys, persistence, login rotation,
+forgotten owners and alias repair/ambiguity.
+
+**Android: OK (8 tests), 38.042 seconds**, API 37 / 16,384-byte pages, zero skips.
+`PhonePushKeyStorageTest` constructs real Keystore-encrypted account storage,
+reconstructs both phone identity and peer, checks preferences contain no plaintext
+private key or identity, and verifies forget, login replacement and clear. Seven
+notification delivery/service/swipe regressions passed in the same run. All
+account/key/peer data in these tests is isolated fixture data. This does not prove
+an exchange with the user's physical Mac or suspended push/reply delivery.
+
+Both APK builds, five native LOAD/RELRO alignment checks and both 16 KB ZIP checks
+passed. SHA-256:
+
+- Debug: `f9b459ab1176922f0a4d91e03aeff21ec71f65ded067d6473bc08679d02c222a`
+- Test: `36140313bd0ae197798b9ef5c65ef7c26d22fe2230ba68b290347d051ea119d5`
+
+Ignored evidence: `captures/runtime/push-keys-{build.txt,jvm,android,alignment.txt}`.
+The one existing emulator was stopped after verification. No signed release,
+physical Pixel installation, production key exchange or parity pin changed.

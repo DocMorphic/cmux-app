@@ -270,6 +270,9 @@ class MobileRpcClient internal constructor(
 
     suspend fun hostStatus(): JSONObject = request("mobile.host.status")
     suspend fun workspaces(): JSONObject = request("mobile.workspace.list")
+    internal suspend fun exchangePhonePushKey(buildID: String, descriptor: PhonePushDescriptor): JSONObject =
+        request("phone_push.keys.exchange", JSONObject().put("version", 1).put("hpke_envelope_version", 2)
+            .put("client_id", clientId).put("ios_build_id", buildID).put("descriptor", descriptor.wire()))
     suspend fun notifications(): JSONObject = request("notification.feed.list")
     suspend fun markNotificationRead(id: String): JSONObject = setNotificationRead(id, true)
     suspend fun setNotificationRead(id: String, read: Boolean): JSONObject = request(

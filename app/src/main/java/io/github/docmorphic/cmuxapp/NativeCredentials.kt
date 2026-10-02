@@ -134,6 +134,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         val value = load() ?: JSONObject()
         transform(value)
         NativeNotificationDismissOutbox(value).prune()
+        PhonePushKeyState(value).prune()
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key())
         val encoded = Base64.encodeToString(cipher.iv + cipher.doFinal(value.toString().toByteArray()), Base64.NO_WRAP)

@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Authenticated push/reply peer keys (2026-10-02):** the opted-in notification
+service now performs optional `phone_push.keys.exchange` alongside feed monitoring
+on capable, admitted hosts. Phone keys and bounded Mac peer associations are
+account-encrypted; response account/instance/build checks preserve the distinction
+between directory and physical Mac IDs. Login/forget transactions retire trust.
+All 21 focused JVM checks and eight Android cases passed (38.042 seconds, API 37 /
+16 KB, zero skips), plus both APK/alignment gates. [Evidence and remaining delivery work](PUSH_DELIVERY.md#authenticated-mac-key-exchange-and-encrypted-phone-key-storage-2026-10-02)
+distinguish protocol/storage fixtures from production pairing, push and inline
+Reply. No signed release changed; the delivery-provider choice remains pending.
+
 **Mac-to-Android alert dismissal and reconnect catch-up (2026-10-02):** added
 `notification.dismissed` events and bounded `notification.reconcile` requests
 for actual delivered banners. Login/Mac admission fences, quiet-baseline event
