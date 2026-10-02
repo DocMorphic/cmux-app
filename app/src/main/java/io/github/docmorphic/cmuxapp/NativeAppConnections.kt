@@ -70,6 +70,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
 
     init {
         scope.launch { store.revisions.collect {
+            teams.reconcileLogin()
             accountDeletion.reconcile()
             try { PhoneReplyNotices(context.applicationContext).sync() }
             catch (_: Exception) { currentCoroutineContext().ensureActive() }
@@ -95,7 +96,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
                 tailscale.retireInvalid()
                 val login = store.taskSession()
                 if (login != observedLogin) {
-                    teams.clear()
+                    teams.reconcileLogin()
                     observedLogin = login
                     nextRefresh = 0
                 }

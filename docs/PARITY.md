@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Account display restoration (2026-10-02):** encrypted account name/email/team
+details now restore before refresh, with cached-only controls disabled until
+membership verification. Reconnect reconciles removed teams; sign-out, account
+replacement and changed server identity retire stale profiles and authority.
+All 51 focused JVM and nine Android checks passed (59.424 seconds, API 37 / 16 KB,
+zero skips), plus both APK/alignment gates and account screenshot inspection.
+[Contract and evidence](ACCOUNT_RESTORATION.md) retain actual OS process-kill and
+physical Pixel/Mac acceptance as open work. No signed release changed.
+
 **Account deletion (2026-10-02):** added iOS-style confirmation and native
 backend deletion, with distinct pending/partial/cleanup/authorization outcomes.
 Account-encrypted receipts prevent automatic replay across restart; old results
@@ -1145,7 +1154,7 @@ work. This follow-up has no new APK or live-device claim.
 
 | Area | iOS source / contract | Android status | Acceptance check |
 | --- | --- | --- | --- |
-| Account | `MobileAuthComposition`, `MobileRootAuthGate`, `AuthCoordinator` | OTP sign-in/encrypted token refresh coded; verified team membership and Settings selection implemented with login/team generation guards, HTTP cancellation and explicit token refresh tests; team creation through the cmux backend and verified selection implemented; confirmed account deletion with durable result handling is implemented (see [ACCOUNT_DELETION.md](ACCOUNT_DELETION.md)); team caching and live phone account QA remain open | Sign in with the Mac's cmux account/team; switch teams without stale authority; restore session; sign out |
+| Account | `MobileAuthComposition`, `MobileRootAuthGate`, `AuthCoordinator` | OTP sign-in/encrypted token refresh coded; verified team membership and Settings selection implemented with login/team generation guards, HTTP cancellation and explicit token refresh tests; team creation through the cmux backend and verified selection implemented; confirmed account deletion with durable result handling is implemented (see [ACCOUNT_DELETION.md](ACCOUNT_DELETION.md)); encrypted display-only account/team restoration is implemented (see [ACCOUNT_RESTORATION.md](ACCOUNT_RESTORATION.md)); actual OS process-kill and live phone account QA remain open | Sign in with the Mac's cmux account/team; switch teams without stale authority; restore session; sign out |
 | Computers | `MobilePairedMac`, `MacComputerListSection`, `V2ControlService` | Saved-Mac list/select/forget coded; V2 account-session directory pagination, pushed changes/revocation, lease expiry and relay renewal implemented with local network fixtures; selected-team discovery now feeds a Computers screen and scoped saved locators; live account discovery remains unverified | Discover, choose, forget, and reconnect multiple Macs on the actual account |
 | Pairing | `MobileIrohV2InstallationStore`, `V2ControlService`, legacy `CmxPairingQRCode` | Scoped protected native identity verified on Pixel; signed V2 enrollment implemented with local network fixtures; legacy QR/deep-link codecs retained; actual account enrollment remains open | Enroll Android against current Mac/account, validate key/scope, admit and revoke; QR only for hosts exposing the legacy route |
 | Transport | `CmuxIrxTransport`, `MobileCoreRPCSession`, legacy `CmxNetworkByteTransport` | Iroh library, QUIC and admission verified on Pixel; V2 control service implemented; native endpoint owner and RPC control/event adapters compile, with stream isolation and RPC lifecycle JVM checks. Account owner/computer picker wiring and shared foreground/background RPC leases are implemented; control-stream replacement, read-only resend and whole-connection closure observation are implemented; lifecycle-aware diagnostic keepalive and positive silence evidence are implemented; real relay/repair/background verification and specialized lane consumers remain open. optional event-stream isolation and relay-preserving direct-path authorization now follow iOS. dedicated render-grid input stream integrated with lease lifecycle and readiness checks. dedicated duplex terminal output/input and replay barriers now integrated. native authorized artifact downloads integrated with before-byte fallback and EOF validation. Last full JVM checkpoint: 425 tests; combined main/test debug APKs built, native loopback methods not run. Subsequent HTTP-to-WebSocket restoration is implemented with 33 focused checks; not yet in that APK | Current Mac Irx connection with control/events/terminal/artifact lanes, reconnect without duplicate input |

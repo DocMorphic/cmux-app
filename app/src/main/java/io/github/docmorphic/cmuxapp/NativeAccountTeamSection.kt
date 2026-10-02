@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -20,17 +21,27 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
     var submitting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val busy = state.loading || submitting
+    val canManage = state.userId != null && !state.cached
     Text("ACCOUNT", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = Color(0xFF9B9FA8), fontSize = 11.sp)
+    if (state.userId != null) SelectionContainer {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp)) {
+            Text(state.displayName ?: "cmux account")
+            state.email?.let { Text(it, color = Color(0xFF9B9FA8), fontSize = 13.sp) }
+        }
+    }
+    if (state.cached) Text("Showing saved account details. Connect to refresh your teams.",
+        Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = Color(0xFF9B9FA8), fontSize = 13.sp)
     Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("Team", Modifier.weight(1f))
         Box {
-            TextButton(onClick = { expanded = true }, enabled = !busy && state.teams.isNotEmpty()) {
+            TextButton(onClick = { expanded = true }, enabled = !busy && canManage && state.teams.isNotEmpty()) {
                 Text(state.teams.firstOrNull { it.id == state.selectedTeamId }?.name
                     ?: if (state.loading) "Loading…" else "No team")
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 state.teams.forEach { team ->
                     DropdownMenuItem(text = { Text(team.name.ifBlank { "Unnamed team" }) },
+                        enabled = !busy && canManage,
                         trailingIcon = { if (team.id == state.selectedTeamId) Text("✓") },
                         onClick = { expanded = false; if (team.id != state.selectedTeamId) onSelect(team.id) })
                 }
@@ -40,7 +51,7 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
     state.error?.let { Text(it, Modifier.padding(horizontal = 22.dp, vertical = 4.dp), color = Color(0xFFFF9999), fontSize = 13.sp) }
     Row(Modifier.padding(horizontal = 14.dp)) {
         TextButton(onClick = onRefresh, enabled = !busy) { Text("Refresh account") }
-        TextButton(onClick = { name = ""; creating = true }, enabled = !busy && state.userId != null) { Text("Create Team") }
+        TextButton(onClick = { name = ""; creating = true }, enabled = !busy && canManage) { Text("Create Team") }
     }
     if (creating) AlertDialog(
         onDismissRequest = { if (!busy) creating = false },
@@ -48,10 +59,10 @@ internal fun NativeAccountTeamSection(state: NativeAccountTeamsState, onRefresh:
         text = { Column {
             Text("Create a team for your cmux account and switch to it.")
             OutlinedTextField(value = name, onValueChange = { if (it.length <= 120) name = it },
-                label = { Text("Team name") }, singleLine = true, enabled = !busy)
+                label = { Text("Team name") }, singleLine = true, enabled = !busy && canManage)
             state.error?.let { Text(it, color = Color(0xFFFF9999), fontSize = 13.sp) }
         } },
-        confirmButton = { TextButton(enabled = !busy && name.trim().isNotEmpty(), onClick = {
+        confirmButton = { TextButton(enabled = !busy && canManage && name.trim().isNotEmpty(), onClick = {
             if (!submitting) {
                 submitting = true
                 scope.launch {

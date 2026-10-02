@@ -134,6 +134,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         val value = load() ?: JSONObject()
         transform(value)
         NativeAccountDeletionRecord.prune(value)
+        NativeAccountProfileCache.prune(value)
         NativeNotificationDismissOutbox(value).prune()
         PhonePushKeyState(value).prune()
         PhonePushInbox(value).prune()
