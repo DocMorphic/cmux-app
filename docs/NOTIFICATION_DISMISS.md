@@ -1,4 +1,4 @@
-# Phone-to-Mac notification dismissal
+# Notification dismissal synchronization
 
 ## Behavior (2026-10-02)
 
@@ -80,7 +80,83 @@ and `NativeNotificationFeedTest`.
 The Android system interaction and the RPC sender were verified with isolated
 fixtures, not together against the user's actual Mac. Real reconnect, reboot,
 process-kill recovery, battery behavior and physical Pixel acceptance remain open.
-Existing read-feed cleanup does not establish all Mac-originated dismiss-event
-behavior. Inline reply, server push and its registration/transport lifecycle are
-separate remaining work; see [Android push delivery](PUSH_DELIVERY.md). No signed
+Mac-originated dismissal/reconciliation now has the separate fixture checkpoint below.
+Inline reply, server push and its registration/transport lifecycle are separate remaining work; see [Android push delivery](PUSH_DELIVERY.md). No signed
 release changed. The one existing emulator was stopped after verification.
+
+## Mac-to-Android live dismissal and reconnect catch-up (2026-10-02)
+
+The notification service now subscribes to `notification.dismissed` as well as
+feed invalidations. Live `ids` clear only this admitted Mac's currently posted
+alerts. On every successful subscription, and every 30 seconds while the service
+is connected, it asks `notification.reconcile` about actual delivered identifiers.
+IDs are split into batches of at most 256, matching the host's scan limit; only
+`handled_ids` from that request's batch may clear alerts. An absent feed row is
+never treated as a dismissal: the host can truncate feed history.
+
+Primary upstream contract at candidate audit `204a11dfcc76280205e50406ab94270a1c152155`:
+
+- [iOS dismissal/reconcile flow](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite+NotificationDismissSync.swift)
+- [Live event decoding](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileRPC/Sources/CmuxMobileRPC/MobileNotificationDismissedEvent.swift)
+- [Host reconcile and dismissal semantics](https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Sources/TerminalController+MobileNotificationSync.swift)
+
+The worker captures its login before connecting, verifies the host, and fences
+callbacks against cancellation, login, pairing, team admission and opt-out.
+Delivery rechecks eligibility inside the credential storage transaction. Routes
+must match the posting login and Mac; a response cannot clear a sibling Mac's
+same-ID banner. Actual delivered-ID collection is checked again before returning.
+Programmatic cancellation does not enqueue the user-swipe RPC.
+
+Handled identifiers are remembered durably so a stale unread snapshot cannot
+repost them. Events before the first feed are saved separately until the quiet
+baseline is established; pairing repair merges them and forgetting a Mac prunes
+them. This preserves quiet first connection even if the dismiss event wins the
+initial snapshot race. History remains bounded to 4,096 identifiers per origin;
+routes retain the existing 512-entry bound.
+
+Reconcile has a ten-second budget for both possible batches. Unsupported RPCs,
+malformed responses and transient failures leave ordinary feed delivery running;
+parent cancellation still terminates the worker. No request is needed without
+actual banners. The parser accepts only bounded string arrays, trims blanks and
+deduplicates IDs; it does not stringify numbers or objects.
+
+This adds banner synchronization while the notification service is active. It
+does not implement iOS's absolute numeric app-icon badge, suspended/process-dead
+push delivery or inline reply. Reconciliation does not wait for the independent
+phone-to-Mac outbox worker: a late local dismissal remains queued, and subsequent
+host events/reconciliation converge. Physical Mac/Pixel acceptance remains open.
+
+### Verification of Mac-to-Android synchronization
+
+**21 focused JVM tests passed, zero skips:** four sync tests, ten ledger cases,
+six phone-dismiss regressions and the feed revision/disconnect test. A framed RPC
+transport exercises the real mobile client and monitor twice, verifying live
+subscription topics/events, exact reconcile params/client ID and renewed catch-up
+on the second connection while feed delivery continues. Other cases cover two
+256-ID batches, foreign returned IDs, malformed strings/arrays, unsupported
+requests, cancellation and a pre-baseline event across persistence/alias repair.
+
+**Android: OK (7 tests), 37.971 seconds**, API 37, 16,384-byte pages, zero skips.
+The new test covers same-ID alerts on two Macs, an event before the first feed,
+read-state regression, lost admission while entering the transaction, durable
+suppression of not-yet-posted IDs, account replacement and zero queued local
+swipes after remote cancellation. Six delivery/service/swipe regressions also
+passed. This is isolated component/transport coverage, not a live Pixel/Mac run.
+
+The first Android run counted three entries where two alerts were expected:
+Android had added its `Aggregate_AlertingSection` group summary. The final receipt
+shows two owned alerts, zero pending dismissals and that third system summary
+(flags 1808). Tests now count individual alerts, and orphan cleanup leaves group
+summaries to Android. The original failed run/logs are retained. This rerun also
+includes the transaction admission recheck and its rejection assertion.
+
+Both APK builds passed; all five native libraries passed LOAD/RELRO alignment and
+both APKs passed 16 KB ZIP alignment. Final SHA-256:
+
+- Debug: `bbf46fd7fb3166f365448a4eb0c7ca49a554e7dec2b546b9b5754056da95886a`
+- Test: `103c919380d8075cae4f4e14a7300ce85cbe0b4f78aaeab75171504d057360cb`
+
+Final evidence is in ignored `captures/runtime/notification-reconcile-summary-*`;
+the initial run is `captures/runtime/notification-reconcile-android`. No signed
+release or upstream parity pin changed. The same existing emulator was reused and
+stopped after the run; no physical device was connected.

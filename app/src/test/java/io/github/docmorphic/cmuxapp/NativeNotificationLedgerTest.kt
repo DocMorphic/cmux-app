@@ -115,4 +115,18 @@ class NativeNotificationLedgerTest {
         assertTrue(ledger.unseen("new", listOf(item("seen"))).isEmpty())
     }
 
+    @Test fun dismissalBeforeFirstFeedKeepsQuietBaselineAcrossRestartAndAliasRepair() {
+        val state = JSONObject(); val ledger = NativeNotificationLedger(state)
+        ledger.rememberHandled("old", listOf("dismissed-before-feed"))
+        val restarted = NativeNotificationLedger(JSONObject(state.toString()))
+        restarted.coalesce("new", setOf("old"))
+        assertTrue(restarted.baseline("new", listOf(item("historical"))))
+        assertTrue(restarted.unseen("new", listOf(item("dismissed-before-feed"), item("historical"))).isEmpty())
+        assertEquals(listOf(item("fresh")), restarted.unseen("new", listOf(item("fresh"))))
+        restarted.rememberHandled("retired", listOf("same-id"))
+        restarted.prune(setOf("new"))
+        assertTrue(restarted.baseline("retired", emptyList()))
+        assertEquals(listOf(item("same-id")), restarted.unseen("retired", listOf(item("same-id"))))
+    }
+
 }

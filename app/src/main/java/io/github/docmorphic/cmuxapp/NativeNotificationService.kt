@@ -80,17 +80,23 @@ class NativeNotificationService : Service() {
                     while (isActive) {
                         var client: MobileRpcClient? = null
                         try {
+                            val login = store.taskSession()
                             client = connector.connectSaved(mac, account)
                             val active = client
                             mac.requireMatchingHost(active.hostStatus())
-                            monitorNativeNotificationFeed(active) { feed ->
+                            val isCurrent = {
+                                isActive && login != null && store.taskSession() == login &&
+                                    isEnabled(this@NativeNotificationService) && account.isSignedIn() &&
+                                    store.pairedMacs().contains(mac) && connector.allowsSaved(mac)
+                            }
+                            monitorNativeNotificationFeed(active, NativeNotificationSync(
+                                delivered = { delivery.deliveredIDs(mac.origin, isCurrent) },
+                                handled = { delivery.clearHandled(mac.origin, it, isCurrent) }
+                            )) { feed ->
                                 val team = connections.teams.state.value.scope?.takeIf(connections.teams::isCurrent)
                                 val displayName = team?.let { NativeMacAppearanceStore.create(this@NativeNotificationService, it)
                                     .state.value.name(mac) } ?: mac.name
-                                delivery.refresh(mac.origin, displayName, feed) {
-                                    isEnabled(this@NativeNotificationService) && account.isSignedIn() &&
-                                        store.pairedMacs().contains(mac) && connector.allowsSaved(mac)
-                                }
+                                delivery.refresh(mac.origin, displayName, feed, isCurrent)
                             }
                         } catch (failure: Exception) {
                             if (failure is CancellationException) throw failure

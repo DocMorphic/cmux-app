@@ -281,6 +281,11 @@ class MobileRpcClient internal constructor(
         return request("notification.dismiss", JSONObject().put("notification_ids", org.json.JSONArray(ids.distinct()))
             .put("client_id", clientId))
     }
+    suspend fun reconcileNotifications(ids: List<String>): JSONObject {
+        require(ids.size <= 256 && ids.all { it.isNotBlank() && it.length <= 1024 })
+        return request("notification.reconcile", JSONObject().put("delivered_ids", org.json.JSONArray(ids.distinct()))
+            .put("client_id", clientId))
+    }
     suspend fun markAllNotificationsRead(): JSONObject = request("notification.feed.mark_all_read")
     suspend fun workspaceAction(
         workspaceId: String,

@@ -22,7 +22,10 @@ class NativeNotificationDeliveryTest {
     private val b = "cmux-ios://attach?v=2&r=100.64.0.2:58465"
     private fun item(id: String, read: Boolean = false) = NativeNotification(id,
         "workspace", "surface", "Ready", "Task finished", read)
-    private fun alerts() = manager.activeNotifications.filter { it.notification.channelId == NativeNotificationDelivery.ALERT_CHANNEL }
+    private fun alerts() = manager.activeNotifications.filter {
+        it.notification.channelId == NativeNotificationDelivery.ALERT_CHANNEL &&
+            it.notification.flags and android.app.Notification.FLAG_GROUP_SUMMARY == 0
+    }
     private fun waitFor(condition: () -> Boolean) {
         val end = System.currentTimeMillis() + 5_000
         while (!condition() && System.currentTimeMillis() < end) Thread.sleep(25)
@@ -193,6 +196,50 @@ class NativeNotificationDeliveryTest {
         store.forgetMac(repaired.code, team) { true }
         delivery.prune(emptySet())
         waitFor { alerts().isEmpty() }
+    }
+
+    @Test fun remoteDismissalClearsOnlyAdmittedMacAndNeverQueuesPhoneDismissal() {
+        val account = NativeCredentialStore(context)
+        account.update { it.put("task_session", "remote-dismiss-login").put("refresh_token", "fixture-refresh") }
+        val delivery = NativeNotificationDelivery(context)
+        val first = pairingOrigin(a, "a", "stable"); val second = pairingOrigin(b, "b", "stable")
+        // A dismissal can arrive while the first snapshot is still in flight.
+        delivery.clearHandled(first, listOf("early")) { true }
+        delivery.refresh(first, "First Mac", listOf(item("historical"))) { true }
+        assertTrue(alerts().isEmpty())
+        delivery.refresh(second, "Second Mac", emptyList()) { true }
+        delivery.refresh(first, "First Mac", listOf(item("early"), item("shared"), item("keep"))) { true }
+        delivery.refresh(second, "Second Mac", listOf(item("shared"))) { true }
+        waitFor { alerts().size == 3 }
+        assertEquals(setOf("shared", "keep"), delivery.deliveredIDs(first) { true }.toSet())
+        assertTrue(delivery.deliveredIDs(first) { false }.isEmpty())
+        delivery.clearHandled(first, listOf("shared")) { false }
+        assertEquals(3, alerts().size)
+        var admissionChecks = 0
+        delivery.clearHandled(first, listOf("shared")) { ++admissionChecks == 1 }
+        assertEquals(2, admissionChecks)
+        assertEquals(3, alerts().size)
+        delivery.clearHandled(first, listOf("shared", "not-posted")) { true }
+        waitFor { alerts().size == 2 }
+        assertEquals(listOf("keep"), delivery.deliveredIDs(first) { true })
+        assertEquals(listOf("shared"), delivery.deliveredIDs(second) { true })
+        // Stale unread snapshots cannot bring handled or not-yet-posted IDs back.
+        NativeNotificationDelivery(context).refresh(first, "First Mac",
+            listOf(item("early"), item("shared"), item("not-posted"), item("keep"))) { true }
+        assertEquals(2, alerts().size)
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        Thread.sleep(150)
+        assertTrue(NativeNotificationDismissOutbox(account.load()!!).pending().isEmpty())
+        account.update { it.put("task_session", "next-login") }
+        assertTrue(delivery.deliveredIDs(first) { true }.isEmpty())
+        delivery.clearHandled(first, listOf("keep")) { true }
+        assertEquals(2, alerts().size) // Old login's route is never rebound to this login.
+        java.io.File(context.getExternalFilesDir(null), "notification-reconcile-state.json").writeText(
+            JSONObject().put("owned_alerts", alerts().size)
+                .put("pending_dismissals", NativeNotificationDismissOutbox(account.load()!!).pending().size)
+                .put("system_notifications", org.json.JSONArray(manager.activeNotifications.map {
+                    JSONObject().put("tag", it.tag).put("id", it.id).put("flags", it.notification.flags)
+                })).toString(2))
     }
 
 }

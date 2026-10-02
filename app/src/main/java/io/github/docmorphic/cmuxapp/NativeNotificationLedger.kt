@@ -31,6 +31,7 @@ internal data class NotificationDestination(
 /** Deterministic state machine; its JSON is persisted in Android Keystore encrypted storage. */
 internal class NativeNotificationLedger(private val state: JSONObject) {
     private val origins = state.optJSONObject("origins") ?: JSONObject().also { state.put("origins", it) }
+    private val deferred = state.optJSONObject("deferred_handled") ?: JSONObject().also { state.put("deferred_handled", it) }
     private val routes = state.optJSONObject("routes") ?: JSONObject().also { state.put("routes", it) }
 
     fun destination(routeId: String): NotificationDestination? = routes.optJSONObject(routeId)?.let {
@@ -45,6 +46,9 @@ internal class NativeNotificationLedger(private val state: JSONObject) {
         if (origins.has(origin) || previous.any(origins::has)) {
             origins.put(origin, JSONArray((seen(origin) + previous.sorted().flatMap(::seen)).distinct().take(SEEN_LIMIT)))
         }
+        val deferredIds = (listOf(origin) + previous.sorted()).flatMap(::deferredIDs).distinct().take(SEEN_LIMIT)
+        previous.forEach(deferred::remove)
+        if (deferredIds.isNotEmpty()) rememberHandled(origin, deferredIds)
         previous.forEach(origins::remove)
         routes.keys().asSequence().toList().forEach { id ->
             routes.optJSONObject(id)?.takeIf { it.optString("origin") in previous }?.put("origin", origin)
@@ -54,7 +58,8 @@ internal class NativeNotificationLedger(private val state: JSONObject) {
     /** First observation establishes a quiet baseline, separately for each paired Mac. */
     fun baseline(origin: String, feed: List<NativeNotification>): Boolean {
         if (origins.has(origin)) return false
-        origins.put(origin, JSONArray(feed.map { it.id }.distinct().take(SEEN_LIMIT)))
+        origins.put(origin, JSONArray((deferredIDs(origin) + feed.map { it.id }).distinct().take(SEEN_LIMIT)))
+        deferred.remove(origin)
         return true
     }
     fun unseen(origin: String, feed: List<NativeNotification>): List<NativeNotification> {
@@ -64,6 +69,18 @@ internal class NativeNotificationLedger(private val state: JSONObject) {
     fun acknowledge(origin: String, ids: List<String>) {
         origins.put(origin, JSONArray((ids + seen(origin)).distinct().take(SEEN_LIMIT)))
     }
+    /** A live event before the first feed must not turn the quiet baseline into noisy delivery. */
+    fun rememberHandled(origin: String, ids: List<String>) {
+        if (origins.has(origin)) {
+            acknowledge(origin, ids + deferredIDs(origin))
+            deferred.remove(origin)
+        } else if (ids.isNotEmpty()) {
+            deferred.put(origin, JSONArray((ids + deferredIDs(origin)).distinct().take(SEEN_LIMIT)))
+        }
+    }
+    private fun deferredIDs(origin: String): List<String> = deferred.optJSONArray(origin)?.let { array ->
+        (0 until array.length()).map { array.getString(it) }
+    }.orEmpty()
     private fun seen(origin: String): List<String> {
         val array = origins.optJSONArray(origin) ?: return emptyList()
         return (0 until array.length()).map { array.getString(it) }
@@ -77,6 +94,7 @@ internal class NativeNotificationLedger(private val state: JSONObject) {
         return next
     }
     fun prune(validOrigins: Set<String>): List<String> {
+        deferred.keys().asSequence().toList().filter { it !in validOrigins }.forEach(deferred::remove)
         origins.keys().asSequence().toList().filter { it !in validOrigins }.forEach(origins::remove)
         val expired = routes.keys().asSequence().toList().filter {
             routes.optJSONObject(it)?.optString("origin") !in validOrigins

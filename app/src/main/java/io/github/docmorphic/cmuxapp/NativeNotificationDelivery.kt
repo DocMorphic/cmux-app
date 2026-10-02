@@ -54,6 +54,35 @@ internal class NativeNotificationDelivery(private val context: Context) {
         prune(validOrigins)
     }
 
+    fun deliveredIDs(origin: String, isCurrent: () -> Boolean): List<String> = synchronized(lock) {
+        if (!isCurrent()) return@synchronized emptyList()
+        val active = manager.activeNotifications.filter { it.notification.channelId == ALERT_CHANNEL }
+            .map { it.tag }.toSet()
+        val login = NativeCredentialStore(context).taskSession()
+        val ids = store.load()?.let { NativeNotificationLedger(it).destinations() }.orEmpty()
+            .filter { it.origin == origin && it.login == login && tag(it.routeId) in active }
+            .map { it.notificationId }.distinct()
+        if (isCurrent()) ids else emptyList()
+    }
+
+    fun clearHandled(origin: String, ids: List<String>, isCurrent: () -> Boolean) = synchronized(lock) {
+        if (ids.isEmpty() || !isCurrent()) return@synchronized
+        var routes = emptyList<String>()
+        store.update {
+            // Credential updates share this storage lock. Recheck inside the transaction
+            // so a login/forget change while waiting cannot adopt the new account.
+            if (!isCurrent()) return@update
+            val login = NativeCredentialStore(context).taskSession()
+            val ledger = NativeNotificationLedger(it)
+            ledger.rememberHandled(origin, ids)
+            routes = ledger.destinations().filter { route ->
+                route.origin == origin && route.login == login && route.notificationId in ids
+            }.map { route -> route.routeId }
+        }
+        // Programmatic cancellation must not invoke the user-swipe DeleteIntent.
+        routes.forEach(::cancel)
+    }
+
     fun prune(validOrigins: Set<String>) = synchronized(lock) {
         val state = store.load()
         val before = state?.toString()
@@ -64,12 +93,14 @@ internal class NativeNotificationDelivery(private val context: Context) {
         }
         val removed = state?.let { NativeNotificationLedger(it).prune(validOrigins) }.orEmpty()
         if (state != null && state.toString() != before) {
-            store.update { it.put("origins", state.getJSONObject("origins")).put("routes", state.getJSONObject("routes")) }
+            store.update { it.put("origins", state.getJSONObject("origins")).put("routes", state.getJSONObject("routes"))
+                .put("deferred_handled", state.getJSONObject("deferred_handled")) }
         }
         removed.forEach(::cancel)
         // Retire the former workspace-only intents and alerts whose encrypted route was lost.
         val retained = state?.let { NativeNotificationLedger(it).destinations().map { route -> tag(route.routeId) }.toSet() }.orEmpty()
-        manager.activeNotifications.filter { it.notification.channelId == ALERT_CHANNEL && it.tag !in retained }
+        manager.activeNotifications.filter { it.notification.channelId == ALERT_CHANNEL && it.tag !in retained &&
+            it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }
             .forEach { manager.cancel(it.tag, it.id) }
     }
 

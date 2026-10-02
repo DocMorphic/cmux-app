@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Mac-to-Android alert dismissal and reconnect catch-up (2026-10-02):** added
+`notification.dismissed` events and bounded `notification.reconcile` requests
+for actual delivered banners. Login/Mac admission fences, quiet-baseline event
+races and durable stale-feed suppression are covered. Android's generated group
+summary is excluded from alert counts and orphan cleanup. All 21 focused JVM
+checks and seven Android notification cases passed (37.971 seconds, API 37 / 16 KB,
+zero skips); both APK/alignment gates passed. [Evidence and scope](NOTIFICATION_DISMISS.md#mac-to-android-live-dismissal-and-reconnect-catch-up-2026-10-02)
+retain the initial summary-count failure and distinguish component fixtures from
+physical Pixel/Mac acceptance. Numeric icon badges, suspended/process-dead push
+and inline reply remain open; no signed release changed.
+
 **Android alert dismissal sync (2026-10-02):** system swipes now persist an
 encrypted, account/Mac-scoped dismissal and send the official `notification.dismiss`
 RPC through admitted saved-Mac connections. Confirmed delivery removes only its
