@@ -107,7 +107,9 @@ class LiveNativeUiCheck {
                             val frame = replay.optJSONObject("render_grid") ?: replay
                             val actual = frame.optInt("columns") to frame.optInt("rows")
                             latest.set(actual)
-                            if (actual.first in 1..expected.columns && actual.second in 1..expected.rows)
+                            // This disposable terminal has no other mobile viewport owner.
+                            // A smaller previous IME grid is not settled after reopening.
+                            if (actual == (expected.columns to expected.rows))
                                 return@withTimeout actual
                             delay(250)
                         }
@@ -168,6 +170,9 @@ class LiveNativeUiCheck {
             compose.waitUntil(15_000) { compose.onAllNodesWithText(created.title).fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText(created.title).performClick()
             compose.waitUntil(25_000) { markerLines() == 1 }
+            stage = "settled host viewport after reopening"
+            val reopenedGrid = awaitHostViewport()
+            check(reopenedGrid == beforeGrid)
             screenshot("terminal-reopened.png")
             check(connections.store.taskSession() == login && connections.account.isSignedIn())
             println("CMUX_LIVE_UI_REPORT " + JSONObject().put("openedCreatedWorkspace", true)
@@ -175,6 +180,7 @@ class LiveNativeUiCheck {
                 .put("terminalHeightBeforeIme", before).put("terminalHeightWithIme", after)
                 .put("hostColumnsBeforeIme", beforeGrid.first).put("hostRowsBeforeIme", beforeGrid.second)
                 .put("hostColumnsWithIme", keyboardGrid.first).put("hostRowsWithIme", keyboardGrid.second)
+                .put("hostColumnsReopened", reopenedGrid.first).put("hostRowsReopened", reopenedGrid.second)
                 .put("composerOutputRendered", true).put("reopenedOutput", true).put("loginPreserved", true))
         } catch (problem: Throwable) {
             // Compose errors can dump private workspace semantics; retain only fixed stage/class labels.

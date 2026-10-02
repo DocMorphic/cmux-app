@@ -19,6 +19,17 @@ Normal plugged-in sleep setting remains `0`. No emulator was started, and the
 physical release package was not updated. Ignored logs:
 `captures/runtime/pixel-resume-20261002/`.
 
+**Follow-up:** the unlocked Pixel subsequently passed the exact host-grid resize
+and reopen check (1 test, 21.902 s): 67×47 → 67×24 with Gboard → 67×47 after
+reopening, with screenshots reviewed, login preserved and fixture cleanup verified.
+The native Todo mutation/reconnect check also passed (1 test, 13.24 s), using only
+its own disposable workspace. See [runtime evidence](NATIVE_RUNTIME_CHECKPOINT.md#settled-pixel-viewport-and-reopen--2026-10-02)
+and [Todo scope](TODO.md#physical-native-rpc-acceptance--2026-10-02).
+Final installed test APK SHA-256:
+`b72aba20ca16be866de2f58b0403c7251ccf815f93706ad50ae109be59daf539`.
+Debug production APK remains the hash above; temporary stay-awake was restored to
+`0`. Nightly pairing, direct keyboard input and live push remain pending.
+
 ### Signed APK verification
 
 [Build 385](https://github.com/DocMorphic/cmux-app/actions/runs/37017511051)

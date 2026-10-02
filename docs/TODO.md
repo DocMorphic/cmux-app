@@ -55,7 +55,40 @@ Source comparison: shared `MobileTodo*` models, `MobileTodoMutation`,
 - Instrumentation APK SHA-256:
   `337469f809217ee86f4a965a827d833b22eec72a8db9978ac46c409dd01cc1f7`.
 
-## Acceptance still required
+## Physical native RPC acceptance — 2026-10-02
+
+`LiveNativeTodoCheck` passed **1 test in 13.24 s**, zero skips, using the physical
+Pixel's existing account and saved Iroh Mac. It verifies the host identity and
+advertised `todo.v1`, creates a uniquely named workspace and opens only that
+workspace's checklist with `focus=false`. Authoritative inventory verifies two
+adds, whitespace trimming/user origin, a Unicode edit, working/completed/pending
+transitions, reorder, manual/cycled/automatic status, and removal. A distinct
+underlying native connection restores the exact checklist snapshot without
+resending any mutation. Login is preserved. The disposable workspace is closed
+once and its absence verified; its private ownership receipt is removed.
+
+This test needs no Activity or unlocked screen and never clears app stores or
+mutates existing workspaces. Interrupted runs retain a private receipt and refuse
+automatic rerun until inspected. Run only with explicit opt-in:
+
+```sh
+adb -s DEVICE shell am instrument -w -r \
+  -e class io.github.docmorphic.cmuxapp.LiveNativeTodoCheck \
+  -e cmux_live_todo_fixture true \
+  io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Production debug APK SHA-256:
+`f72f05838b1e441c43bdc154840b3796b4d696f28ec6eaf2297c3435b969e1cb`.
+Test APK used for this run:
+`e82f34a035935344bae571bd14005fd55a91f0763c416b343e18d1172fc91a1e`.
+The interrupted initial build was not counted as successful; resumed test
+assembly completed in 10 s. Ignored evidence:
+`captures/runtime/pixel-resume-20261002/todo-*`. No emulator was started and
+signed build 385 remains unchanged. Physical Todo touch/accessibility and visual
+parity are still unverified; RPC acceptance does not prove those UI behaviors.
+
+## Earlier acceptance status (superseded for RPC by the checkpoint above)
 
 The Pixel was not visible to ADB during this checkpoint, despite the cable being
 reported connected. No phone data, installed app or sleep setting was changed.

@@ -1,5 +1,32 @@
 # Native transport and keyboard runtime checkpoints
 
+## Settled Pixel viewport and reopen — 2026-10-02
+
+The revised physical MainActivity check passed **1 test in 21.902 s**, zero
+skips. It requires exact host-grid convergence while Compose effects continue
+running: **67×47** before Gboard, **67×24** with Gboard, and **67×47** after
+leaving/reopening. Terminal height changes from 1743 to 907 pixels with the IME.
+The command sent through the actual composer renders exactly once, survives
+reopening, and both settled screenshots were visually inspected with consistent
+terminal text size. Existing sign-in is preserved; the unique test workspace was
+closed and its absence verified. The private ownership receipt was removed.
+
+An earlier run passed in 22.06 s and proved the first two grids but captured the
+reopened terminal before convergence, showing smaller text. The final test adds
+the reopen convergence barrier and rejects a smaller stale IME grid. These are
+two runs of one case, not two separate cases. This supersedes the pending settled
+resize status below. It remains framework composer text injection, not proof of
+physical Gboard typing/composition or hardware keyboard behavior.
+
+Debug APK is unchanged at
+`f72f05838b1e441c43bdc154840b3796b4d696f28ec6eaf2297c3435b969e1cb`.
+Final test APK:
+`b72aba20ca16be866de2f58b0403c7251ccf815f93706ad50ae109be59daf539`.
+Test assembly and 16 KB ZIP alignment passed. The temporary plugged-in awake
+setting was restored to its original **0** after each run. No emulator was
+started. Signed build 385 and production code are unchanged. Ignored logs,
+numeric reports and screenshots: `captures/runtime/pixel-resume-20261002/`.
+
 ## Physical MainActivity composer and reopen — 2026-10-02
 
 The unlocked Pixel passed `LiveNativeUiCheck`: **1 test, 16.529 s**, zero skips.

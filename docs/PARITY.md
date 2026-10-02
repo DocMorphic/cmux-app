@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Physical resize and Todo RPC verified (2026-10-02):** the real MainActivity
+test passed in 21.902 s with exact host grids 67×47 → 67×24 with Gboard → 67×47
+after reopening, actual composer output, inspected settled screenshots, retained
+login and verified fixture removal. A separate Todo RPC check passed in 13.24 s:
+add/edit/reorder/state/status/remove and exact snapshot retention across a fresh
+native connection, followed by verified cleanup. No production change or emulator
+was needed. [Resize scope](NATIVE_RUNTIME_CHECKPOINT.md#settled-pixel-viewport-and-reopen--2026-10-02)
+and [Todo scope](TODO.md#physical-native-rpc-acceptance--2026-10-02) supersede their
+earlier pending RPC/resize statuses. Direct physical Gboard input, Todo UI,
+nightly capabilities, live push and broader acceptance remain open.
+
 **Signed build 385 delivered (2026-10-02):** source `7f8cefd` passed the full CI
 pipeline and retained the existing release signer. It includes deferred-terminal
 startup, dark-theme system bars and the push retry-scheduling fix. Independent
