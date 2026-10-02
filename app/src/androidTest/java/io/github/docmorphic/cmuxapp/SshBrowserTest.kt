@@ -225,4 +225,49 @@ class SshBrowserTest {
         assertTrue(connection.isConnected)
     }
 
+    @Test fun trustedHttpsAndSecureWebSocketUseSshAndUntrustedCertificateIsRejected() {
+        assumeTrue(args.containsKey("cmux_ssh_tlsport"))
+        val network = main { session.browsers.network(host.id) }
+        val workspace = sshBrowserWorkspace(SshWorkspaceTarget.Shell("tls-fixture"), "TLS fixture")
+        val shown = mutableStateOf(true)
+        main {
+            network.navigation.restoreRemembered(sshLocalBrowserKey(network, workspace), workspace)
+            network.navigation.state.value.local!!.surface.load("http://ssh-only.invalid:$browserPort/secure-websocket")
+        }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
+            if (shown.value) SshBrowserSheet(SshBrowserPresentation(network, workspace)) { shown.value = false }
+        } } }
+        compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        fun text(value: String) = checkNotNull(device.wait(Until.findObject(By.text(value)), 25000)) { "Missing $value" }
+        fun status() = runBlocking {
+            org.json.JSONObject(connection.exec("fixture-tls-status").stdout.toString(Charsets.UTF_8))
+        }
+        text("Secure WebSocket verified"); text("SSH secure browser ▾")
+        assertTrue(status().getInt("publicConnections") > 0)
+        text("Open trusted HTTPS").click()
+        assertTrue("Trusted HTTPS echo rendered", device.wait(Until.hasObject(By.textContains("GET /cmux-generated-https-check")), 25000))
+        checkNotNull(device.wait(Until.findObject(By.desc("Browser Back")), 5000)).click()
+        text("Secure WebSocket verified")
+        assertTrue(device.takeScreenshot(File(compose.activity.getExternalFilesDir(null), "ssh-browser-secure-websocket.png")))
+        text("Open untrusted HTTPS").click()
+        try { text("This site’s secure connection couldn’t be verified.") }
+        finally {
+            device.takeScreenshot(File(compose.activity.getExternalFilesDir(null), "ssh-browser-tls-last-state.png"))
+            File(compose.activity.getExternalFilesDir(null), "ssh-browser-tls-state.txt").writeText(
+                main { network.navigation.state.value.local?.surface?.state?.value }.toString() + "\n" + status().toString())
+        }
+        val rejected = status()
+        assertTrue(rejected.getInt("privateConnections") > 0)
+        assertEquals(0, rejected.getInt("untrustedHttpRequests"))
+        text("Retry").click()
+        compose.waitUntil(10000) { status().getInt("privateConnections") > rejected.getInt("privateConnections") }
+        text("This site’s secure connection couldn’t be verified.")
+        assertEquals(0, status().getInt("untrustedHttpRequests"))
+        assertFalse(device.hasObject(By.textContains("UNTRUSTED FIXTURE MUST NOT RENDER")))
+        assertTrue(device.takeScreenshot(File(compose.activity.getExternalFilesDir(null), "ssh-browser-certificate-rejected.png")))
+        checkNotNull(device.wait(Until.findObject(By.desc("Back to workspaces")), 5000)).click()
+        compose.waitUntil(15000) { !shown.value }
+        assertTrue(connection.isConnected)
+    }
+
 }

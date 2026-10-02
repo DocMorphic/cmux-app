@@ -5,8 +5,11 @@ Start before building the opt-in ssh-spike APK; generated import keys go only
 into that APK's test assets. Requires asyncssh[bcrypt]==2.24.0; optional
 --websocket also requires websockets==17.1. Stop with Ctrl-C.
 The fixture accepts valid public-key signatures for a random test username; its
-only commands are synthetic, forwarding targets itself, and SFTP is chrooted to
-a temporary directory. Never expose its port outside loopback.
+only commands are synthetic and SFTP is chrooted to a temporary directory.
+Forwarding targets itself, except --public-tls explicitly allows the single
+external destination echo.websocket.org:443 for generated HTTPS/WSS checks.
+That option also creates a private untrusted TLS peer; it never changes client
+certificate trust. Never expose its port outside loopback.
 """
 import argparse
 import asyncio
@@ -22,6 +25,7 @@ import asyncssh
 async def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--websocket", action="store_true", help="Enable the optional websockets==17.1 browser peer")
+    parser.add_argument("--public-tls", action="store_true", help="Opt in to echo.websocket.org:443 plus a private untrusted HTTPS peer")
     args = parser.parse_args()
     os.umask(0o077)
     root = Path(__file__).resolve().parents[1]
@@ -35,6 +39,9 @@ async def main():
     browser_port = 0
     websocket_port = 0
     websocket_server = None
+    tls_port = 0
+    tls_server = None
+    tls_state = {"publicConnections": 0, "privateConnections": 0, "untrustedHttpRequests": 0}
     websocket_state = {"active": 0, "opened": 0, "text": [], "binary": []}
     active_shells = 0
     transfer_gate = asyncio.Event()
@@ -90,6 +97,12 @@ async def main():
             return user == username
 
         def connection_requested(self, dest_host, dest_port, orig_host, orig_port):
+            if args.public_tls and dest_host == "echo.websocket.org" and dest_port == 443:
+                tls_state["publicConnections"] += 1
+                return self.conn.forward_connection(dest_host, dest_port)
+            if args.public_tls and dest_host == "ssh-only.invalid" and dest_port == tls_port:
+                tls_state["privateConnections"] += 1
+                return self.conn.forward_connection("127.0.0.1", tls_port)
             if dest_host == "ssh-only.invalid" and dest_port == 7:
                 return echo_after_eof
             if dest_host in ("localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1", "ssh-only.invalid") and dest_port in ({browser_port, websocket_port} if websocket_port else {browser_port}):
@@ -98,7 +111,9 @@ async def main():
 
     async def process(proc):
         nonlocal active_shells
-        if proc.command == "fixture-websocket-status" and args.websocket:
+        if proc.command == "fixture-tls-status" and args.public_tls:
+            proc.stdout.write(json.dumps(tls_state)); proc.exit(0)
+        elif proc.command == "fixture-websocket-status" and args.websocket:
             proc.stdout.write(json.dumps(websocket_state)); proc.exit(0)
         elif proc.command == "files-transfer-arm":
             transfer_gate.clear()
@@ -218,7 +233,20 @@ async def main():
         try:
             header = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 10)
             path = header.split(b" ", 2)[1]
-            if path == b"/websocket" and args.websocket:
+            if path == b"/secure-websocket" and args.public_tls:
+                body = ("<!doctype html><meta name='viewport' content='width=device-width,initial-scale=1'>"
+                        "<title>SSH secure browser loading</title><style>body{background:#112e3c;color:white;font:24px sans-serif;padding:20px}a{color:white;display:block;margin:30px 0}</style>"
+                        "<h1 id='result'>Connecting secure WebSocket</h1>"
+                        "<a href='https://echo.websocket.org/cmux-generated-https-check'>Open trusted HTTPS</a>"
+                        f"<a href='https://ssh-only.invalid:{tls_port}/must-not-load'>Open untrusted HTTPS</a>"
+                        "<script>const ws=new WebSocket('wss://echo.websocket.org');ws.binaryType='arraybuffer';"
+                        "ws.onopen=()=>ws.send('cmux secure λ 中');"
+                        "ws.onmessage=e=>{if(e.data==='cmux secure λ 中')ws.send(new Uint8Array([0,255,42]));"
+                        "else if(e.data instanceof ArrayBuffer){const b=new Uint8Array(e.data);"
+                        "if(b.length===3&&b[0]===0&&b[1]===255&&b[2]===42){document.querySelector('#result').textContent='Secure WebSocket verified';document.title='SSH secure browser';}}};"
+                        "ws.onerror=()=>{document.querySelector('#result').textContent='Secure WebSocket failed'};</script>").encode()
+                mime = "text/html; charset=utf-8"
+            elif path == b"/websocket" and args.websocket:
                 body = ("<!doctype html><meta name='viewport' content='width=device-width,initial-scale=1'>"
                         "<title>SSH WebSocket loading</title><style>body{background:#112e3c;color:white;font:24px sans-serif;padding:20px}</style>"
                         "<h1 id='result'>Connecting WebSocket</h1><button id='send' disabled>Send live update</button>"
@@ -268,6 +296,36 @@ async def main():
     silent = await asyncio.start_server(silent_peer, "127.0.0.1", 0)
     silent_port = silent.sockets[0].getsockname()[1]
     with tempfile.TemporaryDirectory(prefix="cmux-ssh-spike-") as directory:
+        if args.public_tls:
+            import ssl
+            import datetime
+            from cryptography import x509
+            from cryptography.hazmat.primitives import hashes, serialization
+            from cryptography.hazmat.primitives.asymmetric import ec
+            from cryptography.x509.oid import NameOID
+            private_key = ec.generate_private_key(ec.SECP256R1())
+            subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "ssh-only.invalid")])
+            now = datetime.datetime.now(datetime.timezone.utc)
+            certificate = (x509.CertificateBuilder().subject_name(subject).issuer_name(subject)
+                .public_key(private_key.public_key()).serial_number(x509.random_serial_number())
+                .not_valid_before(now - datetime.timedelta(days=1)).not_valid_after(now + datetime.timedelta(days=1))
+                .add_extension(x509.SubjectAlternativeName([x509.DNSName("ssh-only.invalid")]), critical=False)
+                .sign(private_key, hashes.SHA256()))
+            cert_file = Path(directory) / "tls.pem"; key_file = Path(directory) / "tls-key.pem"
+            cert_file.write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
+            key_file.write_bytes(private_key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+            tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); tls_context.load_cert_chain(cert_file, key_file)
+            async def untrusted_peer(reader, writer):
+                try:
+                    await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5)
+                    tls_state["untrustedHttpRequests"] += 1
+                    body = b"UNTRUSTED FIXTURE MUST NOT RENDER"
+                    writer.write(f"HTTP/1.1 200 OK\r\nContent-Length: {len(body)}\r\nConnection: close\r\n\r\n".encode() + body)
+                    await writer.drain()
+                except (OSError, asyncio.IncompleteReadError, asyncio.TimeoutError): pass
+                finally: writer.close(); await writer.wait_closed()
+            tls_server = await asyncio.start_server(untrusted_peer, "127.0.0.1", 0, ssl=tls_context)
+            tls_port = tls_server.sockets[0].getsockname()[1]
         async with await asyncssh.create_server(
             Server, "127.0.0.1", 0, server_host_keys=[host_key],
             process_factory=process, encoding="utf-8", line_editor=False,
@@ -286,13 +344,16 @@ async def main():
                        "changedHostKey": asyncssh.generate_private_key("ssh-ed25519")
                            .export_public_key().decode().strip(),
                        "port": port, "silentPort": silent_port, "browserPort": browser_port, "imports": imports,
-                       **({"websocketPort": websocket_port} if websocket_port else {})}
+                       **({"websocketPort": websocket_port} if websocket_port else {}),
+                       **({"tlsPort": tls_port} if tls_port else {})}
             (assets / "fixture.json").write_text(json.dumps(fixture))
             print(json.dumps({"ready": True, "port": port,
                               "assets": str(assets)}), flush=True)
             try:
                 await asyncio.Event().wait()
             finally:
+                if tls_server:
+                    tls_server.close(); await tls_server.wait_closed()
                 if websocket_server:
                     websocket_server.close(); await websocket_server.wait_closed()
                 browser_server.close()

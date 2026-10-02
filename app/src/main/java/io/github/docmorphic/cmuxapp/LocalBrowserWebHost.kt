@@ -54,7 +54,13 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
             override fun shouldOverrideUrlLoading(web: WebView, request: WebResourceRequest): Boolean {
                 if (!current(web, ticket)) return true
                 if (!isWeb(request.url.toString())) return true
-                if (request.isForMainFrame) { stopped = false; failed = false }
+                if (request.isForMainFrame) {
+                    // TLS/DNS failures may arrive before onPageStarted or a
+                    // committed WebView URL. Keep the pending link/redirect
+                    // target so its failure is not mistaken for an old page.
+                    navigatingUrl = request.url.toString()
+                    stopped = false; failed = false
+                }
                 return false
             }
             override fun onPageStarted(web: WebView, url: String?, favicon: Bitmap?) {
@@ -82,7 +88,10 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
                 if (!current(web, ticket) || !request.isForMainFrame || stopped) return
                 val url = request.url.toString()
                 if (url != navigatingUrl && url != web.url) return
-                failed = true; surface.failed(ticket, "Couldn’t load this page. Check the address or your connection.")
+                failed = true
+                surface.failed(ticket, if (error.errorCode == ERROR_FAILED_SSL_HANDSHAKE)
+                    "This site’s secure connection couldn’t be verified."
+                    else "Couldn’t load this page. Check the address or your connection.")
             }
             override fun onReceivedSslError(web: WebView, handler: SslErrorHandler, error: SslError) {
                 handler.cancel()
@@ -112,6 +121,8 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
 
     private fun navigate(view: WebView, url: String?, action: () -> Unit) {
         navigation?.cancel(); policyRefresh?.cancel()
+        // History and reload can also fail before a page-start callback.
+        if (isWeb(url)) navigatingUrl = url
         if (beforeNavigation == null) { action(); return }
         val ticket = token
         stopped = false; failed = false; surface.started(ticket)
@@ -153,7 +164,15 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
                 val history = view.copyBackForwardList()
                 navigate(view, history.getItemAtIndex(history.currentIndex + 1)?.url) { stopped = false; failed = false; view.goForward() }
             }
-            LocalBrowserCommand.RELOAD -> if (work.url == null) navigate(view, view.url) { stopped = false; failed = false; view.reload() }
+            LocalBrowserCommand.RELOAD -> if (work.url == null) {
+                // A rejected provisional navigation leaves WebView on the old
+                // page. Retry its failed destination, not that previous page.
+                val retryUrl = navigatingUrl?.takeIf { failed && isWeb(it) && it != view.url }
+                navigate(view, retryUrl ?: view.url) {
+                    stopped = false; failed = false
+                    if (retryUrl != null) view.loadUrl(retryUrl) else view.reload()
+                }
+            }
             LocalBrowserCommand.STOP -> { navigation?.cancel(); policyRefresh?.cancel(); stopped = true; view.stopLoading(); surface.stopped(token, false) }
             null -> Unit
         }

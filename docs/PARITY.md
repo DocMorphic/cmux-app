@@ -12,6 +12,15 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**SSH HTTPS/WSS and certificate-error recovery (2026-10-02):** verified public
+HTTPS and secure WebSocket text/binary echoes in the real On Android WebView.
+Fixed missing error feedback for provisional TLS failures and Retry targeting the
+previous page. The private untrusted peer received no HTTP data, including after
+Retry. One secure workflow (20.377 seconds), three navigation regressions (19.442
+seconds), and eight JVM cases passed; both APK builds and 16 KB checks passed.
+[Evidence and limits](DIRECT_SSH.md) retain the initial failure and exclude other
+TLS fault modes, paired-Mac routing and physical acceptance. No signed release changed.
+
 **SSH-routed WebSocket browser (2026-10-02):** the real On Android WebView passed
 server-message, Unicode text, binary data and live-update checks through an
 SSH-only hostname, plus browser-close channel cleanup without ending SSH (one

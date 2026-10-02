@@ -13,8 +13,64 @@ rendering, Files and browser tunnel tests do not prove SSH/SFTP support. This au
 establishes the required behavior at upstream candidate
 `204a11dfcc76280205e50406ab94270a1c152155`; it does not advance the broad implemented
 reference or establish which App Store/TestFlight binary contains these features.
-Older checkpoints below retain their original evidence boundaries; the SSH
-integrated Android browser checkpoint is the latest implementation status.
+Older checkpoints below retain their original evidence boundaries; the HTTPS/WSS checkpoint below is the latest browser implementation status.
+
+## SSH-routed HTTPS/WSS and certificate-error recovery (2026-10-02)
+
+The production On Android WebView passed valid public HTTPS and secure WebSocket
+text/binary echoes through the SSH transport. A generated private TLS peer with
+an untrusted certificate was rejected before receiving any HTTP request, including
+when the user tapped Retry. No WebView trust settings or CA roots changed.
+
+This acceptance check exposed a production bug: certificate failures can arrive
+before `onPageStarted`, while WebView still reports the previous committed URL.
+The app canceled the unsafe connection but discarded the error as an old-page
+callback. It now tracks main-frame link/redirect destinations and explicit
+navigation targets before loading. The error banner appears, and Retry loads the
+rejected destination instead of reloading the previous page. Nonrecoverable SSL
+handshake failures receive the same secure-connection explanation. The handler
+continues to cancel certificate errors, following the
+[Android WebViewClient contract](https://developer.android.com/reference/android/webkit/WebViewClient).
+
+Verification on the existing API 37 / 16 KB emulator:
+
+- Secure SSH browser workflow: **OK (1 test), 20.377 seconds, no skips**. Verified
+  public WSS Unicode text and binary `[0,255,42]`, public HTTPS rendering, Back,
+  certificate rejection, a new rejected connection on Retry, zero HTTP requests
+  reaching the untrusted peer, and leaving the browser while SSH remains connected.
+- Navigation/history/reload/close, redirects/address editing/keyboard dismissal,
+  and stop/network-error recovery: **OK (3 tests), 19.442 seconds, no skips**.
+- **8 LocalBrowserStateTest JVM cases passed**; debug and test APKs built. All five
+  native libraries passed LOAD/RELRO alignment; both APKs passed 16 KB ZIP alignment.
+- Inspected the generated-page screenshot and certificate-error banner with Retry.
+  Original failed runs and their diagnostics are retained in ignored captures.
+
+Final evidence: `captures/runtime/ssh-audit/secure-browser-fixed-android`,
+`secure-browser-navigation-regression`, `secure-browser-jvm` and
+`secure-browser-retry-fix-build.txt`. APK SHA-256:
+
+- Debug: `5c9c9bbee4ac52188989d4603a188ce1321b11c3755562904085acddd0a6efa4`
+- Test: `41aefc36a5e7246d481aae006cdeb071ce85876edaf0bf9a2dadfc3ca7092bac`
+
+The external-network check is explicitly opt-in, not an offline CI gate. It uses
+[WebSocket.org's public echo service](https://websocket.org/tools/websocket-echo-server)
+with generated messages and a generated HTTPS path. The fixture permits only
+`echo.websocket.org:443` in addition to its private allowlist; adb forwards only
+the SSH port. The untrusted peer and certificate are generated in the existing
+private temporary fixture directory. The runner selects exactly this method and
+rejects skipped tests.
+
+```sh
+captures/runtime/ssh-engine/venv/bin/python scripts/ssh-engine-fixture.py --public-tls
+python3 scripts/check-ssh-transport.py --serial emulator-5554 --ssh-tls \
+  --output captures/runtime/ssh-audit/secure-browser-fixed-android
+```
+
+This covers normal HTTPS/WSS and untrusted-certificate rejection, not every TLS
+failure mode, hostname mismatch/expiry separately, large/fragmented WebSocket
+messages, loss during input/upload, the paired-Mac route, or physical Pixel
+acceptance. No signed release changed. The emulator and fixture were stopped
+after verification; no additional AVD was created.
 
 ## SSH-routed WebSocket browser acceptance (2026-10-02)
 
