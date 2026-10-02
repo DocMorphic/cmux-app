@@ -12,20 +12,28 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-**Physical browser UI exposed an ANR (2026-10-02):** MainActivity's input dispatch
-timed out before the owned test page was requested. The temporary server closed
-and phone sleep was restored, but the test-workspace receipt remains and cleanup
-is unverified. The Pixel disconnected before diagnostics/recovery. A receipt-bound
-recovery check and run-specific stage logging compile but have not run. This is
-an unresolved failure, not UI acceptance or an ANR fix.
-[Evidence and exact recovery steps](BROWSER_TUNNEL.md#physical-browser-ui-anr-recovery-pending--2026-10-02).
+**Physical checklist UI passed (2026-10-03):** **1 test, 29.055 s**, using actual
+MainActivity and the saved NIGHTLY Mac. Add/edit/state changes, touchscreen drag,
+manual status, workspace reopen and swipe delete were checked against authoritative
+Mac snapshots. Screenshots were inspected; login retained, test workspace removed,
+and sleep setting restored. This closes the described physical Todo UI gate;
+Gboard composition and TalkBack remain separate checks.
+[Evidence and scope](TODO.md#physical-checklist-ui-acceptance--2026-10-03).
 
-**Full physical browser journey prepared (2026-10-02):** a real MainActivity
-pairing/New Browser/On Android/address/history/reopen check and owned Mac HTTP
-runner now compile. The runner stopped at the Pixel lock guard before any install,
-listener or pairing change, so UI acceptance remains pending. Existing signed
-build 385 and phone installation are unchanged.
-[Run command and exact scope](BROWSER_TUNNEL.md#prepared-full-physical-browser-ui-journey--2026-10-02).
+**Physical native pairing and browser UI passed (2026-10-03):** the Pixel/NIGHTLY
+journey passed **1 test in 35.604 s**: production pairing, New Browser, On Android,
+Mac-loopback WebView rendering, page navigation, Back/Forward and workspace reopen.
+Both screenshots were reviewed; login and earlier pairings survived, and exact
+fixture cleanup and sleep restoration were verified. The prior ANR was traced to
+an account/credential lock inversion and fixed in `1c62eab`; **23 focused JVM tests**
+passed. A separate test lifecycle issue caused by consumed pairing URI matching
+was resolved without changing production behavior. No fixture receipt remains.
+[Evidence and exact limits](BROWSER_TUNNEL.md#physical-pairing-and-browser-ui-acceptance--2026-10-03).
+The physical debug app has the fix; signed build 385 does not yet include it.
+A newer signed integration build is underway. HTTPS, transfers, network handoff,
+process-death recovery, direct physical keyboard composition and live push remain
+open. Historical checkpoints below retain their original scope; later verified
+results supersede earlier pending statements.
 
 **Real identified-input duplicate suppression verified (2026-10-02):** the
 Pixel/NIGHTLY check passed in 10.71 s: retry identical bytes/identity after a new
@@ -1396,7 +1404,7 @@ work. This follow-up has no new APK or live-device claim.
 | Tasks and agents | Task composer in `CmuxMobileShellUI` | Editable Claude/Codex/OpenCode/Shell and custom templates, agent icons, remembered Mac/agent/directory defaults, live model/effort choices, Mac/folder/name/group task options, scoped discovery/cache, encrypted saved drafts with stable retry IDs, completed-operation refresh/start-again recovery and new-workspace task RPC coded; task attachment import/storage/upload/retry, full-height prompt canvas and compact keyboard dock coded; offline composition and first-handshake draft adoption verified with emulator fixtures; remaining UI fidelity and phone QA pending | Create and navigate tasks; handle agent prompts and attachments |
 | Settings | `MobileSettingsView` | Account, saved-computer, background notification, terminal size, connection status, Open Folders on Tap and Show Missing Files controls coded; local reset with confirmation, platform-owned erase and emulator acceptance implemented; live native route/RTT, Mac identity/account checks and address-free report sharing implemented; scoped private-address editing/reset and native dial hints implemented; active V2 status/home-relay/credential refresh and real-Pixel checks implemented; per-computer Iroh/Direct preferences, native endpoint selection and routing invalidation implemented; Tailscale-only route authorization/editing is implemented; discovery-independent saved reconnect is implemented; legacy route unification and physical acceptance remain open (see TAILSCALE_CONNECTION.md and NETWORKING.md) | Account, computers, notification, display, network, diagnostics, reset |
 | Device behavior | iOS lifecycle, accessibility, background push | Keyboard resizing verified with an Android 17 emulator fixture; visible terminal text exposed to accessibility; broader lifecycle and phone QA missing | Rotation, keyboard, process death, offline recovery, screen reader, battery |
-| Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; Pixel run pending | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
+| Delivery | iOS release checks | Native debug/release builds and stable signing verified in CI; real Pixel native pairing, terminal/grid resize/reconnect and routed HTTP browser workflow verified; authenticated signed-release migration and remaining feature gates open | Stable signed APK, upgrade in place, reproducible CI, Pixel acceptance run |
 
 ## First authenticated Pixel/Mac acceptance (2026-09-29)
 

@@ -5,6 +5,38 @@ Source comparison: shared `MobileTodo*` models, `MobileTodoMutation`,
 `MobileCoreRPCClient+Todo`, `MobileShellComposite+Todo`, `TodoSurfaceModel`,
 `TodoSurfaceView`, `TodoSurfaceRowView`, `TodoStatusMenu`, and status presentation.
 
+## Physical checklist UI acceptance — 2026-10-03
+
+`LiveNativeTodoUiCheck` passed **OK (1 test), 29.055 s** on the Pixel 6a and its
+existing saved NIGHTLY Mac. The test launches actual MainActivity via the pairing
+Intent and uses the pane picker/checklist UI. It verifies each result with fresh
+authoritative native workspace reads while continuing Compose effects:
+
+- Add two checklist items; edit one to Chinese text plus an emoji ZWJ sequence.
+- Cycle pending → working → completed → pending and verify completion partition.
+- Long-press/drag reorder with injected touchscreen gestures on the physical Pixel.
+- Set Review, leave/reopen the workspace, and verify the exact retained snapshot.
+- Swipe-delete only an owned item and verify both host state and row disappearance.
+
+Both checklist/reopen screenshots were visually inspected. Input text uses Compose
+framework injection; this does not prove Gboard key taps/composition or TalkBack.
+The real Mac RPC reconnect test below remains the independent reconnect evidence;
+this UI check exercises navigation away/back, not a forced network reconnect.
+
+Existing login and earlier pairings were preserved. Only a uniquely named test
+workspace was created; it was closed once, absence verified, and its private
+receipt removed. Normal plugged-in sleep setting was restored to **0**. The
+runner refuses a locked device and never clears app stores. Run with:
+
+```sh
+python3 scripts/check-live-todo-ui.py --serial DEVICE
+```
+
+Assembly passed in 38 s; Python syntax and diff checks passed. No production code
+changed, no emulator started, and no extra signed build was triggered for this test.
+Instrumentation SHA-256: `1b016315e981625cbabbfa44630b0044491fb464d8bc1df056f2494948701ff7`.
+Ignored evidence: `captures/runtime/pixel-resume-20261002/todo-ui-first/`.
+
 ## Behavior
 
 - A native Todo surface opens from the workspace inventory and surface picker.
