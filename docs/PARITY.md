@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+**Signed build 376 delivered (2026-10-02):** source `420327d` passed the full CI
+test/build pipeline and was signed with the existing certificate. Independent
+checks verified 14 packaged viewer assets, six native libraries, 16 KB alignment
+and the disabled-until-configured FCM manifest. The existing emulator upgraded
+369 → 376 without data clearing or changing its first-install timestamp. Cold
+MainActivity launch reached sign-in in 991 ms; the emulator is stopped.
+[Download, checksum and verification scope](PIXEL_INSTALL.md#current-signed-development-apk--build-376-2026-10-02).
+Authenticated migration, current physical Pixel/Mac acceptance and live push
+delivery remain open. Earlier signed-build references below are historical.
+
 **Simulator large-text recovery fixed (2026-10-02):** recovery content now scrolls
 in short viewports, shared toolbar buttons reserve separate 48 dp targets, and
 worker failures disable toolbar/text input consistently with video touches.

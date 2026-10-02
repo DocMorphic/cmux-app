@@ -6,10 +6,10 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 369 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36987796472/artifacts/11218422694)
-from `59f279c` includes the accumulated account, notification, keyboard and
-browser recovery work, including lost-click replies and pointer readiness.
-The full CI test/build pipeline, signature, 16 KB packaging, upgrade from 363,
+**Signed download:** [build 376 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36996321428/artifacts/11221887084)
+from `420327d` adds Files mutation feedback, the encrypted FCM receive path
+(provider configuration is still pending), and simulator large-text recovery fixes.
+The full CI test/build pipeline, signature, 16 KB packaging, upgrade from 369,
 and emulator launch passed. Physical Pixel/Mac acceptance and live Android push
 provider delivery remain open. See the [install guide](docs/PIXEL_INSTALL.md)
 for checksums and the exact verification scope.

@@ -3,7 +3,61 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 369 (2026-10-02)
+## Current signed development APK — build 376 (2026-10-02)
+
+[Build 376](https://github.com/DocMorphic/cmux-app/actions/runs/36996321428)
+passed at `420327d855d9521b4117c02bd82cac0cbb631a59`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/36996321428/artifacts/11221887084)
+and extract `app-release.apk` (repository access required). This supersedes 369.
+PR #1 remains a draft; this manual batch build did not publish a main-branch preview.
+
+- Package `io.github.docmorphic.cmuxapp`, version code **376**, version `0.2.0`.
+- APK SHA-256: `bca595537def20de5bb074d7753a81b7290ad9d5b57c80fd3e361ff1c4de16ce`.
+- Certificate SHA-256:
+  `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`.
+- Downloaded APK size: **38,686,506 bytes**. Signing identity is unchanged.
+- Includes all of 369 plus preserved SFTP mutation outcomes after refresh failures,
+  encrypted FCM queue/receiver and fresh-membership delivery checks, scrollable
+  simulator recovery content, separate 48 dp toolbar targets and consistent
+  disabled input during simulator-worker failures.
+
+**Live FCM push is not activated.** Firebase automatic initialization and token
+registration remain disabled. A Firebase project and sender must be configured;
+see [the delivery decision and current receiver](PUSH_DELIVERY.md).
+
+CI passed the full app/Ghostty JVM tasks, debug/test/release assembly, four helper
+tests, ten update-policy tests, viewer hashes, signature and native/ZIP alignment
+gates. Gradle completed in **7m 53s**; individual JVM totals are not published, so
+none are inferred. Focused runtime evidence includes 12 push checks, nine SFTP
+checks and the final ten v2/legacy simulator checks, recorded in their feature
+documents. Those checks are fixtures, not physical end-to-end acceptance.
+
+Independent downloaded-APK checks confirmed all **14 packaged viewer hashes**,
+all **six native LOAD/RELRO checks**, 16 KB ZIP alignment, the unchanged signer,
+package/version, non-debuggable manifest, disabled backup and absence of four
+debug fixture activities. The manifest also preserves disabled Firebase automatic
+initialization/analytics/delegation, the nonexported receiver and removal of the
+SDK fallback display service.
+
+The existing API 37 / arm64 / 16,384-byte emulator upgraded **369 → 376** with
+`adb install -r`, without clearing data. Both installed APK hashes matched the
+corresponding downloads. First-install time remained `2026-09-30 01:57:49`, and
+`pageSizeCompat=0`. The first launch request overlapped Android's package-update
+Activity; a subsequent force-stop/cold launch reached the actual MainActivity in
+**991 ms**. Its sign-in screen was visually checked with no compatibility warning.
+This is launch timing, not connection latency. The emulator was stopped.
+
+The baseline was signed out; authenticated migration and the latest physical
+Pixel/Mac workflow remain unverified. No account email was sent. Live push-provider
+delivery, broader physical/UI acceptance and full parity remain open.
+
+Local APK: `build/signed-run-36996321428/app-release.apk` (ignored). Receipt, CI
+log, package checks and before/after screenshots: `captures/releases/420327d/`
+(ignored). The older tailnet download was not replaced.
+
+<a id="current-signed-development-apk--build-369-2026-10-02"></a>
+
+## Previous signed checkpoint — build 369 (2026-10-02)
 
 [Build 369](https://github.com/DocMorphic/cmux-app/actions/runs/36987796472)
 passed at `59f279cbed609ad73c255bb192f2c02dbe2f14be`. Download the
