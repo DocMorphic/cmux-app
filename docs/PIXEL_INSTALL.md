@@ -5,6 +5,22 @@ a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
 ## Current signed development APK — build 385 (2026-10-02)
 
+### Physical debug update and resumed check — 2026-10-02
+
+The reconnected Pixel received the current debug and instrumentation APKs with
+`adb install -r`; both installations returned Success without clearing data.
+Debug SHA-256: `f72f05838b1e441c43bdc154840b3796b4d696f28ec6eaf2297c3435b969e1cb`.
+Test SHA-256: `f86df702928d6a0e9cc6b52032a8c1740bed2b0ab70c4351552f22f13ab821c1`.
+The authenticated, read-only saved-Mac preflight passed **1 test in 7.758 s**.
+The subsequent UI test failed its initial unlocked-device guard in **0.081 s**,
+before acquiring the account or creating a workspace. This is not resize evidence;
+the settled viewport and nightly pairing checks still need an unlocked Pixel.
+Normal plugged-in sleep setting remains `0`. No emulator was started, and the
+physical release package was not updated. Ignored logs:
+`captures/runtime/pixel-resume-20261002/`.
+
+### Signed APK verification
+
 [Build 385](https://github.com/DocMorphic/cmux-app/actions/runs/37017511051)
 passed at `7f8cefdd34811860e268270f96ecbc555dcfb36e`. Download the
 [signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37017511051/artifacts/11231236946)
