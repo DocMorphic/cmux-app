@@ -5,6 +5,7 @@ import java.util.UUID
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -318,6 +319,29 @@ internal class NativeFeedCoordinator(
                 }
             }
         }
+    }
+
+    /** A bounded caller can await fresh workspace reads for exactly its selected Macs.
+     * Cancellation releases this waiter/read; it never tears down other shared consumers.
+     */
+    suspend fun refreshWorkspaceLists(macs: List<NativeCredentialStore.PairedMac>) = withContext(scope.coroutineContext.minusKey(Job)) {
+        check(macs.isNotEmpty()) { "Choose a computer before retrying." }
+        val targets = macs.distinctBy { it.origin }.map { mac ->
+            checkNotNull(handles[mac.origin]?.takeIf { it.mac == mac && current(it) }) { "Computer selection changed." }
+        }
+        targets.map { handle -> async {
+            if (handle.client == null || !handle.verified) {
+                handle.refresh.request()
+                sources.first { !current(handle) || (handle.client != null && handle.verified) }
+            }
+            ensureActiveSession(handle)
+            val client = checkNotNull(handle.client) { "Computer unavailable." }
+            handle.mutex.withLock {
+                check(handle.verified && current(handle, client)) { "Computer connection changed." }
+                refreshWorkspaces(handle, client)
+            }
+        } }.awaitAll()
+        Unit
     }
 
     suspend fun refresh() = withContext(scope.coroutineContext.minusKey(Job)) {

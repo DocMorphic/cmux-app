@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Empty workspace guidance and bounded retry (2026-10-03)
+
+[EMPTY_WORKSPACES.md](EMPTY_WORKSPACES.md) maps the iOS shared empty-list scaffold,
+Mac setup/docs actions and 30-second retry to Android. The request survives lazy
+row removal, retires with its account/team/selection owner, and reads only the
+captured Macs after host verification. Cancellation preserves shared connections.
+SSH-only and filtered lists receive context-specific guidance. Thirty JVM tests
+and two Android tests (18.814 seconds) passed; three screenshots were reviewed on
+the existing API 37 / 16 KB AVD. Live Mac/Pixel recovery remains unverified. Build
+481 predates this change and onboarding; global upstream pin unchanged.
+
 ## Five-stage Android introduction (2026-10-03)
 
 [ONBOARDING.md](ONBOARDING.md) implements the iOS sequence: workspaces,

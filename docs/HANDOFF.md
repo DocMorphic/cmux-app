@@ -29,7 +29,13 @@ records the original September 28 handoff rather than the current APK.
 
 ## User's objective and working preferences
 
-Latest local feature: [ONBOARDING.md](ONBOARDING.md) implements all five introduction
+Latest local feature: [EMPTY_WORKSPACES.md](EMPTY_WORKSPACES.md) adds the shared
+Mac/SSH empty-state scaffold and owner-scoped 30-second Mac retry. Thirty JVM and
+two Android tests passed; normal portrait screenshots were reviewed. Exact source
+mapping, hashes and remaining live acceptance are recorded there. No Pixel was
+available for this checkpoint. Signed build 481 predates this and onboarding.
+
+Previous local feature: [ONBOARDING.md](ONBOARDING.md) implements all five introduction
 scenes with durable milestones, explicit completion, Settings replay, saved page/
 method/draft state, connection selection and the scoped Keep Mac Awake offer.
 The first-run gate requires a verified account; offline replay is informational

@@ -11,6 +11,60 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun explicitWorkspaceRecoveryRefreshesOnlyCapturedMacWithoutNotificationMutation() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                val bReads = b.requests.count { it.optString("method") == "mobile.workspace.list" }
+                val aNotifications = a.requests.count { it.optString("method") == "notification.feed.list" }
+                a.workspaceTitle = "Fresh empty-list retry"
+                withTimeout(2000) { coordinator.refreshWorkspaceLists(listOf(mac("a"))) }
+                assertEquals("Fresh empty-list retry", coordinator.sources.value[mac("a").origin]?.workspaces?.single()?.title)
+                assertEquals(bReads, b.requests.count { it.optString("method") == "mobile.workspace.list" })
+                assertEquals(aNotifications, a.requests.count { it.optString("method") == "notification.feed.list" })
+            } finally { coordinator.close() }
+        } }
+    }
+
+    @Test fun emptyRecoveryWaitsForIdentityAndCannotFollowReplacementHandle() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val gate = java.util.concurrent.CountDownLatch(1); peer.hostStatusGate = gate
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { peer.requests.any { it.optString("method") == "mobile.host.status" } }
+                val pending = async { runCatching { coordinator.refreshWorkspaceLists(listOf(mac("a"))) } }
+                yield()
+                assertFalse(pending.isCompleted)
+                assertTrue(peer.requests.none { it.optString("method") == "mobile.workspace.list" })
+                coordinator.pause()
+                gate.countDown()
+                assertTrue(withTimeout(2000) { pending.await() }.isFailure)
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                coordinator.refreshWorkspaceLists(listOf(mac("a")))
+            } finally { gate.countDown(); coordinator.close() }
+        }
+    }
+
+    @Test fun cancellingEmptyRecoveryDoesNotRetireSharedConnection() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val gate = java.util.concurrent.CountDownLatch(1); peer.hostStatusGate = gate
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { peer.requests.any { it.optString("method") == "mobile.host.status" } }
+                val pending = launch { coordinator.refreshWorkspaceLists(listOf(mac("a"))) }
+                yield(); pending.cancelAndJoin(); gate.countDown()
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                coordinator.refreshWorkspaceLists(listOf(mac("a")))
+                assertEquals(1, peer.requests.count { it.optString("method") == "mobile.host.status" })
+            } finally { gate.countDown(); coordinator.close() }
+        }
+    }
+
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 

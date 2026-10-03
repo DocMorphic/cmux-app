@@ -368,6 +368,11 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         if (disconnected) TextButton(onClick = onReconnect, enabled = !reconnecting) { Text("Reconnect") }
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             (reconnectError ?: failure)?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+            if (available && !tmuxState.loading && !cmuxState.loading && cmuxState.operation == null && !busy && !reconnecting &&
+                tmuxState.workspaces.isEmpty() && providers.all { (_, state) -> !state.loading && state.tree?.workspaces.isNullOrEmpty() } &&
+                shells.none { it.hostId == hostId }) item(key = "empty-workspaces") {
+                NativeWorkspaceEmptyRow(NativeWorkspaceEmptyGuidance.SSH_HOST)
+            }
             item(key = "cmux-create") {
                 val supported = cmuxState.available || cmuxState.platform?.packageName != null || cmuxState.platform == null
                 TextButton(onClick = { act { cmux.createWorkspace() } }, enabled = available && supported && !cmuxState.loading,

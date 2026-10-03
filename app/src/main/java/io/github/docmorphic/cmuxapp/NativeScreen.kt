@@ -663,6 +663,10 @@ fun NativeScreen(
             delay(60_000)
         }
     }
+    val emptyWorkspaceRecovery = remember(browserLogin, teamState.scope, selectedOrigin) { NativeWorkspaceEmptyRecovery(scope) }
+    val emptyWorkspaceRecoveryState by emptyWorkspaceRecovery.state.collectAsState()
+    DisposableEffect(emptyWorkspaceRecovery) { onDispose { emptyWorkspaceRecovery.close() } }
+    LaunchedEffect(feedForeground, emptyWorkspaceRecovery) { if (!feedForeground) emptyWorkspaceRecovery.cancel() }
     val searchLocale = configuration.locales[0]
     val workspaceSources = remember(pairedMacs, feedSources, moveSources, selectedOrigin, connectedCode, client, workspaces, groups, hostCapabilities) {
         pairedMacs.filter { selectedOrigin == null || it.origin == selectedOrigin }.map { mac ->
@@ -2964,8 +2968,20 @@ fun NativeScreen(
                             }
                         }
                     }, empty = {
-                        Text(if (unreadWorkspacesOnly) "No unread workspaces." else "No workspaces found.",
-                            Modifier.padding(24.dp), color = nativeMuted)
+                        NativeWorkspaceEmptyRow(when {
+                            search.isNotBlank() -> NativeWorkspaceEmptyGuidance.SEARCH
+                            unreadWorkspacesOnly -> NativeWorkspaceEmptyGuidance.UNREAD
+                            else -> NativeWorkspaceEmptyGuidance.MAC
+                        }, emptyWorkspaceRecoveryState, onRetry = if (workspaceSources.isEmpty()) null else ({
+                            val login = browserLogin
+                            val owner = teamState.scope
+                            val targets = workspaceSources.map { it.mac }
+                            emptyWorkspaceRecovery.start {
+                                check(store.taskSession() == login && accountTeams.state.value.scope == owner &&
+                                    targets.all { store.visiblePairedMacs().contains(it) && connection.allowsSaved(it) })
+                                feedCoordinator.refreshWorkspaceLists(targets)
+                            }
+                        }))
                     }) { entry ->
                             val owner = entry.source
                             if (entry is WorkspaceListEntry.Header) {
