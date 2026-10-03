@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "name": "cmux synthetic private-cookie probe",
+  "version": "1.1",
+  "browser_specific_settings": { "gecko": { "id": "notice-probe@cmux-app.invalid" } },
+  "permissions": ["cookies", "tabs", "nativeMessaging", "geckoViewAddons", "http://127.0.0.1/*"],
+  "background": { "scripts": ["background.js"] },
+  "experiment_apis": {
+    "noticeCookies": {
+      "schema": "schema.json",
+      "parent": { "scopes": ["addon_parent"], "paths": [["noticeCookies"]], "script": "private-cookies.js" }
+    }
+  }
+}

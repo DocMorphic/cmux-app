@@ -152,3 +152,42 @@ measured APK growth**. No AAR download, dependency change or new emulator was ma
 Before adoption, verify the stable APIs, ABI-filtered APK impact, licensing,
 16 KB native compatibility and runtime behavior. The Android-wide impossibility
 of nonpersistent authenticated embedding has not been established.
+
+## GeckoView runtime follow-up (2026-10-04)
+
+The standalone [notice-spike experiment](../notice-spike/README.md) now pins and
+tests that stable engine. It required AGP 9.1.1 / Gradle 9.3.1 / compile SDK 37;
+these are confined to its own build. Root/app dependencies and toolchain are
+unchanged. SDK 37 was installed by Gradle under the existing accepted SDK license.
+No extra AVD was created.
+
+The documented cookies API is insufficient for named private contexts: both tabs
+report `firefox-private`; accepted cookie writes reach neither context's actual
+request. The corrected test fails in **18.995 s**. The initial fixture also exposed
+an incorrect initial-blank-page wait, which was fixed by awaiting the exact URL.
+The pinned engine's packaged cookie parser confirms that this route omits
+`geckoViewSessionContextId`.
+
+A bundled privileged extension using the selected tab's actual origin attributes
+passed **1 runtime test in 14.675 s**: two private contexts each sent only their
+own seeded synthetic cookie on real loopback HTTP requests. The test used
+`privateBrowsingId=1`, distinct context IDs and default engine preferences, with
+device page size 16384 / package `pageSizeCompat=0`. Native credentials were never
+used, and no page-script/native-message interface was exposed. This proves a
+candidate route for cookie seeding; it does not complete the notice renderer.
+
+**Adoption is still blocked by a concrete packaging gate:** ten of thirteen stock
+arm64 engine libraries fail the repo's 16 KB RELRO check (all three other libraries
+pass). APK ZIP alignment passes. Starting the runtime does not waive this failure.
+The initial isolated debug APK was 196,989,177 bytes, including 175,111,152 native
+bytes; this is not measured cmux-app APK growth. Do not add this binary to the
+delivered app until aligned native artifacts/source rebuilds and their provenance
+are available. Preserve the original verification gate.
+
+Next validate HTTPS/Secure and page-script cookie exclusion, lifetime through
+context close/process death, unrelated-state preservation and account replacement;
+evaluate reproducible native alignment fixes, package cost and complete third-party
+notices. The internal extension API needs a pinned-engine regression gate. Then
+integrate actual rendering/theme/navigation/preload with the existing broker and
+load owner. Evidence: `captures/runtime/notice-gecko/` (ignored). No Pixel or new
+signed milestone was tested; build 494 remains the last verified signed artifact.

@@ -12,6 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Private notice engine experiment (2026-10-04 follow-up)
+
+The isolated [notice-spike](../notice-spike/README.md) verifies that a bundled
+GeckoView extension can seed separate private page contexts: one runtime test
+passed in 14.675 s with real loopback requests. The simpler public cookies API
+failed for those contexts; the failure is retained. This does not establish
+HTTPS/page-script exclusion, storage cleanup, rendered UI or physical acceptance.
+Ten stock engine libraries fail the existing 16 KB RELRO gate. No engine is added
+to cmux-app, and the standalone newer toolchain does not upgrade the root app.
+The experiment packages were removed from the one existing AVD after capture;
+the AVD is stopped. Pixel and signed-build status remain unchanged.
+
 ## What's New fitting and profile probe (2026-10-04 follow-up)
 
 Native sheets now fit the selected page, retaining bounded scrolling and fixed

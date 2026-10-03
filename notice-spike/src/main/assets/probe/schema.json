@@ -1,0 +1,4 @@
+[{"namespace":"noticeCookies","functions":[{
+  "name":"seed","type":"function","async":true,
+  "parameters":[{"name":"tabId","type":"integer"},{"name":"url","type":"string"},{"name":"value","type":"string","enum":["a","b"]}]
+}]}]

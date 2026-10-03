@@ -62,11 +62,14 @@ The profile experiment is now recorded in `WHATS_NEW_WEB.md`: cookie isolation a
 targeted clearing passed, but deletion after destroy threw, and profile names and
 cookies were missing after restart despite directories remaining on disk. The
 initial invalid persistence assertion failed; the revised probe records observations
-and confirms only public-registry cleanup, not disk erasure. GeckoView private mode
-is an alternative under evaluation; no dependency was added. Do not call random
-profile names nonpersistent or claim an Android-wide impossibility. Next verify
-stable GeckoView cookie seeding/private contexts and package cost, then choose and
-implement the renderer/cookie
+and confirms only public-registry cleanup, not disk erasure. The standalone
+`notice-spike` now evaluates GeckoView157 with its own newer toolchain. Public
+cookie seeding fails for named private contexts; the scoped bundled extension
+passes actual isolated-request checks (1 test,14.675s). Ten stock native libraries
+fail RELRO alignment, so it is not an app dependency. No main-toolchain update or
+extra AVD was made. Next validate storage lifetime/HTTPS/page-script exclusion,
+reproducible native alignment fixes and package/license cost before integrating
+the renderer/cookie
 seeding, theme, navigation policy and the existing10sec/20sec lifetimes in launch
 and archive UI. Current native catalog has no web pages or configured feed; the
 explicit archive placeholder is temporary, not acceptable as finished parity.

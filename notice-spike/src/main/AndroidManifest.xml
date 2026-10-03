@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:label="cmux notice engine experiment" android:allowBackup="false" android:usesCleartextTraffic="true">
+        <activity android:name=".ProbeActivity" android:exported="false" />
+    </application>
+</manifest>
