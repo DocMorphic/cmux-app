@@ -6,7 +6,18 @@ import org.json.JSONObject
 /** A computer owns a stable origin; adding or upgrading a route does not create a new draft/notification namespace. */
 internal object NativePairingPersistence {
     fun remember(state: JSONObject, incoming: NativeCredentialStore.PairedMac,
-                 team: NativeTeamScope? = null): NativeCredentialStore.PairedMac {
+                 team: NativeTeamScope? = null, expected: NativeCredentialStore.PairedMac? = null): NativeCredentialStore.PairedMac {
+        // Runs inside the credential transaction: a Forget/replacement between
+        // the handshake and this write must not recreate the captured pairing.
+        if (expected != null) {
+            val rows = state.optJSONArray("pairings")
+            val saved = rows?.let { (0 until it.length()).mapNotNull { index ->
+                it.optJSONObject(index)?.let(NativePairingRecords::decode)
+            } }.orEmpty()
+            check(NativeComputerMenuPairing.isCurrent(expected, saved)) {
+                "This saved computer changed. Choose it again from Computers."
+            }
+        }
         if (team == null) return rememberUnscoped(state, incoming)
         check(state.optString("task_session") == team.login && state.optString("refresh_token").isNotBlank()) {
             "Account session changed. Reconnect to the Mac."

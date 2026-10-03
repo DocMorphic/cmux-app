@@ -55,9 +55,10 @@ reordering or status refresh does not itself invoke the row's selection callback
 ## Remaining work
 
 The full Computers destination still needs navigation/layout parity, hidden-row
-integration, inline SSH sections, version warnings and a unified saved/reconnect
-list that also retains offline Macs absent from discovery. Existing separate
-Android features must be reconciled with those iOS surfaces. Production Pixel/Mac
+integration, inline SSH sections, version warnings. The [saved reconnect follow-up](RECONNECT_COMPUTERS.md) now
+retains offline Macs absent from discovery and reconciles exact saved/directory
+rows. Existing separate Android features must be reconciled with the remaining
+iOS surfaces. Production Pixel/Mac
 acceptance is pending; presence-driven route refresh, workspace announcements and
 push recovery are separate work. This change is not in signed build 468.
 

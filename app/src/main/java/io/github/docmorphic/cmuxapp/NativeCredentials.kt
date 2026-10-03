@@ -56,15 +56,15 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         }
     }
 
-    fun rememberMac(code: String, deviceId: String, name: String, instanceTag: String? = null) = update { state ->
-        NativePairingPersistence.remember(state, PairedMac(code, deviceId, name, instanceTag))
+    fun rememberMac(code: String, deviceId: String, name: String, instanceTag: String? = null, expected: PairedMac? = null) = update { state ->
+        NativePairingPersistence.remember(state, PairedMac(code, deviceId, name, instanceTag), expected = expected)
     }
 
-    internal fun rememberAuthenticatedMac(incoming: PairedMac, team: NativeTeamScope,
+    internal fun rememberAuthenticatedMac(incoming: PairedMac, team: NativeTeamScope, expected: PairedMac? = null,
                                          permits: () -> Boolean): PairedMac {
         check(permits()) { "Account or team changed. Reconnect to the Mac." }
         var remembered: PairedMac? = null
-        update { state -> remembered = NativePairingPersistence.remember(state, incoming, team) }
+        update { state -> remembered = NativePairingPersistence.remember(state, incoming, team, expected) }
         // Keep the account/team lock outside the credential transaction, like grant storage.
         check(permits()) { "Account or team changed. Reconnect to the Mac." }
         return checkNotNull(remembered)

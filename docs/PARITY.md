@@ -12,6 +12,26 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Saved computers through discovery outages (2026-10-03)
+
+The reconnect picker retains saved Macs during loading/errors/empty discovery,
+adds only unambiguous new device/build records, and avoids duplicate discovery
+rows. It keeps the list visible during an attempt with Cancel, spinner and failure
+feedback. Saved rows use their original pairing and recheck current account and
+pairing authority on tap, before dialing, and inside the final save transaction.
+A late handshake cannot recreate a removed pairing; successful verification
+retires the attempt guard so enriched records can reconnect later.
+
+**47 JVM and seven distinct Android cases passed** across the recorded runs,
+including real local RPC/terminal reconnect and removal during a pending dial.
+The final two-case follow-up verified replay after legacy build-tag enrichment;
+an earlier invalid ownership-change fixture timed out and is documented.
+The Android picker screenshot was visually checked.
+[Source comparison, evidence and limits](RECONNECT_COMPUTERS.md).
+Not yet in signed build 468. Full iOS disconnected/Computers layout, hidden-row
+switches, setup help, inline SSH/version warnings and physical acceptance remain
+open.
+
 ## Computer method sections and endpoint captions (2026-10-03)
 
 Saved computer rows now appear once under their configured Iroh/Tailscale/Direct
@@ -24,8 +44,8 @@ uses existing scoped settings and routes without changing connection authority.
 **23 JVM and seven Android cases passed**, and the production-row screenshot was
 visually checked. [Source comparison and evidence](COMPUTER_LIST.md). Not yet in
 signed build 468. Full Computers navigation/layout, hidden/SSH row integration,
-version warnings, offline saved/reconnect reconciliation and physical acceptance
-remain open; this does not complete the full Computers screen.
+version warnings and physical acceptance remain open; saved/offline reconnect
+reconciliation is covered above. This does not complete the full Computers screen.
 
 ## Computer connection versus presence (2026-10-03)
 

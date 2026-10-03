@@ -2666,9 +2666,11 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var releaseNextFeed: CountDownLatch? = null
     val rejectNextForegroundFeed = java.util.concurrent.atomic.AtomicBoolean()
     private val sockets = CopyOnWriteArrayList<Socket>()
+    fun disconnectClients() { sockets.toList().forEach { runCatching { it.close() } } }
     @Volatile private var closed = false
     private var revision = 0
     @Volatile var deviceId = "fixture-mac"
+    @Volatile var instanceTag: String? = null
     @Volatile var displayName = "Fixture Mac"
     @Volatile var notificationFeed = JSONArray()
     @Volatile var renamedWorkspace: String? = null
@@ -2850,7 +2852,7 @@ internal class NativeFixturePeer : AutoCloseable {
             customWorkspaceListing = listing
         }
         "mobile.host.status" -> JSONObject().put("mac_display_name", displayName)
-            .put("mac_device_id", deviceId).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
+            .put("mac_device_id", deviceId).put("mac_instance_tag", instanceTag).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
                 if (identifiedInput) it.put(TerminalInputDelivery.CAPABILITY)
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (browserCreationSupported) it.put("browser.stream.v1").put("browser.stream.create.v1")

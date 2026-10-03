@@ -26,6 +26,22 @@ class NativePairingPersistenceTest {
         (0 until rows.length()).map { rows.getJSONObject(it).getString("code") }
     }
 
+    @Test fun reconnectWriteRejectsForgottenReplacedOrAmbiguousPairingInsideTransaction() {
+        val expected = native()
+        for (scoped in listOf(true, false)) {
+            for (rows in listOf(emptyList(), listOf(expected.copy(code = native(endpoint = "replacement").code)), listOf(expected, expected))) {
+                val value = state(*rows.toTypedArray())
+                val before = value.toString()
+                assertThrows(IllegalStateException::class.java) {
+                    NativePairingPersistence.remember(value, expected, if (scoped) scope else null, expected)
+                }
+                assertEquals(before, value.toString())
+            }
+        }
+        val value = state(expected.copy(name = "Renamed"))
+        assertEquals(expected.code, NativePairingPersistence.remember(value, expected.copy(name = "Host name"), scope, expected).code)
+    }
+
     @Test fun standaloneQrUpgradeRetainsDraftNotificationAndSelectionOrigin() {
         val state = state(); grant(state)
         val first = NativePairingPersistence.remember(state, incoming, scope)

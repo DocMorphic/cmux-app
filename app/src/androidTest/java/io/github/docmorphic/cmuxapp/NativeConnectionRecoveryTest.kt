@@ -58,6 +58,57 @@ class NativeConnectionRecoveryTest {
         compose.onNodeWithText("Connect to this Mac?").assertIsDisplayed()
     }
 
+    @Test fun savedMacAbsentFromDiscoveryReconnectsAndSelectsVerifiedWorkspace() {
+        peer.instanceTag = "default"
+        val store = NativeCredentialStore(context)
+        store.rememberMac(firstCode, "fixture-mac", "Fixture Mac")
+        store.update { it.put("pairing_code", "") }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ -> connected() })
+        } } }
+        compose.onNodeWithText("Your Computers").assertIsDisplayed()
+        compose.onNodeWithText("Fixture Mac").performClick()
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Your Computers").assertDoesNotExist()
+        assertEquals(store.pairedMacs().single().origin, store.load()?.optString("computer_selection"))
+        compose.onNodeWithText("Claude Code task").performClick()
+        compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+        // The handshake enriches a legacy tag-less record before opening the pane.
+        // The attempt-only comparison must not poison subsequent reconnects.
+        assertEquals("default", store.pairedMacs().single().instanceTag)
+        val replayCount = peer.requests.count { it.optString("method") == "mobile.terminal.replay" }
+        peer.disconnectClients()
+        try {
+            compose.waitUntil(20_000) { peer.requests.count { it.optString("method") == "mobile.terminal.replay" } > replayCount }
+        } catch (failure: Throwable) {
+            throw AssertionError("Reconnect replay missing; RPC counts=" + peer.requests.groupingBy { it.optString("method") }.eachCount(), failure)
+        }
+        compose.onNode(hasText("This saved computer changed", substring = true)).assertDoesNotExist()
+    }
+
+    @Test fun removedPairingCannotBeRecreatedByReconnectFinishingLater() {
+        val store = NativeCredentialStore(context)
+        store.rememberMac(firstCode, "fixture-mac", "Fixture Mac")
+        store.update { it.put("pairing_code", "") }
+        val release = CompletableDeferred<Unit>()
+        val entered = AtomicInteger()
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                    entered.incrementAndGet(); release.await(); connected()
+                })
+            } } }
+            compose.onNodeWithText("Fixture Mac").performClick()
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("Cancel connection").fetchSemanticsNodes().isNotEmpty() && entered.get() > 0 }
+            store.forgetMac(firstCode)
+            release.complete(Unit)
+            compose.waitUntil(15_000) { compose.onAllNodes(hasText("This saved computer changed", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+            assertTrue(store.pairedMacs().isEmpty())
+            compose.onNodeWithText("Fixture Mac").assertDoesNotExist()
+            compose.onNodeWithText("Claude Code task").assertDoesNotExist()
+        } finally { release.complete(Unit) }
+    }
+
     @Test fun pickerKeepsOriginalFilterUntilTargetHandshakeSucceeds() = pendingPicker(cancel = false)
     @Test fun selectingAllCancelsPendingSwitchAndRetiresLateSuccessfulClient() = pendingPicker(cancel = true)
     private fun pendingPicker(cancel: Boolean) {

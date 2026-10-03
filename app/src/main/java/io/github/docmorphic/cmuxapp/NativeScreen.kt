@@ -163,6 +163,7 @@ fun NativeScreen(
     var hostName by remember(code) { mutableStateOf("cmux") }
     var hostCapabilities by remember(code) { mutableStateOf<Set<String>>(emptySet()) }
     var savedPairedMacs by remember { mutableStateOf(store.pairedMacs()) }
+    LaunchedEffect(store, historyRevision) { savedPairedMacs = store.pairedMacs() }
     val pairedMacs = savedPairedMacs.filter {
         connection.allowsSaved(it)
     }
@@ -184,6 +185,8 @@ fun NativeScreen(
     val paneSelection = feedSession.paneNavigation.select(if (signedIn) store.taskSession() else null,
         pairedMacs.singleOrNull { it.code == code }, teamState.scope)
     var showSettings by rememberSaveable(signedIn) { mutableStateOf(false) }
+    var showReconnectList by rememberSaveable(signedIn) { mutableStateOf(false) }
+    LaunchedEffect(connectionReady) { if (connectionReady) showReconnectList = false }
     var showSshComputers by rememberSaveable(signedIn) { mutableStateOf(false) }
     var showSshKeys by rememberSaveable(signedIn) { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
@@ -416,6 +419,7 @@ fun NativeScreen(
     val selectedComputer = pairedMacs.firstOrNull { it.ownsOrigin(selectedComputerOrigin) }
     val selectedOrigin = selectedComputer?.origin
     var pendingPickerCode by remember(signedIn) { mutableStateOf<String?>(null) }
+    var expectedReconnect by remember(signedIn) { mutableStateOf<NativeCredentialStore.PairedMac?>(null) }
     val pendingPickerComputer = pairedMacs.singleOrNull { it.code == pendingPickerCode }
     val macSwitchRecovery = feedSession.macSwitchRecovery
     fun switchOwner() = store.taskSession()?.takeIf { signedIn }?.let { NativeMacSwitchRecovery.Owner(it, teamState.scope) }
@@ -425,6 +429,7 @@ fun NativeScreen(
             it.accountUserId == previous.accountUserId && it.accountTeamId == previous.accountTeamId
     }
     fun selectMacCode(target: String) {
+        expectedReconnect = null
         pendingPickerCode = null
         pairingSelectionCode = null
         switchOwner()?.let { owner ->
@@ -434,6 +439,7 @@ fun NativeScreen(
         code = target; error = null; retryDelay = 2_000
     }
     fun selectPairingCode(target: String) {
+        expectedReconnect = null
         pendingPickerCode = null
         screenResume.cancel(); workspaceRoute = null
         switchOwner()?.let { owner ->
@@ -1446,6 +1452,11 @@ fun NativeScreen(
         if (!signedIn || code.isBlank()) return@LaunchedEffect
         startedForegroundConnection = true
         val requestedCode = code
+        val capturedReconnect = expectedReconnect?.takeIf { it.code == requestedCode }
+        fun requireCurrentReconnect() {
+            check(capturedReconnect == null || (NativeComputerMenuPairing.isCurrent(capturedReconnect, store.pairedMacs()) &&
+                connection.allowsSaved(capturedReconnect))) { "This saved computer changed. Choose it again from Computers." }
+        }
         busy = true
         try {
             val pairing = PairingCodeParser.parse(requestedCode).getOrThrow()
@@ -1453,6 +1464,7 @@ fun NativeScreen(
                 accountTeams.state.first { it.scope != null || it.error != null }.scope
                     ?: error("Refresh your account teams before connecting.")
             } else null
+            requireCurrentReconnect()
             val saved = store.pairedMacs().singleOrNull { it.code == requestedCode && connection.allowsSaved(it) }
             if (pairingOwner != null) check(accountTeams.isCurrent(pairingOwner)) { "Account or team changed. Reconnect to the Mac." }
             val active = if (saved != null) connection.connectSaved(saved, account) else connection.connectPairing(pairing, account)
@@ -1479,15 +1491,17 @@ fun NativeScreen(
                 val listing = workspaceSnapshots.read(saved ?: verified, active)
                 ensureActive()
                 if (code != requestedCode || !signedIn) throw CancellationException("Connection changed")
-                val remembered = if (pairingOwner != null) store.rememberAuthenticatedMac(verified, pairingOwner) {
+                requireCurrentReconnect()
+                val remembered = if (pairingOwner != null) store.rememberAuthenticatedMac(verified, pairingOwner, expected = capturedReconnect) {
                     accountTeams.isCurrent(pairingOwner) && signedIn && code == requestedCode
                 } else {
-                    store.rememberMac(verified.code, verified.deviceId, verified.name, verified.instanceTag)
+                    store.rememberMac(verified.code, verified.deviceId, verified.name, verified.instanceTag, expected = capturedReconnect)
                     verified
                 }
                 if (remembered.code != requestedCode) {
                     active.close()
                     savedPairedMacs = store.pairedMacs()
+                    if (expectedReconnect == capturedReconnect) expectedReconnect = null
                     macSwitchRecovery.retarget(switchAttempt, switchOwner(), remembered.code)
                     if (pendingPickerCode == requestedCode) pendingPickerCode = remembered.code
                     if (pairingSelectionCode == requestedCode) pairingSelectionCode = remembered.code
@@ -1511,6 +1525,7 @@ fun NativeScreen(
                 }
                 client = active; connectedCode = requestedCode
                 connectionReady = true
+                if (expectedReconnect == capturedReconnect) expectedReconnect = null
                 if (pairingSelectionCode == requestedCode || pendingPickerCode == requestedCode) {
                     selectedComputerOrigin = remembered.origin
                     store.update { it.put("computer_selection", remembered.origin) }
@@ -2160,19 +2175,39 @@ fun NativeScreen(
                     onNewTerminal = { createFromBrowser(NativeWorkspaceCreation.TERMINAL) },
                     onNewBrowser = { createFromBrowser(NativeWorkspaceCreation.BROWSER) }, menuSource = ::browserMenu)
             }
-            code.isBlank() -> NativeComputerPicker(teamState, computerState, runtime = sharedConnections?.native,
-                onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
-                colorIndices = machineColorIndices, connections = computerConnections, presence = scopedPresence, saved = pairedMacs, lastSeenHistory = lastSeenHistory,
-                preferences = computerPreferences, tailscaleRoutes = tailscaleRouteLabels, forgetCallbacks = forgetCallbacks,
-                presentDetails = { computerDetails = it },
-                hasSavedComputers = pairedMacs.isNotEmpty(),
-                onSelect = { mac -> computerState.account?.let { selectMacCode(PairingCodeParser.computer(mac, it)) } },
-                onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
-                onRefresh = { scope.launch {
-                    try { accountTeams.refresh(); sharedConnections?.native?.refresh() }
-                    catch (failure: Exception) { if (failure is CancellationException) throw failure }
-                } }, onPairing = ::proposePairing, onNewTask = ::newTaskDraft,
-                onUseHelper = onUseHelper, onLicenses = { showLicenses = true }, onError = { error = it })
+            code.isBlank() || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
+                (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot }))) -> {
+                val reconnectOwner = NativeComputerMenuOwner(store.taskSession(), teamState.scope)
+                fun isReconnectOwnerCurrent() = account.isSignedIn() && store.taskSession() == reconnectOwner.login &&
+                    accountTeams.state.value.scope == reconnectOwner.team
+                NativeComputerPicker(teamState, computerState.takeIf { it.account == teamState.scope }
+                    ?: NativeComputersState(account = teamState.scope, loading = true), runtime = sharedConnections?.native,
+                    onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
+                    colorIndices = machineColorIndices, connections = computerConnections, presence = scopedPresence, saved = pairedMacs,
+                    lastSeenHistory = lastSeenHistory, preferences = computerPreferences, tailscaleRoutes = tailscaleRouteLabels,
+                    forgetCallbacks = forgetCallbacks, presentDetails = { computerDetails = it },
+                    connectingCode = code.takeIf { busy }, connectionFailure = error ?: connectionError,
+                    onCancelConnect = { macSwitchRecovery.cancel(); pendingPickerCode = null; pairingSelectionCode = null; expectedReconnect = null
+                        code = ""; connectionError = null; error = null; showReconnectList = false },
+                    canSelectSaved = { mac -> isReconnectOwnerCurrent() &&
+                        NativeComputerMenuPairing.isCurrent(mac, store.pairedMacs()) && connection.allowsSaved(mac) },
+                    canSelectDiscovered = { mac -> isReconnectOwnerCurrent() &&
+                        NativeReconnectComputers.currentDiscovery(mac, computerStates.value, reconnectOwner.team) },
+                    onSelectSaved = { mac ->
+                        val sameAttempt = code == mac.code
+                        showReconnectList = true; selectPickerComputer(mac); expectedReconnect = mac
+                        if (sameAttempt) retry++
+                    },
+                    onSelect = { mac -> reconnectOwner.team?.let { owner ->
+                        showReconnectList = true; selectPairingCode(PairingCodeParser.computer(mac, owner))
+                    } },
+                    onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
+                    onRefresh = { scope.launch {
+                        try { accountTeams.refresh(); sharedConnections?.native?.refresh() }
+                        catch (failure: Exception) { if (failure is CancellationException) throw failure }
+                    } }, onPairing = ::proposePairing, onNewTask = ::newTaskDraft,
+                    onUseHelper = onUseHelper, onLicenses = { showLicenses = true }, onError = { error = it })
+            }
             selectedWorkspace != null && selectedTerminal == null && selectedBrowser == null && selectedSurface == null && selectedChangesWorkspace == null -> {
                 val workspace = selectedWorkspace!!
                 val source = workspaceSourceForPane()
@@ -2959,7 +2994,7 @@ private fun nativeConnectionFailure(failure: Throwable): String {
 
 
 @Composable
-private fun NativeComputerPicker(
+internal fun NativeComputerPicker(
     teamState: NativeAccountTeamsState, computerState: NativeComputersState, runtime: NativeIrohRuntime? = null,
     colorIndices: Map<NativeMacIdentity, Int> = emptyMap(),
     connections: Map<NativeMacIdentity, NativeComputerConnection> = emptyMap(),
@@ -2970,7 +3005,11 @@ private fun NativeComputerPicker(
     forgetCallbacks: NativeComputerForgetCallbacks = NativeComputerForgetCallbacks(),
     presentDetails: ((NativeComputerDetailsPresentation) -> Unit)? = null,
     onSsh: (() -> Unit)? = null,
-    hasSavedComputers: Boolean, onSelect: (IrohV2Computer) -> Unit, onSettings: () -> Unit,
+    connectingCode: String? = null, connectionFailure: String? = null, onCancelConnect: () -> Unit = {},
+    canSelectSaved: (NativeCredentialStore.PairedMac) -> Boolean,
+    canSelectDiscovered: (IrohV2Computer) -> Boolean,
+    onSelectSaved: (NativeCredentialStore.PairedMac) -> Unit,
+    onSelect: (IrohV2Computer) -> Unit, onSettings: () -> Unit,
     onRefresh: () -> Unit, onPairing: (String) -> Unit, onNewTask: () -> Unit,
     onUseHelper: () -> Unit, onLicenses: () -> Unit, onError: (String?) -> Unit
 ) {
@@ -2978,6 +3017,10 @@ private fun NativeComputerPicker(
     val appearances = nativeMacAppearances(computerState.account)
     val savedRows = NativeComputerList.rows(saved, appearances, presence, lastSeenHistory, preferences,
         computerState.computers, tailscaleRoutes)
+    val reconnect = NativeReconnectComputers.merge(savedRows, computerState.computers)
+    val connectingPairing = connectingCode?.let { PairingCodeParser.parse(it).getOrNull() }
+    var rowSelected by remember(teamState.scope) { mutableStateOf(false) }
+    LaunchedEffect(connectingCode, connectionFailure) { if (connectingCode == null) rowSelected = false }
     var pairingText by remember { mutableStateOf("") }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f)) { NativeHeader("Computers") }
@@ -2986,7 +3029,8 @@ private fun NativeComputerPicker(
     Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
         val selectedTeam = teamState.teams.firstOrNull { it.id == teamState.selectedTeamId }
         Text(selectedTeam?.name ?: "Your cmux account", fontWeight = FontWeight.SemiBold)
-        Text("Open cmux on your Mac and enable mobile pairing to see it here.", color = nativeMuted)
+        Text(if (savedRows.isEmpty()) "Open cmux on your Mac and enable mobile pairing to see it here."
+            else "Tap a computer to reconnect. Its connection method can be changed in Details.", color = nativeMuted)
         if (teamState.loading || computerState.loading) {
             LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 16.dp))
             Text("Finding your computers…", color = nativeMuted)
@@ -2994,31 +3038,61 @@ private fun NativeComputerPicker(
         (teamState.error ?: computerState.error)?.let {
             Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(vertical = 10.dp))
         }
-        if (computerState.ready && computerState.computers.isEmpty()) {
+        connectionFailure?.let { Text(it, color = Color(0xFFFF9999), modifier = Modifier.padding(vertical = 10.dp)) }
+        if (connectingCode != null) TextButton(onClick = onCancelConnect) { Text("Cancel connection") }
+        if (computerState.ready && reconnect.isEmpty) {
             Text("No computers available in this team.", color = nativeMuted,
                 modifier = Modifier.padding(vertical = 16.dp))
         }
-        computerState.computers.forEach { mac ->
-            Surface(Modifier.fillMaxWidth().padding(top = 12.dp).clickable {
-                onSelect(mac)
-            }, shape = RoundedCornerShape(14.dp), color = nativePanel) {
-                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    NativeMacAvatar(appearances.get(mac.deviceId, mac.buildTag), mac.colorIdentity.colorSeed,
-                        index = colorIndices[mac.colorIdentity])
-                    val connection = connections[NativeMacIdentity(mac.deviceId, mac.buildTag)] ?: NativeComputerConnection()
-                    val savedRow = savedRows.singleOrNull {
-                        canonicalMacDeviceId(it.mac.deviceId) == canonicalMacDeviceId(mac.deviceId) && it.mac.instanceTag == mac.buildTag
+        if (reconnect.saved.isNotEmpty()) {
+            Text("Your Computers", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 16.dp))
+            reconnect.saved.forEach { row ->
+                val mac = row.mac
+                key(mac.origin) {
+                    Surface(Modifier.fillMaxWidth().padding(top = 12.dp).clickable {
+                        if (!rowSelected && connectingCode == null && canSelectSaved(mac)) { rowSelected = true; onSelectSaved(mac) }
+                    }, shape = RoundedCornerShape(14.dp), color = nativePanel) {
+                        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                            NativeMacAvatar(appearances.get(mac), mac.colorIdentity.colorSeed, index = colorIndices[mac.colorIdentity])
+                            val connection = if (connectingCode == mac.code) NativeComputerConnection(NativeFeedAvailability.CONNECTING)
+                                else connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()
+                            NativeComputerRowLabel(row.name, presence.buildLabel(mac), connection, row.presence,
+                                reconnect = true, modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
+                                routeDescription = row.route.endpoint, olderPairing = row.olderPairing)
+                            NativeComputerStatusDot(connection, row.presence, reconnect = true)
+                            NativeMacAwakeIndicator(connection)
+                            NativeSavedComputerDetailsButton(runtime, computerState, mac, colorIndices[mac.colorIdentity], connection,
+                                forgetCallbacks, presentDetails)
+                        }
                     }
-                    val heartbeat = savedRow?.presence ?: presence.presence(mac.deviceId, mac.buildTag)
-                    NativeComputerRowLabel(appearances.get(mac.deviceId, mac.buildTag).displayName(mac.name),
-                        presence.buildLabel(mac.deviceId, mac.buildTag), connection, heartbeat,
-                        reconnect = true, modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
-                        routeDescription = NativeComputerList.route(mac.deviceId, mac.buildTag, preferences,
-                            computerState.computers, tailscaleRoutes).endpoint, olderPairing = savedRow?.olderPairing == true)
-                    NativeComputerStatusDot(connection, heartbeat, reconnect = true)
-                    NativeMacAwakeIndicator(connection)
-                    NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.colorIdentity], connection, forgetCallbacks, presentDetails)
-                    Text("›", color = nativeMuted, fontSize = 24.sp)
+                }
+            }
+        }
+        if (reconnect.discovered.isNotEmpty()) Text(if (reconnect.saved.isEmpty()) "Available computers" else "Other computers",
+            fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 16.dp))
+        reconnect.discovered.forEach { mac ->
+            key(canonicalMacDeviceId(mac.deviceId), mac.buildTag) {
+                Surface(Modifier.fillMaxWidth().padding(top = 12.dp).clickable {
+                    if (!rowSelected && connectingCode == null && canSelectDiscovered(mac)) { rowSelected = true; onSelect(mac) }
+                }, shape = RoundedCornerShape(14.dp), color = nativePanel) {
+                    Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                        NativeMacAvatar(appearances.get(mac.deviceId, mac.buildTag), mac.colorIdentity.colorSeed,
+                            index = colorIndices[mac.colorIdentity])
+                        val connecting = connectingPairing is PairingCode.Iroh &&
+                            connectingPairing.macDeviceId?.let(::canonicalMacDeviceId) == canonicalMacDeviceId(mac.deviceId) &&
+                            connectingPairing.buildTag == mac.buildTag
+                        val connection = if (connecting) NativeComputerConnection(NativeFeedAvailability.CONNECTING)
+                            else connections[NativeMacIdentity(mac.deviceId, mac.buildTag)] ?: NativeComputerConnection()
+                        val heartbeat = presence.presence(mac.deviceId, mac.buildTag)
+                        NativeComputerRowLabel(appearances.get(mac.deviceId, mac.buildTag).displayName(mac.name),
+                            presence.buildLabel(mac.deviceId, mac.buildTag), connection, heartbeat,
+                            reconnect = true, modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
+                            routeDescription = NativeComputerList.route(mac.deviceId, mac.buildTag, preferences,
+                                computerState.computers, tailscaleRoutes).endpoint)
+                        NativeComputerStatusDot(connection, heartbeat, reconnect = true)
+                        NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.colorIdentity], connection,
+                            forgetCallbacks, presentDetails)
+                    }
                 }
             }
         }
@@ -3050,7 +3124,7 @@ private fun NativeComputerPicker(
         TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
         TextButton(onClick = onLicenses) { Text("Open-source licenses") }
         onSsh?.let { TextButton(onClick = it, modifier = Modifier.testTag("computers.ssh")) { Text("SSH Computers") } }
-        if (hasSavedComputers) TextButton(onClick = onSettings) { Text("Saved computers") }
+        if (savedRows.isNotEmpty()) TextButton(onClick = onSettings) { Text("Saved computers") }
     }
 }
 

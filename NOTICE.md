@@ -1,5 +1,11 @@
 # Attribution
 
+Saved reconnect rows follow DisconnectedWorkspaceShellView.swift and the shared
+MacComputerSnapshot projection in Packages/iOS/CmuxMobileShellUI at cmux
+0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc. Copyright Manaflow, Inc.; GPL-3.0-or-later.
+Android retains saved pairings during discovery outages, adds only unambiguous
+new device/build rows, and rechecks current pairing and account authority.
+
 Computer method sections, endpoint captions and older-pairing labels follow
 MacComputerListSection.swift, DeviceTreeRouteDescription.swift, MacComputerRow.swift
 and MacComputerSnapshot+Store.swift in Packages/iOS/CmuxMobileShellUI at cmux
