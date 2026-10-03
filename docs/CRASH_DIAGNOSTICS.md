@@ -51,8 +51,8 @@ for system reporting, crash dialogs and process termination.
 
 Existing Android 11+ reason/PID/timestamp summaries still recover through
 `ApplicationExitInfo`. Native stack recovery on API 31+ is described below.
-ANR stack recovery and live ANR acceptance remain open. No raw tombstone,
-memory dump or trace stream is exported.
+ANR stack recovery on API 30+ is described below. No raw tombstone, memory dump
+or trace stream is exported.
 
 ## Verification
 
@@ -99,7 +99,7 @@ pointers, registers, memory, abort messages, thread names, command lines, open f
 and log buffers are excluded. The raw stream is neither saved nor exported.
 
 Each query considers at most 32 recent OS records and attempts at most four native
-streams, newest first. Each parser is bounded to 8 MiB consumed, 256 thread entries,
+or ANR streams in total, newest first. Each native parser is bounded to 8 MiB consumed, 256 thread entries,
 200,000 fields and a two-second processing deadline checked between reads. This is
 not a hard deadline on a blocked OS read. Missing, malformed or oversized traces
 leave the reason summary available; native entries without frames explicitly say
@@ -136,3 +136,66 @@ Evidence: ignored `captures/runtime/native-crash-stacks/`. Tested debug SHA-256:
 test SHA-256: `9e704aef822c2cf99fb9f2f37d15c7a5e639847eadfb7f15eec694c4c2e7b771`.
 This verifies OS trace recovery on the emulator, not physical Pixel acceptance or
 an actual Ghostty/Iroh fault. Signed build 441 predates both stack additions.
+
+## ANR thread stacks (Android 11+)
+
+For exit records classified by Android as `REASON_ANR`, recovery now selectively
+reads available [`ApplicationExitInfo` traces](https://developer.android.com/reference/android/app/ApplicationExitInfo#getTraceInputStream()).
+It requires a complete section matching the recorded PID. ART's `sysTid` identifies
+the main thread independently of its name. The main thread and its monitor-owner
+chain are prioritized, with cycles visited once, followed by other attached ART
+threads. The format was checked against [AOSP ART's thread dump implementation](https://android.googlesource.com/platform/art/+/refs/heads/main/runtime/thread.cc)
+(reviewed blob `8d37d4006aab73868a49af953cd380016177fba0`). This is Android-specific
+failure recovery; it does not introduce an iOS-style signal handler.
+
+Retained metadata includes runtime thread IDs, normalized states, numeric monitor
+owner IDs, filtered Java class/method/line metadata and filtered native module,
+relative-PC/build-ID/symbol metadata. The existing symbol filters apply. Thread
+names, source paths, process command lines, lock addresses/object text, registers,
+memory and raw trace contents are excluded. Unattached native threads are omitted.
+Native PCs are relative addresses; these are not memory dumps.
+
+The reader accepts at most 8 MiB consumed, 16 KiB per line and 256 attached threads,
+with a two-second processing deadline checked between reads. It retains at most
+16 threads and 64 combined frames, at most 32 per thread, in a 32 KiB binary record.
+Omitted frames/threads set `truncated=true`. Missing, malformed, oversized or
+unsupported traces preserve the reason summary and report `ANR_STACK unavailable`.
+The deadline cannot interrupt a blocked OS read. Android controls trace retention;
+an ANR that recovers without an ANR-classified process exit is not captured here.
+Android 8–10 do not expose this history API.
+
+Native and ANR traces share a four-stream budget per history query. Recovered
+frames persist in the existing atomic exit snapshot, survive later OS eviction,
+and appear in the existing app-events ZIP member. Old summary/native encodings
+remain readable. Clear Logs rejects late imports through its persisted cutoff.
+No raw trace file is stored, no report is sent, and the ZIP still has two members.
+
+### ANR verification — 2026-10-03
+
+Seven new parser/history JVM checks and 32 existing crash/storage checks passed:
+**39 tests, zero failures/errors/skips**. They cover process/main identity,
+monitor-owner cycles, managed/native filtering, malformed/truncated traces,
+thread/frame/input bounds, binary validation, old summary decoding, enrichment,
+repeat exports, OS eviction and clear cutoffs. Debug/test APKs and release Kotlin
+compilation passed in **1m 18s**.
+
+The first Android attempt failed because the test injected zero-timestamp key
+events; InputDispatcher explicitly discarded them as stale. After correcting only
+the test timestamps (test APK rebuild **15s**), the combined runtime suite passed
+**OK (4 tests), 36.352 seconds**, zero skips, on the existing API 37 / 16 KB emulator.
+Android recorded an actual input-dispatch ANR for disposable browser PID 3097 and
+terminated it. The exported trace identifies blocked main thread 1, monitor owner
+23, `blockForDiagnostics` and `holdMonitorForDiagnostics`. Java/native crash
+recovery, filtered two-member exports, repeated exports and clearing also passed.
+
+A separate Pixel Launcher startup ANR was observed in the emulator; it is retained
+as environmental evidence and is not the app ANR used by the assertions. The
+test requires the exact disposable browser PID, timestamp and frames. No physical
+phone or user process was deliberately blocked. The emulator was shut down and
+no additional AVD was created. Evidence: `captures/runtime/anr-stacks/` (ignored).
+
+- Debug APK SHA-256: `665eeafe0505e247356dc778cd8ae4770cd92c00239e801f457284b256aaa668`.
+- Test APK SHA-256: `471235a9a4cf1c7f05c3d6673f5ba76f5ae3a2cd2de4eaefcf963615d7d9ea3c`.
+
+Signed build 456 predates this feature. Physical acceptance and the remaining
+diagnostics/source parity audit remain open.

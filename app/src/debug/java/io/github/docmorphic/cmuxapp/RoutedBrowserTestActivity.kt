@@ -42,12 +42,30 @@ class RoutedBrowserTestActivity : Activity() {
             5 -> { answer("closing"); finishAndRemoveTask() }
             6 -> answer(lastError ?: "none")
             7 -> { answer("crashing"); Handler(Looper.getMainLooper()).post { crashForDiagnostics() } }
+            8 -> {
+                setContentView(android.widget.TextView(this).apply { text = "Disposable ANR fixture" })
+                answer("blocking")
+                Handler(Looper.getMainLooper()).postDelayed({ blockForDiagnostics() }, 500)
+            }
         }
         true
     })
     private fun crashForDiagnostics(): Nothing {
         Thread.currentThread().name = "PRIVATE_DIAGNOSTIC_THREAD"
         throw IllegalStateException("PRIVATE_DIAGNOSTIC_MESSAGE", java.io.IOException("PRIVATE_DIAGNOSTIC_CAUSE"))
+    }
+    private fun blockForDiagnostics() {
+        val monitor = Any()
+        val held = java.util.concurrent.CountDownLatch(1)
+        Thread({ holdMonitorForDiagnostics(monitor, held) }, "PRIVATE_ANR_OWNER").start()
+        check(held.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        synchronized(monitor) { /* Deliberately block only this disposable emulator process. */ }
+    }
+    private fun holdMonitorForDiagnostics(monitor: Any, held: java.util.concurrent.CountDownLatch) {
+        synchronized(monitor) {
+            held.countDown()
+            Thread.sleep(90_000)
+        }
     }
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## ANR stack recovery (2026-10-03)
+
+Android 11+ ANR exits now recover filtered main/monitor-owner and other thread
+stacks from available OS traces. Bounded parsing excludes names, source paths,
+lock addresses and raw trace contents; retained frames survive OS trace eviction
+and respect Clear Logs. Seven new JVM checks and 32 existing checks passed.
+The Android suite passed four cases, including an actual disposable-process ANR
+with the expected blocked main thread and lock-owner method, plus Java/native
+crash regressions and export/clear checks. The initial test event-timestamp error
+and separate launcher startup ANR are documented in the
+[design and evidence](CRASH_DIAGNOSTICS.md#anr-thread-stacks-android-11).
+
+No new signed milestone was built; build 456 remains current. Physical Pixel
+acceptance, configured push, native Iroh tracing and the wider source audit remain open.
+
 ## SSH keyboard and composer image integration (2026-10-03)
 
 Direct keyboard images, clipboard images and Android photo selection now feed the
