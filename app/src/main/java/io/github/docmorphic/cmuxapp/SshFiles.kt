@@ -7,6 +7,7 @@ import kotlinx.coroutines.*
 import java.io.File
 import java.io.InputStream
 import java.util.UUID
+import kotlin.coroutines.CoroutineContext
 
 /** POSIX paths belong to the remote host, regardless of the development OS. */
 internal object SshFilePaths {
@@ -125,39 +126,88 @@ internal class SshFiles(private val connection: suspend () -> SshTransport) {
     }
     /** Source is opened on the network worker and always closed there. */
     suspend fun upload(directory: String, name: String, total: Long?, source: () -> InputStream, progress: (Long, Long?) -> Unit): String {
-        require(SshFilePaths.validName(name)); val context = currentCoroutineContext()
-        var publishing = false
-        try { return run { channel ->
-            val chosen = SshFilePaths.unique(name, list(channel, directory).map { it.name }.toSet())
-            val destination = SshFilePaths.join(directory, chosen)
-            val temporary = SshFilePaths.join(directory, ".cmux-upload-${UUID.randomUUID()}")
-            try {
-                var sent = 0L; progress(0, total)
-                source().use { input -> channel.put(SshFilePaths.literal(temporary)).use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        context.ensureActive(); val count = input.read(buffer); if (count < 0) break
-                        output.write(buffer, 0, count); sent += count; progress(sent, total)
-                    }
-                } }
-                check(total == null || sent == total) { "The upload size changed. Select the file again." }
-                context.ensureActive(); check(absent(channel, destination)) { "A file with this name appeared during upload. Try again." }
-                // OpenSSH's hardlink extension publishes without replacing a
-                // concurrently created destination. Other servers use rename
-                // after the existence check; v3 has no portable atomic CAS.
-                publishing = true
-                if (channel.getExtension("hardlink@openssh.com") == "1") channel.hardlink(SshFilePaths.literal(temporary), SshFilePaths.literal(destination))
-                else channel.rename(SshFilePaths.literal(temporary), SshFilePaths.literal(destination))
-                chosen
-            } finally {
-                // Best effort on this live channel. Transport loss may leave the
-                // uniquely named partial file; never replay the upload itself.
-                try { channel.rm(SshFilePaths.literal(temporary)) } catch (_: Exception) { }
-            }
-        } } catch (failure: Exception) {
+        require(SshFilePaths.validName(name))
+        val context = currentCoroutineContext()
+        return publishing { publication ->
+            run { channel -> upload(channel, directory, name, total, source, progress, context, publication) }
+        }
+    }
+
+    /** One pinned channel resolves HOME, creates the upload directory and publishes
+     * an image. No reconnect or shell expansion can move it to a different host. */
+    suspend fun uploadImage(bytes: ByteArray, format: String, date: java.time.Instant = java.time.Instant.now()): String {
+        require(bytes.size in 1..ComposerAttachment.IMAGE_LIMIT) { "The image is empty or too large" }
+        val context = currentCoroutineContext()
+        return publishing { publication -> run { channel ->
             context.ensureActive()
-            if (publishing) throw SshUploadUnconfirmed(failure)
+            val home = channel.realpath(".")
+            var directory = SshFilePaths.path(home)
+            for (name in listOf(".cmux", "uploads")) {
+                directory = SshFilePaths.join(directory, name)
+                if (absent(channel, directory)) {
+                    val created = try {
+                        channel.mkdir(directory)
+                        true
+                    } catch (failure: SftpException) {
+                        // Another paste may have created it concurrently. Permission
+                        // failures on an absent/non-directory path still fail below.
+                        if (absent(channel, directory) || !channel.stat(SshFilePaths.literal(directory)).isDir) throw failure
+                        false
+                    }
+                    if (created) channel.chmod(448, SshFilePaths.literal(directory)) // 0700 on new directories only.
+                }
+                check(channel.stat(SshFilePaths.literal(directory)).isDir) { "The SSH upload path is not a folder" }
+                context.ensureActive()
+            }
+            check(SshFilePaths.canInsert(directory)) { "The SSH upload path cannot be inserted into a terminal" }
+            val name = upload(channel, directory, SshImageNames.fileName(format, date), bytes.size.toLong(),
+                { bytes.inputStream() }, { _, _ -> }, context, publication, permissions = 384) // 0600 before writing image bytes.
+            SshFilePaths.join(directory, name)
+        } }
+    }
+
+    private class Publication(var started: Boolean = false)
+    /** Includes transport validation after the SFTP block returns. A lost owner/
+     * connection check at that boundary must not look like a safe-to-retry upload. */
+    private suspend fun <T> publishing(block: suspend (Publication) -> T): T {
+        val publication = Publication()
+        try { return block(publication) }
+        catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            if (publication.started) throw SshUploadUnconfirmed(failure)
             throw failure
+        }
+    }
+
+    private fun upload(channel: ChannelSftp, directory: String, name: String, total: Long?,
+        source: () -> InputStream, progress: (Long, Long?) -> Unit, context: CoroutineContext,
+        publication: Publication, permissions: Int? = null): String {
+        val chosen = SshFilePaths.unique(name, list(channel, directory).map { it.name }.toSet())
+        val destination = SshFilePaths.join(directory, chosen)
+        val temporary = SshFilePaths.join(directory, ".cmux-upload-${UUID.randomUUID()}")
+        try {
+            var sent = 0L; progress(0, total)
+            source().use { input -> channel.put(SshFilePaths.literal(temporary)).use { output ->
+                permissions?.let { channel.chmod(it, SshFilePaths.literal(temporary)) }
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    context.ensureActive(); val count = input.read(buffer); if (count < 0) break
+                    output.write(buffer, 0, count); sent += count; progress(sent, total)
+                }
+            } }
+            check(total == null || sent == total) { "The upload size changed. Select the file again." }
+            context.ensureActive(); check(absent(channel, destination)) { "A file with this name appeared during upload. Try again." }
+            // OpenSSH's hardlink extension publishes without replacing a
+            // concurrently created destination. Other servers use rename
+            // after the existence check; v3 has no portable atomic CAS.
+            publication.started = true
+            if (channel.getExtension("hardlink@openssh.com") == "1") channel.hardlink(SshFilePaths.literal(temporary), SshFilePaths.literal(destination))
+            else channel.rename(SshFilePaths.literal(temporary), SshFilePaths.literal(destination))
+            return chosen
+        } finally {
+            // Best effort on this live channel. Transport loss may leave the
+            // uniquely named partial file; never replay the upload itself.
+            try { channel.rm(SshFilePaths.literal(temporary)) } catch (_: Exception) { }
         }
     }
 }

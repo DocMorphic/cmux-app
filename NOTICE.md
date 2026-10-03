@@ -336,3 +336,11 @@ Packages/iOS/CmuxMobileSSH, cmux revision
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android adds a separator for files without a final newline, sanitized stage
 errors, explicit retry and Android lifecycle/host/key/account ownership checks.
+
+SshImageNames.kt and SshFiles.uploadImage adapt the SSH image upload destination
+and basename contract in MobileShellComposite+SSHPaste.swift, cmux revision
+0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android resolves HOME and creates folders through SFTP on one pinned channel,
+uses private file modes and collision-safe publication, and preserves uncertain
+upload outcomes without reconnecting or automatically retrying.

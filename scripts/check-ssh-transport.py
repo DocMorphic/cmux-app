@@ -22,18 +22,19 @@ def main():
     parser.add_argument("--ssh-tls", action="store_true", help="Opt-in public HTTPS/WSS and private certificate rejection check")
     parser.add_argument("--ssh-websocket", action="store_true", help="Run real SSH-routed WebView WebSocket text/binary/lifetime check")
     parser.add_argument("--ssh-browser", action="store_true", help="Run five real SSH browser stream, routing, retirement, presentation and mode checks")
+    parser.add_argument("--image-upload", action="store_true", help="Run four real SSH image publication, cancellation and ownership checks")
     parser.add_argument("--files-ui", action="store_true", help="Run nine real SFTP transfer/browser/system-picker checks")
     parser.add_argument("--files-pickers", action="store_true", help="Run only the two real Android system-picker upload checks")
     parser.add_argument("--cmux-install", action="store_true", help="Run one live HTTPS/SFTP private installation check")
     parser.add_argument("--cmux-renderer", action="store_true", help="Run four cmux-tui provider/renderer component checks without an SSH fixture")
     parser.add_argument("--fixture", type=Path, help="Generated coordinates from ssh-tmux-fixture.py")
     args = parser.parse_args()
-    if sum((args.key_install, args.ui, args.shell_ui, args.tmux_ui, args.cmux_ui, args.cmux_install, args.cmux_renderer, args.files_ui, args.files_pickers, args.ssh_browser, args.cmux_browser, args.ssh_websocket, args.ssh_tls)) > 1:
+    if sum((args.image_upload, args.key_install, args.ui, args.shell_ui, args.tmux_ui, args.cmux_ui, args.cmux_install, args.cmux_renderer, args.files_ui, args.files_pickers, args.ssh_browser, args.cmux_browser, args.ssh_websocket, args.ssh_tls)) > 1:
         parser.error("Choose one UI suite")
     if (args.key_install or args.tmux_ui or args.cmux_ui or args.cmux_install or args.cmux_browser) and not args.fixture:
         parser.error("Real workspace checks require --fixture")
-    count = 13 if args.key_install else 1 if args.ssh_tls or args.ssh_websocket else 10 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 9 if args.files_ui else 1 if args.cmux_install else 8 if args.cmux_ui else 4 if args.cmux_renderer else (4 if args.tmux_ui else (4 if args.shell_ui else (4 if args.ui else 14)))
-    test_class = "SshKeyInstallerTest" if args.key_install else "SshBrowserWorkspaceTest" if args.cmux_browser else "SshBrowserTest" if args.ssh_browser or args.ssh_websocket or args.ssh_tls else "SshFilesScreenTest" if args.files_ui or args.files_pickers else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
+    count = 4 if args.image_upload else 13 if args.key_install else 1 if args.ssh_tls or args.ssh_websocket else 10 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 9 if args.files_ui else 1 if args.cmux_install else 8 if args.cmux_ui else 4 if args.cmux_renderer else (4 if args.tmux_ui else (4 if args.shell_ui else (4 if args.ui else 14)))
+    test_class = "SshImageUploadTest" if args.image_upload else "SshKeyInstallerTest" if args.key_install else "SshBrowserWorkspaceTest" if args.cmux_browser else "SshBrowserTest" if args.ssh_browser or args.ssh_websocket or args.ssh_tls else "SshFilesScreenTest" if args.files_ui or args.files_pickers else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")
     root = Path(__file__).resolve().parents[1]

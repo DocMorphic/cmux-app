@@ -15,6 +15,60 @@ establishes the required behavior at upstream candidate
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries. The lost-reply/readiness checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
 
+## SSH image upload backend (2026-10-03)
+
+Targeted review of `MobileShellComposite+SSHPaste.swift` at `0fc35d6` confirms
+that iOS uploads images to `~/.cmux/uploads/`, then types a shell-quoted absolute
+path without submitting Enter. Its composer stages images per terminal, uploads
+in order on Send, removes acknowledged images individually, and checks the
+captured account/connection identity between awaits. Arbitrary composer file
+attachments use a separate Mac capability; they are not the SSH image contract.
+The whole-source parity reference remains unchanged.
+
+The SFTP backend is now implemented. One channel on the supplied transport
+resolves home, creates missing folders, uploads and publishes a unique filename.
+It does not run a shell or reconnect during the operation. UTC millisecond
+filenames and sanitized extensions match the reviewed iOS function; simultaneous
+or same-millisecond pastes use the existing collision handling. Newly created
+folders are 0700 and image files are 0600 before bytes are written; existing
+folder permissions are preserved. Empty/oversized payloads, non-directory upload
+paths and terminal-unsafe absolute paths are rejected. The current prepared-image
+budget is the Android importer's 5 MiB limit.
+
+Image and Files uploads share the same publication implementation. A failed
+source or canceled transfer does not publish its destination. Lost publication
+replies, including transport validation after the SFTP callback, retain the
+unconfirmed outcome and never automatically replay. A canceled channel may leave
+only its uniquely named staging file. No remote file is deleted merely because
+its final publication reply was lost.
+
+**Integration boundary:** this is the upload backend, not a claim that SSH
+keyboard/composer image paste is available yet. Next, bind it to the exact plain
+SSH/tmux/cmux-tui terminal transport; reserve an ordered input action before URI
+preparation; keep later text and raw mouse bytes behind it; release IME grants on
+all paths; cancel on owner/view retirement; and expose explicit recovery without
+replaying uncertain input. Composer staging must retain drafts per terminal,
+remove only accepted images and never reroute a pending send after a switch.
+Do not share `AttachmentFiles.retain` across independent draft owners, as it can
+delete another owner's staged files. Physical Pixel/Mac image acceptance remains
+open. Signed build 448 predates this work.
+
+Verification: the final debug and instrumentation APK build passed in **32s**;
+both filename JVM checks passed. The final API 37 / 16 KB run passed **seven
+Android checks in 30.791s**: four real image SFTP cases and three existing Files
+transfer regressions. Coverage includes exact bytes, private modes, collisions,
+invalid payloads/paths, retired transport, a saved file followed by a lost reply,
+cancellation, literal special-character names and truncated/failed sources. The
+initial four-case image run also passed before the final transport-boundary review.
+No tests were skipped. The fixture is loopback-only with generated credentials
+and a disposable SFTP root; it never enables the Mac's SSH daemon. The existing
+emulator and fixture were stopped afterward, with no new AVD or phone data changes.
+
+- Repeat the new suite with `scripts/check-ssh-transport.py --serial emulator-5554 --image-upload --output <directory>` against the existing SSH engine fixture.
+- Evidence: ignored `captures/runtime/ssh-image-upload/`; final results in `final/`.
+- Tested debug SHA-256: `8b5be981b2c032807a87e08efed26789bf9bcde9f67995f211d5fd011ac449cc`.
+- Tested instrumentation SHA-256: `469035801dd41c48f76eeee442bb767f9a965c6999ed838a8f3c66033597402d`.
+
 ## Terminal mouse, wheel and focus input (2026-10-03)
 
 The shared SSH shell screen now sends explicit interactions through the owning

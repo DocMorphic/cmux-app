@@ -12,6 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## SSH image upload foundation (2026-10-03)
+
+The iOS SSH image destination/filename contract now has a tested SFTP backend:
+one pinned channel, private file permissions, collision handling, cancellation
+and no replay after an uncertain publication. Two JVM and seven real SFTP Android
+checks passed; the debug/test APK build passed. Keyboard/composer integration and
+physical acceptance remain open, so this does **not** mark SSH image paste complete.
+[Source contract, integration work and evidence](DIRECT_SSH.md#ssh-image-upload-backend-2026-10-03).
+The broad source pin and signed build 448 remain unchanged.
+
 ## SSH terminal mouse and scrolling (2026-10-03)
 
 SSH screens now route captured clicks/wheel events through Ghostty's current

@@ -75,7 +75,7 @@ async def main():
             return super().read(file_obj, offset, size)
 
         async def write(self, file_obj, offset, data):
-            if Path(os.fsdecode(file_obj.name)).parent.name == "slow-upload":
+            if Path(os.fsdecode(file_obj.name)).parent.name in ("slow-upload", "uploads"):
                 await self.hold("writes")
             return super().write(file_obj, offset, data)
 
