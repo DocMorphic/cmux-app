@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Computer method sections and endpoint captions (2026-10-03)
+
+Saved computer rows now appear once under their configured Iroh/Tailscale/Direct
+method, ordered by available last-seen history. Exact device/build endpoint
+captions distinguish similarly named Macs; confirmed-offline later duplicates
+carry Older pairing. Reconnect rows reuse captions and any exact saved duplicate
+marker. Connection-setting read failures are shown explicitly. The projection
+uses existing scoped settings and routes without changing connection authority.
+
+**23 JVM and seven Android cases passed**, and the production-row screenshot was
+visually checked. [Source comparison and evidence](COMPUTER_LIST.md). Not yet in
+signed build 468. Full Computers navigation/layout, hidden/SSH row integration,
+version warnings, offline saved/reconnect reconciliation and physical acceptance
+remain open; this does not complete the full Computers screen.
+
 ## Computer connection versus presence (2026-10-03)
 
 Saved computer rows now distinguish this phone's Connected/Reconnecting/Not
@@ -24,8 +39,9 @@ current-login/route checks and Forget pruning.
 **46 JVM and seven Android cases passed**, including host identity verification,
 real encrypted history reload, sign-out rejection and existing switch/routing
 regressions. Two component screenshots were visually checked. [Source and evidence](COMPUTER_PRESENCE_ROWS.md).
-Included in signed build 468. Live Pixel/Mac acceptance, full Computers layout,
-route captions and the remaining presence consumers are still open.
+Included in signed build 468. Route captions/grouping/older-pairing labels are
+covered by the follow-up above. Live Pixel/Mac acceptance, full Computers layout
+and the remaining presence consumers are still open.
 
 ## Computer build subtitles and presence metadata (2026-10-03)
 

@@ -1,5 +1,12 @@
 # Attribution
 
+Computer method sections, endpoint captions and older-pairing labels follow
+MacComputerListSection.swift, DeviceTreeRouteDescription.swift, MacComputerRow.swift
+and MacComputerSnapshot+Store.swift in Packages/iOS/CmuxMobileShellUI at cmux
+0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc. Copyright Manaflow, Inc.; GPL-3.0-or-later.
+Android projects existing per-account settings and exact device/build routes for
+display only, retaining its existing connection authorization and transport logic.
+
 Computer presence rows follow MacComputerRow.swift and MacComputerSnapshot+Store.swift
 in Packages/iOS/CmuxMobileShellUI, plus PresenceMap.swift in CmuxMobileShell,
 at cmux 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.

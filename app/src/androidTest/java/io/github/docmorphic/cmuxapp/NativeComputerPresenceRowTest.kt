@@ -27,7 +27,7 @@ class NativeComputerPresenceRowTest {
     @Test fun onlinePresenceDoesNotClaimPhoneConnectionAndReconnectUsesHeartbeat() {
         content()
         compose.onNodeWithText("Not connected").assertIsDisplayed()
-        compose.onNodeWithText("Presence: Online").assertIsDisplayed()
+        compose.onNodeWithText("Presence: Online · no route").assertIsDisplayed()
         compose.onNodeWithContentDescription("Computer status: Not connected").assertExists()
         compose.runOnIdle { reconnect = true }
         compose.onNodeWithText("Online").assertIsDisplayed()

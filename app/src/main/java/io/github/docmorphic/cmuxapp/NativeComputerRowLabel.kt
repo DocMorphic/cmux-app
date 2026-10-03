@@ -36,7 +36,8 @@ private fun presencePhrase(presence: NativeComputerPresence): String {
 
 @Composable
 internal fun NativeComputerRowLabel(name: String, buildLabel: String?, connection: NativeComputerConnection,
-    presence: NativeComputerPresence, reconnect: Boolean, modifier: Modifier = Modifier) {
+    presence: NativeComputerPresence, reconnect: Boolean, modifier: Modifier = Modifier,
+    routeDescription: String? = null, olderPairing: Boolean = false) {
     val heartbeat = presencePhrase(presence)
     Column(modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -50,10 +51,12 @@ internal fun NativeComputerRowLabel(name: String, buildLabel: String?, connectio
         }
         Text(if (reconnect) heartbeat else connection.phrase + (connection.workspaceCount?.let {
             " · $it ${if (it == 1) "workspace" else "workspaces"}"
-        } ?: ""), color = Color(0xFF9B9FA8), fontSize = 12.sp)
-        if (!reconnect && (presence.online != null || connection.availability != NativeFeedAvailability.CONNECTED)) {
-            Text(if (presence.online == null) "Presence: unknown" else "Presence: $heartbeat", color = Color(0xFF9B9FA8), fontSize = 11.sp)
-        }
+        } ?: ""), color = Color(0xFF9B9FA8), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val route = routeDescription ?: "no route"
+        val diagnostic = if (reconnect || (presence.online == null && connection.availability == NativeFeedAvailability.CONNECTED)) route
+            else "Presence: ${if (presence.online == null) "unknown" else heartbeat} · $route"
+        Text((if (olderPairing) "Older pairing · " else "") + diagnostic,
+            color = Color(0xFF9B9FA8), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -72,5 +75,15 @@ internal fun NativeComputerStatusDot(connection: NativeComputerConnection, prese
     Box(Modifier.padding(horizontal = 8.dp).semantics { contentDescription = "Computer status: $description" }) {
         if (connecting && reconnect) CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 1.5.dp, color = Color(0xFFFFC46B))
         else Box(Modifier.size(8.dp).background(color, CircleShape))
+    }
+}
+
+
+@Composable
+internal fun NativeComputerMethodSections(rows: List<NativeComputerListRow>, row: @Composable (NativeComputerListRow) -> Unit) {
+    NativeComputerList.sections(rows).forEach { (title, computers) ->
+        Text(title, Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+            color = Color(0xFF9B9FA8), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+        computers.forEach { computer -> key(computer.mac.origin) { row(computer) } }
     }
 }

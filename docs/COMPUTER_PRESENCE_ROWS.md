@@ -59,8 +59,9 @@ phone's Connected/Reconnecting/Not connected status.
 ## Remaining scope
 
 Live Pixel/Mac presence-service acceptance is pending. This checkpoint covers
-row status, badges and history; full list grouping, route-description captions,
-older-duplicate markers and the entire iOS Computers layout still need an audit.
+row status, badges and history. The [method-section follow-up](COMPUTER_LIST.md)
+adds grouping, route captions and older-pairing markers. The complete iOS Computers
+layout still needs reconciliation.
 Presence-based route refresh, workspace announcements and push recovery are
 separate unfinished consumers.
 
