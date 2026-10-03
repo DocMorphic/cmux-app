@@ -113,20 +113,42 @@ Targeted source findings in this pass:
   construct Ghostty without a reply callback; its plain SSH shell owns one live
   PTY and retains the same emulator across view changes. Source inspection does
   not establish new runtime coverage or justify adding a second parser blindly.
-- **Picker capability audit (2026-10-03):** exact `TerminalPickerMenuValue.swift`
-  and `TerminalPickerMenuContent.swift` distinguish an unknown capability state
-  during reconnect from a connected Mac that authoritatively lacks
-  `browser.stream.v1`. Only the latter shows the disabled **Update cmux on your
-  Mac to stream browser panes** hint. Android's `NativePanePicker` currently
-  receives rows and action callbacks but no capability-known/support state, so
-  this menu hint is missing in terminal, surface and routed-browser headers.
-  Threading the current connection state through those entry points and the
-  browser-process snapshot remains open; it must not infer an update requirement
-  from temporary disconnects. The same iOS model retains browser-kind Mac
-  surfaces as a fallback when streaming is unsupported; Android's
-  `NativeWorkspace.macSurfaces` excludes that kind unconditionally. Review the
-  old-host inventory/navigation contract before choosing that fallback's Android
-  behavior. These are outstanding parity items, not changes included in build 434.
+- **Picker capability and legacy-browser fallback (2026-10-03):** exact
+  `TerminalPickerMenuValue.swift`, `TerminalPickerMenuContent.swift`,
+  `WorkspaceDetailView+Surfaces.swift`, `SurfaceFallbackCardView.swift` and
+  `MobileSurfacePreview+Presentation.swift` establish the contract. Android now
+  carries capability-known and streaming-support state through terminal, surface,
+  streamed-browser and on-device-browser menus. The disabled **Update cmux on your
+  Mac to stream browser panes** hint appears only after an authoritative
+  unsupported snapshot; reconnecting with unknown support removes it.
+  Raw browser surfaces move into **Mac Surfaces** when streaming is unsupported,
+  preserving their host IDs and selected state. They open a browser surface card
+  with the blue globe, matching explanatory copy and **Open on Mac** action.
+  Focus still requires `surface.focus.v1` and the existing current-workspace,
+  current-connection mutation checks. Selecting the card does not request a
+  browser stream. Supported Macs retain the separate **Mac Browsers** rows;
+  missing raw surfaces are not invented from a stale stream inventory.
+  The separate browser process receives both initial and live state updates.
+  A source-state observer publishes changes while the parent Activity is paused,
+  without waiting for that screen to redraw. The observer ends with its registry
+  entry and cancellation during Activity recreation does not abandon an already
+  launched browser. A newer context received during WebView setup wins over the
+  older opening snapshot. Streaming mode is disabled when unsupported, and the
+  return handler rechecks current support before applying a stream action.
+  Four capability/row tests and ten workspace-selection regressions passed.
+  Five Android checks passed on the existing API 37 emulator: grouped terminal
+  picker, real framed-RPC legacy fallback/focus, live cross-process capability
+  transitions, rotation retaining page/lease, and retired-owner cleanup. The
+  final live-menu rerun passed in **10.9 seconds**. The initial run exposed stale
+  state while the parent was paused; after the observer fix, an assertion was
+  corrected to inspect the disabled menu item's accessibility ancestor rather
+  than its enabled Text child. Saved XML confirms that hierarchy. No disabled
+  state was relaxed. Menu and fallback-card pixels were reviewed. Debug/test
+  APK assembly and release Kotlin compilation passed; the last production build
+  took **27 seconds**, and the final test-only build took **19 seconds**.
+  Evidence: ignored `captures/runtime/browser-picker-capabilities/`. The Pixel
+  was absent; physical legacy-Mac acceptance and the wider source/UI audit remain
+  open. Signed build 434 predates these changes; the whole-parity pin is unchanged.
 - [`MobileWorkspaceCloseConfirmation.swift`](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileWorkspaceCloseConfirmation.swift)
   centralizes destructive Mac/tmux/cmux-tui confirmation while allowing
   phone-owned shell closure directly. Android now shares one confirmation model

@@ -720,6 +720,35 @@ class NativeFlowTest {
         compose.onNodeWithTag("native-terminal").assertExists()
     }
 
+    @Test fun unsupportedBrowserUsesSurfaceCardAndFocusesExactPanelWithoutStreamRequests() {
+        peer.panelArtifactsSupported = true
+        peer.customWorkspaceListing = JSONObject("""{"workspaces":[{"id":"old-mac","title":"Legacy browser workspace","terminals":[],"surfaces":[
+            {"surface_id":"legacy-browser","kind":"browser","title":"Legacy preview","is_focused":true}
+        ]}]}""")
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
+                    .also { it.connect(); observedClients += it }
+            })
+        } } }
+        waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Legacy browser workspace").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Legacy browser workspace").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Open on Mac").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Browser · In “Legacy browser workspace”").assertIsDisplayed()
+        compose.onNodeWithTag("terminal-picker").performClick()
+        compose.onNodeWithTag("terminal-picker-browser-legacy-browser").assertIsSelected()
+        compose.onNodeWithText("Mac Surfaces").assertExists()
+        compose.onNodeWithTag("terminal-picker-browser-update").assertIsNotEnabled()
+        compose.onNodeWithTag("terminal-picker-browser-legacy-browser").performClick()
+        compose.onNodeWithText("Open on Mac").performClick()
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.surface.focus" } }
+        val params = peer.requests.single { it.optString("method") == "mobile.surface.focus" }.getJSONObject("params")
+        assertEquals("old-mac", params.getString("workspace_id"))
+        assertEquals("legacy-browser", params.getString("surface_id"))
+        assertTrue(peer.requests.none { it.optString("method").startsWith("mobile.browser.") })
+        screenshot("legacy-browser-fallback")
+    }
+
     @Test fun panelOnlyWorkspacePreviewsExactFileAndMarkdownAndFocusesUnknownSurface() {
         peer.panelArtifactsSupported = true
         peer.customWorkspaceListing = JSONObject("""{"workspaces":[{"id":"panels","title":"Panel workspace","terminals":[],"surfaces":[

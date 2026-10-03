@@ -17,12 +17,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /** Only pane identity and presentation cross the routed-browser process boundary. */
-internal data class NativePanePickerRow(val kind: String, val id: String, val title: String, val simulator: Boolean = false)
-internal fun nativePanePickerRows(workspace: NativeWorkspace): List<NativePanePickerRow> =
+internal data class NativePanePickerRow(val kind: String, val id: String, val title: String, val simulator: Boolean = false,
+    val fallbackBrowser: Boolean = false)
+internal fun nativePanePickerRows(workspace: NativeWorkspace, browserState: NativeBrowserPickerState = NativeBrowserPickerState()): List<NativePanePickerRow> =
     workspace.terminals.map { NativePanePickerRow("terminal", it.id, it.title.ifBlank { "Terminal" }) } +
         workspace.macSurfaces.map { NativePanePickerRow("surface", it.id, it.displayTitle, it.simulator != null) } +
-        workspace.browsers.filter { browser -> workspace.simulators.none { it.panelId == browser.id } }
+        if (browserState.streaming) workspace.browsers.filter { browser -> workspace.simulators.none { it.panelId == browser.id } }
             .map { NativePanePickerRow("browser", it.id, it.title.ifBlank { "Browser" }) }
+        else workspace.surfaces.filter { it.kind == "browser" && workspace.simulators.none { sim -> sim.panelId == it.id } }
+            .map { NativePanePickerRow("browser", it.id, it.displayTitle, fallbackBrowser = true) }
 
 /** Shared live inventory for terminal, streamed browser and Mac surface headers. */
 @Composable
@@ -30,21 +33,23 @@ internal fun NativePanePicker(title: String, workspace: NativeWorkspace?, select
     modifier: Modifier = Modifier, onTerminal: (NativeTerminal) -> Unit, onSurface: (NativeSurface) -> Unit,
     onBrowser: (NativeBrowser) -> Unit, onNewWorkspace: (() -> Unit)? = null,
     onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null,
+    browserState: NativeBrowserPickerState = NativeBrowserPickerState(),
     utilities: @Composable ColumnScope.(close: () -> Unit) -> Unit = {}) {
-    val rows = workspace?.let(::nativePanePickerRows).orEmpty()
+    val rows = workspace?.let { nativePanePickerRows(it, browserState) }.orEmpty()
     val selected = rows.singleOrNull { row -> when (row.kind) {
         "terminal" -> row.id == selection.terminal?.id
         "surface" -> row.id == selection.surface?.id
-        "browser" -> row.id == selection.browser?.id
+        "browser" -> row.id == selection.browser?.id || (row.fallbackBrowser && row.id == selection.surface?.id)
         else -> false
     } }
     NativePanePicker(title, rows, selected, modifier, onSelect = { row ->
         when (row.kind) {
             "terminal" -> workspace?.terminals?.singleOrNull { it.id == row.id }?.let(onTerminal)
             "surface" -> workspace?.macSurfaces?.singleOrNull { it.id == row.id }?.let(onSurface)
-            "browser" -> workspace?.browsers?.singleOrNull { it.id == row.id }?.let(onBrowser)
+            "browser" -> (workspace?.browsers?.singleOrNull { it.id == row.id }
+                ?: workspace?.browserFallback(row.id, browserState)?.let { NativeBrowser(it.id, it.displayTitle) })?.let(onBrowser)
         }
-    }, onNewWorkspace, onNewTerminal, onNewBrowser, utilities = utilities)
+    }, onNewWorkspace, onNewTerminal, onNewBrowser, browserState = browserState, utilities = utilities)
 }
 
 @Composable
@@ -52,6 +57,7 @@ internal fun NativePanePicker(title: String, rows: List<NativePanePickerRow>, se
     modifier: Modifier = Modifier, onSelect: (NativePanePickerRow) -> Unit,
     onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null,
     onNewBrowser: (() -> Unit)? = null, checksNewBrowser: Boolean = false,
+    browserState: NativeBrowserPickerState = NativeBrowserPickerState(),
     utilities: @Composable ColumnScope.(close: () -> Unit) -> Unit = {}) {
     var expanded by remember(selectedRow?.kind, selectedRow?.id, checksNewBrowser) {
         mutableStateOf(false)
@@ -65,9 +71,9 @@ internal fun NativePanePicker(title: String, rows: List<NativePanePickerRow>, se
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
             val close = { expanded = false }
             val sections = listOf("Terminals" to rows.filter { it.kind == "terminal" },
-                "Mac Surfaces" to rows.filter { it.kind == "surface" && !it.simulator },
+                "Mac Surfaces" to rows.filter { (it.kind == "surface" && !it.simulator) || it.fallbackBrowser },
                 "Mac Simulators" to rows.filter { it.kind == "surface" && it.simulator },
-                "Mac Browsers" to rows.filter { it.kind == "browser" })
+                "Mac Browsers" to rows.filter { it.kind == "browser" && !it.fallbackBrowser })
             sections.forEach { (heading, items) ->
                 if (items.isNotEmpty()) PanePickerSection(heading)
                 items.forEach { row ->
@@ -75,6 +81,11 @@ internal fun NativePanePicker(title: String, rows: List<NativePanePickerRow>, se
                         close(); onSelect(row)
                     }
                 }
+            }
+            if (browserState.showsUpdateHint) {
+                PanePickerSection("Mac Browsers")
+                DropdownMenuItem(text = { Text(NativeBrowserPickerState.UPDATE_HINT) }, enabled = false,
+                    modifier = Modifier.testTag("terminal-picker-browser-update"), onClick = {})
             }
             HorizontalDivider()
             DropdownMenuItem(text = { Text("New Workspace") }, enabled = onNewWorkspace != null,

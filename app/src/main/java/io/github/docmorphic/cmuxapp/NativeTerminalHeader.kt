@@ -46,7 +46,8 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
         CompositionLocalProvider(LocalDebugTerminalText provides debugText) {
         NativePanePicker(terminal.title.ifBlank { workspace?.title ?: "Terminal" }, workspace,
             NativeWorkspacePane(terminal = terminal), Modifier.weight(1f), onTerminal, onSurface, onBrowser,
-            onNewWorkspace, onNewTerminal, onNewBrowser.takeIf { workspace != null }) { close ->
+            onNewWorkspace, onNewTerminal, onNewBrowser.takeIf { workspace != null },
+            browserState = NativeBrowserPickerState.from(ready, capabilities)) { close ->
             DropdownMenuItem(text = { Text("View as Text") }, onClick = { close(); onText() }, enabled = terminal.isReady)
             if (onSizing != null) DropdownMenuItem(text = { Text("Terminal size") }, onClick = { close(); onSizing() })
             if ("terminal.artifact.v1" in capabilities) DropdownMenuItem(text = { Text("Files") },

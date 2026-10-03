@@ -25,7 +25,8 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     workspace: NativeWorkspace, network: () -> RoutedBrowserNetwork?, retainHost: () -> RoutedBrowserHostLease,
     onClose: () -> Unit, onRoute: (NativeWorkspaceRoute) -> Unit, browserModes: Boolean = false,
     onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null,
-    sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null) {
+    sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null,
+    browserState: () -> NativeBrowserPickerState = { NativeBrowserPickerState() }) {
     val creationEnabled = onNewWorkspace != null && onNewTerminal != null && onNewBrowser != null
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -34,6 +35,8 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     var failure by remember(destination.surface.id) { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
     val currentWorkspace by rememberUpdatedState(workspace)
+    val currentBrowserState by rememberUpdatedState(browserState)
+    val browserSupport = browserState()
     val currentSshPicker by rememberUpdatedState(sshPicker)
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val id = result.data?.getStringExtra(RoutedBrowserProtocol.EXTRA) ?: requestId
@@ -48,7 +51,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             else if (returnScope == RoutedBrowserReturnScope.APPLY) {
                 val kind = result.data?.getStringExtra("kind")
                 val paneId = result.data?.getStringExtra("pane")
-                val panel = RoutedBrowserProtocol.panes(currentWorkspace).singleOrNull { it.kind == kind && it.id == paneId }
+                val panel = RoutedBrowserProtocol.panes(currentWorkspace, currentBrowserState()).singleOrNull { it.kind == kind && it.id == paneId }
                 val creation = when (action) {
                     "new_workspace" -> onNewWorkspace
                     "new_terminal" -> onNewTerminal
@@ -59,7 +62,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
                 when {
                     action == "ssh_command" && sshCommand != null && onSshCommand != null && currentSshPicker?.permits(sshCommand) == true -> onSshCommand(sshCommand)
                     creation != null && creationEnabled -> creation()
-                    action == "stream" && browserModes && panel?.kind == "browser" &&
+                    action == "stream" && browserModes && currentBrowserState().streaming && panel?.kind == "browser" &&
                         navigation.switchToStream(destination.key, currentWorkspace, panel.id) -> {
                         onRoute(NativeWorkspaceRoute(destination.key.computerId, workspace.id, browserId = panel.id))
                     }
@@ -81,9 +84,18 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             scope.launch { RoutedBrowserSessions.abandon(context, id); RoutedBrowserSessions.consume(id) }
         }
     }
-    SideEffect { RoutedBrowserSessions.refresh(requestId, workspace, creationEnabled, sshPicker) }
+    SideEffect { RoutedBrowserSessions.refresh(requestId, workspace, creationEnabled, sshPicker, browserSupport) }
+    suspend fun watchBrowserState(id: String) = coroutineScope {
+        val entry = RoutedBrowserSessions.live(id) ?: return@coroutineScope
+        // The parent Activity stops drawing while :browser owns the screen.
+        // Observe the source states directly instead of waiting for a parent recomposition.
+        val observer = launch(start = CoroutineStart.UNDISPATCHED) {
+            snapshotFlow { currentBrowserState() }.collect { RoutedBrowserSessions.refreshBrowserState(id, it) }
+        }
+        try { entry.exited.await() } finally { observer.cancel() }
+    }
     LaunchedEffect(destination.surface.id, attempt) {
-        if (requestId != null) { routed = true; return@LaunchedEffect }
+        requestId?.let { routed = true; watchBrowserState(it); return@LaunchedEffect }
         var lease: RoutedBrowserHostLease? = null
         var registered: String? = null
         try {
@@ -92,7 +104,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             routed = true; failure = null
             lease = retainHost()
             val held = lease
-            val entry = RoutedBrowserSessions.register(context, owner, destination, workspace, held::close, held::foreground, browserModes, creationEnabled, sshPicker)
+            val entry = RoutedBrowserSessions.register(context, owner, destination, workspace, held::close, held::foreground, browserModes, creationEnabled, sshPicker, currentBrowserState())
             registered = entry.id; requestId = entry.id
             launcher.launch(Intent(context, RoutedBrowserActivity::class.java).putExtra(RoutedBrowserProtocol.EXTRA, entry.id))
         } catch (error: Exception) {
@@ -102,8 +114,11 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             currentCoroutineContext().ensureActive()
             requestId = null; failure = error.message ?: "Could not open the browser"
         }
+        // Cancelling an observer during Activity recreation must not abandon a
+        // presentation that already launched successfully; its registry owns it.
+        registered?.let { watchBrowserState(it) }
     }
-    if (routed == false) LocalBrowserWorkspaceView(destination, navigation, workspace, onClose, onRoute, onNewWorkspace, onNewTerminal, onNewBrowser, sshPicker, onSshCommand)
+    if (routed == false) LocalBrowserWorkspaceView(destination, navigation, workspace, onClose, onRoute, onNewWorkspace, onNewTerminal, onNewBrowser, sshPicker, onSshCommand, browserSupport)
     else {
         fun back() {
             val id = requestId

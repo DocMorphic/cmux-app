@@ -5,6 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -60,7 +64,8 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
             NativePanePicker(surface.displayTitle, workspace, NativeWorkspacePane(surface = surface), Modifier.weight(1f),
-                onTerminal, onSurface, onBrowser, onNewWorkspace, onNewTerminal, onNewBrowser)
+                onTerminal, onSurface, onBrowser, onNewWorkspace, onNewTerminal, onNewBrowser,
+                browserState = NativeBrowserPickerState.from(ready, capabilities))
         }
         if (!ready) Text("Reconnecting to your Mac…", Modifier.padding(horizontal = 16.dp))
         if (surface.simulator != null && (simulatorReady || supportedSimulator)) key(workspace.id, surface.id) {
@@ -101,6 +106,14 @@ private fun NativeSurfaceCard(workspace: NativeWorkspace, surface: NativeSurface
     var failed by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally) {
+        if (surface.kind == "browser") {
+            val blue = androidx.compose.ui.graphics.Color(0xFF76B9FF)
+            Box(Modifier.size(88.dp).background(blue.copy(alpha = .14f), CircleShape)
+                .border(1.dp, blue.copy(alpha = .22f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(painterResource(R.drawable.ic_workspace_globe), null, Modifier.size(36.dp), tint = blue)
+            }
+            Spacer(Modifier.height(20.dp))
+        }
         Text(surface.displayTitle, style = MaterialTheme.typography.titleLarge)
         Text("${surface.label} · In “${workspace.title}”", Modifier.padding(vertical = 12.dp), textAlign = TextAlign.Center)
         Text(surface.explainer, textAlign = TextAlign.Center)

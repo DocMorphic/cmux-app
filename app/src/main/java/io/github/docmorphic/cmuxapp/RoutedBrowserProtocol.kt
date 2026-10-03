@@ -14,18 +14,20 @@ internal object RoutedBrowserProtocol {
     const val CONTEXT = 101
     const val EXTRA = "browser_request"
 
-    fun panes(workspace: NativeWorkspace) = nativePanePickerRows(workspace)
+    fun panes(workspace: NativeWorkspace, browserState: NativeBrowserPickerState = NativeBrowserPickerState()) = nativePanePickerRows(workspace, browserState)
+    fun browserState(bundle: Bundle) = NativeBrowserPickerState(bundle.getBoolean("browser_support_known"), bundle.getBoolean("browser_streaming", true))
     fun context(workspace: NativeWorkspace, modes: Boolean = false, linkedPanel: String? = null, creationEnabled: Boolean = false,
-        sshPicker: SshPickerPresentation? = null) = Bundle().apply {
+        sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState()) = Bundle().apply {
+        putBoolean("browser_support_known", browserState.known); putBoolean("browser_streaming", browserState.streaming)
         putString("ssh_picker", sshPicker?.encode())
         putBoolean("creation_enabled", creationEnabled); putBoolean("modes", modes); putString("linked_panel", linkedPanel)
         putString("workspace", workspace.title)
-        putString("panes", JSONArray().also { rows -> panes(workspace).forEach {
-            rows.put(JSONObject().put("kind", it.kind).put("id", it.id).put("title", it.title).put("simulator", it.simulator))
+        putString("panes", JSONArray().also { rows -> panes(workspace, browserState).forEach {
+            rows.put(JSONObject().put("kind", it.kind).put("id", it.id).put("title", it.title).put("simulator", it.simulator).put("fallback_browser", it.fallbackBrowser))
         } }.toString())
     }
     fun panes(bundle: Bundle): List<NativePanePickerRow> = JSONArray(bundle.getString("panes") ?: "[]").let { rows ->
-        (0 until rows.length()).map { rows.getJSONObject(it).let { row -> NativePanePickerRow(row.getString("kind"), row.getString("id"), row.getString("title"), row.optBoolean("simulator")) } }
+        (0 until rows.length()).map { rows.getJSONObject(it).let { row -> NativePanePickerRow(row.getString("kind"), row.getString("id"), row.getString("title"), row.optBoolean("simulator"), row.optBoolean("fallback_browser")) } }
     }
     fun snapshot(value: LocalBrowserSnapshot) = Bundle().apply {
         putString("url", value.url); putString("title", value.title); putString("address", value.address)

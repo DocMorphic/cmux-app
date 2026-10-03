@@ -24,7 +24,8 @@ internal fun LocalBrowserCreationProgress(creating: Boolean, onCancel: () -> Uni
 internal fun LocalBrowserWorkspaceView(destination: LocalBrowserDestination, navigation: LocalBrowserNavigation,
     workspace: NativeWorkspace = destination.workspace, onClose: () -> Unit = {}, onRoute: (NativeWorkspaceRoute) -> Unit,
     onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null,
-    sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null) {
+    sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null,
+    browserState: NativeBrowserPickerState = NativeBrowserPickerState()) {
     val page by destination.surface.state.collectAsState()
     fun open(terminal: String? = null, browser: String? = null, surface: String? = null) {
         navigation.leave(close = true)
@@ -36,7 +37,7 @@ internal fun LocalBrowserWorkspaceView(destination: LocalBrowserDestination, nav
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { navigation.leave(close = false) },
                 modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
-            val rows = nativePanePickerRows(workspace)
+            val rows = nativePanePickerRows(workspace, browserState)
             val selected = rows.singleOrNull { it.kind == "browser" && it.id == destination.surface.linkedStreamPanelId }
             if (sshPicker != null) Box(Modifier.weight(1f)) {
                 SshBrowserPanePicker(page.title ?: "Browser", sshPicker, destination.surface.linkedStreamPanelId,
@@ -45,7 +46,7 @@ internal fun LocalBrowserWorkspaceView(destination: LocalBrowserDestination, nav
             } else NativePanePicker(page.title ?: "Browser", rows, selected, Modifier.weight(1f), onSelect = { row ->
                 open(terminal = row.id.takeIf { row.kind == "terminal" }, browser = row.id.takeIf { row.kind == "browser" },
                     surface = row.id.takeIf { row.kind == "surface" })
-            }, onNewWorkspace, onNewTerminal, if (selected == null) ({}) else onNewBrowser, checksNewBrowser = selected == null)
+            }, onNewWorkspace, onNewTerminal, if (selected == null) ({}) else onNewBrowser, checksNewBrowser = selected == null, browserState = browserState)
         }
         LocalBrowserPane(destination.surface) {
             onClose()

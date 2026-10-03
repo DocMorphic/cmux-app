@@ -42,12 +42,14 @@ class RoutedBrowserPresentationTest {
     private val releases = AtomicInteger()
     private val probes = CopyOnWriteArrayList<Boolean>()
     private val key = LocalBrowserKey("generated-account", "generated-team", "generated-mac", "workspace")
-    private val workspace = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"workspace","title":"Fixture workspace","terminals":[{"id":"terminal","title":"Fixture shell"}]}]}""")).single().copy(browsers = listOf(NativeBrowser("first", "First"), NativeBrowser("second", "Second")))
+    private val workspace = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"workspace","title":"Fixture workspace","terminals":[{"id":"terminal","title":"Fixture shell"}]}]}""")).single().copy(browsers = listOf(NativeBrowser("first", "First"), NativeBrowser("second", "Second")),
+        surfaces = listOf(NativeSurface("first", "browser", "First"), NativeSurface("second", "browser", "Second")))
     private lateinit var network: NativeMacBrowserNetwork
     private lateinit var navigation: LocalBrowserNavigation
     private lateinit var server: MockWebServer
     private lateinit var surface: LocalBrowserSurface
     private var route: NativeWorkspaceRoute? = null
+    private var browserState by mutableStateOf(NativeBrowserPickerState())
     private val creationRequests = CopyOnWriteArrayList<String>()
     private var frozenDestination by mutableStateOf<LocalBrowserDestination?>(null)
     private fun created(kind: String) { creationRequests += kind; navigation.leave(close = true) }
@@ -117,9 +119,36 @@ class RoutedBrowserPresentationTest {
                 holds.incrementAndGet()
                 RoutedBrowserHostLease({ holds.decrementAndGet(); releases.incrementAndGet() }, { probes += it })
             }, {}, { route = it }, browserModes = true,
-                onNewWorkspace = { created("workspace") }, onNewTerminal = { created("terminal") }, onNewBrowser = { created("browser") })
+                onNewWorkspace = { created("workspace") }, onNewTerminal = { created("terminal") }, onNewBrowser = { created("browser") }, browserState = { browserState })
         } } }
     }
+    @Test fun browserCapabilityUpdatesReachTheLiveSeparateProcessMenu() {
+        browser("Routed fixture ▾")
+        main { browserState = NativeBrowserPickerState(known = false, streaming = false) }
+        text("Routed fixture ▾").click()
+        text("Mac Surfaces")
+        assertFalse(device.hasObject(By.text(NativeBrowserPickerState.UPDATE_HINT)))
+        main { browserState = NativeBrowserPickerState(known = true, streaming = false) }
+        val hint = text(NativeBrowserPickerState.UPDATE_HINT)
+        capturePicker("legacy-browser-picker")
+        // Compose exposes Text as an enabled child under the disabled menu item.
+        fun disabled(node: UiObject2) = generateSequence(node) { it.parent }.any { !it.isEnabled }
+        assertTrue(disabled(hint))
+        device.pressBack()
+        desc("Browser mode").click()
+        assertTrue(disabled(text("Streamed")))
+        device.pressBack()
+        text("Routed fixture ▾").click()
+        main { browserState = NativeBrowserPickerState(known = false, streaming = false) }
+        assertTrue(device.wait(Until.gone(By.text(NativeBrowserPickerState.UPDATE_HINT)), 5000))
+        main { browserState = NativeBrowserPickerState(known = true, streaming = true) }
+        text("Mac Browsers")
+        assertTrue(device.wait(Until.gone(By.text("Mac Surfaces")), 5000))
+        text("First").click()
+        compose.waitUntil(10_000) { route?.browserId == "first" }
+        assertEquals("generated-mac", route?.origin)
+    }
+
     @After fun cleanup() {
         if (::network.isInitialized) main { network.close(); navigation.clear() }
         if (::network.isInitialized) runBlocking { delay(300) }

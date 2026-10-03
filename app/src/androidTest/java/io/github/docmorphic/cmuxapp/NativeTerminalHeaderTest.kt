@@ -33,7 +33,7 @@ class NativeTerminalHeaderTest {
         var chosenBrowser: String? = null
         compose.setContent { CmuxTheme {
             Surface(Modifier.fillMaxSize(), color = Color(0xFF0A0B0D), contentColor = Color.White) { Column {
-            NativeTerminalHeader(selected, workspace, 1, emptySet(), true, false, {},
+            NativeTerminalHeader(selected, workspace, 1, setOf("browser.stream.v1"), true, false, {},
                 { chosenSurface = it.id }, {}, {}, {}, {}, { chosenBrowser = it.id }, { selected = it })
             } }
         } }

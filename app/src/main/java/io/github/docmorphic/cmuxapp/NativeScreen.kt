@@ -1995,7 +1995,12 @@ fun NativeScreen(
                     onRoute = { workspaceRoute = it }, browserModes = true,
                     onNewWorkspace = if (canCreateFromBrowser) ({ createFromBrowser(NativeWorkspaceCreation.WORKSPACE) }) else null,
                     onNewTerminal = if (canCreateFromBrowser) ({ createFromBrowser(NativeWorkspaceCreation.TERMINAL) }) else null,
-                    onNewBrowser = if (canCreateFromBrowser) ({ createFromBrowser(NativeWorkspaceCreation.BROWSER) }) else null)
+                    onNewBrowser = if (canCreateFromBrowser) ({ createFromBrowser(NativeWorkspaceCreation.BROWSER) }) else null,
+                    browserState = { if (connectionReady && connectedCode == browserMac.code && client?.isClosed == false)
+                        NativeBrowserPickerState.from(true, hostCapabilities)
+                    else feedSources[browserMac.origin]?.takeIf { it.mac == browserMac }?.let {
+                        NativeBrowserPickerState.from(it.availability == NativeFeedAvailability.CONNECTED, it.capabilities)
+                    } ?: NativeBrowserPickerState(known = false, streaming = false) })
             }
             code.isBlank() -> NativeComputerPicker(teamState, computerState, runtime = sharedConnections?.native,
                 onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
@@ -2020,8 +2025,11 @@ fun NativeScreen(
                     connected = connectionReady, connectionError = connectionError,
                     onReconnect = { retryDelay = 2_000; retry++ })
             }
-            selectedSurface != null && selectedWorkspace != null -> {
-                NativeSurfaceView(selectedWorkspace!!, selectedSurface!!, client, hostCapabilities, connectionReady,
+            selectedWorkspace != null && (selectedSurface != null || selectedWorkspace!!.browserFallback(selectedBrowser?.id,
+                NativeBrowserPickerState.from(connectionReady, hostCapabilities)) != null) -> {
+                val shownSurface = selectedSurface ?: checkNotNull(selectedWorkspace!!.browserFallback(selectedBrowser?.id,
+                    NativeBrowserPickerState.from(connectionReady, hostCapabilities)))
+                NativeSurfaceView(selectedWorkspace!!, shownSurface, client, hostCapabilities, connectionReady,
                     onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
                     onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
                     onBack = { selectedSurface = null; selectedTerminal = null; selectedBrowser = null; selectedWorkspace = null },
@@ -2346,7 +2354,8 @@ fun NativeScreen(
                             onBrowser = { focusManager.clearFocus(); softwareKeyboard?.hide(); selectPane(NativeWorkspacePane(browser = it)) },
                             onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
                             onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
-                            onNewBrowser = workspace?.let { current -> workspaceSourceForPane()?.let { source -> ({ openNewBrowser(source, current) }) } })
+                            onNewBrowser = workspace?.let { current -> workspaceSourceForPane()?.let { source -> ({ openNewBrowser(source, current) }) } },
+                            browserState = NativeBrowserPickerState.from(connectionReady, hostCapabilities))
                     },
                     onBack = { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }, onReconnect = { retry++ },
                     modeRevision = listOf(connectionReady, hostCapabilities, mac, feedSources[mac?.origin]?.availability),

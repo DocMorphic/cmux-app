@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 internal data class RoutedBrowserUi(val surface: LocalBrowserSurface? = null,
     val panes: List<NativePanePickerRow> = emptyList(), val error: String? = null,
     val retired: Boolean = false, val restart: Boolean = false, val modes: Boolean = false, val linkedPanel: String? = null, val creationEnabled: Boolean = false,
-    val sshPicker: SshPickerPresentation? = null)
+    val sshPicker: SshPickerPresentation? = null, val browserState: NativeBrowserPickerState = NativeBrowserPickerState())
 
 internal class RoutedBrowserController(application: Application) : AndroidViewModel(application) {
     private val app = application.applicationContext
@@ -40,12 +40,16 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
     private var bound = false
     private var foreground = false
     private var binding: RoutedBrowserBinding? = null
+    private var latestContext: Bundle? = null
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         when (message.what) {
             RoutedBrowserProtocol.RETIRE -> mutable.value = state.value.copy(retired = true)
-            RoutedBrowserProtocol.CONTEXT -> mutable.value = state.value.copy(panes = RoutedBrowserProtocol.panes(message.data),
+            RoutedBrowserProtocol.CONTEXT -> {
+                latestContext = Bundle(message.data)
+                mutable.value = state.value.copy(panes = RoutedBrowserProtocol.panes(message.data),
                 modes = message.data.getBoolean("modes"), linkedPanel = message.data.getString("linked_panel"), creationEnabled = message.data.getBoolean("creation_enabled"),
-                sshPicker = SshPickerPresentation.decode(message.data.getString("ssh_picker")))
+                sshPicker = SshPickerPresentation.decode(message.data.getString("ssh_picker")), browserState = RoutedBrowserProtocol.browserState(message.data))
+            }
             else -> replies.remove(message.arg1)?.complete(Bundle(message.data))
         }
         true
@@ -61,8 +65,10 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
                     RoutedBrowserEnvironment.requireReady(configured)
                     binding = configured
                     val surface = LocalBrowserSurface(checkNotNull(response.getString("surface")), response.getString("url"))
-                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(response), modes = response.getBoolean("modes"), linkedPanel = response.getString("linked_panel"), creationEnabled = response.getBoolean("creation_enabled"),
-                        sshPicker = SshPickerPresentation.decode(response.getString("ssh_picker")))
+                    // Route setup suspends; a newer context can arrive before it finishes.
+                    val metadata = latestContext ?: response
+                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(metadata), modes = metadata.getBoolean("modes"), linkedPanel = metadata.getString("linked_panel"), creationEnabled = metadata.getBoolean("creation_enabled"),
+                        sshPicker = SshPickerPresentation.decode(metadata.getString("ssh_picker")), browserState = RoutedBrowserProtocol.browserState(metadata))
                     publishForeground()
                     surface.state.collect { snapshot ->
                         request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(snapshot))
@@ -174,13 +180,19 @@ class RoutedBrowserActivity : ComponentActivity() {
                         onSelect = { leave("pane", it) },
                         onNewWorkspace = if (ui.creationEnabled) ({ leave("new_workspace") }) else null,
                         onNewTerminal = if (ui.creationEnabled) ({ leave("new_terminal") }) else null,
-                        onNewBrowser = if (selected == null) ({}) else if (ui.creationEnabled) ({ leave("new_browser") }) else null, checksNewBrowser = selected == null)
+                        onNewBrowser = if (selected == null) ({}) else if (ui.creationEnabled) ({ leave("new_browser") }) else null, checksNewBrowser = selected == null, browserState = ui.browserState)
                 }
                 if (ui.modes) {
                     val target = ui.panes.firstOrNull { it.kind == "browser" && it.id == ui.linkedPanel }
                         ?: ui.panes.firstOrNull { it.kind == "browser" }
-                    BrowserModePicker(BrowserMode.ON_DEVICE, if (target == null) "Needs cmux Browser running on the computer" else null) {
-                        target?.let { leave("stream", it) }
+                    val unavailable = when {
+                        ui.browserState.showsUpdateHint -> NativeBrowserPickerState.UPDATE_HINT
+                        !ui.browserState.streaming -> "Reconnect to your Mac to check browser streaming"
+                        target == null -> "Needs cmux Browser running on the computer"
+                        else -> null
+                    }
+                    BrowserModePicker(BrowserMode.ON_DEVICE, unavailable) {
+                        if (ui.browserState.streaming) target?.let { leave("stream", it) }
                     }
                 }
                 when {
