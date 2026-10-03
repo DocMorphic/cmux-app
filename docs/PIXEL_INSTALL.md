@@ -3,7 +3,49 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 448 (2026-10-03)
+## Current signed development APK — build 456 (2026-10-03)
+
+[Build 456](https://github.com/DocMorphic/cmux-app/actions/runs/37124887007)
+passed at `ac3b20db5c4325234255873db2225b944e037c33`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37124887007/artifacts/11275051159)
+and extract `app-release.apk` (repository access required). This combined build
+adds background input ownership, SSH mouse/wheel/focus forwarding, and ordered
+SSH image input from keyboards, clipboard and photo selection, with retained
+composer drafts and explicit recovery after interrupted input. It includes all
+build 448 features. PR #1 remains a draft; this is an Actions artifact, not a
+published GitHub release.
+
+- Package `io.github.docmorphic.cmuxapp`, version code **456**, version `0.2.0`.
+- SHA-256: `cdc9645ffdd607c59e0e2852eac683516501454b551df3c05b573bbc557bd248`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK size: **39,024,266 bytes**; min SDK 26, target SDK 36.
+- Local file: `build/signed-run-37124887007/app-release.apk` (ignored).
+
+The full app/Ghostty JVM suites and debug/test/release assembly passed in CI;
+Gradle reported **5m 49s**. Four helper tests, ten update-policy tests and the
+signed-APK gate passed. No full JVM count is inferred from CI logs. The downloaded
+artifact's hash matches the CI verifier output; GitHub provenance matches the
+source commit. Independent checks confirmed the stable signer, 14 viewer hashes,
+six native LOAD/RELRO checks, 16 KB ZIP alignment, disabled backup, no debuggable
+flag, diagnostics Application and exclusion of all five debug fixture activities.
+Packaged attribution exactly matches its source asset. An additional local check
+incorrectly expected the Markdown notice and plain-text asset to be identical;
+these have different presentations, and the corrected asset comparison passed.
+
+The existing API 37 / 16,384-byte emulator upgraded **448 → 456** with `install -r`,
+preserving first-install time `2026-09-30 01:57:49`. Force-stop/cold launch reported
+**1,103 ms** and reached the visually reviewed sign-in screen without a compatibility
+warning or ANR dialog; `pageSizeCompat=0` and the crash log buffer was empty.
+This single emulator launch is not a benchmark. The baseline was already signed
+out, so authenticated migration remains unverified. No additional AVD was created;
+the emulator was shut down after verification. Evidence: `captures/runtime/build456/`
+(ignored).
+
+The Pixel remains unavailable to ADB. Physical browser/terminal acceptance,
+authenticated release migration, configured push, ANR stacks and the remaining
+source audit are open. This milestone does not establish full iOS parity.
+
+## Previous signed development APK — build 448 (2026-10-03)
 
 [Build 448](https://github.com/DocMorphic/cmux-app/actions/runs/37117513871)
 passed at `b63b875156ed3043d76b63829b05f052dff064e1`. Download the

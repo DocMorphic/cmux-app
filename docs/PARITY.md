@@ -24,7 +24,7 @@ keeps composer image paths distinct from following paths/captions.
 Verification: 23 JVM checks and 18 distinct Android cases passed across the
 combined and final focused runs, including real plain-SSH/SFTP image delivery.
 [Ownership, source comparison and evidence](DIRECT_SSH.md#ssh-keyboard-and-composer-images-2026-10-03).
-Physical acceptance and the broader goal remain open; signed build 448 is unchanged.
+Physical acceptance and the broader goal remain open. Included in signed build 456.
 
 ## SSH image upload foundation (2026-10-03)
 
@@ -34,7 +34,7 @@ and no replay after an uncertain publication. Two JVM and seven real SFTP Androi
 checks passed; the debug/test APK build passed. That checkpoint covered the backend; the UI integration is recorded above.
 Physical acceptance remains open, so SSH image paste is not yet marked complete.
 [Source contract, integration work and evidence](DIRECT_SSH.md#ssh-image-upload-backend-2026-10-03).
-The broad source pin and signed build 448 remain unchanged.
+The broad source pin remains unchanged. Included in signed build 456.
 
 ## SSH terminal mouse and scrolling (2026-10-03)
 
@@ -48,7 +48,7 @@ Targeted iOS source comparison used `0fc35d6`; the wider pin remains unchanged.
 Verification: 13 JVM, four native Android and eight app Android checks passed.
 All six packaged native libraries and the debug APK passed the 16 KB alignment
 gates. [Protocol, test corrections and evidence](DIRECT_SSH.md#terminal-mouse-wheel-and-focus-input-2026-10-03).
-Physical SSH/Pixel acceptance remains open; signed build 448 predates this work.
+Physical SSH/Pixel acceptance remains open. Included in signed build 456.
 
 ## Terminal background input ownership (2026-10-03)
 
@@ -64,10 +64,25 @@ Four new lifecycle tests and six existing rich-input, immediate hardware-focus
 and browser checks passed. An older direct-keyboard test needed its pre-absorption
 resize assertion and frame-clock wait updated; it then passed its full exact-byte,
 Unicode, pause/resume and target-switch flow. [Evidence and APK hashes](TERMINAL_INPUT_DELIVERY.md#background-input-ownership--2026-10-03).
-This is not yet in signed build 448 or verified on the physical Pixel. The wider
-source audit remains open.
+Included in signed build 456; verification on the physical Pixel and the wider
+source audit remain open.
 
-## Latest signed integration checkpoint — build 448 (2026-10-03)
+## Latest signed integration checkpoint — build 456 (2026-10-03)
+
+[Signed build 456](https://github.com/DocMorphic/cmux-app/actions/runs/37124887007)
+at `ac3b20d` combines the background-input, SSH mouse/focus and SSH image/composer
+work above with all build 448 features. Full CI passed; the downloaded APK matched
+the CI hash and passed independent signer, viewer-asset, native/16 KB ZIP, manifest,
+debug-fixture and packaged attribution checks. The existing emulator upgraded
+448 → 456 without clearing data, retained its original install time and cold-launched
+to the visually reviewed sign-in screen without a compatibility or ANR dialog.
+The crash buffer was empty. [Artifact, hashes and evidence](PIXEL_INSTALL.md).
+
+The baseline was already signed out; this verifies packaging and signed-out
+upgrade only. Physical Pixel/Mac workflows, authenticated migration, configured
+push, ANR stack recovery and the remaining source audit are still open.
+
+## Previous signed integration checkpoint — build 448 (2026-10-03)
 
 [Signed build 448](https://github.com/DocMorphic/cmux-app/actions/runs/37117513871)
 at `b63b875` combines the Java/native crash-stack additions, connection-timeout
