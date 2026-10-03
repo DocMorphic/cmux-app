@@ -73,3 +73,11 @@ claim. Packaged NOTICE matches the plain source asset.
 
 Evidence: ignored captures/runtime/computers-management/, with build logs,
 instrumentation report, launcher dump, screenshot and APK hashes.
+
+
+## Signed delivery follow-up
+
+Included in [signed build 474](PIXEL_INSTALL.md), with CI, independent packaging
+checks and a signed-out 468 → 474 upgrade on the existing API 37 / 16 KB emulator.
+Earlier build-468/pending-delivery statements describe the feature checkpoint.
+Physical acceptance and the remaining source/visual scope are still open.

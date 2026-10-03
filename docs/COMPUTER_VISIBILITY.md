@@ -105,3 +105,11 @@ and all build/test handles were reaped. The Pixel remained absent from ADB.
 Evidence: ignored captures/runtime/computer-visibility/, including all original
 and corrected test logs, JVM XML, launcher dumps, screenshots and APK hashes.
 No signed APK was produced for this individual feature.
+
+
+## Signed delivery follow-up
+
+Included in [signed build 474](PIXEL_INSTALL.md), with CI, independent packaging
+checks and a signed-out 468 → 474 upgrade on the existing API 37 / 16 KB emulator.
+Earlier build-468/pending-delivery statements describe the feature checkpoint.
+Physical acceptance and the remaining source/visual scope are still open.

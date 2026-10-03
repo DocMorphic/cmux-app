@@ -103,3 +103,11 @@ milestone.
 | --- | --- |
 | Debug APK | `bc8976bc7b71e90ca78a3ae20046040f95e08f0a73395e815fa3a4fa893d89d2` |
 | Test APK | `abc38217980648fc5f91357b6bb0b2b2bfe32432e28d0d255c6a3190d2fc4191` |
+
+
+## Signed delivery follow-up
+
+Included in [signed build 474](PIXEL_INSTALL.md), with CI, independent packaging
+checks and a signed-out 468 → 474 upgrade on the existing API 37 / 16 KB emulator.
+Earlier build-468/pending-delivery statements describe the feature checkpoint.
+Physical acceptance and the remaining source/visual scope are still open.

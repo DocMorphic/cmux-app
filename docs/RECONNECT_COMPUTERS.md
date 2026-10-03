@@ -105,3 +105,11 @@ and hashes. No signed release build was dispatched for this feature.
 | Initial seven-case test APK | `6d634936f2b914d5daaccc8835fabb5c720833c9adb1481344329266da4f475b` |
 | Final debug APK | `cfa4ab8094bd962118a7b50cae7d9eaa3f6bcb8de71ea74b1d23908f30c57b51` |
 | Corrected final test APK | `f7420762ab0f14a8d5f013d0b3ffc8ab5a0ec68fd91cb533c80feb0d51bb5ddb` |
+
+
+## Signed delivery follow-up
+
+Included in [signed build 474](PIXEL_INSTALL.md), with CI, independent packaging
+checks and a signed-out 468 → 474 upgrade on the existing API 37 / 16 KB emulator.
+Earlier build-468/pending-delivery statements describe the feature checkpoint.
+Physical acceptance and the remaining source/visual scope are still open.

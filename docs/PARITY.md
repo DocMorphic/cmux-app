@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Signed milestone 474 (2026-10-03)
+
+The four Computers features below are included in
+[signed build 474](PIXEL_INSTALL.md), source c45920e. Full app/Ghostty JVM suites,
+debug/test/release assembly, helper/update-policy tests and CI packaging gates
+passed. Independent checks verified the downloaded artifact and stable signer.
+The existing 16 KB emulator upgraded 468 → 474 in place and cold-launched cleanly.
+Its baseline was signed out; physical and authenticated migration checks remain open.
+
+A scoped [Mac compatibility audit](MAC_COMPATIBILITY_AUDIT.md) found that iOS row
+warnings depend on remote/cached policy and authenticated connection admission,
+not just cosmetic labels. Android's own version cannot be passed blindly into an
+iOS marketing-version tier. The audit records the next implementation work and
+does not claim that the missing policy has been ported.
+
 ## Local computer visibility (2026-10-03)
 
 Computers and the saved reconnect screen now expose exact Mac/build visibility
@@ -25,7 +40,7 @@ Paused feeds explicitly prune hidden cached snapshots without dialing survivors.
 The final two runtime cases passed in 14.532s; earlier UI test timing failures and
 their corrections are preserved in the evidence. Both production Android screen
 captures were visually checked. [Source and verification](COMPUTER_VISIBILITY.md).
-Not yet in signed build 468. Physical acceptance, configured push presentation,
+Included in signed build 474. Physical acceptance, configured push presentation,
 full cloud-backup/coalescing behavior, warnings, refresh and visual parity remain.
 
 ## Combined Computers management (2026-10-03)
@@ -40,7 +55,7 @@ The existing SSH editor, keys, shells, workspaces and confirmed removal are reus
 journey against the local RPC fixture and the existing independent Details-button
 regression. The combined-screen screenshot was reviewed.
 [Source, evidence and remaining scope](COMPUTERS_MANAGEMENT.md).
-Not yet in signed build 468. Hidden rows are covered above; warnings, refresh/layout parity,
+Included in signed build 474. Hidden rows are covered above; warnings, refresh/layout parity,
 nested destination restoration and physical acceptance remain open.
 
 ## Saved computers through discovery outages (2026-10-03)
@@ -59,7 +74,7 @@ The final two-case follow-up verified replay after legacy build-tag enrichment;
 an earlier invalid ownership-change fixture timed out and is documented.
 The Android picker screenshot was visually checked.
 [Source comparison, evidence and limits](RECONNECT_COMPUTERS.md).
-Not yet in signed build 468. Local visibility is covered above. Full iOS
+Included in signed build 474. Local visibility is covered above. Full iOS
 disconnected/Computers layout, setup help, version warnings and physical acceptance remain
 open.
 
@@ -73,8 +88,8 @@ marker. Connection-setting read failures are shown explicitly. The projection
 uses existing scoped settings and routes without changing connection authority.
 
 **23 JVM and seven Android cases passed**, and the production-row screenshot was
-visually checked. [Source comparison and evidence](COMPUTER_LIST.md). Not yet in
-signed build 468. The management follow-up above integrates navigation and SSH;
+visually checked. [Source comparison and evidence](COMPUTER_LIST.md). Included in
+signed build 474. The management follow-up above integrates navigation and SSH;
 full layout, version warnings and physical acceptance remain open; saved/offline reconnect
 reconciliation is covered above. This does not complete the full Computers screen.
 

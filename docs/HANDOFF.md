@@ -18,9 +18,9 @@ Read this first, then `PARITY.md`, `ANDROID_TESTING.md`, `RESEARCH.md`, and
 not a request to scaffold another prototype. The dated sections of the other
 documents are historical; newer verified entries supersede older pending claims.
 
-**Delivery update — 2026-10-03:** signed development build **468**, source
-`acfae3e04f3bc3c1f96ea7cfdc4fa1f9e7fc6fa2`, passed CI, independent packaging checks
-and a signed-out 463 → 468 upgrade on the existing API 37 / 16 KB emulator.
+**Delivery update — 2026-10-03:** signed development build **474**, source
+`c45920e8ba20c036bd3ca7c11491a6e03c42d763`, passed CI, independent packaging checks
+and a signed-out 468 → 474 upgrade on the existing API 37 / 16 KB emulator.
 See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the artifact and hashes, and the latest
 [PARITY.md](PARITY.md) entries for feature evidence. The goal remains active on
 this Mac; physical Pixel acceptance, authenticated upgrade, configured push and

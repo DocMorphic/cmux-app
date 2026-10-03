@@ -3,7 +3,52 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 468 (2026-10-03)
+## Current signed development APK — build 474 (2026-10-03)
+
+[Build 474](https://github.com/DocMorphic/cmux-app/actions/runs/37142127734)
+passed at c45920e8ba20c036bd3ca7c11491a6e03c42d763. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37142127734/artifacts/11280951103)
+and extract app-release.apk (repository access required). This batch adds computer
+method sections/endpoint diagnostics, saved reconnect through discovery outages,
+combined Mac/SSH Computers management, and local hide/show with exact build
+isolation and session retirement. It includes all build 468 features. PR #1
+remains a draft; this is an Actions artifact, not a published GitHub release.
+
+- Package: io.github.docmorphic.cmuxapp; version code **474**, version 0.2.0.
+- SHA-256: 3179fdc11b69347b8de93c0881499fcd46d817b67834cfda0e44f419a0e87d00.
+- Signer: 1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4 (unchanged).
+- APK size: **39,123,990 bytes**; min SDK 26, target SDK 36.
+- Local file: build/signed-run-37142127734/app-release.apk (ignored).
+
+The full app/Ghostty JVM suites and debug/test/release assembly passed in CI;
+Gradle reported **5m 21s**. Four helper tests, ten update-policy tests and the
+signed-APK gate passed. No full JVM count is inferred from CI logs. Native
+libraries were restored from pinned caches, not freshly rebuilt. The downloaded
+APK matches CI's hash and GitHub's source/run artifact metadata. Independent
+checks confirmed the stable signer, 14 viewer hashes, six native LOAD/RELRO checks,
+16 KB ZIP alignment, disabled backup, no debuggable flag, diagnostics Application
+and exclusion of all five debug fixture activities. Packaged attribution exactly
+matches the plain source asset.
+
+The existing API 37 / 16,384-byte emulator upgraded **468 → 474** with install -r,
+preserving first-install time 2026-09-30 01:57:49. The immediate launch command
+initially reported Android's PackageUpdateActivity and UNKNOWN/0ms while the
+package-update transition finished; that is not treated as a cold-launch result.
+A subsequent explicit stop/start reported COLD, the actual MainActivity and
+**1,320 ms**, reaching the visually reviewed sign-in screen without a compatibility
+warning or ANR dialog. pageSizeCompat=0 and the crash buffer was empty.
+This single launch is not a benchmark. The baseline was already signed out, so
+authenticated migration remains unverified. No additional AVD was created; the
+existing emulator was shut down. Evidence: ignored captures/runtime/build474/.
+
+The Pixel was unavailable to ADB. Physical browser/terminal acceptance,
+authenticated release migration, configured push, broader native Iroh diagnostics
+and the remaining source/visual audit are open. The
+[Mac compatibility audit](MAC_COMPATIBILITY_AUDIT.md) identifies missing upstream
+version-policy behavior for the next implementation step. This is a verified
+development milestone, not completion of the full iOS parity goal.
+
+## Previous signed development APK — build 468 (2026-10-03)
 
 [Build 468](https://github.com/DocMorphic/cmux-app/actions/runs/37135587173)
 passed at `acfae3e04f3bc3c1f96ea7cfdc4fa1f9e7fc6fa2`. Download the
