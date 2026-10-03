@@ -149,9 +149,9 @@ Targeted source findings in this pass:
   submitted. Browser copies request the main-process ring through the existing
   same-UID, current-presentation-validated service, then append browser-process
   diagnostics. Cancellation preserves the existing clipboard.
-  This implements the debug-menu path, not the entire iOS diagnostics subsystem:
-  durable structured logs, file generations, verbose release opt-in, crash capture,
-  unified export/clear and broader rendering/input telemetry remain pending.
+  The durable logging/export follow-up below extends this debug-menu path. Crash
+  capture, native Iroh detailed traces and broader rendering/input telemetry
+  remain pending; this is not complete diagnostics-taxonomy parity.
   Twenty focused JVM checks passed (buffer bounds/concurrency and RPC behavior),
   as did four clipboard/menu/browser-process UI checks and 14 real SSH transport
   checks, including handshake timeout, jump-host teardown and authentication.
@@ -161,6 +161,47 @@ Targeted source findings in this pass:
   compilation passed; generated release `BuildConfig.DEBUG` is false. The Pixel
   was absent from ADB. Ignored evidence: `captures/runtime/debug-logs/`. Signed
   build 428 predates it.
+- **Persistent diagnostics (2026-10-03):** exact `AppLog.swift` and
+  `MobileSettingsView.swift` sources define always-on typed events, a verbose
+  opt-in, one ZIP with exactly `cmux-diagnostics/app-events.log` and
+  `cmux-diagnostics/networking.log`, and confirmed clearing. Android now installs
+  a recorder at application startup in both app processes and exposes **Export
+  Logs**, **Verbose Connection Log**, and **Clear Logs** in Settings. The initial
+  instrumentation covers lifecycle, settings, native RPC, SSH and browser route
+  preparation. Verbose mode adds operation-start records; debug builds always
+  include those records. Raw Iroh traces and the rest of iOS's event taxonomy
+  remain separate work.
+  Events enter a bounded queue, then a background writer coalesces consecutive
+  equivalent entries within each batch. Overflow and write failures produce
+  counted gap records when storage recovers. App/network files retain up to
+  5 MB per active generation, three archives, and 12 MB total per domain. They
+  reopen across process launches and record the installed build at startup.
+  Export streams these generations into two ZIP members under a shared file
+  lock. Private logs live outside Android backup; only completed cached ZIPs
+  receive read-only FileProvider grants. Up to three export snapshots are kept,
+  with older snapshots pruned after 24 hours on the next export. Interrupted
+  partial exports are removed on the next attempt; cancellation removes its
+  unshared result.
+  A shared boot-count/monotonic-time clear barrier prevents records queued in
+  another process from restoring pre-clear history. Debug clipboard snapshots
+  apply the same cutoff, while post-clear activity continues to be recorded.
+  Clearing removes log generations and cached exports without changing the
+  verbose preference. Deletion/write errors are reported instead of showing a
+  successful operation. Browser return flushes its admitted diagnostics before
+  normal presentation teardown, within the existing bounded return deadline.
+  Fourteen focused JVM checks passed for storage/reopen/rotation, verbose
+  preservation, clear barriers, overflow, cancellation and the memory ring;
+  debug/test assembly and release Kotlin compilation passed. Eight Android
+  checks passed on the existing API 37 / 16 KB emulator: settings export/read
+  grants, clear/cancel, failed toggle persistence, clipboard bounds/cancellation,
+  real main/browser ZIP records, and clearing the browser clipboard history
+  through the main process while retaining post-clear activity. The disk barrier
+  exposed an off-main-thread toast in the Compose test dispatcher; clipboard and
+  settings actions now explicitly use the main dispatcher, and all eight checks
+  passed afterward. Settings pixels were reviewed. Evidence is ignored at
+  `captures/runtime/durable-diagnostics/`. The Pixel was absent from ADB. This
+  does not advance the whole upstream parity pin or prove native crash capture
+  or physical-device acceptance. Signed build 428 predates these changes.
 - `MobilePushCoordinator.swift` now awaits explicit reconnect before retrying a
   pending notification route, cancelling replaced retries. Android's targeted
   recovery implementation and verification are recorded below; this is not a

@@ -1854,6 +1854,7 @@ fun NativeScreen(
                 NativeNotificationSettings()
                 }, preferences = {
                 NativeFeedbackSettingsButton()
+                NativeDiagnosticsSettings()
                 TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
                 NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences)
                 TextButton(onClick = { showShortcuts = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Terminal Shortcuts") }

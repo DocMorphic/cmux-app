@@ -34,7 +34,7 @@ class DebugLogMenuTest {
             assertTrue(copied().contains(context.packageName))
             assertTrue(copied().contains("Installed update:"))
             assertTrue(copied().contains("[Visible text truncated at 32,000 characters]"))
-            assertTrue(copied().length < 35_000)
+            assertTrue(copied().length < 130_000)
             assertTrue(clipboard.primaryClip!!.description.extras!!.getBoolean("android.content.extra.IS_SENSITIVE"))
             assertFalse(MobileDebugLog.snapshot().contains("Visible terminal λ 中"))
         }

@@ -7,6 +7,13 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class MobileDebugLogTest {
+    @Test fun clearingRetainsOnlyLinesRecordedAfterTheSharedCutoff() {
+        var now = 100L
+        val ring = DebugLogBuffer(now = { now })
+        ring.begin(DebugOperation.RPC_HOST); now = 200
+        ring.begin(DebugOperation.SSH_CONNECT); ring.clearThrough(150)
+        assertFalse(ring.snapshot().contains("RPC_HOST")); assertTrue(ring.snapshot().contains("SSH_CONNECT"))
+    }
     @Test fun evictionHonorsBothLineAndCharacterLimits() {
         var nanos = 0L
         val ring = DebugLogBuffer(3, 256) { nanos }

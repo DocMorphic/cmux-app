@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
+        android:name=".CmuxApplication"
         android:allowBackup="false"
         android:icon="@drawable/cmux_logo"
         android:label="cmux companion"

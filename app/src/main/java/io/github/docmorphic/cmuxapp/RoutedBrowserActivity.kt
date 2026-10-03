@@ -140,7 +140,7 @@ class RoutedBrowserActivity : ComponentActivity() {
         if (leaving) return
         leaving = true
         lifecycleScope.launch {
-            withTimeoutOrNull(2_000) { runCatching { controller.flush() } }
+            withTimeoutOrNull(2_000) { runCatching { controller.flush(); MobileDiagnostics.recorder?.flush() } }
             setResult(RESULT_OK, Intent().putExtra(RoutedBrowserProtocol.EXTRA, intent.getStringExtra(RoutedBrowserProtocol.EXTRA))
                 .putExtra("action", action).putExtra("kind", pane?.kind).putExtra("pane", pane?.id).putExtra("ssh_command", sshCommand?.encode()))
             finish()

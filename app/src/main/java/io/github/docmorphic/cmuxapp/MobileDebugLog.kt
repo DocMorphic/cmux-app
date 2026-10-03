@@ -9,7 +9,8 @@ import java.util.Locale
 internal enum class DebugOperation {
     RPC_CONNECT, RPC_DISCONNECT, RPC_HOST, RPC_WORKSPACE, RPC_TERMINAL, RPC_BROWSER,
     RPC_FILES, RPC_NOTIFICATIONS, RPC_TASK, RPC_EVENTS, RPC_OTHER,
-    SSH_CONNECT, SSH_DISCONNECT, SSH_IO, BROWSER_PREPARE
+    SSH_CONNECT, SSH_DISCONNECT, SSH_IO, BROWSER_PREPARE,
+    APP_START, APP_FOREGROUND, APP_BACKGROUND, SETTINGS_OPEN, SETTINGS_CLOSE, LOG_DROPPED
 }
 internal enum class DebugOutcome { STARTED, SUCCESS, TIMEOUT, CANCELLED, REMOTE_ERROR, IO_ERROR, FAILURE }
 
@@ -43,7 +44,8 @@ internal class DebugLogBuffer(private val capacity: Int = 4000, private val maxC
     private val now: () -> Long = System::nanoTime) {
     init { require(capacity > 0 && maxChars >= 256) }
     private val started = now()
-    private val lines = ArrayDeque<String>()
+    private data class Line(val nanos: Long, val text: String)
+    private val lines = ArrayDeque<Line>()
     private var chars = 0
     private var dropped = 0L
     private var sequence = 0L
@@ -60,18 +62,29 @@ internal class DebugLogBuffer(private val capacity: Int = 4000, private val maxC
         val line = String.format(Locale.ROOT, "[%9.3f] #%d %s %s %dms", (time - started).coerceAtLeast(0) / 1e9,
             operation.id, operation.kind.name, outcome.name, (time - operation.started).coerceAtLeast(0) / 1_000_000)
         while (lines.isNotEmpty() && (lines.size >= capacity || chars + line.length + 1 > maxChars)) {
-            chars -= lines.removeFirst().length + 1; dropped++
+            chars -= lines.removeFirst().text.length + 1; dropped++
         }
-        lines.addLast(line); chars += line.length + 1
+        lines.addLast(Line(time, line)); chars += line.length + 1
     }
-    @Synchronized fun snapshot(): String = "${lines.size} lines; $dropped older entries discarded\n" + lines.joinToString("\n")
+    @Synchronized fun clearThrough(cutoff: Long) {
+        while (lines.isNotEmpty() && lines.first.nanos <= cutoff) chars -= lines.removeFirst().text.length + 1
+        dropped = 0
+    }
+    @Synchronized fun snapshot(): String = "${lines.size} lines; $dropped older entries discarded\n" + lines.joinToString("\n") { it.text }
 }
 
 internal object MobileDebugLog {
-    private val buffer by lazy { DebugLogBuffer() }
-    fun begin(kind: DebugOperation): DebugLogBuffer.Operation? = if (BuildConfig.DEBUG) buffer.begin(kind) else null
+    private val buffer by lazy { DebugLogBuffer(now = { MobileDiagnostics.elapsed() }) }
+    private val sequence = java.util.concurrent.atomic.AtomicLong()
+    fun begin(kind: DebugOperation): DebugLogBuffer.Operation? {
+        val operation = if (BuildConfig.DEBUG) buffer.begin(kind) else DebugLogBuffer.Operation(sequence.incrementAndGet(), kind, MobileDiagnostics.elapsed())
+        MobileDiagnostics.recorder?.record(kind, DebugOutcome.STARTED, id = operation.id)
+        return operation
+    }
     fun finish(operation: DebugLogBuffer.Operation?, outcome: DebugOutcome) {
         if (BuildConfig.DEBUG && operation != null) buffer.finish(operation, outcome)
+        if (operation != null) MobileDiagnostics.recorder?.record(operation.kind, outcome,
+            (MobileDiagnostics.elapsed() - operation.started).coerceAtLeast(0) / 1_000_000, operation.id)
     }
     suspend fun <T> trace(kind: DebugOperation, action: suspend () -> T): T {
         val operation = begin(kind)
@@ -79,4 +92,5 @@ internal object MobileDebugLog {
         catch (failure: Throwable) { finish(operation, debugOutcome(failure)); throw failure }
     }
     fun snapshot(): String = if (BuildConfig.DEBUG) buffer.snapshot() else "Debug logging unavailable"
+    fun clearThrough(cutoff: Long) { if (BuildConfig.DEBUG && cutoff >= 0) buffer.clearThrough(cutoff) }
 }

@@ -13,12 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 internal val LocalDebugTerminalText = staticCompositionLocalOf<() -> String?> { { null } }
 internal val LocalDebugLogSource = staticCompositionLocalOf<(suspend () -> String)?> { null }
 
-internal fun debugLogSnapshot(context: Context): String {
+internal suspend fun debugLogSnapshot(context: Context): String {
+    MobileDiagnostics.recorder?.clearCutoff()?.let(MobileDebugLog::clearThrough)
     val info = context.packageManager.getPackageInfo(context.packageName, 0)
     return "cmux Android debug log · ${context.packageName} · ${info.versionName} (${androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(info)})\n" +
         "Installed update: ${java.time.Instant.ofEpochMilli(info.lastUpdateTime)} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\n" +
@@ -38,7 +40,7 @@ internal fun DebugLogMenuItem(onDismiss: () -> Unit) {
         modifier = Modifier.testTag("copy-debug-logs"), onClick = {
             if (!copying) {
                 copying = true
-                scope.launch {
+                scope.launch(Dispatchers.Main.immediate) {
                     try {
                         val captured = text().orEmpty()
                         val visible = captured.take(32_000)

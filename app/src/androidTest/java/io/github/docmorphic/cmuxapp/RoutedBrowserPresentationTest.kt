@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /** Production Activity + bound service + proxy. Generated host only; never touches credentials. */
 class RoutedBrowserPresentationTest {
+    private val beganAt = System.currentTimeMillis()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
@@ -140,6 +141,29 @@ class RoutedBrowserPresentationTest {
         assertTrue(copied, copied.contains("Process ${Process.myPid()}"))
         assertFalse(copied.contains("http://"))
         assertFalse(copied.contains("generated-account"))
+        val archive = runBlocking { checkNotNull(MobileDiagnostics.recorder).export() }
+        try {
+            val recent = java.util.zip.ZipFile(archive).use { zip ->
+                zip.entries().asSequence().flatMap { entry -> zip.getInputStream(entry).bufferedReader().use { it.readLines() }.asSequence() }
+                    .filter { line -> runCatching { java.time.Instant.parse(line.substringBefore(' ')).toEpochMilli() >= beganAt }.getOrDefault(false) }.toList()
+            }
+            assertTrue(recent.toString(), recent.any { it.contains("APP RPC_HOST SUCCESS") })
+            assertTrue(recent.toString(), recent.any { it.contains("BROWSER BROWSER_PREPARE SUCCESS") })
+        } finally { archive.delete() }
+        until { holds.get() == 0 }
+    }
+    @Test fun clearingMainDiagnosticsAlsoRetiresBrowserClipboardHistory() {
+        browser("Routed fixture ▾")
+        MobileDebugLog.finish(MobileDebugLog.begin(DebugOperation.RPC_HOST), DebugOutcome.SUCCESS)
+        runBlocking { checkNotNull(MobileDiagnostics.recorder).clear() }
+        MobileDebugLog.finish(MobileDebugLog.begin(DebugOperation.RPC_WORKSPACE), DebugOutcome.SUCCESS)
+        text("Routed fixture ▾").click(); text("Copy Debug Logs").click()
+        assertTrue(device.wait(Until.gone(By.text("Copy Debug Logs")), 5000))
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        val copied = main { context.getSystemService(android.content.ClipboardManager::class.java).primaryClip?.getItemAt(0)?.text.toString() }
+        assertTrue(copied, copied.contains("RPC_WORKSPACE SUCCESS"))
+        assertFalse(copied, copied.contains("RPC_HOST"))
+        assertFalse(copied, copied.contains("BROWSER_PREPARE"))
         until { holds.get() == 0 }
     }
     @Test fun productionBrowserKeepsHostAndReturnsCommittedPageThenSelectsPane() {
