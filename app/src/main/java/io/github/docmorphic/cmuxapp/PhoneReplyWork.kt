@@ -36,7 +36,7 @@ internal class NativePhoneReplyBackground(
         if (!teams.isCurrent(scope) || scope.login != reply.login || membership.userId != reply.peer.tuple.accountID ||
             membership.teams.none { it.id == reply.teamID }) return false
         val selected = NativeTeamScope(reply.login, scope.userId, reply.teamID, scope.generation)
-        val mac = store.pairedMacs().singleOrNull { it.ownsOrigin(reply.origin) } ?: return false
+        val mac = store.visiblePairedMacs().singleOrNull { it.ownsOrigin(reply.origin) } ?: return false
         return NativePairingRecords.usable(mac, selected, TailscaleGrantStore({ state }, { error("read only") }))
     }
     override suspend fun runPass(): Boolean {

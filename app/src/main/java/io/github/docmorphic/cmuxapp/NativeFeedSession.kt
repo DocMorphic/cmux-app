@@ -34,7 +34,7 @@ internal class NativeFeedSession(
             client.terminalTrafficAllowed = { surface -> owner != null && allowsTerminalInput(owner) &&
                 terminalSizing.allowsTraffic(owner, surface) }
         }
-    }, isAllowed = { mac -> account.isSignedIn() && store.pairedMacs().contains(mac) &&
+    }, isAllowed = { mac -> account.isSignedIn() && store.visiblePairedMacs().contains(mac) &&
         connector.allowsSaved(mac) }, workspaceSnapshots = workspaceSnapshots, onVerified = ::recordMacSeen)
 
     fun recordMacSeen(mac: NativeCredentialStore.PairedMac) {
@@ -50,7 +50,7 @@ internal class NativeFeedSession(
     val taskModels = TaskModelRepository()
     val localBrowsers = LocalBrowserNavigation(scope)
     val browserNetworks = NativeBrowserNetworks(scope, coordinator::browserAccess) { mac, login ->
-        account.isSignedIn() && store.taskSession() == login && store.pairedMacs().contains(mac) && connector.allowsSaved(mac)
+        account.isSignedIn() && store.taskSession() == login && store.visiblePairedMacs().contains(mac) && connector.allowsSaved(mac)
     }
     val workspaceTabs = NativeWorkspaceTabNavigation(store)
     val terminalStartup = NativeTerminalStartup()
@@ -63,11 +63,12 @@ internal class NativeFeedSession(
     }
     fun leaveMainScreen() { foreground = false; reconcileFeed() }
     private fun reconcileFeed() {
+        coordinator.retainMacs(feedMacs)
         val wanted = if (foreground) feedMacs else feedMacs.filter { it.origin in browserHolds.values }
         if (wanted.isEmpty()) coordinator.pause() else coordinator.updateMacs(wanted, routeKeys, localRouteKeys)
     }
     fun holdBrowser(mac: NativeCredentialStore.PairedMac): AutoCloseable {
-        check(account.isSignedIn() && store.pairedMacs().contains(mac) && connector.allowsSaved(mac))
+        check(account.isSignedIn() && store.visiblePairedMacs().contains(mac) && connector.allowsSaved(mac))
         val token = Any(); browserHolds[token] = mac.origin; reconcileFeed()
         return AutoCloseable {
             if (browserHolds.remove(token) != null) {
@@ -76,7 +77,7 @@ internal class NativeFeedSession(
         }
     }
     fun allowsTerminalInput(owner: TerminalInputSender.Owner): Boolean = account.isSignedIn() &&
-        store.taskSession() == owner.login && store.pairedMacs().any { mac ->
+        store.taskSession() == owner.login && store.visiblePairedMacs().any { mac ->
             canonicalMacDeviceId(mac.deviceId) == owner.device && mac.instanceTag?.trim()?.takeIf(String::isNotEmpty) == owner.build &&
                 (mac.accountUserId == null || mac.accountUserId == owner.user) &&
                 (mac.accountTeamId == null || mac.accountTeamId == owner.team) && connector.allowsSaved(mac)

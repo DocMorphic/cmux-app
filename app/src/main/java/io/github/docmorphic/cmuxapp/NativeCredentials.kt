@@ -56,6 +56,19 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         }
     }
 
+    internal fun visiblePairedMacs(): List<PairedMac> = synchronized(storageLock) {
+        val state = load()
+        val hidden = NativeComputerVisibility.hiddenOrigins(state)
+        NativeComputerVisibility.saved(state).filterNot { NativeComputerVisibility.isHidden(hidden, it) }
+    }
+
+    internal fun setComputerVisible(login: String?, mac: PairedMac, visible: Boolean, permits: () -> Boolean): Boolean = synchronized(storageLock) {
+        val state = load() ?: return@synchronized false
+        if (!NativeComputerVisibility.setVisible(state, login, mac, visible, permits)) return@synchronized false
+        save(state)
+        true
+    }
+
     fun rememberMac(code: String, deviceId: String, name: String, instanceTag: String? = null, expected: PairedMac? = null) = update { state ->
         NativePairingPersistence.remember(state, PairedMac(code, deviceId, name, instanceTag), expected = expected)
     }
@@ -150,6 +163,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         NativeAccountProfileCache.prune(value)
         NativeNotificationDismissOutbox(value).prune()
         NativeMacLastSeen.prune(value)
+        NativeComputerVisibility.prune(value)
         PhonePushKeyState(value).prune()
         PhonePushInbox(value).prune()
         PhoneFcmQueue(value).prune()

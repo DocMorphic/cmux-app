@@ -14,6 +14,26 @@ class NativeFeedCoordinatorTest {
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 
+    @Test fun pausedVisibilityPruningDropsHiddenSnapshotsWithoutDialingSurvivor() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            var connects = 0
+            val coordinator = NativeFeedCoordinator(this, { row -> connects++; (if (row.deviceId == "a") a else b).connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                coordinator.pause()
+                val before = connects
+                assertEquals(2, coordinator.sources.value.size)
+                coordinator.retainMacs(listOf(mac("b")))
+                assertEquals(setOf(mac("b").origin), coordinator.sources.value.keys)
+                assertEquals(NativeFeedAvailability.OFFLINE, coordinator.sources.value[mac("b").origin]?.availability)
+                coordinator.retainMacs(emptyList())
+                assertTrue(coordinator.sources.value.isEmpty())
+                assertEquals(before, connects)
+            } finally { coordinator.close() }
+        } }
+    }
+
     @Test fun lastSeenCallbackRunsOnlyAfterExactHostVerification() = runBlocking {
         FeedPeer("a").use { peer ->
             val seen = mutableListOf<NativeCredentialStore.PairedMac>()

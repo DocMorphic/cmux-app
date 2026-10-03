@@ -42,14 +42,14 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         override fun authorizePairing(pairing: PairingCode.Tailscale) = tailscale.authorizePairing(pairing)
         override suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient {
             val team = checkNotNull(teams.state.value.scope) { "Refresh your account teams before connecting." }
-            check(teams.isCurrent(team) && allowsSaved(mac)) { "This computer belongs to another account or team." }
+            check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden, changed, or belongs to another account or team." }
             val pairing = PairingCodeParser.parse(mac.code).getOrThrow()
             val client = when (pairing) {
                 is PairingCode.Tailscale -> tailscale.connectSaved(pairing, account, team)
                 is PairingCode.Iroh -> native.connect(pairing.copy(userId = team.userId, teamId = team.teamId))
             }
             try {
-                check(teams.isCurrent(team) && allowsSaved(mac)) { "Account or team changed. Reconnect to the Mac." }
+                check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden or its account changed. Open Computers to reconnect." }
                 return client
             } catch (failure: Throwable) { client.close(); throw failure }
         }
@@ -80,9 +80,9 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             while (isActive) {
                 try {
                     val pending = store.load()?.let { NativeNotificationDismissOutbox(it).pending() }.orEmpty()
-                    if (pending.isNotEmpty()) flushNativeNotificationDismissals(pending, store.pairedMacs(),
+                    if (pending.isNotEmpty()) flushNativeNotificationDismissals(pending, store.visiblePairedMacs(),
                         permits = { item, mac -> store.taskSession() == item.login &&
-                            store.pairedMacs().contains(mac) && connector.allowsSaved(mac) },
+                            store.visiblePairedMacs().contains(mac) && connector.allowsSaved(mac) },
                         connect = { connector.connectSaved(it, account) },
                         acknowledge = { sent -> if (sent.isNotEmpty()) store.update { NativeNotificationDismissOutbox(it).acknowledge(sent) } })
                 } catch (_: Exception) { currentCoroutineContext().ensureActive() }

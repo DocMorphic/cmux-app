@@ -12,6 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Local computer visibility (2026-10-03)
+
+Computers and the saved reconnect screen now expose exact Mac/build visibility
+switches and hidden rows. Hiding retains the pairing and remote account binding,
+retires that computer's active/pending route and removes its workspaces and feed
+snapshots. Stable/Nightly siblings and other owners remain independent. Unhide
+works offline; discovery and late handshakes cannot silently revive hidden rows.
+Paused feeds explicitly prune hidden cached snapshots without dialing survivors.
+
+**33 JVM tests and five distinct Android cases passed** across the recorded runs.
+The final two runtime cases passed in 14.532s; earlier UI test timing failures and
+their corrections are preserved in the evidence. Both production Android screen
+captures were visually checked. [Source and verification](COMPUTER_VISIBILITY.md).
+Not yet in signed build 468. Physical acceptance, configured push presentation,
+full cloud-backup/coalescing behavior, warnings, refresh and visual parity remain.
+
 ## Combined Computers management (2026-10-03)
 
 Settings, Workspaces and the saved reconnect screen now open one dedicated
@@ -24,7 +40,7 @@ The existing SSH editor, keys, shells, workspaces and confirmed removal are reus
 journey against the local RPC fixture and the existing independent Details-button
 regression. The combined-screen screenshot was reviewed.
 [Source, evidence and remaining scope](COMPUTERS_MANAGEMENT.md).
-Not yet in signed build 468. Hidden rows, warnings, refresh/layout parity,
+Not yet in signed build 468. Hidden rows are covered above; warnings, refresh/layout parity,
 nested destination restoration and physical acceptance remain open.
 
 ## Saved computers through discovery outages (2026-10-03)
@@ -43,8 +59,8 @@ The final two-case follow-up verified replay after legacy build-tag enrichment;
 an earlier invalid ownership-change fixture timed out and is documented.
 The Android picker screenshot was visually checked.
 [Source comparison, evidence and limits](RECONNECT_COMPUTERS.md).
-Not yet in signed build 468. Full iOS disconnected/Computers layout, hidden-row
-switches, setup help, version warnings and physical acceptance remain
+Not yet in signed build 468. Local visibility is covered above. Full iOS
+disconnected/Computers layout, setup help, version warnings and physical acceptance remain
 open.
 
 ## Computer method sections and endpoint captions (2026-10-03)
@@ -59,7 +75,7 @@ uses existing scoped settings and routes without changing connection authority.
 **23 JVM and seven Android cases passed**, and the production-row screenshot was
 visually checked. [Source comparison and evidence](COMPUTER_LIST.md). Not yet in
 signed build 468. The management follow-up above integrates navigation and SSH;
-full layout, hidden rows, version warnings and physical acceptance remain open; saved/offline reconnect
+full layout, version warnings and physical acceptance remain open; saved/offline reconnect
 reconciliation is covered above. This does not complete the full Computers screen.
 
 ## Computer connection versus presence (2026-10-03)

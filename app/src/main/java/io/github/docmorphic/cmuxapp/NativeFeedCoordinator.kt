@@ -49,6 +49,14 @@ internal class NativeFeedCoordinator(
         }
     }
 
+    /** Drop retired computers even while paused, without dialing the retained set. */
+    fun retainMacs(macs: List<NativeCredentialStore.PairedMac>) {
+        val allowed = macs.filter(isAllowed).associateBy { it.origin }
+        handles.keys.toList().filter { allowed[it] != handles[it]?.mac }.forEach(::remove)
+        mutableSources.value = mutableSources.value.filter { (origin, source) -> allowed[origin] == source.mac }
+        revisions.keys.retainAll(allowed.keys)
+    }
+
     fun pause() {
         handles.keys.toList().forEach(::remove)
         mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE, keepAwake = null) }

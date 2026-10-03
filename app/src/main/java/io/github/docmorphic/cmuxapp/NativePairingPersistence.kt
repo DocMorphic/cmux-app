@@ -7,6 +7,7 @@ import org.json.JSONObject
 internal object NativePairingPersistence {
     fun remember(state: JSONObject, incoming: NativeCredentialStore.PairedMac,
                  team: NativeTeamScope? = null, expected: NativeCredentialStore.PairedMac? = null): NativeCredentialStore.PairedMac {
+        NativeComputerVisibility.requireVisibleHandshake(state, incoming)
         // Runs inside the credential transaction: a Forget/replacement between
         // the handshake and this write must not recreate the captured pairing.
         if (expected != null) {

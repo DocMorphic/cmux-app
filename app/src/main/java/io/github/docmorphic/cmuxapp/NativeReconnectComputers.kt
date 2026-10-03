@@ -8,8 +8,8 @@ internal data class NativeReconnectComputers(
     val isEmpty: Boolean get() = saved.isEmpty() && discovered.isEmpty()
 
     companion object {
-        fun merge(saved: List<NativeComputerListRow>, directory: List<IrohV2Computer>): NativeReconnectComputers {
-            val known = saved.map { NativeMacIdentity(canonicalMacDeviceId(it.mac.deviceId), it.mac.instanceTag) }.toSet()
+        fun merge(saved: List<NativeComputerListRow>, directory: List<IrohV2Computer>, hidden: List<NativeCredentialStore.PairedMac> = emptyList()): NativeReconnectComputers {
+            val known = (saved.map { it.mac } + hidden).map { NativeMacIdentity(canonicalMacDeviceId(it.deviceId), it.instanceTag) }.toSet()
             val discovered = directory.distinct().groupBy {
                 NativeMacIdentity(canonicalMacDeviceId(it.deviceId), it.buildTag)
             }.filterKeys { it !in known }.values.mapNotNull { it.singleOrNull() }

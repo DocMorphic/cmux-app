@@ -64,7 +64,7 @@ class NativeNotificationService : Service() {
                 fun routeKey(mac: NativeCredentialStore.PairedMac) =
                     localKeys[NativeMacIdentity(canonicalMacDeviceId(mac.deviceId), mac.instanceTag)] ?:
                         (PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh)?.endpointId?.let(routeKeys::get)
-                val paired = if (account.isSignedIn()) store.pairedMacs().filter {
+                val paired = if (account.isSignedIn()) store.visiblePairedMacs().filter {
                     it.deviceId.isNotBlank() && connector.allowsSaved(it)
                 }.toSet() else emptySet()
                 workers.keys.toList().filter { it !in paired || workers[it]?.isActive != true || workerRoutes[it] != routeKey(it) }.forEach {
@@ -90,7 +90,7 @@ class NativeNotificationService : Service() {
                             val isCurrent = {
                                 isActive && login != null && store.taskSession() == login &&
                                     isEnabled(this@NativeNotificationService) && account.isSignedIn() &&
-                                    store.pairedMacs().contains(mac) && connector.allowsSaved(mac)
+                                    store.visiblePairedMacs().contains(mac) && connector.allowsSaved(mac)
                             }
                             coroutineScope {
                                 val team = connections.teams.state.value.scope

@@ -31,9 +31,10 @@ background connection policy.
 
 ## Remaining work
 
-This is an integration step, not complete iOS Computers parity. Hidden-computer
-switches/section, version warnings, exact refresh behavior, setup-help and full
-visual comparison remain open. Rotation currently falls back to Settings rather
+This is an integration step, not complete iOS Computers parity. A subsequent
+[visibility change](COMPUTER_VISIBILITY.md) implements local switches and hidden
+rows. Version warnings, exact refresh behavior, setup-help and full visual
+comparison remain open. Rotation currently falls back to Settings rather
 than restoring this nested destination. Pair Mac enters Android's existing
 discovery flow; preserving the previous foreground pane behind an iOS-like
 pairing presentation is not implemented here. Legacy TCP details remain narrower

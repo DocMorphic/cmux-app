@@ -58,6 +58,79 @@ class NativeConnectionRecoveryTest {
         compose.onNodeWithText("Connect to this Mac?").assertIsDisplayed()
     }
 
+    @Test fun hidingBackgroundThenActiveMacRetainsPairingsAndCanRestoreOffline() {
+        seedComputers()
+        val store = NativeCredentialStore(context)
+        val login = store.taskSession()
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ -> connected() })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Manage computers").performClick()
+        val first = store.pairedMacs().single { it.deviceId == "fixture-mac" }
+        val second = store.pairedMacs().single { it.deviceId == "second-mac" }
+        compose.onNodeWithTag("computer.visibility." + second.origin).performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Hidden Computers").fetchSemanticsNodes().isNotEmpty() }
+        captureVisibility("management-hidden")
+        compose.onNodeWithText("Hidden Computers").assertIsDisplayed()
+        compose.onNodeWithTag("computer.visibility." + second.origin).assertIsOff()
+        assertEquals(first.code, store.load()?.optString("pairing_code"))
+        compose.onNodeWithTag("computer.visibility." + first.origin).performClick()
+        compose.waitUntil(5_000) { store.visiblePairedMacs().isEmpty() }
+        compose.onNodeWithTag("computer.visibility." + first.origin).assertIsOff()
+        assertEquals(2, store.pairedMacs().size)
+        assertTrue(NativeCredentialStore(context).visiblePairedMacs().isEmpty())
+        assertEquals(login, store.taskSession())
+        compose.onNodeWithTag("computers.done").performClick()
+        compose.onNodeWithText("Hidden Computers").assertIsDisplayed()
+        compose.onNodeWithText("Claude Code task").assertDoesNotExist()
+        compose.onNodeWithText("Manage computers").performScrollTo().assertIsDisplayed()
+        captureVisibility("reconnect-hidden")
+        compose.onNodeWithTag("computer.visibility." + first.origin).performScrollTo().performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Your Computers").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("computer.visibility." + first.origin).assertIsOn()
+        compose.onNodeWithText("Fixture Mac").performScrollTo().performClick()
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        assertTrue(NativeComputerVisibility.isHidden(store.load(), second))
+        assertFalse(NativeComputerVisibility.isHidden(store.load(), first))
+    }
+
+    private fun captureVisibility(name: String) {
+        val i = InstrumentationRegistry.getInstrumentation()
+        i.uiAutomation.waitForIdle(100, 3000)
+        val folder = java.io.File(context.getExternalFilesDir(null), "computer-visibility").apply { mkdirs() }
+        i.uiAutomation.takeScreenshot().let { bitmap ->
+            java.io.File(folder, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+        }
+    }
+
+    @Test fun hidingDuringPendingHandshakeCannotReconnectOrLosePairing() {
+        val store = NativeCredentialStore(context)
+        store.rememberMac(firstCode, "fixture-mac", "Fixture Mac")
+        val mac = store.pairedMacs().single()
+        val login = store.taskSession()
+        store.update { it.put("pairing_code", "") }
+        val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                    entered.complete(Unit); withContext(NonCancellable) { release.await(); connected() }
+                })
+            } } }
+            compose.onNodeWithText("Fixture Mac").performClick()
+            compose.waitUntil(5_000) { entered.isCompleted }
+            assertTrue(store.setComputerVisible(login, mac, false) { true })
+            release.complete(Unit)
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Hidden Computers").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Claude Code task").assertDoesNotExist()
+            compose.onNodeWithTag("computer.visibility." + mac.origin).assertIsOff()
+            assertEquals(listOf(mac), store.pairedMacs())
+            assertTrue(store.visiblePairedMacs().isEmpty())
+            assertEquals("", store.load()?.optString("pairing_code"))
+        } finally { release.complete(Unit) }
+    }
+
     @Test fun managementDetailsAndDonePreserveActiveComputerAndReturnDestination() {
         seedComputers()
         val dials = AtomicInteger()

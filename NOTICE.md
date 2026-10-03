@@ -429,3 +429,14 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android retains its scoped connection runtime, existing SSH editor and explicit
 legacy TCP reconnect flow. Hidden rows and complete refresh/layout parity remain
 separate work.
+
+
+NativeComputerVisibility.kt and the visibility switches/hidden row section in
+NativeComputersScreen.kt and NativeScreen.kt adapt local exact-computer hide and
+show behavior from MobileShellComposite+HiddenMacs.swift, ComputerVisibilityToggle.swift,
+HiddenComputerRow.swift and DeviceTreeView.swift, cmux revision
+0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android keeps visibility in its encrypted local account state, with exact stored
+origin/alias and owner/build matching, synchronous guarded persistence and
+foreground/feed/terminal/browser retirement checks.

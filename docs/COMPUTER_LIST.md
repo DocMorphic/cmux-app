@@ -56,8 +56,8 @@ reordering or status refresh does not itself invoke the row's selection callback
 ## Remaining work
 
 The [Computers management follow-up](COMPUTERS_MANAGEMENT.md) integrates detail
-navigation and inline SSH. Full layout parity, hidden rows and version warnings
-remain open. The [saved reconnect follow-up](RECONNECT_COMPUTERS.md) now
+navigation and inline SSH. The [visibility follow-up](COMPUTER_VISIBILITY.md) adds hidden rows. Full layout
+parity and version warnings remain open. The [saved reconnect follow-up](RECONNECT_COMPUTERS.md) now
 retains offline Macs absent from discovery and reconciles exact saved/directory
 rows. Existing separate Android features must be reconciled with the remaining
 iOS surfaces. Production Pixel/Mac
