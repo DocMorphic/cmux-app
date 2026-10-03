@@ -30,21 +30,24 @@ reconnection has already succeeded.
   failure. A verified route normalization preserves the current attempt.
 - A new choice during restoration retains the original baseline. Failure of the
   restoration itself uses ordinary retry and cannot alternate between computers.
-- Sign-out, login/team changes, unrelated route changes and returning to the All
-  Computers filter retire the pending switch. Notification routes do not acquire
+- Sign-out, login/team changes and unrelated route changes retire the pending
+  switch. All Computers cancels a pending picker switch and restores its previous
+  authorized Mac while retaining the All filter. Notification routes do not acquire
   an implicit picker rollback intent. Approved pairing links now explicitly use
   this recovery with a saved fallback, as documented in [Pairing startup](PAIRING_STARTUP.md).
 - The baseline contains pairing metadata and filter state, with no client,
   credentials, Activity, terminal input or process-death persistence. It is owned
   by the existing screen ViewModel and cleared with that session.
 
-Android restores the computer overview/filter, not an exact prior terminal or
-browser pane. It conservatively refuses an old live route if its saved record has
-changed. This checkpoint does not claim the entire iOS switch/cancellation or
-startup attach/reconnect contract is finished. Physical multi-Mac, native Iroh,
+Android restores the computer overview/filter. The targeted source review does
+not establish a requirement to reopen the exact prior terminal/browser pane after
+a picker switch; that should not be inferred from the route baseline alone. It
+conservatively refuses an old live route if its saved record has changed. This
+checkpoint does not claim the entire iOS switch/cancellation or startup
+attach/reconnect contract is finished. Physical multi-Mac, native Iroh,
 Activity-recreation and full visual acceptance remain open.
 
-## Verification
+## Initial restoration verification
 
 Eight focused JVM cases passed with zero failures/errors/skips, covering baseline
 ownership, rapid taps, route normalization, restoration supersession, no-loop
@@ -69,3 +72,59 @@ milestone 456 is unchanged and does not include this feature.
 | --- | --- |
 | Debug APK | `aefabaeb7f1cfe7b3533214cb62b3df91adf85f302f1db8b18017e6447fdea06` |
 | Test APK | `7cff63a0f642003b8c8e2977d1785940d1efea77afbf781cdde6467a4eb60a5c` |
+
+## Pending picker selection and cancellation — 2026-10-03
+
+The subsequent exact `WorkspaceListView.swift` review at `0fc35d6` found that
+`handleMacTitlePickerSelection` retains a pending choice, `currentMacTitlePickerSelection`
+uses it for menu state, and `macTitlePickerShowsProgress` presents progress.
+`applyMacTitlePickerSelection` commits the list filter only after `switchMac`
+succeeds. All/automatic selections cancel a pending switch with
+`restorePreviousOnCancel: true`. `MobileShellComposite.swift` and
+`MobileShellComposite+MacSwitchState.swift` enforce the current restore generation
+and foreground route authority. They do not capture an exact previous pane in
+that route baseline.
+
+Android's toolbar picker now keeps the prior workspace/notification filter while
+connecting. It displays a spinner, exposes **Connecting to [computer]** to
+accessibility, and checks the pending Mac in the menu. Only the verified successful
+connection commits the new filter. Failure removes the pending indicator and
+uses the existing fallback path.
+
+Selecting All Computers during a pending switch retires the target connection
+effect and restores the authorized baseline, with All remaining the selected
+filter. If no baseline is still permitted, it returns to Computers. Late target
+callbacks cannot replace the restored Mac or persist the cancelled target.
+Restoration keeps a new attempt identity so a subsequent selection can supersede
+it. A stale cancellation with another owner/route cannot clear the newer intent.
+This change is scoped to the toolbar picker; internal task/draft routing retains
+its existing explicit selection path.
+
+Verification: **12 JVM cases passed**, with no failures/errors/skips. They include
+All-filter restoration, rejection of stale cancellation without clearing a newer
+attempt, missing/revoked baseline handling and the previous failure/supersession
+cases. The final debug/test build passed in **21 seconds** after the initial
+build passed in 66 seconds. Packaged attribution was checked against source.
+
+**14 Android cases passed in 129.974 seconds**, with no failures or skips, on
+the existing API 37 / 16 KB emulator. The two new cases establish a real foreground
+terminal first, then hold a second Mac's dial. They verify the old filter and
+workspace rows remain until success, the pending spinner/accessibility state,
+successful target input routing, and All cancelling the switch. The cancellation
+case releases a deliberately non-cancellable late successful dial, verifies its
+client closes, checks saved pairing/filter state, and reopens the original
+terminal without input going to the cancelled target. The other twelve cases
+cover existing connection/launch recovery plus workspace and notification picker
+search, mutation, bulk-read and colliding-ID routing.
+
+The pending-state screenshot was reviewed using the app theme and root Surface.
+The workspace rows and old Mac label remain visible during the switch. This is
+not full iOS visual or physical multi-Mac acceptance. No native library changed;
+no new AVD or signed milestone was created, and the emulator was shut down.
+Evidence: ignored `captures/runtime/mac-picker-cancellation/` (JVM XML, build and
+instrumentation logs, screenshot, APK hashes). Signed build 456 is unchanged.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Debug APK | `46e9355156f6bbbdc908ad4bba317ba02c2c9daf973d98269099d0dd04ce0efe` |
+| Test APK | `e96c1fd681e53cfa4dff22c90613f41d39d4c4a484288a59bab6645d2fea1f10` |

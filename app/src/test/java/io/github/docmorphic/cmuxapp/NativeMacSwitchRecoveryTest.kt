@@ -9,6 +9,30 @@ class NativeMacSwitchRecoveryTest {
     private val b = NativeCredentialStore.PairedMac("route-b", "mac", "Mac Nightly", "nightly")
     private fun ready() = NativeMacSwitchRecovery().apply { connected(owner, a) }
 
+    @Test fun cancellingToAllRestoresOriginalMacAndRejectsLateFailure() {
+        val state = ready()
+        state.begin(owner, b.code, a.code, a.origin)
+        val old = state.entering(owner, b.code)
+        assertEquals(NativeMacSwitchRecovery.Baseline(a, ""), state.cancelAndRestore(owner, b.code, "") { true })
+        assertNull(state.failed(old, owner, b.code) { true })
+        // A new selection during restoration retains the user's All Computers filter.
+        state.begin(owner, "route-c", null, "")
+        assertEquals(NativeMacSwitchRecovery.Baseline(a, ""), state.failed(state.entering(owner, "route-c"), owner, "route-c") { true })
+    }
+    @Test fun cancelledSwitchCannotRestoreWrongOwnerRouteOrRevokedBaseline() {
+        val state = ready()
+        state.begin(owner, b.code, a.code, a.origin)
+        assertNull(state.cancelAndRestore(owner.copy(login = "new"), b.code, "") { true })
+        assertEquals(a, state.failed(state.entering(owner, b.code), owner, b.code) { true }?.mac)
+        state.begin(owner, b.code, a.code, a.origin)
+        assertNull(state.cancelAndRestore(owner, "newer-route", "") { true })
+        assertEquals(a, state.failed(state.entering(owner, b.code), owner, b.code) { true }?.mac)
+        state.begin(owner, b.code, a.code, a.origin)
+        assertNull(state.cancelAndRestore(owner, b.code, "") { false })
+        state.clear(); state.begin(owner, b.code, null, "")
+        assertNull(state.cancelAndRestore(owner, b.code, "") { true })
+    }
+
     @Test fun confirmedLaunchAttachCanRestoreSavedMacBeforeAnyLiveConnection() {
         val state = NativeMacSwitchRecovery()
         state.begin(owner, b.code, null, "", savedFallback = a)

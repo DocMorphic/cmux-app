@@ -14,6 +14,9 @@ import org.junit.Assert.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicBoolean
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxSize
 
 /** Production connection effects, using a disposable account and a local Mac peer. */
 @OptIn(ExperimentalTestApi::class)
@@ -53,6 +56,73 @@ class NativeConnectionRecoveryTest {
     private fun awaitPairingConfirmation() {
         compose.waitUntil(5_000) { compose.onAllNodesWithText("Connect to this Mac?").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Connect to this Mac?").assertIsDisplayed()
+    }
+
+    @Test fun pickerKeepsOriginalFilterUntilTargetHandshakeSucceeds() = pendingPicker(cancel = false)
+    @Test fun selectingAllCancelsPendingSwitchAndRetiresLateSuccessfulClient() = pendingPicker(cancel = true)
+    private fun pendingPicker(cancel: Boolean) {
+        val other = NativeFixturePeer().apply {
+            deviceId = "second-mac"; displayName = "Second Mac"; renamedWorkspace = "Second task"
+        }
+        val hold = AtomicBoolean(); val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        val lateClients = java.util.concurrent.CopyOnWriteArrayList<MobileRpcClient>()
+        val firstDials = AtomicInteger()
+        seedComputers()
+        val firstOrigin = NativeCredentialStore(context).pairedMacs().single { it.code == firstCode }.origin
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    if (pairing.routes.first().host != "100.64.0.2") { firstDials.incrementAndGet(); connected() }
+                    else if (hold.get()) withContext(NonCancellable) {
+                        entered.complete(Unit); release.await()
+                        MobileRpcClient(PairingCode.Route("127.0.0.1", other.port), { "fixture-token" })
+                            .also { it.connect(); lateClients += it }
+                    } else MobileRpcClient(PairingCode.Route("127.0.0.1", other.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().size == 1 }
+            // Establish a verified foreground lease, not just a background feed row.
+            compose.onNodeWithText("Claude Code task").performClick()
+            compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+            compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+            compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Computer filter").fetchSemanticsNodes().isNotEmpty() }
+            hold.set(true); val before = firstDials.get()
+            selectComputer("Second Mac")
+            compose.waitUntil(5_000) { entered.isCompleted }
+            compose.onNodeWithContentDescription("Computer filter").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Connecting to Second Mac"))
+            compose.onNodeWithTag("computer.switch.progress").assertIsDisplayed()
+            compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+            compose.onNodeWithText("Second task").assertDoesNotExist()
+            assertEquals(firstOrigin, NativeCredentialStore(context).load()?.optString("computer_selection"))
+            if (cancel) {
+                val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                java.io.File(context.getExternalFilesDir(null), "pending-mac-switch.png").outputStream().use {
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                }; bitmap.recycle()
+                selectComputer("All Computers")
+                compose.waitUntil(15_000) { firstDials.get() > before }
+                release.complete(Unit)
+                compose.waitUntil(15_000) { lateClients.isNotEmpty() && lateClients.all { it.isClosed } }
+                compose.onNodeWithContentDescription("Computer filter").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "All Computers"))
+                assertEquals("", NativeCredentialStore(context).load()?.optString("computer_selection"))
+                assertEquals(firstCode, NativeCredentialStore(context).load()?.optString("pairing_code"))
+                compose.onNodeWithText("Could not switch computers. Your previous computer is selected again.").assertDoesNotExist()
+                val previousReplays = peer.requests.count { it.optString("method") == "mobile.terminal.replay" }
+                compose.onNodeWithText("Claude Code task").performClick()
+                compose.waitUntil(15_000) { peer.requests.count { it.optString("method") == "mobile.terminal.replay" } > previousReplays }
+                assertFalse(other.requests.any { it.optString("method") == "mobile.terminal.replay" })
+            } else {
+                release.complete(Unit)
+                compose.waitUntil(15_000) { compose.onAllNodesWithText("Second task").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithTag("computer.switch.progress").assertDoesNotExist()
+                compose.onNodeWithContentDescription("Computer filter").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Second Mac"))
+                compose.onNodeWithText("Claude Code task").assertDoesNotExist()
+                val stored = NativeCredentialStore(context)
+                assertEquals(stored.pairedMacs().single { it.code == secondCode }.origin, stored.load()?.optString("computer_selection"))
+                compose.onNodeWithText("Second task").performClick()
+                compose.waitUntil(15_000) { other.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+            }
+        } finally { release.complete(Unit); other.close() }
     }
 
     @Test fun unresolvedIrohLaunchCanBeCancelledToResumeSavedMac() = unresolvedIrohLaunch(timeout = false)

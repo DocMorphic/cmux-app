@@ -12,6 +12,23 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Pending computer picker and cancellation (2026-10-03)
+
+The toolbar picker now retains the current workspace/notification filter until
+the new Mac is connected, with progress and an accessible pending target. Choosing
+All Computers cancels an in-flight switch and restores the authorized original
+Mac while keeping the All filter. Late successful callbacks cannot replace that
+connection. This follows the reviewed iOS `WorkspaceListView.swift` selection and
+cancellation paths. The route baseline alone does not establish an iOS promise
+to reopen an exact prior terminal pane; that is no longer treated as an assumed
+missing requirement.
+
+**12 JVM and 14 Android cases passed**. The Android checks include deliberate
+late dial completion, terminal routing, and existing workspace/notification
+picker regressions. [Source comparison and evidence](MAC_SWITCH_RECOVERY.md#pending-picker-selection-and-cancellation--2026-10-03).
+Physical acceptance and broader source/visual parity remain open. Signed build
+456 is unchanged.
+
 ## Launch pairing and saved reconnect (2026-10-03)
 
 Launch links now hold the screen's saved foreground/feed reconnect until their

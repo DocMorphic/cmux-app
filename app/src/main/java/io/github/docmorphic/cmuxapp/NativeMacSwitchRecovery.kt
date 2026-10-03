@@ -48,6 +48,15 @@ internal class NativeMacSwitchRecovery {
         if (attempt != null && pending == attempt && owner == current && attempt.owner == current)
             pending = attempt.copy(target = code)
     }
+    fun cancelAndRestore(current: Owner?, code: String, selection: String,
+        allowed: (NativeCredentialStore.PairedMac) -> Boolean): Baseline? {
+        val attempt = pending
+        if (attempt == null || owner != current || attempt.owner != current || attempt.target != code) return null
+        pending = null
+        val baseline = attempt.baseline?.takeIf { allowed(it.mac) }?.copy(selection = selection) ?: return null
+        pending = Attempt(++nextId, attempt.owner, baseline.mac.code, baseline)
+        return baseline
+    }
     fun cancel() { pending = null }
     fun clear() { owner = null; live = null; pending = null }
 }

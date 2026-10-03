@@ -395,10 +395,17 @@ fun NativeScreen(
     }
     val selectedComputer = pairedMacs.firstOrNull { it.ownsOrigin(selectedComputerOrigin) }
     val selectedOrigin = selectedComputer?.origin
+    var pendingPickerCode by remember(signedIn) { mutableStateOf<String?>(null) }
+    val pendingPickerComputer = pairedMacs.singleOrNull { it.code == pendingPickerCode }
     val macSwitchRecovery = feedSession.macSwitchRecovery
     fun switchOwner() = store.taskSession()?.takeIf { signedIn }?.let { NativeMacSwitchRecovery.Owner(it, teamState.scope) }
     macSwitchRecovery.reconcile(switchOwner())
+    fun canRestoreMac(previous: NativeCredentialStore.PairedMac) = connection.allowsSaved(previous) && store.pairedMacs().any {
+        it.code == previous.code && it.deviceId == previous.deviceId && it.instanceTag == previous.instanceTag &&
+            it.accountUserId == previous.accountUserId && it.accountTeamId == previous.accountTeamId
+    }
     fun selectMacCode(target: String) {
+        pendingPickerCode = null
         pairingSelectionCode = null
         switchOwner()?.let { owner ->
             macSwitchRecovery.begin(owner, target,
@@ -407,6 +414,7 @@ fun NativeScreen(
         code = target; error = null; retryDelay = 2_000
     }
     fun selectPairingCode(target: String) {
+        pendingPickerCode = null
         screenResume.cancel(); workspaceRoute = null
         switchOwner()?.let { owner ->
             val storedCode = store.load()?.optString("pairing_code")
@@ -418,6 +426,7 @@ fun NativeScreen(
         code = target; error = null; retryDelay = 2_000
     }
     fun selectComputer(mac: NativeCredentialStore.PairedMac?) {
+        pendingPickerCode = null
         pairingSelectionCode = null
         screenResume.cancel()
         if (mac != null) selectMacCode(mac.code) else macSwitchRecovery.cancel()
@@ -425,6 +434,30 @@ fun NativeScreen(
         store.update { it.put("computer_selection", selectedComputerOrigin) }
         workspaceRoute = null
         computerMenuOpen = false
+    }
+    fun selectPickerComputer(mac: NativeCredentialStore.PairedMac?) {
+        screenResume.cancel(); workspaceRoute = null; computerMenuOpen = false
+        if (mac != null) {
+            val isConnected = connectionReady && connectedCode == mac.code && client?.isClosed == false
+            if (isConnected) selectComputer(mac) else {
+                selectMacCode(mac.code)
+                pendingPickerCode = mac.code
+            }
+        } else {
+            val pendingCode = pendingPickerCode
+            val restore = if (pendingCode != null)
+                macSwitchRecovery.cancelAndRestore(switchOwner(), code, "", ::canRestoreMac) else null
+            pendingPickerCode = null; pairingSelectionCode = null
+            selectedComputerOrigin = ""
+            store.update { it.put("computer_selection", "") }
+            if (pendingCode != null && code == pendingCode) {
+                // Changing the effect key retires the dial, including late callbacks.
+                // Without an authorized baseline, return to Computers.
+                code = restore?.mac?.code.orEmpty()
+                if (restore != null) store.update { it.put("pairing_code", restore.mac.code) }
+                retryDelay = 2_000; error = null
+            } else macSwitchRecovery.cancel()
+        }
     }
     var computerDetails by remember { mutableStateOf<NativeComputerDetailsPresentation?>(null) }
     val forgetCallbacks = NativeComputerForgetCallbacks(started = { owner, target, rows ->
@@ -1385,6 +1418,7 @@ fun NativeScreen(
     LaunchedEffect(signedIn, code, retry, deferStartupForPairing,
         computerState.connectionKey(PairingCodeParser.parse(code).getOrNull() as? PairingCode.Iroh)) {
         if (deferStartupForPairing) return@LaunchedEffect
+        if (pendingPickerCode != code) pendingPickerCode = null
         if (pairingSelectionCode != code) pairingSelectionCode = null
         val switchAttempt = macSwitchRecovery.entering(switchOwner(), code)
         connectionReady = false
@@ -1435,6 +1469,7 @@ fun NativeScreen(
                     active.close()
                     savedPairedMacs = store.pairedMacs()
                     macSwitchRecovery.retarget(switchAttempt, switchOwner(), remembered.code)
+                    if (pendingPickerCode == requestedCode) pendingPickerCode = remembered.code
                     if (pairingSelectionCode == requestedCode) pairingSelectionCode = remembered.code
                     code = remembered.code
                     connectionError = null; retryDelay = 2_000; busy = false
@@ -1455,10 +1490,11 @@ fun NativeScreen(
                 }
                 client = active; connectedCode = requestedCode
                 connectionReady = true
-                if (pairingSelectionCode == requestedCode) {
+                if (pairingSelectionCode == requestedCode || pendingPickerCode == requestedCode) {
                     selectedComputerOrigin = remembered.origin
                     store.update { it.put("computer_selection", remembered.origin) }
                     pairingSelectionCode = null
+                    pendingPickerCode = null
                 }
                 switchOwner()?.let { macSwitchRecovery.connected(it, remembered) }
                 savedPairedMacs = store.pairedMacs()
@@ -1472,12 +1508,8 @@ fun NativeScreen(
             if (failure is CancellationException && failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
             connectionError = nativeConnectionFailure(failure)
             busy = false
-            val restore = macSwitchRecovery.failed(switchAttempt, switchOwner(), requestedCode) { previous ->
-                connection.allowsSaved(previous) && store.pairedMacs().any {
-                    it.code == previous.code && it.deviceId == previous.deviceId && it.instanceTag == previous.instanceTag &&
-                        it.accountUserId == previous.accountUserId && it.accountTeamId == previous.accountTeamId
-                }
-            }
+            if (pendingPickerCode == requestedCode) pendingPickerCode = null
+            val restore = macSwitchRecovery.failed(switchAttempt, switchOwner(), requestedCode, ::canRestoreMac)
             if (restore != null) {
                 // Restore only a previously verified, still-authorized route. Clear a
                 // target-specific UI intent before it can redial the failed computer.
@@ -2508,7 +2540,7 @@ fun NativeScreen(
                         Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
                     }
                     NativeComputerSelector(pairedMacs, selectedComputer, appearances, machineColorIndices, computerConnections,
-                        computerMenuOpen, { computerMenuOpen = it }, ::selectComputer,
+                        computerMenuOpen, { computerMenuOpen = it }, ::selectPickerComputer, pendingPickerComputer,
                         onPair = { computerMenuOpen = false; code = "" })
                     Column(Modifier.weight(1f)) {
                         Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
@@ -3063,22 +3095,24 @@ private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>,
 private fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, selected: NativeCredentialStore.PairedMac?,
     appearances: NativeMacAppearances, colorIndices: Map<NativeMacIdentity, Int>,
     connections: Map<NativeMacIdentity, NativeComputerConnection>, open: Boolean, onOpen: (Boolean) -> Unit,
-    onSelect: (NativeCredentialStore.PairedMac?) -> Unit, onPair: () -> Unit) {
+    onSelect: (NativeCredentialStore.PairedMac?) -> Unit, pending: NativeCredentialStore.PairedMac?, onPair: () -> Unit) {
     Box {
         IconButton(onClick = { onOpen(true) }, modifier = Modifier.semantics {
             contentDescription = "Computer filter"
-            stateDescription = selected?.let(appearances::name) ?: "All Computers"
+            stateDescription = pending?.let { "Connecting to ${appearances.name(it)}" }
+                ?: selected?.let(appearances::name) ?: "All Computers"
         }) {
-            if (selected == null) Icon(painterResource(R.drawable.ic_feed_computer), null,
+            if (pending != null) CircularProgressIndicator(Modifier.size(20.dp).testTag("computer.switch.progress"), strokeWidth = 2.dp, color = nativeAccent)
+            else if (selected == null) Icon(painterResource(R.drawable.ic_feed_computer), null,
                 tint = nativeMuted, modifier = Modifier.size(22.dp))
             else NativeMacAvatar(appearances.get(selected), selected.colorIdentity.colorSeed, Modifier.size(28.dp), colorIndices[selected.colorIdentity])
         }
         DropdownMenu(open, onDismissRequest = { onOpen(false) }) {
             DropdownMenuItem(text = { Text("All Computers") }, onClick = { onSelect(null) },
-                leadingIcon = { Text(if (selected == null) "✓" else " ") })
+                leadingIcon = { Text(if (selected == null && pending == null) "✓" else " ") })
             macs.forEach { mac ->
                 DropdownMenuItem(text = { Text(appearances.name(mac)) }, onClick = { onSelect(mac) },
-                    leadingIcon = { Text(if (selected?.origin == mac.origin) "✓" else " ") },
+                    leadingIcon = { Text(if ((pending ?: selected)?.origin == mac.origin) "✓" else " ") },
                     trailingIcon = { NativeMacAwakeIndicator(connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()) })
             }
             DropdownMenuItem(text = { Text("Pair another Mac") }, onClick = onPair)
