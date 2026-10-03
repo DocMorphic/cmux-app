@@ -31,8 +31,11 @@ top-row reveal are now implemented with **16 focused JVM tests** and 315 pinned
 Swift reference cases, plus **10 emulator UI checks** covering real keyboard entry,
 continuous top reveal, shifted-grid pinch focus and native terminal regressions.
 Unshared alternate-screen target capacity and three-frame geometry settling are
-implemented with **12 focused JVM and 9 emulator UI tests passed**; the post-resize
-presentation freeze and physical Mac/Pixel checks remain open. Android uses the supported
+implemented with **12 focused JVM and 9 emulator UI tests passed**. The subsequent
+presentation transaction now retains the actual old frame until matching resize
+acknowledgement, redraw and recording, with the iOS five-second silence fallback;
+**13 JVM and 14 emulator UI checks passed**, including pixel checks. Physical
+Mac/Pixel acceptance and performance/accessibility checks remain open. Android uses the supported
 `unknown` kind plus its model; upstream's automatic exclusion rules still need an
 Android kind for identical behavior. Signed build 397 and the installed Pixel app
 are unchanged. [Contract, evidence and remaining work](TERMINAL_SHARED_SIZING.md).

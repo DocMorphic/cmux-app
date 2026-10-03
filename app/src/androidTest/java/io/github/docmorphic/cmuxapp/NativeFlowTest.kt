@@ -1404,6 +1404,43 @@ class NativeFlowTest {
         assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.scroll" })
     }
 
+    @Test fun alternateKeyboardHoldsFrameUntilConfirmedResizeReplayArrives() {
+        peer.alternateScreen = true
+        peer.gridFirstLine = "Old alternate frame"
+        peer.gridBackground = "#004400"
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Old alternate frame", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        fun pixel() = compose.onNodeWithTag("native-terminal").captureToImage().asAndroidBitmap().let {
+            it.getPixel(it.width / 2, it.height / 2)
+        }
+        assertEquals(android.graphics.Color.rgb(0, 68, 0), pixel())
+        val replay = CountDownLatch(1)
+        try {
+            peer.replayGateSurface = "terminal-1"; peer.releaseReplays = replay
+            peer.gridFirstLine = "New alternate frame"; peer.gridBackground = "#440000"
+            compose.onNode(hasSetTextAction()).performClick()
+            compose.waitUntil(10_000) { "terminal-1" in peer.blockedReplaySurfaces }
+            assertEquals("Old pixels remain after resize acknowledgement, before replay", android.graphics.Color.rgb(0, 68, 0), pixel())
+            compose.onNodeWithText("New alternate frame", substring = true).assertDoesNotExist()
+            val clicks = peer.requests.count { it.optString("method") == "mobile.terminal.mouse" }
+            compose.onNodeWithTag("native-terminal").performTouchInput { click(center) }
+            compose.waitForIdle()
+            assertEquals("Held pixels cannot send clicks through new geometry", clicks,
+                peer.requests.count { it.optString("method") == "mobile.terminal.mouse" })
+            screenshot("alternate-frame-held")
+            replay.countDown()
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("New alternate frame", substring = true).fetchSemanticsNodes().isNotEmpty() }
+            assertEquals(android.graphics.Color.rgb(68, 0, 0), pixel())
+            screenshot("alternate-frame-released")
+        } finally { replay.countDown() }
+    }
+
     @Test fun alternateKeyboardReportsOnlyFinalCapacityAndRestoresOnDismissal() {
         peer.alternateScreen = true
         peer.gridFirstLine = "Keyboard target editor"
@@ -2356,6 +2393,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var gridHistoryRows = 0
     @Volatile var alternateScreen = false
     @Volatile var gridFirstLine = "cmux Android terminal"
+    @Volatile var gridBackground = "#111316"
     private var viewportColumns = 40
     private var viewportRows = 20
     @Volatile var rawReplayText = ""
@@ -2596,6 +2634,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 .put("surface_id", params.getString("surface_id")).put("columns", columns).put("rows", rows)
                 .put("render_epoch", "fixture").put("render_revision", ++revision).put("full", true)
                 .put("active_screen", if (alternateScreen) "alternate" else "primary")
+                .put("terminal_background", gridBackground)
                 .put("row_spans", spans).put("styles", JSONArray()).apply {
                     if (gridHistoryRows > 0) {
                         put("anchor", "screen"); put("history_rows", gridHistoryRows); put("row_space_revision", 1)

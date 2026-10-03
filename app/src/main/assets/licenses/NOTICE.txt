@@ -268,3 +268,9 @@ TerminalViewportGeometryFence.kt adapts TerminalViewportGeometryFence.swift at
 cmux revision 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses Compose frame callbacks and Android's IME animation target insets.
+
+KeyboardTransitionPresentationFreeze.kt adapts the same-named Swift transaction
+at cmux revision 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android binds the milestones to viewport generations, output revisions and
+Compose display-list recording before atomically choosing the frame to draw.

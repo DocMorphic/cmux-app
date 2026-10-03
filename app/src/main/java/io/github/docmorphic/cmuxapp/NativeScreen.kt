@@ -639,8 +639,16 @@ fun NativeScreen(
     val inputTarget = draftTarget
     val selectedSizing = selectedTerminal?.id?.let(terminalSizingStates::get)
     val terminalAttached = selectedSizing?.allowsTraffic ?: true
-    val terminalReportPixels = rememberTerminalViewportReport(client, selectedTerminal?.id, terminalMeasurement,
-        terminalActiveScreen == "primary" || selectedSizing?.state != null)
+    val keepKeyboardGrid = terminalActiveScreen == "primary" || selectedSizing?.state != null
+    val terminalViewportPresentation = rememberTerminalViewportPresentation(client, selectedTerminal?.id,
+        terminalMeasurement, keepKeyboardGrid)
+    val terminalReportPixels = terminalViewportPresentation.pixels
+    val keyboardPresentation = remember(client, selectedWorkspace?.id, selectedTerminal?.id) { TerminalKeyboardPresentation() }
+    SideEffect {
+        val target = terminalMeasurement.targetSize(terminalViewportPresentation.targetKeyboard)
+        keyboardPresentation.transition(!keepKeyboardGrid && terminalAttached, terminalViewportPresentation.moving,
+            terminalViewportPresentation.targetKeyboard, TerminalViewport.fit(target.width, target.height, terminalCells))
+    }
     val terminalViewport = TerminalViewport.fit(terminalReportPixels.width, terminalReportPixels.height, terminalCells)
     val terminalColumns = terminalViewport?.columns ?: 0
     val terminalRows = terminalViewport?.rows ?: 0
@@ -1417,6 +1425,7 @@ fun NativeScreen(
             terminalActiveScreen = next.activeScreen
             terminalSizing.rendered(active, terminal.id, SharedTerminalGrid(next.columns, next.rows))
             gridRevision++
+            keyboardPresentation.outputApplied(viewportGeneration, gridRevision)
         }
         suspend fun replayTerminal() {
             if (replayRunning || recoveryFailed || !active.terminalTrafficAllowed(terminal.id)) return
@@ -1525,12 +1534,17 @@ fun NativeScreen(
             }
             kotlin.coroutines.coroutineContext.ensureActive()
             viewportAttempted = true
+            keyboardPresentation.reportPublished(viewportGeneration, requestedViewport)
             runCatching {
                 active.reportViewport(workspace.id, terminal.id, requestedViewport, viewportGeneration)
             }.onSuccess {
-                if (isCurrent()) sizingViewportConfirmed = true
+                if (isCurrent()) {
+                    sizingViewportConfirmed = true
+                    keyboardPresentation.reportConfirmed(viewportGeneration)
+                }
             }.onFailure {
                 if (it is CancellationException) throw it
+                keyboardPresentation.reportFailed(viewportGeneration)
                 error = it.message ?: "Terminal resize failed"
             }
             subscriptionReady = true
@@ -1970,9 +1984,11 @@ fun NativeScreen(
                             onClick("Open keyboard") { openDirectKeyboard(); true }
                             customActions = listOf(CustomAccessibilityAction("View as Text") { openTerminalText(); true })
                         }
-                        .terminalPinchZoom(terminalZoom, gridPresentation.sharedLayout, gridPresentation.pinchOffset, gridPresentation.transform)
+                        .then(if (keyboardPresentation.frozen) Modifier else Modifier.terminalPinchZoom(
+                            terminalZoom, gridPresentation.sharedLayout, gridPresentation.pinchOffset, gridPresentation.transform))
                         .pointerInput(terminal.id, currentGrid, terminalCells, displayGeometry, artifactRpc, artifactsReady, artifactTapController) {
                             detectTapGestures(onTap = { point ->
+                                if (keyboardPresentation.frozen) return@detectTapGestures
                                 artifactTapController.invalidate()
                                 var handlingArtifact = false
                                 displayGeometry?.let { geometry ->
@@ -2011,7 +2027,7 @@ fun NativeScreen(
                             replayGeneration, currentGrid.activeScreen,
                             linePath = !(currentGrid.activeScreen == "primary" &&
                                 (terminalTransport.screenAnchor || terminalTransport.mode != TerminalOutputMode.GRID)),
-                            enabled = terminalScroll != null,
+                            enabled = terminalScroll != null && !keyboardPresentation.frozen,
                             onScroll = { lines, cell ->
                                 val local = currentGrid.activeScreen == "primary" &&
                                     (terminalTransport.screenAnchor || terminalTransport.mode != TerminalOutputMode.GRID)
@@ -2019,7 +2035,7 @@ fun NativeScreen(
                                 val sent = if (move.rows != 0.0) terminalScroll?.invoke(move.rows, cell) ?: false else false
                                 sent || move.revealed
                             }), scrollPosition = scrollPosition,
-                    displayGeometry = displayGeometry)
+                    displayGeometry = displayGeometry, keyboardPresentation = keyboardPresentation.takeUnless { keepKeyboardGrid })
                 if (scrollOffset > 0) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp)
                     .background(nativePanel, RoundedCornerShape(14.dp)).padding(start = 12.dp),
                     verticalAlignment = Alignment.CenterVertically) {

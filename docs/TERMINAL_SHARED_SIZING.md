@@ -389,7 +389,7 @@ stopped after verification; no new virtual device was created. Content-bottom
 measurement still needs bounded-cost/performance and graphics-content coverage.
 
 This is not complete keyboard parity. The next section records the subsequent
-viewport fence/target implementation; the full presentation freeze is still open.
+viewport fence/target implementation and the later presentation transaction.
 Physical Pixel/Gboard and Mac shared-policy/reattach acceptance, hardware keyboard
 checks and accessibility/performance coverage remain pending. No physical phone
 was connected for this checkpoint, and signed build 397 remains unchanged.
@@ -441,11 +441,72 @@ Final APK SHA-256:
 - Debug: `7c86c9e37238b8ebb294d216437a19ecaba83efe4082e26f37adb2348221d9fd`
 - Test: `1d83f685bebcece777261bdb8b61bd31dac7e51a6bd72c9a9e33242e5ec72df5`
 
-**Remaining:** iOS also freezes the last good alternate-screen presentation until
+**Next at this checkpoint:** iOS also freezes the last good alternate-screen presentation until
 all three conditions hold: transition ended, matching viewport acknowledged, and
 post-acknowledgement redraw presented. The geometry fence/target work does not yet
 implement that presentation transaction. Real Pixel/Gboard, interrupted animation,
 rotation and Mac shared-policy/detach/reattach acceptance remain pending.
+
+## Alternate-screen presentation transaction (2026-10-03)
+
+`KeyboardTransitionPresentationFreeze` ports the pinned iOS transaction: an old
+frame stays visible until the keyboard transition ends, the exact viewport report
+is acknowledged, and output applied after that acknowledgement reaches a new
+render submission. `TerminalKeyboardPresentation` binds it to one connection and
+surface, the existing viewport generation and monotonically increasing grid
+revision. Stale acknowledgements, pre-acknowledgement output and a draw using an
+older composition revision cannot release the held frame. Reversed transitions
+replace their target; unchanged grid sizes need no nonexistent resize/redraw.
+Switching to primary/shared mode or a failed viewport report cancels the hold.
+As in iOS, five seconds of silence after the transition also releases it; a valid
+confirmation or post-confirmation output restarts that wait. Stale callbacks and
+pre-confirmation output cannot extend it. A superseded timer cannot release a new
+transition.
+
+`TerminalKeyboardFrame` retains two Compose display lists. One preserves the last
+accepted draw, including text, cursor and terminal images; the other records the
+replacement. The old frame remains at its captured position in the stationary terminal pane;
+the moving dock clips it without translating, reflowing or stretching its pixels. After recording the required live revision, the same Canvas pass
+chooses the live layer atomically. Android therefore uses a completed display-list
+record and same-frame layer selection; it does not claim an iOS/Metal presentation
+callback. The renderer already retains bitmap references safely for display lists.
+The extra layers are used only for unshared alternate screens and are disposed
+with their composition. Accessibility text follows the accepted frame. Mouse/file
+taps, scroll and pinch cannot act through replacement geometry while old pixels
+remain visible; terminal keyboard input retains its existing ordered delivery.
+
+Source: `KeyboardTransitionPresentationFreeze.swift`, its tests, and the overlay /
+five-second silence fallback in `GhosttySurfaceView.swift` at the same
+pinned upstream revision `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`.
+Android drawing uses the official [Compose graphics layer recording API](https://developer.android.com/develop/ui/compose/graphics/draw/modifiers).
+
+**13 focused JVM tests passed**, zero failures/errors/skips: nine presentation
+transaction/controller tests and four viewport-fence tests. **14 emulator UI tests
+passed in 38.098 seconds** on the existing API 37 / 16 KiB AVD. The three new layer
+checks compare pixels and accessibility text through pre-ack output, confirmed
+redraw before animation end, stale surface callbacks and the actual silence timer.
+A pixel-array comparison requires held text to remain at its original position.
+The full native flow delays the post-resize replay, verifies retained pixels and
+blocked mouse taps, then checks the new pixels after replay. The existing target
+resize/dismissal, primary keyboard, alternate touch, byte recovery, grid/byte frame
+retention on switch, shared zoom and keyboard reveal checks also pass.
+
+The final APK build passed in **24 seconds**. Final held/released screenshots were
+visually reviewed. Earlier captures exposed the incorrect bottom translation;
+reading the complete iOS overlay implementation led to fixed-position retention
+and its five-second silence fallback, both covered by the final run. The existing
+emulator is stopped; no additional AVD was created.
+
+Ignored local evidence: `captures/runtime/keyboard-freeze-verified-build.txt`,
+`keyboard-freeze-ui-final.txt` and `keyboard-freeze-screenshots-final/` in that
+directory. Final APK SHA-256:
+
+- Debug: `e77fd11847b7d86dc9917cd7986d6be370d13aadc2c2920e5ac7b26525ee7fe0`
+- Test: `993ff8aa05191a8e41d637cced934e752ad3cea97dd8d6c7df9f82f41d41589c`
+
+Physical Pixel/Mac verification, image-heavy transition/performance measurements,
+hardware keyboard checks and broader accessibility coverage remain open. No
+physical device was connected, and no signed release was published for this work.
 
 ## Full integration acceptance checklist
 

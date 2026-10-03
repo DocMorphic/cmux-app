@@ -24,10 +24,10 @@ import kotlinx.coroutines.delay
 
 /** Draws the authoritative cmux cell positions, including wide and combining graphemes. */
 @Composable
-fun RenderGridView(
+internal fun RenderGridView(
     grid: TerminalDisplay, cells: TerminalCellMetrics, revision: Int,
     modifier: Modifier = Modifier, scrollOffset: Int = 0, scrollPosition: Double = scrollOffset.toDouble(),
-    displayGeometry: TerminalGeometry? = null
+    displayGeometry: TerminalGeometry? = null, keyboardPresentation: TerminalKeyboardPresentation? = null
 ) {
     var blinkVisible by remember(grid) { mutableStateOf(true) }
     LaunchedEffect(grid) {
@@ -41,7 +41,9 @@ fun RenderGridView(
     val drawRevision = rememberUpdatedState(revision)
     DisposableEffect(painter) { onDispose { painter.close() } }
     Box(modifier.background(Color(0xFF111316))) {
-        Canvas(Modifier.fillMaxSize().clipToBounds().semantics { text = AnnotatedString(accessibleText) }) {
+        Canvas(Modifier.fillMaxSize().clipToBounds()
+            .terminalKeyboardFrame(keyboardPresentation, revision, accessibleText)
+            .semantics { text = AnnotatedString(keyboardPresentation?.visibleText ?: accessibleText) }) {
             // Image-only or cursor-only updates can leave the text plan equal.
             // Read revision state in the draw scope to invalidate the display list.
             drawRevision.value

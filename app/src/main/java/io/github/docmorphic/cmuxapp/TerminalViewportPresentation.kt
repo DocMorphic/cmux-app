@@ -8,15 +8,18 @@ import androidx.compose.ui.unit.IntSize
 /** Read the platform's announced target without installing a second insets callback. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun rememberTerminalViewportReport(owner: Any?, surface: String?, measurement: TerminalViewportMeasurement,
-    keepGrid: Boolean): IntSize {
+internal fun rememberTerminalViewportPresentation(owner: Any?, surface: String?, measurement: TerminalViewportMeasurement,
+    keepGrid: Boolean): TerminalViewportPresentation {
     val density = LocalDensity.current
     val source = WindowInsets.imeAnimationSource.getBottom(density)
     val target = WindowInsets.imeAnimationTarget.getBottom(density)
     val navigation = WindowInsets.navigationBars.getBottom(density)
-    return rememberTerminalViewportReport(owner, surface, measurement, keepGrid,
-        (target - navigation).coerceAtLeast(0), source != target)
+    val keyboard = (target - navigation).coerceAtLeast(0)
+    return TerminalViewportPresentation(rememberTerminalViewportReport(owner, surface, measurement, keepGrid,
+        keyboard, source != target), keyboard, source != target)
 }
+
+internal data class TerminalViewportPresentation(val pixels: IntSize, val targetKeyboard: Int, val moving: Boolean)
 
 @Composable
 internal fun rememberTerminalViewportReport(owner: Any?, surface: String?, measurement: TerminalViewportMeasurement,
