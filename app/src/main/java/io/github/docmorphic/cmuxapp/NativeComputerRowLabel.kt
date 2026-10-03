@@ -37,7 +37,7 @@ private fun presencePhrase(presence: NativeComputerPresence): String {
 @Composable
 internal fun NativeComputerRowLabel(name: String, buildLabel: String?, connection: NativeComputerConnection,
     presence: NativeComputerPresence, reconnect: Boolean, modifier: Modifier = Modifier,
-    routeDescription: String? = null, olderPairing: Boolean = false) {
+    routeDescription: String? = null, olderPairing: Boolean = false, identity: NativeMacIdentity? = null) {
     val heartbeat = presencePhrase(presence)
     Column(modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -57,6 +57,7 @@ internal fun NativeComputerRowLabel(name: String, buildLabel: String?, connectio
             else "Presence: ${if (presence.online == null) "unknown" else heartbeat} · $route"
         Text((if (olderPairing) "Older pairing · " else "") + diagnostic,
             color = Color(0xFF9B9FA8), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        NativeMacUpdateGuidance(identity)
     }
 }
 

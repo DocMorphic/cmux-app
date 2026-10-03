@@ -105,6 +105,9 @@ class MobileRpcClient internal constructor(
 
     internal fun retire() = failConnection(EOFException("Computer access or account session changed"))
 
+    internal val compatibilityWire: MobileRpcClient get() = delegate?.compatibilityWire ?: this
+    internal fun retireForCompatibility(reason: MacUpdateRequired) = compatibilityWire.failConnection(reason)
+
     internal suspend fun transportDiagnostics(): MobileTransportDiagnostics? {
         if (delegate != null) return borrowing { it.transportDiagnostics() }
         return withContext(Dispatchers.IO) {

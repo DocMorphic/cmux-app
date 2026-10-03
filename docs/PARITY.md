@@ -12,6 +12,31 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Mac minimum-version admission and update guidance (2026-10-03)
+
+[MAC_COMPATIBILITY.md](MAC_COMPATIBILITY.md) records the explicit Android protocol
+profile against iOS 1.0.6 production, the verified public policy schema, bounded
+origin/profile/app-build cache, stable/nightly comparison and empty-policy behavior.
+Authenticated admission covers Iroh/direct, saved Tailscale and both QR/details
+Tailscale pairing paths. A stricter refresh retires all borrowers of affected
+wires; current-account row warnings provide the appropriate Mac release link.
+
+85 focused JVM tests passed; debug and instrumentation APKs built in 56 seconds.
+Two Android update-guidance tests passed in 14.123 seconds on the existing API 37
+/ 16 KB emulator. The stable warning screenshot was inspected: required/reported
+versions and both buttons are visible. Evidence: captures/runtime/mac-compatibility.
+The original route-observer closure timing failure is retained and explained in
+the feature document. The emulator was stopped; no additional AVD was created.
+
+Final debug SHA-256: c1ae723c268447eec8a3b803db6959af18da75e8245b0e5a3a34c92aefb2f2f4.
+Test SHA-256: a05597ae50ea551ae73cf50152ec585e38843ca1df54549fb08f95aa886a0c44.
+These are local debug artifacts; signed build 474 predates this work.
+
+Remaining: separate build-audience/namespace/development-grant policy, durable
+offline version observations, presence warning metadata, onboarding/layout
+comparison and physical stable/nightly acceptance. The Pixel was not visible in
+ADB. No global parity-pin advancement or full compatibility claim is made.
+
 ## Signed milestone 474 (2026-10-03)
 
 The four Computers features below are included in
@@ -24,8 +49,8 @@ Its baseline was signed out; physical and authenticated migration checks remain 
 A scoped [Mac compatibility audit](MAC_COMPATIBILITY_AUDIT.md) found that iOS row
 warnings depend on remote/cached policy and authenticated connection admission,
 not just cosmetic labels. Android's own version cannot be passed blindly into an
-iOS marketing-version tier. The audit records the next implementation work and
-does not claim that the missing policy has been ported.
+iOS marketing-version tier. The follow-up implementation above is newer than
+this signed milestone; the audit preserves the earlier baseline findings.
 
 ## Local computer visibility (2026-10-03)
 

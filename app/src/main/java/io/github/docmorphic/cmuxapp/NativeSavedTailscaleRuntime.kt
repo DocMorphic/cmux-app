@@ -22,6 +22,7 @@ internal class NativeSavedTailscaleRuntime(
     private val teams: StateFlow<NativeAccountTeamsState>,
     private val isCurrent: (NativeTeamScope) -> Boolean,
     private val token: suspend () -> String?,
+    private val admitCompatibility: suspend (NativeTeamScope, MobileRpcClient, org.json.JSONObject) -> Unit = { _, _, _ -> },
     private val account: (NativeTeamScope) -> NativeSavedTailscaleAccount
 ) : AutoCloseable {
     private class Owner(val team: NativeTeamScope, val account: NativeSavedTailscaleAccount) {
@@ -112,6 +113,7 @@ internal class NativeSavedTailscaleRuntime(
             check(intent.tailscale.all { it.matches(host) }) { "This Tailscale route reaches a different Mac or cmux installation." }
             client.workspaces()
             check(permits()) { "The Tailscale authorization changed" }
+            admitCompatibility(run.team, client, host)
         }) {
             MobileRpcClient(run.account.transport(intent.tailscale, permits), {
                 check(permits()) { "The Tailscale authorization changed" }

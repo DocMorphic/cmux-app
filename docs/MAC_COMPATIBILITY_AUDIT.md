@@ -1,5 +1,9 @@
 # Mac compatibility policy audit — 2026-10-03
 
+Follow-up: [MAC_COMPATIBILITY.md](MAC_COMPATIBILITY.md) documents the implemented
+minimum-version profile, admission, cache and update guidance. The findings
+below describe the earlier c45920e baseline, not the current implementation.
+
 ## Scope
 
 Read-only comparison against cmux 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.

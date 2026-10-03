@@ -12,7 +12,7 @@ import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
 class NativeSavedTailscaleRuntimeTest {
-    private class Fixture : AutoCloseable {
+    private class Fixture(private val enforceCompatibility: Boolean = false) : AutoCloseable {
         val team = NativeTeamScope("login", "user", "team", 1)
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
         val target = NativeComputerTarget("mac", "default", "Mac")
@@ -28,10 +28,13 @@ class NativeSavedTailscaleRuntimeTest {
         @Volatile var tokenHook: suspend () -> Unit = {}
         @Volatile var hostGate: CompletableDeferred<Unit>? = null
         val hostEntered = Channel<Unit>(16)
+        var version = "0.64.24"
+        val compatibility = NativeMacCompatibilityGate({ teams.value.scope == it })
         val local: NativeSavedTailscaleRuntime
         init {
             settings.update(target, { true }) { it.copy(method = NativeMacConnectionMethod.TAILSCALE) }
-            local = NativeSavedTailscaleRuntime(teams, { teams.value.scope == it }, { tokenHook(); "fixture-token" }) { owner ->
+            local = NativeSavedTailscaleRuntime(teams, { teams.value.scope == it }, { tokenHook(); "fixture-token" },
+                admitCompatibility = { owner, client, host -> if (enforceCompatibility) compatibility.admit(owner, client, host) }) { owner ->
                 NativeSavedTailscaleAccount(settings, revisions, { selected -> grants.value.filter {
                     it.user == owner.userId && it.team == owner.teamId && it.device == selected.deviceId && it.build == selected.buildTag
                 } }, { selected, allowed ->
@@ -59,7 +62,7 @@ class NativeSavedTailscaleRuntimeTest {
                 "mobile.host.status" -> {
                     fixture.hostEntered.send(Unit); fixture.hostGate?.await()
                     JSONObject().put("mac_device_id", if (fixture.badIdentity) "other" else grant.device)
-                        .put("mac_instance_tag", grant.build).put("capabilities", JSONArray())
+                        .put("mac_instance_tag", grant.build).put("mac_app_version", fixture.version).put("capabilities", JSONArray())
                 }
                 "mobile.workspace.list" -> JSONObject().put("workspaces", JSONArray())
                 else -> error("Unexpected fixture request: $method")
@@ -69,6 +72,22 @@ class NativeSavedTailscaleRuntimeTest {
         }
         override suspend fun read(): ByteArray? = replies.receiveCatching().getOrNull()?.also { check(allowed() && !closed) }
         override fun close() { closed = true; replies.close(); fixture.hostGate?.cancel() }
+    }
+
+    @Test fun savedTailscaleCannotBypassVersionGateAndNewPolicyRetiresItsSharedWire() = runBlocking<Unit> {
+        Fixture(enforceCompatibility = true).use { f ->
+            assertTrue(runCatching { f.local.connectIfSelected(f.pairing()) }.exceptionOrNull() is MacUpdateRequired)
+            assertNull(f.local.powerSession(f.team, f.target))
+            f.version = "0.64.25"
+            val foreground = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            val background = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            f.compatibility.replace(checkNotNull(NativeMacCompatibilityPolicy.decode(
+                """{"entries":[{"minIOSVersion":"1.0.6","stableMinVersion":"0.65.0"}]}""")))
+            assertTrue(withTimeout(1000) { foreground.disconnected.first() } is MacUpdateRequired)
+            assertTrue(withTimeout(1000) { background.disconnected.first() } is MacUpdateRequired)
+            assertNull(f.local.powerSession(f.team, f.target))
+            foreground.close(); background.close()
+        }
     }
 
     @Test fun savedTailscaleConnectsAndChecksWhileIrohStartupNeverCompletes() = runBlocking<Unit> {

@@ -14,7 +14,9 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     private val activityLock = Any()
     private val activityOwners = mutableSetOf<Any>()
     private val applicationActive = MutableStateFlow(IrxProbeActivity(false))
-    private val savedTailscale = NativeSavedTailscaleRuntime(teams.state, teams::isCurrent, { account.accessToken() }) { team ->
+    val compatibility = NativeMacCompatibilityRuntime(context.applicationContext, applicationActive, teams.state, teams::isCurrent)
+    private val savedTailscale = NativeSavedTailscaleRuntime(teams.state, teams::isCurrent, { account.accessToken() },
+        admitCompatibility = { team, client, host -> compatibility.gate.admit(team, client, host) }) { team ->
         val routes = NativeTailscaleRoutes(context.applicationContext, store, team)
         NativeSavedTailscaleAccount(NativeMacConnectionStore.create(context.applicationContext, team), store.revisions,
             routes::grants, routes::transport, resolve = { pairing ->
@@ -28,14 +30,15 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     }
     val native = NativeIrohRuntime(teams.state, teams::isCurrent, { account.accessToken() },
         { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) },
-        savedTailscale = savedTailscale)
+        savedTailscale = savedTailscale,
+        admitCompatibility = { team, client, host -> compatibility.gate.admit(team, client, host) })
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->
         NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
     }
     val presence = NativeMacPresenceRuntime(teams.state, applicationActive, teams::isCurrent, account::accessToken)
     val ssh = NativeSshRuntime(context.applicationContext, store, scope)
-    private val tailscale = TailscaleConnector(context, store, teams)
+    private val tailscale = TailscaleConnector(context, store, teams) { team, client, host -> compatibility.gate.admit(team, client, host) }
     val connector = object : NativeConnector {
         override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = tailscale.connect(pairing, account)
         override suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount) = native.connect(pairing)
@@ -125,7 +128,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             activityOwners.clear()
             applicationActive.value = IrxProbeActivity(false, applicationActive.value.revision + 1)
         }
-        presence.close(); ssh.close(); scope.cancel(); tailscale.close(); native.close(); teams.close()
+        compatibility.close(); presence.close(); ssh.close(); scope.cancel(); tailscale.close(); native.close(); teams.close()
     }
 
     class Handle internal constructor(val connections: NativeAppConnections) : AutoCloseable {

@@ -106,6 +106,11 @@ fun NativeScreen(
         sharedConnections?.presence?.state ?: kotlinx.coroutines.flow.MutableStateFlow(NativeMacPresenceState())
     }
     val presenceState by presenceStates.collectAsState()
+    val compatibilityStates = remember(sharedConnections) {
+        sharedConnections?.compatibility?.gate?.warnings
+            ?: kotlinx.coroutines.flow.MutableStateFlow<Map<MacCompatibilityKey, MacCompatibilityViolation>>(emptyMap())
+    }
+    val compatibilityWarnings by compatibilityStates.collectAsState()
     val focusManager = LocalFocusManager.current
     val softwareKeyboard = LocalSoftwareKeyboardController.current
     val configuration = LocalConfiguration.current
@@ -1979,6 +1984,8 @@ fun NativeScreen(
     fun dismissComputers() {
         computersOwner = null; showSettings = computersReturnToSettings
     }
+    CompositionLocalProvider(LocalMacCompatibilityWarnings provides compatibilityWarnings
+        .filterKeys { it.owner == teamState.scope }.mapKeys { it.key.identity }) {
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
         if (signedIn && terminalStartupState.failure?.key?.let { it == displayedTab?.first } == true) {
@@ -2907,6 +2914,7 @@ fun NativeScreen(
             if (selectedTerminal != null) TextButton(onClick = { retryDelay = 2_000; retry++ }) { Text("Reconnect") }
         }
     }
+    }
 }
 
 @Composable
@@ -3153,7 +3161,8 @@ internal fun NativeComputerPicker(
                                 else connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()
                             NativeComputerRowLabel(row.name, presence.buildLabel(mac), connection, row.presence,
                                 reconnect = true, modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
-                                routeDescription = row.route.endpoint, olderPairing = row.olderPairing)
+                                routeDescription = row.route.endpoint, olderPairing = row.olderPairing,
+                                identity = NativeMacIdentity(mac.deviceId, mac.instanceTag))
                             NativeComputerStatusDot(connection, row.presence, reconnect = true)
                             NativeMacAwakeIndicator(connection)
                             NativeSavedComputerDetailsButton(runtime, computerState, mac, colorIndices[mac.colorIdentity], connection,
@@ -3186,7 +3195,8 @@ internal fun NativeComputerPicker(
                             presence.buildLabel(mac.deviceId, mac.buildTag), connection, heartbeat,
                             reconnect = true, modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
                             routeDescription = NativeComputerList.route(mac.deviceId, mac.buildTag, preferences,
-                                computerState.computers, tailscaleRoutes).endpoint)
+                                computerState.computers, tailscaleRoutes).endpoint,
+                            identity = NativeMacIdentity(mac.deviceId, mac.buildTag))
                         NativeComputerStatusDot(connection, heartbeat, reconnect = true)
                         NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.colorIdentity], connection,
                             forgetCallbacks, presentDetails)
@@ -3300,7 +3310,7 @@ internal fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>
             val connection = connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()
             NativeComputerRowLabel(row.name, presence.buildLabel(mac), connection, row.presence,
                 reconnect = false, modifier = Modifier.weight(1f), routeDescription = row.route.endpoint,
-                olderPairing = row.olderPairing)
+                olderPairing = row.olderPairing, identity = NativeMacIdentity(mac.deviceId, mac.instanceTag))
             NativeComputerStatusDot(connection, row.presence, reconnect = false)
             NativeMacAwakeIndicator(connection)
             NativeSavedComputerDetailsButton(runtime, state, mac, colorIndices[mac.colorIdentity], connection, forgetCallbacks, presentDetails)

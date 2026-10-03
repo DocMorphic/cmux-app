@@ -131,7 +131,8 @@ internal class TailscalePairingAuthority(
     private val resolve: suspend (PairingCode.Route, () -> Boolean) -> PairingCode.Route,
     private val dial: suspend (PairingCode.Route, () -> Boolean, suspend () -> String?) -> MobileRpcClient,
     private val expected: (PairingCode.Tailscale) -> NativeCredentialStore.PairedMac? = { null },
-    private val replacing: TailscaleSavedGrant? = null
+    private val replacing: TailscaleSavedGrant? = null,
+    private val admitCompatibility: suspend (NativeTeamScope, MobileRpcClient, JSONObject) -> Unit = { _, _, _ -> }
 ) : AutoCloseable {
     private data class Consent(val scope: NativeTeamScope, val nonce: String = UUID.randomUUID().toString()) {
         val resolved = ConcurrentHashMap<PairingCode.Route, PairingCode.Route>()
@@ -213,6 +214,8 @@ internal class TailscalePairingAuthority(
                 // Host status alone is not a successful account-authenticated session.
                 client.workspaces()
                 currentCoroutineContext().ensureActive(); requireAllowed()
+                admitCompatibility(owner, client, status)
+                requireAllowed()
                 if (consent != null) {
                     val build = status.optString("mac_instance_tag").takeIf { !status.isNull("mac_instance_tag") && it.isNotBlank() }
                     val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId, source,

@@ -23,7 +23,8 @@ internal suspend fun NativeConnector.connectPairing(pairing: PairingCode, accoun
     is PairingCode.Iroh -> connectIroh(pairing, account)
 }
 
-internal class TailscaleConnector(context: Context, store: NativeCredentialStore, teams: NativeAccountTeams) : NativeConnector, AutoCloseable {
+internal class TailscaleConnector(context: Context, store: NativeCredentialStore, teams: NativeAccountTeams,
+    admitCompatibility: suspend (NativeTeamScope, MobileRpcClient, org.json.JSONObject) -> Unit = { _, _, _ -> }) : NativeConnector, AutoCloseable {
     private val authority = TailscalePairingAuthority({ teams.state.value.scope }, teams::isCurrent,
         TailscaleGrantStore(store::load, store::update),
         resolve = { route, permits -> TailscaleRoute.resolvePeer(context, route, permits) },
@@ -37,7 +38,7 @@ internal class TailscaleConnector(context: Context, store: NativeCredentialStore
                 team != null && NativePairingRecords.owner(row, grants) == (team.userId to team.teamId) &&
                     PairingCodeParser.parse(row.code).getOrNull() == pairing
             }
-        })
+        }, admitCompatibility = admitCompatibility)
     override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = connectOwned(pairing, account, null)
     suspend fun connectSaved(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope) = connectOwned(pairing, account, team)
     private suspend fun connectOwned(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope?): MobileRpcClient {

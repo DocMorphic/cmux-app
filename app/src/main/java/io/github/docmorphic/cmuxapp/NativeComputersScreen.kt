@@ -82,7 +82,8 @@ internal fun NativeManagedComputerRows(rows: List<NativeComputerListRow>, appear
                 NativeMacAvatar(appearances.get(mac), mac.colorIdentity.colorSeed, index = colors[mac.colorIdentity])
                 NativeComputerRowLabel(row.name, presence.buildLabel(mac), connection, row.presence,
                     reconnect = false, modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
-                    routeDescription = row.route.endpoint, olderPairing = row.olderPairing)
+                    routeDescription = row.route.endpoint, olderPairing = row.olderPairing,
+                    identity = NativeMacIdentity(mac.deviceId, mac.instanceTag))
                 NativeMacAwakeIndicator(connection)
                 NativeComputerStatusDot(connection, row.presence, reconnect = false)
                 Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -133,6 +134,7 @@ internal fun NativeHiddenComputerRows(macs: List<NativeCredentialStore.PairedMac
                     Text(appearances.name(mac), fontWeight = FontWeight.SemiBold, maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     NativeMacPresenceState().buildLabel(mac)?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
+                    NativeMacUpdateGuidance(NativeMacIdentity(mac.deviceId, mac.instanceTag))
                 }
                 NativeComputerVisibilitySwitch(mac, appearances.name(mac), false) { onVisibility(mac, it) }
             }

@@ -9,6 +9,43 @@ import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeIrohRuntimeTest {
+    @Test fun compatibilityAdmissionVerifiesHostBeforePublishingAndReportsUpdateInDiagnostics() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        val gate = NativeMacCompatibilityGate({ teams.value.scope == it })
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 },
+            admitCompatibility = { owner, client, host -> gate.admit(owner, client, host) }).use { runtime ->
+            suspend fun answerAttempt(index: Int, device: String, version: String) {
+                val wire = withTimeout(2000) {
+                    while (synchronized(backend.transports) { backend.transports.size <= index }) delay(1)
+                    synchronized(backend.transports) { backend.transports[index] }
+                }
+                val request = withTimeout(2000) { wire.sent.receive() }
+                assertEquals("mobile.host.status", request.getString("method"))
+                wire.incoming.send(MobileFrameCodec.encode(org.json.JSONObject().put("id", request.getString("id"))
+                    .put("ok", true).put("result", org.json.JSONObject().put("mac_device_id", device)
+                        .put("mac_instance_tag", "default").put("mac_app_version", version)).toString().toByteArray()))
+                if (device == mac.deviceId) wire.answer(withTimeout(2000) { wire.sent.receive() })
+            }
+            val wrongHost = async { runCatching { runtime.connect(pairing()) } }
+            answerAttempt(0, "different-mac", "0.1")
+            assertTrue(withTimeout(2000) { wrongHost.await() }.isFailure)
+            assertTrue(gate.warnings.value.isEmpty())
+            val oldHost = async { runtime.checkComputer(team, NativeComputerTarget.from(mac)) }
+            answerAttempt(1, mac.deviceId, "0.64.24")
+            assertEquals(NativeConnectionReport.Failure.UPDATE, withTimeout(2000) { oldHost.await() }.failure)
+            assertEquals(1, gate.warnings.value.size)
+            val newHost = async { runtime.connect(pairing()) }
+            answerAttempt(2, mac.deviceId, "0.64.25")
+            withTimeout(2000) { newHost.await() }.use { assertFalse(it.isClosed) }
+            assertTrue(gate.warnings.value.isEmpty())
+            MobileRpcClient(PoolTestTransport(), { "fixture" }).use { probe ->
+                probe.connect()
+                val host = org.json.JSONObject().put("mac_device_id", mac.deviceId).put("mac_instance_tag", mac.buildTag)
+                    .put("mac_app_version", "0.64.24")
+                assertTrue(runCatching { runtime.admitAuthenticatedHost(team, probe, host) }.exceptionOrNull() is MacUpdateRequired)
+            }
+        }
+    }
     private val team = NativeTeamScope("login-a", "user-a", "team-a", 1)
     private val mac = IrohV2Computer("record", "ab".repeat(32), "mac-id", "default", "Mac", emptyList())
     private fun ready() = IrohV2ControlState(ready = true, computers = listOf(mac), permissionExpiresAt = 2000)
@@ -131,7 +168,9 @@ class NativeIrohRuntimeTest {
             assertFalse(backend.permissions.single().invoke())
             release.complete(Unit)
             assertTrue(withTimeout(2000) { pending.await() }.isFailure)
-            assertTrue(backend.transports.single().closes.get() > 0)
+            // The route observer marks the wire closed before invoking transport.close().
+            // Admission rejection may resume this coroutine between those two operations.
+            withTimeout(2000) { while (backend.transports.single().closes.get() == 0) delay(1) }
         }
     }
 

@@ -138,7 +138,7 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                                 resolve = { route, allowed -> TailscaleRoute.resolvePeer(context.applicationContext, route, allowed) },
                                 dial = { route, allowed, token -> MobileRpcClient(TailscaleRoute.resolve(context.applicationContext, route, allowed), token) },
                                 expected = { NativeCredentialStore.PairedMac("", target.deviceId, target.name, target.buildTag) },
-                                replacing = replacing).use { authority ->
+                                replacing = replacing, admitCompatibility = runtime::admitAuthenticatedHost).use { authority ->
                                     authority.authorize(pairing)
                                     authority.connect(pairing, token = account::accessToken).use { }
                                 }

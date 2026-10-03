@@ -27,13 +27,18 @@ class TailscalePairingAuthorityTest {
         var device = "mac"
         var build = "default"
         var rejectWorkspace = false
+        var enforceCompatibility = false
+        var version = "0.64.24"
+        val compatibility = NativeMacCompatibilityGate({ it == scope })
         val transports = mutableListOf<Transport>()
         val authority = TailscalePairingAuthority({ scope }, { it == scope }, grants,
             resolve = { _, allowed -> check(allowed()); resolves++; resolveHook(allowed); numeric },
             dial = { route, allowed, token ->
                 val transport = Transport(route, allowed, this).also { transports += it }
                 MobileRpcClient(transport, token)
-            }, expected = { expected })
+            }, expected = { expected }, admitCompatibility = { owner, client, host ->
+                if (enforceCompatibility) compatibility.admit(owner, client, host)
+            })
         suspend fun connect() = authority.connect(pairing) { tokenCalls++; tokenHook(); "fixture-access" }
         fun authorize() = authority.authorize(pairing)
         fun grant() = grants.find(checkNotNull(scope), TailscaleGrantStore.source(pairing))
@@ -57,7 +62,8 @@ class TailscalePairingAuthorityTest {
             when (method) {
                 "mobile.host.status" -> {
                     fixture.hostHook()
-                    response.put("ok", true).put("result", JSONObject().put("mac_device_id", fixture.device).put("mac_instance_tag", fixture.build))
+                    response.put("ok", true).put("result", JSONObject().put("mac_device_id", fixture.device)
+                        .put("mac_instance_tag", fixture.build).put("mac_app_version", fixture.version))
                 }
                 "mobile.workspace.list" -> {
                     fixture.workspaceHook()
@@ -70,6 +76,18 @@ class TailscalePairingAuthorityTest {
         }
         override suspend fun read(): ByteArray? = replies.receiveCatching().getOrNull()?.also { check(!closed && allowed()) }
         override fun close() { closed = true; replies.close() }
+    }
+
+    @Test fun outdatedPairingDoesNotPromoteConsentToGrantAndUpgradeCanRetry() = runBlocking<Unit> {
+        val f = Fixture(); f.enforceCompatibility = true; f.authorize()
+        try {
+            assertTrue(runCatching { f.connect() }.exceptionOrNull() is MacUpdateRequired)
+            assertNull(f.grant()); assertFalse(f.authority.allowsSaved(f.pairing))
+            assertTrue(f.transports.single().closed)
+            f.version = "0.64.25"
+            f.connect().use { assertFalse(it.isClosed) }
+            assertNotNull(f.grant()); assertTrue(f.compatibility.warnings.value.isEmpty())
+        } finally { f.authority.close() }
     }
 
     @Test fun savedRowScopeCapturedBeforeDispatchCannotDialAfterTeamSwitch() = runBlocking<Unit> {

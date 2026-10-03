@@ -1,5 +1,13 @@
 # Attribution
 
+Mac minimum-version compatibility follows MobileMacCompatPolicy.swift and its DTOs,
+MobileMacAppVersion.swift, MobileMacVersionCompatibility.swift, MobileMacCompatCenter.swift
+and MobileShellComposite+BuildCompatibility.swift at cmux
+0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc. Copyright Manaflow, Inc.; GPL-3.0-or-later.
+Android explicitly maps its Iroh v2 protocol to the reviewed iOS 1.0.6 production
+policy profile, retaining its own app identity. Android admission, pooled-wire
+revalidation, bounded caching and update guidance are implemented in Kotlin.
+
 Saved reconnect rows follow DisconnectedWorkspaceShellView.swift and the shared
 MacComputerSnapshot projection in Packages/iOS/CmuxMobileShellUI at cmux
 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc. Copyright Manaflow, Inc.; GPL-3.0-or-later.

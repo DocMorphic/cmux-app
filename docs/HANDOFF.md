@@ -29,6 +29,13 @@ records the original September 28 handoff rather than the current APK.
 
 ## User's objective and working preferences
 
+Latest local feature: [MAC_COMPATIBILITY.md](MAC_COMPATIBILITY.md) adds minimum
+Mac-version admission, a cached remote policy and update guidance. It has 85
+passing focused JVM tests and two passing Android UI tests. Signed build 474
+does not include it. Next implement the separate audience policy and durable
+offline warnings, then resume physical acceptance when the Pixel is available.
+The goal remains active; do not repeat the already-pending Pixel reconnect request.
+
 - Deliver a fully functioning unofficial Android companion matching the official
   cmux iOS app's UI and behavior, including native pairing, workspaces, terminal
   rendering/input, files, browser, notifications, and settings.

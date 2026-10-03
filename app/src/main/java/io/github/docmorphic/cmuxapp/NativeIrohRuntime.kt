@@ -30,7 +30,8 @@ internal class NativeIrohRuntime(
     private val backend: suspend (NativeTeamScope, () -> Boolean) -> IrohAccountBackend,
     private val now: () -> Long = { System.currentTimeMillis() / 1000 },
     private val retryDelayMillis: Long = 2000,
-    private val savedTailscale: NativeSavedTailscaleRuntime? = null
+    private val savedTailscale: NativeSavedTailscaleRuntime? = null,
+    private val admitCompatibility: (suspend (NativeTeamScope, MobileRpcClient, org.json.JSONObject) -> Unit)? = null
 ) : AutoCloseable {
     private class Owner(val account: NativeTeamScope) {
         val connections = MobileRpcConnections()
@@ -159,6 +160,7 @@ internal class NativeIrohRuntime(
         val reason = when {
             failure is TimeoutCancellationException -> NativeConnectionReport.Failure.TIMEOUT
             failure is TailscaleReadinessException -> NativeConnectionReport.Failure.TAILSCALE
+            failure is MacUpdateRequired -> NativeConnectionReport.Failure.UPDATE
             !isCurrent(team) || (failure is IrohV2ServerFailure &&
                 (failure.code in IrohV2Recovery.terminalCodes || failure.code in IrohV2Recovery.authenticationCodes)) ||
                 (failure is IrohV2HttpFailure && failure.status in setOf(401, 403)) -> NativeConnectionReport.Failure.ACCOUNT
@@ -208,6 +210,13 @@ internal class NativeIrohRuntime(
     /** Local appearance may be edited offline, but never through a retired account/team page. */
     fun permitsAppearance(team: NativeTeamScope): Boolean = synchronized(lock) { !closed && isCurrent(team) }
     fun usesSavedTailscale(team: NativeTeamScope, target: NativeComputerTarget) = savedTailscale?.selected(team, target) == true
+
+    /** Also used by the short-lived, identity-checked Add Tailscale Connection probe. */
+    suspend fun admitAuthenticatedHost(team: NativeTeamScope, client: MobileRpcClient, host: org.json.JSONObject) {
+        check(permitsAppearance(team)) { "Account or team changed. Reopen Computer Details." }
+        admitCompatibility?.invoke(team, client, host)
+        check(permitsAppearance(team)) { "Account or team changed. Reopen Computer Details." }
+    }
 
     suspend fun networking(team: NativeTeamScope, refresh: Boolean = false): NativeNetworkingSnapshot =
         withContext(Dispatchers.IO) {
@@ -265,7 +274,16 @@ internal class NativeIrohRuntime(
         check(intent.dialable) { "This connection method needs an address. Open Computer Details to add one." }
         val permits = { authorized(run, mac, intent) }
         return run.connections.acquire(connectionKey(mac, intent), permits,
-            validate = { service.validateConnection(mac, intent, it) }) {
+            validate = { client ->
+                service.validateConnection(mac, intent, client)
+                admitCompatibility?.let { admit ->
+                    val host = client.hostStatus()
+                    NativeCredentialStore.PairedMac("", mac.deviceId, mac.name, mac.buildTag).requireMatchingHost(host)
+                    client.workspaces()
+                    requireCurrent(run)
+                    admit(run.account, client, host)
+                }
+            }) {
             MobileRpcClient(service.transport(mac, permits, intent), {
                 requireCurrent(run)
                 accessToken().also { requireCurrent(run) }
