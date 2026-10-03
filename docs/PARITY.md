@@ -12,6 +12,20 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Release startup regression found and fixed locally (2026-10-03)
+
+Candidate 486 passed compile/test/package gates but failed actual Android 17 ART
+verification in the large NativeScreen root lambda. The onboarding body now lives
+in a separate composition lambda, with identical normalized body content. The
+new APK class-loading probe reproduces 486's exact VerifyError and passes the
+fixed local release. CI now runs that gate before artifact upload. Replacement
+build 488 is pending; 481 remains the last verified signed milestone. See
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) for precise evidence and rejection status.
+
+The [What's New audit](WHATS_NEW_AUDIT.md) also records an unimplemented iOS surface:
+release archive, remote visibility, web preload and acknowledgement. Android build
+automation does not provide this UI. Global parity pin remains unchanged.
+
 ## Typed connection failure diagnostics (2026-10-03)
 
 [DIAGNOSTIC_FAILURES.md](DIAGNOSTIC_FAILURES.md) adds the upstream stable failure

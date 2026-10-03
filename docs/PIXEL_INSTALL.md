@@ -3,6 +3,25 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
+## Rejected candidate 486 and replacement in progress
+
+Build 486 at `372f48c` passed full CI and independent packaging checks, but its
+actual API 37 / 16 KB launch failed with `VerifyError` in the generated
+`NativeScreenKt` root lambda. **Do not install or recommend build 486.** The
+emulator also showed a separate System UI cold-boot ANR; after recovery, the app's
+own verifier failure remained reproducible. The original installed-data timestamp
+was preserved by the 481 → 486 install, but startup acceptance failed.
+
+Fix `555e4b8` moves the unchanged onboarding body into its own composition lambda.
+An ART probe reproduces the exact error in 486 and verifies the fixed local
+release APK (1,339 declared methods). The CI workflow now runs that check on an
+ephemeral Android 17 emulator before uploading APKs. This is a DEX gate; actual
+signed launch and authenticated device acceptance remain separate.
+[Replacement build 488](https://github.com/DocMorphic/cmux-app/actions/runs/37153210672)
+was dispatched at `555e4b89257d73a984f6dbec74894dff1a18759b`; its result and signed
+upgrade are pending. Build 481 remains the last verified signed milestone.
+Local evidence: `captures/runtime/build486/`, including negative/fixed class probes.
+
 ## Current signed development APK — build 481 (2026-10-03)
 
 [Build 481](https://github.com/DocMorphic/cmux-app/actions/runs/37148164630)
