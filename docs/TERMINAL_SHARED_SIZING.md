@@ -633,6 +633,44 @@ changed by this checkpoint. Raw source/diagnostics are ignored under
 
 ## Prepared physical Gboard check
 
+### Prepared shared-policy and detach scenario (2026-10-03)
+
+`scripts/check-live-terminal-ui.py --serial DEVICE --build nightly --shared-sizing`
+now opts into `LiveTerminalSizingScenario` after the existing composer/keyboard/
+reopen check. `--gboard` can be added to the same run. Install the matching current
+debug APK with `adb install -r` first; the runner installs only the instrumentation
+APK and preserves app data. The signed release package is separate.
+
+The scenario uses only the workspace already created and privately receipted by
+`LiveNativeUiCheck`, whose existing cleanup removes that workspace. Through the
+real size sheet it selects all five policies, checks minimum/maximum and 80 × 24
+fixed dimensions against both the host size state and replay grid, toggles/restores
+this phone's counts override, and moves its priority below another participant.
+The separate observer sends no viewport/client fields in replay and rejects any
+unexpected extra mobile participant.
+
+The observer disconnects only the discovered foreground phone participant in the
+owned terminal. The UI must disable composer/send, retain explicit detachment
+across workspace navigation, and remain absent from ten host snapshots over at
+least 2.5 seconds. Explicit viewer reattachment must produce a non-counting phone
+with a false override; a second detach and normal reattachment must restore the
+automatic counting rule and enabled composer. The check records fixed/priority,
+detached and both reattached screens for visual review. It does not disconnect
+the Mac or use bulk disconnection. Existing ownership receipts, account checks,
+bounded RPC waits, teardown and sleep restoration remain in force.
+
+**Prepared, not physically verified:** the instrumentation APK compiles, and the
+Python runner compiles, exposes the new flag, and rejects stable/shared-sizing
+before accessing a device. The Pixel was absent, so none of these new live
+assertions or screenshots has passed. Latest-activity owner handoff, touch priority
+drag, other-participant disconnection, transport reconnection, TalkBack and broad
+performance acceptance remain separate gates. Signed build 411 is unchanged.
+Final test APK assembly passed in **13 seconds**; the initial compile took 23
+seconds. Ignored evidence: `captures/runtime/live-shared-sizing-final-build.txt`
+and `live-shared-sizing-build.txt` in the same directory. No emulator was started.
+
+### Earlier primary-grid and Gboard preparation
+
 `LiveNativeUiCheck` now accepts `cmux_live_build=nightly|stable` (exact selection)
 and optional `cmux_live_gboard=true`. It launches the selected saved Mac through
 the real pairing Intent, tracks Activity destruction directly, and writes a

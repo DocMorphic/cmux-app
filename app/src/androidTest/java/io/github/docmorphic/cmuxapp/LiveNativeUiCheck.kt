@@ -37,6 +37,8 @@ class LiveNativeUiCheck {
         val build = args.getString("cmux_live_build")
         require(build == null || build in setOf("stable", "nightly"))
         val gboard = args.getString("cmux_live_gboard") == "true"
+        val sharedSizing = args.getString("cmux_live_shared_sizing") == "true"
+        require(!sharedSizing || build == "nightly") { "Shared sizing requires explicit NIGHTLY selection" }
         check(!Build.FINGERPRINT.contains("generic") && !Build.MODEL.contains("sdk")) { "Physical device required" }
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
@@ -247,6 +249,8 @@ class LiveNativeUiCheck {
             val reopenedGrid = awaitHostViewport()
             check(reopenedGrid == beforeGrid)
             screenshot("terminal-reopened.png")
+            if (sharedSizing) LiveTerminalSizingScenario(compose, checkNotNull(client), created,
+                { stage = it }, ::screenshot).run()
             check(connections.store.taskSession() == login && connections.account.isSignedIn())
             println("CMUX_LIVE_UI_REPORT " + JSONObject().put("openedCreatedWorkspace", true)
                 .put("terminalStartedInMainActivity", true).put("imeVisible", true)

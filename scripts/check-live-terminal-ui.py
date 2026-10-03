@@ -19,10 +19,13 @@ def main():
     parser.add_argument("--serial", required=True)
     parser.add_argument("--build", choices=("stable", "nightly"), required=True)
     parser.add_argument("--gboard", action="store_true", help="Type through actual Gboard keys")
+    parser.add_argument("--shared-sizing", action="store_true", help="Exercise NIGHTLY size policies and explicit detach/reattach on the owned fixture")
     parser.add_argument("--adb", default=shutil.which("adb") or str(Path(os.environ.get("ANDROID_HOME", Path.home() / "Library/Android/sdk")) / "platform-tools/adb"))
     parser.add_argument("--output", type=Path, default=root / "captures/runtime/live-terminal-ui" /
                         datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
     args = parser.parse_args()
+    if args.shared_sizing and args.build != "nightly":
+        parser.error("--shared-sizing requires --build nightly")
     adb = [args.adb, "-s", args.serial]
     apk = root / "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
     if not apk.is_file():
@@ -46,8 +49,9 @@ def main():
             subprocess.run(adb + ["shell", "am", "instrument", "-w", "-r", "-e", "class",
                 "io.github.docmorphic.cmuxapp.LiveNativeUiCheck", "-e", "cmux_live_ui_fixture", "true", "-e", "cmux_live_build", args.build,
                 "-e", "cmux_live_gboard", str(args.gboard).lower(),
+                "-e", "cmux_live_shared_sizing", str(args.shared_sizing).lower(),
                 "io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner"],
-                stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
+                stdout=log, stderr=subprocess.STDOUT, check=True, timeout=480 if args.shared_sizing else 300)
         result = (args.output / "runtime.txt").read_text()
         if "OK (1 test)" not in result or "FAILURES!!!" in result:
             raise RuntimeError("Terminal UI check did not pass; inspect runtime and the private receipt before retrying")

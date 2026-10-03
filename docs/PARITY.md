@@ -47,6 +47,9 @@ Android accessibility action. Android uses the supported
 `unknown` kind plus its model; upstream's automatic exclusion rules still need an
 Android kind for identical behavior. Signed build 411 includes these changes;
 the installed Pixel app is unchanged. [Contract, evidence and remaining work](TERMINAL_SHARED_SIZING.md).
+An opt-in physical scenario now covers policy controls, counts/priority and
+explicit detach/viewer/normal reattach on the owned fixture; its test APK compiles,
+but the new live checks await the Pixel and have not passed yet.
 
 **Signed build 411 verified (2026-10-03):** full CI passed at `28265f8`;
 downloaded signer, 14 packaged viewer hashes, six native libraries and 16 KB ZIP
