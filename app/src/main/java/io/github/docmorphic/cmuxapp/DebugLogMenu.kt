@@ -36,7 +36,7 @@ internal fun DebugLogMenuItem(onDismiss: () -> Unit) {
     val source = LocalDebugLogSource.current
     val scope = rememberCoroutineScope()
     var copying by remember { mutableStateOf(false) }
-    DropdownMenuItem(text = { Text(if (copying) "Copying Debug Logs…" else "Copy Debug Logs") }, enabled = !copying,
+    DropdownMenuItem(text = { Text(if (copying) "Copying Debug Logs…" else "Copy Debug Logs") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_menu_clipboard) }, enabled = !copying,
         modifier = Modifier.testTag("copy-debug-logs"), onClick = {
             if (!copying) {
                 copying = true

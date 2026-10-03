@@ -23,11 +23,11 @@ internal object RoutedBrowserProtocol {
         putBoolean("creation_enabled", creationEnabled); putBoolean("modes", modes); putString("linked_panel", linkedPanel)
         putString("workspace", workspace.title)
         putString("panes", JSONArray().also { rows -> panes(workspace, browserState).forEach {
-            rows.put(JSONObject().put("kind", it.kind).put("id", it.id).put("title", it.title).put("simulator", it.simulator).put("fallback_browser", it.fallbackBrowser))
+            rows.put(JSONObject().put("kind", it.kind).put("id", it.id).put("title", it.title).put("simulator", it.simulator).put("fallback_browser", it.fallbackBrowser).put("surface_kind", it.surfaceKind))
         } }.toString())
     }
     fun panes(bundle: Bundle): List<NativePanePickerRow> = JSONArray(bundle.getString("panes") ?: "[]").let { rows ->
-        (0 until rows.length()).map { rows.getJSONObject(it).let { row -> NativePanePickerRow(row.getString("kind"), row.getString("id"), row.getString("title"), row.optBoolean("simulator"), row.optBoolean("fallback_browser")) } }
+        (0 until rows.length()).map { rows.getJSONObject(it).let { row -> NativePanePickerRow(row.getString("kind"), row.getString("id"), row.getString("title"), row.optBoolean("simulator"), row.optBoolean("fallback_browser"), row.optString("surface_kind").takeIf { it.isNotEmpty() }) } }
     }
     fun snapshot(value: LocalBrowserSnapshot) = Bundle().apply {
         putString("url", value.url); putString("title", value.title); putString("address", value.address)

@@ -68,32 +68,33 @@ internal fun SshPanePicker(title: String, layout: SshPickerLayout, selected: Ssh
                 DropdownMenuItem(text = { Column {
                     Text(row.title)
                     row.paneLabel?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
-                } }, enabled = enabled, modifier = Modifier.testTag("ssh.picker.row.${row.target.encode()}").semantics { this.selected = checked },
-                    trailingIcon = { if (checked) Text("✓", Modifier.clearAndSetSemantics { }) }, onClick = { close { onSelect(row.target) } })
+                } }, leadingIcon = { PaneMenuIcon(if (row.target is SshWorkspaceTarget.Browser) R.drawable.ic_workspace_globe else R.drawable.ic_computer_terminal) }, enabled = enabled, modifier = Modifier.testTag("ssh.picker.row.${row.target.encode()}").semantics { this.selected = checked },
+                    trailingIcon = { if (checked) PaneMenuIcon(R.drawable.ic_menu_check) }, onClick = { close { onSelect(row.target) } })
             }
             layout.sections.forEach { section ->
                 heading(section.title)
                 section.rows.forEach { if (it.startsPane) HorizontalDivider(); row(it) }
                 section.actions.forEach { action ->
-                    DropdownMenuItem(text = { Text(action.title) }, enabled = enabled && onAction != null,
+                    DropdownMenuItem(text = { Text(action.title) }, leadingIcon = { PaneMenuIcon(action.menuIcon()) }, enabled = enabled && onAction != null,
                         modifier = Modifier.testTag("ssh.picker.action.${section.id}.${action.name}"),
                         onClick = { close { onAction?.invoke(section, action) } })
                 }
             }
             if (layout.browsers.isNotEmpty()) { heading("Browsers"); layout.browsers.forEach { row(it) } }
             HorizontalDivider()
-            DropdownMenuItem(text = { Text("New Workspace") }, enabled = enabled && onNewWorkspace != null,
+            DropdownMenuItem(text = { Text("New Workspace") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_menu_workspace_add) }, enabled = enabled && onNewWorkspace != null,
                 onClick = { close { onNewWorkspace?.invoke() } })
             layout.newTerminalTitle?.let { label ->
-                DropdownMenuItem(text = { Text(label) }, enabled = enabled && onNewTerminal != null,
+                DropdownMenuItem(text = { Text(label) }, leadingIcon = { PaneMenuIcon(R.drawable.ic_task_plus) }, enabled = enabled && onNewTerminal != null,
                     onClick = { close { onNewTerminal?.invoke() } })
             }
-            if (onBrowser != null) DropdownMenuItem(text = { Text("New Browser") }, enabled = enabled,
+            if (onBrowser != null) DropdownMenuItem(text = { Text("New Browser") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_workspace_globe) }, enabled = enabled,
                 modifier = Modifier.semantics { this.selected = checksNewBrowser },
-                trailingIcon = { if (checksNewBrowser) Text("✓", Modifier.clearAndSetSemantics { }) }, onClick = { close(onBrowser) })
-            if (onText != null) DropdownMenuItem(text = { Text("View as Text") }, onClick = { close(onText) })
+                trailingIcon = { if (checksNewBrowser) PaneMenuIcon(R.drawable.ic_menu_check) }, onClick = { close(onBrowser) })
+            if (onText != null || BuildConfig.DEBUG || feedback != null) HorizontalDivider()
+            if (onText != null) DropdownMenuItem(text = { Text("View as Text") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_workspace_file_text) }, onClick = { close(onText) })
             DebugLogMenuItem { expanded = false }
-            if (feedback != null) DropdownMenuItem(text = { Text("Send Feedback") }, onClick = { close(feedback) })
+            if (feedback != null) DropdownMenuItem(text = { Text("Send Feedback") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_menu_send) }, onClick = { close(feedback) })
         }
     }
 }

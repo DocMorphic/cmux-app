@@ -27,6 +27,33 @@ Earlier signed-build references below describe individual feature checkpoints.
 Physical acceptance, configured push, authenticated release migration, safe crash
 stack capture and the remaining source audit are still open.
 
+## Pane menu iconography and utility grouping (2026-10-03)
+
+Targeted inspection of `TerminalPickerMenuContent.swift` and
+`MobileSurfacePreview+Presentation.swift` at `0fc35d6` showed that Android's
+plain-text pane menus were missing iOS's pane-kind and action glyphs. The shared
+Mac and SSH menus now include terminal, browser, simulator and surface-kind
+icons; workspace/tab creation, directional split and utility icons; and a
+separate utility section. Selection uses a vector checkmark. The glyphs reuse
+existing assets where available, with project-authored vectors for the remaining
+shapes. Android's menu layout places the glyph before the label and its selection
+mark after it. Decorative images have no separate spoken label; row selected
+semantics and action names remain the accessibility source.
+
+Surface-kind metadata now crosses the existing browser-process menu protocol,
+so its surface glyphs can match the main screen. Unknown/missing kinds use a
+generic surface icon. This metadata does not alter navigation identity or action
+permissions. Copy Debug Logs remains DEBUG-only.
+
+Debug/test APK assembly and release Kotlin compilation passed in **1m 53s**.
+Three existing UI checks passed in **38.684 seconds** on the existing API 37
+emulator: native grouped selection, live browser capability/disabled-state
+transitions, and real SSH/Chrome grouped creation selecting exact terminals.
+Native, browser-process and SSH menu screenshots were visually inspected.
+Evidence: ignored `captures/runtime/picker-icons/`. No new AVD was created.
+Physical acceptance and the wider source/UI audit remain open; signed build 434
+predates these menu changes and the whole-parity pin remains unchanged.
+
 ## Live browser menu inventory and permissions (2026-10-03)
 
 The separate browser Activity now receives current workspace rows, creation

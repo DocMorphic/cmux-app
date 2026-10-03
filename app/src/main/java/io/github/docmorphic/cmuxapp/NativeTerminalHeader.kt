@@ -48,9 +48,9 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
             NativeWorkspacePane(terminal = terminal), Modifier.weight(1f), onTerminal, onSurface, onBrowser,
             onNewWorkspace, onNewTerminal, onNewBrowser.takeIf { workspace != null },
             browserState = NativeBrowserPickerState.from(ready, capabilities)) { close ->
-            DropdownMenuItem(text = { Text("View as Text") }, onClick = { close(); onText() }, enabled = terminal.isReady)
-            if (onSizing != null) DropdownMenuItem(text = { Text("Terminal size") }, onClick = { close(); onSizing() })
-            if ("terminal.artifact.v1" in capabilities) DropdownMenuItem(text = { Text("Files") },
+            DropdownMenuItem(text = { Text("View as Text") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_workspace_file_text) }, onClick = { close(); onText() }, enabled = terminal.isReady)
+            if (onSizing != null) DropdownMenuItem(text = { Text("Terminal size") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_computer_display) }, onClick = { close(); onSizing() })
+            if ("terminal.artifact.v1" in capabilities) DropdownMenuItem(text = { Text("Files") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_workspace_folder) },
                 onClick = { close(); onFiles() }, enabled = ready)
         }
         }

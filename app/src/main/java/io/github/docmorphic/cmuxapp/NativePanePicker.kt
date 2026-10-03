@@ -18,10 +18,10 @@ import androidx.compose.ui.unit.sp
 
 /** Only pane identity and presentation cross the routed-browser process boundary. */
 internal data class NativePanePickerRow(val kind: String, val id: String, val title: String, val simulator: Boolean = false,
-    val fallbackBrowser: Boolean = false)
+    val fallbackBrowser: Boolean = false, val surfaceKind: String? = null)
 internal fun nativePanePickerRows(workspace: NativeWorkspace, browserState: NativeBrowserPickerState = NativeBrowserPickerState()): List<NativePanePickerRow> =
     workspace.terminals.map { NativePanePickerRow("terminal", it.id, it.title.ifBlank { "Terminal" }) } +
-        workspace.macSurfaces.map { NativePanePickerRow("surface", it.id, it.displayTitle, it.simulator != null) } +
+        workspace.macSurfaces.map { NativePanePickerRow("surface", it.id, it.displayTitle, it.simulator != null, surfaceKind = it.kind) } +
         if (browserState.streaming) workspace.browsers.filter { browser -> workspace.simulators.none { it.panelId == browser.id } }
             .map { NativePanePickerRow("browser", it.id, it.title.ifBlank { "Browser" }) }
         else workspace.surfaces.filter { it.kind == "browser" && workspace.simulators.none { sim -> sim.panelId == it.id } }
@@ -77,37 +77,38 @@ internal fun NativePanePicker(title: String, rows: List<NativePanePickerRow>, se
             sections.forEach { (heading, items) ->
                 if (items.isNotEmpty()) PanePickerSection(heading)
                 items.forEach { row ->
-                    PanePickerItem(row.title, "${row.kind}-${row.id}", row.kind == selectedRow?.kind && row.id == selectedRow?.id) {
+                    PanePickerItem(row.title, "${row.kind}-${row.id}", row.menuIcon(), row.kind == selectedRow?.kind && row.id == selectedRow?.id) {
                         close(); onSelect(row)
                     }
                 }
             }
             if (browserState.showsUpdateHint) {
                 PanePickerSection("Mac Browsers")
-                DropdownMenuItem(text = { Text(NativeBrowserPickerState.UPDATE_HINT) }, enabled = false,
+                DropdownMenuItem(text = { Text(NativeBrowserPickerState.UPDATE_HINT) }, leadingIcon = { PaneMenuIcon(R.drawable.ic_menu_download) }, enabled = false,
                     modifier = Modifier.testTag("terminal-picker-browser-update"), onClick = {})
             }
             HorizontalDivider()
-            DropdownMenuItem(text = { Text("New Workspace") }, enabled = onNewWorkspace != null,
+            DropdownMenuItem(text = { Text("New Workspace") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_menu_workspace_add) }, enabled = onNewWorkspace != null,
                 onClick = { close(); onNewWorkspace?.invoke() })
-            DropdownMenuItem(text = { Text("New Terminal") }, enabled = onNewTerminal != null,
+            DropdownMenuItem(text = { Text("New Terminal") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_task_plus) }, enabled = onNewTerminal != null,
                 onClick = { close(); onNewTerminal?.invoke() })
-            DropdownMenuItem(text = { Text("New Browser") }, enabled = onNewBrowser != null,
+            DropdownMenuItem(text = { Text("New Browser") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_workspace_globe) }, enabled = onNewBrowser != null,
                 modifier = Modifier.testTag("terminal-picker-new-browser").semantics { selected = checksNewBrowser },
-                trailingIcon = { if (checksNewBrowser) Text("✓", Modifier.clearAndSetSemantics { }) },
+                trailingIcon = { if (checksNewBrowser) PaneMenuIcon(R.drawable.ic_menu_check) },
                 onClick = { close(); onNewBrowser?.invoke() })
+            HorizontalDivider()
             utilities(close)
             DebugLogMenuItem(close)
-            if (feedback != null) DropdownMenuItem(text = { Text("Send Feedback") }, onClick = { close(); feedback() })
+            if (feedback != null) DropdownMenuItem(text = { Text("Send Feedback") }, leadingIcon = { PaneMenuIcon(R.drawable.ic_menu_send) }, onClick = { close(); feedback() })
         }
     }
 }
 
 @Composable
-private fun PanePickerItem(title: String, key: String, checked: Boolean, onClick: () -> Unit) {
-    DropdownMenuItem(text = { Text(title) },
+private fun PanePickerItem(title: String, key: String, icon: Int, checked: Boolean, onClick: () -> Unit) {
+    DropdownMenuItem(text = { Text(title) }, leadingIcon = { PaneMenuIcon(icon) },
         modifier = Modifier.testTag("terminal-picker-$key").semantics { selected = checked },
-        trailingIcon = { if (checked) Text("✓", Modifier.clearAndSetSemantics { }) }, onClick = onClick)
+        trailingIcon = { if (checked) PaneMenuIcon(R.drawable.ic_menu_check) }, onClick = onClick)
 }
 
 @Composable
