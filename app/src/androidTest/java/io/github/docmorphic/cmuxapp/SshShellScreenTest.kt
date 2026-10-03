@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.*
 import kotlinx.coroutines.*
 import org.junit.*
 import org.junit.Assert.*
@@ -140,6 +141,75 @@ class SshShellScreenTest {
         val second = session.shells.state.value.single()
         compose.runOnIdle { lifetime.cancel(); assertFalse(second.send("do not deliver\n")) }
         compose.waitUntil(5000) { session.shells.state.value.isEmpty() && !connection.isConnected }
+    }
+    @Test fun plainShellBrowserPreservesDraftAndBothMenusCreateSelectedWorkspaces() {
+        val port = InstrumentationRegistry.getArguments().getString("cmux_ssh_browserport")!!.toInt()
+        val shell = open()
+        command("before browser λ"); waitText(shell, "ECHO before browser λ")
+        compose.onNodeWithTag("ssh.shell.composer").performTextReplacement("unsent browser draft λ")
+        val network = compose.runOnIdle { session.browsers.network(host.id) }
+        val workspace = sshBrowserWorkspace(SshWorkspaceTarget.Shell(shell.id), shell.title)
+        compose.runOnIdle {
+            network.navigation.restoreRemembered(sshLocalBrowserKey(network, workspace), workspace)
+            network.navigation.state.value.local!!.surface.load("http://localhost:$port/page")
+        }
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        fun uiText(value: String) = checkNotNull(device.wait(Until.findObject(By.text(value)), 15000)) { "Missing $value" }
+        fun browser() {
+            compose.onNodeWithTag("ssh.shell.menu").performClick()
+            compose.onNodeWithText("New Browser").performClick()
+            compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        }
+        fun selected(current: SshShell) {
+            compose.waitUntil(15000) { compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) }
+            compose.waitUntil(10000) {
+                compose.onAllNodesWithTag("ssh.shell.identity.${current.id}").fetchSemanticsNodes().isNotEmpty() &&
+                    current.state.value.phase == SshShellPhase.RUNNING
+            }
+        }
+        browser()
+        uiText("SSH routed fixture ▾"); uiText("SSH route verified")
+        uiText("Next SSH page").click(); uiText("SSH next ▾")
+        val remembered = runBlocking { withContext(Dispatchers.Main) { network.navigation.state.value.local!!.surface } }
+        checkNotNull(device.wait(Until.findObject(By.desc("Back to workspaces")), 15000)).click()
+        selected(shell)
+        compose.onNodeWithTag("ssh.shell.composer").assertTextContains("unsent browser draft λ")
+        assertFalse(remembered.state.value.closed)
+        browser(); uiText("SSH next ▾").click()
+        uiText("Terminals"); uiText("New Workspace"); uiText("New Browser")
+        assertFalse(device.hasObject(By.text("New Tab")))
+        assertFalse(device.hasObject(By.text("New Window")))
+        assertFalse(device.hasObject(By.text("New Screen")))
+        assertTrue(device.takeScreenshot(File(compose.activity.getExternalFilesDir(null), "ssh-plain-browser-picker.png")))
+        uiText(shell.title).click()
+        selected(shell)
+        compose.onNodeWithTag("ssh.shell.composer").assertTextContains("unsent browser draft λ")
+        assertSame(shell, session.shells.state.value.single())
+        assertFalse(text(shell).contains("ECHO unsent browser draft"))
+        // Explicit pane selection closes the page, unlike Back. Both preserve
+        // the exact PTY and unsent draft. Seed the next independent browser.
+        assertTrue(remembered.state.value.closed)
+        compose.runOnIdle {
+            network.navigation.restoreRemembered(sshLocalBrowserKey(network, workspace), workspace)
+            network.navigation.state.value.local!!.surface.load("http://localhost:$port/page")
+        }
+        browser(); uiText("SSH routed fixture ▾").click(); uiText("New Workspace").click()
+        compose.waitUntil(10000) { session.shells.state.value.size == 2 }
+        val second = session.shells.state.value.single { it !== shell }
+        selected(second)
+        command("browser-created shell"); waitText(second, "ECHO browser-created shell")
+        assertFalse(text(shell).contains("browser-created shell"))
+        compose.onNodeWithTag("ssh.shell.menu").performClick()
+        compose.onNodeWithText("New Workspace").performClick()
+        compose.waitUntil(10000) { session.shells.state.value.size == 3 }
+        val third = session.shells.state.value.single { it !== shell && it !== second }
+        selected(third)
+        command("terminal-created shell"); waitText(third, "ECHO terminal-created shell")
+        assertFalse(text(second).contains("terminal-created shell"))
+        assertTrue(session.shells.state.value.all { it.hostId == host.id && it.state.value.phase == SshShellPhase.RUNNING })
+        val connection = runBlocking { session.connections.open(host.id) }
+        assertEquals("3", runBlocking { connection.exec("shell-count").stdout.toString(Charsets.UTF_8).trim() })
+        capture("ssh-plain-created-workspace")
     }
     @Test fun endedShellKeepsItsScreenOnFailedRetryAndReconnectStartsFreshPty() {
         val old = open()

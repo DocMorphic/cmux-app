@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--serial", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--ui", action="store_true", help="Run the four production SSH host-screen checks")
-    parser.add_argument("--shell-ui", action="store_true", help="Run three production Ghostty SSH shell-screen checks")
+    parser.add_argument("--shell-ui", action="store_true", help="Run four production SSH shell, browser round-trip and workspace creation checks")
     parser.add_argument("--tmux-ui", action="store_true", help="Run the four real tmux workspace checks")
     parser.add_argument("--cmux-ui", action="store_true", help="Run eight real mixed cmux-tui/tmux/shell workspace checks")
     parser.add_argument("--cmux-browser", action="store_true", help="Run seven integrated real cmux-tui/Chrome browser workflow, picker, recovery and lost-input-reply checks")
@@ -31,7 +31,7 @@ def main():
         parser.error("Choose one UI suite")
     if (args.tmux_ui or args.cmux_ui or args.cmux_install or args.cmux_browser) and not args.fixture:
         parser.error("Real workspace checks require --fixture")
-    count = 1 if args.ssh_tls or args.ssh_websocket else 7 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 9 if args.files_ui else 1 if args.cmux_install else 8 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (3 if args.shell_ui else (4 if args.ui else 14)))
+    count = 1 if args.ssh_tls or args.ssh_websocket else 7 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 9 if args.files_ui else 1 if args.cmux_install else 8 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (4 if args.shell_ui else (4 if args.ui else 14)))
     test_class = "SshBrowserWorkspaceTest" if args.cmux_browser else "SshBrowserTest" if args.ssh_browser or args.ssh_websocket or args.ssh_tls else "SshFilesScreenTest" if args.files_ui or args.files_pickers else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")
@@ -86,7 +86,7 @@ def main():
         # server's generated private import examples remain in its build folder.
         public = {"port": fixture["port"], "user": fixture["username"],
                   "nonce": fixture["nonce"], "hostkey": fixture["hostKey"], "silentport": fixture["silentPort"]} if fixture else {}
-        if args.ssh_browser or args.cmux_browser or args.ssh_websocket or args.ssh_tls:
+        if args.shell_ui or args.ssh_browser or args.cmux_browser or args.ssh_websocket or args.ssh_tls:
             public["browserport"] = fixture["browserPort"]
         if args.ssh_websocket:
             public["websocketport"] = fixture["websocketPort"]

@@ -24,6 +24,34 @@ checksums](PIXEL_INSTALL.md). Later references to unchanged build 411 below desc
 the earlier individual feature checkpoints. Physical acceptance, configured push,
 authenticated release migration and the remaining source audit are still open.
 
+## Plain SSH shortcut browser and creation actions (2026-10-03)
+
+The **New Shell** shortcut in SSH Computers now exposes New Browser and New
+Workspace through the same grouped picker used by the mixed workspace route.
+Its browser runs through the host's SSH network and exposes the current terminal
+plus New Workspace. A plain shell has no New Tab/Window/Screen action. The shell
+stays composed behind the browser so returning retains the PTY and unsent text.
+Creation selects the new shell on the same host and keeps previous shells alive;
+callbacks check the current account, host, shell and busy state. Reconnect uses
+the same guarded selection path and retains the old screen when connection fails.
+
+Verification: debug and instrumentation APKs built; all **four** production SSH
+shell UI checks passed on the existing API 37 emulator in **42.431 seconds**.
+The added check exercises a real SSH-routed WebView in the browser process,
+Back restoring its page, explicit terminal selection closing the browser while
+preserving the draft, and creation from both menus followed by commands in the
+exact new PTYs. The remote fixture reports three live shells. Existing checks
+cover ANSI/query rendering, Files round trips, closure/account retirement, and
+failed/successful reconnect. Picker and created-terminal screenshots were reviewed.
+The first new test incorrectly expected explicit pane selection to retain the
+page; its corrected assertions cover the existing Back-versus-pane contract.
+Evidence: ignored `captures/runtime/ssh-plain-final/`; runner:
+`scripts/check-ssh-transport.py --shell-ui`.
+
+The Pixel was absent from ADB, so this is emulator evidence. Signed build 421
+does not include this change. Physical SSH acceptance and the broader goal remain
+open; this checkpoint does not advance the whole-parity upstream pin.
+
 ## Upstream delta audit in progress (2026-10-03)
 
 The metadata comparison from the whole-parity baseline `4c5272e` to installed

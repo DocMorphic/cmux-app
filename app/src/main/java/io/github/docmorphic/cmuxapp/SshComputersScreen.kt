@@ -85,22 +85,57 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
     if (activeShell != null) {
         key(activeShell.id) {
             var files by remember { mutableStateOf(false) }
-            if (files) SshFilesSheet(session, activeShell.hostId, activeShell) { files = false }
-            SshShellScreen(activeShell, reconnecting = busy, reconnectError = failure, onFiles = { files = true }, onReconnect = {
-                if (!busy) {
-                    busy = true; failure = null
-                    scope.launch {
-                        try {
-                            val next = session.shells.reconnect(activeShell.id)
-                            if (selectedShell == activeShell.id) selectedShell = next.id
-                        } catch (error: Exception) {
-                            currentCoroutineContext().ensureActive()
-                            if (session.connections.statuses.value[activeShell.hostId]?.phase != SshConnectionPhase.IDLE && error !is CancellationException)
-                                failure = error.message ?: "Could not reconnect SSH shell"
-                        } finally { busy = false }
-                    }
+            var browser by remember { mutableStateOf<SshBrowserPresentation?>(null) }
+            val shellState by activeShell.state.collectAsState()
+            val target = SshWorkspaceTarget.Shell(activeShell.id)
+            val layout = SshPickerLayout(listOf(SshPickerSection(0, "Terminals", listOf(SshPickerRow(target, activeShell.title)))))
+            fun ownsShell() = session.admitted() && selectedShell == activeShell.id &&
+                session.shells.state.value.any { it === activeShell } && session.hosts.state.value.hosts.any { it.id == activeShell.hostId }
+            fun canCreate() = ownsShell() && !busy && activeShell.state.value.phase == SshShellPhase.RUNNING
+            val picker = SshPickerPresentation(layout, ownsShell() && !busy && shellState.phase == SshShellPhase.RUNNING, true)
+            fun replaceShell(reconnect: Boolean) {
+                if (!ownsShell() || busy || (!reconnect && !canCreate())) return
+                busy = true; failure = null
+                scope.launch {
+                    try {
+                        val next = if (reconnect) session.shells.reconnect(activeShell.id) else session.shells.create(activeShell.hostId)
+                        // A completed creation stays in inventory if the user has
+                        // left this shell while the SSH request was in flight.
+                        if (session.admitted() && selectedShell == activeShell.id) selectedShell = next.id
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        currentCoroutineContext().ensureActive()
+                        if (ownsShell() && session.connections.statuses.value[activeShell.hostId]?.phase != SshConnectionPhase.IDLE)
+                            failure = error.message ?: if (reconnect) "Could not reconnect SSH shell" else "Could not create SSH workspace"
+                    } finally { busy = false }
                 }
-            }) { selectedShell = null; failure = null }
+            }
+            fun openBrowser() {
+                if (!canCreate()) return
+                try {
+                    browser = SshBrowserPresentation(session.browsers.network(activeShell.hostId), sshBrowserWorkspace(target, activeShell.title))
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    failure = error.message ?: "Could not open SSH browser"
+                }
+            }
+            if (files) SshFilesSheet(session, activeShell.hostId, activeShell) { files = false }
+            browser?.let { presentation ->
+                SshBrowserSheet(presentation, sshPicker = picker, onSshCommand = { command ->
+                    if (picker.permits(command) && canCreate() && command.operation == SshPickerOperation.WORKSPACE) {
+                        browser = null; replaceShell(false)
+                    }
+                }, onRoute = { route ->
+                    if (ownsShell() && route.workspaceId == presentation.workspace.id && route.browserId == null &&
+                        route.terminalId?.let(SshWorkspaceTarget::decode) == target) browser = null
+                }) { browser = null }
+            }
+            SshShellScreen(activeShell, reconnecting = busy, reconnectError = failure, onFiles = { files = true },
+                onReconnect = { replaceShell(true) }, onBrowser = ::openBrowser,
+                panePicker = { onText ->
+                    SshPanePicker(activeShell.title, layout, target, picker.enabled, onSelect = {},
+                        onNewWorkspace = { replaceShell(false) }, onBrowser = ::openBrowser, onText = onText)
+                }) { selectedShell = null; failure = null }
         }
         return
     }
