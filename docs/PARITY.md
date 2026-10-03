@@ -66,6 +66,50 @@ The browser route, authentication gate, SSH, shell/model and runtime changes in
 the inventory still require contract-by-contract comparison. Earlier dated port
 checkpoints below are evidence for their stated scope, not a full delta audit.
 
+### SSH grouped terminal picker (2026-10-03)
+
+Targeted source review at `0fc35d6` covered `TerminalPickerMenuContent.swift`,
+`TerminalPickerMenuValue.swift`, `MobileShellComposite+SSHTerminals.swift`, and
+the tmux/cmux-tui provider layout mappings. Android's mixed SSH workspace route
+now groups terminals by tmux window or cmux-tui screen, separates pane groups,
+shows pane subtitles and the selected row, and labels SSH browser rows **Browsers**.
+The picker is used by terminal and streamed-browser views. Section actions are
+Split Right/Down for tmux and New Tab/Split Right/Down for cmux-tui. New Window,
+New Screen and New Workspace select the terminal created by the operation.
+The cmux screen actions target its active pane; tmux section actions split the
+window's active pane without selecting a different pane on a desktop client.
+
+tmux creation now requests and validates the returned pane ID, then resolves it
+in refreshed inventory. It retains server/session creation guards and does not
+guess a newly created terminal from a list difference or retry uncertain writes.
+Picker mutations disable input while pending; late results cannot navigate after
+leaving the original selection. The selected cmux row is resolved against the
+current owner generation. Plain shell views now expose View as Text and the
+available feedback action even when they have no browser callback.
+
+Initial assembly passed in **1m** with **6 JVM checks** (two layout cases and four
+tmux inventory/guard cases). The first eight-case real SSH workflow run passed
+six cases but exposed two test input attempts during terminal replacement. Input
+is now disabled during creation/reconnect and the creation checks await a changed
+terminal identity. A missing test extension import was fixed; final assembly and
+the same six JVM checks passed in **17s**. The full repeated Android suite passed
+**8 tests in 83.326s**, using real isolated tmux/cmux-tui processes behind the
+loopback SSH fixture. This covers menu creation/splits/selection, exact original
+terminal return, mixed workspaces, owner isolation/restart, connection recovery,
+and restored selection with explicit disconnect preserved. Both grouped-menu
+screenshots were inspected. The emulator and fixture were stopped afterward.
+
+Evidence: `captures/runtime/ssh-picker/`, `ssh-picker-build.txt`,
+`ssh-picker-build-final.txt` and `ssh-picker-build-retry.txt` (ignored).
+Debug APK SHA-256: `48fa570c6c8d7c13f26a216b401770d556e7a54adbcdf2bf69d1027e5331fb72`;
+test APK: `96c38e7b140055185bceb2e63e468b269964c65bd77ed09c7d1cb953a64ef556`.
+
+Remaining: carry grouped metadata and creation actions through the separate
+on-device SSH browser Activity; complete plain-shell shortcut creation/browser
+actions and debug-log utilities; verify streamed-browser switching against the
+live browser fixture and the final SSH flows on the Pixel. These changes are not
+yet in signed build 421. The whole-parity pin remains unchanged.
+
 ### Public feedback composer (2026-10-03)
 
 Targeted upstream review covered `MobileFeedbackEmailClient.swift`,

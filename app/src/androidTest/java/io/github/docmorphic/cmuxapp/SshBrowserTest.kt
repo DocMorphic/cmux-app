@@ -143,7 +143,7 @@ class SshBrowserTest {
             if (shown.value) SshBrowserSheet(SshBrowserPresentation(network, workspace)) { shown.value = false }
         } } }
         compose.onNodeWithTag("ssh.shell.menu").performClick()
-        compose.onNodeWithText("Open Browser").performClick()
+        compose.onNodeWithText("New Browser").performClick()
         compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
         fun text(value: String) = checkNotNull(device.wait(Until.findObject(By.text(value)), 15000)) { "Missing $value" }
         text("SSH routed fixture ▾"); text("SSH route verified")

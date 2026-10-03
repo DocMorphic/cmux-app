@@ -156,16 +156,33 @@ internal class SshTmuxHost(val hostId: UUID, val connection: SshTransport, lifet
             try { action() } finally { if (!closed) refresh() }
         }
     }.await()
-    suspend fun createWorkspace(): Unit = mutate {
+    suspend fun createWorkspace(): SshWorkspaceTarget.Tmux = mutate {
         discover(); val path = checkNotNull(tmux) { "tmux is not installed on this computer" }
         val names = state.value.workspaces.map { it.name }.toSet()
         val name = generateSequence(1) { it + 1 }.map { "cmux-$it" }.first { it !in names }
-        run(SshTmuxInventory.command(path, *(listOf("new-session", "-d") + environment + listOf("-s", name)).toTypedArray())); discover()
+        val created = run(SshTmuxInventory.command(path, *(listOf("new-session", "-d", "-P", "-F", "#{pane_id}") + environment + listOf("-s", name)).toTypedArray()))
+        createdPane(created)
     }
-    suspend fun createWindow(workspace: SshTmuxWorkspace): Unit = mutate {
+    suspend fun createWindow(workspace: SshTmuxWorkspace): SshWorkspaceTarget.Tmux = mutate {
         current(workspace)
-        val action = "new-window -d ${environment.joinToString(" ")} -t ${SshTmuxEncoding.quote(workspace.target + ":")}"
-        run(SshTmuxInventory.guarded(checkNotNull(tmux), workspace, action)); discover()
+        val action = "new-window -d -P -F '#{pane_id}' ${environment.joinToString(" ")} -t ${SshTmuxEncoding.quote(workspace.target + ":")}"
+        createdPane(run(SshTmuxInventory.guarded(checkNotNull(tmux), workspace, action)), workspace.id)
+    }
+    /** Section actions split that window's active pane without moving a desktop client's selection. */
+    suspend fun splitWindow(workspace: SshTmuxWorkspace, window: Int, right: Boolean): SshWorkspaceTarget.Tmux = mutate {
+        current(workspace)
+        check(state.value.workspaces.first { it.id == workspace.id }.panes.any { it.window == window }) { "This tmux window ended" }
+        val target = "${workspace.target}:@$window"
+        val action = "split-window -d -P -F '#{pane_id}' ${environment.joinToString(" ")} ${if (right) "-h" else "-v"} -t ${SshTmuxEncoding.quote(target)}"
+        createdPane(run(SshTmuxInventory.guarded(checkNotNull(tmux), workspace, action, target)), workspace.id)
+    }
+    private suspend fun createdPane(output: String, workspaceId: String? = null): SshWorkspaceTarget.Tmux {
+        val pane = checkNotNull(SshTmuxParser.id(output, '%')) { "Could not confirm the created tmux pane. Refresh before creating another." }
+        discover()
+        val matches = state.value.workspaces.filter { workspaceId == null || it.id == workspaceId }.flatMap { workspace ->
+            workspace.panes.filter { it.id == pane }.map { SshWorkspaceTarget.Tmux(workspace.id, it.window, it.id) }
+        }
+        return checkNotNull(matches.singleOrNull()) { "The created tmux pane is no longer listed. Refresh before creating another." }
     }
     suspend fun split(workspace: SshTmuxWorkspace, pane: SshTmuxPaneRow, right: Boolean): Unit = mutate {
         current(workspace); check(state.value.workspaces.first { it.id == workspace.id }.panes.any { it.id == pane.id })

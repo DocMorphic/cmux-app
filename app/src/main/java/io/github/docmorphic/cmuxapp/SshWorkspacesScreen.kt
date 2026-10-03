@@ -182,8 +182,80 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         } finally { restoring = false }
     }
     LaunchedEffect(tmux, cmux, recovery) { ending = null }
+    val available = !disconnected && !reconnecting && !busy && cmuxState.operation == null
     if (selection != null) {
         val terminal = opened?.takeIf { it.reference == selection }?.terminal
+        val target = SshWorkspaceTarget.decode(checkNotNull(selection).substringAfter('\n'))
+        val provider = opened?.takeIf { it.reference == selection }?.owner
+        val tree = provider?.state?.value?.tree
+        val cmuxWorkspace = when (target) {
+            is SshWorkspaceTarget.Cmux -> tree?.let { target.selection.resolve(checkNotNull(provider).session, it)?.first }
+            is SshWorkspaceTarget.Browser -> tree?.let { target.selection.resolve(checkNotNull(provider).session, it)?.first }
+            else -> null
+        }
+        val tmuxWorkspace = (target as? SshWorkspaceTarget.Tmux)?.let { ref -> tmuxState.workspaces.singleOrNull { it.id == ref.workspace } }
+        val layout = when {
+            cmuxWorkspace != null -> sshCmuxPicker(checkNotNull(provider).session, checkNotNull(tree), cmuxWorkspace)
+            tmuxWorkspace != null -> sshTmuxPicker(tmuxWorkspace)
+            target is SshWorkspaceTarget.Shell && terminal != null -> SshPickerLayout(listOf(SshPickerSection(0, "Terminals", listOf(SshPickerRow(target, terminal.title)))))
+            else -> SshPickerLayout(emptyList())
+        }
+        val checkedTarget = when (target) {
+            is SshWorkspaceTarget.Cmux -> tree?.let { current -> target.selection.resolve(checkNotNull(provider).session, current)?.let {
+                SshWorkspaceTarget.Cmux(SshCmuxSelection.capture(provider.session, current, it.first, it.second))
+            } }
+            is SshWorkspaceTarget.Browser -> tree?.let { current -> target.selection.resolve(checkNotNull(provider).session, current)?.let {
+                SshWorkspaceTarget.Browser(SshCmuxBrowserSelection.capture(provider.session, current, it.first, it.second))
+            } }
+            else -> target
+        }
+        val pickerEnabled = available && !restoring && when {
+            provider != null -> provider in cmuxState.providers && !provider.state.value.loading && !provider.state.value.ended && provider.state.value.error == null && cmuxWorkspace != null
+            tmuxWorkspace != null -> !tmuxState.loading && tmuxState.error == null
+            else -> terminal?.state?.value?.phase == SshShellPhase.RUNNING
+        }
+        fun pickerMutation(action: suspend () -> SshWorkspaceTarget?) {
+            if (!pickerEnabled) return
+            val entry = selection
+            act { val next = action(); if (selection == entry && next != null) select(next) }
+        }
+        fun openBrowser() {
+            if (pickerEnabled && target != null) act { presentBrowser(provider, target, terminal?.title ?: opened?.title.orEmpty()) }
+        }
+        @Composable fun picker(title: String, onText: (() -> Unit)? = null) {
+            SshPanePicker(title, layout, checkedTarget, pickerEnabled,
+                onSelect = { next -> if (pickerEnabled) { browser = null; select(next) } },
+                onAction = { section, action -> pickerMutation {
+                    if (cmuxWorkspace != null && provider != null) {
+                        val pane = checkNotNull(cmuxWorkspace.screens.singleOrNull { it.id == section.id }?.panes?.singleOrNull { it.id == section.targetPane })
+                        SshWorkspaceTarget.Cmux(when (action) {
+                            SshPaneAction.NEW_TAB -> provider.newTab(cmuxWorkspace, pane)
+                            SshPaneAction.SPLIT_RIGHT -> provider.split(cmuxWorkspace, pane, true)
+                            SshPaneAction.SPLIT_DOWN -> provider.split(cmuxWorkspace, pane, false)
+                        })
+                    } else if (tmuxWorkspace != null && action != SshPaneAction.NEW_TAB)
+                        tmux.splitWindow(tmuxWorkspace, section.id, action == SshPaneAction.SPLIT_RIGHT)
+                    else null
+                } },
+                onNewTerminal = if (layout.newTerminalTitle == null) null else { { pickerMutation {
+                    if (cmuxWorkspace != null && provider != null) SshWorkspaceTarget.Cmux(provider.newScreen(cmuxWorkspace))
+                    else tmuxWorkspace?.let { tmux.createWindow(it) }
+                } } },
+                onNewWorkspace = { pickerMutation {
+                    when {
+                        provider != null -> {
+                            val key = provider.createWorkspace()
+                            val nextTree = checkNotNull(provider.state.value.tree)
+                            val workspace = checkNotNull(nextTree.workspaces.singleOrNull { it.key == key })
+                            val tab = checkNotNull(workspace.tabs.firstOrNull { it.isTerminal && !it.dead })
+                            SshWorkspaceTarget.Cmux(SshCmuxSelection.capture(provider.session, nextTree, workspace, tab))
+                        }
+                        tmuxWorkspace != null -> tmux.createWorkspace()
+                        target is SshWorkspaceTarget.Shell -> SshWorkspaceTarget.Shell(session.shells.create(hostId).id)
+                        else -> null
+                    }
+                } }, onBrowser = ::openBrowser, onText = onText)
+        }
         val reconnect: () -> Unit = {
             if (terminal is SshShell) act {
                 val replacement = session.shells.reconnect(terminal.id)
@@ -205,12 +277,14 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         val streamed = opened?.takeIf { it.reference == selection }?.browser
         if (streamed != null) {
             if (browser == null) NativeBrowserView(streamed, streamed.panelId, opened?.title.orEmpty(), ::leave,
+                panePicker = { title -> picker(title) },
                 connectionError = reconnectError ?: failure,
                 onReconnect = { onReconnect(); retry++ }, onOnDevice = { url ->
                     act { presentBrowser(opened?.owner, SshWorkspaceTarget.Browser(streamed.selection), opened?.title.orEmpty(), streamed.panelId, url) }
                 })
         }
         else if (terminal != null) SshShellScreen(terminal, reconnecting || restoring || busy, reconnectError ?: failure, reconnect, onFiles = { files = true },
+            panePicker = { onText -> picker(terminal.title, onText) },
             onBrowser = { act {
                 val target = checkNotNull(SshWorkspaceTarget.decode(checkNotNull(selection).substringAfter('\n')))
                 presentBrowser(opened?.owner, target, terminal.title)
@@ -225,7 +299,6 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         return
     }
     BackHandler(onBack = onBack)
-    val available = !disconnected && !reconnecting && !busy && cmuxState.operation == null
     Column(Modifier.fillMaxSize().testTag("ssh.workspaces")) {
         Row(Modifier.fillMaxWidth().padding(8.dp)) {
             TextButton(onClick = onBack) { Text("Back") }

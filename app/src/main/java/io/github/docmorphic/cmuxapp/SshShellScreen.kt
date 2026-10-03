@@ -32,7 +32,8 @@ import kotlinx.coroutines.awaitCancellation
 
 @Composable
 internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, reconnectError: String? = null,
-    onReconnect: (() -> Unit)? = null, onFiles: (() -> Unit)? = null, onBrowser: (() -> Unit)? = null, onBack: () -> Unit) {
+    onReconnect: (() -> Unit)? = null, onFiles: (() -> Unit)? = null, onBrowser: (() -> Unit)? = null,
+    panePicker: (@Composable (() -> Unit) -> Unit)? = null, onBack: () -> Unit) {
     val state by shell.state.collectAsState()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(shell, lifecycle) {
@@ -60,9 +61,10 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     val hardware = remember(shell.id) { TerminalHardwareInput() }
     val focus = remember { FocusRequester() }
     val display = shell.display
-    val canInput = state.phase == SshShellPhase.RUNNING
+    val canInput = state.phase == SshShellPhase.RUNNING && !reconnecting
     val motion = rememberTerminalScrollMotion(shell.id, shell)
     fun write(text: String, paste: Boolean = false): Boolean {
+        if (!canInput) return false
         motion.stop(); scroll = 0.0
         return shell.send(text, paste)
     }
@@ -85,21 +87,16 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     LaunchedEffect(state.revision) { scroll = scroll.coerceIn(0.0, display.historyLineCount.toDouble()) }
     snapshot?.let { TerminalTextSheet(it) { snapshot = null } }
     if (shortcuts) TerminalToolbarSettings(toolbar) { shortcuts = false }
-    val feedback = LocalNativeFeedback.current
     Column(Modifier.fillMaxSize().testTag("ssh.shell")) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().testTag("ssh.shell.identity.${shell.id}"), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }) { Text("Back") }
-            if (onBrowser == null) Text(shell.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            else Box(Modifier.weight(1f)) {
-                var menu by remember { mutableStateOf(false) }
-                TextButton(onClick = { menu = true }, modifier = Modifier.testTag("ssh.shell.menu")) {
-                    Text("${shell.title} ▾", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    if (feedback != null) DropdownMenuItem(text = { Text("Send Feedback") }, onClick = { menu = false; feedback() })
-                    DropdownMenuItem(text = { Text("Open Browser") }, onClick = {
-                        menu = false; rawKeyboard?.finishComposition(); keyboard?.hide(); onBrowser()
-                    })
+            Box(Modifier.weight(1f)) {
+                if (panePicker != null) panePicker(::showText)
+                else {
+                    val target = SshWorkspaceTarget.Shell(shell.id)
+                    SshPanePicker(shell.title, SshPickerLayout(listOf(SshPickerSection(0, "Terminals", listOf(SshPickerRow(target, shell.title))))),
+                        target, !reconnecting, onSelect = {}, onText = ::showText,
+                        onBrowser = onBrowser?.let { { rawKeyboard?.finishComposition(); keyboard?.hide(); it() } })
                 }
             }
             TextButton(onClick = ::showText, modifier = Modifier.testTag("ssh.shell.text")) { Text("Text") }

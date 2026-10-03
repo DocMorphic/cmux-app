@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.junit4.StateRestorationTester
@@ -72,6 +74,15 @@ class SshWorkspacesScreenTest {
     private fun send(value: String) {
         ready(); compose.onNodeWithTag("ssh.shell.composer").performTextReplacement(value)
         compose.onNodeWithTag("ssh.shell.send").performClick(); waitText(value)
+    }
+    private fun terminalIdentity(): String? = compose.onAllNodes(SemanticsMatcher("SSH terminal identity") {
+        it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("ssh.shell.identity.") == true
+    }).fetchSemanticsNodes().singleOrNull()?.config?.get(SemanticsProperties.TestTag)
+    private fun selectNewTerminal(action: () -> Unit) {
+        val old = checkNotNull(terminalIdentity())
+        action()
+        compose.waitUntil(15000) { terminalIdentity()?.let { it != old } == true &&
+            compose.onAllNodes(hasTestTag("ssh.shell.composer") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
     }
     private fun waitText(value: String) {
         val deadline = System.nanoTime() + 10_000_000_000L
@@ -180,6 +191,63 @@ class SshWorkspacesScreenTest {
         compose.onNodeWithTag("ssh.cmux.end.$key").performScrollTo().performClick()
         compose.onAllNodesWithText("End Workspace").onLast().performClick()
         compose.waitUntil(15000) { provider().state.value.tree!!.workspaces.none { it.key == key } }
+    }
+    @Test fun groupedCmuxPickerCreatesSelectsAndReturnsToExactTerminal() {
+        show(); openCmux(); send("original picker terminal")
+        val original = workspace(); val screen = original.screens.single()
+        val originalTarget = SshWorkspaceTarget.Cmux(SshCmuxSelection.capture(provider().session, provider().state.value.tree!!, original, original.tabs.single()))
+        fun action(tag: String, marker: String) {
+            ready("ssh.shell.menu"); compose.onNodeWithTag("ssh.shell.menu").performClick()
+            selectNewTerminal { compose.onNodeWithTag(tag).performScrollTo().performClick() }
+            send(marker)
+        }
+        action("ssh.picker.action.${screen.id}.NEW_TAB", "picker new tab")
+        assertEquals(2, workspace().tabs.size)
+        action("ssh.picker.action.${screen.id}.SPLIT_RIGHT", "picker right split")
+        action("ssh.picker.action.${screen.id}.SPLIT_DOWN", "picker down split")
+        assertEquals(3, workspace().screens.single().panes.size)
+        compose.onNodeWithTag("ssh.shell.menu").performClick()
+        compose.onAllNodesWithText("Pane 1").onFirst().assertExists()
+        capture("ssh-cmux-grouped-picker")
+        compose.onNodeWithTag("ssh.picker.row.${originalTarget.encode()}").performScrollTo().performClick()
+        waitText("original picker terminal")
+        compose.onNodeWithTag("ssh.shell.menu").performClick()
+        compose.onNodeWithTag("ssh.picker.row.${originalTarget.encode()}").assertIsSelected()
+        selectNewTerminal { compose.onNodeWithText("New Screen").performScrollTo().performClick() }
+        send("picker new screen")
+        assertEquals(2, workspace().screens.size)
+        compose.onNodeWithTag("ssh.shell.menu").performClick()
+        selectNewTerminal { compose.onNodeWithText("New Workspace").performScrollTo().performClick() }
+        send("picker new workspace")
+        assertEquals(2, provider().state.value.tree!!.workspaces.size)
+    }
+    @Test fun groupedTmuxPickerSelectsReturnedPaneForWindowSplitAndWorkspace() {
+        show(); ready("ssh.cmux.create.fixture")
+        val tmux = runBlocking { session.tmux.open(hostId) }
+        compose.waitUntil(10000) { !tmux.state.value.loading }
+        val original = tmux.state.value.workspaces.single(); val pane = original.panes.first()
+        compose.onNodeWithTag("ssh.tmux.pane.${original.id}.${pane.id}").performScrollTo().performClick()
+        send("original tmux picker")
+        compose.onNodeWithTag("ssh.shell.menu").performClick()
+        selectNewTerminal { compose.onNodeWithText("New Window").performScrollTo().performClick() }
+        send("picker created window")
+        val created = tmux.state.value.workspaces.single().panes.single { next -> original.panes.none { it.id == next.id } }
+        for (action in listOf(SshPaneAction.SPLIT_RIGHT, SshPaneAction.SPLIT_DOWN)) {
+            compose.onNodeWithTag("ssh.shell.menu").performClick()
+            selectNewTerminal { compose.onNodeWithTag("ssh.picker.action.${created.window}.${action.name}").performScrollTo().performClick() }
+            send("picker tmux ${action.name}")
+        }
+        assertEquals(3, tmux.state.value.workspaces.single().panes.count { it.window == created.window })
+        compose.onNodeWithTag("ssh.shell.menu").performClick()
+        capture("ssh-tmux-grouped-picker")
+        val first = SshWorkspaceTarget.Tmux(original.id, pane.window, pane.id)
+        compose.onNodeWithTag("ssh.picker.row.${first.encode()}").performScrollTo().performClick()
+        waitText("original tmux picker")
+        compose.onNodeWithTag("ssh.shell.menu").performClick()
+        compose.onNodeWithTag("ssh.picker.row.${first.encode()}").assertIsSelected()
+        selectNewTerminal { compose.onNodeWithText("New Workspace").performScrollTo().performClick() }
+        send("picker created tmux workspace")
+        assertEquals(2, tmux.state.value.workspaces.size)
     }
     @Test fun ownerRestartRestoresSameTerminalWhileListingNeverRestartsDesktopOrPhone() {
         show(); ready("ssh.cmux.create-owned")
