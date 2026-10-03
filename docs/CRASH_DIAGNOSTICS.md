@@ -50,10 +50,9 @@ not have a hard real-time deadline. Android's existing handler remains responsib
 for system reporting, crash dialogs and process termination.
 
 Existing Android 11+ reason/PID/timestamp summaries still recover through
-`ApplicationExitInfo`. Native/ANR **stack** recovery remains unimplemented.
-[Android documents native tombstone streams from API 31](https://developer.android.com/ndk/guides/debug),
-so this is remaining implementation work on supported devices, not an asserted
-platform impossibility. No raw tombstone, memory dump or trace stream is exported.
+`ApplicationExitInfo`. Native stack recovery on API 31+ is described below.
+ANR stack recovery and live ANR acceptance remain open. No raw tombstone,
+memory dump or trace stream is exported.
 
 ## Verification
 
@@ -82,5 +81,58 @@ test SHA-256: `ba6a50bb59d29d4bd39b38d71bc6f49633388ee30ae0e79770fa14af28fab1eb`
 
 Evidence is retained
 in ignored `captures/runtime/crash-stacks/`. No physical phone or user process is
-crashed by these tests. Signed build 441 predates this addition. Native stack
-recovery, live ANR acceptance and physical Pixel acceptance remain open.
+crashed by these tests. Signed build 441 predates this addition. Live ANR acceptance and physical
+Pixel acceptance remain open.
+
+
+## Native crash stacks (Android 12+)
+
+For the app and browser processes, recovery now reads available native-crash
+[`ApplicationExitInfo` trace streams](https://developer.android.com/reference/android/app/ApplicationExitInfo#getTraceInputStream()).
+A selective reader follows the [AOSP tombstone schema](https://android.googlesource.com/platform/system/core/+/refs/heads/main/debuggerd/proto/tombstone.proto)
+(blob `9deeeec9e185f79747acf5fb6a7e71586eb7da16`). It matches the OS record's PID,
+selects the crashing TID, and retains architecture plus at most 64 code frames:
+relative PC, hexadecimal build ID, recognized module basename and bounded function
+symbol. Unknown modules become `other` and lose their function symbol. Libraries
+mapped inside APKs support AOSP's `!soname` form. Full paths, absolute PCs, stack
+pointers, registers, memory, abort messages, thread names, command lines, open files
+and log buffers are excluded. The raw stream is neither saved nor exported.
+
+Each query considers at most 32 recent OS records and attempts at most four native
+streams, newest first. Each parser is bounded to 8 MiB consumed, 256 thread entries,
+200,000 fields and a two-second processing deadline checked between reads. This is
+not a hard deadline on a blocked OS read. Missing, malformed or oversized traces
+leave the reason summary available; native entries without frames explicitly say
+`NATIVE_STACK unavailable`. API 30 retains summaries only; API 26–29 have no OS
+history recovery through this API. System retention determines trace availability.
+
+Filtered frames are stored with the existing atomic exit snapshot (at most 64
+records), and survive later OS eviction of the raw trace. New code accepts the
+previous summary-only encoding. Clear Logs rejects late imports at or before its
+persisted wall-clock cutoff. Native frames appear in the existing app-events ZIP
+member; the ZIP still has exactly two members. No native signal handler is replaced.
+
+
+### Native verification
+
+Nine new parser/history JVM tests and 23 existing Java/history/storage checks
+passed: **32 tests, zero failures/errors/skips**. Coverage includes arbitrary
+protobuf field order, crashing-thread selection, APK-mapped modules, excluded
+private fields, unsigned relative PCs, truncated real-file fields, invalid wire
+values, PID mismatch, frame/thread/input bounds, old summary decoding, enrichment,
+OS trace eviction and late imports after clearing. Debug/test APK assembly and
+release Kotlin compilation passed in 27s.
+
+On the existing API 37 / 16 KB emulator, all three focused Android checks passed:
+**OK (3 tests), 13.328 seconds**. These triggered Java and native failures in a
+disposable browser process and verified native PID/TID, SIGABRT status, libc
+frames and build IDs; Java handler delegation, filtered exports, repeated export
+and clearing also passed. The pulled two-member ZIP contained the current native
+failure's six frames, including libc, libbinder and libandroid_runtime metadata,
+without `/data/` or `/apex/` paths. No raw tombstone was retained.
+
+Evidence: ignored `captures/runtime/native-crash-stacks/`. Tested debug SHA-256:
+`7631c62904bf1d1060c663a514e0cc0798a991448b5b182e6436df9cbe08270d`;
+test SHA-256: `9e704aef822c2cf99fb9f2f37d15c7a5e639847eadfb7f15eec694c4c2e7b771`.
+This verifies OS trace recovery on the emulator, not physical Pixel acceptance or
+an actual Ghostty/Iroh fault. Signed build 441 predates both stack additions.

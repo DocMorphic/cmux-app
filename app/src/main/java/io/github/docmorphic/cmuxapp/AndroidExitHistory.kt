@@ -13,8 +13,9 @@ internal fun androidExitHistory(context: Context): List<DiagnosticExit> =
 private object AndroidExitHistory {
     fun read(context: Context): List<DiagnosticExit> {
         val ownPackage = context.packageName
+        var nativeReads = 0
         return context.getSystemService(ActivityManager::class.java)
-            .getHistoricalProcessExitReasons(ownPackage, 0, 32).mapNotNull { exit ->
+            .getHistoricalProcessExitReasons(ownPackage, 0, 32).sortedByDescending { it.timestamp }.mapNotNull { exit ->
                 // Android may include bound external services; only our two production processes qualify.
                 val role = when (exit.processName) {
                     ownPackage -> DiagnosticRole.APP
@@ -28,7 +29,11 @@ private object AndroidExitHistory {
                     else -> return@mapNotNull null
                 }
                 if (exit.timestamp < 0 || exit.pid <= 0) return@mapNotNull null
-                DiagnosticExit(role, reason, exit.timestamp, exit.pid, exit.status)
+                // Each stream is bounded by the parser. Limit work per recovery
+                // query and keep reason summaries even when OS traces are absent.
+                val stack = if (Build.VERSION.SDK_INT >= 31 && reason == DiagnosticExitReason.NATIVE_CRASH && nativeReads++ < 4)
+                    runCatching { exit.traceInputStream?.use { NativeTombstone.read(it, exit.pid) } }.getOrNull() else null
+                DiagnosticExit(role, reason, exit.timestamp, exit.pid, exit.status, stack)
             }
     }
 }

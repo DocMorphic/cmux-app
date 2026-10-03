@@ -77,8 +77,15 @@ internal class DiagnosticFiles(private val root: File, private val exports: File
         val current = state()
         crashes.retained(current.boot, current.clearedThrough)
         // The shared, atomic snapshot avoids append/checkpoint crash windows and duplicate imports.
-        val merged = (current.exits + exits.filter { it.timestamp > current.exitCutoff })
-            .associateBy { it.key }.values.sortedWith(compareBy<DiagnosticExit> { it.timestamp }.thenBy { it.pid })
+        val byKey = current.exits.associateBy { it.key }.toMutableMap()
+        exits.filter { it.timestamp > current.exitCutoff }.forEach { next ->
+            val previous = byKey[next.key]
+            // Android can evict a trace before its reason summary. A later
+            // metadata-only query must not erase already recovered code frames.
+            byKey[next.key] = if (next.reason == DiagnosticExitReason.NATIVE_CRASH && previous?.reason == next.reason && next.nativeStack == null)
+                next.copy(nativeStack = previous.nativeStack) else next
+        }
+        val merged = byKey.values.sortedWith(compareBy<DiagnosticExit> { it.timestamp }.thenBy { it.pid })
             .takeLast(64)
         if (merged != current.exits) save(current.copy(exits = merged))
     }
@@ -158,7 +165,7 @@ internal class DiagnosticFiles(private val root: File, private val exports: File
                         crashes.retained(current.boot, current.clearedThrough).forEach {
                             checkCurrent(); zip.write(it.text().toByteArray())
                         }
-                        zip.write("\nPrevious process failures (Android 11+ system history; at most 64; no stack traces):\n".toByteArray())
+                        zip.write("\nPrevious process failures (Android 11+ system history; at most 64; filtered native code frames where available):\n".toByteArray())
                         state().exits.forEach { checkCurrent(); zip.write(it.line().toByteArray()) }
                     }
                     zip.closeEntry()

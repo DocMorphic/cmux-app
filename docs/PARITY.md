@@ -25,7 +25,7 @@ installation time. It was already signed out. See [install evidence and checksum
 
 A reusable verifier now enforces these APK-content checks for future builds.
 Older signed-build references below describe their original checkpoints.
-Physical acceptance, configured push, authenticated release migration, native/ANR stack
+Physical acceptance, configured push, authenticated release migration, ANR stack
 capture and the remaining source audit are still open.
 
 ## Local Java/Kotlin crash stacks (2026-10-03)
@@ -49,8 +49,26 @@ was weakened to make this pass.
 
 The targeted source is upstream `MobileDebugLogCrashCapture.swift` at `0fc35d6`.
 This adds Java/Kotlin stack capture to the existing OS reason summaries. Native
-and ANR stacks, native Iroh detailed tracing, broader event coverage and physical
+stacks are covered below. ANR stacks, native Iroh detailed tracing, broader event coverage and physical
 acceptance are still open; signed build 441 predates this change.
+
+## Native crash stack recovery (2026-10-03)
+
+Android 12+ native-crash history now includes filtered code frames recovered from
+available OS tombstones. The parser validates process identity and selects only
+the crashing thread; retains bounded relative PCs, build IDs, known library names
+and code symbols; and excludes paths, absolute addresses, registers, memory and
+raw diagnostic text. APK-mapped libraries are supported. Previously recovered
+frames survive OS trace eviction, while Clear Logs prevents old imports returning.
+Missing or rejected traces leave their reason summaries intact.
+
+Verification: 32 focused JVM checks passed; debug/test APKs and release Kotlin
+compiled. Three Android checks passed in 13.328s on the existing API 37 / 16 KB
+emulator, including real native SIGABRT recovery and Java capture regression.
+The filtered export was pulled and inspected. See [limits and evidence](CRASH_DIAGNOSTICS.md).
+No additional AVD was created. Pixel browser acceptance, ANR stacks, native Iroh
+tracing, broader source review and configured push remain open. Signed build 441
+does not yet contain the Java/native stack additions.
 
 ## One-time SSH key setup (2026-10-03)
 
@@ -412,7 +430,8 @@ Targeted source findings in this pass:
   Android's history is a bounded OS buffer and may be absent. API 26–29 have no
   recovery through this API. Summaries are retrospective metadata, not stacks,
   and do not establish the app version that crashed. Safe stack/tombstone
-  capture, live ANR acceptance and full iOS diagnostics parity remain open.
+  capture was open at this checkpoint; see the later crash-stack sections above.
+  Live ANR acceptance and full iOS diagnostics parity remain open.
   Verification: seven focused history tests and eight existing storage tests
   passed; debug/test APK assembly and release Kotlin compilation passed. Two
   emulator-only checks passed in **1.729 seconds**, triggering a real Java crash
