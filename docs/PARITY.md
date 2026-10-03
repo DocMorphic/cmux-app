@@ -12,6 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest signed integration checkpoint — build 421 (2026-10-03)
+
+The picker, notification recovery and feedback changes described below are now
+included in [signed build 421](https://github.com/DocMorphic/cmux-app/actions/runs/37095448842)
+at `72a1b10`. Full CI passed, and independent downloaded-APK checks verified the
+signer, 14 viewer assets, six native libraries' LOAD/RELRO alignment, 16 KB ZIP
+alignment and release manifest. The existing emulator upgraded 411 → 421 and
+launched successfully; it was already signed out. See [install evidence and
+checksums](PIXEL_INSTALL.md). Later references to unchanged build 411 below describe
+the earlier individual feature checkpoints. Physical acceptance, configured push,
+authenticated release migration and the remaining source audit are still open.
+
 ## Upstream delta audit in progress (2026-10-03)
 
 The metadata comparison from the whole-parity baseline `4c5272e` to installed
