@@ -185,6 +185,9 @@ fun NativeScreen(
     val paneSelection = feedSession.paneNavigation.select(if (signedIn) store.taskSession() else null,
         pairedMacs.singleOrNull { it.code == code }, teamState.scope)
     var showSettings by rememberSaveable(signedIn) { mutableStateOf(false) }
+    var computersOwner by remember(signedIn) { mutableStateOf<NativeComputerMenuOwner?>(null) }
+    var computersReturnToSettings by remember { mutableStateOf(false) }
+    LaunchedEffect(showSettings) { if (!showSettings) computersOwner = null }
     var showReconnectList by rememberSaveable(signedIn) { mutableStateOf(false) }
     LaunchedEffect(connectionReady) { if (connectionReady) showReconnectList = false }
     var showSshComputers by rememberSaveable(signedIn) { mutableStateOf(false) }
@@ -1931,6 +1934,14 @@ fun NativeScreen(
 
     NativeAccountDeletionAlerts(deletionReceipt, ::signOutCurrentAccount, accountDeletion::acknowledge)
 
+    fun presentComputers() {
+        computersReturnToSettings = showSettings
+        computersOwner = NativeComputerMenuOwner(store.taskSession(), teamState.scope)
+        finishSearch(); showSettings = true
+    }
+    fun dismissComputers() {
+        computersOwner = null; showSettings = computersReturnToSettings
+    }
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
         if (signedIn && terminalStartupState.failure?.key?.let { it == displayedTab?.first } == true) {
@@ -1943,6 +1954,48 @@ fun NativeScreen(
                 onLicenses = { showLicenses = true }, onSignedIn = { signedIn = true; error = null })
             showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
             showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
+            showSettings && computersOwner != null -> {
+                val owner = checkNotNull(computersOwner)
+                fun admitted() = account.isSignedIn() && store.taskSession() == owner.login && accountTeams.state.value.scope == owner.team
+                if (!admitted()) {
+                    LaunchedEffect(owner) { computersOwner = null }
+                } else key(owner) {
+                    var legacyDetails by remember { mutableStateOf<NativeCredentialStore.PairedMac?>(null) }
+                    val rows = NativeComputerList.rows(pairedMacs, appearances, scopedPresence, lastSeenHistory,
+                        computerPreferences, currentDirectory, tailscaleRouteLabels)
+                    val legacy = legacyDetails?.let { mac -> rows.singleOrNull { it.mac.origin == mac.origin } }
+                    fun current(mac: NativeCredentialStore.PairedMac) = admitted() &&
+                        NativeComputerMenuPairing.isCurrent(mac, store.pairedMacs()) && connection.allowsSaved(mac)
+                    fun pairMac() {
+                        if (!admitted()) return
+                        computersOwner = null; showSettings = false
+                        code = ""; selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
+                        selectedBrowser = null
+                    }
+                    if (legacy != null) NativeLegacyComputerDetails(legacy, { legacyDetails = null }) {
+                        if (current(legacy.mac)) {
+                            computersOwner = null; showSettings = false
+                            val alreadyConnected = connectionReady && connectedCode == legacy.mac.code && client?.isClosed == false
+                            val sameAttempt = code == legacy.mac.code
+                            selectPickerComputer(legacy.mac)
+                            if (!alreadyConnected) {
+                                expectedReconnect = legacy.mac
+                                if (sameAttempt) retry++
+                            }
+                        }
+                    } else NativeComputersRoute(sharedConnections?.ssh, ::dismissComputers, ::pairMac) {
+                        NativeManagedComputerRows(rows, appearances, machineColorIndices, computerConnections, scopedPresence,
+                            onDetails = { mac -> if (current(mac)) {
+                                val target = owner.team?.let { NativeComputerTarget.from(mac, it) }
+                                if (target != null && sharedConnections != null) {
+                                    if (computerState.account == owner.team)
+                                        computerDetails = NativeComputerDetailsPresentation(checkNotNull(owner.team), target, machineColorIndices[mac.colorIdentity])
+                                    else error = "Computer settings are still loading. Try again."
+                                } else legacyDetails = mac
+                            } }, onPair = ::pairMac)
+                    }
+                }
+            }
             showSettings -> {
                 NativeSettingsLayout(onBack = { showSettings = false }, account = {
                 NativeAccountTeamSection(teamState, onRefresh = {
@@ -1974,12 +2027,9 @@ fun NativeScreen(
                 NativeAccountDeletionButton(browserLogin, deletionReceipt, accountDeletion::begin)
                 }, computers = {
                 Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
-                if (sharedConnections != null) TextButton(onClick = { showSshComputers = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.computers")) { Text("SSH Computers") }
-                NativeSavedComputerRows(pairedMacs, appearances, machineColorIndices, sharedConnections?.native,
-                    computerState, computerConnections, scopedPresence, lastSeenHistory, computerPreferences, tailscaleRouteLabels, forgetCallbacks, { computerDetails = it }) { mac -> selectMacCode(mac.code); showSettings = false }
-                TextButton(onClick = {
-                    code = ""; showSettings = false; selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
-                }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Find another Mac") }
+                TextButton(onClick = ::presentComputers, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.computers")) {
+                    Text("Manage computers")
+                }
                 if (code.isNotBlank() && (PairingCodeParser.parse(code).getOrNull() !is PairingCode.Iroh ||
                     pairedMacs.none { it.code == code && computerState.account?.let { team -> NativeComputerTarget.from(it, team) } != null })) TextButton(onClick = {
                     runCatching {
@@ -2202,6 +2252,7 @@ fun NativeScreen(
                         showReconnectList = true; selectPairingCode(PairingCodeParser.computer(mac, owner))
                     } },
                     onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
+                    onComputers = ::presentComputers,
                     onRefresh = { scope.launch {
                         try { accountTeams.refresh(); sharedConnections?.native?.refresh() }
                         catch (failure: Exception) { if (failure is CancellationException) throw failure }
@@ -2595,6 +2646,10 @@ fun NativeScreen(
                     verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { workspaceRoute = null; finishSearch(); showSettings = true }) {
                         Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
+                    }
+                    IconButton(onClick = ::presentComputers) {
+                        Icon(painterResource(R.drawable.ic_computer_desktop), "Manage computers", tint = nativeMuted,
+                            modifier = Modifier.size(22.dp))
                     }
                     NativeComputerSelector(pairedMacs, selectedComputer, appearances, machineColorIndices, computerConnections,
                         computerMenuOpen, { computerMenuOpen = it }, ::selectPickerComputer, pendingPickerComputer,
@@ -3009,7 +3064,7 @@ internal fun NativeComputerPicker(
     canSelectSaved: (NativeCredentialStore.PairedMac) -> Boolean,
     canSelectDiscovered: (IrohV2Computer) -> Boolean,
     onSelectSaved: (NativeCredentialStore.PairedMac) -> Unit,
-    onSelect: (IrohV2Computer) -> Unit, onSettings: () -> Unit,
+    onSelect: (IrohV2Computer) -> Unit, onSettings: () -> Unit, onComputers: (() -> Unit)? = null,
     onRefresh: () -> Unit, onPairing: (String) -> Unit, onNewTask: () -> Unit,
     onUseHelper: () -> Unit, onLicenses: () -> Unit, onError: (String?) -> Unit
 ) {
@@ -3124,7 +3179,7 @@ internal fun NativeComputerPicker(
         TextButton(onClick = onUseHelper) { Text("Use existing helper connection") }
         TextButton(onClick = onLicenses) { Text("Open-source licenses") }
         onSsh?.let { TextButton(onClick = it, modifier = Modifier.testTag("computers.ssh")) { Text("SSH Computers") } }
-        if (savedRows.isNotEmpty()) TextButton(onClick = onSettings) { Text("Saved computers") }
+        if (savedRows.isNotEmpty()) TextButton(onClick = onComputers ?: onSettings) { Text("Manage computers") }
     }
 }
 

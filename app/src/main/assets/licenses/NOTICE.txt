@@ -367,3 +367,14 @@ flow in MobileShellComposite+SSHPaste.swift at cmux revision
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses bounded account-owned drafts, Android content grants and an ordered
 input lane with explicit recovery, lifecycle cancellation and SSH route identity.
+
+
+NativeComputersScreen.kt and the combined NativeScreen/SshComputersScreen
+management destination adapt the Computers navigation, Mac details entry,
+inline SSH section, Pair Mac/Add SSH menu and Done behavior from
+DeviceTreeView.swift in Packages/iOS/CmuxMobileShellUI, cmux revision
+0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android retains its scoped connection runtime, existing SSH editor and explicit
+legacy TCP reconnect flow. Hidden rows and complete refresh/layout parity remain
+separate work.

@@ -32,7 +32,8 @@ Iroh uses a current exact directory entry first and its saved public lookup hint
 second. These are diagnostic values: all connection authorization and routing
 continue through the existing connector. A caption is not proof of reachability.
 
-Saved Settings rows now have Iroh/Tailscale/Direct headings. Each saved row appears
+Saved rows now have Iroh/Tailscale/Direct headings; the subsequent
+[management integration](COMPUTERS_MANAGEMENT.md) moves them into Computers. Each saved row appears
 once. Read failures show Connection settings unavailable rather than implying the
 Iroh default. Legacy TCP pairings retain their actual Tailscale method. Disabled
 direct addresses are skipped, IPv6 host/port captions retain brackets, and no
@@ -54,8 +55,9 @@ reordering or status refresh does not itself invoke the row's selection callback
 
 ## Remaining work
 
-The full Computers destination still needs navigation/layout parity, hidden-row
-integration, inline SSH sections, version warnings. The [saved reconnect follow-up](RECONNECT_COMPUTERS.md) now
+The [Computers management follow-up](COMPUTERS_MANAGEMENT.md) integrates detail
+navigation and inline SSH. Full layout parity, hidden rows and version warnings
+remain open. The [saved reconnect follow-up](RECONNECT_COMPUTERS.md) now
 retains offline Macs absent from discovery and reconciles exact saved/directory
 rows. Existing separate Android features must be reconciled with the remaining
 iOS surfaces. Production Pixel/Mac

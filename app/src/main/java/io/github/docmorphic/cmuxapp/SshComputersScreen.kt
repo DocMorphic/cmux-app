@@ -42,7 +42,8 @@ internal fun NativeSshComputersRoute(runtime: NativeSshRuntime, onBack: () -> Un
 }
 
 @Composable
-internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
+internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit,
+    macComputers: (@Composable () -> Unit)? = null, onPairMac: (() -> Unit)? = null) {
     val hosts by session.hosts.state.collectAsState()
     val keys by session.vault.state.collectAsState()
     val statuses by session.connections.statuses.collectAsState()
@@ -183,13 +184,18 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
         return
     }
     BackHandler(onBack = onBack)
-    Column(Modifier.fillMaxSize().testTag("ssh.computers")) {
-        Row(Modifier.fillMaxWidth().padding(14.dp)) {
+    Column(Modifier.fillMaxSize().testTag(if (macComputers != null) "computers.management" else "ssh.computers")) {
+        if (macComputers != null && onPairMac != null) NativeComputersHeader(onBack, onPairMac, { editing = "new" })
+        else Row(Modifier.fillMaxWidth().padding(14.dp)) {
             TextButton(onClick = onBack) { Text("Back") }
             Text("SSH Computers", Modifier.weight(1f).padding(12.dp), style = MaterialTheme.typography.titleLarge)
             TextButton(onClick = { editing = "new" }, modifier = Modifier.testTag("ssh.computers.add")) { Text("Add") }
         }
         LazyColumn(contentPadding = PaddingValues(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            if (macComputers != null) {
+                item(key = "native-computers") { macComputers() }
+                item(key = "ssh-section") { Text("SSH", style = MaterialTheme.typography.titleSmall) }
+            }
             if (hosts.hosts.isEmpty()) item { Text("Connect to a computer using SSH. Add its address and a key authorized on that computer.") }
             items(hosts.hosts, key = { it.id }) { host ->
                 val status = statuses[host.id] ?: SshConnectionStatus(SshConnectionPhase.IDLE)

@@ -58,6 +58,31 @@ class NativeConnectionRecoveryTest {
         compose.onNodeWithText("Connect to this Mac?").assertIsDisplayed()
     }
 
+    @Test fun managementDetailsAndDonePreserveActiveComputerAndReturnDestination() {
+        seedComputers()
+        val dials = AtomicInteger()
+        val store = NativeCredentialStore(context)
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ -> dials.incrementAndGet(); connected() })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        val selection = store.load()?.optString("computer_selection")
+        val before = dials.get()
+        compose.onNodeWithContentDescription("Manage computers").performClick()
+        compose.onNodeWithContentDescription("Computer details: Second Mac").performClick()
+        compose.onNodeWithText("Legacy TCP pairing").assertIsDisplayed()
+        compose.onNodeWithText("‹  Computers").performClick()
+        compose.onNodeWithTag("computers.done").performClick()
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        assertEquals(selection, store.load()?.optString("computer_selection"))
+        assertEquals(before, dials.get())
+        compose.onNodeWithContentDescription("cmux settings").performClick()
+        compose.onNodeWithTag("settings.computers").performScrollTo().performClick()
+        compose.onNodeWithTag("computers.done").performClick()
+        compose.onNodeWithTag("settings.computers").assertIsDisplayed()
+        assertEquals(selection, store.load()?.optString("computer_selection"))
+    }
+
     @Test fun savedMacAbsentFromDiscoveryReconnectsAndSelectsVerifiedWorkspace() {
         peer.instanceTag = "default"
         val store = NativeCredentialStore(context)

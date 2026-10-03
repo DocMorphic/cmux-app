@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Combined Computers management (2026-10-03)
+
+Settings, Workspaces and the saved reconnect screen now open one dedicated
+Computers destination. Native Mac method groups and existing SSH hosts appear
+together, with Pair Mac/Add SSH actions and Done. Mac rows open details without
+switching the active workspace; legacy TCP requires an explicit Reconnect.
+The existing SSH editor, keys, shells, workspaces and confirmed removal are reused.
+
+**Four Android cases passed in 26.817 seconds**, including a production navigation
+journey against the local RPC fixture and the existing independent Details-button
+regression. The combined-screen screenshot was reviewed.
+[Source, evidence and remaining scope](COMPUTERS_MANAGEMENT.md).
+Not yet in signed build 468. Hidden rows, warnings, refresh/layout parity,
+nested destination restoration and physical acceptance remain open.
+
 ## Saved computers through discovery outages (2026-10-03)
 
 The reconnect picker retains saved Macs during loading/errors/empty discovery,
@@ -29,7 +44,7 @@ an earlier invalid ownership-change fixture timed out and is documented.
 The Android picker screenshot was visually checked.
 [Source comparison, evidence and limits](RECONNECT_COMPUTERS.md).
 Not yet in signed build 468. Full iOS disconnected/Computers layout, hidden-row
-switches, setup help, inline SSH/version warnings and physical acceptance remain
+switches, setup help, version warnings and physical acceptance remain
 open.
 
 ## Computer method sections and endpoint captions (2026-10-03)
@@ -43,8 +58,8 @@ uses existing scoped settings and routes without changing connection authority.
 
 **23 JVM and seven Android cases passed**, and the production-row screenshot was
 visually checked. [Source comparison and evidence](COMPUTER_LIST.md). Not yet in
-signed build 468. Full Computers navigation/layout, hidden/SSH row integration,
-version warnings and physical acceptance remain open; saved/offline reconnect
+signed build 468. The management follow-up above integrates navigation and SSH;
+full layout, hidden rows, version warnings and physical acceptance remain open; saved/offline reconnect
 reconciliation is covered above. This does not complete the full Computers screen.
 
 ## Computer connection versus presence (2026-10-03)

@@ -47,8 +47,9 @@ iOS's complete refresh/visibility/background-reconnect policy.
 
 This closes the directory-only reconnect-list gap. It does not implement the
 complete iOS DisconnectedWorkspaceShellView layout, hidden-computer switches,
-setup-help presentation, or the full Computers management destination. Inline SSH
-integration, version warnings, presence consumers and real Pixel/Mac acceptance
+setup-help presentation, or full Computers layout parity. The subsequent
+[management destination](COMPUTERS_MANAGEMENT.md) integrates navigation and SSH.
+Version warnings, presence consumers and real Pixel/Mac acceptance
 remain open. Build 468 is still the latest signed milestone and lacks this change.
 
 

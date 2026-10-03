@@ -132,7 +132,7 @@ class SshKeyInstallerTest {
     private fun editor(restoration: StateRestorationTester = StateRestorationTester(compose)) {
         val session = NativeSshSession(hosts, vault, lifetime) { admitted }.also { uiSession = it }
         restoration.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
-            SshComputersScreen(session) {}; SshPromptHost(session)
+            SshComputersScreen(session, {}); SshPromptHost(session)
         } } }
         compose.onNodeWithTag("ssh.computers.add").performClick()
         compose.onNodeWithTag("ssh.host.address").performTextInput("127.0.0.1")
