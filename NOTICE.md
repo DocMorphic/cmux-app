@@ -1,5 +1,12 @@
 # Attribution
 
+Mac pairing setup guidance and the unmodified MacSettings-dark.png and
+MacSettings-light.png images follow OnboardingPairingView.swift,
+OnboardingPairingSettingsScreenshot.swift and OnboardingConnectionView.swift in
+Packages/iOS/CmuxMobileShellUI at cmux 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright Manaflow, Inc.; GPL-3.0-or-later. Android explains the existing Mac
+setting's iOS label and uses its own account/connection controls.
+
 Consumer Mac build admission follows MobileMacBuildCompatibilityPolicy.swift,
 MobileMacCompatiblePairedMacStore.swift and MobileShellComposite+BuildCompatibility.swift
 at cmux 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.

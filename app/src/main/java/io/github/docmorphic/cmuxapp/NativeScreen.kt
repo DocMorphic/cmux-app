@@ -2018,7 +2018,7 @@ fun NativeScreen(
         }
         when {
             !signedIn -> NativeSignIn(account::sendCode, account::signIn, onUseHelper,
-                onLicenses = { showLicenses = true }, onSignedIn = { signedIn = true; error = null })
+                onLicenses = { showLicenses = true }, macPolicy = displayPolicy, onSignedIn = { signedIn = true; error = null })
             showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
             showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
             showSettings && computersOwner != null -> {
@@ -2303,7 +2303,7 @@ fun NativeScreen(
                     ?: NativeComputersState(account = teamState.scope, loading = true), runtime = sharedConnections?.native,
                     onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
                     colorIndices = machineColorIndices, connections = computerConnections, presence = scopedPresence, saved = displayedVisible, hidden = displayedHidden, onVisibility = ::setComputerVisibility,
-                    cachedDisplay = cachedComputers != null, displayAppearances = appearances,
+                    cachedDisplay = cachedComputers != null, displayAppearances = appearances, macPolicy = displayPolicy,
                     lastSeenHistory = lastSeenHistory, preferences = computerPreferences, tailscaleRoutes = tailscaleRouteLabels,
                     forgetCallbacks = forgetCallbacks, presentDetails = { computerDetails = it },
                     connectingCode = code.takeIf { busy && cachedComputers == null }, connectionFailure = error ?: connectionError,
@@ -3135,6 +3135,7 @@ internal fun NativeComputerPicker(
     hidden: List<NativeCredentialStore.PairedMac> = emptyList(),
     onVisibility: ((NativeCredentialStore.PairedMac, Boolean) -> Unit)? = null,
     cachedDisplay: Boolean = false, displayAppearances: NativeMacAppearances? = null,
+    macPolicy: NativeMacCompatibilityPolicy = NativeMacCompatibilityPolicy.baked,
     connectingCode: String? = null, connectionFailure: String? = null, onCancelConnect: () -> Unit = {},
     canSelectSaved: (NativeCredentialStore.PairedMac) -> Boolean,
     canSelectDiscovered: (IrohV2Computer) -> Boolean,
@@ -3152,7 +3153,12 @@ internal fun NativeComputerPicker(
     val connectingPairing = connectingCode?.let { PairingCodeParser.parse(it).getOrNull() }
     var rowSelected by remember(teamState.scope) { mutableStateOf(false) }
     LaunchedEffect(connectingCode, connectionFailure) { if (connectingCode == null) rowSelected = false }
-    var pairingText by remember { mutableStateOf("") }
+    var pairingText by rememberSaveable(teamState.userId, teamState.selectedTeamId) { mutableStateOf("") }
+    var showPairingOptions by rememberSaveable(teamState.userId, teamState.selectedTeamId) { mutableStateOf(false) }
+    var showPairingHelp by rememberSaveable(teamState.userId, teamState.selectedTeamId) { mutableStateOf(false) }
+    if (showPairingHelp) NativePairingHelp(macPolicy, signedIn = true,
+        onDismiss = { showPairingHelp = false }, onFindMac = { showPairingHelp = false; onRefresh() },
+        onTailscalePairing = { showPairingHelp = false; showPairingOptions = true })
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f)) { NativeHeader("Computers") }
         TextButton(onClick = { onSettings() }) { Text("Settings") }
@@ -3163,6 +3169,9 @@ internal fun NativeComputerPicker(
         if (cachedDisplay) NativeCachedComputersNotice()
         else Text(if (savedRows.isEmpty()) "Open cmux on your Mac and enable mobile pairing to see it here."
             else "Tap a computer to reconnect. Its connection method can be changed in Details.", color = nativeMuted)
+        TextButton(onClick = { showPairingHelp = true }, modifier = Modifier.testTag("computers.pairing.help")) {
+            Text("How to connect your Mac")
+        }
         if (teamState.loading || (!cachedDisplay && computerState.loading)) {
             LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 16.dp))
             Text("Finding your computers…", color = nativeMuted)
@@ -3237,7 +3246,6 @@ internal fun NativeComputerPicker(
             NativeHiddenComputerRows(hidden, appearances, colorIndices, enabled = !cachedDisplay, onVisibility = onVisibility)
         TextButton(onClick = onRefresh, enabled = !teamState.loading) { Text("Refresh computers") }
         Spacer(Modifier.height(20.dp))
-        var showPairingOptions by remember { mutableStateOf(false) }
         TextButton(onClick = { showPairingOptions = !showPairingOptions }) {
             Text(if (showPairingOptions) "Hide pairing options" else "Scan or paste a pairing code")
         }
@@ -3270,8 +3278,14 @@ internal fun NativeComputerPicker(
 
 @Composable
 internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (String) -> Unit,
-                         onUseHelper: () -> Unit, onLicenses: () -> Unit, onSignedIn: () -> Unit) {
+                         onUseHelper: () -> Unit, onLicenses: () -> Unit,
+                         macPolicy: NativeMacCompatibilityPolicy = NativeMacCompatibilityPolicy.baked,
+                         onSignedIn: () -> Unit) {
     val scope = rememberCoroutineScope()
+    var showPairingHelp by rememberSaveable { mutableStateOf(false) }
+    if (showPairingHelp) NativePairingHelp(macPolicy, signedIn = false,
+        onDismiss = { showPairingHelp = false }, onFindMac = { showPairingHelp = false },
+        onTailscalePairing = {})
     var email by remember { mutableStateOf("") }
     var otp by remember { mutableStateOf("") }
     var codeSent by remember { mutableStateOf(false) }
@@ -3281,6 +3295,9 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
     NativeHeader("Sign in to cmux")
     Column(Modifier.fillMaxWidth().padding(24.dp)) {
         Text("Use the same cmux account as your Mac.", color = nativeMuted)
+        TextButton(onClick = { showPairingHelp = true }, modifier = Modifier.testTag("signin.pairing.help")) {
+            Text("Set up cmux on your Mac")
+        }
         Spacer(Modifier.height(24.dp))
         OutlinedTextField(email, { email = it; codeSent = false; otp = ""; signInError = null },
             Modifier.fillMaxWidth(), label = { Text("Email") }, singleLine = true, enabled = !busy,

@@ -71,4 +71,5 @@ grants and owner-only grant updates are not implemented. They require a separate
 explicit Android development identity. The consumer policy is immutable for the
 process; no runtime development grant update is claimed. Offline cached-account
 Computers presentation is now documented in [CACHED_COMPUTERS.md](CACHED_COMPUTERS.md).
-Presence version metadata and the broader source/visual audit remain separate work.
+The earlier presence-version work item is corrected in [PAIRING_SETUP.md](PAIRING_SETUP.md):
+the reviewed DTO has no app-version field. The broader source/visual audit remains open.

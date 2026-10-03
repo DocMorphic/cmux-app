@@ -12,6 +12,30 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Pairing setup help and source audit correction (2026-10-03)
+
+[PAIRING_SETUP.md](PAIRING_SETUP.md) adds the iOS-style Mac setup explanation to
+sign-in and Computers: original Settings screenshots, exact Mac toggle label,
+same-account/team instructions, policy-driven minimum version and fixed official
+Mac download. Find my Mac uses the existing refresh path; Tailscale reveals existing
+scan/paste controls. Help visibility and pairing draft survive saved-instance
+restoration. System-bar icon contrast follows the dialog's background.
+
+The scoped source audit also corrects the earlier presence-version work item:
+PresenceInstance and registry instance DTOs at 0fc35 have no app-version field.
+Compatibility uses authenticated host status; no presence version was invented.
+The global parity pin remains unchanged. Full five-stage onboarding, configured
+push and physical Mac/Pixel acceptance remain open.
+
+37 JVM tests passed. Four Android tests passed in 40.686 seconds, followed by a
+52-second rebuild and two passing help tests in 23.841 seconds after the dialog
+contrast fix. Dark/light screenshots and the actual signed-out MainActivity help
+screen were inspected; Back returned to sign-in. Existing API 37 / 16 KB AVD stopped.
+Compose saved-instance restoration is verified; physical rotation is still pending.
+Verification evidence: captures/runtime/pairing-help and the feature document.
+Signed 474 predates this feature and the four preceding compatibility/Computers
+features; a combined signed milestone is the next delivery step.
+
 ## Saved Computers during offline account restoration (2026-10-03)
 
 [CACHED_COMPUTERS.md](CACHED_COMPUTERS.md) extends cached account presentation to

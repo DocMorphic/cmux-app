@@ -29,18 +29,20 @@ records the original September 28 handoff rather than the current APK.
 
 ## User's objective and working preferences
 
-Latest local feature: [CACHED_COMPUTERS.md](CACHED_COMPUTERS.md) projects saved Macs
-for the cached account/team while startup account verification is offline. Both
-reconnect and management show customizations, routes, hidden rows and update
-warnings, with cached connection/mutation controls disabled. A distinct display
-owner does not create network authority. 38 JVM and six Android tests passed;
-the offline screenshot was reviewed and the existing emulator stopped.
-Previous checkpoints added consumer build admission, encrypted version history
-and minimum-version policy. Signed build 474 predates these four features.
-Next review presence version metadata and onboarding/current iOS layouts, then
-resume physical acceptance when ADB sees the Pixel. Internal development identity
-and grants remain separate. The goal remains active; do not repeat the already
-pending Pixel reconnect request.
+Latest local feature: [PAIRING_SETUP.md](PAIRING_SETUP.md) adds Mac setup help on
+sign-in and Computers, using original iOS Settings images, same-account/team
+instructions, live minimum-version copy and Iroh/Tailscale actions. Help and pasted
+pairing text restore from saved-instance state. The source review also withdrew
+the unsupported presence-version work item: PresenceInstance and registry DTOs at
+0fc35 contain no app-version field; compatibility uses authenticated host status.
+
+Earlier checkpoints added offline Computers presentation, consumer build admission,
+encrypted version history and minimum-version policy. Signed build 474 predates
+these five features. Next implement the full five-stage onboarding flow, including
+honest Android push setup, persistent progress, connection-phase/method selection
+and the live keep-awake offer. Physical/native/browser/keyboard/accessibility and
+signed-in upgrade checks remain pending; preserve Pixel app data. The goal is
+active; do not repeat the already-pending Pixel reconnect request.
 
 - Deliver a fully functioning unofficial Android companion matching the official
   cmux iOS app's UI and behavior, including native pairing, workspaces, terminal
