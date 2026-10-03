@@ -19,17 +19,22 @@ def verify(data, label):
     offset, entry_size, count = header[5], header[9], header[10]
     if entry_size < 56 or not count or offset + entry_size * count > len(data):
         raise ValueError(f"{label}: invalid program headers")
+    segments = [struct.unpack_from("<IIQQQQQQ", data, offset + i * entry_size) for i in range(count)]
     loads = relros = 0
-    for i in range(count):
-        kind, flags, start, address, _, size, memory, alignment = struct.unpack_from(
-            "<IIQQQQQQ", data, offset + i * entry_size)
+    for kind, flags, start, address, _, size, memory, alignment in segments:
         if kind == 1:
             loads += 1
             if alignment < 16384 or alignment & (alignment - 1) or (address - start) % 16384:
                 raise ValueError(f"{label}: LOAD segment is not 16 KiB aligned")
         elif kind == 0x6474e552:
             relros += 1
-            if (address + memory) % 16384:
+            # Bionic's phdr_table_get_relro_min_align exempts RELRO covering the
+            # entire LOAD: there is no writable suffix sharing its final page.
+            # Keep the end-alignment check for a prefix, and conservatively for
+            # unfamiliar/ambiguous layouts. See docs/NATIVE_ALIGNMENT.md.
+            matching = [s for s in segments if s[0] == 1 and s[3] == address]
+            entire_rw_load = len(matching) == 1 and matching[0][1] == 6 and matching[0][6] <= memory
+            if (address + memory) % 16384 and not entire_rw_load:
                 raise ValueError(f"{label}: RELRO end 0x{address + memory:x} is not 16 KiB aligned")
     if not loads:
         raise ValueError(f"{label}: missing LOAD segments")

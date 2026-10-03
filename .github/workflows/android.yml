@@ -52,8 +52,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Test update policy
-        run: python3 -m unittest discover -s scripts/tests -p 'test_update_policy.py'
+      - name: Test update policy and native alignment verifier
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
       - name: Decide whether to build
         id: decision
         env:

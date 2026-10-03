@@ -6,8 +6,11 @@ Unmodified native files from `androidx/androidx` revision
 it does not change these JNI implementations. Copyright notices remain in each file.
 The official 1.1.0 AAR's combined license is retained in `LICENSE.txt`.
 
-The released 1.1.0 arm64 library has a GNU_RELRO end at a 4 KiB boundary, failing
-Android 17's 16 KiB compatibility check. `scripts/build-graphics-path-android.py`
+The released 1.1.0 arm64 library has a GNU_RELRO end at a 4 KiB boundary. The initial
+checker treated that alone as incompatible; the 2026-10-04
+[classifier correction](../../docs/NATIVE_ALIGNMENT.md) establishes that this
+whole-LOAD RELRO layout is valid. The verified rebuilt artifact is retained.
+`scripts/build-graphics-path-android.py`
 rebuilds the same native implementation using pinned NDK 28.2 and explicit 16 KiB
 maximum/common page sizes. It repackages the hash-verified official AAR, preserving
 Java classes, resources, licenses and consumer rules. Only arm64 JNI is included,

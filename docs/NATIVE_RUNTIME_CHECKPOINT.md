@@ -269,6 +269,13 @@ acceptance remains open. Published signed build 157 is unchanged.
 
 ## Android 17 RELRO warning — fixed and checked on Pixel
 
+**2026-10-04 attribution correction:** [NATIVE_ALIGNMENT.md](NATIVE_ALIGNMENT.md)
+supersedes the broad three-library diagnosis below. JNA 5.15.0 retains a genuinely
+unsafe RELRO prefix; the old Iroh and graphics libraries cover their entire RW
+LOAD and were false positives in the original checker. The replacement APK's
+physical test and `pageSizeCompat=0` evidence remain valid. No verified native
+artifact was reverted.
+
 The user reported "The app isn't 16 KB compatible. RELRO alignment check failed."
 on the Pixel. The phone currently uses 4096-byte kernel pages, but its package
 compatibility checker flags the same native layout defect relevant to 16 KiB
