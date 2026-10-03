@@ -62,7 +62,11 @@ Live Pixel/Mac presence-service acceptance is pending. This checkpoint covers
 row status, badges and history; full list grouping, route-description captions,
 older-duplicate markers and the entire iOS Computers layout still need an audit.
 Presence-based route refresh, workspace announcements and push recovery are
-separate unfinished consumers. This change is not in signed build 463.
+separate unfinished consumers.
+
+The row and history changes are included in [signed build 468](PIXEL_INSTALL.md),
+with CI, independent packaging checks and a signed-out emulator upgrade verified.
+Physical acceptance remains open.
 
 
 ## Verification — 2026-10-03

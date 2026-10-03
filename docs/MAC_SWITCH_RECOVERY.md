@@ -160,7 +160,9 @@ Computer; the Android subtitle/source resolution and add-availability mapping
 are covered by the subsequent [build-label follow-up](COMPUTER_BUILD_LABELS.md).
 `WorkspaceMacBuildLabelResolver.swift` was inspected as
 context, but a tag such as `default` is not assumed to uniquely mean Stable.
-The whole-parity upstream pin is unchanged. This follow-up is not in signed 463.
+The whole-parity upstream pin is unchanged. This menu change is included in
+[signed build 468](PIXEL_INSTALL.md), with CI, independent packaging checks and a
+signed-out emulator upgrade verified. Physical acceptance remains open.
 
 
 ### Verification

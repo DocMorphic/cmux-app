@@ -24,7 +24,7 @@ current-login/route checks and Forget pruning.
 **46 JVM and seven Android cases passed**, including host identity verification,
 real encrypted history reload, sign-out rejection and existing switch/routing
 regressions. Two component screenshots were visually checked. [Source and evidence](COMPUTER_PRESENCE_ROWS.md).
-Not yet in signed build 463. Live Pixel/Mac acceptance, full Computers layout,
+Included in signed build 468. Live Pixel/Mac acceptance, full Computers layout,
 route captions and the remaining presence consumers are still open.
 
 ## Computer build subtitles and presence metadata (2026-10-03)
@@ -41,7 +41,7 @@ Add Computer uses the iOS label, separator and per-opening availability.
 clean component screenshot was visually checked. An older integration assertion
 was corrected to wait for the asynchronous Mac switch, and an emulator System UI
 dialog was cleared before visual recapture. [Source, implementation and verification scope](COMPUTER_BUILD_LABELS.md).
-Not yet in signed build 463. Production service/Pixel acceptance and the other
+Included in signed build 468. Production service/Pixel acceptance and the other
 presence consumers (route updates, workspace announcements and push recovery)
 remain unverified or unaudited; online/last-seen row display is covered above.
 This does not close full presence parity.
@@ -55,7 +55,7 @@ permission and exact saved pairing; forgotten/replaced routes cannot be selected
 from an old row. Four JVM and eight Android checks passed, including existing
 switch, workspace and notification flows. [Source and evidence](MAC_SWITCH_RECOVERY.md#stable-open-computer-menu--2026-10-03).
 
-Not yet in signed build 463. Physical acceptance and broader source/visual parity remain open. Build labels
+Included in signed build 468. Physical acceptance and broader source/visual parity remain open. Build labels
 and Add Computer mapping are covered by the follow-up above.
 
 ## Pending computer picker and cancellation (2026-10-03)
@@ -189,7 +189,25 @@ Unicode, pause/resume and target-switch flow. [Evidence and APK hashes](TERMINAL
 Included in signed build 456; verification on the physical Pixel and the wider
 source audit remain open.
 
-## Latest signed integration checkpoint — build 463 (2026-10-03)
+## Latest signed integration checkpoint — build 468 (2026-10-03)
+
+[Signed build 468](https://github.com/DocMorphic/cmux-app/actions/runs/37135587173)
+at `acfae3e` combines stable computer menus, build subtitles and foreground
+presence, plus connection/heartbeat/last-seen rows and encrypted verified history.
+It includes all build 463 features. Full CI passed. The downloaded artifact
+matched CI's hash and passed independent signer, viewer-asset, native LOAD/RELRO,
+16 KB ZIP, manifest/debug-fixture and attribution checks. The existing emulator
+upgraded 463 → 468 without clearing data, preserved its original install time,
+and cold-launched to the visually reviewed sign-in screen with no compatibility
+or ANR dialog and an empty crash buffer. A recurring emulator System UI dialog
+had been cleared before the baseline capture and upgrade; its cause is unknown.
+[Artifact, hashes and evidence](PIXEL_INSTALL.md).
+
+The baseline was already signed out. Authenticated migration and current physical
+Pixel/Mac acceptance remain unverified. Configured push, broader Iroh diagnostics,
+remaining presence consumers and the remaining source/visual audit are open.
+
+## Previous signed integration checkpoint — build 463 (2026-10-03)
 
 [Signed build 463](https://github.com/DocMorphic/cmux-app/actions/runs/37131181771)
 at `6fc1433` combines ANR stack recovery, app-instance colors, switch recovery,

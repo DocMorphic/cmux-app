@@ -68,7 +68,8 @@ workspace presence announcements and presence-triggered push recovery). Those
 must be audited individually rather than inferred from this subscription.
 Row online/last-seen display and verified history were subsequently added in
 [Computer presence rows](COMPUTER_PRESENCE_ROWS.md).
-This change is not yet included in signed development build 463.
+Included in [signed build 468](PIXEL_INSTALL.md), with CI, independent packaging
+checks and a signed-out emulator upgrade verified. Physical acceptance remains open.
 
 
 ### Local test evidence — 2026-10-03
