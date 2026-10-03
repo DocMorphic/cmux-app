@@ -33,6 +33,7 @@ public final class PrivateStorageProbe {
         final ActivityScenario<ProbeActivity> activity;
         final GeckoRuntime runtime;
         final MockWebServer server = new MockWebServer();
+        final ArrayList<MockWebServer> additionalServers = new ArrayList<>();
         final ArrayList<GeckoSession> sessions = new ArrayList<>();
         final IdentityHashMap<GeckoSession, String> urls = new IdentityHashMap<>();
         final ProbeExtensionClient extension;
@@ -90,8 +91,20 @@ public final class PrivateStorageProbe {
             }
         }
         JSONObject page(GeckoSession session, String write) throws Exception {
+            return page(session, write, server);
+        }
+        MockWebServer otherOrigin() throws Exception {
+            MockWebServer other = new MockWebServer();
+            other.setDispatcher(server.getDispatcher());
+            // A different host, not merely another port: cookies are not port-scoped.
+            other.start(InetAddress.getByName("127.0.0.2"), 0);
+            additionalServers.add(other);
+            return other;
+        }
+        JSONObject page(GeckoSession session, String write, MockWebServer origin) throws Exception {
             String path = "/probe?step=" + UUID.randomUUID() + (write == null ? "" : "&write=" + write);
-            String url = "http://127.0.0.1:" + server.getPort() + path;
+            String base = "http://" + (origin == server ? "127.0.0.1" : "127.0.0.2") + ":" + origin.getPort();
+            String url = base + path;
             CompletableFuture<JSONObject> result = new CompletableFuture<>();
             main(() -> {
                 session.setContentDelegate(new GeckoSession.ContentDelegate() {
@@ -106,15 +119,17 @@ public final class PrivateStorageProbe {
             });
             JSONObject observed = result.get(30, TimeUnit.SECONDS);
             RecordedRequest request;
-            do { request = server.takeRequest(5, TimeUnit.SECONDS); assertNotNull("Missing fixture request", request); }
+            do { request = origin.takeRequest(5, TimeUnit.SECONDS); assertNotNull("Missing fixture request", request); }
             while (!path.equals(request.getPath()));
             observed.put("requestCookie", request.getHeader("Cookie") == null ? JSONObject.NULL : request.getHeader("Cookie"));
+            observed.put("origin", base);
             urls.put(session, url);
             return observed;
         }
         @Override public void close() throws Exception {
             main(() -> { for (GeckoSession session : sessions) session.close(); });
             sessions.clear(); activity.close(); server.close();
+            for (MockWebServer other : additionalServers) other.close();
         }
     }
     private static void state(JSONObject observation, String expected) throws Exception {
@@ -155,6 +170,55 @@ public final class PrivateStorageProbe {
             assertEquals("notice_probe=b", control.getString("requestCookie")); state(control, "b");
             report.put("passed", true);
         } finally { save("private-storage-clear", report); }
+    }
+
+    @Test public void scopedClearRemovesBothHostsAndPreservesOtherContext() throws Exception {
+        assumeTrue("scoped".equals(InstrumentationRegistry.getArguments().getString("cmux_storage_cleanup")));
+        JSONObject report = new JSONObject();
+        try (Scope scope = new Scope(0)) {
+            MockWebServer other = scope.otherOrigin();
+            String aId = "multi-a-" + UUID.randomUUID(), bId = "multi-b-" + UUID.randomUUID();
+            GeckoSession a = scope.open(aId), b = scope.open(bId);
+            for (MockWebServer origin : new MockWebServer[] { scope.server, other }) {
+                String key = origin == scope.server ? "first" : "second";
+                JSONObject seedA = scope.page(a, "a", origin), seedB = scope.page(b, "b", origin);
+                report.put(key + "SeedA", seedA).put(key + "SeedB", seedB);
+                save("private-storage-multi-origin", report);
+                assertTrue("A cookie crossed hosts", seedA.isNull("requestCookie"));
+                assertTrue("B cookie crossed hosts", seedB.isNull("requestCookie"));
+                for (JSONObject seed : new JSONObject[] { seedA, seedB }) {
+                    for (String store : new String[] { "local", "indexed", "cache" }) {
+                        assertTrue(store + " crossed origins", seed.getJSONObject("before").isNull(store));
+                    }
+                    assertFalse(seed.getBoolean("databaseExisted"));
+                    assertFalse(seed.getBoolean("cacheExisted"));
+                }
+                state(seedA, "a"); state(seedB, "b");
+                JSONObject beforeA = scope.page(a, null, origin), beforeB = scope.page(b, null, origin);
+                report.put(key + "BeforeA", beforeA).put(key + "BeforeB", beforeB);
+                save("private-storage-multi-origin", report);
+                assertEquals("notice_probe=a", beforeA.getString("requestCookie")); state(beforeA, "a");
+                assertEquals("notice_probe=b", beforeB.getString("requestCookie")); state(beforeB, "b");
+            }
+            // The fixture's capture endpoint remains restricted to its primary loopback host.
+            scope.page(a, null);
+            scope.retire(a, aId);
+            GeckoSession reopened = scope.open(aId);
+            for (MockWebServer origin : new MockWebServer[] { scope.server, other }) {
+                String key = origin == scope.server ? "first" : "second";
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                JSONObject cleared; int attempts = 0;
+                do { cleared = scope.page(reopened, null, origin); attempts++; }
+                while (!empty(cleared) && System.nanoTime() < deadline);
+                report.put(key + "Cleared", cleared).put(key + "Attempts", attempts);
+                save("private-storage-multi-origin", report);
+                assertTrue(key + " host retained private data", empty(cleared)); state(cleared, null);
+                JSONObject control = scope.page(b, null, origin);
+                report.put(key + "Control", control); save("private-storage-multi-origin", report);
+                assertEquals("notice_probe=b", control.getString("requestCookie")); state(control, "b");
+            }
+            report.put("passed", true);
+        } finally { save("private-storage-multi-origin", report); }
     }
 
     @Test public void prepareProcessDeath() throws Exception {

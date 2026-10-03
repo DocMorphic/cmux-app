@@ -75,12 +75,19 @@ The public-only failure remains reproducible. The native checker
 was overly broad: NATIVE_ALIGNMENT.md records the Bionic whole-LOAD exemption,
 19 passing Python checks and actual old-JNA negative control. All 13 Gecko libraries
 pass the corrected gate. No main-toolchain update or extra AVD was made. Next
-finish multi-origin cleanup/HTTPS/account lifecycle, physical acceptance and package/license cost
+finish partitioned cleanup/HTTPS/account lifecycle, physical acceptance and package/license cost
 before integrating
 the renderer/cookie
 seeding, theme, navigation policy and the existing10sec/20sec lifetimes in launch
 and archive UI. Current native catalog has no web pages or configured feed; the
 explicit archive placeholder is temporary, not acceptable as finished parity.
+
+Two-host private cleanup now passes (1 test, 13.292 s): A's cookie and all three
+storage values vanish at both `127.0.0.1` and `127.0.0.2`, while B retains its
+values at both. This verifies top-level cross-host visits, not embedded third-party
+partitions. Evidence: `captures/runtime/notice-multi-origin/`; experiment packages
+removed and existing AVD stopped. Continue HTTPS/Secure and partition/account/lease
+lifecycle checks before renderer integration.
 
 Native fitting now passes 4 portrait, 3 large-text and 1 landscape UI checks;
 see the follow-up in WHATS_NEW.md and captures/runtime/whats-new-fitting. The

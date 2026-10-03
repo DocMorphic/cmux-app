@@ -212,7 +212,18 @@ cleanup. **1 test passed in 17.719 s**, with A empty on the first observation an
 B's cookie/localStorage/IndexedDB/cache values intact. Final debug/test build: 7 s.
 The public-only failure is retained and reproducible; no global cookie clear was
 used. Do not call public cleanup alone sufficient or claim synchronous disk erasure.
-HTTPS/Secure, multi-origin/partitioned cleanup, replacement-account lifecycle, visual
+HTTPS/Secure, partitioned cleanup, replacement-account lifecycle, visual
 integration and physical Pixel remain unverified. See the experiment README for
 reproduction. Debug/test assembly passed in 20 s; no production app code changed.
 Evidence: `captures/runtime/notice-private-storage/` (ignored).
+
+The two-host extension passed **1 test in 13.292 s** on the same API 37 / 16 KB
+AVD, with `pageSizeCompat=0`. Both contexts separately visit `127.0.0.1` and
+`127.0.0.2`, verify initially empty state, then write and read their own cookie and
+all three storage values at both hosts. Capturing a lease at the first host and
+retiring A removes its data at both hosts on the first observation; B retains all
+values at both. HTTP-only cookies remain invisible to page scripts. Final
+debug/test build passed in 7 s. This covers top-level visits to distinct hosts,
+not third-party frames, partition keys, HTTPS or account lifecycle. Evidence:
+`captures/runtime/notice-multi-origin/` (ignored). The experiment packages were
+removed and the existing AVD stopped after verification; the real app was untouched.

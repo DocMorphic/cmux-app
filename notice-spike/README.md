@@ -121,7 +121,24 @@ Omit it to reproduce the public-only failure. The lease is internal to the bundl
 extension and accepts only an owned loopback private fixture, not caller-supplied
 arbitrary origin attributes. Its cookie pattern includes private mode, user context
 and the recorded Gecko session context; it does not restrict clearing to one host
-or partition key. Multi-origin/partitioned behavior still needs a runtime fixture.
+or partition key. Two-host behavior is verified below; partitioned behavior remains open.
+
+### Two-host cleanup
+
+`PrivateStorageProbe#scopedClearRemovesBothHostsAndPreservesOtherContext`, with
+`-e cmux_storage_cleanup scoped`, passed **1 test in 13.292 s** on the existing
+API 37 / 16 KB arm64 emulator (`pageSizeCompat=0`). The final debug/test build
+passed in 7 s.
+
+The fixture binds separate servers to `127.0.0.1` and `127.0.0.2`, so cookies
+cannot share a host merely because ports differ. Both private contexts visit
+both hosts, first prove empty state, then write and read their own cookie,
+localStorage, IndexedDB and Cache Storage values. Cleanup captures a lease at the
+first host and retires A. Reopening A's exact context finds no cookie or stored
+value at either host on the first observation; B retains all values at both.
+Page scripts never see the HTTP-only cookies. The fixture does not exercise
+embedded third-party frames, cookie partition keys, HTTPS or account replacement.
+Evidence: `captures/runtime/notice-multi-origin/` (ignored).
 
 The two restart selectors require `-e cmux_storage_process_probe true` and must
 run in separate instrumentation processes, with `am force-stop` of **only the
@@ -136,12 +153,12 @@ The public cleanup call alone is not sufficient for private cookies; use the
 verified combined route as the starting point. The pinned public implementation
 supplies only the context ID to its generic origin-pattern clear. Before adopting
 this internal extension API, verify cancellation/account replacement, leases
-during extension restart, HTTPS/Secure cookies and multi-origin/partitioned state.
+during extension restart, HTTPS/Secure cookies and partitioned state.
 
 ## Adoption gates
 
 Before integrating: verify physical native compatibility, HTTPS/Secure
-cookie handling, multi-origin/partitioned cleanup and account
+cookie handling, partitioned cleanup and account
 replacement, cancellation and update compatibility. Then connect navigation and
 theme policy, actual rendering and bounded preload. This experiment does not
 establish any of those untested behaviors.

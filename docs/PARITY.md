@@ -24,7 +24,8 @@ two-stage process-death fixture (5.439 s / 4.706 s), reopening the same origin/c
 Public per-context clearing fails: web-storage values disappear but its cookie
 remains. Combined scoped-cookie and public web-storage cleanup now passes
 (17.719 s): A is empty on the first observation and B's cookie/values remain.
-HTTPS/multi-origin/account-replacement checks are still pending. See
+Two-host cleanup also passes (1 test, 13.292 s), preserving the other context at
+both hosts. HTTPS/partitioned-state/account-replacement checks are still pending. See
 [notice-spike](../notice-spike/README.md). This is not renderer/Pixel completion.
 
 ## Private notice engine experiment (2026-10-04 follow-up)
