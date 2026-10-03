@@ -5,21 +5,32 @@ data class TerminalTextSnapshot(val text: String, val truncated: Boolean, val li
     companion object {
         fun capture(grid: TerminalDisplay, lineBudget: Int = 5000): TerminalTextSnapshot {
             require(lineBudget > 0)
-            if (grid.rows <= 0) return TerminalTextSnapshot("", false, lineBudget)
+            val rows = grid.rows
+            if (rows <= 0) return TerminalTextSnapshot("", false, lineBudget)
             val history = if (grid.activeScreen == "alternate") 0 else grid.historyLineCount
-            val lines = mutableListOf<List<RenderGrid.Span>>()
-            var remaining = history
-            while (remaining > 0) {
-                val count = minOf(grid.rows, remaining)
-                lines.addAll(grid.visibleLines(remaining).take(count))
-                remaining -= count
+            val lines = ArrayDeque<String>()
+            var offset = 0
+            var count = rows
+            // Read newest first. Never materialize old native viewports which
+            // cannot fit the copy budget. Keep reads on the terminal owner's
+            // thread so output/replay cannot change row positions mid-capture.
+            while (true) {
+                val page = grid.visibleLines(offset)
+                for (index in minOf(count, page.size) - 1 downTo 0) {
+                    val line = RenderGrid.plainText(listOf(page[index]))
+                    // Blank rows below output must not consume the budget;
+                    // blank lines within the retained output still do.
+                    if (lines.isEmpty() && line.isBlank()) continue
+                    lines.addFirst(line)
+                    if (lines.size == lineBudget) return TerminalTextSnapshot(
+                        lines.joinToString("\n"), history - offset + index > 0, lineBudget)
+                }
+                if (offset == history) return TerminalTextSnapshot(lines.joinToString("\n"), false, lineBudget)
+                count = minOf(rows, history - offset)
+                offset += count
+                // A partial oldest viewport overlaps the previous one. Its
+                // first count rows are the only rows not captured already.
             }
-            lines.addAll(grid.visibleLines())
-            // Like iOS, blank screen rows must not consume the recent-output budget.
-            while (lines.isNotEmpty() && RenderGrid.plainText(listOf(lines.last())).isBlank()) {
-                lines.removeAt(lines.lastIndex)
-            }
-            return TerminalTextSnapshot(RenderGrid.plainText(lines.takeLast(lineBudget)), lines.size > lineBudget, lineBudget)
         }
     }
 }

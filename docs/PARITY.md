@@ -27,6 +27,41 @@ Earlier signed-build references below describe individual feature checkpoints.
 Physical acceptance, configured push, authenticated release migration, safe crash
 stack capture and the remaining source audit are still open.
 
+## Recent terminal text capture (2026-10-03)
+
+Targeted review of iOS `TerminalTextSheetView.swift` and
+`TerminalTextSnapshot.swift` at `0fc35d6` confirmed the local immutable snapshot,
+5,000-line default budget, trailing-blank trimming, empty state and native copy
+workflow. Android already provided those behaviors, but its capture traversed
+and materialized every scrollback viewport before discarding older rows. Since
+capture runs on the terminal owner's thread, that created unnecessary UI work.
+
+Capture now reads newest output first and stops as soon as the retained line
+budget is filled. It stores only retained plain-text lines, handles overlapping
+partial oldest viewports without duplicates, and trims blank tail rows before
+applying the budget. Internal blank lines still count. Reads stay on the owner's
+thread so concurrent output or replay cannot move rows during capture. Finding
+the last nonblank output can still require scanning blank tail viewports; this
+change does not claim that capture is asynchronous or constant-time for a
+completely blank history.
+
+The initial regression failed against the old implementation: a seven-line copy
+started reading at the oldest viewport of a 20,024-line buffer. That old traversal
+requires 835 viewport reads; the passing test now verifies exactly one. Five
+new snapshot checks and six existing terminal-interaction tests passed. Coverage
+includes partial viewports, blank tail pages, internal blank lines, exact-budget
+output, blank histories and alternate-screen isolation. Two Android checks passed
+in **5.431 seconds**: a real Ghostty buffer exceeding 5,000 history lines verifies
+exact Unicode output for seven-line and default-budget copies, unchanged live
+viewport and immutable text; the existing production UI test verifies Copy All,
+native long-press selection/copy and reopen without new replay or input RPCs.
+The selection screenshot was inspected. Debug/test APK assembly and release
+Kotlin compilation passed in **31 seconds**.
+
+Evidence: ignored `captures/runtime/text-capture/`. The existing emulator was
+stopped afterward. Physical Pixel acceptance, configured push and the wider
+source audit remain open; signed build 434 predates this change.
+
 ## Pane menu iconography and utility grouping (2026-10-03)
 
 Targeted inspection of `TerminalPickerMenuContent.swift` and
