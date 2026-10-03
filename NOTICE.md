@@ -311,3 +311,8 @@ top-reveal functions in TerminalLetterboxGeometry at that same cmux revision.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later. Android translates the
 geometry into its clipped viewport and converts the scroll axis to distance from
 the live bottom. The reference fixture generator also compiles these Swift functions.
+
+TerminalViewportGeometryFence.kt adapts TerminalViewportGeometryFence.swift at
+cmux revision 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses Compose frame callbacks and Android's IME animation target insets.

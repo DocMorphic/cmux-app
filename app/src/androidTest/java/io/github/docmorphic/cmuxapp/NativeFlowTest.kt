@@ -1404,6 +1404,41 @@ class NativeFlowTest {
         assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.scroll" })
     }
 
+    @Test fun alternateKeyboardReportsOnlyFinalCapacityAndRestoresOnDismissal() {
+        peer.alternateScreen = true
+        peer.gridFirstLine = "Keyboard target editor"
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Keyboard target editor", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        fun reports() = peer.requests.filter { it.optString("method") == "mobile.terminal.viewport" &&
+            !it.getJSONObject("params").optBoolean("clear") }.map { it.getJSONObject("params").getInt("viewport_rows") }
+        val initial = reports().last()
+        val before = compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot.height
+        val start = reports().size
+        compose.onNode(hasSetTextAction()).performClick()
+        compose.waitUntil(10_000) { reports().last() < initial }
+        compose.waitForIdle()
+        val bounds = compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot
+        val metrics = context.resources.displayMetrics
+        val cells = TerminalCellMetrics.fromFontSize(TerminalFontSize.DEFAULT * metrics.scaledDensity, 2f * metrics.density)
+        val expected = TerminalViewport.fit(bounds.width.toInt(), bounds.height.toInt(), cells)!!.rows
+        assertTrue(bounds.height < before - 50)
+        compose.waitUntil(10_000) { reports().last() == expected }
+        assertEquals("Only the announced target may reach the Mac", setOf(expected), reports().drop(start).toSet())
+        screenshot("alternate-keyboard-target")
+        androidx.test.espresso.Espresso.closeSoftKeyboard()
+        compose.waitUntil(10_000) { reports().last() == initial }
+        compose.waitForIdle()
+        assertEquals(setOf(expected, initial), reports().drop(start).toSet())
+        assertEquals(before, compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot.height, 1f)
+        screenshot("alternate-keyboard-dismissed")
+    }
+
     @Test fun terminalTouchForwardsAlternateScrollAndClickWithOfficialScope() {
         peer.alternateScreen = true
         peer.gridFirstLine = "Mouse enabled editor"

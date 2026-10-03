@@ -8,6 +8,12 @@ import kotlin.math.min
 internal data class TerminalViewportMeasurement(val visible: IntSize = IntSize.Zero, val keyboard: Int = 0) {
     fun reportSize(keepGrid: Boolean): IntSize = if (visible.width <= 0 || visible.height <= 0) IntSize.Zero else
         IntSize(visible.width, visible.height + if (keepGrid) keyboard.coerceAtLeast(0) else 0)
+
+    fun targetSize(targetKeyboard: Int): IntSize {
+        val natural = reportSize(true)
+        return if (natural == IntSize.Zero) natural else
+            IntSize(natural.width, (natural.height - targetKeyboard.coerceAtLeast(0)).coerceAtLeast(1))
+    }
 }
 
 /** iOS blank-space absorption and top reveal, expressed in Android surface pixels. */

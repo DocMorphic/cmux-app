@@ -388,11 +388,64 @@ Ignored local evidence: `captures/runtime/keyboard-layout-build.txt`,
 stopped after verification; no new virtual device was created. Content-bottom
 measurement still needs bounded-cost/performance and graphics-content coverage.
 
-This is not complete keyboard parity. Unshared alternate screens still need the
-iOS-equivalent settled-animation transaction fence and prepared target geometry.
+This is not complete keyboard parity. The next section records the subsequent
+viewport fence/target implementation; the full presentation freeze is still open.
 Physical Pixel/Gboard and Mac shared-policy/reattach acceptance, hardware keyboard
 checks and accessibility/performance coverage remain pending. No physical phone
 was connected for this checkpoint, and signed build 397 remains unchanged.
+
+## Alternate-screen viewport targets and settling (2026-10-03)
+
+`TerminalViewportGeometryFence` retains the committed size across transient layout
+passes and requires three quiet Compose frames before committing an ordinary
+geometry change. New mounts seed their first valid capacity; invalid/zero layouts
+cannot erase it. Replaced surface/connection owners get independent fences.
+
+Unshared alternate-screen terminals use Android's announced IME animation target.
+The paired visible height and current keyboard overlap reconstruct the natural
+height; subtracting the target overlap prepares the final TUI capacity before the
+animation ends. Intermediate pane heights do not become PTY resize requests. A
+reversed animation replaces its target. Shared-size sessions and primary screens
+continue reporting their keyboard-independent capacity. The shorter prepared
+alternate grid stays seated above the live keyboard dock during its movement.
+
+This adapts `TerminalViewportGeometryFence.swift`, `TerminalViewportInputs.swift`
+and `TerminalAlternateScreenViewportTests.swift` from the same pinned iOS revision
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`. The integration uses Compose 1.9.1's
+[IME animation target/source insets](https://developer.android.com/reference/kotlin/androidx/compose/foundation/layout/WindowInsets.Companion),
+with its existing platform callback handling cancellation and completion. It does
+not replace Compose's window-insets callback or guess an animation duration.
+
+The physical `LiveNativeUiCheck` now checks keyboard-independent phone capacity
+and an unchanged host grid for its primary-shell fixture. Its shared-size branch
+still checks the exact mobile participant report and the negotiated minimum. This
+updated physical check must run when the Pixel is available.
+
+Verification: **12 focused JVM tests passed**, with zero failures/errors/skips
+(four fence tests, five keyboard tests and three shared-layout tests, including the
+315 pinned Swift math cases). Debug/test APK builds passed in **59 seconds**.
+**Nine emulator UI tests passed in 24.57 seconds** on the existing API 37 / 16 KiB
+AVD: alternate target/dismissal reports, primary keyboard submission, alternate
+mouse/scroll, raw screen switching/recovery, retained frame during replay, two
+keyboard layout checks and two shared-grid gesture checks. The new full-flow test
+asserts that opening sends only the final smaller row count and dismissal restores
+the initial row count, with no intermediate row counts sent to the fixture Mac.
+Both alternate keyboard screenshots were visually reviewed. The emulator is
+stopped and the Pixel was not connected; no physical test or signed release is
+claimed by this checkpoint.
+
+Local evidence: `captures/runtime/keyboard-fence-build.txt`,
+`keyboard-fence-ui.txt`, and `keyboard-fence-screenshots/` in that directory.
+Final APK SHA-256:
+
+- Debug: `7c86c9e37238b8ebb294d216437a19ecaba83efe4082e26f37adb2348221d9fd`
+- Test: `1d83f685bebcece777261bdb8b61bd31dac7e51a6bd72c9a9e33242e5ec72df5`
+
+**Remaining:** iOS also freezes the last good alternate-screen presentation until
+all three conditions hold: transition ended, matching viewport acknowledged, and
+post-acknowledgement redraw presented. The geometry fence/target work does not yet
+implement that presentation transaction. Real Pixel/Gboard, interrupted animation,
+rotation and Mac shared-policy/detach/reattach acceptance remain pending.
 
 ## Full integration acceptance checklist
 

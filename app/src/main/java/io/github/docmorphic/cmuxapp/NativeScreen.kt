@@ -38,7 +38,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -640,7 +639,8 @@ fun NativeScreen(
     val inputTarget = draftTarget
     val selectedSizing = selectedTerminal?.id?.let(terminalSizingStates::get)
     val terminalAttached = selectedSizing?.allowsTraffic ?: true
-    val terminalReportPixels = terminalMeasurement.reportSize(terminalActiveScreen == "primary" || selectedSizing?.state != null)
+    val terminalReportPixels = rememberTerminalViewportReport(client, selectedTerminal?.id, terminalMeasurement,
+        terminalActiveScreen == "primary" || selectedSizing?.state != null)
     val terminalViewport = TerminalViewport.fit(terminalReportPixels.width, terminalReportPixels.height, terminalCells)
     val terminalColumns = terminalViewport?.columns ?: 0
     val terminalRows = terminalViewport?.rows ?: 0

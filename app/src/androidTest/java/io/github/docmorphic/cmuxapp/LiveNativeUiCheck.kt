@@ -107,7 +107,16 @@ class LiveNativeUiCheck {
                 val metrics = context.resources.displayMetrics
                 val cells = TerminalCellMetrics.fromFontSize(
                     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, font, metrics), 2f * metrics.density)
-                val expected = checkNotNull(TerminalViewport.fit(node.boundsInRoot.width.toInt(), node.boundsInRoot.height.toInt(), cells))
+                var keyboardOverlap = 0
+                compose.runOnUiThread {
+                    val insets = ViewCompat.getRootWindowInsets(checkNotNull(activity).window.decorView)
+                    keyboardOverlap = ((insets?.getInsets(WindowInsetsCompat.Type.ime())?.bottom ?: 0) -
+                        (insets?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0)).coerceAtLeast(0)
+                }
+                // This fixture stays on the primary shell screen: keyboard motion
+                // changes its visible area but must preserve the natural PTY grid.
+                val expected = checkNotNull(TerminalViewport.fit(node.boundsInRoot.width.toInt(),
+                    node.boundsInRoot.height.toInt() + keyboardOverlap, cells))
                 val terminal = checkNotNull(created.terminals.firstOrNull())
                 val latest = AtomicReference<Pair<Int, Int>?>(null)
                 val sharedSizing = AtomicReference(false)
@@ -177,7 +186,7 @@ class LiveNativeUiCheck {
             val after = compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot.height
             stage = "settled host viewport with keyboard"
             val keyboardGrid = awaitHostViewport()
-            check(keyboardGrid.second < beforeGrid.second)
+            check(keyboardGrid == beforeGrid) { "Primary keyboard entry changed the host grid" }
             val suffix = UUID.randomUUID().toString().take(8)
             val marker = "CMUX_UI_" + suffix
             stage = "send through production composer"

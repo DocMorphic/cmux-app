@@ -24,7 +24,13 @@ internal fun rememberTerminalGridPresentation(client: MobileRpcClient?, surface:
     val layout = TerminalSharedGridLayout.resolve(pixels.width.toFloat(), pixels.height.toFloat(), grid.columns,
         grid.rows, cells, density, if (sharedMatches) transform else TerminalGridTransform())
     val contentBottom = remember(grid, revision, scrollViewport) { TerminalKeyboardLayout.contentBottomRows(grid, scrollViewport) }
-    val keyboard = layout?.let { TerminalKeyboardLayout(it.geometry, pixels.height.toFloat(), visibleHeight.toFloat(), contentBottom, reveal) }
+    val keyboard = layout?.let {
+        // An unshared TUI can prepare a shorter target before the keyboard has
+        // finished moving. Keep that target grid seated above the live dock.
+        val base = if (grid.activeScreen != "primary" && shared == null)
+            it.geometry.copy(originY = it.geometry.originY + (visibleHeight - pixels.height).coerceAtLeast(0)) else it.geometry
+        TerminalKeyboardLayout(base, pixels.height.toFloat(), visibleHeight.toFloat(), contentBottom, reveal)
+    }
     SideEffect {
         if (sharedMatches) layout?.let { transform = it.transform }
         if (keyboard != null) reveal = keyboard.reveal
