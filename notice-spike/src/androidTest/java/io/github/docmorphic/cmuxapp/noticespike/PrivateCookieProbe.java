@@ -118,13 +118,23 @@ public final class PrivateCookieProbe {
             report.put("seedB", b); save(); assertFalse(b.toString(), b.has("error"));
             boolean requestsIsolated = true;
             for (GeckoSession s : new GeckoSession[] { first, second }) {
-                server.enqueue(new MockResponse().setHeader("Content-Type", "text/html").setBody("<!doctype html><title>Fixture</title>Private notice fixture"));
+                CompletableFuture<String> scriptCookie = new CompletableFuture<>();
+                main(() -> s.setContentDelegate(new GeckoSession.ContentDelegate() {
+                    @Override public void onTitleChange(GeckoSession session, String title) {
+                        if (title != null && title.startsWith("CMUX_COOKIE:")) scriptCookie.complete(title.substring(12));
+                    }
+                }));
+                server.enqueue(new MockResponse().setHeader("Content-Type", "text/html").setBody(
+                    "<!doctype html><title>Fixture</title><script>document.title='CMUX_COOKIE:'+document.cookie</script>"));
                 load(s, base);
                 RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
                 assertNotNull(request);
                 String expected = s == first ? "a" : "b";
                 String cookie = request.getHeader("Cookie");
                 report.put("request" + expected.toUpperCase(), cookie == null ? JSONObject.NULL : cookie); save();
+                String visible = scriptCookie.get(10, TimeUnit.SECONDS);
+                report.put("scriptCookie" + expected.toUpperCase(), visible); save();
+                assertEquals("Seeded HTTP-only cookie is visible to page JavaScript", "", visible);
                 requestsIsolated &= ("notice_probe=" + expected).equals(cookie);
             }
             report.put("requestIsolation", requestsIsolated); save();

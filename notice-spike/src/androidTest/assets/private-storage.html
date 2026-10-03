@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8"><title>Private storage fixture</title>
+<body>Private storage fixture<script>
+(async () => {
+  let existed = true;
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("notice-storage", 1);
+    request.onupgradeneeded = () => { existed = false; request.result.createObjectStore("kv"); };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error("IndexedDB blocked"));
+  });
+  const cacheExisted = await caches.has("notice-storage");
+  const cache = await caches.open("notice-storage");
+  const cacheUrl = location.origin + "/stored";
+  const readIdb = () => new Promise((resolve, reject) => {
+    const tx = db.transaction("kv", "readonly");
+    const request = tx.objectStore("kv").get("marker");
+    request.onsuccess = () => resolve(request.result ?? null);
+    request.onerror = () => reject(request.error);
+  });
+  const snapshot = async () => ({
+    scriptCookie: document.cookie,
+    local: localStorage.getItem("marker"),
+    indexed: await readIdb(),
+    cache: await (await cache.match(cacheUrl))?.text() ?? null
+  });
+  const before = await snapshot();
+  const value = new URL(location.href).searchParams.get("write");
+  if (value !== null) {
+    if (!["a", "b"].includes(value)) throw new Error("Unexpected fixture value");
+    localStorage.setItem("marker", value);
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("kv", "readwrite");
+      tx.objectStore("kv").put(value, "marker");
+      tx.oncomplete = resolve;
+      tx.onerror = tx.onabort = () => reject(tx.error);
+    });
+    await cache.put(cacheUrl, new Response(value));
+  }
+  const after = await snapshot();
+  db.close();
+  document.title = "CMUX_PROBE:" + JSON.stringify({ before, after, databaseExisted: existed, cacheExisted });
+})().catch(error => { document.title = "CMUX_ERROR:" + String(error); });
+</script>

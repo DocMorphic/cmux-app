@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Private storage and native classifier correction (2026-10-04 follow-up)
+
+[NATIVE_ALIGNMENT.md](NATIVE_ALIGNMENT.md) corrects the old blanket RELRO-end
+rule against Bionic's whole-LOAD exception. All 13 Gecko libraries now pass; the
+original JNA 5.15.0 arm64 unsafe prefix still fails. 19 Python checks pass and CI includes
+the new regression cases. No library or compatibility setting was patched.
+
+The private engine passes seeded-cookie script exclusion (1 test, 7.363 s) and the
+two-stage process-death fixture (5.439 s / 4.706 s), reopening the same origin/context.
+Public per-context clearing fails: web-storage values disappear but its cookie
+remains. Combined scoped-cookie and public web-storage cleanup now passes
+(17.719 s): A is empty on the first observation and B's cookie/values remain.
+HTTPS/multi-origin/account-replacement checks are still pending. See
+[notice-spike](../notice-spike/README.md). This is not renderer/Pixel completion.
+
 ## Private notice engine experiment (2026-10-04 follow-up)
 
 The isolated [notice-spike](../notice-spike/README.md) verifies that a bundled
@@ -19,7 +34,8 @@ GeckoView extension can seed separate private page contexts: one runtime test
 passed in 14.675 s with real loopback requests. The simpler public cookies API
 failed for those contexts; the failure is retained. This does not establish
 HTTPS/page-script exclusion, storage cleanup, rendered UI or physical acceptance.
-Ten stock engine libraries fail the existing 16 KB RELRO gate. No engine is added
+The initial ten-library RELRO failure report is superseded by the classifier
+correction above. No engine is added
 to cmux-app, and the standalone newer toolchain does not upgrade the root app.
 The experiment packages were removed from the one existing AVD after capture;
 the AVD is stopped. Pixel and signed-build status remain unchanged.

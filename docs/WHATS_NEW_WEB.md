@@ -176,18 +176,43 @@ device page size 16384 / package `pageSizeCompat=0`. Native credentials were nev
 used, and no page-script/native-message interface was exposed. This proves a
 candidate route for cookie seeding; it does not complete the notice renderer.
 
-**Adoption is still blocked by a concrete packaging gate:** ten of thirteen stock
-arm64 engine libraries fail the repo's 16 KB RELRO check (all three other libraries
-pass). APK ZIP alignment passes. Starting the runtime does not waive this failure.
+**Native classification correction:** the initial checker incorrectly rejected
+ten whole-LOAD RELRO layouts. [NATIVE_ALIGNMENT.md](NATIVE_ALIGNMENT.md) records
+the Bionic source rule and corrected gate: all thirteen stock arm64 libraries now
+pass, while the actual old JNA unsafe prefix still fails. APK ZIP alignment passes.
 The initial isolated debug APK was 196,989,177 bytes, including 175,111,152 native
-bytes; this is not measured cmux-app APK growth. Do not add this binary to the
-delivered app until aligned native artifacts/source rebuilds and their provenance
-are available. Preserve the original verification gate.
+bytes; this is not measured cmux-app APK growth. Physical native acceptance and
+the remaining renderer/storage requirements are still necessary before adoption.
 
 Next validate HTTPS/Secure and page-script cookie exclusion, lifetime through
 context close/process death, unrelated-state preservation and account replacement;
-evaluate reproducible native alignment fixes, package cost and complete third-party
+evaluate physical native acceptance, package cost and complete third-party
 notices. The internal extension API needs a pinned-engine regression gate. Then
 integrate actual rendering/theme/navigation/preload with the existing broker and
 load owner. Evidence: `captures/runtime/notice-gecko/` (ignored). No Pixel or new
 signed milestone was tested; build 494 remains the last verified signed artifact.
+
+### Storage and script exclusion follow-up
+
+The scoped seeded-cookie fixture now also checks actual page JavaScript:
+**1 test passed in 7.363 s**, with each request carrying its correct cookie and
+`document.cookie` empty. A separate storage fixture writes/reads localStorage,
+IndexedDB and Cache Storage and receives an HTTP-only cookie with Max-Age.
+Preparation passed in **5.439 s**; after force-stop, reopening the exact same
+origin/port and context passed in **4.706 s**, with all data absent.
+
+Public per-context cleanup is **incomplete**: after closing A and calling
+`clearDataForSessionContext(A)`, its three web-storage values disappear but its
+private cookie remains after the ten-second polling window. The acceptance test
+correctly fails; it does not reach the following other-page-preservation assertion.
+The combined route is now verified: capture an internal lease for the owned tab's
+private attributes, close the session, wait until that tab is absent, then clear
+cookies with the explicit private-context pattern alongside public web-storage
+cleanup. **1 test passed in 17.719 s**, with A empty on the first observation and
+B's cookie/localStorage/IndexedDB/cache values intact. Final debug/test build: 7 s.
+The public-only failure is retained and reproducible; no global cookie clear was
+used. Do not call public cleanup alone sufficient or claim synchronous disk erasure.
+HTTPS/Secure, multi-origin/partitioned cleanup, replacement-account lifecycle, visual
+integration and physical Pixel remain unverified. See the experiment README for
+reproduction. Debug/test assembly passed in 20 s; no production app code changed.
+Evidence: `captures/runtime/notice-private-storage/` (ignored).

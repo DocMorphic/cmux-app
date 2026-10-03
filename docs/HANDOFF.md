@@ -65,10 +65,18 @@ initial invalid persistence assertion failed; the revised probe records observat
 and confirms only public-registry cleanup, not disk erasure. The standalone
 `notice-spike` now evaluates GeckoView157 with its own newer toolchain. Public
 cookie seeding fails for named private contexts; the scoped bundled extension
-passes actual isolated-request checks (1 test,14.675s). Ten stock native libraries
-fail RELRO alignment, so it is not an app dependency. No main-toolchain update or
-extra AVD was made. Next validate storage lifetime/HTTPS/page-script exclusion,
-reproducible native alignment fixes and package/license cost before integrating
+passes actual isolated-request checks; the extended script-exclusion check passed
+in 7.363 s. Process-death storage absence passed on the exact same origin/context.
+Public per-context cleanup clears web storage but leaves private cookies. The
+combined scoped extension cleanup now passes (17.719 s): A is empty and B stays
+intact. Capture an owned private lease before close, require the tab gone before
+clearing explicit private-cookie attributes, and use the public web-storage clear.
+The public-only failure remains reproducible. The native checker
+was overly broad: NATIVE_ALIGNMENT.md records the Bionic whole-LOAD exemption,
+19 passing Python checks and actual old-JNA negative control. All 13 Gecko libraries
+pass the corrected gate. No main-toolchain update or extra AVD was made. Next
+finish multi-origin cleanup/HTTPS/account lifecycle, physical acceptance and package/license cost
+before integrating
 the renderer/cookie
 seeding, theme, navigation policy and the existing10sec/20sec lifetimes in launch
 and archive UI. Current native catalog has no web pages or configured feed; the

@@ -5,8 +5,10 @@ contract: private storage, independent page contexts, and HTTP-only web-session
 cookie seeding. It is **not a dependency of cmux-app**, not included by the root
 Gradle settings, and not a replacement APK for the user's signed-in app.
 
-The experiment is unfinished. Do not adopt the engine merely because it starts:
-the stock pinned AAR fails this project's 16 KB RELRO gate for ten libraries.
+The experiment is unfinished. The original checker incorrectly flagged ten
+libraries; the [corrected Bionic-based gate](../docs/NATIVE_ALIGNMENT.md) passes
+all thirteen. Scoped private cleanup is now verified in the fixture; HTTPS,
+account lifecycle, rendering and physical acceptance remain open.
 
 ## Pinned build
 
@@ -76,19 +78,79 @@ instrumentation summary, not only adb's exit status. A failed earlier fixture
 mistook the initial `about:blank` completion for the requested navigation; that
 log is retained separately from the corrected public-API failure.
 
+## Storage lifetime follow-up
+
+`PrivateStorageProbe` loads a real local page that reads/writes localStorage,
+IndexedDB and Cache Storage. The server also sets a persistent HTTP-only fixture
+cookie. Page code reports its observations through the title; native request
+capture independently checks whether cookies were actually sent.
+
+API 37 / 16 KB arm64 results:
+
+- Scoped native cookie seeding plus `document.cookie` exclusion: **1 pass, 7.363 s**.
+  The real requests contain distinct seeded cookies while both page scripts see
+  an empty cookie string.
+- Closing page A and calling `clearDataForSessionContext(A)` clears its localStorage,
+  IndexedDB value and Cache Storage value, but **its private cookie remains**.
+  The test fails after 132 observations within its ten-second polling window.
+  The control-page check follows that assertion and was not reached, so preservation
+  of the other page after cleanup is not yet verified. The failure is retained.
+- Prepare process-death fixture: **1 pass, 5.439 s**. After force-stop, reopen the
+  exact context and same loopback port/origin: **1 pass, 4.706 s**. Cookie and all
+  three stored values are absent; the database and cache did not previously exist.
+  The ownership receipt is removed on success. This verifies logical storage
+  lifetime for the fixture, not forensic disk erasure.
+- Scoped cookie cleanup plus the public web-storage clear: **1 pass, 17.719 s**.
+  Before closing the page, the native caller captures an opaque lease for its
+  private origin attributes. After closing, the extension refuses to clear until
+  the original tab is absent. It then removes cookies using an explicit private
+  context pattern. Page A's cookie and all three stored values are absent on the
+  first observation; page B's cookie and values remain intact. No global cookie
+  clear is performed. The final debug/test build passed in 7 s.
+
+Build debug/test APKs as above, then run the scoped-clear selector separately:
+
+```sh
+adb -s DEVICE shell am instrument -w -r \
+  -e class 'io.github.docmorphic.cmuxapp.noticespike.PrivateStorageProbe#scopedClearRemovesPrivateStorageAndPreservesOtherPage' \
+  io.github.docmorphic.cmuxapp.noticespike.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Add `-e cmux_storage_cleanup scoped` to select the passing combined cleanup.
+Omit it to reproduce the public-only failure. The lease is internal to the bundled
+extension and accepts only an owned loopback private fixture, not caller-supplied
+arbitrary origin attributes. Its cookie pattern includes private mode, user context
+and the recorded Gecko session context; it does not restrict clearing to one host
+or partition key. Multi-origin/partitioned behavior still needs a runtime fixture.
+
+The two restart selectors require `-e cmux_storage_process_probe true` and must
+run in separate instrumentation processes, with `am force-stop` of **only the
+experiment package** between them: first `PrivateStorageProbe#prepareProcessDeath`,
+then `PrivateStorageProbe#inspectAfterProcessDeath`. Use the fully qualified class
+prefix shown above. The first intentionally keeps the session live; a receipt in
+the experiment's no-backup directory records the origin/context before data is
+written. Do not rerun preparation over an existing receipt. If the recorded port
+is occupied, the second phase must fail rather than select a different origin.
+
+The public cleanup call alone is not sufficient for private cookies; use the
+verified combined route as the starting point. The pinned public implementation
+supplies only the context ID to its generic origin-pattern clear. Before adopting
+this internal extension API, verify cancellation/account replacement, leases
+during extension restart, HTTPS/Secure cookies and multi-origin/partitioned state.
+
 ## Adoption gates
 
-Before integrating: pass native LOAD/RELRO and ZIP alignment, verify HTTPS/Secure
-cookie handling and page-script exclusion, cookie/localStorage/IndexedDB/cache
-lifetime through close and process death, unrelated context preservation, account
+Before integrating: verify physical native compatibility, HTTPS/Secure
+cookie handling, multi-origin/partitioned cleanup and account
 replacement, cancellation and update compatibility. Then connect navigation and
 theme policy, actual rendering and bounded preload. This experiment does not
 establish any of those untested behaviors.
 
 The initial arm64 debug APK is 196,989,177 bytes, with 175,111,152 bytes of native
 libraries. That is a separate experiment APK, **not measured growth of cmux-app**.
-APK ZIP alignment passed; three native libraries passed LOAD/RELRO and ten failed
-RELRO. Runtime startup does not waive the failed packaging gate.
+APK ZIP alignment passed. The old verifier reported ten RELRO failures, but all
+thirteen libraries pass the corrected whole-LOAD classification. The actual old
+JNA 5.15.0 unsafe prefix still fails that gate; no native binary was patched.
 
 Mozilla's POM identifies MPL 2.0 and source revision
 `8eb25af4acf031ab1e06abf1a912275083c820ed`. Production adoption must include the

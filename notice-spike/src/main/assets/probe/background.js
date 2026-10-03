@@ -10,6 +10,16 @@ port.onMessage.addListener(async command => {
       })) });
       return;
     }
+    if (command.op === "capture") {
+      const matches = tabs.filter(t => t.url === command.tabUrl && t.incognito);
+      if (matches.length !== 1) throw new Error("Private fixture not uniquely identified");
+      port.postMessage({ id: command.id, lease: await browser.noticeCookies.capture(matches[0].id) });
+      return;
+    }
+    if (command.op === "clear") {
+      port.postMessage({ id: command.id, cleared: await browser.noticeCookies.clear(command.lease) });
+      return;
+    }
     if (command.op !== "seed" || !/^http:\/\/127\.0\.0\.1:\d+\/$/.test(command.url)
         || !["a", "b"].includes(command.value)) throw new Error("Invalid synthetic fixture");
     const matches = tabs.filter(t => t.url === command.tabUrl && t.incognito);
