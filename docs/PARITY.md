@@ -149,6 +149,40 @@ independent New Browser switching, and physical SSH acceptance still need dedica
 runtime checks; the generic Mac picker and full upstream delta audit are not newly
 certified by this SSH run.
 
+### Browser return ownership (2026-10-03)
+
+Review after the SSH browser work found that creation results checked their local
+surface, but pane selection, Back, restart and fallback handling could still act
+on a replacement destination before Compose observed the navigation change. The
+browser Activity return handler now applies one ownership check to every action:
+the exact surface object and full account/team/computer/workspace key must still
+be current. A missing/retired/mismatched registration can only leave its own
+destination; an already replaced destination is untouched. An open, current,
+registered presentation is required to route, create, change mode or restart.
+The asynchronous parent Back handler also rechecks ownership after releasing its
+host. Close removes its own local surface before invoking the external callback.
+
+Three JVM checks cover replacement objects with equal IDs, changed scopes,
+missing registrations, retired networks, workspace mismatch and closed surfaces.
+The first build caught a syntax error in the new unit test; after correction,
+debug/test assembly and the three checks passed in **13s**. The real browser
+Activity suite passed **9 tests in 51.509s**. Three new cases deliberately keep an
+old composition visible while navigation installs another generated account and
+workspace, then return a pane selection, creation request or Back from the old
+Activity. They verify no route or creation callback, the exact replacement still
+current and open, and the old host released once. Six existing checks cover
+normal page/pane returns, mode switching, terminal/browser creation, retirement
+cleanup and process-death reopening with retained cookies.
+
+Evidence: `captures/runtime/browser-return/instrumentation.txt`,
+`captures/runtime/browser-return-build.txt`, and `browser-return-build-final.txt`
+(ignored). Debug APK SHA-256:
+`dd5d6b96815a8aec2bf07320dc7c09c313540983c513a4f54c5cc4a381f79eb7`;
+test APK: `d736e037e0aa12645c4f220c73b348c5db4355e8ff997d15e107e9eab9c3ed9f`.
+The existing emulator was shut down; the Pixel was absent. Signed
+build 421 is unchanged. This establishes the tested browser ownership behavior,
+not completion of the remaining iOS parity or physical-device gates.
+
 ### Public feedback composer (2026-10-03)
 
 Targeted upstream review covered `MobileFeedbackEmailClient.swift`,

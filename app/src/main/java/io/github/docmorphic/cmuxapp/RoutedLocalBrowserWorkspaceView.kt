@@ -41,8 +41,11 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             val entry = RoutedBrowserSessions.find(id)
             val action = result.data?.getStringExtra("action")
             requestId = null
-            if (action == "restart" && entry?.network?.retired?.isCompleted == false) attempt++
-            else {
+            val returnScope = routedBrowserReturnScope(destination, navigation.state.value.local, entry?.destination,
+                entry?.network?.retired?.isCompleted == false, currentWorkspace.id)
+            if (returnScope == RoutedBrowserReturnScope.LEAVE) navigation.leave(close = false)
+            else if (returnScope == RoutedBrowserReturnScope.APPLY && action == "restart") attempt++
+            else if (returnScope == RoutedBrowserReturnScope.APPLY) {
                 val kind = result.data?.getStringExtra("kind")
                 val paneId = result.data?.getStringExtra("pane")
                 val panel = RoutedBrowserProtocol.panes(currentWorkspace).singleOrNull { it.kind == kind && it.id == paneId }
@@ -54,11 +57,8 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
                 }
                 val sshCommand = SshPickerCommand.decode(result.data?.getStringExtra("ssh_command"))
                 when {
-                    action == "ssh_command" && sshCommand != null && onSshCommand != null && currentSshPicker?.permits(sshCommand) == true &&
-                        entry?.network?.retired?.isCompleted == false && entry.destination.surface === destination.surface &&
-                        navigation.state.value.local?.surface === destination.surface -> onSshCommand(sshCommand)
-                    creation != null && creationEnabled && entry?.network?.retired?.isCompleted == false &&
-                        entry.destination.surface === destination.surface && navigation.state.value.local?.surface === destination.surface -> creation()
+                    action == "ssh_command" && sshCommand != null && onSshCommand != null && currentSshPicker?.permits(sshCommand) == true -> onSshCommand(sshCommand)
+                    creation != null && creationEnabled -> creation()
                     action == "stream" && browserModes && panel?.kind == "browser" &&
                         navigation.switchToStream(destination.key, currentWorkspace, panel.id) -> {
                         onRoute(NativeWorkspaceRoute(destination.key.computerId, workspace.id, browserId = panel.id))
@@ -70,7 +70,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
                             surfaceId = panel.id.takeIf { panel.kind == "surface" }))
                     }
                     action == "close" -> {
-                        onClose(); navigation.leave(close = true)
+                        navigation.leave(close = true); onClose()
                         val terminal = destination.terminalId?.takeIf { id -> currentWorkspace.terminals.any { it.id == id } }
                             ?: currentWorkspace.terminals.firstOrNull()?.id
                         if (currentWorkspace.hasPanes) onRoute(NativeWorkspaceRoute(destination.key.computerId, workspace.id, terminalId = terminal))
@@ -107,7 +107,10 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     else {
         fun back() {
             val id = requestId
-            scope.launch { RoutedBrowserSessions.abandon(context, id); navigation.leave(close = false) }
+            scope.launch {
+                RoutedBrowserSessions.abandon(context, id)
+                if (ownsBrowserDestination(destination, navigation.state.value.local)) navigation.leave(close = false)
+            }
         }
         BackHandler { back() }
         Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {

@@ -48,6 +48,7 @@ class RoutedBrowserPresentationTest {
     private lateinit var surface: LocalBrowserSurface
     private var route: NativeWorkspaceRoute? = null
     private val creationRequests = CopyOnWriteArrayList<String>()
+    private var frozenDestination by mutableStateOf<LocalBrowserDestination?>(null)
     private fun created(kind: String) { creationRequests += kind; navigation.leave(close = true) }
     private fun selectedRow(label: String): Boolean {
         // Compose exports Selected for non-tab menu items as Android checked state on the clickable parent.
@@ -109,7 +110,7 @@ class RoutedBrowserPresentationTest {
         }
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
             val state by navigation.state.collectAsState()
-            val destination = state.local
+            val destination = frozenDestination ?: state.local
             if (destination == null) Button(onClick = { navigation.restoreRemembered(key, workspace) }) { Text("Reopen fixture") }
             else RoutedLocalBrowserWorkspaceView(destination, navigation, workspace, { network }, {
                 holds.incrementAndGet()
@@ -197,6 +198,35 @@ class RoutedBrowserPresentationTest {
         assertEquals(1, releases.get())
         assertEquals(false, probes.last())
         assertTrue(network.retired.isCompleted)
+    }
+    private fun lateReturn(action: () -> Unit) {
+        browser("Routed fixture ▾")
+        val replacement = main {
+            // Hold the old composition, as during a pending frame, while the
+            // navigation owner has already installed another account/workspace.
+            frozenDestination = navigation.state.value.local
+            val nextKey = key.copy(accountId = "replacement-account", computerId = "replacement-computer", workspaceId = "replacement-workspace")
+            navigation.restoreRemembered(nextKey, workspace.copy(id = nextKey.workspaceId))
+            checkNotNull(navigation.state.value.local)
+        }
+        try {
+            action()
+            compose.waitUntil(15000) { compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) }
+            until { holds.get() == 0 }
+            assertSame(replacement, main { navigation.state.value.local })
+            assertFalse(main { replacement.surface.state.value.closed })
+            assertNull(main { route }); assertTrue(creationRequests.isEmpty())
+            assertEquals(1, releases.get())
+        } finally { main { navigation.clear(); frozenDestination = null } }
+    }
+    @Test fun latePaneReturnCannotNavigateOrCloseReplacementDestination() = lateReturn {
+        text("Routed fixture ▾").click(); text("Fixture shell").click()
+    }
+    @Test fun lateCreationReturnCannotCreateOrCloseReplacementDestination() = lateReturn {
+        text("Routed fixture ▾").click(); text("New Terminal").click()
+    }
+    @Test fun lateBackReturnCannotCloseReplacementDestination() = lateReturn {
+        desc("Back to workspaces").click()
     }
     @Test fun rotationKeepsUnsubmittedPageStateHistoryAndHostLease() {
         device.setOrientationNatural()
