@@ -1,5 +1,10 @@
 # Android introduction and Mac connection flow — 2026-10-03
 
+Signed delivery update (2026-10-03): build 494 includes this implementation and
+passed CI, packaging, the ART class gate and signed-out emulator upgrade/startup.
+See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the artifact and verification limits;
+physical/authenticated acceptance below remains outstanding.
+
 Implements the five scenes reviewed in [ONBOARDING_AUDIT.md](ONBOARDING_AUDIT.md):
 workspaces, notification feed, notification opt-in, Mac pairing setup and connect.
 The reference remains the scoped upstream 0fc35 revision; the global parity pin

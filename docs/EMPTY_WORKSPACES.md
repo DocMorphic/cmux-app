@@ -1,5 +1,10 @@
 # Empty workspace guidance and recovery — 2026-10-03
 
+Signed delivery update (2026-10-03): build 494 includes this implementation and
+passed CI, packaging, the ART class gate and signed-out emulator upgrade/startup.
+See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the artifact and verification limits;
+physical/authenticated acceptance below remains outstanding.
+
 ## Source and scope
 
 Scoped review of upstream `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:

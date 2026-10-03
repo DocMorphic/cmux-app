@@ -1,5 +1,10 @@
 # Typed failure diagnostics — 2026-10-03
 
+Signed delivery update (2026-10-03): build 494 includes this implementation and
+passed CI, packaging, the ART class gate and signed-out emulator upgrade/startup.
+See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the artifact and verification limits;
+physical/authenticated acceptance below remains outstanding.
+
 ## Upstream contract
 
 Scoped reference: `Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/DiagnosticTaxonomy.swift`

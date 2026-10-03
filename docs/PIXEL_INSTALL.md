@@ -3,29 +3,66 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Rejected candidate 486 and replacement in progress
+## Current signed development APK — build 494 (2026-10-03)
 
-Build 486 at `372f48c` passed full CI and independent packaging checks, but its
-actual API 37 / 16 KB launch failed with `VerifyError` in the generated
-`NativeScreenKt` root lambda. **Do not install or recommend build 486.** The
-emulator also showed a separate System UI cold-boot ANR; after recovery, the app's
-own verifier failure remained reproducible. The original installed-data timestamp
-was preserved by the 481 → 486 install, but startup acceptance failed.
+[Build 494](https://github.com/DocMorphic/cmux-app/actions/runs/37154456102)
+passed at `6e4a449b8feb20a5097e51d787078a9326d7c7f5`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37154456102/artifacts/11285640563)
+and extract `app-release.apk` (repository access required). This batch includes
+build 481 plus the five-stage introduction, empty-workspace guidance and bounded
+retry, typed connection diagnostics, and the release startup fix. PR #1 remains
+a draft; this is an Actions artifact, not a published GitHub release.
 
-Fix `555e4b8` moves the unchanged onboarding body into its own composition lambda.
-An ART probe reproduces the exact error in 486 and verifies the fixed local
-release APK (1,339 declared methods). The CI workflow now runs that check on an
-ephemeral Android 17 emulator before uploading APKs. This is a DEX gate; actual
-signed launch and authenticated device acceptance remain separate.
-Build 488 at `555e4b8` passed full build/tests and package checks, then failed
-before ART: the CI emulator could not find the AVD created by avdmanager. No signed
-APK was uploaded. `063c5a8` gives both tools explicit shared AVD/user directories.
-[Replacement build 491](https://github.com/DocMorphic/cmux-app/actions/runs/37153788476)
-is running at `063c5a8523fdbda631888286fc947c6161c0e4d9`; the runtime gate and signed
-upgrade remain pending. Build 481 remains the last verified signed milestone.
-Local evidence: `captures/runtime/build486/`, including negative/fixed class probes.
+- Package: `io.github.docmorphic.cmuxapp`; version code **494**, version 0.2.0.
+- SHA-256: `40735cbfd50150afbb958b94d23c9b4cfd07b656f240b3e18e1f54ac6a168a8f`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK size: **39,246,858 bytes**; min SDK 26, target SDK 36.
+- Local file: `build/signed-run-37154456102/app-release.apk` (ignored).
 
-## Current signed development APK — build 481 (2026-10-03)
+Full app/Ghostty JVM suites and debug/test/release assembly passed in CI;
+Gradle reported **7m 48s**. Four helper tests, ten update-policy tests, packaging
+checks and the new API 37 / 16 KB ART class gate passed. ART accepted
+`NativeScreenKt` with 1,339 declared methods. The ephemeral CI emulator had 4.9 GB
+free on its data partition. No full JVM count is inferred from CI logs. Native
+libraries were restored from pinned caches. Independent downloaded-APK checks
+confirmed source/run/artifact metadata, CI's APK hash, stable signer, 14 viewer
+hashes, six native LOAD/RELRO checks, 16 KB ZIP alignment, disabled backup,
+non-debuggable manifest, exclusion of five debug fixture activities, and matching
+packaged `assets/licenses/NOTICE.txt`.
+
+The existing API 37 / 16,384-byte arm64 emulator upgraded **486 → 494** with
+`install -r`, preserving first-install time `2026-09-30 01:57:49`. Explicit
+stop/start reported COLD, MainActivity and **2,398 ms**, reaching the visually
+reviewed sign-in screen without a compatibility warning or ANR dialog. The setup
+link opened the reviewed Mac guide; Back returned to sign-in. `pageSizeCompat=0`
+and the final crash buffer was empty. This single launch is not a benchmark.
+The baseline was already signed out, so authenticated migration remains
+unverified. Font/rotation settings were unchanged (1.0/1/0); the sole existing
+AVD was stopped and its process reaped. No new local AVD was created.
+Evidence: `captures/runtime/build494/`, including `runtime-verification.json`.
+
+The Pixel was absent from ADB. Physical native/browser/keyboard acceptance,
+authenticated upgrade and configured push remain open. The next missing source
+surface is [What's New](WHATS_NEW_AUDIT.md). The broader audit is incomplete and
+the global parity pin is unchanged. This milestone does not complete the goal.
+
+## Rejected candidate 486 and CI infrastructure recovery
+
+Build 486 at `372f48c` passed build/tests/packaging but failed actual API 37 / 16 KB
+launch with `VerifyError` in the generated `NativeScreenKt` root lambda.
+**Do not install or recommend build 486.** A separate System UI cold-boot ANR
+recovered; the app verifier failure remained reproducible. Fix `555e4b8` moves
+the unchanged onboarding body into its own composition lambda. The ART probe
+reproduces 486's exact failure and accepts the fixed local release and build 494.
+
+Build 488 at `555e4b8` failed before ART because the CI emulator could not find its
+AVD. `063c5a8` provides shared explicit AVD/user directories. Build 491 at that
+commit then booted but exhausted `/data` before copying the probe. Neither run
+uploaded an APK. `6e4a449` sizes the CI partition to 6 GiB and records its free
+space; build 494 passed the complete gate and actual signed emulator launch.
+Evidence: `captures/runtime/build486/`, `build488/`, `build491/`, and `build494/`.
+
+## Previous signed development APK — build 481 (2026-10-03)
 
 [Build 481](https://github.com/DocMorphic/cmux-app/actions/runs/37148164630)
 passed at `59c75e3ff8c95f00c52096c9877ea7fbfd15a5ce`. Download the

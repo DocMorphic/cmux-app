@@ -18,35 +18,37 @@ Read this first, then `PARITY.md`, `ANDROID_TESTING.md`, `RESEARCH.md`, and
 not a request to scaffold another prototype. The dated sections of the other
 documents are historical; newer verified entries supersede older pending claims.
 
-**Delivery update — 2026-10-03:** signed development build **481**, source
-`59c75e3ff8c95f00c52096c9877ea7fbfd15a5ce`, passed CI, independent packaging checks
-and a signed-out 474 → 481 upgrade on the existing API 37 / 16 KB emulator.
-See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the artifact and hashes, and the latest
-[PARITY.md](PARITY.md) entries for feature evidence. The goal remains active on
-this Mac; physical Pixel acceptance, authenticated upgrade, configured push and
-broader source/visual parity remain open. The repository/delivery table below
-records the original September 28 handoff rather than the current APK.
+**Delivery update — 2026-10-03:** signed development build **494**, source
+`6e4a449b8feb20a5097e51d787078a9326d7c7f5`, passed CI, independent packaging checks,
+the new Android 17 ART class gate and a signed-out 486 → 494 upgrade/cold launch
+on the existing API 37 / 16 KB arm64 emulator. See [PIXEL_INSTALL.md](PIXEL_INSTALL.md)
+for artifact/hashes and [PARITY.md](PARITY.md) for feature evidence. The goal remains
+active; physical Pixel acceptance, authenticated upgrade, configured push and
+broader source/visual parity remain open. The table below records the original
+September 28 handoff rather than the current APK.
 
-## Immediate continuation — build 491
+## Immediate continuation — What's New
 
-**Do not recommend candidate 486.** It passed CI/packaging but actual signed
-startup failed with an ART VerifyError. `555e4b8` separates the unchanged onboarding
-composition; the fixed unsigned release passed an ART class-loading probe, whose
-negative control reproduces 486 exactly. CI now has the same check before uploads.
-Run 37153210672 / build 488 passed full build/tests/package checks but failed
-before ART: the emulator could not find the AVD. No installable artifact uploaded.
-Fix `063c5a8` sets explicit shared AVD/user paths. Run **37153788476**, build **491**,
-source **063c5a8523fdbda631888286fc947c6161c0e4d9** was confirmed in progress.
-Poll this exact run; do not dispatch another because
-an observation times out. After success, download its signed artifact, verify
-provenance/packaging and actual signed cold launch on the existing AVD. Build 481
-is still the last verified signed milestone. Existing AVD is stopped; its stable
-package currently holds rejected486 and preserved first-install data. Upgrade it
-with the verified replacement, without wiping data. No physical Pixel was present.
+Build 494 / run **37154456102** completed successfully; no build is in progress.
+Its stable artifact is **11285640563**. Independent source/run/hash/signature,
+viewer/native alignment, manifest and NOTICE checks passed. Actual signed launch
+reached sign-in, setup guide opened and Back returned; no crash or compatibility
+warning. First-install time survived. The existing AVD holds stable494 and was
+stopped/reaped with settings unchanged. Evidence: `captures/runtime/build494/`.
+The Pixel was absent; no authenticated or physical upgrade claim is made.
 
-Next source implementation: [WHATS_NEW_AUDIT.md](WHATS_NEW_AUDIT.md). The actual
-iOS launch gate does not require discovered Macs, despite a stale sheet comment.
-Broader parity/physical/push acceptance remains open. Keep the goal active.
+Candidate 486 remains rejected for a release ART VerifyError, fixed by `555e4b8`.
+Builds 488 and 491 failed before ART due to CI paths and data capacity. Fixes
+`063c5a8` and `6e4a449` were verified by 494; do not continue polling old runs or
+recommend their artifacts. Docs-only updates need no signed rebuild.
+
+Next source implementation: [WHATS_NEW_AUDIT.md](WHATS_NEW_AUDIT.md). Start with
+the typed catalog, persistence, channel/version visibility and acknowledgement;
+then archive/detail UI and owner-scoped launch presentation with web isolation.
+The actual iOS launch gate does not require discovered Macs, despite a stale
+sheet comment. Use Android-owned IDs/version claims; an Android announcement feed
+is not configured. Broader parity/physical/push acceptance remains open. Keep the
+goal active and do not repeat the pending Pixel reconnect request.
 
 ## User's objective and working preferences
 
@@ -59,7 +61,7 @@ Previous local feature: [EMPTY_WORKSPACES.md](EMPTY_WORKSPACES.md) adds the shar
 Mac/SSH empty-state scaffold and owner-scoped 30-second Mac retry. Thirty JVM and
 two Android tests passed; normal portrait screenshots were reviewed. Exact source
 mapping, hashes and remaining live acceptance are recorded there. No Pixel was
-available for this checkpoint. Signed build 481 predates this and onboarding.
+available for this checkpoint. Signed build 494 now includes this and onboarding.
 
 Previous local feature: [ONBOARDING.md](ONBOARDING.md) implements all five introduction
 scenes with durable milestones, explicit completion, Settings replay, saved page/
@@ -69,8 +71,8 @@ and routes connection to Settings. Existing pairing/help, notification service,
 foreground connection and ownership checks are reused. No FCM configuration is
 claimed. See [ONBOARDING_AUDIT.md](ONBOARDING_AUDIT.md) for the scoped source mapping.
 
-Signed build 481 includes the five preceding compatibility/Computers/setup-guide
-features and predates this tour. Next validate the authenticated first-run and
+Signed build 494 includes this tour and the preceding compatibility/Computers/setup-guide
+features. Next validate the authenticated first-run and
 replay workflow against the Mac/Pixel, including account changes, QR cancellation,
 keep-awake and app restart. Where the phone remains unavailable, continue the
 remaining source/visual audit and Android push integration plan. The delivery

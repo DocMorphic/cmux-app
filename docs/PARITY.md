@@ -12,20 +12,25 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Release startup regression found and fixed locally (2026-10-03)
+## Signed build 494: release startup recovery verified (2026-10-03)
 
-Candidate 486 passed compile/test/package gates but failed actual Android 17 ART
-verification in the large NativeScreen root lambda. The onboarding body now lives
-in a separate composition lambda, with identical normalized body content. The
-new APK class-loading probe reproduces 486's exact VerifyError and passes the
-fixed local release. CI now runs that gate before artifact upload. Replacement
-build 488 failed before ART because the CI AVD was not discoverable. The explicit
-path fix is running in build 491; 481 remains the last verified signed milestone. See
-[PIXEL_INSTALL.md](PIXEL_INSTALL.md) for precise evidence and rejection status.
+Build 494 at `6e4a449` passed full CI, the new API 37 / 16 KB ART class gate,
+independent downloaded-APK checks, and an actual signed 486 → 494 upgrade and
+cold launch on the existing arm64 emulator. Sign-in and the Mac setup guide were
+visually reviewed; Back returned correctly, app data/install time were retained,
+and the crash buffer was empty. The emulator was stopped; no new local AVD was
+created. [PIXEL_INSTALL.md](PIXEL_INSTALL.md) records the artifact, hashes and
+limits. This signed batch includes onboarding, empty-workspace recovery and typed
+diagnostics below. Physical/authenticated/push acceptance remains open.
 
-The [What's New audit](WHATS_NEW_AUDIT.md) also records an unimplemented iOS surface:
+Candidate 486 remains rejected for its ART VerifyError. The unchanged onboarding
+body was isolated into its own composition lambda. Builds 488 and 491 failed
+before ART because of CI AVD paths and data capacity respectively; both were
+fixed, and 494 passed the complete gate. No APK from either failed run was uploaded.
+
+The [What's New audit](WHATS_NEW_AUDIT.md) records the next unimplemented surface:
 release archive, remote visibility, web preload and acknowledgement. Android build
-automation does not provide this UI. Global parity pin remains unchanged.
+automation does not provide this UI. The global parity pin remains unchanged.
 
 ## Typed connection failure diagnostics (2026-10-03)
 
