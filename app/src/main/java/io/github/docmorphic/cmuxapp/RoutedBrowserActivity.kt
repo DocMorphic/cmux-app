@@ -101,6 +101,9 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         } finally { replies.remove(serial) }
     }
     suspend fun prepare(url: String?) {
+        MobileDebugLog.trace(DebugOperation.BROWSER_PREPARE) { preparePage(url) }
+    }
+    private suspend fun preparePage(url: String?) {
         val ready = checkNotNull(binding)
         val port = request(RoutedBrowserProtocol.PREPARE, Bundle().apply { putString("url", url) }).getInt("port")
         if (port != ready.proxyPort) {
@@ -117,6 +120,11 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
     suspend fun flush() {
         state.value.surface?.let { request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(it.state.value)) }
         if (binding != null) CookieManager.getInstance().flush()
+    }
+    suspend fun debugLogs(): String {
+        check(BuildConfig.DEBUG)
+        val main = request(RoutedBrowserProtocol.DEBUG_LOGS).getString("debug_logs") ?: error("Debug logs unavailable")
+        return "$main\n\nBrowser process\n${debugLogSnapshot(app)}"
     }
     override fun onCleared() {
         if (bound) { app.unbindService(connection); bound = false }
@@ -148,7 +156,7 @@ class RoutedBrowserActivity : ComponentActivity() {
         if (id == null) { finish(); return }
         controller = ViewModelProvider(this)[RoutedBrowserController::class.java]
         controller.begin(id)
-        setContent { CmuxTheme { NativeFeedbackHost(id) { Surface(Modifier.fillMaxSize()) {
+        setContent { CmuxTheme { CompositionLocalProvider(LocalDebugLogSource provides { controller.debugLogs() }) { NativeFeedbackHost(id) { Surface(Modifier.fillMaxSize()) {
             val ui by controller.state.collectAsState()
             BackHandler { leave("back") }
             LaunchedEffect(ui.retired, ui.restart) {
@@ -183,7 +191,7 @@ class RoutedBrowserActivity : ComponentActivity() {
                     else -> LocalBrowserPane(checkNotNull(ui.surface), beforeNavigation = controller::prepare) { leave("close") }
                 }
             }
-        } } } }
+        } } } } }
     }
     override fun onStart() { super.onStart(); if (::controller.isInitialized) controller.foreground(true) }
     override fun onStop() { if (::controller.isInitialized) controller.foreground(false); super.onStop() }

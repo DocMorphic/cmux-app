@@ -9,6 +9,7 @@ internal object RoutedBrowserProtocol {
     const val PREPARE = 2
     const val SNAPSHOT = 3
     const val FOREGROUND = 4
+    const val DEBUG_LOGS = 5
     const val RETIRE = 100
     const val CONTEXT = 101
     const val EXTRA = "browser_request"

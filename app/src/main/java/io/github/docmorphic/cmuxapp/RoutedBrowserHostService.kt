@@ -29,6 +29,10 @@ class RoutedBrowserHostService : Service() {
                     RoutedBrowserProtocol.PREPARE -> result.putInt("port", RoutedBrowserSessions.prepare(entry, args.getString("url")))
                     RoutedBrowserProtocol.SNAPSHOT -> entry.destination.surface.remote(entry.attachment, RoutedBrowserProtocol.snapshot(args))
                     RoutedBrowserProtocol.FOREGROUND -> entry.probe(args.getBoolean("active"))
+                    RoutedBrowserProtocol.DEBUG_LOGS -> {
+                        check(BuildConfig.DEBUG) { "Debug logs unavailable" }
+                        result.putString("debug_logs", debugLogSnapshot(this@RoutedBrowserHostService))
+                    }
                     else -> error("Unknown browser request")
                 }
             } catch (failure: Exception) {

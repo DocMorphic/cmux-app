@@ -86,6 +86,7 @@ internal fun NativePanePicker(title: String, rows: List<NativePanePickerRow>, se
                 trailingIcon = { if (checksNewBrowser) Text("✓", Modifier.clearAndSetSemantics { }) },
                 onClick = { close(); onNewBrowser?.invoke() })
             utilities(close)
+            DebugLogMenuItem(close)
             if (feedback != null) DropdownMenuItem(text = { Text("Send Feedback") }, onClick = { close(); feedback() })
         }
     }

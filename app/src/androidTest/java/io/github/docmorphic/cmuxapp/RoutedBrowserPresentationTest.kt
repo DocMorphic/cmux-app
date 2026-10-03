@@ -125,6 +125,23 @@ class RoutedBrowserPresentationTest {
         owner.cancel()
         if (::server.isInitialized) server.shutdown()
     }
+    @Test fun browserCopiesMainAndBrowserDiagnosticsThroughTheBoundService() {
+        browser("Routed fixture ▾")
+        MobileDebugLog.finish(MobileDebugLog.begin(DebugOperation.RPC_HOST), DebugOutcome.SUCCESS)
+        text("Routed fixture ▾").click()
+        text("Copy Debug Logs").click()
+        assertTrue(device.wait(Until.gone(By.text("Copy Debug Logs")), 5000))
+        // Return focus to the main process before reading Android's clipboard.
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        val copied = main { context.getSystemService(android.content.ClipboardManager::class.java).primaryClip?.getItemAt(0)?.text.toString() }
+        assertTrue(copied, copied.contains("RPC_HOST SUCCESS"))
+        assertTrue(copied, copied.contains("Browser process"))
+        assertTrue(copied, copied.contains("BROWSER_PREPARE SUCCESS"))
+        assertTrue(copied, copied.contains("Process ${Process.myPid()}"))
+        assertFalse(copied.contains("http://"))
+        assertFalse(copied.contains("generated-account"))
+        until { holds.get() == 0 }
+    }
     @Test fun productionBrowserKeepsHostAndReturnsCommittedPageThenSelectsPane() {
         browser("Routed fixture ▾")
         assertEquals(1, holds.get())

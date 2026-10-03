@@ -37,12 +37,13 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
     onNewBrowser: () -> Unit, onKeyboard: () -> Unit, onBrowser: (NativeBrowser) -> Unit,
     onTerminal: (NativeTerminal) -> Unit,
     onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null,
-    onSizing: (() -> Unit)? = null) {
+    onSizing: (() -> Unit)? = null, debugText: () -> String? = { null }) {
     val accent = Color(0xFF76B9FF)
     Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
             Text("‹  $workspaceCount", color = accent)
         }
+        CompositionLocalProvider(LocalDebugTerminalText provides debugText) {
         NativePanePicker(terminal.title.ifBlank { workspace?.title ?: "Terminal" }, workspace,
             NativeWorkspacePane(terminal = terminal), Modifier.weight(1f), onTerminal, onSurface, onBrowser,
             onNewWorkspace, onNewTerminal, onNewBrowser.takeIf { workspace != null }) { close ->
@@ -50,6 +51,7 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
             if (onSizing != null) DropdownMenuItem(text = { Text("Terminal size") }, onClick = { close(); onSizing() })
             if ("terminal.artifact.v1" in capabilities) DropdownMenuItem(text = { Text("Files") },
                 onClick = { close(); onFiles() }, enabled = ready)
+        }
         }
         TextButton(onClick = onKeyboard, enabled = terminal.isReady) { Text(if (directTyping) "Compose" else "Keyboard", color = if (terminal.isReady) accent else Color(0xFF666A72), fontSize = 12.sp) }
     }

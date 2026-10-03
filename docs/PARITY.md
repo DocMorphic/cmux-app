@@ -135,6 +135,32 @@ Targeted source findings in this pass:
   was absent from ADB; physical acceptance remains pending. These changes
   postdate signed build 428, and this targeted check does not establish
   missing-entrypoint or whole-app parity.
+- The exact `TerminalPickerMenuContent.swift` / `WorkspaceDetailView.swift`
+  sources expose **Copy Debug Logs** only in DEBUG builds. The action prepends
+  a snapshot of visible terminal text to a bounded recent log and copies it to
+  the clipboard. Android now has that action in the shared native and SSH
+  pickers, including the on-device browser. It captures the currently visible
+  grid (including local scroll position) only when tapped. Routine logging uses
+  fixed RPC/SSH operation and outcome labels, local correlation numbers and
+  elapsed timings; credentials, addresses, commands, payloads and server error
+  text cannot enter this recorder. The synchronized ring retains at most 4,000
+  entries / 96,000 characters and reports eviction. Clipboard text contains the
+  installed build identity, OS and process, and is marked sensitive; nothing is
+  submitted. Browser copies request the main-process ring through the existing
+  same-UID, current-presentation-validated service, then append browser-process
+  diagnostics. Cancellation preserves the existing clipboard.
+  This implements the debug-menu path, not the entire iOS diagnostics subsystem:
+  durable structured logs, file generations, verbose release opt-in, crash capture,
+  unified export/clear and broader rendering/input telemetry remain pending.
+  Twenty focused JVM checks passed (buffer bounds/concurrency and RPC behavior),
+  as did four clipboard/menu/browser-process UI checks and 14 real SSH transport
+  checks, including handshake timeout, jump-host teardown and authentication.
+  The visible-text copy is capped at 32,000 characters with an explicit truncation
+  marker; all three menu tests passed again with that bound asserted and the
+  popup pixels captured and reviewed. Debug/test APK assembly and release Kotlin
+  compilation passed; generated release `BuildConfig.DEBUG` is false. The Pixel
+  was absent from ADB. Ignored evidence: `captures/runtime/debug-logs/`. Signed
+  build 428 predates it.
 - `MobilePushCoordinator.swift` now awaits explicit reconnect before retrying a
   pending notification route, cancelling replaced retries. Android's targeted
   recovery implementation and verification are recorded below; this is not a

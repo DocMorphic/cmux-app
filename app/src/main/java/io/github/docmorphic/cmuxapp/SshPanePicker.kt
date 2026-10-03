@@ -92,6 +92,7 @@ internal fun SshPanePicker(title: String, layout: SshPickerLayout, selected: Ssh
                 modifier = Modifier.semantics { this.selected = checksNewBrowser },
                 trailingIcon = { if (checksNewBrowser) Text("✓", Modifier.clearAndSetSemantics { }) }, onClick = { close(onBrowser) })
             if (onText != null) DropdownMenuItem(text = { Text("View as Text") }, onClick = { close(onText) })
+            DebugLogMenuItem { expanded = false }
             if (feedback != null) DropdownMenuItem(text = { Text("Send Feedback") }, onClick = { close(feedback) })
         }
     }

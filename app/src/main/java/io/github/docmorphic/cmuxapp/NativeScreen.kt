@@ -2064,7 +2064,7 @@ fun NativeScreen(
                         rawKeyboardView?.finishComposition(); directTyping = false
                         inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
                         selectPane(NativeWorkspacePane(surface = surface))
-                    }, onText = ::openTerminalText, onFiles = {
+                    }, debugText = { RenderGrid.plainText(grid.visibleLines(scrollOffset)) }, onText = ::openTerminalText, onFiles = {
                         inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
                     }, onNewBrowser = {
                         rawKeyboardView?.finishComposition(); directTyping = false; stopTerminalScrolling(); softwareKeyboard?.hide()

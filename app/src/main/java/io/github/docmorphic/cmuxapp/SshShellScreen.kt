@@ -91,12 +91,14 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
         Row(Modifier.fillMaxWidth().testTag("ssh.shell.identity.${shell.id}"), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }) { Text("Back") }
             Box(Modifier.weight(1f)) {
+                CompositionLocalProvider(LocalDebugTerminalText provides { RenderGrid.plainText(display.visibleLines(scroll.toInt())) }) {
                 if (panePicker != null) panePicker(::showText)
                 else {
                     val target = SshWorkspaceTarget.Shell(shell.id)
                     SshPanePicker(shell.title, SshPickerLayout(listOf(SshPickerSection(0, "Terminals", listOf(SshPickerRow(target, shell.title))))),
                         target, !reconnecting, onSelect = {}, onText = ::showText,
                         onBrowser = onBrowser?.let { { rawKeyboard?.finishComposition(); keyboard?.hide(); it() } })
+                }
                 }
             }
             TextButton(onClick = ::showText, modifier = Modifier.testTag("ssh.shell.text")) { Text("Text") }

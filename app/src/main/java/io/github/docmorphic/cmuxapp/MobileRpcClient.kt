@@ -135,6 +135,7 @@ class MobileRpcClient internal constructor(
             check(!closed) { "Connection has been closed" }
             if (connected) return@withLock
         }
+        val diagnostic = MobileDebugLog.begin(DebugOperation.RPC_CONNECT)
         try {
             transport.connect()
             synchronized(stateLock) {
@@ -147,8 +148,9 @@ class MobileRpcClient internal constructor(
                 } }
             }
             prepareIndependentEvents()
+            MobileDebugLog.finish(diagnostic, DebugOutcome.SUCCESS)
             Unit
-        } catch (error: Throwable) { failConnection(error); throw error }
+        } catch (error: Throwable) { MobileDebugLog.finish(diagnostic, debugOutcome(error)); failConnection(error); throw error }
     }
 
     suspend fun request(
@@ -166,6 +168,11 @@ class MobileRpcClient internal constructor(
         admitted: () -> Unit): JSONObject {
         admitted()
         if (delegate != null) return borrowing { it.requestAdmitted(method, params, timeoutMillis, admitted) }
+        return MobileDebugLog.trace(debugRpcOperation(method)) { requestOnTransport(method, params, timeoutMillis, admitted) }
+    }
+
+    private suspend fun requestOnTransport(method: String, params: JSONObject, timeoutMillis: Long,
+        admitted: () -> Unit): JSONObject {
         require(method.isNotBlank())
         val id = UUID.randomUUID().toString()
         val parameters = MobileJson.objectValue(params.toString())
@@ -769,6 +776,7 @@ class MobileRpcClient internal constructor(
             pending.clear()
             leaseOperations.toList().also { leaseOperations.clear() }
         }
+        MobileDebugLog.finish(MobileDebugLog.begin(DebugOperation.RPC_DISCONNECT), if (notify) debugOutcome(failure) else DebugOutcome.SUCCESS)
         try { transport.close() }
         finally {
             operations.forEach { it.cancel(CancellationException("Connection closed", failure)) }

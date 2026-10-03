@@ -112,6 +112,7 @@ android {
     sourceSets.getByName("androidTest").assets.srcDir("src/test/resources/browser")
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }

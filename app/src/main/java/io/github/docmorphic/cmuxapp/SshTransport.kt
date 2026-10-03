@@ -396,6 +396,7 @@ internal class SshTransport private constructor(
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
+        MobileDebugLog.finish(MobileDebugLog.begin(DebugOperation.SSH_DISCONNECT), DebugOutcome.SUCCESS)
         // Raw socket closure precedes JSch teardown so blocked reads/writes and
         // nested proxy connects cannot keep teardown waiting on their own locks.
         job.cancel()
@@ -417,7 +418,7 @@ internal class SshTransport private constructor(
     companion object {
         private const val CONNECT_TIMEOUT = 10_000
         private val workers = Executors.newCachedThreadPool { task -> Thread(task, "cmux-ssh-io").apply { isDaemon = true } }
-        private suspend fun <T> blocking(cancel: () -> Unit, action: () -> T): T = suspendCancellableCoroutine { continuation ->
+        private suspend fun <T> blocking(cancel: () -> Unit, action: () -> T): T = MobileDebugLog.trace(DebugOperation.SSH_IO) { suspendCancellableCoroutine { continuation ->
             val future = workers.submit {
                 try {
                     val result = action()
@@ -429,7 +430,7 @@ internal class SshTransport private constructor(
             // owned channel/socket instead; prevent unstarted work, but let an
             // already running packet finish without a thread interruption.
             continuation.invokeOnCancellation { cancel(); future.cancel(false) }
-        }
+        } }
         suspend fun connect(hosts: SshHostStore, vault: SshKeyVault, hostId: UUID, lifetime: CoroutineScope,
             admitted: () -> Boolean, explicit: Boolean,
             askTrust: suspend (SshTrustQuestion) -> Boolean,
@@ -444,7 +445,7 @@ internal class SshTransport private constructor(
             check(hosts.mayAutoConnect(plan)) { "Automatic SSH connection is paused; open the computer to retry" }
             val transport = SshTransport(hosts, vault, plan, lifetime, admitted, askTrust, authorize)
             try {
-                blocking(cancel = transport::close) { transport.connectBlocking() }
+                MobileDebugLog.trace(DebugOperation.SSH_CONNECT) { blocking(cancel = transport::close) { transport.connectBlocking() } }
                 transport.guard(); hosts.markUsed(hostId)
                 return transport
             } catch (failure: Throwable) { transport.close(); throw failure }
