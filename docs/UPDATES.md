@@ -98,6 +98,32 @@ source/run provenance, version identity, artifact digest, the existing signing
 certificate and ZIP alignment before marking the **same assets** stable/latest.
 It does not rebuild, install on a phone, upload to Play, or merge the development PR.
 
+## Verify a downloaded development artifact
+
+Before installing a signed Actions APK, check out the source commit reported by
+that successful run, download its `cmux-app-stable-signed-apk` artifact, and run:
+
+```sh
+python3 scripts/verify-signed-apk.py /path/to/app-release.apk --version RUN_NUMBER --output captures/runtime/signed-verification
+```
+
+Set `ANDROID_HOME` (or pass `--sdk`) and configure Java. Android build-tools
+36.0.0 must be available. The command checks the stable certificate, package and
+version, SDK contract, all six native LOAD/RELRO segments, 16 KB ZIP alignment,
+disabled backup/debugging, diagnostics Application, five excluded debug fixture
+activities, and all fourteen viewer hashes inside the APK. The expected SDK,
+native-library and viewer inventory are explicit checks and must be reviewed when
+those release contracts change. It publishes
+`apk-verification.json` only after every check passes, retaining individual tool
+outputs beside it. A failed recheck removes an older receipt from that directory.
+
+The Android build workflow uses this same command before uploading its signed
+artifact; it also checks the debug APK's native segments. This adds packaged asset
+and release-manifest checks to the existing build gate. APK contents alone do not
+prove source provenance, runtime correctness or account migration. Resolve the
+source/run identity from GitHub separately, then perform the applicable device
+acceptance. None of these checks publishes or promotes a release.
+
 ## Activation and operation
 
 GitHub schedules only workflows present on the default branch. This work is on

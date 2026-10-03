@@ -198,19 +198,10 @@ jobs:
           CMUX_APP_RELEASE_KEYSTORE: ${{ runner.temp }}/cmux-app-release.p12
           CMUX_APP_RELEASE_PASSWORD: ${{ secrets.CMUX_APP_RELEASE_PASSWORD }}
         run: ./gradlew :ghostty:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --stacktrace
-      - name: Verify release signature
+      - name: Verify signed APK contents and all native alignment
         run: |
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk > "$RUNNER_TEMP/cmux-signer.txt"
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          expected = '1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4'
-          assert 'Signer #1 certificate SHA-256 digest: ' + expected in (Path(os.environ['RUNNER_TEMP']) / 'cmux-signer.txt').read_text(), 'Release signer changed'
-          PY
-      - name: Verify all packaged native LOAD and RELRO segments
-        run: |
-          python3 scripts/verify-native-alignment.py app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/release/app-release.apk
-          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 app/build/outputs/apk/release/app-release.apk
+          python3 scripts/verify-signed-apk.py app/build/outputs/apk/release/app-release.apk --version "$GITHUB_RUN_NUMBER" --output "$RUNNER_TEMP/cmux-signed-verification"
+          python3 scripts/verify-native-alignment.py app/build/outputs/apk/debug/app-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: cmux-app-preview-apk
