@@ -102,6 +102,10 @@ fun NativeScreen(
         sharedConnections?.native?.state ?: kotlinx.coroutines.flow.MutableStateFlow(NativeComputersState())
     }
     val computerState by computerStates.collectAsState()
+    val presenceStates = remember(sharedConnections) {
+        sharedConnections?.presence?.state ?: kotlinx.coroutines.flow.MutableStateFlow(NativeMacPresenceState())
+    }
+    val presenceState by presenceStates.collectAsState()
     val focusManager = LocalFocusManager.current
     val softwareKeyboard = LocalSoftwareKeyboardController.current
     val configuration = LocalConfiguration.current
@@ -2545,7 +2549,9 @@ fun NativeScreen(
                         owner = NativeComputerMenuOwner(store.taskSession(), teamState.scope),
                         isOwnerCurrent = { owner -> account.isSignedIn() && store.taskSession() == owner.login &&
                             accountTeams.state.value.scope == owner.team },
-                        canSelect = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.pairedMacs()) && connection.allowsSaved(mac) })
+                        canSelect = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.pairedMacs()) && connection.allowsSaved(mac) },
+                        presence = presenceState.takeIf { it.owner != null && it.owner == teamState.scope && accountTeams.isCurrent(it.owner) }
+                            ?: NativeMacPresenceState())
                     Column(Modifier.weight(1f)) {
                         Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
                             fontSize = 17.sp)

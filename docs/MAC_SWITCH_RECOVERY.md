@@ -157,7 +157,8 @@ account scope. No action silently substitutes a newly saved route.
 This is a scoped menu-stability change, not a complete visual-parity claim.
 iOS also displays authoritative build subtitles and conditionally exposes Add
 Computer; the Android subtitle/source resolution and add-availability mapping
-remain to be audited. `WorkspaceMacBuildLabelResolver.swift` was inspected as
+are covered by the subsequent [build-label follow-up](COMPUTER_BUILD_LABELS.md).
+`WorkspaceMacBuildLabelResolver.swift` was inspected as
 context, but a tag such as `default` is not assumed to uniquely mean Stable.
 The whole-parity upstream pin is unchanged. This follow-up is not in signed 463.
 

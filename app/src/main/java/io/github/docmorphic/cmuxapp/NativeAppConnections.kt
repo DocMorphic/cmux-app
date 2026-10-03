@@ -33,6 +33,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->
         NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
     }
+    val presence = NativeMacPresenceRuntime(teams.state, applicationActive, teams::isCurrent, account::accessToken)
     val ssh = NativeSshRuntime(context.applicationContext, store, scope)
     private val tailscale = TailscaleConnector(context, store, teams)
     val connector = object : NativeConnector {
@@ -124,7 +125,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             activityOwners.clear()
             applicationActive.value = IrxProbeActivity(false, applicationActive.value.revision + 1)
         }
-        ssh.close(); scope.cancel(); tailscale.close(); native.close(); teams.close()
+        presence.close(); ssh.close(); scope.cancel(); tailscale.close(); native.close(); teams.close()
     }
 
     class Handle internal constructor(val connections: NativeAppConnections) : AutoCloseable {

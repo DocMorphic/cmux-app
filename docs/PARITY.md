@@ -12,6 +12,24 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Computer build subtitles and presence metadata (2026-10-03)
+
+Picker rows now show the iOS Stable/Nightly/RC/Staging/DEV build labels. A new
+foreground subscription reads the official team-scoped presence stream for bundle
+metadata, with snapshot-first parsing, bounded buffering, retry/backoff, token
+refresh and cancellation across account/team/background changes. Saved tags are
+the fallback; legacy untagged rows use presence only when a single instance is
+unambiguous. This data is display-only and cannot authorize a pairing or route.
+Add Computer uses the iOS label, separator and per-opening availability.
+
+**15 JVM and nine distinct Android cases passed** across the recorded runs; the
+clean component screenshot was visually checked. An older integration assertion
+was corrected to wait for the asynchronous Mac switch, and an emulator System UI
+dialog was cleared before visual recapture. [Source, implementation and verification scope](COMPUTER_BUILD_LABELS.md).
+Not yet in signed build 463. Production service/Pixel acceptance and the other
+presence consumers (online state, route updates, workspace announcements and push
+recovery) remain unverified or unaudited; this does not close full presence parity.
+
 ## Stable open computer menu (2026-10-03)
 
 The computer picker now keeps its rows, checkmarks and actions fixed until it
@@ -21,8 +39,8 @@ permission and exact saved pairing; forgotten/replaced routes cannot be selected
 from an old row. Four JVM and eight Android checks passed, including existing
 switch, workspace and notification flows. [Source and evidence](MAC_SWITCH_RECOVERY.md#stable-open-computer-menu--2026-10-03).
 
-Not yet in signed build 463. Physical acceptance, build-label subtitles,
-Add Computer availability mapping and broader source/visual parity remain open.
+Not yet in signed build 463. Physical acceptance and broader source/visual parity remain open. Build labels
+and Add Computer mapping are covered by the follow-up above.
 
 ## Pending computer picker and cancellation (2026-10-03)
 

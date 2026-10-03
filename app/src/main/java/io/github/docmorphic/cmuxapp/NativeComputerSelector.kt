@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,22 +27,22 @@ internal object NativeComputerMenuPairing {
 }
 
 private data class ComputerMenuRow(val mac: NativeCredentialStore.PairedMac, val name: String,
-    val selected: Boolean, val connection: NativeComputerConnection)
+    val selected: Boolean, val buildLabel: String?, val connection: NativeComputerConnection)
 private data class ComputerMenuOpening(val owner: NativeComputerMenuOwner, val allSelected: Boolean,
-    val rows: List<ComputerMenuRow>, val select: (NativeCredentialStore.PairedMac?) -> Unit, val pair: () -> Unit)
+    val rows: List<ComputerMenuRow>, val select: (NativeCredentialStore.PairedMac?) -> Unit, val pair: (() -> Unit)?)
 
 @Composable
 internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, selected: NativeCredentialStore.PairedMac?,
     appearances: NativeMacAppearances, colorIndices: Map<NativeMacIdentity, Int>,
     connections: Map<NativeMacIdentity, NativeComputerConnection>, open: Boolean, onOpen: (Boolean) -> Unit,
-    onSelect: (NativeCredentialStore.PairedMac?) -> Unit, pending: NativeCredentialStore.PairedMac?, onPair: () -> Unit,
+    onSelect: (NativeCredentialStore.PairedMac?) -> Unit, pending: NativeCredentialStore.PairedMac?, onPair: (() -> Unit)?,
     owner: NativeComputerMenuOwner, isOwnerCurrent: (NativeComputerMenuOwner) -> Boolean,
-    canSelect: (NativeCredentialStore.PairedMac) -> Boolean) {
+    canSelect: (NativeCredentialStore.PairedMac) -> Boolean, presence: NativeMacPresenceState = NativeMacPresenceState()) {
     // Match iOS's deferred menu: capture presentation and callbacks once per opening.
     // Toolbar state remains live. Current authority is checked separately at every tap.
     val opening = remember(open) {
         if (!open) null else ComputerMenuOpening(owner, selected == null && pending == null,
-            macs.map { mac -> ComputerMenuRow(mac, appearances.name(mac), (pending ?: selected)?.origin == mac.origin,
+            macs.map { mac -> ComputerMenuRow(mac, appearances.name(mac), (pending ?: selected)?.origin == mac.origin, presence.buildLabel(mac),
                 connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()) }, onSelect, onPair)
     }
     val currentOwner by rememberUpdatedState(owner)
@@ -72,17 +73,23 @@ internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>,
                 }, modifier = Modifier.semantics { this.selected = menu.allSelected },
                     leadingIcon = { Text(if (menu.allSelected) "✓" else " ") })
                 menu.rows.forEach { row ->
-                    DropdownMenuItem(text = { Text(row.name) }, onClick = {
+                    DropdownMenuItem(text = { Column {
+                        Text(row.name)
+                        row.buildLabel?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    } }, onClick = {
                         dismiss(false)
                         if (admitted(menu) && currentPairingCheck(row.mac)) menu.select(row.mac)
                     }, modifier = Modifier.semantics { this.selected = row.selected },
                         leadingIcon = { Text(if (row.selected) "✓" else " ") },
                         trailingIcon = { NativeMacAwakeIndicator(row.connection) })
                 }
-                DropdownMenuItem(text = { Text("Pair another Mac") }, onClick = {
-                    dismiss(false)
-                    if (admitted(menu)) menu.pair()
-                })
+                menu.pair?.let { pair ->
+                    HorizontalDivider()
+                    DropdownMenuItem(text = { Text("Add Computer") }, leadingIcon = { Text("+") }, onClick = {
+                        dismiss(false)
+                        if (admitted(menu)) pair()
+                    })
+                }
             }
         }
     }

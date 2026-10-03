@@ -1,5 +1,14 @@
 # Attribution
 
+Mac build subtitles follow MacBuildChannel.swift, LocalizedMacBuildLabel.swift,
+MobileShellComposite+PairedMacAliases.swift and WorkspaceMacTitlePickerMenuButton.swift
+at cmux 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+The foreground display-metadata subscription follows PresenceClient.swift,
+PresenceServiceConfiguration.swift, PresenceUpdate.swift and PresenceMap.swift
+at that revision. Copyright Manaflow, Inc.; GPL-3.0-or-later.
+Android adds bounded parsing, account/lifecycle cancellation and current-scope
+checks; presence display metadata never authorizes a route or pairing.
+
 `NativeComputerSelector.kt` follows the per-opening presentation and callback
 snapshot in `WorkspaceMacTitlePickerMenuButton.swift` and
 `WorkspaceMacTitlePickerMenuTests.swift` under `Packages/iOS/CmuxMobileShellUI`

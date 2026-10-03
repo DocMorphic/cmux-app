@@ -2521,6 +2521,8 @@ class NativeFlowTest {
             openSearch(); compose.onNodeWithContentDescription("Cancel search").performClick()
             compose.onNodeWithContentDescription("Computer filter").performClick()
             compose.onNode(hasText("Fixture Mac") and hasAnyAncestor(isPopup())).performClick()
+            // The old filter remains visible until the selected Mac finishes its handshake.
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Second renamed task").fetchSemanticsNodes().isEmpty() }
             compose.onNodeWithText("Second renamed task").assertDoesNotExist()
             compose.onNodeWithText("Claude Code task").assertIsDisplayed()
             compose.onNodeWithContentDescription("Computer filter").performClick()

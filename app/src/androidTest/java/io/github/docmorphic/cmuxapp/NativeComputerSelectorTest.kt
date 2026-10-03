@@ -25,6 +25,8 @@ class NativeComputerSelectorTest {
     private var open by mutableStateOf(false)
     private var version by mutableIntStateOf(1)
     private var permitted = true
+    private var canAdd by mutableStateOf(true)
+    private var presence by mutableStateOf(NativeMacPresenceState())
     private val actions = mutableListOf<String>()
 
     private fun content() {
@@ -33,8 +35,8 @@ class NativeComputerSelectorTest {
             CmuxTheme { Surface(Modifier.fillMaxSize()) { Column(Modifier.statusBarsPadding()) {
                 NativeComputerSelector(rows, selected, appearances, emptyMap(), connections, open, { open = it },
                     { actions += "$callbackVersion:${it?.code ?: "all"}" }, pending,
-                    { actions += "$callbackVersion:pair" }, owner, { it == owner && permitted },
-                    { NativeComputerMenuPairing.isCurrent(it, rows) })
+                    if (canAdd) ({ actions += "$callbackVersion:pair" }) else null, owner, { it == owner && permitted },
+                    { NativeComputerMenuPairing.isCurrent(it, rows) }, presence)
             } } }
         }
     }
@@ -63,13 +65,39 @@ class NativeComputerSelectorTest {
         compose.runOnIdle { assertEquals(listOf("1:route-b", "21:route-b"), actions) }
     }
 
+    @Test fun buildSubtitlesAndAddAvailabilityStayWithTheirOpening() {
+        content(); openMenu()
+        compose.onNodeWithText("Stable").assertIsDisplayed()
+        compose.onNodeWithText("Nightly").assertIsDisplayed()
+        compose.onNodeWithText("Add Computer").assertIsDisplayed()
+        compose.runOnIdle {
+            canAdd = false
+            val identity = NativeMacIdentity("a", "default")
+            presence = NativeMacPresenceState(owner.team, mapOf(identity to NativeMacPresenceInstance(identity, "com.cmuxterm.app.rc")))
+        }
+        compose.onNodeWithText("Stable").assertIsDisplayed()
+        compose.onNodeWithText("RC").assertDoesNotExist()
+        compose.onNodeWithText("Add Computer").assertIsDisplayed()
+        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val folder = java.io.File(instrumentation.targetContext.getExternalFilesDir(null), "computer-menu-builds").apply { mkdirs() }
+        instrumentation.uiAutomation.takeScreenshot().let { bitmap ->
+            java.io.File(folder, "build-subtitles.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+        }
+        compose.onNodeWithText("All Computers").performClick()
+        openMenu()
+        compose.onNodeWithText("RC").assertIsDisplayed()
+        compose.onNodeWithText("Stable").assertDoesNotExist()
+        compose.onNodeWithText("Add Computer").assertDoesNotExist()
+    }
+
     @Test fun equalRowsStillUseOpeningSpecificAllAndPairCallbacks() {
         content(); openMenu()
         compose.runOnIdle { version = 2 }
         compose.onNodeWithText("All Computers").performClick()
         openMenu()
         compose.runOnIdle { version = 3 }
-        compose.onNodeWithText("Pair another Mac").performClick()
+        compose.onNodeWithText("Add Computer").performClick()
         openMenu()
         compose.onNodeWithText("All Computers").performClick()
         compose.runOnIdle { assertEquals(listOf("1:all", "2:pair", "3:all"), actions) }
@@ -96,7 +124,7 @@ class NativeComputerSelectorTest {
         compose.onNodeWithText("Mac A").assertDoesNotExist()
         openMenu()
         compose.runOnIdle { permitted = false }
-        compose.onNodeWithText("Pair another Mac").performClick()
+        compose.onNodeWithText("Add Computer").performClick()
         compose.runOnIdle { assertTrue(actions.isEmpty()); permitted = true }
         openMenu()
         compose.runOnIdle { permitted = false }
