@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## What's New model and persistence (2026-10-03)
+
+[WHATS_NEW.md](WHATS_NEW.md) implements Android-owned catalog IDs, typed remote
+content, channel/version targeting, origin-scoped caching, remote retraction,
+monotonic acknowledgement and an atomic file ledger. Cancellation, failed saves,
+stale callbacks and content changes during preload cannot silently mark pages
+seen. Twenty-four JVM tests passed, including real file persistence/failure
+checks. The model is not yet connected to app UI: Settings archive, launch sheet,
+isolated web loads and physical acceptance remain open. No feed was configured;
+signed build 494 predates this checkpoint. Global parity pin remains unchanged.
+
 ## Signed build 494: release startup recovery verified (2026-10-03)
 
 Build 494 at `6e4a449` passed full CI, the new API 37 / 16 KB ART class gate,
@@ -28,8 +39,8 @@ body was isolated into its own composition lambda. Builds 488 and 491 failed
 before ART because of CI AVD paths and data capacity respectively; both were
 fixed, and 494 passed the complete gate. No APK from either failed run was uploaded.
 
-The [What's New audit](WHATS_NEW_AUDIT.md) records the next unimplemented surface:
-release archive, remote visibility, web preload and acknowledgement. Android build
+The [What's New audit](WHATS_NEW_AUDIT.md) records the full remaining integration contract:
+release archive, launch presentation and isolated web preload. Android build
 automation does not provide this UI. The global parity pin remains unchanged.
 
 ## Typed connection failure diagnostics (2026-10-03)

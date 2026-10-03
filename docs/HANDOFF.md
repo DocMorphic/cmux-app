@@ -42,9 +42,12 @@ Builds 488 and 491 failed before ART due to CI paths and data capacity. Fixes
 `063c5a8` and `6e4a449` were verified by 494; do not continue polling old runs or
 recommend their artifacts. Docs-only updates need no signed rebuild.
 
-Next source implementation: [WHATS_NEW_AUDIT.md](WHATS_NEW_AUDIT.md). Start with
-the typed catalog, persistence, channel/version visibility and acknowledgement;
-then archive/detail UI and owner-scoped launch presentation with web isolation.
+Next source implementation: [WHATS_NEW.md](WHATS_NEW.md). The typed Android
+catalog, origin-scoped persistence, visibility and acknowledgement model are now
+implemented; 24 JVM tests passed (21 model, 3 file persistence). They are not yet
+connected to NativeScreen. Continue with build metadata, retained UI owner,
+Settings archive/detail and launch presentation, then isolated web preload.
+[WHATS_NEW_AUDIT.md](WHATS_NEW_AUDIT.md) retains the full source contract.
 The actual iOS launch gate does not require discovered Macs, despite a stale
 sheet comment. Use Android-owned IDs/version claims; an Android announcement feed
 is not configured. Broader parity/physical/push acceptance remains open. Keep the
