@@ -80,14 +80,9 @@ and some disk deletion is asynchronous. A randomly named profile therefore must
 not be described as a nonpersistent store merely because it has a unique name.
 Clearing default-profile cookies/storage would also disturb unrelated app content.
 
-Next run a bounded Android profile isolation/cleanup experiment on the existing
-AVD, using only synthetic cookies and uniquely owned test profiles. Determine
-whether `WebViewCompat.setProfile` plus per-view cookie access allows deletion
-after destruction, including process-death cleanup. Verify that unrelated/default
-profiles remain untouched. Evaluate any platform difference against the original
-nonpersistent requirement; do not silently replace it with a persistent default
-WebView or claim in-memory privacy. No alternate rendering engine was assessed in
-this checkpoint, so an Android-wide impossibility claim would be unsupported.
+The bounded experiment below now supplies runtime evidence. It does not establish
+nonpersistent storage; do not substitute a default or randomly named WebView profile
+and call it private.
 
 Then implement the actual renderer and cookie seeding, theme-before-load/live
 updates, every-navigation allowlist, retained archive Back, retry, and concurrent
@@ -95,3 +90,65 @@ launch preload integration with late visibility/content checks. Keep all failed
 or timed-out web pages unacknowledged. Complete measured native-sheet fitting,
 debug-only replay/suppression, and the remaining physical/signed acceptance in
 [WHATS_NEW.md](WHATS_NEW.md).
+
+## Profile experiment (2026-10-04)
+
+`NativeNoticeProfileProbe` is opt-in instrumentation on the existing API 37 / 16 KB
+arm64 AVD, Android System WebView **145.0.7632.218**, AndroidX WebKit **1.17.1**.
+It writes only synthetic cookies at `cmux-notice-probe.invalid` into three unique
+owned profiles. It opens no URL and does not mutate the default profile. The
+ownership receipt is written before profile creation so an interrupted run can
+resume cleanup without clearing application data or account credentials.
+
+Observed results:
+
+- Separate profiles returned different synthetic cookie values; default cookies
+  at that synthetic origin stayed unchanged. Initial phase: **OK (1), 6.906 s**.
+- `destroy()` followed by `deleteProfile()` threw `IllegalStateException`, both
+  before and after targeted cookie clearing. Access through
+  `WebViewCompat.getProfile(view).cookieManager` does not avoid this restriction.
+- The first restart phase failed because it incorrectly assumed that the profile
+  names would still be registered. The revised observational phase records that
+  **both names and their cookie values were absent** after restarting. Existing
+  profile directories were still visible on disk. The cause of the lost registry
+  was not established; this is not proof of nonpersistent storage or disk erasure.
+- The revised phase establishes nonempty cookies again before clearing one profile;
+  the control profile keeps its cookie and the default value remains unchanged.
+  **OK (1), 9.982 s**. This verifies cookie clearing only; calling
+  `webStorage.deleteAllData()` is not a test of every web storage mechanism.
+- A separate fresh-process cleanup invoked deletion for only the three receipt
+  names, confirmed none remained in the public registry, exported the report and
+  removed the receipt. **OK (1), 3.615 s**. Registry absence does not establish
+  physical erasure, especially when a name was already missing.
+
+The initial failure log is retained alongside the corrected observation and final
+JSON in `captures/runtime/notice-profile-probe/` (ignored). Debug/test assembly
+passed; the probe-only rebuild took 16 s. No real session cookies or Pixel tests
+were involved. Do not run all three methods in one instrumentation process:
+
+```sh
+adb -s DEVICE shell am instrument -w -r -e cmux_notice_profile_probe true \
+  -e class 'io.github.docmorphic.cmuxapp.NativeNoticeProfileProbe#inspectIsolationAndDestruction' \
+  io.github.docmorphic.cmuxapp.debug.test/androidx.test.runner.AndroidJUnitRunner
+# Force-stop only the debug app between each invocation, then run these selectors:
+# NativeNoticeProfileProbe#inspectAfterProcessRestartAndTargetedClear
+# NativeNoticeProfileProbe#cleanupOwnedProfilesBeforeTheyAreLoaded
+```
+
+### Alternative under evaluation
+
+[GeckoView's session settings](https://mozilla.github.io/geckoview/javadoc/mozilla-central/org/mozilla/geckoview/GeckoSessionSettings.Builder.html)
+expose private mode and context partitioning. The current documentation is from
+mozilla-central, so stable-version compatibility still needs verification.
+[Bundled WebExtensions](https://firefox-source-docs.mozilla.org/mobile/android/geckoview/consumer/web-extensions.html)
+may supply cookie seeding in an allowed private context; exact private cookie-store
+selection, independent sessions, cleanup and broker-cookie delivery remain unproven.
+An initial Cookie request header alone would not establish authenticated cookies
+for later page requests. Native access/refresh tokens must never enter page script.
+
+The official Maven metadata reports stable `157.0.20260924084938`; its universal
+AAR's HTTP Content-Length is **241,700,764 bytes**. This is an archive size, **not
+measured APK growth**. No AAR download, dependency change or new emulator was made.
+Before adoption, verify the stable APIs, ABI-filtered APK impact, licensing,
+16 KB native compatibility and runtime behavior. The Android-wide impossibility
+of nonpersistent authenticated embedding has not been established.
