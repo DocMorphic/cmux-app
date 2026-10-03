@@ -222,27 +222,31 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         fun openBrowser() {
             if (pickerEnabled && target != null) act { presentBrowser(provider, target, terminal?.title ?: opened?.title.orEmpty()) }
         }
-        @Composable fun picker(title: String, onText: (() -> Unit)? = null) {
-            SshPanePicker(title, layout, checkedTarget, pickerEnabled,
-                onSelect = { next -> if (pickerEnabled) { browser = null; select(next) } },
-                onAction = { section, action -> pickerMutation {
-                    if (cmuxWorkspace != null && provider != null) {
-                        val pane = checkNotNull(cmuxWorkspace.screens.singleOrNull { it.id == section.id }?.panes?.singleOrNull { it.id == section.targetPane })
-                        SshWorkspaceTarget.Cmux(when (action) {
-                            SshPaneAction.NEW_TAB -> provider.newTab(cmuxWorkspace, pane)
-                            SshPaneAction.SPLIT_RIGHT -> provider.split(cmuxWorkspace, pane, true)
-                            SshPaneAction.SPLIT_DOWN -> provider.split(cmuxWorkspace, pane, false)
-                        })
-                    } else if (tmuxWorkspace != null && action != SshPaneAction.NEW_TAB)
-                        tmux.splitWindow(tmuxWorkspace, section.id, action == SshPaneAction.SPLIT_RIGHT)
-                    else null
-                } },
-                onNewTerminal = if (layout.newTerminalTitle == null) null else { { pickerMutation {
-                    if (cmuxWorkspace != null && provider != null) SshWorkspaceTarget.Cmux(provider.newScreen(cmuxWorkspace))
-                    else tmuxWorkspace?.let { tmux.createWindow(it) }
-                } } },
-                onNewWorkspace = { pickerMutation {
-                    when {
+        val browserPicker = SshPickerPresentation(layout, pickerEnabled, true)
+        fun pickerCommand(command: SshPickerCommand) {
+            if (!browserPicker.permits(command)) return
+            if (command.operation == SshPickerOperation.BROWSER) { openBrowser(); return }
+            pickerMutation {
+                when (command.operation) {
+                    SshPickerOperation.SECTION -> {
+                        val section = checkNotNull(layout.sections.singleOrNull { it.id == command.section })
+                        val action = checkNotNull(command.action)
+                        if (cmuxWorkspace != null && provider != null) {
+                            val pane = checkNotNull(cmuxWorkspace.screens.singleOrNull { it.id == section.id }?.panes?.singleOrNull { it.id == section.targetPane })
+                            SshWorkspaceTarget.Cmux(when (action) {
+                                SshPaneAction.NEW_TAB -> provider.newTab(cmuxWorkspace, pane)
+                                SshPaneAction.SPLIT_RIGHT -> provider.split(cmuxWorkspace, pane, true)
+                                SshPaneAction.SPLIT_DOWN -> provider.split(cmuxWorkspace, pane, false)
+                            })
+                        } else if (tmuxWorkspace != null && action != SshPaneAction.NEW_TAB)
+                            tmux.splitWindow(tmuxWorkspace, section.id, action == SshPaneAction.SPLIT_RIGHT)
+                        else null
+                    }
+                    SshPickerOperation.TERMINAL -> {
+                        if (cmuxWorkspace != null && provider != null) SshWorkspaceTarget.Cmux(provider.newScreen(cmuxWorkspace))
+                        else tmuxWorkspace?.let { tmux.createWindow(it) }
+                    }
+                    SshPickerOperation.WORKSPACE -> when {
                         provider != null -> {
                             val key = provider.createWorkspace()
                             val nextTree = checkNotNull(provider.state.value.tree)
@@ -254,7 +258,16 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                         target is SshWorkspaceTarget.Shell -> SshWorkspaceTarget.Shell(session.shells.create(hostId).id)
                         else -> null
                     }
-                } }, onBrowser = ::openBrowser, onText = onText)
+                    SshPickerOperation.BROWSER -> null
+                }
+            }
+        }
+        @Composable fun picker(title: String, onText: (() -> Unit)? = null) {
+            SshPanePicker(title, layout, checkedTarget, pickerEnabled,
+                onSelect = { next -> if (pickerEnabled) { browser = null; select(next) } },
+                onAction = { section, action -> pickerCommand(SshPickerCommand(SshPickerOperation.SECTION, section.id, action)) },
+                onNewTerminal = if (layout.newTerminalTitle == null) null else ({ pickerCommand(SshPickerCommand(SshPickerOperation.TERMINAL)) }),
+                onNewWorkspace = { pickerCommand(SshPickerCommand(SshPickerOperation.WORKSPACE)) }, onBrowser = ::openBrowser, onText = onText)
         }
         val reconnect: () -> Unit = {
             if (terminal is SshShell) act {
@@ -263,7 +276,8 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
             } else { onReconnect(); retry++ }
         }
         if (files && terminal != null) SshFilesSheet(session, hostId, terminal) { files = false }
-        browser?.let { presentation -> SshBrowserSheet(presentation, onRoute = { route ->
+        browser?.let { presentation -> SshBrowserSheet(presentation, sshPicker = browserPicker,
+            onSshCommand = { command -> browser = null; pickerCommand(command) }, onRoute = { route ->
             val target = if (route.browserId != null) {
                 val provider = presentation.provider
                 val tree = provider?.state?.value?.tree

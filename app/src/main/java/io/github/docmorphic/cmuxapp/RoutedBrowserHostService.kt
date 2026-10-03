@@ -20,7 +20,7 @@ class RoutedBrowserHostService : Service() {
                 check(entry.peer?.binder == peer.binder) { "Browser session belongs to another presentation" }
                 when (kind) {
                     RoutedBrowserProtocol.OPEN -> {
-                        result.putAll(RoutedBrowserProtocol.context(entry.workspace, entry.modes, entry.destination.surface.linkedStreamPanelId, entry.creationEnabled))
+                        result.putAll(RoutedBrowserProtocol.context(entry.workspace, entry.modes, entry.destination.surface.linkedStreamPanelId, entry.creationEnabled, entry.sshPicker))
                         result.putString("storage", entry.network.storageId)
                         result.putInt("port", RoutedBrowserSessions.prepare(entry, entry.initial))
                         result.putString("surface", entry.destination.surface.id)

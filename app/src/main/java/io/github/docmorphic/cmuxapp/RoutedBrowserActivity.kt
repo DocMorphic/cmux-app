@@ -26,7 +26,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 internal data class RoutedBrowserUi(val surface: LocalBrowserSurface? = null,
     val panes: List<NativePanePickerRow> = emptyList(), val error: String? = null,
-    val retired: Boolean = false, val restart: Boolean = false, val modes: Boolean = false, val linkedPanel: String? = null, val creationEnabled: Boolean = false)
+    val retired: Boolean = false, val restart: Boolean = false, val modes: Boolean = false, val linkedPanel: String? = null, val creationEnabled: Boolean = false,
+    val sshPicker: SshPickerPresentation? = null)
 
 internal class RoutedBrowserController(application: Application) : AndroidViewModel(application) {
     private val app = application.applicationContext
@@ -43,7 +44,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         when (message.what) {
             RoutedBrowserProtocol.RETIRE -> mutable.value = state.value.copy(retired = true)
             RoutedBrowserProtocol.CONTEXT -> mutable.value = state.value.copy(panes = RoutedBrowserProtocol.panes(message.data),
-                modes = message.data.getBoolean("modes"), linkedPanel = message.data.getString("linked_panel"), creationEnabled = message.data.getBoolean("creation_enabled"))
+                modes = message.data.getBoolean("modes"), linkedPanel = message.data.getString("linked_panel"), creationEnabled = message.data.getBoolean("creation_enabled"),
+                sshPicker = SshPickerPresentation.decode(message.data.getString("ssh_picker")))
             else -> replies.remove(message.arg1)?.complete(Bundle(message.data))
         }
         true
@@ -59,7 +61,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
                     RoutedBrowserEnvironment.requireReady(configured)
                     binding = configured
                     val surface = LocalBrowserSurface(checkNotNull(response.getString("surface")), response.getString("url"))
-                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(response), modes = response.getBoolean("modes"), linkedPanel = response.getString("linked_panel"), creationEnabled = response.getBoolean("creation_enabled"))
+                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(response), modes = response.getBoolean("modes"), linkedPanel = response.getString("linked_panel"), creationEnabled = response.getBoolean("creation_enabled"),
+                        sshPicker = SshPickerPresentation.decode(response.getString("ssh_picker")))
                     publishForeground()
                     surface.state.collect { snapshot ->
                         request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(snapshot))
@@ -125,13 +128,13 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
 class RoutedBrowserActivity : ComponentActivity() {
     private lateinit var controller: RoutedBrowserController
     private var leaving = false
-    private fun leave(action: String, pane: NativePanePickerRow? = null) {
+    private fun leave(action: String, pane: NativePanePickerRow? = null, sshCommand: SshPickerCommand? = null) {
         if (leaving) return
         leaving = true
         lifecycleScope.launch {
             withTimeoutOrNull(2_000) { runCatching { controller.flush() } }
             setResult(RESULT_OK, Intent().putExtra(RoutedBrowserProtocol.EXTRA, intent.getStringExtra(RoutedBrowserProtocol.EXTRA))
-                .putExtra("action", action).putExtra("kind", pane?.kind).putExtra("pane", pane?.id))
+                .putExtra("action", action).putExtra("kind", pane?.kind).putExtra("pane", pane?.id).putExtra("ssh_command", sshCommand?.encode()))
             finish()
         }
     }
@@ -156,7 +159,10 @@ class RoutedBrowserActivity : ComponentActivity() {
                 Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { leave("back") }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
                     val selected = ui.panes.singleOrNull { it.kind == "browser" && it.id == ui.linkedPanel }
-                    NativePanePicker(page?.title ?: "Browser", ui.panes, selected, Modifier.weight(1f),
+                    if (ui.sshPicker != null) Box(Modifier.weight(1f)) {
+                        SshBrowserPanePicker(page?.title ?: "Browser", checkNotNull(ui.sshPicker), ui.linkedPanel,
+                            onSelect = { leave("pane", it) }, onCommand = { leave("ssh_command", sshCommand = it) })
+                    } else NativePanePicker(page?.title ?: "Browser", ui.panes, selected, Modifier.weight(1f),
                         onSelect = { leave("pane", it) },
                         onNewWorkspace = if (ui.creationEnabled) ({ leave("new_workspace") }) else null,
                         onNewTerminal = if (ui.creationEnabled) ({ leave("new_terminal") }) else null,

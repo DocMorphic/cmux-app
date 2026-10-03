@@ -14,7 +14,9 @@ internal object RoutedBrowserProtocol {
     const val EXTRA = "browser_request"
 
     fun panes(workspace: NativeWorkspace) = nativePanePickerRows(workspace)
-    fun context(workspace: NativeWorkspace, modes: Boolean = false, linkedPanel: String? = null, creationEnabled: Boolean = false) = Bundle().apply {
+    fun context(workspace: NativeWorkspace, modes: Boolean = false, linkedPanel: String? = null, creationEnabled: Boolean = false,
+        sshPicker: SshPickerPresentation? = null) = Bundle().apply {
+        putString("ssh_picker", sshPicker?.encode())
         putBoolean("creation_enabled", creationEnabled); putBoolean("modes", modes); putString("linked_panel", linkedPanel)
         putString("workspace", workspace.title)
         putString("panes", JSONArray().also { rows -> panes(workspace).forEach {

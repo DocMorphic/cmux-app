@@ -48,11 +48,15 @@ internal data class SshBrowserPresentation(val network: SshBrowserNetwork, val w
 
 /** The dialog retains a terminal composition and its unsent draft behind the browser Activity. */
 @Composable
-internal fun SshBrowserSheet(presentation: SshBrowserPresentation, onRoute: ((NativeWorkspaceRoute) -> Unit)? = null, onDone: () -> Unit) {
+internal fun SshBrowserSheet(presentation: SshBrowserPresentation, onRoute: ((NativeWorkspaceRoute) -> Unit)? = null,
+    sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null, onDone: () -> Unit) {
     val state = presentation.provider?.state?.collectAsState()?.value
     val current = state?.tree?.let { tree -> tree.workspaces.map { sshCmuxBrowserWorkspace(checkNotNull(presentation.provider).session, tree, it) }
         .singleOrNull { it.id == presentation.workspace.id } }
-    val workspace = current ?: presentation.workspace
+    val base = current ?: presentation.workspace
+    val workspace = if (sshPicker == null) base else base.copy(
+        terminals = sshPicker.layout.sections.flatMap { it.rows }.map { NativeTerminal(it.target.encode(), it.title) },
+        browsers = sshPicker.layout.browsers.mapNotNull { row -> (row.target as? SshWorkspaceTarget.Browser)?.let { NativeBrowser(it.selection.panelId, row.title) } })
     LaunchedEffect(state) {
         if (state != null && !state.loading && !state.ended && state.error == null && state.tree != null && current == null) {
             presentation.network.navigation.retainPanels(sshLocalBrowserKey(presentation.network, presentation.workspace),
@@ -62,14 +66,15 @@ internal fun SshBrowserSheet(presentation: SshBrowserPresentation, onRoute: ((Na
     }
     Dialog(onDismissRequest = onDone, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-            SshBrowserScreen(presentation.network, workspace, presentation.linkedPanel, presentation.initialUrl, onRoute, onDone)
+            SshBrowserScreen(presentation.network, workspace, presentation.linkedPanel, presentation.initialUrl, onRoute, onDone, sshPicker, onSshCommand)
         }
     }
 }
 
 @Composable
 internal fun SshBrowserScreen(network: SshBrowserNetwork, workspace: NativeWorkspace, linkedPanel: String? = null,
-    initialUrl: String? = null, onRoute: ((NativeWorkspaceRoute) -> Unit)? = null, onDone: () -> Unit) {
+    initialUrl: String? = null, onRoute: ((NativeWorkspaceRoute) -> Unit)? = null, onDone: () -> Unit,
+    sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null) {
     val navigation = network.navigation
     val state by navigation.state.collectAsState()
     var started by remember(network, workspace.id, linkedPanel) { mutableStateOf(false) }
@@ -93,5 +98,12 @@ internal fun SshBrowserScreen(network: SshBrowserNetwork, workspace: NativeWorks
         { RoutedBrowserHostLease({}, {}) }, {}, { route ->
             routedAway = true
             if (onRoute != null) onRoute(route) else onDone()
-        }, browserModes = true)
+        }, browserModes = true, sshPicker = sshPicker,
+        onSshCommand = onSshCommand?.let { callback -> { command ->
+            if (sshPicker?.permits(command) == true && !network.retired.isCompleted) {
+                routedAway = true
+                navigation.leave(close = true)
+                callback(command)
+            }
+        } })
 }

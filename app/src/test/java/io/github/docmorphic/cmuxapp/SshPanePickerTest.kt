@@ -5,6 +5,28 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SshPanePickerTest {
+    @Test fun browserMetadataRoundTripsAndCommandsRequireCurrentSectionAndPermission() {
+        val workspace = SshTmuxWorkspace(1, 2, 3, "Work", listOf(SshTmuxPaneRow(4, 5, 0, "λ tab", 0, 80, 24, 1)))
+        val presentation = SshPickerPresentation(sshTmuxPicker(workspace), true, true)
+        assertEquals(presentation, SshPickerPresentation.decode(presentation.encode()))
+        val split = SshPickerCommand(SshPickerOperation.SECTION, 5, SshPaneAction.SPLIT_RIGHT)
+        assertEquals(split, SshPickerCommand.decode(split.encode()))
+        assertTrue(presentation.permits(split))
+        assertFalse(presentation.copy(enabled = false).permits(split))
+        assertFalse(presentation.copy(creationEnabled = false).permits(split))
+        assertFalse(presentation.copy(layout = presentation.layout.copy(sections = emptyList())).permits(split))
+        assertFalse(presentation.permits(split.copy(action = SshPaneAction.NEW_TAB)))
+        assertFalse(presentation.permits(split.copy(section = 99)))
+        assertFalse(presentation.copy(layout = SshPickerLayout(emptyList())).permits(SshPickerCommand(SshPickerOperation.TERMINAL)))
+    }
+    @Test fun malformedBrowserCommandsCannotBecomeAnOperation() {
+        for (raw in listOf(null, "{}", "[]", "x".repeat(513),
+            """{"operation":"SECTION","section":2.5,"action":"NEW_TAB"}""",
+            """{"operation":"SECTION","section":-1,"action":"NEW_TAB"}""",
+            """{"operation":"WORKSPACE","section":2,"action":"NEW_TAB"}""",
+            """{"operation":"SECTION","section":2,"action":"UNKNOWN"}""")) assertNull(SshPickerCommand.decode(raw))
+        assertNull(SshPickerPresentation.decode("{}"))
+    }
     @Test fun cmuxGroupsPanesKeepsBrowsersSeparateAndTargetsScreensActivePane() {
         val tree = SshCmuxInventory.parse(JSONObject("""{"generation":"g","registry_id":"r","workspaces":[
           {"id":1,"key":"w","name":"Work","screens":[{"id":2,"active_pane":5,"panes":[

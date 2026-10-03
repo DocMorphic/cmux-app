@@ -24,7 +24,8 @@ internal class RoutedBrowserHostLease(private val release: () -> Unit, private v
 internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestination, navigation: LocalBrowserNavigation,
     workspace: NativeWorkspace, network: () -> RoutedBrowserNetwork?, retainHost: () -> RoutedBrowserHostLease,
     onClose: () -> Unit, onRoute: (NativeWorkspaceRoute) -> Unit, browserModes: Boolean = false,
-    onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null) {
+    onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null,
+    sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null) {
     val creationEnabled = onNewWorkspace != null && onNewTerminal != null && onNewBrowser != null
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -33,6 +34,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     var failure by remember(destination.surface.id) { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
     val currentWorkspace by rememberUpdatedState(workspace)
+    val currentSshPicker by rememberUpdatedState(sshPicker)
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val id = result.data?.getStringExtra(RoutedBrowserProtocol.EXTRA) ?: requestId
         if (id != null && id == requestId) {
@@ -50,7 +52,11 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
                     "new_browser" -> onNewBrowser
                     else -> null
                 }
+                val sshCommand = SshPickerCommand.decode(result.data?.getStringExtra("ssh_command"))
                 when {
+                    action == "ssh_command" && sshCommand != null && onSshCommand != null && currentSshPicker?.permits(sshCommand) == true &&
+                        entry?.network?.retired?.isCompleted == false && entry.destination.surface === destination.surface &&
+                        navigation.state.value.local?.surface === destination.surface -> onSshCommand(sshCommand)
                     creation != null && creationEnabled && entry?.network?.retired?.isCompleted == false &&
                         entry.destination.surface === destination.surface && navigation.state.value.local?.surface === destination.surface -> creation()
                     action == "stream" && browserModes && panel?.kind == "browser" &&
@@ -75,7 +81,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             scope.launch { RoutedBrowserSessions.abandon(context, id); RoutedBrowserSessions.consume(id) }
         }
     }
-    SideEffect { RoutedBrowserSessions.refresh(requestId, workspace, creationEnabled) }
+    SideEffect { RoutedBrowserSessions.refresh(requestId, workspace, creationEnabled, sshPicker) }
     LaunchedEffect(destination.surface.id, attempt) {
         if (requestId != null) { routed = true; return@LaunchedEffect }
         var lease: RoutedBrowserHostLease? = null
@@ -86,7 +92,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             routed = true; failure = null
             lease = retainHost()
             val held = lease
-            val entry = RoutedBrowserSessions.register(context, owner, destination, workspace, held::close, held::foreground, browserModes, creationEnabled)
+            val entry = RoutedBrowserSessions.register(context, owner, destination, workspace, held::close, held::foreground, browserModes, creationEnabled, sshPicker)
             registered = entry.id; requestId = entry.id
             launcher.launch(Intent(context, RoutedBrowserActivity::class.java).putExtra(RoutedBrowserProtocol.EXTRA, entry.id))
         } catch (error: Exception) {
@@ -97,7 +103,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             requestId = null; failure = error.message ?: "Could not open the browser"
         }
     }
-    if (routed == false) LocalBrowserWorkspaceView(destination, navigation, workspace, onClose, onRoute, onNewWorkspace, onNewTerminal, onNewBrowser)
+    if (routed == false) LocalBrowserWorkspaceView(destination, navigation, workspace, onClose, onRoute, onNewWorkspace, onNewTerminal, onNewBrowser, sshPicker, onSshCommand)
     else {
         fun back() {
             val id = requestId

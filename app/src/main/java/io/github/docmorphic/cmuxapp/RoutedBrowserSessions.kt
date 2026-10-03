@@ -24,7 +24,8 @@ internal object RoutedBrowserSessions {
     private var completed: Entry? = null
 
     internal class Entry(val id: String, val network: RoutedBrowserNetwork, val destination: LocalBrowserDestination,
-        var workspace: NativeWorkspace, val release: () -> Unit, val probe: (Boolean) -> Unit, val modes: Boolean = false, var creationEnabled: Boolean = false) {
+        var workspace: NativeWorkspace, val release: () -> Unit, val probe: (Boolean) -> Unit, val modes: Boolean = false, var creationEnabled: Boolean = false,
+        var sshPicker: SshPickerPresentation? = null) {
         val exited = CompletableDeferred<Unit>()
         var surfaceWatch: Job? = null
         var peer: Messenger? = null
@@ -35,7 +36,8 @@ internal object RoutedBrowserSessions {
     }
 
     suspend fun register(context: Context, network: RoutedBrowserNetwork, destination: LocalBrowserDestination,
-        workspace: NativeWorkspace, release: () -> Unit, probe: (Boolean) -> Unit, modes: Boolean = false, creationEnabled: Boolean = false): Entry = transitions.withLock {
+        workspace: NativeWorkspace, release: () -> Unit, probe: (Boolean) -> Unit, modes: Boolean = false, creationEnabled: Boolean = false,
+        sshPicker: SshPickerPresentation? = null): Entry = transitions.withLock {
         val app = context.applicationContext
         stopBrowserProcess(app)
         active?.let(::finished)
@@ -50,7 +52,7 @@ internal object RoutedBrowserSessions {
         }
         cleanStorage(app)
         check(!network.retired.isCompleted) { "Browser account or computer changed" }
-        Entry(UUID.randomUUID().toString(), network, destination, workspace, release, probe, modes, creationEnabled).also { entry ->
+        Entry(UUID.randomUUID().toString(), network, destination, workspace, release, probe, modes, creationEnabled, sshPicker).also { entry ->
             active = entry; probe(true)
             entry.surfaceWatch = scope.launch {
                 destination.surface.state.first { it.closed }
@@ -68,12 +70,12 @@ internal object RoutedBrowserSessions {
         peer.binder.linkToDeath(death, 0)
         entry.peer = peer; entry.death = death
     }
-    fun refresh(id: String?, workspace: NativeWorkspace, creationEnabled: Boolean = false) {
+    fun refresh(id: String?, workspace: NativeWorkspace, creationEnabled: Boolean = false, sshPicker: SshPickerPresentation? = null) {
         val entry = live(id) ?: return
-        if (entry.workspace != workspace || entry.creationEnabled != creationEnabled) {
-            entry.workspace = workspace; entry.creationEnabled = creationEnabled
+        if (entry.workspace != workspace || entry.creationEnabled != creationEnabled || entry.sshPicker != sshPicker) {
+            entry.workspace = workspace; entry.creationEnabled = creationEnabled; entry.sshPicker = sshPicker
             entry.send(RoutedBrowserProtocol.CONTEXT, RoutedBrowserProtocol.context(workspace, entry.modes,
-                entry.destination.surface.linkedStreamPanelId, creationEnabled))
+                entry.destination.surface.linkedStreamPanelId, creationEnabled, sshPicker))
         }
     }
     fun finished(entry: Entry) {

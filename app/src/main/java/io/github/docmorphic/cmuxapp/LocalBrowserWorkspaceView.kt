@@ -23,7 +23,8 @@ internal fun LocalBrowserCreationProgress(creating: Boolean, onCancel: () -> Uni
 @Composable
 internal fun LocalBrowserWorkspaceView(destination: LocalBrowserDestination, navigation: LocalBrowserNavigation,
     workspace: NativeWorkspace = destination.workspace, onClose: () -> Unit = {}, onRoute: (NativeWorkspaceRoute) -> Unit,
-    onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null) {
+    onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null,
+    sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null) {
     val page by destination.surface.state.collectAsState()
     fun open(terminal: String? = null, browser: String? = null, surface: String? = null) {
         navigation.leave(close = true)
@@ -37,7 +38,11 @@ internal fun LocalBrowserWorkspaceView(destination: LocalBrowserDestination, nav
                 modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
             val rows = nativePanePickerRows(workspace)
             val selected = rows.singleOrNull { it.kind == "browser" && it.id == destination.surface.linkedStreamPanelId }
-            NativePanePicker(page.title ?: "Browser", rows, selected, Modifier.weight(1f), onSelect = { row ->
+            if (sshPicker != null) Box(Modifier.weight(1f)) {
+                SshBrowserPanePicker(page.title ?: "Browser", sshPicker, destination.surface.linkedStreamPanelId,
+                    onSelect = { row -> open(terminal = row.id.takeIf { row.kind == "terminal" }, browser = row.id.takeIf { row.kind == "browser" }) },
+                    onCommand = { if (sshPicker.permits(it)) onSshCommand?.invoke(it) })
+            } else NativePanePicker(page.title ?: "Browser", rows, selected, Modifier.weight(1f), onSelect = { row ->
                 open(terminal = row.id.takeIf { row.kind == "terminal" }, browser = row.id.takeIf { row.kind == "browser" },
                     surface = row.id.takeIf { row.kind == "surface" })
             }, onNewWorkspace, onNewTerminal, if (selected == null) ({}) else onNewBrowser, checksNewBrowser = selected == null)

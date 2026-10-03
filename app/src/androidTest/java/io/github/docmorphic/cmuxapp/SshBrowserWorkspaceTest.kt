@@ -145,6 +145,59 @@ class SshBrowserWorkspaceTest {
         open(); ready("SSH browser page"); background(30, 60, 120)
         capture("ssh-real-chrome-reopened")
     }
+    @Test fun groupedPickerCrossesBrowserProcessAndCreatesExactSelectedTerminals() {
+        fun provider() = cmux.state.value.providers.single { it.session == "fixture" }
+        fun terminalTarget(tab: SshCmuxTab): SshWorkspaceTarget.Cmux {
+            val tree = provider().state.value.tree!!
+            val owner = tree.workspaces.single { tab in it.tabs }
+            return SshWorkspaceTarget.Cmux(SshCmuxSelection.capture(provider().session, tree, owner, tab))
+        }
+        fun selected(tab: SshCmuxTab) {
+            val tag = "ssh.shell.identity.cmux-ssh-$hostId\n${terminalTarget(tab).encode()}"
+            compose.waitUntil(15000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithTag("ssh.shell.composer").assertIsEnabled()
+        }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshWorkspacesRoute(session, hostId) {}
+        } } }
+        open(); ready("SSH browser page")
+        val original = workspace(); val terminal = original.tabs.first { it.isTerminal }
+        val browser = original.tabs.single { it.isBrowser }
+        val browserTarget = SshWorkspaceTarget.Browser(SshCmuxBrowserSelection.capture(provider().session, provider().state.value.tree!!, original, browser))
+        compose.onNodeWithTag("ssh.shell.menu").performClick()
+        compose.onNodeWithText("Screen 1").assertExists(); compose.onNodeWithText("Browsers").assertExists()
+        compose.onNodeWithTag("ssh.picker.row.${terminalTarget(terminal).encode()}").performScrollTo().performClick()
+        selected(terminal)
+        var visitedPhone = false
+        fun openPhoneMenu() {
+            compose.onNodeWithTag("ssh.shell.menu").performClick()
+            compose.onNodeWithTag("ssh.picker.row.${browserTarget.encode()}").performScrollTo().performClick()
+            if (!visitedPhone) {
+                ready("Browser mode")
+                compose.onNodeWithContentDescription("Browser mode").performClick()
+                compose.onNodeWithText("On Android").performClick()
+            }
+            compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) }
+            visitedPhone = true
+            uiText("SSH Chrome start ▾").click()
+            uiText("Screen 1"); uiText("Browsers")
+        }
+        openPhoneMenu(); capture("ssh-browser-grouped-picker")
+        uiText("New Screen").click()
+        compose.waitUntil(15000) { compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && workspace().screens.size == 2 }
+        val newScreen = workspace().screens.single { it.id !in original.screens.map { s -> s.id } }
+        selected(newScreen.panes.single().tabs.single())
+        openPhoneMenu(); uiText("Screen 2")
+        val before = workspace().tabs.map { it.surface }.toSet()
+        uiText("New Tab").click()
+        compose.waitUntil(15000) { compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && workspace().tabs.size == before.size + 1 }
+        selected(workspace().tabs.single { it.surface !in before })
+        openPhoneMenu(); uiText("New Workspace").click()
+        compose.waitUntil(15000) { compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && provider().state.value.tree!!.workspaces.size == 2 }
+        val created = provider().state.value.tree!!.workspaces.single { it.key != original.key }
+        selected(created.tabs.single())
+        assertEquals(browser.resource, provider().state.value.tree!!.workspaces.single { it.key == original.key }.tabs.single { it.isBrowser }.resource)
+    }
     @Test fun providerRegistrationRestartRecoversSamePageWithoutStaleOrReplayedClicks() {
         val original = workspace().tabs.single { it.isBrowser }.resource
         val connection = cmux.connection

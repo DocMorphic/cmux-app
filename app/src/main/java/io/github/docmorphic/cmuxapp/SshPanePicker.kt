@@ -50,7 +50,7 @@ internal fun sshCmuxPicker(session: String, tree: SshCmuxTree, workspace: SshCmu
 internal fun SshPanePicker(title: String, layout: SshPickerLayout, selected: SshWorkspaceTarget?, enabled: Boolean,
     onSelect: (SshWorkspaceTarget) -> Unit, onAction: ((SshPickerSection, SshPaneAction) -> Unit)? = null,
     onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onBrowser: (() -> Unit)? = null,
-    onText: (() -> Unit)? = null) {
+    onText: (() -> Unit)? = null, checksNewBrowser: Boolean = false) {
     var expanded by remember { mutableStateOf(false) }
     val feedback = LocalNativeFeedback.current
     Box {
@@ -88,9 +88,32 @@ internal fun SshPanePicker(title: String, layout: SshPickerLayout, selected: Ssh
                 DropdownMenuItem(text = { Text(label) }, enabled = enabled && onNewTerminal != null,
                     onClick = { close { onNewTerminal?.invoke() } })
             }
-            if (onBrowser != null) DropdownMenuItem(text = { Text("New Browser") }, enabled = enabled, onClick = { close(onBrowser) })
+            if (onBrowser != null) DropdownMenuItem(text = { Text("New Browser") }, enabled = enabled,
+                modifier = Modifier.semantics { this.selected = checksNewBrowser },
+                trailingIcon = { if (checksNewBrowser) Text("✓", Modifier.clearAndSetSemantics { }) }, onClick = { close(onBrowser) })
             if (onText != null) DropdownMenuItem(text = { Text("View as Text") }, onClick = { close(onText) })
             if (feedback != null) DropdownMenuItem(text = { Text("Send Feedback") }, onClick = { close(feedback) })
         }
     }
+}
+
+internal fun sshPickerNativeRow(target: SshWorkspaceTarget) = when (target) {
+    is SshWorkspaceTarget.Browser -> NativePanePickerRow("browser", target.selection.panelId, "")
+    else -> NativePanePickerRow("terminal", target.encode(), "")
+}
+
+@Composable
+internal fun SshBrowserPanePicker(title: String, presentation: SshPickerPresentation, linkedPanel: String?,
+    onSelect: (NativePanePickerRow) -> Unit, onCommand: (SshPickerCommand) -> Unit) {
+    val layout = presentation.layout
+    val selected = layout.browsers.singleOrNull { (it.target as? SshWorkspaceTarget.Browser)?.selection?.panelId == linkedPanel }?.target
+    fun command(operation: SshPickerOperation): (() -> Unit)? {
+        val command = SshPickerCommand(operation)
+        return if (presentation.permits(command)) ({ onCommand(command) }) else null
+    }
+    SshPanePicker(title, layout, selected, presentation.enabled,
+        onSelect = { onSelect(sshPickerNativeRow(it)) },
+        onAction = if (presentation.creationEnabled) ({ section, action -> onCommand(SshPickerCommand(SshPickerOperation.SECTION, section.id, action)) }) else null,
+        onNewWorkspace = command(SshPickerOperation.WORKSPACE), onNewTerminal = command(SshPickerOperation.TERMINAL),
+        onBrowser = if (selected == null) ({}) else command(SshPickerOperation.BROWSER), checksNewBrowser = selected == null)
 }

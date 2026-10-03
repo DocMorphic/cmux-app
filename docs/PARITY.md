@@ -104,11 +104,50 @@ Evidence: `captures/runtime/ssh-picker/`, `ssh-picker-build.txt`,
 Debug APK SHA-256: `48fa570c6c8d7c13f26a216b401770d556e7a54adbcdf2bf69d1027e5331fb72`;
 test APK: `96c38e7b140055185bceb2e63e468b269964c65bd77ed09c7d1cb953a64ef556`.
 
-Remaining: carry grouped metadata and creation actions through the separate
-on-device SSH browser Activity; complete plain-shell shortcut creation/browser
-actions and debug-log utilities; verify streamed-browser switching against the
-live browser fixture and the final SSH flows on the Pixel. These changes are not
-yet in signed build 421. The whole-parity pin remains unchanged.
+The browser follow-up below carries the menu through the separate browser Activity
+and verifies streamed-browser switching. Plain-shell shortcut creation/browser
+actions, debug-log utilities and physical Pixel acceptance still remain. These
+changes are not yet in signed build 421. The whole-parity pin remains unchanged.
+
+#### Grouped picker in the on-device SSH browser
+
+The separate browser process now receives serialized SSH section/row/action
+metadata, retains the linked browser's checkmark, and uses **Browsers** rather
+than Mac Browsers. A phone-local browser checks New Browser. Context refreshes
+carry current topology and action availability. Returned creation requests have
+a bounded typed representation; the main process checks current section/action
+permission, the request ID, live network, and exact local surface before calling
+the owning SSH route. The route reuses the same guarded operations as its terminal
+menu. No SSH connection or credentials enter the browser process. The in-process
+browser fallback uses the same presentation. tmux workspace metadata includes all
+current picker terminals so a returned selection can resolve beyond the original
+pane.
+
+Debug/test assembly passed in **53s**, with **4 JVM tests** covering layout,
+metadata round trips, action revocation and malformed requests. The seven-case
+real SSH/cmux-tui/private-Chrome suite passed all six existing browser interaction,
+mode restoration, process/connection/daemon recovery and uncertain-input checks.
+Its new picker test initially used an incomplete terminal test ID; a focused
+rerun then caught a test querying the main Compose tree during the Activity handoff.
+After correcting those assertions and waiting for the known browser Activity,
+test assembly passed in **16s** and the focused test passed **1 test in 19.118s**.
+Thus all **7 selected Android checks pass across the recorded runs**.
+
+The new flow switches from a streamed browser to its exact terminal, enters the
+phone-rendered browser, inspects grouped sections, creates a screen, reopens the
+browser with updated topology, creates a tab, then creates a workspace. Each
+creation checks the selected terminal's exact identity, and the original browser
+resource remains intact. The final browser menu screenshot was visually reviewed.
+Evidence is ignored under `captures/runtime/ssh-browser-picker/` and
+`captures/runtime/ssh-browser-picker*-build*.txt`. Debug APK SHA-256:
+`8f15ed96b8cee7d49d9bab81f8e5a34167027401ec0a52582f9256d1937fcfd1`;
+test APK: `678dbfea6506f11910825dfc33a39e7c9cc0670763f3ec061be654afa05cc301`.
+
+The emulator and owned SSH/Chrome fixture were stopped. The Pixel was absent and
+signed build 421 is unchanged. tmux creation from the separate browser, linked-to-
+independent New Browser switching, and physical SSH acceptance still need dedicated
+runtime checks; the generic Mac picker and full upstream delta audit are not newly
+certified by this SSH run.
 
 ### Public feedback composer (2026-10-03)
 
