@@ -48,10 +48,6 @@ internal data class NativeMacAppearances(val values: Map<NativeMacIdentity, Nati
     fun name(mac: NativeCredentialStore.PairedMac) = get(mac).displayName(mac.name)
 }
 
-internal fun nativeMacColorIndices(saved: List<NativeCredentialStore.PairedMac>, discovered: List<IrohV2Computer>) =
-    (saved.map { it.deviceId } + discovered.map { it.deviceId }).filter { it.isNotBlank() }.distinct().sorted()
-        .mapIndexed { index, device -> device to index % 8 }.toMap()
-
 /** Appearance never modifies PairedMac, pairing origins, discovery records, or RPC destinations. */
 internal class NativeMacAppearanceStore(private val read: () -> String?, private val write: (String) -> Unit) {
     private val mutableState = MutableStateFlow(NativeMacAppearances())

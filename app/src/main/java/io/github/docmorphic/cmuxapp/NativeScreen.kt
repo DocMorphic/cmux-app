@@ -147,6 +147,7 @@ fun NativeScreen(
     var retry by remember { mutableIntStateOf(0) }
     var retryDelay by remember { mutableLongStateOf(2_000) }
     var client by remember { mutableStateOf<MobileRpcClient?>(null) }
+    var connectedCode by remember { mutableStateOf<String?>(null) }
     var connectionReady by remember { mutableStateOf(false) }
     var hostName by remember(code) { mutableStateOf("cmux") }
     var hostCapabilities by remember(code) { mutableStateOf<Set<String>>(emptySet()) }
@@ -154,7 +155,9 @@ fun NativeScreen(
     val pairedMacs = savedPairedMacs.filter {
         connection.allowsSaved(it)
     }
-    val machineColorIndices = nativeMacColorIndices(pairedMacs, computerState.computers)
+    val machineColorIndices = feedSession.macColorSlots.select(if (signedIn) store.taskSession() else null,
+        teamState.scope, pairedMacs, computerState.computers.takeIf { computerState.account == teamState.scope }.orEmpty(),
+        foreground = pairedMacs.singleOrNull { connectionReady && it.code == connectedCode }?.colorIdentity)
     val paneSelection = feedSession.paneNavigation.select(if (signedIn) store.taskSession() else null,
         pairedMacs.singleOrNull { it.code == code }, teamState.scope)
     var showSettings by rememberSaveable(signedIn) { mutableStateOf(false) }
@@ -227,7 +230,6 @@ fun NativeScreen(
     val terminalNavigationInsets = WindowInsets.navigationBars
     var selectedBrowser by paneSelection.browser
     var selectedChangesWorkspace by paneSelection.changesWorkspace
-    var connectedCode by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(teamState.scope, signedIn) {
         val pairing = PairingCodeParser.parse(code).getOrNull()
         if (pairing is PairingCode.Iroh && (!signedIn || (teamState.scope != null && !connection.allowsSaved(pairing)))) {
@@ -2592,8 +2594,8 @@ fun NativeScreen(
                             NativeWorkspaceRow(
                                 workspace = workspace, groups = owner.groups,
                                 computer = appearances.name(owner.mac).takeIf { selectedOrigin == null && pairedMacs.size > 1 },
-                                appearance = appearances.get(owner.mac), machineId = owner.mac.deviceId,
-                                machineColorIndex = machineColorIndices[owner.mac.deviceId],
+                                appearance = appearances.get(owner.mac), machineId = owner.mac.colorIdentity.colorSeed,
+                                machineColorIndex = machineColorIndices[owner.mac.colorIdentity],
                                 canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
                                 onOpen = { open() },
                                 onAction = { action, title ->
@@ -2837,7 +2839,7 @@ private fun nativeConnectionFailure(failure: Throwable): String {
 @Composable
 private fun NativeComputerPicker(
     teamState: NativeAccountTeamsState, computerState: NativeComputersState, runtime: NativeIrohRuntime? = null,
-    colorIndices: Map<String, Int> = emptyMap(),
+    colorIndices: Map<NativeMacIdentity, Int> = emptyMap(),
     connections: Map<NativeMacIdentity, NativeComputerConnection> = emptyMap(),
     forgetCallbacks: NativeComputerForgetCallbacks = NativeComputerForgetCallbacks(),
     presentDetails: ((NativeComputerDetailsPresentation) -> Unit)? = null,
@@ -2873,15 +2875,15 @@ private fun NativeComputerPicker(
                 onSelect(mac)
             }, shape = RoundedCornerShape(14.dp), color = nativePanel) {
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    NativeMacAvatar(appearances.get(mac.deviceId, mac.buildTag), mac.deviceId,
-                        index = colorIndices[mac.deviceId])
+                    NativeMacAvatar(appearances.get(mac.deviceId, mac.buildTag), mac.colorIdentity.colorSeed,
+                        index = colorIndices[mac.colorIdentity])
                     Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                         Text(appearances.get(mac.deviceId, mac.buildTag).displayName(mac.name), fontWeight = FontWeight.Medium)
                         Text("Available", color = nativeMuted, fontSize = 12.sp)
                     }
                     val connection = connections[NativeMacIdentity(mac.deviceId, mac.buildTag)] ?: NativeComputerConnection()
                     NativeMacAwakeIndicator(connection)
-                    NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.deviceId], connection, forgetCallbacks, presentDetails)
+                    NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.colorIdentity], connection, forgetCallbacks, presentDetails)
                     Text("›", color = nativeMuted, fontSize = 24.sp)
                 }
             }
@@ -2975,13 +2977,13 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
 
 @Composable
 private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>, appearances: NativeMacAppearances,
-    colorIndices: Map<String, Int>, runtime: NativeIrohRuntime?, state: NativeComputersState,
+    colorIndices: Map<NativeMacIdentity, Int>, runtime: NativeIrohRuntime?, state: NativeComputersState,
     connections: Map<NativeMacIdentity, NativeComputerConnection>, forgetCallbacks: NativeComputerForgetCallbacks,
     presentDetails: (NativeComputerDetailsPresentation) -> Unit, onSelect: (NativeCredentialStore.PairedMac) -> Unit) {
     macs.forEach { mac ->
         Row(Modifier.fillMaxWidth().clickable { onSelect(mac) }
             .padding(horizontal = 22.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            NativeMacAvatar(appearances.get(mac), mac.deviceId, index = colorIndices[mac.deviceId])
+            NativeMacAvatar(appearances.get(mac), mac.colorIdentity.colorSeed, index = colorIndices[mac.colorIdentity])
             Spacer(Modifier.width(14.dp))
             val connection = connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()
             Column(Modifier.weight(1f)) {
@@ -2989,14 +2991,14 @@ private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>,
                 Text(connection.phrase, color = nativeMuted, fontSize = 12.sp)
             }
             NativeMacAwakeIndicator(connection)
-            NativeSavedComputerDetailsButton(runtime, state, mac, colorIndices[mac.deviceId], connection, forgetCallbacks, presentDetails)
+            NativeSavedComputerDetailsButton(runtime, state, mac, colorIndices[mac.colorIdentity], connection, forgetCallbacks, presentDetails)
         }
     }
 }
 
 @Composable
 private fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, selected: NativeCredentialStore.PairedMac?,
-    appearances: NativeMacAppearances, colorIndices: Map<String, Int>,
+    appearances: NativeMacAppearances, colorIndices: Map<NativeMacIdentity, Int>,
     connections: Map<NativeMacIdentity, NativeComputerConnection>, open: Boolean, onOpen: (Boolean) -> Unit,
     onSelect: (NativeCredentialStore.PairedMac?) -> Unit, onPair: () -> Unit) {
     Box {
@@ -3006,7 +3008,7 @@ private fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, 
         }) {
             if (selected == null) Icon(painterResource(R.drawable.ic_feed_computer), null,
                 tint = nativeMuted, modifier = Modifier.size(22.dp))
-            else NativeMacAvatar(appearances.get(selected), selected.deviceId, Modifier.size(28.dp), colorIndices[selected.deviceId])
+            else NativeMacAvatar(appearances.get(selected), selected.colorIdentity.colorSeed, Modifier.size(28.dp), colorIndices[selected.colorIdentity])
         }
         DropdownMenu(open, onDismissRequest = { onOpen(false) }) {
             DropdownMenuItem(text = { Text("All Computers") }, onClick = { onSelect(null) },

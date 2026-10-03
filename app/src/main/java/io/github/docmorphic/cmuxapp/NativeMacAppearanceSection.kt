@@ -56,7 +56,7 @@ internal fun NativeMacAppearanceSection(target: NativeComputerTarget, value: Nat
     Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("APPEARANCE", color = Color(0xFF9B9FA8), fontSize = 11.sp)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NativeMacAvatar(value, target.deviceId, index = colorIndex)
+            NativeMacAvatar(value, nativeMacColorIdentity(target.deviceId, target.buildTag).colorSeed, index = colorIndex)
             Text(value.displayName(target.name), maxLines = 2)
         }
         if (readError) {

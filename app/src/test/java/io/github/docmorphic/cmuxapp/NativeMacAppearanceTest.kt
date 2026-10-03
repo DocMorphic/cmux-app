@@ -102,13 +102,81 @@ class NativeMacAppearanceTest {
         assertTrue(decorated.searchFields().any { it == "Studio" })
     }
 
-    @Test fun colorAssignmentIsSharedAcrossBuildsAndStableAcrossSourceOrder() {
+    @Test fun colorAssignmentDistinguishesBuildsAndDeduplicatesSavedDiscoveryRows() {
         val saved = listOf(NativeCredentialStore.PairedMac("a", "a", "A", "default"),
             NativeCredentialStore.PairedMac("b", "a", "A debug", "debug"))
-        val discovered = listOf(IrohV2Computer("r", "e", "b", "default", "B", emptyList()))
-        assertEquals(mapOf("a" to 0, "b" to 1), nativeMacColorIndices(saved, discovered))
-        assertEquals(nativeMacColorIndices(saved, discovered), nativeMacColorIndices(saved.reversed(), discovered))
+        val discovered = listOf(IrohV2Computer("r", "e", "a", "default", "A", emptyList()),
+            IrohV2Computer("r2", "e2", "b", "default", "B", emptyList()))
+        val colors = NativeMacColorSlots().select("login", null, saved, discovered)
+        assertEquals(3, colors.size)
+        assertNotEquals(colors[saved[0].colorIdentity], colors[saved[1].colorIdentity])
+        assertEquals(colors[saved[0].colorIdentity], colors[discovered[0].colorIdentity])
+        assertEquals(colors, NativeMacColorSlots().select("login", null, saved.reversed(), discovered.reversed()))
         assertEquals(NativeMacAppearance.paletteSlot("same Mac"), NativeMacAppearance.paletteSlot("same Mac"))
         assertTrue(NativeMacAppearance.paletteSlot("🖥️".repeat(100)) in 0..7)
+    }
+
+    @Test fun discoveryInsertionsDisappearancesAndReturnsNeverRecolorExistingInstances() {
+        val owner = NativeMacColorSlots()
+        val first = NativeCredentialStore.PairedMac("route-z", "z", "Z", "default")
+        val earlier = NativeCredentialStore.PairedMac("route-a", "a", "A", "default")
+        val original = owner.select("login", null, listOf(first), emptyList())
+        val added = owner.select("login", null, listOf(earlier, first), emptyList())
+        assertEquals(original[first.colorIdentity], added[first.colorIdentity])
+        assertNotEquals(added[first.colorIdentity], added[earlier.colorIdentity])
+        assertEquals(added, owner.select("login", null, emptyList(), emptyList()))
+        assertEquals(added, owner.select("login", null, listOf(first), emptyList()))
+        assertEquals(1, original.size) // Published snapshots are immutable.
+        val many = owner.select("login", null, (1..12).map {
+            NativeCredentialStore.PairedMac("route-$it", "mac-$it", "Mac $it", "nightly")
+        }, emptyList())
+        assertEquals(14, many.values.distinct().size) // Only rendering wraps to the eight-color palette.
+        assertEquals(original[first.colorIdentity], many[first.colorIdentity])
+    }
+
+    @Test fun colorScopeSurvivesRefreshButResetsOnTeamUserLoginAndSignOut() {
+        val owner = NativeMacColorSlots()
+        val team = NativeTeamScope("login", "user", "team", 1)
+        val z = NativeCredentialStore.PairedMac("z", "z", "Z", "default")
+        val a = NativeCredentialStore.PairedMac("a", "a", "A", "default")
+        owner.select("login", team, listOf(z), emptyList())
+        val colors = owner.select("login", team.copy(generation = 2), listOf(a), emptyList())
+        assertEquals(0, colors[z.colorIdentity]); assertEquals(1, colors[a.colorIdentity])
+        for (scope in listOf(team.copy(teamId = "other"), team.copy(userId = "other"), team.copy(login = "new-login"))) {
+            val fresh = owner.select(scope.login, scope, listOf(a), emptyList())
+            assertEquals(mapOf(a.colorIdentity to 0), fresh)
+            owner.select(scope.login, scope, listOf(z), emptyList())
+        }
+        assertTrue(owner.select(null, null, listOf(z), emptyList()).isEmpty())
+        assertEquals(mapOf(z.colorIdentity to 0), owner.select("login", team, listOf(z), emptyList()))
+        assertTrue(owner.select("different", team, listOf(a), emptyList()).isEmpty())
+        owner.clear()
+        assertEquals(mapOf(a.colorIdentity to 0), owner.select("login", team, listOf(a), emptyList()))
+    }
+
+    @Test fun colorIdentityNormalizesUuidAndTagWithoutCollapsingLegacyOrNamedBuilds() {
+        val uuid = "123E4567-E89B-12D3-A456-426614174000"
+        assertEquals(nativeMacColorIdentity(uuid, " nightly "), nativeMacColorIdentity(uuid.lowercase(), "nightly"))
+        assertEquals(nativeMacColorIdentity(uuid, null), nativeMacColorIdentity(uuid, "  "))
+        assertNotEquals(nativeMacColorIdentity(uuid, null), nativeMacColorIdentity(uuid, "default"))
+        assertNotEquals(nativeMacColorIdentity(uuid, "nightly"), nativeMacColorIdentity(uuid, "Nightly"))
+        assertEquals("host\u001fnightly", nativeMacColorIdentity("host", "nightly").colorSeed)
+        assertEquals("host", nativeMacColorIdentity("host", null).colorSeed)
+    }
+
+    @Test fun teamTransitionRetainsOnlyAStillVisibleForegroundInstance() {
+        val owner = NativeMacColorSlots()
+        val team = NativeTeamScope("login", "user", "team", 1)
+        val a = NativeCredentialStore.PairedMac("a", "a", "A", "default")
+        val z = NativeCredentialStore.PairedMac("z", "z", "Z", "nightly")
+        val first = owner.select("login", team, listOf(a, z), emptyList())
+        val retained = owner.select("login", team.copy(teamId = "other"), listOf(z), emptyList(), z.colorIdentity)
+        assertEquals(mapOf(z.colorIdentity to first[z.colorIdentity]), retained)
+        val added = owner.select("login", team.copy(teamId = "other"), listOf(a, z), emptyList(), z.colorIdentity)
+        assertEquals(2, added[a.colorIdentity]); assertEquals(first[z.colorIdentity], added[z.colorIdentity])
+        val removed = owner.select("login", team.copy(teamId = "third"), listOf(a), emptyList(), z.colorIdentity)
+        assertEquals(mapOf(a.colorIdentity to 0), removed)
+        val newUser = owner.select("login", team.copy(userId = "other"), listOf(z), emptyList(), z.colorIdentity)
+        assertEquals(mapOf(z.colorIdentity to 0), newUser)
     }
 }

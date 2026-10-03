@@ -1,5 +1,12 @@
 # Attribution
 
+`NativeMacColorSlots.kt` follows the additive app-instance palette assignment and
+scope pruning in cmux's `MobileWorkspaceAggregation`, `MacPairingKey` and
+`MobileShellComposite+MacSwitchState` at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` (GPL-3.0-or-later, Manaflow, Inc.).
+Android retains the display-only table in the screen ViewModel and filters new
+discovery rows against the current account/team before assigning colors.
+
 Firebase Cloud Messaging Android SDK 25.0.1 is used without modification.
 Copyright Google LLC; Apache License 2.0. Source:
 https://github.com/firebase/firebase-android-sdk/tree/main/firebase-messaging

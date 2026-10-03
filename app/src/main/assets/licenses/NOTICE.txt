@@ -1,6 +1,12 @@
 cmux-app is an unofficial Android companion distributed under GNU GPL version 3.
 Source: https://github.com/DocMorphic/cmux-app
 
+NativeMacColorSlots.kt follows cmux's additive app-instance palette assignment
+and scope pruning in MobileWorkspaceAggregation, MacPairingKey and
+MobileShellComposite+MacSwitchState at 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright Manaflow, Inc.; GPL-3.0-or-later. Android retains the display-only table
+in its screen ViewModel and filters discovery rows to the current account/team.
+
 IrohV2SigningCodec follows cmux's V2WireSigningCodec contract at
 4c5272e9153eca2033c9f40ac749f0c3a5bcb291 (GPL-3.0-or-later, Manaflow).
 Its public deterministic signing vectors are JVM test resources only and are

@@ -10,6 +10,56 @@ Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`:
   composition: local storage scoped by build and selected team. The separately
   implemented backup decorator is not instantiated by this pinned app.
 
+## App-instance color stability — 2026-10-03
+
+The targeted review at `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` changes the
+automatic color contract. [`MobileShellComposite+MacSwitchState.swift`](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite+MacSwitchState.swift)
+keeps additive assignments per exact Mac app instance, clears them on sign-out,
+and prunes to a retained foreground instance on a team change.
+[`MobileWorkspaceAggregation.swift`](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileShellModel/Sources/CmuxMobileShellModel/MobileWorkspaceAggregation.swift)
+preserves existing slots and appends sorted new IDs after the highest existing
+slot. `MacPairingKey` canonicalizes UUID spelling and trims nullable build tags.
+Stable and Nightly are separate instances; a legacy untagged pairing remains separate.
+
+Android previously sorted the current set of physical device IDs on every render.
+That shared colors across builds and recolored existing computers when earlier
+IDs appeared or disappeared. `NativeMacColorSlots` now retains an additive typed
+table in `NativeFeedSession`'s ViewModel. Discovery and saved rows for the same
+instance deduplicate; route/endpoint changes do not change the display identity.
+New IDs are sorted before assigning slots, and empty inventories retain the table.
+The eight gradients wrap only at rendering, so more than eight instances reuse
+colors without rewriting the assignments.
+
+Login/user changes and sign-out reset assignments. Team changes prune old entries,
+retaining only a still-admitted, connected foreground instance when present.
+Same-scope refresh generations preserve colors. Discovery from another scope is
+excluded. All Computers, saved rows, the selector, workspace avatars and detail
+previews use the same instance key; standalone preview hashing also includes the
+build tag. Custom palette/RGB choices continue to take precedence. Routing and
+customization persistence are unchanged. The automatic table is intentionally
+in-memory, as in the reviewed iOS implementation; process restart may reassign it.
+
+Verification: **12 focused JVM tests passed**, zero failures/errors/skips, covering
+discovery churn, saved/discovered deduplication, separate build tags, UUID/tag
+normalization, immutable snapshots, palette wrapping, refresh and account/team
+scope transitions, plus the existing appearance storage/presentation cases. The
+final debug/test build passed in **36s**, followed by a **9s** asset-only build to
+include attribution. The existing four editor/UI checks passed on the single
+API 37 / 16 KB emulator: **OK (4 tests), 51.783 seconds**, zero skips. Custom
+RGB/emoji and integrated detail/reopen screenshots were visually reviewed.
+
+These UI tests verify editor regressions; multi-computer color assignment is
+covered by the JVM checks and inspected screen wiring. They do not establish
+physical multi-Mac, Activity-recreation, or full iOS visual acceptance. The custom
+editor screenshot is a scrolled component fixture with the keyboard open. The
+emulator was shut down; no new AVD or signed milestone was created. Evidence:
+`captures/runtime/mac-color-slots/` (ignored). Packaged attribution matches source.
+
+- Debug APK SHA-256: `51bd9a41b3eabc5f5380ca64adf2c622321ba9504eb47bfb5422c906229db65e`.
+- Test APK SHA-256: `471235a9a4cf1c7f05c3d6673f5ba76f5ae3a2cd2de4eaefcf963615d7d9ea3c`.
+
+Signed build 456 predates this change. The broader upstream pin remains unchanged.
+
 ## Local editing and presentation
 
 Computer Details edits the name, color and icon independently. Empty/whitespace
@@ -25,9 +75,9 @@ override. New background notifications resolve the current account's name when
 delivered. Existing already-posted Android notifications and historical saved
 draft labels are not rewritten in place. Workspace search includes the original
 and customized names. Workspace avatars share their owning Mac's color/icon;
-distinct visible Mac IDs receive ordered palette slots shared across current
-surfaces, with djb2 scalar hashing as the standalone-preview fallback. Sibling
-builds share the automatic machine color and retain independent overrides.
+Mac app instances receive stable ordered slots shared across current surfaces,
+with djb2 scalar hashing as the standalone-preview fallback. Sibling builds have
+independent automatic assignments and independent overrides, as described above.
 
 Appearance is display metadata. It never changes `PairedMac`, discovery,
 connection origins, credential records, notification routes, task destinations,

@@ -12,6 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Stable computer colors per app instance (2026-10-03)
+
+The `0fc35d6` Mac-switch/aggregation source review found a visible mismatch:
+Android recomputed colors from physical device IDs, changing existing slots as
+discovery changed and sharing a slot across Stable/Nightly. It now retains
+additive assignments per exact app instance in the screen ViewModel, preserves
+refresh/transient-empty state, clears on account changes and prunes team changes
+to a still-admitted foreground instance. All computer/workspace/detail consumers
+use the same keys, with custom colors retaining precedence.
+
+Twelve JVM checks and four existing emulator editor/UI checks passed; attribution,
+source scope, screenshots and limits are recorded in
+[Computer appearance](COMPUTER_APPEARANCE.md#app-instance-color-stability--2026-10-03).
+Physical multi-Mac/Activity-recreation acceptance remains open. Signed build 456
+and the whole-parity upstream pin are unchanged.
+
 ## ANR stack recovery (2026-10-03)
 
 Android 11+ ANR exits now recover filtered main/monitor-owner and other thread
