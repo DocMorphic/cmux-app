@@ -27,6 +27,26 @@ Earlier signed-build references below describe individual feature checkpoints.
 Physical acceptance, configured push, authenticated release migration, safe crash
 stack capture and the remaining source audit are still open.
 
+## One-time SSH key setup (2026-10-03)
+
+Targeted review of upstream `SSHKeyInstaller.swift` and
+`SSHComputerEditorView.swift` at `0fc35d6` identified a remaining SSH setup gap.
+The Android computer editor now copies/shares the selected public key and offers
+one-time password installation, followed by a fresh key-only login before success.
+Jump hosts still use keys. The fixed command preserves existing authorized keys,
+including a final entry without a newline, avoids duplicates and corrects file
+permissions. Passwords are not persisted or restored, and failed or interrupted
+writes are never automatically retried. Host-identity decisions and biometric
+signing use the existing scoped prompt broker.
+
+Cancellation, route/key/account retirement and restored editor state retain the
+same ownership checks; the restored UI reports an interrupted attempt without a
+password or automatic retry. See [implementation and evidence](DIRECT_SSH.md#one-time-public-key-installation-2026-10-03).
+**Verification:** 13 new installation checks, 14 existing transport checks and
+four host-editor checks passed on API 37 / 16 KB. The editor screenshot was
+inspected. This is a targeted source-parity addition. The broad upstream pin, physical
+acceptance and last verified signed build remain unchanged.
+
 ## Recent terminal text capture (2026-10-03)
 
 Targeted review of iOS `TerminalTextSheetView.swift` and

@@ -42,16 +42,19 @@ internal fun SshPromptHost(session: NativeSshSession) {
     }
     val prompts by session.connections.prompts.collectAsState()
     val biometrics by session.biometrics.collectAsState()
+    val installPrompts by session.installPrompts.collectAsState()
     if (!started || !session.admitted()) return
     val prompt = prompts.firstOrNull()
+    val installPrompt = if (prompt == null) installPrompts.firstOrNull() else null
     // Serialize the two kinds of modal prompt. Each biometric request retains
     // the exact operation prepared by the transport, not a generic success bit.
-    if (prompt != null) {
-        val question = prompt.question
+    if (prompt != null || installPrompt != null) {
+        val question = prompt?.question ?: checkNotNull(installPrompt).question
         val changed = question.prior.pinned != null
-        var error by remember(prompt.id) { mutableStateOf<String?>(null) }
+        var error by remember(prompt?.id, installPrompt?.id) { mutableStateOf<String?>(null) }
         fun answer(trust: Boolean) {
-            runCatching { session.connections.answer(prompt.id, trust) }
+            runCatching { if (prompt != null) session.connections.answer(prompt.id, trust)
+                else session.answerInstallTrust(checkNotNull(installPrompt).id, trust) }
                 .onFailure { error = "Could not save this decision. Try again." }
         }
         AlertDialog(onDismissRequest = { answer(false) }, modifier = Modifier.testTag("ssh.trust"),

@@ -328,3 +328,11 @@ GhosttySurfaceView.swift at cmux revision 0fc35d6247c63ff0e2c4555c8aac2cc88fe111
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android scans owned spans under a bounded work budget and includes copied Ghostty
 image placement bounds, sharing the visible rows with its Canvas renderer.
+
+SshKeyInstaller.kt adapts the one-time key installation command and separate
+key-only verification workflow from SSHKeyInstaller.swift in
+Packages/iOS/CmuxMobileSSH, cmux revision
+0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android adds a separator for files without a final newline, sanitized stage
+errors, explicit retry and Android lifecycle/host/key/account ownership checks.

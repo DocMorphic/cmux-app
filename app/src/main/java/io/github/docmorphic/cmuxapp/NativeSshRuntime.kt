@@ -3,6 +3,8 @@ package io.github.docmorphic.cmuxapp
 import android.content.Context
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 
 internal class SshBiometricRequest(val key: SshKeyRecord, val operation: SshPreparedSignature) {
@@ -10,6 +12,14 @@ internal class SshBiometricRequest(val key: SshKeyRecord, val operation: SshPrep
     private val result = CompletableDeferred<Boolean>()
     fun answer(signature: java.security.Signature?) { result.complete(signature === operation.signature) }
     suspend fun await() { check(result.await()) { "SSH key authentication canceled" } }
+    fun cancel() { result.cancel() }
+}
+
+internal class SshInstallTrustRequest(val question: SshTrustQuestion) {
+    val id = UUID.randomUUID()
+    private val result = CompletableDeferred<Boolean>()
+    fun answer(trust: Boolean) { result.complete(trust) }
+    suspend fun await() = result.await()
     fun cancel() { result.cancel() }
 }
 
@@ -23,16 +33,36 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
     val biometrics = requests.asStateFlow()
     val connections = SshConnections(hosts, lifetime, admitted) { id, owner, current, trust ->
         SshTransport.connect(hosts, vault, id, owner, current, explicit = false, askTrust = trust,
-            authorize = { key, operation ->
-                val request = SshBiometricRequest(key, operation)
-                synchronized(lock) {
-                    check(!closed && current()) { "SSH connection retired" }
-                    requests.value += request
-                }
-                try { request.await(); check(current()) { "SSH connection retired" } }
-                finally { synchronized(lock) { requests.value -= request } }
-            })
+            authorize = { key, operation -> authorizeKey(key, operation, current) })
     }
+    private suspend fun authorizeKey(key: SshKeyRecord, operation: SshPreparedSignature, current: () -> Boolean) {
+        val request = SshBiometricRequest(key, operation)
+        synchronized(lock) {
+            check(!closed && current()) { "SSH connection retired" }
+            requests.value += request
+        }
+        try { request.await(); check(current()) { "SSH connection retired" } }
+        finally { synchronized(lock) { requests.value -= request } }
+    }
+    private val installLock = Mutex()
+    private val installQuestions = MutableStateFlow<List<SshInstallTrustRequest>>(emptyList())
+    val installPrompts = installQuestions.asStateFlow()
+    fun answerInstallTrust(id: UUID, trust: Boolean) = synchronized(lock) {
+        if (isOpen) installQuestions.value.firstOrNull()?.takeIf { it.id == id }?.answer(trust)
+    }
+    suspend fun installKey(expected: SshHostRecord, password: ByteArray) {
+        try {
+            installLock.withLock {
+                check(isOpen) { "SSH account retired" }
+                SshKeyInstaller.install(hosts, vault, expected, password, { isOpen }, askTrust = { question ->
+                    val request = SshInstallTrustRequest(question)
+                    synchronized(lock) { check(isOpen); installQuestions.value += request }
+                    try { request.await() } finally { synchronized(lock) { installQuestions.value -= request } }
+                }, authorize = { key, operation -> authorizeKey(key, operation) { isOpen } })
+            }
+        } finally { password.fill(0) }
+    }
+
     val shells = SshShells(hosts, connections, lifetime, admitted)
     val tmux = SshTmuxHosts(connections, lifetime, admitted)
     val cmux = SshCmuxHosts(connections, lifetime, admitted, cmuxInstaller) { id -> hosts.state.value.host(id)?.idleClose?.seconds }
@@ -44,6 +74,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
         if (!closed) {
             closed = true
             requests.value.forEach { it.cancel() }; requests.value = emptyList()
+            installQuestions.value.forEach { it.cancel() }; installQuestions.value = emptyList()
             browsers.close(); shells.close(); tmux.close(); cmux.close(); connections.close()
         }
     }

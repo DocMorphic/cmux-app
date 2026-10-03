@@ -27,6 +27,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
@@ -51,7 +52,8 @@ internal interface SshManagedConnection : AutoCloseable {
 }
 
 /** One saved route, including all jump sessions, owned by a caller's account lifetime.
- * Does not perform reconnect/retry or send passwords. UI admission and prompt
+ * Routine connections use keys; explicit key setup may use a password only at
+ * the final hop. Does not perform reconnect/retry. UI admission and prompt
  * presentation are supplied by the owner; no caller may use a signed-out scope. */
 internal class SshTransport private constructor(
     private val hosts: SshHostStore,
@@ -61,6 +63,7 @@ internal class SshTransport private constructor(
     private val admitted: () -> Boolean,
     private val askTrust: suspend (SshTrustQuestion) -> Boolean,
     private val authorize: suspend (SshKeyRecord, SshPreparedSignature) -> Unit,
+    private val installationPassword: ByteArray? = null,
 ) : SshManagedConnection {
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(job + Dispatchers.IO)
@@ -106,15 +109,16 @@ internal class SshTransport private constructor(
         for (hop in plan.hops) {
             guard()
             val key = checkNotNull(vault.state.value.firstOrNull { it.id == hop.keyId }) { "Choose an available SSH key" }
-            val identity = VaultIdentity(key)
-            synchronized(lock) { guard(); identities += identity }
+            val password = installationPassword?.takeIf { hop == plan.hops.last() }
+            val identity = if (password == null) VaultIdentity(key) else null
+            if (identity != null) synchronized(lock) { guard(); identities += identity }
             val client = JSch().apply {
-                addIdentity(identity, null)
+                if (identity != null) addIdentity(identity, null)
                 hostKeyRepository = Repository(hop)
             }
             val session = client.getSession(hop.endpoint.username, hop.endpoint.host, hop.endpoint.port).apply {
                 setConfig("StrictHostKeyChecking", "yes")
-                setConfig("PreferredAuthentications", "publickey")
+                setConfig("PreferredAuthentications", if (password == null) "publickey" else "password")
                 setHostKeyAlias(hop.endpoint.hostKeyIdentity)
                 setDaemonThread(true)
                 serverAliveInterval = 15_000
@@ -140,8 +144,12 @@ internal class SshTransport private constructor(
                 synchronized(lock) { guard(); proxies += proxy }
                 session.setProxy(proxy)
             }
-            try { session.connect(CONNECT_TIMEOUT); jumpProxy?.connected(); guard() }
-            finally { identity.clear() } // Private imported bytes need not survive authentication.
+            try {
+                guard()
+                // JSch copies this array and zeroes its copy in connect's finally.
+                if (password != null) session.setPassword(password)
+                session.connect(CONNECT_TIMEOUT); jumpProxy?.connected(); guard()
+            } finally { identity?.clear() } // Private imported bytes need not survive authentication.
             parent = session
         }
         guard()
@@ -192,7 +200,10 @@ internal class SshTransport private constructor(
                 val accepted = runBlocking(job) { askTrust(SshTrustQuestion(hop.hostId, hop.endpoint, question, presented)) }
                 guard()
                 if (!accepted) {
-                    hosts.setAutoConnectPaused(plan, hop.hostId, true)
+                    // Declining a one-time setup prompt cancels only that attempt.
+                    // It must not mutate the editor's saved base or disconnect a
+                    // separately owned routine connection on this route.
+                    if (installationPassword == null) hosts.setAutoConnectPaused(plan, hop.hostId, true)
                     return if (question.pinned == null) HostKeyRepository.NOT_INCLUDED else HostKeyRepository.CHANGED
                 }
                 check(hosts.confirmHostKey(plan, hop.hostId, question, presented)) { "SSH identity question is stale" }
@@ -246,13 +257,16 @@ internal class SshTransport private constructor(
         workers.execute { channel.disconnect() }
     }
 
-    suspend fun exec(command: String, timeoutMillis: Long = 30_000, maxOutputBytes: Int = 8 * 1024 * 1024): SshExecResult {
+    suspend fun exec(command: String, timeoutMillis: Long = 30_000, maxOutputBytes: Int = 8 * 1024 * 1024, stdin: ByteArray? = null): SshExecResult {
         require(timeoutMillis > 0 && maxOutputBytes > 0)
+        require(stdin == null || stdin.size <= 64 * 1024) { "SSH command input exceeded its limit" }
+        val ownedInput = stdin?.copyOf()
         val channel = target().openChannel("exec") as ChannelExec
         own(channel)
         return blocking(cancel = { release(channel) }) {
             try {
                 guard(); channel.setCommand(command)
+                ownedInput?.let { channel.setInputStream(ByteArrayInputStream(it)) }
                 val input = channel.inputStream; val error = channel.errStream
                 channel.connect(CONNECT_TIMEOUT)
                 val out = ByteArrayOutputStream(); val err = ByteArrayOutputStream()
@@ -436,6 +450,26 @@ internal class SshTransport private constructor(
             askTrust: suspend (SshTrustQuestion) -> Boolean,
             authorize: suspend (SshKeyRecord, SshPreparedSignature) -> Unit,
         ): SshTransport {
+            return connectUsing(hosts, vault, hostId, lifetime, admitted, explicit, askTrust, authorize, null)
+        }
+
+        /** Explicit setup only: consumes and erases the password, never changes routine auth. */
+        suspend fun connectForKeyInstallation(hosts: SshHostStore, vault: SshKeyVault, hostId: UUID, lifetime: CoroutineScope,
+            admitted: () -> Boolean, password: ByteArray, askTrust: suspend (SshTrustQuestion) -> Boolean,
+            authorize: suspend (SshKeyRecord, SshPreparedSignature) -> Unit,
+        ): SshTransport {
+            val owned = password.copyOf()
+            password.fill(0)
+            return try {
+                require(owned.isNotEmpty() && owned.size <= 16 * 1024) { "Enter a password of at most 16 KB" }
+                connectUsing(hosts, vault, hostId, lifetime, admitted, false, askTrust, authorize, owned)
+            } finally { owned.fill(0) }
+        }
+
+        private suspend fun connectUsing(hosts: SshHostStore, vault: SshKeyVault, hostId: UUID, lifetime: CoroutineScope,
+            admitted: () -> Boolean, explicit: Boolean, askTrust: suspend (SshTrustQuestion) -> Boolean,
+            authorize: suspend (SshKeyRecord, SshPreparedSignature) -> Unit, password: ByteArray?,
+        ): SshTransport {
             check(admitted() && lifetime.isActive) { "Sign in before connecting an SSH computer" }
             var plan = hosts.dialPlan(hostId)
             if (explicit) for (hop in plan.hops) {
@@ -443,7 +477,7 @@ internal class SshTransport private constructor(
                 plan = hosts.dialPlan(hostId)
             }
             check(hosts.mayAutoConnect(plan)) { "Automatic SSH connection is paused; open the computer to retry" }
-            val transport = SshTransport(hosts, vault, plan, lifetime, admitted, askTrust, authorize)
+            val transport = SshTransport(hosts, vault, plan, lifetime, admitted, askTrust, authorize, password)
             try {
                 MobileDebugLog.trace(DebugOperation.SSH_CONNECT) { blocking(cancel = transport::close) { transport.connectBlocking() } }
                 transport.guard(); hosts.markUsed(hostId)

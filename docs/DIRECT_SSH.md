@@ -15,6 +15,64 @@ establishes the required behavior at upstream candidate
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries. The lost-reply/readiness checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
 
+## One-time public-key installation (2026-10-03)
+
+The SSH computer editor now offers **Copy Public Key**, **Share**, and **Install
+with Password** for the selected key. A new draft is saved without opening a
+routine connection before setup starts. Password authentication is used only for
+the destination of this explicit operation; jump hosts and routine connections
+continue using keys. Both setup and the subsequent fresh key-only connection use
+the existing host-identity and biometric authorization checks. Success requires
+the independent key-only login to finish.
+
+The fixed shell command receives only the public key on stdin, preserves existing
+entries, avoids adding an identical key twice, and sets directory/file modes to
+700/600. Its newline separator also handles existing files without a final newline.
+Remote stderr and authentication exception text are not exposed as UI messages.
+A lost write reply is unconfirmed and is never automatically replayed. The manual
+method remains available for servers which disable password authentication.
+
+Passwords are neither saved in host metadata nor placed in a shell command. The
+password field is masked, uses a secure dialog window, and is deliberately absent
+from saved instance state. Owned password byte arrays are erased on exit, including
+cancellation. The editor clears the field on submission/dismissal. Restoration
+cancels an in-flight attempt, retains the saved draft, and shows an interruption
+message without restoring the password or retrying. Declining setup trust cancels
+that attempt without changing routine connections' pause state; retry is explicit.
+Concurrent route edits, key deletion and account retirement retire the operation.
+
+Source contract: upstream `SSHKeyInstaller.swift` and `SSHComputerEditorView.swift`
+at `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`. This is a targeted comparison;
+it does not advance the broad parity pin or establish an App Store binary version.
+
+The disposable fixture listens only on loopback and runs only the fixed command
+inside temporary home directories, with generated credentials and keys. It begins
+with another authorized key, no final newline and permissions 755/644. Its failure
+modes cover refused passwords, rejected writes, failed key verification and a real
+write followed by a lost reply. It never enables the user's Mac SSH daemon.
+
+**Verification:** debug/test APKs and release Kotlin compilation passed in 38s.
+On the existing API 37 / 16 KB emulator, all **13 installation checks** passed in
+128.656s, all **14 existing transport checks** passed in 13.334s, and all **four
+host-editor checks** passed in 30.787s, with zero failures/skips. Tests cover real
+password/key authentication, a jump host, write/verification failures, lost reply,
+key/route/account retirement, password dismissal/restoration, cancellation during
+trust, declined trust with explicit retry, and draft save after success. The
+successful editor screenshot was inspected; fixture system bars do not establish
+production Activity or Pixel visual acceptance. The generated disposable password
+was absent from retained test/server diagnostics, and metadata assertions passed.
+
+The initial nine-case run passed. The expanded twelve-case run caught a missing
+interruption message after restoration; the final thirteen-case run verifies its
+fix and the declined-trust retry correction. Evidence is in ignored
+`captures/runtime/ssh-key-install/`, with final checks under `android-verified/`,
+`transport-regression/` and `editor-regression/`. Tested debug SHA-256:
+`2c40e2426fded576e5333280d22e69583ddedf03bd969eff4119f3b03becdc45`;
+test SHA-256: `3caa0469fb33734074e6889e67feccfa863d4b505d5a9aaed584f9b171cb9f51`.
+The attribution notice was appended after this runtime build; production code was
+unchanged. Physical Pixel/Mac SSH acceptance and signed delivery of this feature
+remain open. No physical phone, personal SSH account or Mac SSH daemon was changed.
+
 ## SFTP publication replies and refresh outcomes (2026-10-02)
 
 Fixed a Files error-handling gap: the folder refresh in a mutation's `finally`

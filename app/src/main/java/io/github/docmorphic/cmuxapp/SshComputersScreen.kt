@@ -75,7 +75,7 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
         }
     }
     val editorState = rememberSaveableStateHolder()
-    val original by rememberSaveable(editing, stateSaver = SshHostEditSaver) { mutableStateOf(editing?.takeUnless { it == "new" }?.let { id -> hosts.hosts.firstOrNull { it.id.toString() == id } }) }
+    var original by rememberSaveable(editing, stateSaver = SshHostEditSaver) { mutableStateOf(editing?.takeUnless { it == "new" }?.let { id -> hosts.hosts.firstOrNull { it.id.toString() == id } }) }
     val activeShell = shells.firstOrNull { it.id == selectedShell }
     selectedTmux?.let { id ->
         val host = hosts.hosts.firstOrNull { it.id.toString() == id }
@@ -159,8 +159,25 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
                         }
                     }) {
                         editing?.let(editorState::removeState); editing = null
-                        if (original?.connectsLike(row) != true) connect(row.id)
+                        if (original?.connectsLike(row) != true || statuses[row.id]?.phase != SshConnectionPhase.CONNECTED) connect(row.id)
                     }
+                }, onInstall = { row, password ->
+                    try {
+                        withContext(Dispatchers.IO) {
+                            synchronized(session.vault) {
+                                check(session.isOpen && session.vault.state.value.any { it.id == row.keyId }) { "SSH key unavailable" }
+                                session.hosts.saveEdit(original, row)
+                            }
+                        }
+                        original = row
+                        try { session.installKey(row, password) }
+                        finally {
+                            // Installation explicitly resumes a paused route; only
+                            // adopt that known change, never a concurrent edit.
+                            val current = session.hosts.state.value.host(row.id)
+                            if (current == row.copy(autoConnectPaused = false)) original = current
+                        }
+                    } finally { password.fill(0) }
                 })
         }
         return
@@ -233,7 +250,19 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
 @Composable
 private fun SshComputerEditor(original: SshHostRecord?, hosts: List<SshHostRecord>, keys: List<SshKeyRecord>,
     busy: Boolean, failure: String?, onBack: () -> Unit, onKeys: () -> Unit, onSave: (SshHostRecord) -> Unit,
+    onInstall: suspend (SshHostRecord, ByteArray) -> Unit,
 ) {
+    val draftId = rememberSaveable { (original?.id ?: UUID.randomUUID()).toString() }
+    var installing by remember { mutableStateOf(false) }
+    // Only the fact that setup was in flight survives recreation, never a password
+    // or an instruction to retry a possibly completed remote write.
+    var installationPending by rememberSaveable { mutableStateOf(false) }
+    var askPassword by remember { mutableStateOf<SshHostRecord?>(null) }
+    var installMessage by remember { mutableStateOf<String?>(null) }
+    var installSucceeded by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var installJob by remember { mutableStateOf<Job?>(null) }
+    val blocked = busy || installing
     var name by rememberSaveable { mutableStateOf(original?.name.orEmpty()) }
     var address by rememberSaveable { mutableStateOf(original?.endpoint?.host.orEmpty()) }
     var port by rememberSaveable { mutableStateOf(original?.endpoint?.port?.toString() ?: "22") }
@@ -243,27 +272,57 @@ private fun SshComputerEditor(original: SshHostRecord?, hosts: List<SshHostRecor
     val endpoint = runCatching { SshEndpoint.fromDraft(address, port, username) }.getOrNull()
     val validKey = keyId == null || keys.any { it.id.toString() == keyId }
     val validJump = jumpId == null || hosts.any { it.id.toString() == jumpId && it.id != original?.id }
-    BackHandler { if (!busy) onBack() }
+    val selectedKey = keys.firstOrNull { it.id.toString() == keyId }
+    val valid = endpoint != null && validKey && validJump && name.none { it.isISOControl() }
+    fun record(): SshHostRecord {
+        val base = original ?: SshHostRecord(id = UUID.fromString(draftId), name = name.trim().ifEmpty { endpoint!!.host }, endpoint = endpoint!!)
+        return base.copy(name = name.trim().ifEmpty { endpoint!!.host }, endpoint = endpoint!!,
+            keyId = keyId?.let(UUID::fromString), jumpHostId = jumpId?.let(UUID::fromString))
+    }
+    LaunchedEffect(address, port, username, keyId, jumpId) { installMessage = null; installSucceeded = false }
+    askPassword?.let { target -> SshInstallPasswordDialog(target, onDismiss = { askPassword = null }, onInstall = { password ->
+        askPassword = null; installing = true; installationPending = true; installMessage = null; installSucceeded = false
+        installJob = scope.launch {
+            try {
+                onInstall(target, password)
+                installationPending = false; installSucceeded = true; installMessage = "Key installed. This phone can now log in without a password."
+            } catch (error: Exception) {
+                if (error is CancellationException) {
+                    installMessage = "Installation canceled. The key may already be installed; you can retry explicitly."
+                    throw error
+                }
+                installationPending = false
+                installMessage = if (error is SshKeyInstallFailure || error is SshHostEditConflict) error.message
+                    else "Could not install the key. Check the selected key and computer, then try again."
+            } finally { password.fill(0); installing = false; installJob = null }
+        }
+    }) }
+    BackHandler { if (!blocked) onBack() }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp).testTag("ssh.host.editor"),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth()) {
-            TextButton(onClick = onBack, enabled = !busy) { Text("Cancel") }
+            TextButton(onClick = onBack, enabled = !blocked) { Text("Cancel") }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = {
-                val base = original ?: SshHostRecord(name = name.trim().ifEmpty { endpoint!!.host }, endpoint = endpoint!!)
-                onSave(base.copy(name = name.trim().ifEmpty { endpoint!!.host }, endpoint = endpoint!!,
-                    keyId = keyId?.let(UUID::fromString), jumpHostId = jumpId?.let(UUID::fromString)))
-            }, enabled = !busy && endpoint != null && validKey && validJump && name.none { it.isISOControl() },
+                onSave(record())
+            }, enabled = !blocked && valid,
                 modifier = Modifier.testTag("ssh.host.save")) { Text("Save") }
         }
         Text(if (original == null) "Add SSH Computer" else "Edit SSH Computer", style = MaterialTheme.typography.headlineSmall)
-        OutlinedTextField(name, { name = it }, label = { Text("Name (optional)") }, enabled = !busy, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("ssh.host.name"))
-        OutlinedTextField(address, { address = it }, label = { Text("Host address") }, enabled = !busy, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("ssh.host.address"))
-        OutlinedTextField(port, { port = it }, label = { Text("Port") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = !busy, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("ssh.host.port"))
-        OutlinedTextField(username, { username = it }, label = { Text("Username") }, enabled = !busy, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("ssh.host.username"))
-        SshChoice("SSH key", keyId, listOf(null to "None") + keys.map { it.id.toString() to it.label }, !busy) { keyId = it }
-        TextButton(onClick = onKeys, enabled = !busy) { Text("Manage SSH Keys") }
-        SshChoice("Jump host", jumpId, listOf(null to "None") + hosts.filter { it.id != original?.id }.map { it.id.toString() to it.name }, !busy) { jumpId = it }
+        OutlinedTextField(name, { name = it }, label = { Text("Name (optional)") }, enabled = !blocked, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("ssh.host.name"))
+        OutlinedTextField(address, { address = it }, label = { Text("Host address") }, enabled = !blocked, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("ssh.host.address"))
+        OutlinedTextField(port, { port = it }, label = { Text("Port") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = !blocked, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("ssh.host.port"))
+        OutlinedTextField(username, { username = it }, label = { Text("Username") }, enabled = !blocked, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("ssh.host.username"))
+        SshChoice("SSH key", keyId, listOf(null to "None") + keys.map { it.id.toString() to it.label }, !blocked) { keyId = it }
+        TextButton(onClick = onKeys, enabled = !blocked) { Text("Manage SSH Keys") }
+        SshChoice("Jump host", jumpId, listOf(null to "None") + hosts.filter { it.id != original?.id }.map { it.id.toString() to it.name }, !blocked) { jumpId = it }
+        selectedKey?.let { key ->
+            SshKeyInstallSection(key, enabled = !blocked && valid, installing = installing,
+                message = installMessage ?: if (installationPending && !installing)
+                    "Previous installation interrupted. The key may already be installed; retry explicitly to verify it." else null,
+                succeeded = installSucceeded, onInstall = { askPassword = record() },
+                onCancel = { installJob?.cancel() })
+        }
         failure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (busy) CircularProgressIndicator()
     }

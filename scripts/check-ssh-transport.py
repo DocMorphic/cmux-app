@@ -13,6 +13,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--serial", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--key-install", action="store_true", help="Run thirteen password key-install and editor checks against the isolated installation fixture")
     parser.add_argument("--ui", action="store_true", help="Run the four production SSH host-screen checks")
     parser.add_argument("--shell-ui", action="store_true", help="Run four production SSH shell, browser round-trip and workspace creation checks")
     parser.add_argument("--tmux-ui", action="store_true", help="Run the four real tmux workspace checks")
@@ -27,12 +28,12 @@ def main():
     parser.add_argument("--cmux-renderer", action="store_true", help="Run three cmux-tui provider/renderer component checks without an SSH fixture")
     parser.add_argument("--fixture", type=Path, help="Generated coordinates from ssh-tmux-fixture.py")
     args = parser.parse_args()
-    if sum((args.ui, args.shell_ui, args.tmux_ui, args.cmux_ui, args.cmux_install, args.cmux_renderer, args.files_ui, args.files_pickers, args.ssh_browser, args.cmux_browser, args.ssh_websocket, args.ssh_tls)) > 1:
+    if sum((args.key_install, args.ui, args.shell_ui, args.tmux_ui, args.cmux_ui, args.cmux_install, args.cmux_renderer, args.files_ui, args.files_pickers, args.ssh_browser, args.cmux_browser, args.ssh_websocket, args.ssh_tls)) > 1:
         parser.error("Choose one UI suite")
-    if (args.tmux_ui or args.cmux_ui or args.cmux_install or args.cmux_browser) and not args.fixture:
+    if (args.key_install or args.tmux_ui or args.cmux_ui or args.cmux_install or args.cmux_browser) and not args.fixture:
         parser.error("Real workspace checks require --fixture")
-    count = 1 if args.ssh_tls or args.ssh_websocket else 10 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 9 if args.files_ui else 1 if args.cmux_install else 8 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (4 if args.shell_ui else (4 if args.ui else 14)))
-    test_class = "SshBrowserWorkspaceTest" if args.cmux_browser else "SshBrowserTest" if args.ssh_browser or args.ssh_websocket or args.ssh_tls else "SshFilesScreenTest" if args.files_ui or args.files_pickers else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
+    count = 13 if args.key_install else 1 if args.ssh_tls or args.ssh_websocket else 10 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 9 if args.files_ui else 1 if args.cmux_install else 8 if args.cmux_ui else 3 if args.cmux_renderer else (4 if args.tmux_ui else (4 if args.shell_ui else (4 if args.ui else 14)))
+    test_class = "SshKeyInstallerTest" if args.key_install else "SshBrowserWorkspaceTest" if args.cmux_browser else "SshBrowserTest" if args.ssh_browser or args.ssh_websocket or args.ssh_tls else "SshFilesScreenTest" if args.files_ui or args.files_pickers else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")
     root = Path(__file__).resolve().parents[1]
@@ -62,8 +63,11 @@ def main():
         assert "Success" in run(["install", "-r", str(package)], timeout=180)
     port = f"tcp:{int(fixture['port'])}" if fixture else None
     run(["logcat", "-c"])
+    control_port = f"tcp:{int(fixture['controlPort'])}" if args.key_install else None
     if port:
         run(["reverse", port, port])
+    if control_port:
+        run(["reverse", control_port, control_port])
     try:
         selected = "io.github.docmorphic.cmuxapp." + test_class
         if args.ssh_tls:
@@ -86,6 +90,9 @@ def main():
         # server's generated private import examples remain in its build folder.
         public = {"port": fixture["port"], "user": fixture["username"],
                   "nonce": fixture["nonce"], "hostkey": fixture["hostKey"], "silentport": fixture["silentPort"]} if fixture else {}
+        if args.key_install:
+            public["controlport"] = fixture["controlPort"]
+            public["controlhostkey"] = fixture["controlHostKey"]
         if args.shell_ui or args.ssh_browser or args.cmux_browser or args.ssh_websocket or args.ssh_tls:
             public["browserport"] = fixture["browserPort"]
         if args.ssh_websocket:
@@ -123,6 +130,8 @@ def main():
         (args.output / "logcat.txt").write_text(diagnostics.stdout + diagnostics.stderr)
         if port:
             run(["reverse", "--remove", port])
+        if control_port:
+            run(["reverse", "--remove", control_port])
 
 
 if __name__ == "__main__":
