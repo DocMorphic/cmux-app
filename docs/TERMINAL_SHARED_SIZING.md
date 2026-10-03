@@ -508,6 +508,53 @@ Physical Pixel/Mac verification, image-heavy transition/performance measurements
 hardware keyboard checks and broader accessibility coverage remain open. No
 physical device was connected, and no signed release was published for this work.
 
+## Bounded content measurement and image protection (2026-10-03)
+
+Primary keyboard blank-space absorption now includes renderable Ghostty image
+placements as well as text and cursor rows. Placement offsets, source cell size,
+fractional scroll clipping and viewport intersections determine the bottom edge;
+virtual/missing/offscreen/empty placements do not create phantom content. The
+measurement uses the same owned graphics snapshot cache as the painter and does
+not copy image pixel payloads. An image below the cursor can therefore move above
+the keyboard even when the lower terminal rows contain no text.
+
+The text scan runs only when primary-screen keyboard intrusion is positive. It
+starts at the lowest row, stops at the first content row or the known cursor
+bottom, and shares its visible row list with the renderer. A cursor on the last
+row needs no text scan. Work is capped at 131,072 units, charging UTF-8 text bytes
+plus row/span/placement visits. Counting structural visits also bounds adversarial
+empty spans. If that budget is exhausted, the result is unknown and blank-space
+absorption is disabled conservatively; unmeasured content cannot be treated as
+blank and covered by the keyboard.
+
+The upstream reference caps its serialized viewport text at 128 KiB and throttles
+native text reads on its output queue. Android's measurement consumes already-owned
+spans, avoids the extra read when the keyboard is closed, and shares visible rows
+when open. This bounds the additional scan; it does not claim that all JNI parsing,
+row extraction or rendering fits a frame budget. Those broader timing measurements
+and physical Pixel acceptance remain open.
+
+**14 focused JVM tests passed**, zero failures/errors/skips, including bounded
+large-buffer/empty-span/UTF-8 scans, cursor short-circuiting and the existing pinned
+keyboard/shared-layout reference cases. **12 emulator checks passed in 23.679
+seconds** on the existing API 37 / 16 KiB AVD. They verify a real Ghostty image below
+the cursor remains above the keyboard, the renderer reads visible rows only once
+per update with the keyboard open or closed, fractional-history image bounds,
+and retained hardware image pixels surviving cache replacement until the resize
+transaction releases them. Existing placeholder-image rendering, keyboard layout,
+frame-hold/timeout, primary submission and raw screen/recovery checks also pass.
+
+The final debug/test APK build passed in **18 seconds**. The placeholder and
+fractional-history image captures were visually reviewed; the additional primary
+image and retained-image checks use exact pixel assertions. The emulator is
+stopped and the Pixel was absent. No signed release was published by this work.
+Local evidence is under `captures/runtime/content-bottom-final-build.txt`,
+`content-bottom-ui.txt` and `content-bottom-screenshots/` in that directory.
+Final APK SHA-256:
+
+- Debug: `b8cc55f295852f48d2b691a44f81e4f96a99e5477ea4b07479d28fa7b315174d`
+- Test: `fac232631295265ad1ef081103d2dd2fb89b720fe570a124d9096afb7d7f8e7f`
+
 ## Full integration acceptance checklist
 
 1. Subscribe to `mobile.terminal.size_state` and `mobile.terminal.detached`; decode

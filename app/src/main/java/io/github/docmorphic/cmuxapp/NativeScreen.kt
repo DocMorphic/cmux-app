@@ -2035,7 +2035,8 @@ fun NativeScreen(
                                 val sent = if (move.rows != 0.0) terminalScroll?.invoke(move.rows, cell) ?: false else false
                                 sent || move.revealed
                             }), scrollPosition = scrollPosition,
-                    displayGeometry = displayGeometry, keyboardPresentation = keyboardPresentation.takeUnless { keepKeyboardGrid })
+                    displayGeometry = displayGeometry, keyboardPresentation = keyboardPresentation.takeUnless { keepKeyboardGrid },
+                    displayLines = gridPresentation.visibleLines)
                 if (scrollOffset > 0) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp)
                     .background(nativePanel, RoundedCornerShape(14.dp)).padding(start = 12.dp),
                     verticalAlignment = Alignment.CenterVertically) {

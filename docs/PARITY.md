@@ -35,7 +35,10 @@ implemented with **12 focused JVM and 9 emulator UI tests passed**. The subseque
 presentation transaction now retains the actual old frame until matching resize
 acknowledgement, redraw and recording, with the iOS five-second silence fallback;
 **13 JVM and 14 emulator UI checks passed**, including pixel checks. Physical
-Mac/Pixel acceptance and performance/accessibility checks remain open. Android uses the supported
+Mac/Pixel acceptance and performance/accessibility checks remain open. Content
+measurement now has a bounded scan, shares visible rows with drawing and protects
+image placements below the cursor; **14 JVM and 12 emulator checks passed**,
+including real image pixels through keyboard layout and frame retention. Android uses the supported
 `unknown` kind plus its model; upstream's automatic exclusion rules still need an
 Android kind for identical behavior. Signed build 397 and the installed Pixel app
 are unchanged. [Contract, evidence and remaining work](TERMINAL_SHARED_SIZING.md).

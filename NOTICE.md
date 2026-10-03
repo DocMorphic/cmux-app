@@ -322,3 +322,9 @@ at cmux revision 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android binds the milestones to viewport generations, output revisions and
 Compose display-list recording before atomically choosing the frame to draw.
+
+TerminalContentBottom.kt extends the keyboard content-bottom scan from
+GhosttySurfaceView.swift at cmux revision 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android scans owned spans under a bounded work budget and includes copied Ghostty
+image placement bounds, sharing the visible rows with its Canvas renderer.

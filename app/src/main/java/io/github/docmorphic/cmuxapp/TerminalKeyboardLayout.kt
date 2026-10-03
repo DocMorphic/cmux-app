@@ -1,7 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
 import androidx.compose.ui.unit.IntSize
-import kotlin.math.max
 import kotlin.math.min
 
 /** Capture view size and unconsumed IME overlap in the same layout callback. */
@@ -28,12 +27,12 @@ internal class TerminalKeyboardLayout(val base: TerminalGeometry, naturalHeight:
 
     companion object {
         /** Text below the cursor counts too (for example a TUI's footer hints). */
-        fun contentBottomRows(grid: TerminalDisplay, viewport: TerminalScrollViewport): Float? {
+        fun contentBottomRows(grid: TerminalDisplay, viewport: TerminalScrollViewport,
+            lines: List<List<RenderGrid.Span>>? = null, graphics: TerminalGraphicsDisplay.Snapshot? = null): Float? {
             if (grid.activeScreen != "primary" || grid.rows <= 0) return null
-            val rows = viewport.lines(grid)
-            val lastText = rows.indexOfLast { row -> row.any { span -> span.text.any { !it.isWhitespace() } } } + 1
-            val cursor = if (viewport.rowOffset == 0) grid.cursor?.row?.plus(1) ?: 0 else 0
-            return max(lastText.toFloat() - viewport.topClipFraction, cursor.toFloat()).coerceAtLeast(0f)
+            val cursor = grid.cursor?.row?.takeIf { viewport.rowOffset == 0 }
+            return TerminalContentBottom.measure(lines ?: viewport.lines(grid), cursor, grid.columns, grid.rows,
+                viewport.topClipFraction, graphics).rows
         }
 
         data class Scroll(val position: Double, val reveal: Float, val remainingRows: Double)

@@ -27,14 +27,17 @@ import kotlinx.coroutines.delay
 internal fun RenderGridView(
     grid: TerminalDisplay, cells: TerminalCellMetrics, revision: Int,
     modifier: Modifier = Modifier, scrollOffset: Int = 0, scrollPosition: Double = scrollOffset.toDouble(),
-    displayGeometry: TerminalGeometry? = null, keyboardPresentation: TerminalKeyboardPresentation? = null
+    displayGeometry: TerminalGeometry? = null, keyboardPresentation: TerminalKeyboardPresentation? = null,
+    displayLines: List<List<RenderGrid.Span>>? = null
 ) {
     var blinkVisible by remember(grid) { mutableStateOf(true) }
     LaunchedEffect(grid) {
         while (true) { delay(600); blinkVisible = !blinkVisible }
     }
     val viewport = TerminalScrollViewport.at(scrollPosition, grid.historyLineCount, grid.activeScreen)
-    val lines = remember(grid, revision, viewport.rowOffset, viewport.topClipFraction > 0) { viewport.lines(grid) }
+    val lines = remember(grid, revision, viewport.rowOffset, viewport.topClipFraction > 0, displayLines) {
+        displayLines ?: viewport.lines(grid)
+    }
     val plan = remember(lines) { TerminalGridPainter.plan(lines) }
     val accessibleText = remember(lines) { RenderGrid.plainText(lines) }
     val painter = remember { TerminalGridPainter() }

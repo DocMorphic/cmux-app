@@ -92,6 +92,9 @@ class TerminalImageRenderingTest {
             terminal.write("\r\n\r\n\r\n\u001b[3;1H")
             terminal.write(image("a=T,f=24,s=1,v=1,i=1,p=1,c=1,r=1,C=1", byteArrayOf(0, 0, -1)))
             assertEquals(1, terminal.historyLineCount)
+            val viewport = TerminalScrollViewport.at(.5, terminal.historyLineCount)
+            assertEquals(3f, TerminalKeyboardLayout.contentBottomRows(terminal, viewport,
+                graphics = terminal.graphicsSnapshot(viewport.rowOffset, cells))!!)
             val bitmap = draw(painter, terminal, 0.5)
             assertEquals(Color.BLACK, bitmap.getPixel(10, 90))
             assertEquals(Color.BLUE, bitmap.getPixel(10, 110))
