@@ -15,6 +15,76 @@ establishes the required behavior at upstream candidate
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries. The lost-reply/readiness checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
 
+## SSH keyboard and composer images (2026-10-03)
+
+The upload backend is now wired into the shared plain SSH, tmux and cmux-tui
+screen. Direct IME images and toolbar clipboard images reserve their place before
+URI materialization; following text and binary mouse reports wait behind them.
+The uploader is captured from the exact terminal's original transport, with
+admission checked again after awaits. Navigation cancels that view's pending
+input and releases content grants. Uncertain delivery drops later queued input
+and offers **Resume typing** without replaying it. Files cannot insert a path
+while this view has queued input. Focus reports remain immediate lifecycle signals.
+
+The composer accepts IME/clipboard images and Android's system photo picker,
+shows downsampled removable chips, and snapshots its text/images at Send. It
+removes images individually after their paths enter the owning provider's input
+queue, retains the remaining images/text after failure, skips a waiting image
+removed during an earlier upload, and preserves edits made during sending. Raw
+SSH queue acceptance is not a remote application acknowledgement. Images-only
+Send does not press Enter. Composer images receive a trailing space so adjacent
+paths and captions remain distinct shell words; the reviewed iOS SSH helper
+inserts its path without this separator. Direct image paste retains that raw
+path-only behavior, with no automatic Enter or added space.
+
+Drafts belong to an account pool rather than a transient view. Plain shells keep
+their draft until removed; tmux/cmux-tui drafts survive view and transport
+replacement when terminal identity, saved route and verified server keys match.
+An edited route or newly trusted replacement server cannot inherit old draft
+bytes. Authoritative topology prunes removed panes, terminals and cmux owners;
+host removal, account close and owner cancellation retire their drafts. A fresh
+plain-shell reconnect is a new PTY with a new identity. The store is deliberately
+in memory, bounded by the existing 10-item/32 MiB per-terminal and 20-item/64 MiB
+account attachment limits, with 5 MiB prepared images. It does not claim recovery
+of SSH drafts after process death. The native paired-Mac draft repository is
+unchanged. Files continue through the SSH Files screen; the iOS arbitrary-file
+composer contract requires the separate Mac attachment capability.
+
+Reference: targeted `MobileShellComposite.swift`, `+SSHPaste.swift`,
+`+SSHComputers.swift` and `String+RemotePathShellWord.swift` at `0fc35d6`. The broad
+source pin is unchanged. Physical Pixel/Mac and real remote TUI image acceptance
+remain open. Signed build 448 predates this change.
+
+Verification: **23 focused JVM checks** passed (draft ownership/quotas, changed
+routes and verified keys, shared native draft behavior, and ordered binary/text
+input). The combined API 37 / 16 KB run passed **17 Android checks in 147.452s**:
+five input-controller cases, three image UI cases, four mouse/focus regressions,
+and five actual SSH shell workflows. A subsequent controller guard prevents a
+Send tap arriving before the next Compose frame from snapshotting ahead of image
+preparation; the Files action also checks live queue state before opening. The
+final focused run passed **10 checks in 49.387s**, including the new timing case,
+all six controller cases, all three image UI cases and the actual SSH image flow.
+That is 18 distinct successful Android cases across these runs, with no skips.
+
+The real SSH fixture verified decoded image dimensions/pixels over SFTP and the
+exact path plus Unicode caption echoed through the owning PTY. Photo-picker
+cancel/reopen, no upload before Send, images-only sends, stale IME retirement,
+view return, partial sends, mid-upload edits, grant release, uncertain recovery
+and mouse ordering all have focused evidence. The first live image run reached
+its final assertion but counted the empty field's placeholder as text; the test
+now checks `EditableText` explicitly. Its original failure output is retained.
+
+The final debug/test APK build passed in **21s**. The reviewed screenshots show
+the prepared thumbnail/chip, enabled Send and real SSH echo. Component Activity
+system bars are fixture presentation, not proof of production Activity/Pixel
+styling. The loopback fixture and existing emulator were stopped afterward. No
+physical device, personal SSH home or account data was modified.
+
+- Evidence: ignored `captures/runtime/ssh-image-input/`, especially `before-admission-guard/` and `final/`.
+- Debug SHA-256: `51cb70094a1db3eaa5a41eb93f5231ab1d20ed036e42aef2dda5fa71c9a2ea69`.
+- Test SHA-256: `2423b78011e1d830dad24ba09cd1cd9d9c23f339bd0a55f3b7da4e000f0b48d6`.
+- Real provider acceptance in this checkpoint is plain SSH. tmux/cmux-tui image callbacks are wired to their original transports, but live remote application and Pixel checks remain open.
+
 ## SSH image upload backend (2026-10-03)
 
 Targeted review of `MobileShellComposite+SSHPaste.swift` at `0fc35d6` confirms
@@ -42,7 +112,7 @@ unconfirmed outcome and never automatically replay. A canceled channel may leave
 only its uniquely named staging file. No remote file is deleted merely because
 its final publication reply was lost.
 
-**Integration boundary:** this is the upload backend, not a claim that SSH
+**Historical backend boundary (integration is now described above):** this was the upload backend, not a claim that SSH
 keyboard/composer image paste is available yet. Next, bind it to the exact plain
 SSH/tmux/cmux-tui terminal transport; reserve an ordered input action before URI
 preparation; keep later text and raw mouse bytes behind it; release IME grants on

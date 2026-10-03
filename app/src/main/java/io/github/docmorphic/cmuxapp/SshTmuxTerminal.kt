@@ -11,7 +11,12 @@ import kotlinx.coroutines.flow.asStateFlow
 internal class SshTmuxTerminal(override val id: String, val workspace: SshTmuxWorkspace,
     pane: SshTmuxPaneRow, private val control: SshTmuxControl, lifetime: CoroutineScope,
     private val admitted: () -> Boolean,
+    override val composer: SshComposerPool.Draft? = null,
+    private val uploadImage: SshImageUpload? = null,
 ) : SshTerminal {
+    override val imageUpload: SshImageUpload? = uploadImage?.let { upload -> { bytes, format ->
+        check(allowed()); val path = upload(bytes, format); check(allowed()); path
+    } }
     var pane = pane; private set
     override val title get() = pane.title
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
@@ -108,6 +113,7 @@ internal class SshTmuxTerminal(override val id: String, val workspace: SshTmuxWo
 
 internal class SshTmuxHosts(private val connections: SshConnections<SshTransport>, lifetime: CoroutineScope,
     private val admitted: () -> Boolean,
+    private val drafts: SshComposerPool = SshComposerPool(),
 ) : AutoCloseable {
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
@@ -125,7 +131,7 @@ internal class SshTmuxHosts(private val connections: SshConnections<SshTransport
         check(job.isActive && admitted() && connection.isConnected)
         hosts[id]?.takeIf { it.connection === connection }?.let { return it }
         hosts.remove(id)?.close()
-        return SshTmuxHost(id, connection, scope, { job.isActive && admitted() }).also { hosts[id] = it }
+        return SshTmuxHost(id, connection, scope, { job.isActive && admitted() }, drafts).also { hosts[id] = it }
     }
     private fun closeAll() { hosts.values.toList().forEach { it.close() }; hosts.clear() }
     override fun close() { job.cancel(); scope.launch(NonCancellable) { closeAll() } }

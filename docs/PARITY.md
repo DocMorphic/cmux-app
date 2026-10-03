@@ -12,13 +12,27 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## SSH keyboard and composer image integration (2026-10-03)
+
+Direct keyboard images, clipboard images and Android photo selection now feed the
+SSH image uploader. The shared screen orders uploads with later text/raw mouse
+bytes, retains account/terminal drafts across navigation, fences changed routes
+and verified server keys, and provides explicit recovery after unconfirmed input.
+Composer image sends preserve concurrent edits, remove accepted images
+individually and never press Enter for an images-only submission. A separator
+keeps composer image paths distinct from following paths/captions.
+Verification: 23 JVM checks and 18 distinct Android cases passed across the
+combined and final focused runs, including real plain-SSH/SFTP image delivery.
+[Ownership, source comparison and evidence](DIRECT_SSH.md#ssh-keyboard-and-composer-images-2026-10-03).
+Physical acceptance and the broader goal remain open; signed build 448 is unchanged.
+
 ## SSH image upload foundation (2026-10-03)
 
 The iOS SSH image destination/filename contract now has a tested SFTP backend:
 one pinned channel, private file permissions, collision handling, cancellation
 and no replay after an uncertain publication. Two JVM and seven real SFTP Android
-checks passed; the debug/test APK build passed. Keyboard/composer integration and
-physical acceptance remain open, so this does **not** mark SSH image paste complete.
+checks passed; the debug/test APK build passed. That checkpoint covered the backend; the UI integration is recorded above.
+Physical acceptance remains open, so SSH image paste is not yet marked complete.
 [Source contract, integration work and evidence](DIRECT_SSH.md#ssh-image-upload-backend-2026-10-03).
 The broad source pin and signed build 448 remain unchanged.
 

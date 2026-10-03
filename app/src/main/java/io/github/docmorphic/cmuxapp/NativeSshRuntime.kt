@@ -63,9 +63,23 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
         } finally { password.fill(0) }
     }
 
-    val shells = SshShells(hosts, connections, lifetime, admitted)
-    val tmux = SshTmuxHosts(connections, lifetime, admitted)
-    val cmux = SshCmuxHosts(connections, lifetime, admitted, cmuxInstaller) { id -> hosts.state.value.host(id)?.idleClose?.seconds }
+    private val composerDrafts = SshComposerPool()
+    val shells = SshShells(hosts, connections, lifetime, admitted, composerDrafts)
+    val tmux = SshTmuxHosts(connections, lifetime, admitted, composerDrafts)
+    val cmux = SshCmuxHosts(connections, lifetime, admitted, cmuxInstaller, composerDrafts) { id -> hosts.state.value.host(id)?.idleClose?.seconds }
+    init {
+        lifetime.launch(start = CoroutineStart.UNDISPATCHED) {
+            try { awaitCancellation() } finally { composerDrafts.close() }
+        }
+        lifetime.launch {
+            var previous = hosts.state.value.hosts.map { it.id }.toSet()
+            hosts.state.collect { current ->
+                val ids = current.hosts.map { it.id }.toSet()
+                (previous - ids).forEach { removed -> composerDrafts.discardWhere { it.startsWith("cmux-ssh-$removed") } }
+                previous = ids
+            }
+        }
+    }
     val browsers = SshBrowserNetworks(hosts, connections, lifetime) { !closed && admitted() }
     fun answerBiometric(id: UUID, signature: java.security.Signature?) = synchronized(lock) {
         if (!closed && admitted()) requests.value.firstOrNull()?.takeIf { it.id == id }?.answer(signature)
@@ -75,7 +89,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
             closed = true
             requests.value.forEach { it.cancel() }; requests.value = emptyList()
             installQuestions.value.forEach { it.cancel() }; installQuestions.value = emptyList()
-            browsers.close(); shells.close(); tmux.close(); cmux.close(); connections.close()
+            composerDrafts.close(); browsers.close(); shells.close(); tmux.close(); cmux.close(); connections.close()
         }
     }
 }

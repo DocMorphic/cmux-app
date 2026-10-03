@@ -15,7 +15,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--key-install", action="store_true", help="Run thirteen password key-install and editor checks against the isolated installation fixture")
     parser.add_argument("--ui", action="store_true", help="Run the four production SSH host-screen checks")
-    parser.add_argument("--shell-ui", action="store_true", help="Run four production SSH shell, browser round-trip and workspace creation checks")
+    parser.add_argument("--shell-ui", action="store_true", help="Run five production SSH shell, image upload, browser round-trip and workspace creation checks")
     parser.add_argument("--tmux-ui", action="store_true", help="Run the four real tmux workspace checks")
     parser.add_argument("--cmux-ui", action="store_true", help="Run eight real mixed cmux-tui/tmux/shell workspace checks")
     parser.add_argument("--cmux-browser", action="store_true", help="Run ten integrated real cmux-tui/tmux/Chrome browser workflow, picker, recovery and lost-input-reply checks")
@@ -33,7 +33,7 @@ def main():
         parser.error("Choose one UI suite")
     if (args.key_install or args.tmux_ui or args.cmux_ui or args.cmux_install or args.cmux_browser) and not args.fixture:
         parser.error("Real workspace checks require --fixture")
-    count = 4 if args.image_upload else 13 if args.key_install else 1 if args.ssh_tls or args.ssh_websocket else 10 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 9 if args.files_ui else 1 if args.cmux_install else 8 if args.cmux_ui else 4 if args.cmux_renderer else (4 if args.tmux_ui else (4 if args.shell_ui else (4 if args.ui else 14)))
+    count = 4 if args.image_upload else 13 if args.key_install else 1 if args.ssh_tls or args.ssh_websocket else 10 if args.cmux_browser else 5 if args.ssh_browser else 2 if args.files_pickers else 9 if args.files_ui else 1 if args.cmux_install else 8 if args.cmux_ui else 4 if args.cmux_renderer else (4 if args.tmux_ui else (5 if args.shell_ui else (4 if args.ui else 14)))
     test_class = "SshImageUploadTest" if args.image_upload else "SshKeyInstallerTest" if args.key_install else "SshBrowserWorkspaceTest" if args.cmux_browser else "SshBrowserTest" if args.ssh_browser or args.ssh_websocket or args.ssh_tls else "SshFilesScreenTest" if args.files_ui or args.files_pickers else "SshCmuxInstallTransportTest" if args.cmux_install else "SshWorkspacesScreenTest" if args.cmux_ui else "SshCmuxTerminalTest" if args.cmux_renderer else ("SshTmuxScreenTest" if args.tmux_ui else ("SshShellScreenTest" if args.shell_ui else ("SshComputersScreenTest" if args.ui else "SshTransportTest")))
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("This fixture runner refuses physical devices")

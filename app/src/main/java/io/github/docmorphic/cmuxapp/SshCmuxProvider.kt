@@ -16,7 +16,8 @@ internal data class SshCmuxState(val tree: SshCmuxTree? = null, val loading: Boo
  * cancel a submitted mutation; account/transport retirement closes the control.
  * Never retries input or mutations after an uncertain reply. */
 internal class SshCmuxProvider private constructor(val control: SshCmuxControl, lifetime: CoroutineScope,
-    private val idlePolicy: () -> Long?, private val admitted: () -> Boolean) : AutoCloseable {
+    private val idlePolicy: () -> Long?, private val admitted: () -> Boolean,
+    private val drafts: SshComposerPool, private val draftPrefix: String?, private val imageUpload: SshImageUpload?, private val draftRoute: SshDraftRoute?) : AutoCloseable {
     val session = checkNotNull(control.server).session
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job)
@@ -47,6 +48,10 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
         val tree = control.listWorkspaces(); guard()
         val old = mutable.value.tree
         check(old?.registry == null || old.registry == tree.registry) { "cmux-tui registry changed" }
+        draftPrefix?.let { prefix -> drafts.discardWhere { id ->
+            val target = id.takeIf { it.startsWith(prefix) }?.removePrefix(prefix)?.let(SshWorkspaceTarget::decode) as? SshWorkspaceTarget.Cmux
+            target?.selection?.let { it.session == session && it.resolve(session, tree) == null } == true
+        } }
         mutable.value = mutable.value.copy(tree = tree, error = null)
         for ((id, terminal) in terminals.toMap()) {
             val row = terminal.selection.resolve(session, tree)?.second
@@ -186,7 +191,7 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
         terminals.remove(id)?.retire()
         check(terminals.size < 16) { "Close a terminal before opening another" }
         applyIdlePolicy(row.surface)
-        SshCmuxTerminal.open(id, selection, row, control, scope, ::allowed).also { terminals[id] = it }
+        SshCmuxTerminal.open(id, selection, row, control, scope, drafts.open(id, draftRoute), imageUpload, ::allowed).also { terminals[id] = it }
       } }
       return try { opening.await() }
       catch (failure: CancellationException) {
@@ -223,8 +228,9 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
     }
     companion object {
         suspend fun open(control: SshCmuxControl, lifetime: CoroutineScope, idlePolicy: () -> Long? = { 86400L },
+            drafts: SshComposerPool = SshComposerPool(), draftPrefix: String? = null, imageUpload: SshImageUpload? = null, draftRoute: SshDraftRoute? = null,
             admitted: () -> Boolean): SshCmuxProvider {
-            val provider = SshCmuxProvider(control, lifetime, idlePolicy, admitted)
+            val provider = SshCmuxProvider(control, lifetime, idlePolicy, admitted, drafts, draftPrefix, imageUpload, draftRoute)
             try {
                 provider.guard(); control.request("subscribe"); provider.operations.withLock { provider.read() }
                 provider.mutable.value = provider.mutable.value.copy(loading = false)

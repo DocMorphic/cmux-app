@@ -5,6 +5,40 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TerminalInputQueueTest {
+    @Test fun binaryMouseBytesAreCopiedOrderedBehindImagesAndErasedAfterDelivery() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val ready = CompletableDeferred<Unit>()
+        val order = mutableListOf<String>()
+        var borrowed: ByteArray? = null
+        val queue = TerminalInputQueue(scope) { entry ->
+            borrowed = entry.rawBytes
+            assertArrayEquals(byteArrayOf(27, 91, 77, 32, 183.toByte(), 35), entry.rawBytes)
+            order += "mouse"
+        }
+        try {
+            queue.offerAction({}) { ready.await(); order += "image" }
+            val mouse = byteArrayOf(27, 91, 77, 32, 183.toByte(), 35)
+            assertTrue(queue.offerBytes(mouse)); mouse.fill(0)
+            assertTrue(order.isEmpty())
+            ready.complete(Unit); queue.awaitIdle()
+            assertEquals(listOf("image", "mouse"), order)
+            assertTrue(borrowed!!.all { it == 0.toByte() })
+        } finally { queue.close(); scope.cancel() }
+    }
+
+    @Test fun binaryOverflowDropsWaitingInputAndNeverMutatesTheCallersBuffer() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val queue = TerminalInputQueue(scope) { error("Discarded binary input must not run") }
+        try {
+            queue.offerAction({}) { awaitCancellation() }
+            val bytes = ByteArray(TerminalInputQueue.MAX_PENDING_BYTES) { 7 }
+            assertFalse(queue.offerBytes(bytes))
+            assertNotNull(queue.status.value.error)
+            assertTrue(bytes.all { it == 7.toByte() })
+            queue.close(); assertFalse(queue.offerBytes(byteArrayOf(1)))
+        } finally { queue.close(); scope.cancel() }
+    }
+
     @Test fun imagePreparationReservesItsPlaceAheadOfLaterKeysAndReleasesOnce() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
         val prepared = CompletableDeferred<Unit>()

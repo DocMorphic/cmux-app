@@ -75,6 +75,56 @@ class SshShellScreenTest {
         File(compose.activity.getExternalFilesDir(null), "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }
+    @Test fun clipboardImageStagesThenUploadsThroughTheSameLiveSshTerminal() {
+        val shell = open()
+        val priorImages = runBlocking {
+            val transport = session.connections.open(host.id)
+            try { SshFiles { transport }.list("/.cmux/uploads").map { it.name }.toSet() }
+            catch (error: com.jcraft.jsch.SftpException) {
+                if (error.id != com.jcraft.jsch.ChannelSftp.SSH_FX_NO_SUCH_FILE) throw error
+                emptySet()
+            }
+        }
+        val context = compose.activity
+        val directory = File(context.cacheDir, "task-previews").apply { mkdirs() }
+        val photo = File(directory, "ssh-live-${UUID.randomUUID()}.png")
+        android.graphics.Bitmap.createBitmap(32, 16, android.graphics.Bitmap.Config.ARGB_8888).also { bitmap ->
+            bitmap.eraseColor(android.graphics.Color.MAGENTA)
+            photo.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
+        }
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.task-previews", photo)
+            compose.onNodeWithTag("ssh.shell.composer").performTextInput("describe λ")
+            compose.runOnIdle {
+                context.getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(
+                    android.content.ClipData.newUri(context.contentResolver, "Image fixture", uri))
+            }
+            compose.onNodeWithContentDescription("Paste").performScrollTo().performClick()
+            compose.waitUntil(10_000) { shell.composer.current.attachments.size == 1 }
+            compose.onNodeWithTag("ssh.shell.composer").assertTextContains("describe λ")
+            capture("ssh-live-image-staged")
+            compose.onNodeWithTag("ssh.shell.send").performClick()
+            compose.waitUntil(15_000) { shell.composer.current.attachments.isEmpty() && shell.composer.current.operation == null }
+            val uploaded = runBlocking {
+                val transport = session.connections.open(host.id)
+                val files = SshFiles { transport }
+                val name = files.list("/.cmux/uploads").single { it.name.endsWith(".png") && it.name !in priorImages }.name
+                val bytes = transport.withSftp { it.get("/.cmux/uploads/$name").use { stream -> stream.readBytes() } }
+                val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                assertEquals(32, bitmap.width); assertEquals(16, bitmap.height)
+                assertEquals(android.graphics.Color.MAGENTA, bitmap.getPixel(0, 0)); bitmap.recycle()
+                "'/.cmux/uploads/$name' describe λ"
+            }
+            waitText(shell, "ECHO $uploaded")
+            capture("ssh-live-image-sent")
+            compose.onNodeWithTag("ssh.shell.composer").assert(SemanticsMatcher.expectValue(
+                androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString("")))
+        } finally {
+            photo.delete()
+            compose.runOnIdle { context.getSystemService(android.content.ClipboardManager::class.java).clearPrimaryClip() }
+        }
+    }
+
     @Test fun shellRendersAnsiAnswersQueriesAndKeepsSessionAcrossNavigation() {
         val shell = open()
         command("vt-demo"); waitText(shell, "Green λ 中")

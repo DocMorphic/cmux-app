@@ -43,6 +43,7 @@ import kotlin.coroutines.resumeWithException
 
 internal data class SshTrustQuestion(val hostId: UUID, val endpoint: SshEndpoint,
     val prior: SshTrustSnapshot, val presented: SshHostKey)
+internal data class SshDraftRoute(val plan: SshDialPlan, val hostKeys: Map<UUID, String>)
 internal data class SshExecResult(val stdout: ByteArray, val stderr: ByteArray, val exitStatus: Int)
 
 internal interface SshManagedConnection : AutoCloseable {
@@ -79,6 +80,7 @@ internal class SshTransport private constructor(
     private val ended = kotlinx.coroutines.flow.MutableStateFlow(false)
     override val disconnected: kotlinx.coroutines.flow.StateFlow<Boolean> = ended
     override val isConnected: Boolean get() = !closed.get() && ready?.isConnected == true
+    internal val draftRoute get() = SshDraftRoute(plan, synchronized(lock) { serverKeys.mapValues { it.value.openSsh } })
     internal val activeChannels: Int get() = synchronized(lock) { channels.size }
 
     init {

@@ -16,6 +16,7 @@ internal data class SshCmuxHostState(val loading: Boolean = true, val available:
  * reported independently; they cannot hide reachable owners on the same host. */
 internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifetime: CoroutineScope,
     private val admitted: () -> Boolean, private val installer: SshCmuxInstaller? = null,
+    private val drafts: SshComposerPool = SshComposerPool(),
     private val idlePolicy: () -> Long? = { 86400L }) : AutoCloseable {
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
@@ -56,6 +57,11 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
         }
         val sockets = remote.listSockets(); guard()
         val live = sockets.map { it.digest }.toSet()
+        val prefix = "cmux-ssh-$hostId\n"
+        drafts.discardWhere { id ->
+            val target = id.takeIf { it.startsWith(prefix) }?.removePrefix(prefix)?.let(SshWorkspaceTarget::decode) as? SshWorkspaceTarget.Cmux
+            target != null && SshCmuxDiscovery.digest(target.selection.session) !in live
+        }
         for (id in providers.keys.toList().filter { it !in live }) providers.remove(id)?.close()
         val errors = mutableListOf<String>()
         for (socket in sockets) {
@@ -66,7 +72,8 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
             var control: SshCmuxControl? = null
             try {
                 control = remote.connect(binary, socket); guard()
-                val provider = SshCmuxProvider.open(control, scope, idlePolicy) { !closed && job.isActive && admitted() && connection.isConnected }
+                val provider = SshCmuxProvider.open(control, scope, idlePolicy, drafts, "cmux-ssh-$hostId\n",
+                    { bytes, format -> guard(); SshFiles { connection }.uploadImage(bytes, format).also { guard() } }, connection.draftRoute) { !closed && job.isActive && admitted() && connection.isConnected }
                 guard(); providers[socket.digest] = provider
             } catch (failure: Exception) {
                 control?.close()
@@ -104,7 +111,8 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
         }
         try {
             guard()
-            val provider = SshCmuxProvider.open(control, scope, idlePolicy) { !closed && job.isActive && admitted() && connection.isConnected }
+            val provider = SshCmuxProvider.open(control, scope, idlePolicy, drafts, "cmux-ssh-$hostId\n",
+                    { bytes, format -> guard(); SshFiles { connection }.uploadImage(bytes, format).also { guard() } }, connection.draftRoute) { !closed && job.isActive && admitted() && connection.isConnected }
             guard(); providers.remove(id)?.close(); providers[id] = provider
             mutable.value = mutable.value.copy(available = true, providers = providers.values.toList())
             return provider
@@ -139,6 +147,7 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
 
 internal class SshCmuxHosts(private val connections: SshConnections<SshTransport>, lifetime: CoroutineScope,
     private val admitted: () -> Boolean, private val installer: SshCmuxInstaller? = null,
+    private val drafts: SshComposerPool = SshComposerPool(),
     private val idlePolicy: (UUID) -> Long? = { 86400L }) : AutoCloseable {
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
@@ -154,7 +163,7 @@ internal class SshCmuxHosts(private val connections: SshConnections<SshTransport
         check(job.isActive && admitted() && connection.isConnected)
         hosts[id]?.takeIf { it.connection === connection }?.let { return it }
         hosts.remove(id)?.close()
-        return SshCmuxHost(id, connection, scope, { job.isActive && admitted() }, installer, { idlePolicy(id) }).also { hosts[id] = it }
+        return SshCmuxHost(id, connection, scope, { job.isActive && admitted() }, installer, drafts, { idlePolicy(id) }).also { hosts[id] = it }
     }
     private fun closeAll() { hosts.values.toList().forEach { it.close() }; hosts.clear() }
     override fun close() { job.cancel(); scope.launch(NonCancellable) { closeAll() } }

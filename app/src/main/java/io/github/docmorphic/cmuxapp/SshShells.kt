@@ -13,9 +13,18 @@ internal data class SshShellState(val phase: SshShellPhase = SshShellPhase.OPENI
 internal class SshShell(
     val hostId: UUID, override val title: String, lifetime: CoroutineScope,
     private val admitted: () -> Boolean,
+    drafts: SshComposerPool = SshComposerPool(),
     private val connect: suspend () -> SshTransport,
 ) : SshTerminal {
     override val id = "cmux-ssh-$hostId:shell:${UUID.randomUUID()}"
+    override val composer = drafts.open(id)
+    override val imageUpload: SshImageUpload = { bytes, format ->
+        check(allowed() && state.value.phase == SshShellPhase.RUNNING)
+        val transport = checkNotNull(connection)
+        val path = SshFiles { transport }.uploadImage(bytes, format)
+        check(allowed() && connection === transport)
+        path
+    }
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
     private val mutable = MutableStateFlow(SshShellState())
@@ -137,7 +146,7 @@ internal class SshShell(
     }
     override fun close() {
         if (disposed) return
-        end(null); disposed = true; display.close()
+        end(null); disposed = true; display.close(); composer.close()
     }
     companion object { private const val MAX_PENDING_BYTES = 256 * 1024 }
 }
@@ -145,6 +154,7 @@ internal class SshShell(
 /** One device-local shell registry per account owner. Host IDs never enter a Mac RPC route. */
 internal class SshShells(private val hosts: SshHostStore, private val connections: SshConnections<SshTransport>,
     lifetime: CoroutineScope, private val admitted: () -> Boolean,
+    private val drafts: SshComposerPool = SshComposerPool(),
 ) : AutoCloseable {
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
@@ -163,7 +173,7 @@ internal class SshShells(private val hosts: SshHostStore, private val connection
         check(job.isActive && admitted()) { "Sign in to open an SSH shell" }
         check(hosts.state.value.host(hostId) != null) { "SSH computer was removed" }
         check(mutable.value.size < 16) { "Close an SSH shell before opening another" }
-        SshShell(hostId, "Shell ${++counter}", scope, { job.isActive && admitted() }) {
+        SshShell(hostId, "Shell ${++counter}", scope, { job.isActive && admitted() }, drafts) {
             connections.open(hostId)
         }.also { mutable.value += it }
     }
@@ -175,7 +185,7 @@ internal class SshShells(private val hosts: SshHostStore, private val connection
         check(previous.state.value.phase == SshShellPhase.ENDED) { "This SSH shell is still running" }
         connections.open(previous.hostId)
         check(job.isActive && admitted() && mutable.value.any { it === previous }) { "SSH shell changed while reconnecting" }
-        val next = SshShell(previous.hostId, "Shell ${++counter}", scope, { job.isActive && admitted() }) {
+        val next = SshShell(previous.hostId, "Shell ${++counter}", scope, { job.isActive && admitted() }, drafts) {
             connections.open(previous.hostId)
         }
         mutable.value = mutable.value.map { if (it === previous) next else it }

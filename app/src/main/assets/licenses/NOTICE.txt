@@ -296,3 +296,11 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android resolves HOME and creates folders through SFTP on one pinned channel,
 uses private file modes and collision-safe publication, and preserves uncertain
 upload outcomes without reconnecting or automatically retrying.
+
+SshComposerDrafts.kt and SshTerminalInput.kt adapt pending-image staging and
+ordered submission behavior from MobileShellComposite.swift and the SSH paste
+flow in MobileShellComposite+SSHPaste.swift at cmux revision
+0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses bounded account-owned drafts, Android content grants and an ordered
+input lane with explicit recovery, lifecycle cancellation and SSH route identity.

@@ -33,7 +33,11 @@ internal object SshCmuxColors {
  * Input is ordered and bounded; geometry hints are conflated to the latest UI. */
 internal class SshCmuxTerminal private constructor(override val id: String, val selection: SshCmuxSelection,
     tab: SshCmuxTab, private val control: SshCmuxControl, private val owner: CoroutineScope,
-    private val admitted: () -> Boolean) : SshTerminal {
+    private val admitted: () -> Boolean, override val composer: SshComposerPool.Draft?,
+    private val uploadImage: SshImageUpload?) : SshTerminal {
+    override val imageUpload: SshImageUpload? = uploadImage?.let { upload -> { bytes, format ->
+        check(allowed()); val path = upload(bytes, format); check(allowed()); path
+    } }
     var tab = tab; private set
     override val title get() = tab.name?.takeIf { it.isNotBlank() } ?: tab.title.ifBlank { "Terminal" }
     private val job = SupervisorJob(checkNotNull(owner.coroutineContext[Job]))
@@ -147,8 +151,9 @@ internal class SshCmuxTerminal private constructor(override val id: String, val 
     override fun close() { if (!disposed) { end(null); disposed = true; display.close() } }
     companion object {
         suspend fun open(id: String, selection: SshCmuxSelection, tab: SshCmuxTab, control: SshCmuxControl,
-            owner: CoroutineScope, admitted: () -> Boolean): SshCmuxTerminal {
-            val terminal = SshCmuxTerminal(id, selection, tab, control, owner, admitted)
+            owner: CoroutineScope, composer: SshComposerPool.Draft? = null,
+            imageUpload: SshImageUpload? = null, admitted: () -> Boolean): SshCmuxTerminal {
+            val terminal = SshCmuxTerminal(id, selection, tab, control, owner, admitted, composer, imageUpload)
             try {
                 val view = control.attach(tab.surface, 80, 24, terminal::event)
                 terminal.attachment = view

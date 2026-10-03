@@ -69,6 +69,7 @@ internal data class SshTmuxHostState(val loading: Boolean = true, val available:
  * and view disposal does not cancel shared discovery/control clients. */
 internal class SshTmuxHost(val hostId: UUID, val connection: SshTransport, lifetime: CoroutineScope,
     private val admitted: () -> Boolean,
+    private val drafts: SshComposerPool = SshComposerPool(),
 ) : AutoCloseable {
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
@@ -133,6 +134,8 @@ internal class SshTmuxHost(val hostId: UUID, val connection: SshTransport, lifet
             emptyList()
         }
         mutable.value = mutable.value.copy(available = true, workspaces = workspaces, error = null)
+        val draftIds = workspaces.flatMap { workspace -> workspace.panes.map { "cmux-ssh-$hostId:tmux:${workspace.id}/%${it.id}" } }.toSet()
+        drafts.discardWhere { it.startsWith("cmux-ssh-$hostId:tmux:") && it !in draftIds }
         val live = workspaces.map { it.id }.toSet()
         for (id in controls.keys.toList().filter { it !in live }) controls.remove(id)?.close()
         for ((id, terminal) in terminals.toMap()) {
@@ -234,7 +237,8 @@ internal class SshTmuxHost(val hostId: UUID, val connection: SshTransport, lifet
         // Another view may have finished the shared control open first.
         terminals[id]?.takeUnless { it.state.value.phase == SshShellPhase.ENDED || it.pane.window != pane.window }?.let { return@withLock it }
         terminals.remove(id)?.close()
-        SshTmuxTerminal(id, workspace, pane, client, scope, { !closed && job.isActive && admitted() && connection.isConnected }).also { terminals[id] = it }
+        SshTmuxTerminal(id, workspace, pane, client, scope, { !closed && job.isActive && admitted() && connection.isConnected },
+            drafts.open(id, connection.draftRoute), { bytes, format -> guard(); SshFiles { connection }.uploadImage(bytes, format).also { guard() } }).also { terminals[id] = it }
       }
     }.await()
     override fun close() {

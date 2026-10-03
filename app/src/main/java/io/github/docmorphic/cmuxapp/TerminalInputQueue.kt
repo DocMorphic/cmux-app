@@ -12,8 +12,9 @@ import kotlinx.coroutines.launch
 
 /** One ordered, bounded lane for keys and clipboard paste. Failed input is never replayed. */
 class TerminalInputQueue(scope: CoroutineScope, private val deliver: suspend (Entry) -> Unit) : AutoCloseable {
-    data class Entry(val text: String, val paste: Boolean = false, internal val action: Action? = null) {
-        val bytes = if (action != null) 1 else text.toByteArray(Charsets.UTF_8).size
+    data class Entry(val text: String, val paste: Boolean = false, internal val action: Action? = null,
+        val rawBytes: ByteArray? = null) {
+        val bytes = if (action != null) 1 else rawBytes?.size ?: text.toByteArray(Charsets.UTF_8).size
     }
     class Action internal constructor(val run: suspend () -> Unit, private val release: () -> Unit) : AutoCloseable {
         private val closed = java.util.concurrent.atomic.AtomicBoolean()
@@ -47,6 +48,7 @@ class TerminalInputQueue(scope: CoroutineScope, private val deliver: suspend (En
                     if (failure is CancellationException && !currentCoroutineContext().isActive) throw failure
                     break
                 } finally {
+                    entry.rawBytes?.fill(0)
                     entry.action?.close()
                     if (entry.action != null) synchronized(this@TerminalInputQueue) { pendingActions-- }
                 }
@@ -67,6 +69,20 @@ class TerminalInputQueue(scope: CoroutineScope, private val deliver: suspend (En
     @Synchronized fun offer(text: String, paste: Boolean = false): Boolean {
         if (text.isEmpty()) return true
         return enqueue(Entry(text, paste))
+    }
+
+    /** Owned binary input, including legacy mouse reports which are not UTF-8.
+     * The delivery callback must consume/copy it before returning. */
+    @Synchronized fun offerBytes(bytes: ByteArray): Boolean {
+        if (bytes.isEmpty()) return true
+        if (state.value.closed || state.value.error != null) return false
+        if (bytes.size > MAX_PENDING_BYTES - state.value.pendingBytes) {
+            fail("Typing paused because the connection could not keep up. Check the terminal before resuming.")
+            return false
+        }
+        val owned = bytes.copyOf()
+        if (enqueue(Entry("", rawBytes = owned))) return true
+        owned.fill(0); return false
     }
 
     /** Reserve ordering before asynchronous image decoding. Owns release even when rejected. */
@@ -130,7 +146,10 @@ class TerminalInputQueue(scope: CoroutineScope, private val deliver: suspend (En
     }
 
     private fun discardQueued() {
-        entries.forEach { entry -> entry.action?.let { it.close(); pendingActions-- } }
+        entries.forEach { entry ->
+            entry.rawBytes?.fill(0)
+            entry.action?.let { it.close(); pendingActions-- }
+        }
         entries.clear()
     }
 

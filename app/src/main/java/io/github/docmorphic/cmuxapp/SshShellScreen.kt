@@ -2,6 +2,11 @@ package io.github.docmorphic.cmuxapp
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -55,21 +60,45 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     RetireTerminalInputOnBackground(rawKeyboard)
     var modifiers by remember { mutableStateOf(TerminalInputModifiers()) }
     var scroll by remember(shell.id) { mutableDoubleStateOf(0.0) }
-    var draft by remember(shell.id) { mutableStateOf("") }
+    val fallbackDrafts = remember(shell) { SshComposerPool() }
+    val composer = remember(shell) { shell.composer ?: fallbackDrafts.open(shell.id) }
+    val drafts by composer.state.collectAsState()
+    val draft = drafts[composer.target] ?: TerminalDrafts.Draft()
+    val scope = rememberCoroutineScope()
+    val attachmentFiles = remember(context) { AttachmentFiles(context) }
+    val available by rememberUpdatedState(state.phase == SshShellPhase.RUNNING && !reconnecting)
+    val input = remember(shell, composer) {
+        SshTerminalInput(shell, composer, scope, { available }) { uri -> attachmentFiles.prepare(uri, image = true) }
+    }
+    val inputStatus by input.queue.status.collectAsState()
+    val pasteMessage by input.message.collectAsState()
+    val preparing = inputStatus.pendingBytes > 0
+    var pickerTarget by remember(shell) { mutableStateOf<SshTerminal?>(null) }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
+        val target = pickerTarget; pickerTarget = null
+        if (target === shell && uris.isNotEmpty()) input.paste(TerminalPasteContent(
+            uris.map { TerminalPasteContent.Item.Attachment(it, true) }), direct = false)
+    }
     var snapshot by remember { mutableStateOf<TerminalTextSnapshot?>(null) }
     var shortcuts by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val hardware = remember(shell.id) { TerminalHardwareInput() }
     val focus = remember { FocusRequester() }
     val display = shell.display
-    val canInput = state.phase == SshShellPhase.RUNNING && !reconnecting
-    val interactions = remember(shell) { SshTerminalInteraction(shell) }
-    ObserveSshTerminalFocus(interactions, canInput)
+    val canInput = available && inputStatus.error == null && !inputStatus.closed
+    val orderedTerminal = remember(shell, input) { object : SshTerminal by shell {
+        override fun send(text: String, paste: Boolean) = input.send(text, paste)
+        override fun sendBytes(bytes: ByteArray) = input.sendBytes(bytes)
+    } }
+    val interactions = remember(orderedTerminal) { SshTerminalInteraction(orderedTerminal) }
+    // Focus is a current lifecycle signal, not deferred typing. Focus-out must
+    // reach the provider even when a disposed view cancels a pending paste.
+    ObserveSshTerminalFocus(remember(shell) { SshTerminalInteraction(shell) }, available)
     val motion = rememberTerminalScrollMotion(shell.id, shell)
     fun write(text: String, paste: Boolean = false): Boolean {
         if (!canInput) return false
         motion.stop(); scroll = 0.0
-        return shell.send(text, paste)
+        return input.send(text, paste)
     }
     fun key(event: android.view.KeyEvent): Boolean {
         if (!canInput) return false
@@ -84,7 +113,13 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     fun showKeyboard() { if (canInput) { motion.stop(); direct = true; rawKeyboard?.showKeyboard() } }
     fun showText() { motion.stop(); keyboard?.hide(); snapshot = TerminalTextSnapshot.capture(display) }
     BackHandler { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }
-    DisposableEffect(shell) { onDispose { rawKeyboard?.dispose(); motion.stop() } }
+    DisposableEffect(shell, input) { onDispose {
+        rawKeyboard?.dispose(); motion.stop(); input.close(); fallbackDrafts.close()
+    } }
+    fun showFiles() {
+        rawKeyboard?.finishComposition()
+        if (input.queue.status.value.let { it.pendingBytes == 0 && it.error == null && !it.closed }) { direct = false; keyboard?.hide(); onFiles?.invoke() }
+    }
     val viewport = TerminalViewport.fit(size.width, size.height, cells)
     val geometry = TerminalGeometry.fit(size.width.toFloat(), size.height.toFloat(), display.columns, display.rows, cells)
     fun scrollTerminal(rows: Double, cell: TerminalGeometry.Cell): Boolean {
@@ -114,7 +149,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                 }
             }
             TextButton(onClick = ::showText, modifier = Modifier.testTag("ssh.shell.text")) { Text("Text") }
-            if (onFiles != null) TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onFiles() }, modifier = Modifier.testTag("ssh.shell.files")) { Text("Files") }
+            if (onFiles != null) TextButton(onClick = ::showFiles, enabled = !preparing && inputStatus.error == null && !inputStatus.closed, modifier = Modifier.testTag("ssh.shell.files")) { Text("Files") }
             TextButton(onClick = {
                 if (direct) { rawKeyboard?.finishComposition(); direct = false; keyboard?.hide() } else showKeyboard()
             }, enabled = canInput) { Text(if (direct) "Compose" else "Keyboard") }
@@ -153,39 +188,67 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             if (scroll > 0) TextButton(onClick = { motion.stop(); scroll = 0.0 }, modifier = Modifier.align(Alignment.BottomEnd)) { Text("Latest") }
             TerminalZoomOverlay(zoom, preferences, foreground = Color(0xFFE0E5EB), background = Color(0xFF111316), modifier = Modifier.align(Alignment.Center))
         }
-        TerminalToolbarView(toolbar.layout, modifiers, canInput, filesEnabled = onFiles != null,
+        inputStatus.error?.let { error ->
+            Text(error, Modifier.padding(horizontal = 12.dp).testTag("ssh.shell.input-error"), color = MaterialTheme.colorScheme.error)
+            TextButton(onClick = { input.resume() }, enabled = available, modifier = Modifier.testTag("ssh.shell.resume-input")) { Text("Resume typing") }
+        }
+        TerminalToolbarView(toolbar.layout, modifiers, canInput, filesEnabled = onFiles != null && !preparing,
             onModifier = { modifiers = modifiers.tap(it, android.os.SystemClock.uptimeMillis()) },
             onButton = { button ->
                 rawKeyboard?.finishComposition()
                 when (button) {
                     TerminalToolbarButton.PASTE -> {
-                        val clip = context.getSystemService(android.content.ClipboardManager::class.java).primaryClip
-                        val text = clip?.let { if (it.itemCount > 0) it.getItemAt(0).text?.toString() else null }
-                        if (text != null) write(text, paste = true) else message = "No text in the clipboard."
+                        try {
+                            val clip = context.getSystemService(android.content.ClipboardManager::class.java).primaryClip
+                            if (clip == null) message = "The clipboard is empty."
+                            else input.paste(TerminalPasteContent.fromClipboard(context, clip), direct)
+                        } catch (_: Exception) { message = "Could not read the clipboard." }
                     }
                     TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT -> zoom.step(if (button == TerminalToolbarButton.ZOOM_IN) 1 else -1)
-                    TerminalToolbarButton.FILES -> { keyboard?.hide(); onFiles?.invoke() }
+                    TerminalToolbarButton.FILES -> showFiles()
                     else -> button.key?.let { write(modifiers.special(it, display.applicationCursorKeys)); modifiers = modifiers.consume() }
                 }
             }, onCustom = { rawKeyboard?.finishComposition(); modifiers = TerminalInputModifiers(); write(it.output) },
             onCustomize = { keyboard?.hide(); shortcuts = true })
         if (state.phase == SshShellPhase.ENDED) Text(state.error ?: "Shell ended", Modifier.padding(12.dp), color = MaterialTheme.colorScheme.error)
-        message?.let { Text(it, Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.error) }
+        (message ?: pasteMessage ?: draft.error)?.let { Text(it, Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.error) }
         if (direct) AndroidView(factory = { viewContext -> TerminalKeyboardView(viewContext).also { view -> rawKeyboard = view; view.post { view.showKeyboard() } } },
             update = { view ->
                 view.isEnabled = canInput
                 view.onText = { text -> write(modifiers.text(text)); modifiers = modifiers.consume() }
                 view.onKey = ::key
                 view.onPaste = { write(it, paste = true) }
+                view.onContent = if (input.supportsImages) ({ content -> input.paste(content, direct = true) }) else null
                 view.onContentError = { message = it }
                 view.onReturn = { write("\r") }
             }, modifier = Modifier.fillMaxWidth().height(36.dp).testTag("ssh.shell.keyboard"),
             onRelease = { it.dispose(); if (rawKeyboard === it) rawKeyboard = null })
-        else Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(draft, { draft = it }, Modifier.weight(1f).testTag("ssh.shell.composer"),
-                placeholder = { Text("Message or command") }, maxLines = 5, enabled = canInput)
-            TextButton(onClick = { if (write(TerminalKeyEncoding.paste(draft, display.bracketedPaste) + "\r")) draft = "" },
-                enabled = canInput && draft.isNotEmpty(), modifier = Modifier.testTag("ssh.shell.send")) { Text("Send") }
+        else {
+            if (draft.attachments.isNotEmpty() || preparing) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                draft.attachments.forEach { attachment ->
+                    InputChip(selected = false, onClick = {},
+                        label = { Text(attachment.name, maxLines = 1, modifier = Modifier.widthIn(max = 180.dp)) },
+                        leadingIcon = { SshAttachmentThumbnail(composer, attachment) },
+                        trailingIcon = { TextButton(onClick = { composer.remove(attachment.id) },
+                            modifier = Modifier.semantics { contentDescription = "Remove ${attachment.name}" }) { Text("×") } },
+                        modifier = Modifier.padding(end = 6.dp).testTag("ssh.shell.image.${attachment.id}"))
+                }
+                if (preparing) Text(if (draft.operation != null) "Sending…" else "Preparing…")
+            }
+            Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (input.supportsImages) IconButton(onClick = { pickerTarget = shell; photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    enabled = canInput && !preparing && draft.operation == null,
+                    modifier = Modifier.testTag("ssh.shell.attach").semantics { contentDescription = "Attach image" }) { Text("+", fontSize = 24.sp) }
+                RichContentEditor(owner = shell, enabled = canInput && input.supportsImages && draft.operation == null,
+                    onContent = { input.paste(it, direct = false) }, onError = { message = it }) {
+                    OutlinedTextField(draft.text, { composer.edit(it) }, Modifier.weight(1f).testTag("ssh.shell.composer"),
+                        placeholder = { Text("Message or command") }, maxLines = 5, enabled = canInput)
+                }
+                TextButton(onClick = { rawKeyboard?.finishComposition(); motion.stop(); scroll = 0.0; input.submit() },
+                    enabled = canInput && !preparing && draft.operation == null && (draft.text.isNotEmpty() || draft.attachments.isNotEmpty()),
+                    modifier = Modifier.testTag("ssh.shell.send")) { Text(if (draft.operation == null) "Send" else "Sending…") }
+            }
         }
     }
 }

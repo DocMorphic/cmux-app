@@ -74,6 +74,8 @@ class TerminalDrafts(saved: JSONArray? = null) {
 
     @Synchronized fun clear() { generation++; mutable.value = emptyMap() }
 
+    @Synchronized fun discard(target: Target) { mutable.value = mutable.value - target }
+
     @Synchronized fun saved(): JSONArray = JSONArray().also { array ->
         mutable.value.forEach { (target, draft) ->
             if (draft.attachments.isNotEmpty() || draft.text.isNotEmpty() || draft.operation != null || draft.error != null) {
