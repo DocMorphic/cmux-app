@@ -2,8 +2,82 @@
 
 Source reference: `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`.
 [WHATS_NEW_AUDIT.md](WHATS_NEW_AUDIT.md) records the complete iOS contract. This
-checkpoint implements the model and persistence; it does **not** yet expose an
-archive or launch sheet in the app. The global parity pin is unchanged.
+now includes the model, persistence, native archive and launch-sheet integration.
+Web rendering/session exchange and live feed delivery remain incomplete. The
+global parity pin is unchanged.
+
+## Native archive and launch UI (2026-10-04)
+
+`NativeScreen` now exposes **What's New** in Settings only when the eligible archive
+is nonempty. `NativeWhatsNewViewModel` retains the center and presentation across
+Activity recreation, initializes private-file persistence off the main thread,
+and completes the first attempt without a remote feed. Build metadata explicitly
+uses notice version 0.2.0, dev for debug and beta for signed development APKs;
+it is independent of the host protocol's prod admission identity.
+
+`NativeWhatsNewUi.kt` supplies archive/detail navigation, announcement labels,
+feature rows, Mac pairing imagery and minimum-version copy, horizontal paging,
+page indicators, Done and Continue. Native pages scroll independently of the
+fixed controls. Landscape and large text use the available height. Continue
+changes pages without an animated transition. Archive detail selection survives
+saved-state restoration and does not acknowledge launch notices.
+
+`NativeWhatsNewPresentation` owns a frozen page array, account-session identity,
+presentation token and current page. A launch waits for completed onboarding and
+an idle root without incoming routes or other known modal owners. It requires no
+discovered computer or fresh account/team network response. A resumed Activity,
+laid-out dialog, window focus and a subsequent frame are required before writing
+acknowledgement. All pages in the shown snapshot are recorded even if dismissed
+early. Staging, covered windows, replaced owners and competing modals cannot mark
+unseen content. An already appeared snapshot survives backgrounding/recreation;
+remote refresh cannot mutate it. A failed save reports an error without repeatedly
+reopening the sheet during that process lifetime.
+
+### Verification
+
+- **29 JVM tests passed** (previous 24 plus 5 presentation tests); initial debug/test
+  APK assembly and JVM run passed in 2m 19s.
+- The existing API 37 / 16 KB arm64 AVD ran **3 portrait UI tests** (18.910 s),
+  **1 landscape navigation test** (6.728 s) and **3 tests at 150% portrait text**
+  (15.258 s). Each run reported `OK`, with no skipped tests. Screenshots of the
+  launch and archive at normal/large text and the landscape launch were reviewed.
+- The first attempt had two appearance timeouts because a separate System UI
+  cold-boot ANR dialog held focus. Its XML/window evidence was saved, the observed
+  Wait button cleared it, and the **unchanged tests** passed. No appearance guard
+  was weakened to make that run pass.
+- The real debug MainActivity cold-launched to sign-in with an empty crash buffer.
+  These component tests do not establish authenticated Settings entry or physical
+  Pixel launch ownership. No account credentials were changed.
+- Source review then removed an unnecessarily strict live team/account-refresh
+  requirement from the root gate, preserving offline notice presentation after
+  onboarding. Final debug/test assembly passed in **53 s**; the tested component
+  code was unchanged. `runtime-verification.json` records this final source delta
+  and distinguishes the runtime-tested APK from the final rebuilt APK.
+- Final debug SHA-256:
+  `7687b7cecb9854356c7af2213ee5fd5bcd7659d2fed8fe85f67e5b3689f8a571`.
+  Evidence, logs, hashes and screenshots: `captures/runtime/whats-new-ui/` (ignored).
+  Original font/rotation settings were restored (1.0/1/0); the single existing AVD
+  was stopped/reaped before the final build. No additional AVD was created.
+
+The Pixel remains absent. This work is not in signed build 494. A new signed
+milestone was not dispatched for this feature commit.
+
+### Remaining What’s New work
+
+Web pages are excluded from launch until the isolated preload owner is implemented.
+A web archive body currently states that web announcements are unavailable in this
+development build. **This is a temporary incomplete path, not a parity substitute.**
+The compiled Android catalog has no web pages, and no remote feed is configured.
+
+Implement the nonpersistent renderer, optional account-to-web cookie exchange,
+per-navigation allowlist, theme-before-load/live updates, concurrent ten-second
+launch preload, twenty-second archive deadline, retained Back navigation and
+fresh-exchange Retry. Connect only an explicit reviewed Android announcement feed;
+never send Android notice IDs to the production iOS endpoint. Add debug-only
+replay/suppression without marker writes, measured native-sheet fitting beyond the
+current height cap, broader locale negotiation coverage,
+physical modal/lifecycle/TalkBack acceptance, and a signed-upgrade/offline archive
+check. Verify release ART again at the next signed milestone.
 
 ## Model and persistence (2026-10-03)
 
@@ -71,24 +145,9 @@ These tests do not exercise Android UI, WebView isolation, cookie exchange, live
 remote service delivery or the physical Pixel. No emulator or signed build was
 started for this checkpoint. Signed build 494 predates this work.
 
-## Next integration
+## Continuation
 
-1. Define Android notice build metadata independently of the host protocol profile:
-   short version 0.2.0, debug dev and signed development beta. Do not derive notice
-   channel from `AndroidMacProtocolProfile.BUILD_KIND` (host admission uses prod).
-2. Instantiate a retained center/file store in the UI owner; complete its initial
-   attempt with no remote feed configured. Add Settings archive/detail navigation,
-   native feature/pairing pages and announcement badges. Reuse the existing Mac
-   guide assets and compatibility policy.
-3. Add launch staging/appearance acknowledgement after onboarding/account recovery
-   and explicit incoming routes. Restored competing modals, backgrounding, account
-   replacement and debug replay must not acknowledge unseen pages. Do not require
-   any discovered Mac. Freeze the visible page list throughout the presentation.
-4. Implement nonpersistent web rendering and the reviewed optional session exchange,
-   allowlist every navigation, ten-second concurrent launch preloads and twenty-second
-   archive retry. Retain a loaded page on Back, refresh its theme, and make Retry
-   perform a fresh exchange. Only connect a reviewed Android feed with its own schema;
-   never send Android IDs to the production iOS endpoint.
-5. Verify portrait/landscape/large-text/swipe/Continue behavior and modal ownership,
-   then actual signed upgrade/appearance/offline archive on Pixel. Broader locale
-   negotiation, web deadlines and lifecycle acceptance still need runtime coverage.
+Use the remaining-work list above and the full source contract in
+[WHATS_NEW_AUDIT.md](WHATS_NEW_AUDIT.md). Preserve native offline behavior,
+appearance-only acknowledgement and Android-owned identity while completing web
+and physical acceptance. No feed/provider configuration is implied by the UI work.

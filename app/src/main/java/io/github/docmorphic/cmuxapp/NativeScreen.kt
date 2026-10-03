@@ -126,6 +126,12 @@ fun NativeScreen(
         ViewModelProvider(runtimeOwner, NativeFeedSession.Factory(connection, account, store))
             .get(NativeFeedSession::class.java)
     }
+    val whatsNewModel = remember(runtimeOwner, connector) {
+        if (connector == null) ViewModelProvider(runtimeOwner, NativeWhatsNewViewModel.Factory(context))
+            .get(NativeWhatsNewViewModel::class.java) else null
+    }
+    val whatsNewCenter = whatsNewModel?.center?.collectAsState()?.value
+    val whatsNewState = whatsNewCenter?.state?.collectAsState()?.value
     val terminalInputs = feedSession.terminalInputs
     val terminalSizing = feedSession.terminalSizing
     val terminalSizingStates by terminalSizing.state.collectAsState()
@@ -315,6 +321,7 @@ fun NativeScreen(
     val localBrowserState by localBrowsers.state.collectAsState()
     val localBrowser = localBrowserState.local
     val browserLogin = if (signedIn) store.taskSession() else null
+    var showWhatsNew by rememberSaveable(signedIn, browserLogin) { mutableStateOf(false) }
     var notificationRecovery by remember(currentIncomingRoute, browserLogin) { mutableStateOf(NativeNotificationRouteRecovery()) }
     fun inputOwner(mac: NativeCredentialStore.PairedMac, login: String?) = nativeTerminalInputOwner(mac, login)
     SideEffect {
@@ -2052,7 +2059,7 @@ fun NativeScreen(
         teamState.cached, onboardingExplicitRoute)
     val showOnboarding = (onboardingEligible && !showSettings && !showSshComputers) ||
         (replayOnboarding && signedIn && !onboardingExplicitRoute)
-    LaunchedEffect(onboardingExplicitRoute) { if (onboardingExplicitRoute) replayOnboarding = false }
+    LaunchedEffect(onboardingExplicitRoute) { if (onboardingExplicitRoute) { replayOnboarding = false; showWhatsNew = false } }
     var onboardingRetry by remember(onboardingOwner, replayOnboarding) { mutableIntStateOf(0) }
     var onboardingMethod by rememberSaveable(signedIn) { mutableStateOf(
         NativeOnboardingMethod.entries.firstOrNull { it.name == onboardingPrefs.getString("connection_method", null) }
@@ -2144,6 +2151,21 @@ fun NativeScreen(
                 })
         }
     }
+    val whatsNewPromptPending = nativeWhatsNewSshPromptPending(sharedConnections?.ssh)
+    whatsNewCenter?.let { noticeCenter -> whatsNewModel?.presentation?.let { noticePresentation ->
+        NativeWhatsNewHost(noticeCenter, noticePresentation,
+            owner = browserLogin.takeIf { signedIn },
+            eligible = signedIn && feedForeground &&
+                onboardingProgress == NativeOnboardingProgress.COMPLETE && !showOnboarding && !onboardingExplicitRoute &&
+                !showSettings && !showSshComputers && !showTaskComposer && !showLicenses && !showShortcuts &&
+                !showCreateGroup && !confirmReadAll && computerDetails == null && deletionReceipt == null &&
+                pendingPairingCode == null && pairingLookup == null && !onboardingPermissionBusy && !whatsNewPromptPending &&
+                selectedTerminal == null && selectedBrowser == null && selectedSurface == null && selectedChangesWorkspace == null &&
+                screenResume.pending == null && textSnapshot == null && !showTerminalFiles && terminalArtifactPath == null &&
+                !createMenuOpen && !computerMenuOpen && !workspaceFilterMenuOpen && !notificationFilterMenu,
+            archive = showWhatsNew && showSettings && signedIn && !showOnboarding && !onboardingExplicitRoute,
+            onCloseArchive = { showWhatsNew = false }, policy = displayPolicy)
+    } }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings) {
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
@@ -2269,6 +2291,8 @@ fun NativeScreen(
                 }
                 NativeNotificationSettings()
                 }, preferences = {
+                if (whatsNewState?.archive?.isNotEmpty() == true) TextButton(onClick = { showWhatsNew = true },
+                    modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.whatsnew")) { Text("What's New") }
                 TextButton(onClick = { replayOnboarding = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.introduction")) { Text("View Introduction Again") }
                 NativeFeedbackSettingsButton()
                 NativeDiagnosticsSettings()

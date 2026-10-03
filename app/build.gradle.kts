@@ -70,6 +70,7 @@ android {
         targetSdk = 36
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 2
         versionName = "0.2.0"
+        buildConfigField("String", "NOTICE_VERSION", "\"0.2.0\"")
         // Native milestone targets the Pixel 6a; never install a partial JNA-only ABI.
         ndk { abiFilters += "arm64-v8a" }
 
@@ -91,9 +92,12 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("String", "NOTICE_CHANNEL", "\"dev\"")
         }
         release {
             isMinifyEnabled = false
+            // Signed Actions APKs are the development distribution, not an official store release.
+            buildConfigField("String", "NOTICE_CHANNEL", "\"beta\"")
             signingConfig = signingConfigs.findByName("cmuxAppRelease")
         }
     }

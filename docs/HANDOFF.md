@@ -42,16 +42,26 @@ Builds 488 and 491 failed before ART due to CI paths and data capacity. Fixes
 `063c5a8` and `6e4a449` were verified by 494; do not continue polling old runs or
 recommend their artifacts. Docs-only updates need no signed rebuild.
 
-Next source implementation: [WHATS_NEW.md](WHATS_NEW.md). The typed Android
-catalog, origin-scoped persistence, visibility and acknowledgement model are now
-implemented; 24 JVM tests passed (21 model, 3 file persistence). They are not yet
-connected to NativeScreen. Continue with build metadata, retained UI owner,
-Settings archive/detail and launch presentation, then isolated web preload.
-[WHATS_NEW_AUDIT.md](WHATS_NEW_AUDIT.md) retains the full source contract.
-The actual iOS launch gate does not require discovered Macs, despite a stale
-sheet comment. Use Android-owned IDs/version claims; an Android announcement feed
-is not configured. Broader parity/physical/push acceptance remains open. Keep the
-goal active and do not repeat the pending Pixel reconnect request.
+Next source implementation: [WHATS_NEW.md](WHATS_NEW.md). The model/catalog,
+atomic file store, build metadata, retained UI owner, Settings archive/detail and
+native launch sheet are implemented. 29 JVM tests and 7 successful Android UI
+executions passed across portrait, landscape and 150% text. The first two UI
+timeouts came from a System UI ANR; after observed recovery the unchanged tests
+passed. Final source removes a live account-refresh gate so notices work offline;
+debug/test APKs rebuilt successfully. No Pixel or signed upgrade was verified.
+The existing emulator is stopped, original settings restored and all processes
+reaped. Evidence and APK hashes: `captures/runtime/whats-new-ui/`.
+
+Continue the **incomplete web announcement path**: isolated nonpersistent renderer,
+optional cookie exchange, allowlist for every navigation, theme integration,
+10-second launch preload and 20-second archive Retry. Current native catalog has
+no web pages and no feed is configured; the web archive placeholder is explicitly
+temporary. Do not stop at that placeholder. Android notice IDs/version/channel
+must stay separate from host admission and the iOS endpoint. Debug replay,
+physical modal/lifecycle/TalkBack and actual signed-upgrade acceptance remain open.
+[WHATS_NEW_AUDIT.md](WHATS_NEW_AUDIT.md) retains the complete source contract.
+The goal stays active. Do not repeat the pending Pixel reconnect request or
+start a signed build for this feature commit alone; batch the next milestone.
 
 ## User's objective and working preferences
 

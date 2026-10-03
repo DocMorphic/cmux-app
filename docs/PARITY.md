@@ -12,6 +12,23 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Native What's New archive and launch sheet (2026-10-04)
+
+[WHATS_NEW.md](WHATS_NEW.md) now records Settings archive/detail navigation,
+Android build targeting and the retained native launch sheet. Presentation waits
+for onboarding/routes/modals, keeps a frozen page list, and acknowledges only
+a laid-out, focused dialog. It requires no discovered Mac or live account refresh.
+29 JVM checks and 7 successful Android UI executions cover model/persistence,
+staging, account replacement, swipe/Continue, archive Back/restoration, landscape
+and 150% text. The initial System UI ANR was recovered before unchanged UI tests
+passed. Screenshots and a real signed-out debug launch were reviewed; settings
+were restored and the sole AVD stopped. The final offline gate adjustment was
+rebuilt; exact evidence scope is in the feature document.
+
+Isolated web announcements, session exchange, remote feed configuration, debug
+replay, physical/authenticated and signed-upgrade acceptance remain open. Build
+494 predates this work; no new signed milestone was dispatched. Global pin unchanged.
+
 ## What's New model and persistence (2026-10-03)
 
 [WHATS_NEW.md](WHATS_NEW.md) implements Android-owned catalog IDs, typed remote

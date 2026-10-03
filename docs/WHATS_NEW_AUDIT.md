@@ -1,8 +1,9 @@
 # What's New source audit — 2026-10-03
 
 Reference: `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`. At audit time Android had no What's New center, archive or launch presentation.
-The subsequent [model/persistence checkpoint](WHATS_NEW.md) implements the center;
-archive and launch integration in `NativeScreen` remain outstanding. The existing upstream watcher and APK release automation
+The subsequent [implementation checkpoints](WHATS_NEW.md) add the center and
+native archive/launch integration. Web rendering and full runtime acceptance remain
+outstanding. The existing upstream watcher and APK release automation
 in `UPDATES.md` serve a different purpose. This audit does not claim implementation
 or advance the global parity pin.
 
