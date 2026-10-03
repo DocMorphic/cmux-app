@@ -12,6 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Launch pairing and saved reconnect (2026-10-03)
+
+Launch links now hold the screen's saved foreground/feed reconnect until their
+pairing decision is resolved. Dismissal releases reconnect; failed approved
+pairing can restore the still-authorized saved Mac even before a live connection
+exists. Successful pairing selects the verified Mac's filter. Unresolved Iroh
+lookups offer Cancel and expire after 30 seconds. Pasted Iroh links now use the
+same account, build-tag and directory checks as opened links.
+
+**18 JVM and 15 distinct Android cases passed** across the focused runs, including
+real local RPC destinations and five Android process-restoration scenarios.
+[Source scope, evidence, initial test failures and limitations](PAIRING_STARTUP.md).
+The iOS development-only injected startup task runner was reviewed, not copied
+into production. Physical acceptance, the broader source audit and the full goal
+remain open; signed build 456 is unchanged.
+
 ## Failed computer switch recovery (2026-10-03)
 
 Manual computer switches now retain the previous verified route and filter. If

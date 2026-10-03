@@ -9,6 +9,22 @@ class NativeMacSwitchRecoveryTest {
     private val b = NativeCredentialStore.PairedMac("route-b", "mac", "Mac Nightly", "nightly")
     private fun ready() = NativeMacSwitchRecovery().apply { connected(owner, a) }
 
+    @Test fun confirmedLaunchAttachCanRestoreSavedMacBeforeAnyLiveConnection() {
+        val state = NativeMacSwitchRecovery()
+        state.begin(owner, b.code, null, "", savedFallback = a)
+        assertEquals(a, state.failed(state.entering(owner, b.code), owner, b.code) { true }?.mac)
+    }
+    @Test fun liveBaselineWinsOverStoredFallbackAndRevocationStillPreventsRestore() {
+        val state = ready()
+        state.begin(owner, "route-c", a.code, a.origin, savedFallback = b)
+        assertEquals(a, state.failed(state.entering(owner, "route-c"), owner, "route-c") { true }?.mac)
+        state.clear()
+        state.begin(owner, b.code, null, "", savedFallback = a)
+        assertNull(state.failed(state.entering(owner, b.code), owner, b.code) { false })
+        state.begin(owner, a.code, null, "", savedFallback = a)
+        assertNull(state.failed(state.entering(owner, a.code), owner, a.code) { true })
+    }
+
     @Test fun failedSwitchRestoresExactLiveRouteAndOriginalFilterOnlyOnce() {
         val state = ready()
         state.begin(owner, b.code, a.code, "all-computers")

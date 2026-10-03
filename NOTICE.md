@@ -1,5 +1,12 @@
 # Attribution
 
+Launch pairing precedence and fallback in `NativeScreen.kt` also follow the
+production `CMUXMobileRootView.swift` deferred-link and reconnect flow at cmux
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` (GPL-3.0-or-later, Manaflow, Inc.).
+`MobileStartupConnectionCoordinator.swift` and `MobileInjectedAttachStartupTests.swift`
+were reviewed as development-launch context; their injected task runner is not
+ported. Android retains its explicit Tailscale confirmation and account directory checks.
+
 `NativeMacSwitchRecovery.kt` and the picker recovery integration follow cmux's
 live foreground baseline and superseding switch-attempt behavior in
 `MobileShellComposite.swift`, `MobileShellComposite+MacSwitchState.swift` and

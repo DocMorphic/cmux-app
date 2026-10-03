@@ -1,6 +1,13 @@
 cmux-app is an unofficial Android companion distributed under GNU GPL version 3.
 Source: https://github.com/DocMorphic/cmux-app
 
+Launch pairing precedence and fallback in NativeScreen.kt follow the production
+CMUXMobileRootView.swift deferred-link and reconnect flow at cmux
+0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc; Copyright Manaflow, Inc., GPL-3.0-or-later.
+The startup coordinator and injected-attach tests were reviewed as development
+context; their task runner is not ported. Android keeps its Tailscale confirmation
+and account directory checks.
+
 NativeMacSwitchRecovery.kt and picker recovery follow cmux's live foreground
 baseline and superseding switch-attempt behavior in MobileShellComposite.swift,
 MobileShellComposite+MacSwitchState.swift and IrohMacSwitchRecoveryTests.swift

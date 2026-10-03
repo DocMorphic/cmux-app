@@ -31,8 +31,9 @@ reconnection has already succeeded.
 - A new choice during restoration retains the original baseline. Failure of the
   restoration itself uses ordinary retry and cannot alternate between computers.
 - Sign-out, login/team changes, unrelated route changes and returning to the All
-  Computers filter retire the pending switch. Notification/deep-link routes do
-  not acquire an implicit picker rollback intent.
+  Computers filter retire the pending switch. Notification routes do not acquire
+  an implicit picker rollback intent. Approved pairing links now explicitly use
+  this recovery with a saved fallback, as documented in [Pairing startup](PAIRING_STARTUP.md).
 - The baseline contains pairing metadata and filter state, with no client,
   credentials, Activity, terminal input or process-death persistence. It is owned
   by the existing screen ViewModel and cleared with that session.

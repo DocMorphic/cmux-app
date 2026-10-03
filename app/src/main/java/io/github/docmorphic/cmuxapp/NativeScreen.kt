@@ -141,6 +141,9 @@ fun NativeScreen(
     }
     var code by remember { mutableStateOf(store.load()?.optString("pairing_code").orEmpty()) }
     var pendingPairingCode by rememberSaveable(signedIn) { mutableStateOf<String?>(null) }
+    var pairingSelectionCode by remember(signedIn) { mutableStateOf<String?>(null) }
+    var startedForegroundConnection by rememberSaveable(signedIn) { mutableStateOf(false) }
+    val deferStartupForPairing = !startedForegroundConnection && (incomingCode != null || pendingPairingCode != null)
     var error by remember { mutableStateOf<String?>(null) }
     var connectionError by remember(code) { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -396,13 +399,26 @@ fun NativeScreen(
     fun switchOwner() = store.taskSession()?.takeIf { signedIn }?.let { NativeMacSwitchRecovery.Owner(it, teamState.scope) }
     macSwitchRecovery.reconcile(switchOwner())
     fun selectMacCode(target: String) {
+        pairingSelectionCode = null
         switchOwner()?.let { owner ->
             macSwitchRecovery.begin(owner, target,
                 connectedCode.takeIf { connectionReady && client?.isClosed == false }, selectedComputerOrigin)
         }
         code = target; error = null; retryDelay = 2_000
     }
+    fun selectPairingCode(target: String) {
+        screenResume.cancel(); workspaceRoute = null
+        switchOwner()?.let { owner ->
+            val storedCode = store.load()?.optString("pairing_code")
+            val fallback = store.pairedMacs().singleOrNull { it.code == storedCode && connection.allowsSaved(it) }
+            macSwitchRecovery.begin(owner, target,
+                connectedCode.takeIf { connectionReady && client?.isClosed == false }, selectedComputerOrigin, fallback)
+        }
+        pairingSelectionCode = target
+        code = target; error = null; retryDelay = 2_000
+    }
     fun selectComputer(mac: NativeCredentialStore.PairedMac?) {
+        pairingSelectionCode = null
         screenResume.cancel()
         if (mac != null) selectMacCode(mac.code) else macSwitchRecovery.cancel()
         selectedComputerOrigin = mac?.origin.orEmpty()
@@ -467,9 +483,10 @@ fun NativeScreen(
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer); sharedConnections?.setProbeActive(probeOwner, false) }
     }
-    LaunchedEffect(signedIn, pairedMacs, feedForeground, computerState.connectionKeys, computerState.localConnectionKeys) {
+    LaunchedEffect(signedIn, pairedMacs, feedForeground, deferStartupForPairing, computerState.connectionKeys, computerState.localConnectionKeys) {
         if (!signedIn) feedSession.clear()
-        else feedSession.configureFeed(pairedMacs, computerState.connectionKeys, computerState.localConnectionKeys, feedForeground)
+        else feedSession.configureFeed(pairedMacs, computerState.connectionKeys, computerState.localConnectionKeys,
+            feedForeground && !deferStartupForPairing)
     }
     DisposableEffect(feedCoordinator) { onDispose { feedSession.leaveMainScreen() } }
 
@@ -1060,12 +1077,9 @@ fun NativeScreen(
                     pendingPairingCode = value.trim()
                     error = null
                 } else if (pairing is PairingCode.Iroh) {
-                    val team = computerState.account
-                    val mac = computerState.computers.singleOrNull { it.endpointId == pairing.endpointId &&
-                        (pairing.macDeviceId == null || pairing.macDeviceId.equals(it.deviceId, ignoreCase = true)) }
-                    if (team != null && mac != null && computerState.ready && connection.allowsSaved(pairing)) {
-                        code = PairingCodeParser.computer(mac, team)
-                        error = null
+                    val action = incomingPairingAction(value.trim(), signedIn, false, teamState.scope, computerState)
+                    if (action is NativePairingLinkAction.Select && connection.allowsSaved(PairingCodeParser.parse(action.code).getOrThrow())) {
+                        selectPairingCode(action.code)
                     } else error = "This Mac is not available in your selected team. Check its Mobile settings and refresh Computers."
                 }
             },
@@ -1086,10 +1100,17 @@ fun NativeScreen(
             NativePairingLinkAction.Unavailable -> error = "This Mac is not available in your selected team. Check its Mobile settings and refresh Computers."
             is NativePairingLinkAction.Select -> {
                 if (connection.allowsSaved(PairingCodeParser.parse(action.code).getOrThrow())) {
-                    pendingPairingCode = null; code = action.code; error = null
+                    pendingPairingCode = null; selectPairingCode(action.code)
                 } else error = "This Mac is not available in your selected team."
             }
         }
+        handlePairing(incoming)
+    }
+    val pairingLookup = incomingCode?.takeIf { signedIn && PairingCodeParser.parse(it).getOrNull() is PairingCode.Iroh }
+    LaunchedEffect(pairingLookup, browserLogin) {
+        val incoming = pairingLookup ?: return@LaunchedEffect
+        delay(30_000)
+        error = "This Mac could not be found. Check its Mobile settings and try the pairing link again."
         handlePairing(incoming)
     }
     LaunchedEffect(currentIncomingRoute, showSettings, showTaskComposer) {
@@ -1361,12 +1382,15 @@ fun NativeScreen(
         }
     }
 
-    LaunchedEffect(signedIn, code, retry,
+    LaunchedEffect(signedIn, code, retry, deferStartupForPairing,
         computerState.connectionKey(PairingCodeParser.parse(code).getOrNull() as? PairingCode.Iroh)) {
+        if (deferStartupForPairing) return@LaunchedEffect
+        if (pairingSelectionCode != code) pairingSelectionCode = null
         val switchAttempt = macSwitchRecovery.entering(switchOwner(), code)
         connectionReady = false
         client?.close(); client = null; connectedCode = null
         if (!signedIn || code.isBlank()) return@LaunchedEffect
+        startedForegroundConnection = true
         val requestedCode = code
         busy = true
         try {
@@ -1411,6 +1435,7 @@ fun NativeScreen(
                     active.close()
                     savedPairedMacs = store.pairedMacs()
                     macSwitchRecovery.retarget(switchAttempt, switchOwner(), remembered.code)
+                    if (pairingSelectionCode == requestedCode) pairingSelectionCode = remembered.code
                     code = remembered.code
                     connectionError = null; retryDelay = 2_000; busy = false
                     return@LaunchedEffect
@@ -1430,6 +1455,11 @@ fun NativeScreen(
                 }
                 client = active; connectedCode = requestedCode
                 connectionReady = true
+                if (pairingSelectionCode == requestedCode) {
+                    selectedComputerOrigin = remembered.origin
+                    store.update { it.put("computer_selection", remembered.origin) }
+                    pairingSelectionCode = null
+                }
                 switchOwner()?.let { macSwitchRecovery.connected(it, remembered) }
                 savedPairedMacs = store.pairedMacs()
                 connectionError = null
@@ -1777,12 +1807,16 @@ fun NativeScreen(
 
     if (showLicenses) OpenSourceLicensesDialog { showLicenses = false }
 
+    if (pairingLookup != null) AlertDialog(onDismissRequest = { handlePairing(pairingLookup) },
+        title = { Text("Finding this Mac…") },
+        text = { Text("Checking your account and selected team's computers.") },
+        confirmButton = {}, dismissButton = { TextButton(onClick = { handlePairing(pairingLookup) }) { Text("Cancel") } })
     NativePairingConfirmation(if (signedIn) pendingPairingCode else null,
         onDismiss = { pendingPairingCode = null },
         onConnect = { proposed ->
             try {
                 connection.authorizePairing(PairingCodeParser.parse(proposed).getOrThrow() as PairingCode.Tailscale)
-                code = proposed; pendingPairingCode = null; retry++
+                selectPairingCode(proposed); pendingPairingCode = null; retry++
             } catch (failure: Exception) { error = failure.message; pendingPairingCode = null }
         })
     if (showCreateGroup) AlertDialog(

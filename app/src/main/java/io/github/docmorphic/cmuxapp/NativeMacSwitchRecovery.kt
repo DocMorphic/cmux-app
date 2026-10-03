@@ -17,13 +17,15 @@ internal class NativeMacSwitchRecovery {
         reconcile(next); live = mac
         if (pending?.target == mac.code) pending = null
     }
-    fun begin(next: Owner, target: String, connectedCode: String?, selection: String) {
+    fun begin(next: Owner, target: String, connectedCode: String?, selection: String,
+        savedFallback: NativeCredentialStore.PairedMac? = null) {
         reconcile(next)
         if (target == connectedCode) { pending = null; return }
         // Two picker taps can arrive before Compose retires the original client.
         // Preserve the first filter snapshot as well as the original connection.
         val baseline = pending?.baseline
             ?: live?.takeIf { it.code == connectedCode }?.let { Baseline(it, selection) }
+            ?: savedFallback?.takeIf { it.code != target }?.let { Baseline(it, selection) }
         pending = Attempt(++nextId, next, target, baseline)
     }
     /** Non-picker navigation supersedes a pending switch, including returning to Computers. */

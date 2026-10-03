@@ -50,6 +50,114 @@ class NativeConnectionRecoveryTest {
         compose.onNodeWithContentDescription("Computer filter").performClick()
         compose.onNode(hasText(name) and hasAnyAncestor(isPopup())).performClick()
     }
+    private fun awaitPairingConfirmation() {
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Connect to this Mac?").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Connect to this Mac?").assertIsDisplayed()
+    }
+
+    @Test fun unresolvedIrohLaunchCanBeCancelledToResumeSavedMac() = unresolvedIrohLaunch(timeout = false)
+    @Test fun unresolvedIrohLaunchExpiresAndResumesSavedMac() = unresolvedIrohLaunch(timeout = true)
+    private fun unresolvedIrohLaunch(timeout: Boolean) {
+        NativeCredentialStore(context).rememberMac(firstCode, "fixture-mac", "Fixture Mac")
+        val incoming = mutableStateOf<String?>("cmux-ios://attach?v=3&i=endpoint&d=device&ub=user&t=team&b=stable")
+        val dials = AtomicInteger()
+        compose.setContent { CmuxTheme {
+            NativeScreen(onUseHelper = {}, incomingCode = incoming.value,
+                onPairingHandled = { if (incoming.value == it) incoming.value = null },
+                connector = NativeConnector { _, _ -> dials.incrementAndGet(); connected() })
+        } }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Finding this Mac…").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Finding this Mac…").assertIsDisplayed()
+        assertEquals(0, dials.get())
+        if (timeout) {
+            compose.mainClock.advanceTimeBy(30_100)
+            compose.waitUntil(35_000) { incoming.value == null }
+            compose.onNodeWithText("This Mac could not be found. Check its Mobile settings and try the pairing link again.").assertExists()
+        } else {
+            val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            java.io.File(context.getExternalFilesDir(null), "pairing-lookup.png").outputStream().use {
+                screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+            }
+            screenshot.recycle()
+            compose.onNodeWithText("Cancel").performClick()
+        }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Finding this Mac…").assertDoesNotExist()
+        compose.onNodeWithText("Claude Code task").performClick()
+        compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+    }
+
+    @Test fun coldLaunchConfirmationDefersSavedDialAndDismissalReleasesIt() {
+        seedComputers()
+        val incoming = mutableStateOf<String?>(secondCode)
+        val dials = AtomicInteger()
+        compose.setContent { MaterialTheme {
+            NativeScreen(onUseHelper = {}, incomingCode = incoming.value,
+                onPairingHandled = { if (incoming.value == it) incoming.value = null },
+                connector = NativeConnector { _, _ -> dials.incrementAndGet(); connected() })
+        } }
+        awaitPairingConfirmation()
+        compose.mainClock.advanceTimeBy(5_000); compose.waitForIdle()
+        assertEquals("No startup or feed dial before the launch decision", 0, dials.get())
+        compose.onNodeWithText("Cancel").performClick()
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().size == 1 }
+        compose.onNodeWithText("Claude Code task").performClick()
+        compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+    }
+
+    @Test fun failedApprovedLaunchPairingFallsBackToSavedMac() {
+        seedComputers()
+        val incoming = mutableStateOf<String?>(secondCode)
+        val failed = AtomicInteger()
+        compose.setContent { MaterialTheme {
+            NativeScreen(onUseHelper = {}, incomingCode = incoming.value,
+                onPairingHandled = { if (incoming.value == it) incoming.value = null },
+                connector = NativeConnector { pairing, _ ->
+                    if (pairing.routes.first().host == "100.64.0.2") {
+                        failed.incrementAndGet(); throw java.io.IOException("Launch attach fixture failure")
+                    }
+                    connected()
+                })
+        } }
+        awaitPairingConfirmation()
+        assertEquals(0, failed.get())
+        compose.onNode(hasText("Connect") and hasAnyAncestor(isDialog())).performClick()
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Could not switch computers. Your previous computer is selected again.").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().size == 1 }
+        compose.onNodeWithText("Claude Code task").performClick()
+        compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+        assertEquals(firstCode, NativeCredentialStore(context).load()?.optString("pairing_code"))
+        assertTrue(failed.get() > 0)
+    }
+
+    @Test fun successfulLaunchPairingSelectsNewVerifiedMacInsteadOfOldFilter() {
+        val other = NativeFixturePeer().apply { deviceId = "second-mac"; displayName = "Second Mac" }
+        NativeCredentialStore(context).apply {
+            rememberMac(firstCode, "fixture-mac", "Fixture Mac")
+            update { it.put("computer_selection", pairedMacs().single().origin) }
+        }
+        val incoming = mutableStateOf<String?>(secondCode)
+        val dials = AtomicInteger()
+        try {
+            compose.setContent { MaterialTheme {
+                NativeScreen(onUseHelper = {}, incomingCode = incoming.value,
+                    onPairingHandled = { if (incoming.value == it) incoming.value = null },
+                    connector = NativeConnector { pairing, _ ->
+                        dials.incrementAndGet()
+                        val target = if (pairing.routes.first().host == "100.64.0.2") other else peer
+                        MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                    })
+            } }
+            awaitPairingConfirmation()
+            assertEquals(0, dials.get())
+            compose.onNode(hasText("Connect") and hasAnyAncestor(isDialog())).performClick()
+            compose.waitUntil(15_000) { NativeCredentialStore(context).load()?.optString("pairing_code") == secondCode }
+            compose.onNodeWithContentDescription("Computer filter").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Second Mac"))
+            compose.onNodeWithText("Claude Code task").performClick()
+            compose.waitUntil(15_000) { other.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+            assertFalse(peer.requests.any { it.optString("method") == "mobile.terminal.replay" })
+        } finally { other.close() }
+    }
 
     @Test fun failedComputerSwitchRestoresVerifiedMacAndFilter() {
         val other = NativeFixturePeer().apply { deviceId = "second-mac"; displayName = "Second Mac" }
