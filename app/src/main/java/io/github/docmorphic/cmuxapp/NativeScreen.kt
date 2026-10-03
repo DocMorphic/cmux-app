@@ -41,9 +41,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -1969,6 +1966,20 @@ fun NativeScreen(
                     gridRevision, scrollViewport, scrollInteractionEpoch)
                 val displayGeometry = gridPresentation.geometry
                 val visibleArtifactScroll by rememberUpdatedState(scrollViewport)
+                val localScroll = currentGrid.activeScreen == "primary" &&
+                    (terminalTransport.screenAnchor || terminalTransport.mode != TerminalOutputMode.GRID)
+                val scrollOwner = client
+                val scrollAllowed = { client === scrollOwner && selectedTerminal?.id == terminal.id &&
+                    scrollOwner?.terminalTrafficAllowed(terminal.id) == true && terminalScroll != null && !keyboardPresentation.frozen }
+                val scrollTerminal: (Double, TerminalGeometry.Cell) -> Boolean = { lines, cell ->
+                    if (!scrollAllowed()) false else {
+                        val move = gridPresentation.scroll(lines, scrollPosition, currentGrid.historyLineCount, localScroll)
+                        val sent = if (move.rows != 0.0) terminalScroll?.invoke(move.rows, cell) ?: false else false
+                        sent || move.revealed
+                    }
+                }
+                val accessibleScroll = TerminalAccessibilityScroll(localScroll, currentGrid.historyLineCount, scrollPosition,
+                    gridPresentation.reveal, gridPresentation.maximumReveal, displayGeometry?.cellHeight ?: 0f, terminalViewportPixels.height)
                 Box(Modifier.fillMaxWidth().weight(1f)) {
                 RenderGridView(currentGrid, terminalCells, gridRevision,
                     Modifier.fillMaxSize().testTag("native-terminal")
@@ -1979,10 +1990,15 @@ fun NativeScreen(
                         .focusRequester(terminalFocusRequester)
                         .onPreviewKeyEvent { event -> directHardware(event.nativeKeyEvent) }
                         .focusable()
-                        .semantics(mergeDescendants = true) {
-                            stateDescription = "Terminal font size ${terminalZoom.size}"
-                            onClick("Open keyboard") { openDirectKeyboard(); true }
-                            customActions = listOf(CustomAccessibilityAction("View as Text") { openTerminalText(); true })
+                        .nativeTerminalAccessibility(terminalZoom.size, accessibleScroll, scrollAllowed(), ::openDirectKeyboard, ::openTerminalText,
+                            latest = {
+                                if (!scrollAllowed() || terminalActiveScreen != "primary") false else {
+                                    stopTerminalScrolling(); scrollPosition = 0.0; true
+                                }
+                            }) { rows ->
+                            terminalMotion.stop()
+                            val cell = displayGeometry?.cell(terminalViewportPixels.width / 2f, terminalViewportPixels.height / 2f)
+                            if (cell == null) false else scrollTerminal(rows, cell)
                         }
                         .then(if (keyboardPresentation.frozen) Modifier else Modifier.terminalPinchZoom(
                             terminalZoom, gridPresentation.sharedLayout, gridPresentation.pinchOffset, gridPresentation.transform))
@@ -2025,16 +2041,7 @@ fun NativeScreen(
                         .terminalScrollGestures(terminalMotion,
                             displayGeometry,
                             replayGeneration, currentGrid.activeScreen,
-                            linePath = !(currentGrid.activeScreen == "primary" &&
-                                (terminalTransport.screenAnchor || terminalTransport.mode != TerminalOutputMode.GRID)),
-                            enabled = terminalScroll != null && !keyboardPresentation.frozen,
-                            onScroll = { lines, cell ->
-                                val local = currentGrid.activeScreen == "primary" &&
-                                    (terminalTransport.screenAnchor || terminalTransport.mode != TerminalOutputMode.GRID)
-                                val move = gridPresentation.scroll(lines, scrollPosition, currentGrid.historyLineCount, local)
-                                val sent = if (move.rows != 0.0) terminalScroll?.invoke(move.rows, cell) ?: false else false
-                                sent || move.revealed
-                            }), scrollPosition = scrollPosition,
+                            linePath = !localScroll, enabled = scrollAllowed(), onScroll = scrollTerminal), scrollPosition = scrollPosition,
                     displayGeometry = displayGeometry, keyboardPresentation = keyboardPresentation.takeUnless { keepKeyboardGrid },
                     displayLines = gridPresentation.visibleLines)
                 if (scrollOffset > 0) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp)

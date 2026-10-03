@@ -1428,6 +1428,9 @@ class NativeFlowTest {
             compose.waitUntil(10_000) { "terminal-1" in peer.blockedReplaySurfaces }
             assertEquals("Old pixels remain after resize acknowledgement, before replay", android.graphics.Color.rgb(0, 68, 0), pixel())
             compose.onNodeWithText("New alternate frame", substring = true).assertDoesNotExist()
+            val heldActions = compose.onNodeWithTag("native-terminal").fetchSemanticsNode().config
+                .getOrNull(SemanticsActions.CustomActions).orEmpty().map { it.label }
+            assertEquals(listOf("View as Text"), heldActions)
             val clicks = peer.requests.count { it.optString("method") == "mobile.terminal.mouse" }
             compose.onNodeWithTag("native-terminal").performTouchInput { click(center) }
             compose.waitForIdle()
@@ -1519,6 +1522,76 @@ class NativeFlowTest {
         }
         assertTrue(peer.requests.none { it.optString("method") == "terminal.input" })
         assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+    }
+
+    @Test fun accessibilityScrollReadsHistoryLocallyAndReturnsToLatest() {
+        peer.gridHistoryRows = 20
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.waitUntil(10_000) { compose.onNodeWithTag("native-terminal").fetchSemanticsNode().config
+            .getOrNull(SemanticsActions.ScrollBy) != null }
+        // Exercise Android's exported accessibility action, not a touch gesture.
+        fun containsTerminalText(node: android.view.accessibility.AccessibilityNodeInfo): Boolean {
+            if (node.text?.contains("cmux Android terminal") == true) return true
+            for (index in 0 until node.childCount) node.getChild(index)?.let { if (containsTerminalText(it)) return true }
+            return false
+        }
+        fun findScrollable(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+            if (node == null) return null
+            if (node.isScrollable && containsTerminalText(node)) return node
+            for (index in 0 until node.childCount) findScrollable(node.getChild(index))?.let { return it }
+            return null
+        }
+        var node: android.view.accessibility.AccessibilityNodeInfo? = null
+        try {
+            // Compose semantics can be ready before Android refreshes its exported tree.
+            compose.waitUntil(5_000) {
+                node = findScrollable(InstrumentationRegistry.getInstrumentation().uiAutomation.rootInActiveWindow)
+                node != null
+            }
+        } finally {
+            if (node == null) {
+                val directory = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+                androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+                    .dumpWindowHierarchy(File(directory, "terminal-accessibility-tree.xml"))
+            }
+        }
+        assertTrue(node!!.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD))
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("History", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        val latestAction = compose.onNodeWithTag("native-terminal").fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { it.label == "Latest output" }
+        compose.runOnIdle { assertTrue(latestAction.action()) }
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Scrollback ·", substring = true).fetchSemanticsNodes().isEmpty() }
+        assertTrue(peer.requests.none { it.optString("method") in setOf("mobile.terminal.scroll", "mobile.terminal.mouse", "terminal.input", "terminal.paste") })
+        screenshot("terminal-accessibility-latest")
+    }
+
+    @Test fun alternateAccessibilityScrollUsesWheelRpcWithoutSendingClicksOrKeys() {
+        peer.alternateScreen = true
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitForTerminalText()
+        compose.waitUntil(10_000) { compose.onNodeWithTag("native-terminal").fetchSemanticsNode().config
+            .getOrNull(SemanticsActions.CustomActions)?.any { it.label == "Scroll up" } == true }
+        val scrollUp = compose.onNodeWithTag("native-terminal").fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            .single { it.label == "Scroll up" }
+        compose.runOnIdle { assertTrue(scrollUp.action()) }
+        compose.waitUntil(5_000) { peer.requests.any { it.optString("method") == "mobile.terminal.scroll" } }
+        val scroll = peer.requests.first { it.optString("method") == "mobile.terminal.scroll" }.getJSONObject("params")
+        assertTrue(scroll.getDouble("delta_lines") > 0)
+        assertEquals("terminal-1", scroll.getString("surface_id"))
+        assertTrue(peer.requests.none { it.optString("method") in setOf("mobile.terminal.mouse", "terminal.input", "terminal.paste") })
     }
 
     @Test fun localPrimaryScrollKeepsMacViewportStillAndHistoryTapsDoNotClickLiveTerminal() {

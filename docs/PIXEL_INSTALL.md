@@ -10,8 +10,10 @@ passed at `8f1ce4233581b3f1f33154d8f3c468895b7e117f`. Download the
 [signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37070675174/artifacts/11254943027)
 and extract `app-release.apk` (repository access required). This supersedes 385
 and adds the account/credential deadlock fix exercised in real NIGHTLY pairing.
-Later commits add tests/docs without changing production code. PR #1 remains a
-draft; no main-branch preview or GitHub release was published.
+Later commits add production shared-sizing controls, keyboard layout/presentation
+and image protection; those changes are not in build 397. See [current source
+verification](TERMINAL_SHARED_SIZING.md). PR #1 remains a draft; no main-branch
+preview or GitHub release was published.
 
 - Package `io.github.docmorphic.cmuxapp`, version code **397**, version `0.2.0`.
 - SHA-256: `96ce8a68f11dbd93bcb8c36e5fef5fc290c57d628b22d33752d8aa043e7ff69a`.

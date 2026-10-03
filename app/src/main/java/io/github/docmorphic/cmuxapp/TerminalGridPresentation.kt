@@ -8,6 +8,7 @@ internal data class TerminalGridPresentation(
     val sharedLayout: TerminalSharedGridLayout?, val geometry: TerminalGeometry?,
     val pinchOffset: Offset,
     val visibleLines: List<List<RenderGrid.Span>>?,
+    val reveal: Float, val maximumReveal: Float,
     val transform: (TerminalGridTransform) -> Unit,
     val scroll: (Double, Double, Int, Boolean) -> TerminalGridScroll
 )
@@ -44,7 +45,8 @@ internal fun rememberTerminalGridPresentation(client: MobileRpcClient?, surface:
         if (keyboard != null) reveal = keyboard.reveal
     }
     return TerminalGridPresentation(layout.takeIf { sharedMatches }, keyboard?.geometry,
-        Offset(0f, keyboard?.slide ?: 0f), visibleLines, { transform = it }) { rows, position, history, local ->
+        Offset(0f, keyboard?.slide ?: 0f), visibleLines, keyboard?.reveal ?: 0f, keyboard?.maximumReveal ?: 0f,
+        { transform = it }) { rows, position, history, local ->
         val next = TerminalKeyboardLayout.scroll(position, history, reveal, keyboard?.maximumReveal ?: 0f,
             rows, keyboard?.geometry?.cellHeight ?: cells.heightPx, local)
         val revealed = next.reveal != reveal

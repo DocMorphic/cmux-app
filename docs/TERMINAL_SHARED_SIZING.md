@@ -555,6 +555,49 @@ Final APK SHA-256:
 - Debug: `b8cc55f295852f48d2b691a44f81e4f96a99e5477ea4b07479d28fa7b315174d`
 - Test: `fac232631295265ad1ef081103d2dd2fb89b720fe570a124d9096afb7d7f8e7f`
 
+## Terminal accessibility scroll actions (2026-10-03)
+
+The native terminal now exports Android scroll semantics for local primary
+history, including the keyboard's hidden-top-row reveal on the same axis. Its
+pixel axis starts at the oldest content and ends at live output. Labeled actions
+provide Older output, Newer output and Latest output; each page overlaps by one
+visible row. Alternate/legacy remote-scroll paths provide explicit Scroll up and
+Scroll down actions without inventing a local history range.
+
+Touch and accessibility scrolling share the same scroll/reveal callback. An
+accessibility action stops existing momentum before moving. Callback admission
+checks the current client/surface, terminal traffic permission, active scroll
+handler and frame-hold state. Detached or frozen terminals cannot scroll through
+stale geometry. The existing Open keyboard and View as Text actions remain.
+Latest output resets the current history position and keyboard reveal directly,
+cancelling momentum and queued scroll, so concurrent output cannot leave it short
+of the live position through a stale relative delta.
+Compose retains the readable terminal text in its merged semantics. Android
+exports a scrollable container with a readable text child; the framework check
+locates that actual structure before invoking its standard scroll action.
+
+This uses Android's [Compose accessibility semantics](https://developer.android.com/develop/ui/compose/accessibility/semantics),
+including the exported standard scroll action and labeled custom actions. It does
+not imply that manual TalkBack speech, focus traversal, Switch Access, hardware
+keyboard or physical Pixel acceptance has passed; those checks remain open.
+
+**12 focused JVM tests passed**, with zero failures/errors/skips, and **10 emulator
+checks passed in 23.866 seconds**. Coverage includes Android's exported standard
+scroll action, local history with no remote input, alternate-screen wheel RPC,
+hidden keyboard rows, disabled/frozen actions, latest reset and the existing
+keyboard/touch/raw-output flows. The initial framework assertion incorrectly
+looked for text directly on the scroll container; inspection of the actual tree
+corrected the test to find its readable child. Final debug/test assembly passed
+in **41 seconds**. The latest-output screenshot was visually reviewed. The one
+existing API 37 / 16 KiB emulator is stopped; the Pixel was absent.
+
+Ignored evidence: `captures/runtime/terminal-accessibility-checkpoint-build.txt`,
+`terminal-accessibility-checkpoint-ui.txt`, and `terminal-accessibility-latest.png`
+in the same directory. Final local APK SHA-256:
+
+- Debug: `a47c13618197d85f3ec1de2c1a3303c5d3d78370e2cb8825e688450d627e7cbc`
+- Test: `9c6d267ac43ecc9854cc4bd19a63c6548446847e2570325c6efacd7101e36ea9`
+
 ## Full integration acceptance checklist
 
 1. Subscribe to `mobile.terminal.size_state` and `mobile.terminal.detached`; decode
