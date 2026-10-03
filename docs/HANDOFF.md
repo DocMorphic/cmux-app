@@ -29,7 +29,12 @@ records the original September 28 handoff rather than the current APK.
 
 ## User's objective and working preferences
 
-Latest local feature: [EMPTY_WORKSPACES.md](EMPTY_WORKSPACES.md) adds the shared
+Latest local feature: [DIAGNOSTIC_FAILURES.md](DIAGNOSTIC_FAILURES.md) adds typed
+failure codes to existing debug/durable logs and RPC connection/disconnection.
+Twenty-three JVM tests, debug assembly and release Kotlin compilation passed;
+no emulator was needed. Raw native Iroh telemetry and broader taxonomy remain open.
+
+Previous local feature: [EMPTY_WORKSPACES.md](EMPTY_WORKSPACES.md) adds the shared
 Mac/SSH empty-state scaffold and owner-scoped 30-second Mac retry. Thirty JVM and
 two Android tests passed; normal portrait screenshots were reviewed. Exact source
 mapping, hashes and remaining live acceptance are recorded there. No Pixel was

@@ -56,11 +56,11 @@ internal class DebugLogBuffer(private val capacity: Int = 4000, private val maxC
         append(operation, DebugOutcome.STARTED)
         return operation
     }
-    @Synchronized fun finish(operation: Operation, outcome: DebugOutcome) = append(operation, outcome)
-    private fun append(operation: Operation, outcome: DebugOutcome) {
+    @Synchronized fun finish(operation: Operation, outcome: DebugOutcome, failure: DiagnosticFailure = DiagnosticFailure.fromOutcome(outcome)) = append(operation, outcome, failure)
+    private fun append(operation: Operation, outcome: DebugOutcome, failure: DiagnosticFailure = DiagnosticFailure.fromOutcome(outcome)) {
         val time = now()
         val line = String.format(Locale.ROOT, "[%9.3f] #%d %s %s %dms", (time - started).coerceAtLeast(0) / 1e9,
-            operation.id, operation.kind.name, outcome.name, (time - operation.started).coerceAtLeast(0) / 1_000_000)
+            operation.id, operation.kind.name, outcome.name, (time - operation.started).coerceAtLeast(0) / 1_000_000) + " failure=${failure.code}:${failure.name}"
         while (lines.isNotEmpty() && (lines.size >= capacity || chars + line.length + 1 > maxChars)) {
             chars -= lines.removeFirst().text.length + 1; dropped++
         }
@@ -81,15 +81,16 @@ internal object MobileDebugLog {
         MobileDiagnostics.recorder?.record(kind, DebugOutcome.STARTED, id = operation.id)
         return operation
     }
-    fun finish(operation: DebugLogBuffer.Operation?, outcome: DebugOutcome) {
-        if (BuildConfig.DEBUG && operation != null) buffer.finish(operation, outcome)
+    fun finish(operation: DebugLogBuffer.Operation?, outcome: DebugOutcome, failure: DiagnosticFailure = DiagnosticFailure.fromOutcome(outcome)) {
+        if (BuildConfig.DEBUG && operation != null) buffer.finish(operation, outcome, failure)
         if (operation != null) MobileDiagnostics.recorder?.record(operation.kind, outcome,
-            (MobileDiagnostics.elapsed() - operation.started).coerceAtLeast(0) / 1_000_000, operation.id)
+            (MobileDiagnostics.elapsed() - operation.started).coerceAtLeast(0) / 1_000_000, operation.id, failure)
     }
+    fun fail(operation: DebugLogBuffer.Operation?, error: Throwable) = finish(operation, debugOutcome(error), DiagnosticFailure.classify(error))
     suspend fun <T> trace(kind: DebugOperation, action: suspend () -> T): T {
         val operation = begin(kind)
         try { return action().also { finish(operation, DebugOutcome.SUCCESS) } }
-        catch (failure: Throwable) { finish(operation, debugOutcome(failure)); throw failure }
+        catch (failure: Throwable) { fail(operation, failure); throw failure }
     }
     fun snapshot(): String = if (BuildConfig.DEBUG) buffer.snapshot() else "Debug logging unavailable"
     fun clearThrough(cutoff: Long) { if (BuildConfig.DEBUG && cutoff >= 0) buffer.clearThrough(cutoff) }

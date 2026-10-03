@@ -153,7 +153,7 @@ class MobileRpcClient internal constructor(
             prepareIndependentEvents()
             MobileDebugLog.finish(diagnostic, DebugOutcome.SUCCESS)
             Unit
-        } catch (error: Throwable) { MobileDebugLog.finish(diagnostic, debugOutcome(error)); failConnection(error); throw error }
+        } catch (error: Throwable) { MobileDebugLog.fail(diagnostic, error); failConnection(error); throw error }
     }
 
     suspend fun request(
@@ -779,7 +779,8 @@ class MobileRpcClient internal constructor(
             pending.clear()
             leaseOperations.toList().also { leaseOperations.clear() }
         }
-        MobileDebugLog.finish(MobileDebugLog.begin(DebugOperation.RPC_DISCONNECT), if (notify) debugOutcome(failure) else DebugOutcome.SUCCESS)
+        val diagnostic = MobileDebugLog.begin(DebugOperation.RPC_DISCONNECT)
+        if (notify) MobileDebugLog.fail(diagnostic, failure) else MobileDebugLog.finish(diagnostic, DebugOutcome.SUCCESS)
         try { transport.close() }
         finally {
             operations.forEach { it.cancel(CancellationException("Connection closed", failure)) }

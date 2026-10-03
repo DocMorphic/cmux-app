@@ -52,10 +52,10 @@ internal class DiagnosticRecorder(private val files: DiagnosticFiles, private va
             }
         }
     }
-    fun record(operation: DebugOperation, outcome: DebugOutcome, duration: Long = 0, id: Long = 0) = synchronized(admission) {
+    fun record(operation: DebugOperation, outcome: DebugOutcome, duration: Long = 0, id: Long = 0, failure: DiagnosticFailure = DiagnosticFailure.fromOutcome(outcome)) = synchronized(admission) {
         if (closed) return@synchronized
         if (pending >= capacity) { dropped++; return@synchronized }
-        val value = DiagnosticRecord(operation, outcome, role, wall(), elapsed(), boot, duration, id)
+        val value = DiagnosticRecord(operation, outcome, role, wall(), elapsed(), boot, duration, id, failure = failure)
         if (commands.trySend(Command.Record(value)).isSuccess) pending++
     }
     private suspend fun <T> control(discard: (T) -> Unit = {}, action: (Job) -> T): T {

@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Typed connection failure diagnostics (2026-10-03)
+
+[DIAGNOSTIC_FAILURES.md](DIAGNOSTIC_FAILURES.md) adds the upstream stable failure
+codes to debug and durable logs, with typed Java/Irx admission classification.
+RPC connection/disconnection and shared traced operations propagate the category;
+coalescing preserves distinct errors. Unknown and peer-text-only errors remain
+UNKNOWN, and original exceptions propagate unchanged. Twenty-three JVM tests,
+debug assembly and release Kotlin compilation passed (1m 48s). This is a scoped
+DiagnosticTaxonomy mapping; native trace integration, other event vocabulary and
+physical export acceptance remain open. No emulator or signed build was started.
+
 ## Empty workspace guidance and bounded retry (2026-10-03)
 
 [EMPTY_WORKSPACES.md](EMPTY_WORKSPACES.md) maps the iOS shared empty-list scaffold,

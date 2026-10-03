@@ -16,7 +16,7 @@ class MobileDebugLogTest {
     }
     @Test fun evictionHonorsBothLineAndCharacterLimits() {
         var nanos = 0L
-        val ring = DebugLogBuffer(3, 256) { nanos }
+        val ring = DebugLogBuffer(3, 512) { nanos }
         val first = ring.begin(DebugOperation.RPC_HOST)
         nanos = 25_000_000; ring.finish(first, DebugOutcome.SUCCESS)
         ring.begin(DebugOperation.RPC_WORKSPACE); ring.begin(DebugOperation.RPC_BROWSER)

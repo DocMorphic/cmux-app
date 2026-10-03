@@ -17,7 +17,8 @@ import kotlin.concurrent.withLock
 internal enum class DiagnosticRole { APP, BROWSER }
 internal data class DiagnosticRecord(val operation: DebugOperation, val outcome: DebugOutcome,
     val role: DiagnosticRole, val wallMillis: Long, val elapsedNanos: Long, val boot: Int,
-    val durationMillis: Long = 0, val id: Long = 0, val count: Long = 1)
+    val durationMillis: Long = 0, val id: Long = 0, val count: Long = 1,
+    val failure: DiagnosticFailure = DiagnosticFailure.fromOutcome(outcome))
 internal data class DiagnosticPolicy(val generationBytes: Long = 5_000_000, val retainedBytes: Long = 12_000_000,
     val archives: Int = 3) {
     init { require(generationBytes >= 256 && retainedBytes >= generationBytes && archives in 0..3) }
@@ -123,11 +124,11 @@ internal class DiagnosticFiles(private val root: File, private val exports: File
         while (index < admitted.size) {
             val first = admitted[index++]
             var count = first.count; var duration = first.durationMillis
-            while (index < admitted.size && admitted[index].let { it.operation == first.operation && it.outcome == first.outcome && it.role == first.role && it.boot == first.boot }) {
+            while (index < admitted.size && admitted[index].let { it.operation == first.operation && it.outcome == first.outcome && it.role == first.role && it.boot == first.boot && it.failure == first.failure }) {
                 val next = admitted[index++]; count += next.count; duration = maxOf(duration, next.durationMillis)
             }
             val stamp = if (first.operation == DebugOperation.APP_START) " build=$build" else ""
-            val text = "${Instant.ofEpochMilli(first.wallMillis)} ${first.role} ${first.operation} ${first.outcome} id=${first.id} max_ms=$duration count=$count$stamp\n"
+            val text = "${Instant.ofEpochMilli(first.wallMillis)} ${first.role} ${first.operation} ${first.outcome} id=${first.id} max_ms=$duration count=$count failure=${first.failure.code}:${first.failure.name}$stamp\n"
             val both = first.operation in setOf(DebugOperation.APP_START, DebugOperation.APP_FOREGROUND, DebugOperation.APP_BACKGROUND, DebugOperation.LOG_DROPPED)
             val network = first.operation in setOf(DebugOperation.RPC_CONNECT, DebugOperation.RPC_DISCONNECT, DebugOperation.RPC_HOST,
                 DebugOperation.SSH_CONNECT, DebugOperation.SSH_DISCONNECT, DebugOperation.SSH_IO)
