@@ -160,3 +160,63 @@ Final evidence is in ignored `captures/runtime/notification-reconcile-summary-*`
 the initial run is `captures/runtime/notification-reconcile-android`. No signed
 release or upstream parity pin changed. The same existing emulator was reused and
 stopped after the run; no physical device was connected.
+
+
+## Foreground catch-up on retained connections (2026-10-03)
+
+The `0fc35d6` iOS connection-recovery path calls `scheduleNotificationReconcile`
+even when retaining a healthy terminal subscription. Android's service already
+reconciled after subscription and every 30 seconds, but the production screen
+had no corresponding immediate foreground check. It now reconciles on entering
+the foreground with a verified active client, including when that client and
+terminal were retained across backgrounding. No connection is created by this
+check and terminal subscriptions are not restarted for it.
+
+The screen captures the login, paired Mac and client, then fences delivered-ID
+collection and result application against current foreground state, cancellation,
+login, saved pairing, team admission and exact connection identity. Backgrounding
+or switching owners retires the attempt. Disk/banner operations run on IO. The
+existing ten-second/two-batch reconciler tolerates unsupported methods or temporary
+failures, clears only requested IDs returned as handled, and makes no request
+without actual banners. Foreground return retries an interrupted check. It does
+not enable the background service, infer dismissal from a truncated feed, send a
+local-swipe mutation or change notification permissions.
+
+
+The first runtime check exposed a lifecycle issue in the initial implementation:
+keying a Compose effect only on a foreground Boolean did not start reconciliation
+after the stopped activity resumed. The first test failed waiting for the RPC;
+the run was stopped during the second test to correct this. Production now uses
+`repeatOnLifecycle(STARTED)`, so stop cancels the attempt and start creates a fresh
+one independently of Compose merging state updates while paused. Original logs
+are retained alongside the rerun.
+
+The lifecycle rerun passed the late-response case but exposed a test setup error
+in the sibling-Mac case: the sibling had not been saved, so normal orphan pruning
+removed its banner before reconciliation. The fixture now saves that Mac while
+keeping its connection unadmitted. No production cleanup or assertions were
+relaxed to accommodate the fixture.
+
+
+Final verification: **14 JVM tests passed** (four sync and ten ledger tests,
+zero failures/skips). Debug/test assembly and release Kotlin compilation passed;
+the lifecycle-corrected build took 1m 4s and the final test-only rebuild took 22s.
+The first run of the corrected fixture was killed by Android during instrumentation
+startup before any tests ran: the OS reported startup ANR amid slow AndroidJUnitRunner
+class verification and emulator boot activity. The same installed APKs were rerun
+after startup settled, without changing production code or disabling ANR checks.
+
+The final run passed **OK (2 tests), 33.1 seconds**, API 37 / 16 KB. It verifies
+production NativeScreen lifecycle and framed RPC against actual OS banners:
+no reconcile without banners; resume a retained terminal; exactly the posted
+active-Mac IDs in the request; clear handled while retaining unhandled and
+same-ID sibling banners; no extra terminal replay; no local dismissal outbox;
+background service remains disabled; late response after stop leaves the banner;
+and the next resume sends a fresh request and clears it.
+
+Evidence: ignored `captures/runtime/foreground-notification/`, including original
+failures, startup-ANR context and the final `instrumentation-settled.txt` receipt.
+Debug SHA-256: `606a8a9ae81ec4a3a4e349f9d6dc0da1352d290e7c87e2b5b3a2648eafbb5bbe`.
+Test SHA-256: `18d8efc6864f965f7b2dd2b42c617b1599dd7951a9ff5cc97483299eee09feb9`.
+This is emulator/fixture evidence; physical Pixel/Mac foreground acceptance and
+configured background push remain open. Signed build 441 predates this change.

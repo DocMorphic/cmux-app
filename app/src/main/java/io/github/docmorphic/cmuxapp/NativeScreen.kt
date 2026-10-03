@@ -71,6 +71,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -458,6 +460,33 @@ fun NativeScreen(
         else feedSession.configureFeed(pairedMacs, computerState.connectionKeys, computerState.localConnectionKeys, feedForeground)
     }
     DisposableEffect(feedCoordinator) { onDispose { feedSession.leaveMainScreen() } }
+
+    val notificationSyncMac = pairedMacs.singleOrNull { it.code == connectedCode }
+    LaunchedEffect(client, lifecycle, browserLogin, notificationSyncMac, connectionReady) {
+        val active = client ?: return@LaunchedEffect
+        val mac = notificationSyncMac ?: return@LaunchedEffect
+        val login = browserLogin ?: return@LaunchedEffect
+        if (!connectionReady) return@LaunchedEffect
+        // Returning to a retained terminal must catch up banners even when no
+        // terminal subscription is rebuilt. Borrow the verified client only.
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            val attempt = currentCoroutineContext()
+            fun isCurrent() = attempt.isActive && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) &&
+                signedIn && connectionReady && client === active && !active.isClosed &&
+                code == mac.code && connectedCode == mac.code && store.taskSession() == login &&
+                store.pairedMacs().contains(mac) && connection.allowsSaved(mac)
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                reconcileNativeNotifications(NativeNotificationSync(
+                    delivered = { notificationDelivery.deliveredIDs(mac.origin, ::isCurrent) },
+                    handled = { notificationDelivery.clearHandled(mac.origin, it, ::isCurrent) }
+                )) { ids ->
+                    ensureActive()
+                    if (!isCurrent()) throw CancellationException("Notification connection changed")
+                    active.reconcileNotifications(ids)
+                }
+            }
+        }
+    }
     var unreadNotificationsOnly by rememberSaveable(signedIn) { mutableStateOf(false) }
     var notificationFilterMenu by remember { mutableStateOf(false) }
     var confirmReadAll by remember { mutableStateOf(false) }

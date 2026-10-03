@@ -2639,6 +2639,8 @@ internal class NativeFixturePeer : AutoCloseable {
     val requests = CopyOnWriteArrayList<JSONObject>()
     val failures = CopyOnWriteArrayList<String>()
     val ignoreNextHostStatus = AtomicBoolean(false)
+    @Volatile var reconciledNotificationIds = emptyList<String>()
+    @Volatile var releaseReconcile: CountDownLatch? = null
     @Volatile var identifiedInput = false
     @Volatile var identifiedInputBusy = false
     val appliedInputIdentities = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
@@ -2739,6 +2741,8 @@ internal class NativeFixturePeer : AutoCloseable {
                         val request = JSONObject(String(frame, Charsets.UTF_8))
                         requests += request
                         if (request.optString("method") == "mobile.host.status" && ignoreNextHostStatus.getAndSet(false)) continue
+                        if (request.optString("method") == "notification.reconcile")
+                            releaseReconcile?.let { check(it.await(30, TimeUnit.SECONDS)) { "Reconcile response not released" } }
                         if (request.optString("method") == "mobile.events.subscribe" &&
                             request.optJSONObject("params")?.optJSONArray("topics")?.toString()?.contains("notification.feed.changed") == true)
                             feedConnection = true
@@ -2898,6 +2902,7 @@ internal class NativeFixturePeer : AutoCloseable {
         "notification.feed.mark_all_read" -> JSONObject().also {
             for (index in 0 until notificationFeed.length()) readNotifications.add(notificationFeed.getJSONObject(index).getString("id"))
         }
+        "notification.reconcile" -> JSONObject().put("handled_ids", JSONArray(reconciledNotificationIds))
         "notification.feed.list" -> JSONObject().put("notifications", JSONArray().also { output ->
             for (index in 0 until notificationFeed.length()) {
                 val item = JSONObject(notificationFeed.getJSONObject(index).toString())

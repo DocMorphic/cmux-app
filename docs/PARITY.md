@@ -52,6 +52,24 @@ This adds Java/Kotlin stack capture to the existing OS reason summaries. Native
 stacks are covered below. ANR stacks, native Iroh detailed tracing, broader event coverage and physical
 acceptance are still open; signed build 441 predates this change.
 
+## Foreground notification reconciliation (2026-10-03)
+
+The retained-terminal path now follows `0fc35d6` iOS recovery's foreground banner
+cleanup. NativeScreen uses the already verified client on each lifecycle START,
+without redialing or restarting terminal subscriptions. It reconciles actual
+posted IDs and applies handled results only while that foreground login, Mac and
+connection remain current. Stop cancels the attempt; the next Start retries.
+
+Fourteen JVM checks and two full Android lifecycle/RPC/banner checks passed
+(33.1s, API 37 / 16 KB). The Android checks cover same-ID sibling isolation,
+unhandled-banner retention, no request without banners, late-response retirement,
+repeat foreground catch-up, and unchanged terminal replay count with the service
+disabled. Runtime testing corrected an initial Compose-state trigger and an
+unsaved-sibling fixture; an instrumentation-startup ANR was followed by a passing
+run of the same APKs after boot settled. [Evidence and boundaries](NOTIFICATION_DISMISS.md#foreground-catch-up-on-retained-connections-2026-10-03).
+Physical acceptance and configured push remain open. The whole-parity source pin
+is unchanged; build 441 predates this addition.
+
 ## Connection deadline recovery (2026-10-03)
 
 Targeted inspection of upstream
