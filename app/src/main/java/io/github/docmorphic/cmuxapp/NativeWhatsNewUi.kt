@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
@@ -78,25 +79,36 @@ internal fun NativeWhatsNewLaunchSheet(presentation: WhatsNewPresentation, polic
             if (laidOut && focused) { withFrameNanos { }; appear() }
         }
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.BottomCenter) {
-            val large = LocalDensity.current.fontScale >= 1.3f || maxHeight < 600.dp
-            val height = if (large) maxHeight else minOf(maxHeight, 660.dp)
+            val density = LocalDensity.current
+            val pager = rememberPagerState(initialPage = presentation.pageIndex) { presentation.pages.size }
+            val pageHeights = remember(maxWidth, density.density, density.fontScale, presentation.pages) {
+                mutableStateMapOf<String, Int>()
+            }
+            var headerHeight by remember(density) { mutableIntStateOf(0) }
+            var footerHeight by remember(density) { mutableIntStateOf(0) }
+            var errorHeight by remember(error, density) { mutableIntStateOf(0) }
+            val selected = presentation.pages[pager.currentPage]
+            val fullHeight = density.fontScale >= 1.3f || maxHeight < 600.dp || selected.body is WhatsNewBody.Web
+            val measured = pageHeights[selected.key]
+            val height = if (fullHeight || measured == null || headerHeight == 0 || footerHeight == 0) maxHeight
+                else minOf(maxHeight, with(density) { (measured + headerHeight + footerHeight + errorHeight).toDp() })
             Surface(Modifier.widthIn(max = 680.dp).fillMaxWidth().height(height).testTag("whatsnew.sheet")
                 .onGloballyPositioned { laidOut = it.isAttached && it.size.width > 0 && it.size.height > 0 },
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
                 Column {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().onSizeChanged { headerHeight = it.height }.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("What's New", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
                         TextButton(onClick = onDismiss, modifier = Modifier.testTag("whatsnew.close")) { Text("Done") }
                     }
-                    val pager = rememberPagerState(initialPage = presentation.pageIndex) { presentation.pages.size }
                     LaunchedEffect(pager) { snapshotFlow { pager.settledPage }.collect { onPage(it) } }
                     HorizontalPager(pager, Modifier.fillMaxWidth().weight(1f).testTag("whatsnew.pager"),
                         key = { presentation.pages[it].key }) { index ->
-                        NativeWhatsNewPageBody(presentation.pages[index], policy, Modifier.fillMaxSize())
+                        val page = presentation.pages[index]
+                        NativeWhatsNewPageBody(page, policy, Modifier.fillMaxSize()) { pageHeights[page.key] = it }
                     }
-                    error?.let { Text(it, Modifier.padding(horizontal = 24.dp), color = MaterialTheme.colorScheme.error) }
+                    error?.let { Text(it, Modifier.onSizeChanged { size -> errorHeight = size.height }.padding(horizontal = 24.dp), color = MaterialTheme.colorScheme.error) }
                     val scope = rememberCoroutineScope()
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+                    Column(Modifier.fillMaxWidth().onSizeChanged { footerHeight = it.height }.padding(horizontal = 24.dp, vertical = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("${pager.currentPage + 1} of ${presentation.pages.size}",
                             Modifier.semantics { stateDescription = "Page ${pager.currentPage + 1} of ${presentation.pages.size}" },
@@ -114,8 +126,11 @@ internal fun NativeWhatsNewLaunchSheet(presentation: WhatsNewPresentation, polic
 }
 
 @Composable
-private fun NativeWhatsNewPageBody(page: WhatsNewPage, policy: NativeMacCompatibilityPolicy, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp),
+private fun NativeWhatsNewPageBody(page: WhatsNewPage, policy: NativeMacCompatibilityPolicy, modifier: Modifier = Modifier,
+    onNaturalHeight: (Int) -> Unit = {}) {
+    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+        .wrapContentHeight(Alignment.Top, unbounded = true)
+        .onSizeChanged { onNaturalHeight(it.height) }.padding(horizontal = 24.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Image(painterResource(R.drawable.cmux_logo), "cmux", Modifier.size(48.dp))
         page.releaseLabel?.let { Text(it, style = MaterialTheme.typography.labelLarge,

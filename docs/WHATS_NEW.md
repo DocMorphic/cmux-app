@@ -14,6 +14,33 @@ records the verified WebView API limitation and the required real-device profile
 isolation experiment. The broker/lifetime are not yet connected to a renderer;
 web notices remain incomplete and no real account exchange was made.
 
+## Native sheet fitting (2026-10-04 follow-up)
+
+The selected native page now supplies its natural content height independently of
+the scroll viewport. The sheet adds measured header/footer/error heights and caps
+the result to available space. Measurements reset for width, density, font scale
+or page-content changes. Short pages shrink, long pages remain scrollable, and
+swiping back restores the earlier height. Large text, landscape and future web
+pages use full available height. Transitions remain immediate.
+
+Scoped source: `MobileWhatsNewSheet.swift` at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`; global parity pin unchanged.
+Debug/test assembly passed in **28 s**. On the same API 37 / 16 KB arm64 AVD:
+
+- **4 portrait tests passed**, 26.910 s, including a short/long/back sizing fixture,
+  reachable final-row title, fixed controls, acknowledgement and archive restoration.
+- **3 tests at 150% text passed**, 19.230 s.
+- **1 landscape navigation test passed**, 8.128 s.
+- The initial portrait run had two focus-dependent appearance timeouts while a
+  separate System UI ANR dialog covered the app. Its screenshot/log were retained;
+  tapping its observed Wait action cleared it. All four unchanged tests then passed.
+- Short/long, large-text and landscape screenshots were inspected. Evidence:
+  `captures/runtime/whats-new-fitting/`. Font/rotation restored to 1.0/1/0, and the
+  single existing AVD was stopped/reaped. No additional AVD was created.
+
+No physical Pixel was visible to ADB. This checkpoint does not verify the pending
+real browser/deadlock flow or authenticated upgrade, and is not in signed build 494.
+
 ## Native archive and launch UI (2026-10-04)
 
 `NativeScreen` now exposes **What's New** in Settings only when the eligible archive
@@ -82,8 +109,7 @@ per-navigation allowlist, theme-before-load/live updates, concurrent ten-second
 launch preload, twenty-second archive deadline, retained Back navigation and
 fresh-exchange Retry. Connect only an explicit reviewed Android announcement feed;
 never send Android notice IDs to the production iOS endpoint. Add debug-only
-replay/suppression without marker writes, measured native-sheet fitting beyond the
-current height cap, broader locale negotiation coverage,
+replay/suppression without marker writes, broader locale negotiation coverage,
 physical modal/lifecycle/TalkBack acceptance, and a signed-upgrade/offline archive
 check. Verify release ART again at the next signed milestone.
 

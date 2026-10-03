@@ -58,17 +58,24 @@ are implemented and passed 16 JVM tests (10 exchange, 6 deadline/lifecycle). The
 are not connected to a renderer and made no real account exchange. Synthetic
 loopback tests establish no physical account/cookie acceptance.
 
-Next run an Android profile isolation/cleanup experiment with synthetic cookies
-and owned test profiles only. Direct private browsing is removed from WebView;
-installed AndroidX1.17.1 has no in-memory profile factory, and documented profile
-deletion restrictions need runtime verification. Do not call random profile names
-nonpersistent, wipe unrelated/default web state, or claim an Android-wide
-impossibility before assessing alternatives. Then implement renderer/cookie
+The profile experiment is now recorded in `WHATS_NEW_WEB.md`: cookie isolation and
+targeted clearing passed, but deletion after destroy threw, and profile names and
+cookies were missing after restart despite directories remaining on disk. The
+initial invalid persistence assertion failed; the revised probe records observations
+and confirms only public-registry cleanup, not disk erasure. GeckoView private mode
+is an alternative under evaluation; no dependency was added. Do not call random
+profile names nonpersistent or claim an Android-wide impossibility. Next verify
+stable GeckoView cookie seeding/private contexts and package cost, then choose and
+implement the renderer/cookie
 seeding, theme, navigation policy and the existing10sec/20sec lifetimes in launch
 and archive UI. Current native catalog has no web pages or configured feed; the
 explicit archive placeholder is temporary, not acceptable as finished parity.
 
-Debug replay/suppression, measured native fitting, physical modal/lifecycle/
+Native fitting now passes 4 portrait, 3 large-text and 1 landscape UI checks;
+see the follow-up in WHATS_NEW.md and captures/runtime/whats-new-fitting. The
+initial System UI ANR caused two appearance timeouts; unchanged tests passed
+after observed recovery. Settings restored, AVD stopped/reaped.
+Debug replay/suppression and physical modal/lifecycle/
 TalkBack and signed-upgrade acceptance remain open. Signed494 is still current;
 no APK assembly, emulator or signed build ran for the web-core checkpoint.
 All processes are stopped/reaped, the Pixel remains absent, and the previous

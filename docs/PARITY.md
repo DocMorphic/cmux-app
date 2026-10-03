@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## What's New fitting and profile probe (2026-10-04 follow-up)
+
+Native sheets now fit the selected page, retaining bounded scrolling and fixed
+controls. Debug/test assembly passed; 4 portrait, 3 large-text and 1 landscape
+Android UI executions passed after recovering a separately captured System UI ANR.
+See [WHATS_NEW.md](WHATS_NEW.md). The single AVD was stopped with settings restored.
+
+[WHATS_NEW_WEB.md](WHATS_NEW_WEB.md) records the synthetic profile experiment:
+cookie isolation/targeted clear passed; deletion after destroy failed; restart lost
+the name registry and cookie values while profile directories remained. The initial
+persistence assertion failure is retained. Public-registry cleanup passed but disk
+erasure is unproven. GeckoView private mode is being evaluated, with no dependency
+change. The renderer remains incomplete. Pixel acceptance and the signed milestone
+are unchanged; no new emulator or signed release was created. Global pin unchanged.
+
 ## What's New web exchange and load lifetime (2026-10-04)
 
 [WHATS_NEW_WEB.md](WHATS_NEW_WEB.md) adds an origin-confined session-cookie
