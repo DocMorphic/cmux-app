@@ -52,6 +52,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     var size by remember { mutableStateOf(IntSize.Zero) }
     var direct by remember { mutableStateOf(false) }
     var rawKeyboard by remember { mutableStateOf<TerminalKeyboardView?>(null) }
+    RetireTerminalInputOnBackground(rawKeyboard)
     var modifiers by remember { mutableStateOf(TerminalInputModifiers()) }
     var scroll by remember(shell.id) { mutableDoubleStateOf(0.0) }
     var draft by remember(shell.id) { mutableStateOf("") }

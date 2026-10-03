@@ -16,6 +16,9 @@ import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.InputContentInfo
 import android.widget.TextView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.findViewTreeLifecycleOwner
 
 /** An IME endpoint, not a local copy of the remote terminal's editable contents. */
 class TerminalKeyboardView(context: Context) : TextView(context) {
@@ -32,6 +35,26 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
     var onReturn: () -> Unit = { onText("\r") }
     var imeAction: Int = EditorInfo.IME_ACTION_NONE
     private var connection: TerminalConnection? = null
+    private var inputLifecycle: Lifecycle? = null
+    private var keyboardRequest = 0L
+    private val lifecycleObserver = LifecycleEventObserver { _, event ->
+        if (event == Lifecycle.Event.ON_STOP) retireConnection()
+    }
+
+    private fun acceptsInput() = isEnabled &&
+        (inputLifecycle ?: findViewTreeLifecycleOwner()?.lifecycle)
+            ?.currentState?.isAtLeast(Lifecycle.State.STARTED) != false
+
+    private fun retireConnection() {
+        keyboardRequest++
+        connection?.invalidate(); connection = null
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        inputLifecycle = findViewTreeLifecycleOwner()?.lifecycle
+        inputLifecycle?.addObserver(lifecycleObserver)
+    }
 
     init {
         isFocusable = true; isFocusableInTouchMode = true
@@ -45,26 +68,33 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
     }
 
     fun showKeyboard() {
+        if (!acceptsInput()) return
+        val request = ++keyboardRequest
         requestFocus()
-        post { if (hasFocus() && isAttachedToWindow) manager().showSoftInput(this, InputMethodManager.SHOW_IMPLICIT) }
+        post { if (request == keyboardRequest && acceptsInput() && hasFocus() && isAttachedToWindow)
+            manager().showSoftInput(this, InputMethodManager.SHOW_IMPLICIT) }
     }
 
     fun restartKeyboard() {
+        if (!acceptsInput()) return
         manager().restartInput(this)
         showKeyboard()
     }
 
     fun finishComposition() { connection?.finishComposingText() }
     fun dispose() {
-        connection?.invalidate(); connection = null
+        retireConnection()
         manager().hideSoftInputFromWindow(windowToken, 0)
         clearFocus()
     }
 
-    override fun onDetachedFromWindow() { dispose(); super.onDetachedFromWindow() }
+    override fun onDetachedFromWindow() {
+        inputLifecycle?.removeObserver(lifecycleObserver); inputLifecycle = null
+        dispose(); super.onDetachedFromWindow()
+    }
     override fun onCheckIsTextEditor() = true
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
-        if (!isEnabled) return null
+        if (!acceptsInput()) return null
         connection?.invalidate()
         outAttrs.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         outAttrs.imeOptions = imeAction or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
@@ -74,7 +104,7 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (!isEnabled) return false
+        if (!acceptsInput()) return false
         if ((event.isCtrlPressed && event.isShiftPressed || event.isMetaPressed) && keyCode == KeyEvent.KEYCODE_V) {
             pasteClipboard()
             return true
@@ -98,7 +128,8 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
     }
 
     override fun performAccessibilityAction(action: Int, arguments: Bundle?): Boolean {
-        if (action == AccessibilityNodeInfo.ACTION_SET_TEXT && isEnabled) {
+        if (action == AccessibilityNodeInfo.ACTION_SET_TEXT) {
+            if (!acceptsInput()) return false
             val value = arguments?.getCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE)?.toString() ?: return false
             connection?.clearBuffer(); onText(value); return true
         }
@@ -107,7 +138,7 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
 
     private fun manager() = context.getSystemService(InputMethodManager::class.java)
     fun pasteClipboard(plainTextOnly: Boolean = false): Boolean {
-        if (!isEnabled) return false
+        if (!acceptsInput()) return false
         finishComposition()
         return try {
             val clip = context.getSystemService(android.content.ClipboardManager::class.java).primaryClip ?: return false
@@ -145,7 +176,7 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
     private inner class TerminalConnection : BaseInputConnection(this@TerminalKeyboardView, true) {
         private val buffer = SpannableStringBuilder("\u200b").apply { Selection.setSelection(this, 1) }
         private var live = true
-        private fun ready() = live && connection === this && isEnabled
+        private fun ready() = live && connection === this && acceptsInput()
         override fun getEditable(): Editable = buffer
         fun hasComposition(): Boolean = getComposingSpanStart(buffer) >= 1 && getComposingSpanEnd(buffer) > getComposingSpanStart(buffer)
         fun invalidate() { live = false; clearBuffer() }

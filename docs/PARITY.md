@@ -12,6 +12,23 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Terminal background input ownership (2026-10-03)
+
+The targeted iOS input-session review at `0fc35d6` now has an Android lifecycle
+counterpart: temporary pauses retain composition/focus; backgrounding retires old
+IME connections and clears native-terminal/SSH composer focus without deleting
+drafts. Stopped editors reject input, and old connections stay retired after
+resume. The shared browser keyboard endpoint uses the same lifecycle admission
+check without adopting the terminal-specific focus policy.
+
+A baseline Android test reproduced late input acceptance after activity stop.
+Four new lifecycle tests and six existing rich-input, immediate hardware-focus
+and browser checks passed. An older direct-keyboard test needed its pre-absorption
+resize assertion and frame-clock wait updated; it then passed its full exact-byte,
+Unicode, pause/resume and target-switch flow. [Evidence and APK hashes](TERMINAL_INPUT_DELIVERY.md#background-input-ownership--2026-10-03).
+This is not yet in signed build 448 or verified on the physical Pixel. The wider
+source audit remains open.
+
 ## Latest signed integration checkpoint — build 448 (2026-10-03)
 
 [Signed build 448](https://github.com/DocMorphic/cmux-app/actions/runs/37117513871)

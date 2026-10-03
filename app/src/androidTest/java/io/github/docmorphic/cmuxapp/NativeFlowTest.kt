@@ -1312,14 +1312,25 @@ class NativeFlowTest {
         waitForTerminalText()
         val initialRows = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" && !it.getJSONObject("params").optBoolean("clear") }
             .getJSONObject("params").getInt("viewport_rows")
+        val initialHeight = compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot.height
         compose.onNode(hasSetTextAction()).performTextInput("Keep my composer draft")
         compose.onNodeWithText("Keyboard").performClick()
         try { waitForTerminalFixture(10_000) {
+            compose.mainClock.advanceTimeBy(160)
+            compose.waitForIdle()
             androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
                 ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true &&
+                compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot.height < initialHeight &&
+                // The direct editor is shorter than the composer, allowing extra rows;
+                // primary keyboard absorption must not shrink the Mac's grid.
                 peer.requests.lastOrNull { it.optString("method") == "mobile.terminal.viewport" }
-                    ?.getJSONObject("params")?.optInt("viewport_rows", initialRows)?.let { it < initialRows } == true
-        } } finally { screenshot("terminal-direct-open") }
+                    ?.getJSONObject("params")?.optInt("viewport_rows", 0)?.let { it >= initialRows } == true
+        } } catch (failure: Throwable) {
+            throw AssertionError("Direct keyboard geometry: initialRows=$initialRows initialHeight=$initialHeight " +
+                "height=${compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot.height} " +
+                "ime=${androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())} " +
+                "viewports=${peer.requests.filter { it.optString("method") == "mobile.terminal.viewport" }.map { it.optJSONObject("params") }}", failure)
+        } finally { screenshot("terminal-direct-open") }
         lateinit var keyboard: TerminalKeyboardView
         lateinit var connection: InputConnection
         compose.runOnIdle {

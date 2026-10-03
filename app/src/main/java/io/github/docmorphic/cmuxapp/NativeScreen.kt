@@ -2098,6 +2098,7 @@ fun NativeScreen(
                     onNewBrowser = { selectedWorkspace?.let { workspace -> workspaceSourceForPane()?.let { openNewBrowser(it, workspace) } } })
             }
             selectedTerminal != null -> NativeTerminalContent {
+                RetireTerminalInputOnBackground(rawKeyboardView)
                 val terminal = selectedTerminal!!
                 var showSizing by remember(client, terminal.id) { mutableStateOf(false) }
                 NativeTerminalHeader(terminal, selectedWorkspace, workspaces.size, hostCapabilities, connectionReady, directTyping,

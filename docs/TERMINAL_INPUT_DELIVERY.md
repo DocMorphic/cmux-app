@@ -293,3 +293,54 @@ The fixed APK has not been installed on the Pixel, and signed 284 predates it.
 Repeat the rapid mode transition on the phone before closing that physical
 observation. This does not establish host identified-input capability or retry
 deduplication; those require separate acceptance.
+
+## Background input ownership — 2026-10-03
+
+The targeted iOS `TerminalInputSessionReducer.swift` review at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` distinguishes a temporary interruption
+from entering the background: the former retains focus intent, while the latter
+forgets it. This is a narrow source comparison, not completion of the wider
+upstream refresh.
+
+An Android activity lifecycle regression reproduced a late IME commit reaching
+the editor callback after `ON_STOP`. `TerminalKeyboardView` now retires the old
+input connection at that boundary, discards its uncommitted composition without
+sending it, and rejects new connections, keys, accessibility text and clipboard
+input while stopped. Posted keyboard-show requests are invalidated by retirement.
+Returning to the foreground cannot revive an old connection; a fresh connection
+can accept input normally. The browser's reuse of this endpoint gets the same
+stopped-activity admission check.
+
+Native terminal and SSH shell screens also clear direct/composer focus and hide
+the keyboard on `ON_STOP`, retaining composer draft text. This uses a lifecycle
+observer rather than a recomposed foreground flag, so a fast stop/start cannot
+lose the stop event. `ON_PAUSE` alone does not retire composition or clear focus.
+The terminal-specific focus policy does not apply to browser screens.
+
+The older direct-keyboard regression still expected the host's primary grid to
+shrink when the keyboard appeared. That expectation predates primary keyboard
+absorption. Its captured screenshot showed the keyboard open; the assertion is
+now aligned with [primary sizing](TERMINAL_SHARED_SIZING.md): the phone's visible
+terminal height must shrink without shrinking the host's reported row count.
+Changing from the taller composer to the shorter direct editor can add host rows;
+the measured fixture changed from 48 to 50. The test pumps the Compose frame
+clock while waiting for platform keyboard insets to reach the measured layout.
+The subsequent exact-byte, Unicode/composition, input rejection/resume,
+target-switch and draft assertions remain in place.
+
+Verification used the existing API 37 / 16 KB emulator. The baseline two-test
+run reproduced the stopped-editor failure and passed temporary-pause retention.
+With the fix, four new activity lifecycle cases, three rich-input cases, the
+immediate hardware-focus case, and two browser input/lifecycle cases passed in
+the 11-case run (75.358s). That run's sole failure was the obsolete sizing
+assertion described above. After recording the geometry and correcting the
+expectation/frame-clock wait, the remaining direct-keyboard case passed in
+31.688s. The intervening failed runs are retained, not counted as passes.
+
+Debug/test APK builds passed (46s); the final test-only rebuild passed (10s).
+Ignored evidence: `captures/runtime/terminal-input-lifecycle/`. Emulator stopped
+after verification. No Pixel was visible to ADB, so no phone installation or
+physical browser acceptance is claimed. Signed build 448 predates this change.
+
+- Debug APK: `f88e7526240dd746cd146b23ca1b76419065c2807afdf98fd121254c5d1e47d2`.
+- Final test APK: `8247e59d1e735311eb03cba2772636acc1f4df9b1408f198f60fce23cd16e5b4`.
