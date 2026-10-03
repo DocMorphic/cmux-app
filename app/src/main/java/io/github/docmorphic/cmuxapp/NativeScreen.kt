@@ -249,6 +249,7 @@ fun NativeScreen(
     val localBrowserState by localBrowsers.state.collectAsState()
     val localBrowser = localBrowserState.local
     val browserLogin = if (signedIn) store.taskSession() else null
+    var notificationRecovery by remember(currentIncomingRoute, browserLogin) { mutableStateOf(NativeNotificationRouteRecovery()) }
     fun inputOwner(mac: NativeCredentialStore.PairedMac, login: String?) = nativeTerminalInputOwner(mac, login)
     SideEffect {
         val owner = pairedMacs.singleOrNull { it.code == code }?.let { inputOwner(it, browserLogin) }
@@ -1059,8 +1060,9 @@ fun NativeScreen(
     val routePairingCode = code
     val routeSignedIn = signedIn
     val routeInAppNotification = inAppNotification
-    LaunchedEffect(incomingNotificationRoute, routeInAppNotification?.routeId, routeSignedIn,
-        routePairingCode, routeConnectedCode, routeClient, teamState.scope, pairedMacs) {
+    val routeLogin = browserLogin
+    LaunchedEffect(incomingNotificationRoute, routeInAppNotification?.routeId, routeSignedIn, routeLogin,
+        routePairingCode, routeConnectedCode, routeClient, teamState.scope, pairedMacs, notificationRecovery.retryGeneration) {
         val routeId = incomingNotificationRoute ?: routeInAppNotification?.routeId ?: return@LaunchedEffect
         val openedFromFeed = incomingNotificationRoute == null
         fun consumeRoute() {
@@ -1070,8 +1072,9 @@ fun NativeScreen(
         if (!routeSignedIn || currentIncomingRoute != routeId || (connector == null && teamState.scope == null)) return@LaunchedEffect
         val route = if (openedFromFeed) routeInAppNotification else notificationDelivery.destination(routeId)
         val mac = store.pairedMacs().singleOrNull { it.ownsOrigin(route?.origin) && connection.allowsSaved(it) }
-        if (route == null || mac == null) {
+        if (route == null || mac == null || (route.login != null && route.login != routeLogin)) {
             error = "This notification's saved Mac is no longer available."
+            notificationRecovery = notificationRecovery.complete()
             consumeRoute()
             return@LaunchedEffect
         }
@@ -1085,25 +1088,32 @@ fun NativeScreen(
         // can run this route twice if a handshake completes before this effect starts.
         val active = routeClient ?: return@LaunchedEffect
         if (routeConnectedCode != mac.code) return@LaunchedEffect
+        if (!notificationRecovery.allows(active)) return@LaunchedEffect
+        notificationRecovery = notificationRecovery.resolving()
         fun isCurrent() = currentIncomingRoute == routeId && client === active && code == mac.code &&
-            signedIn && store.pairedMacs().contains(mac) && connection.allowsSaved(mac)
+            signedIn && store.taskSession() == routeLogin && store.pairedMacs().contains(mac) && connection.allowsSaved(mac)
+        var navigationCommitted = false
         try {
             val feed = parseNotifications(active.notifications())
             val listing = workspaceSnapshots.read(mac, active)
-            if (!isCurrent()) return@LaunchedEffect
+            if (!isCurrent() || !notificationRecovery.allows(active)) return@LaunchedEffect
+            listing.requireCurrent()
             val notification = feed.firstOrNull { it.id == route.notificationId } ?: route.notification()
             val available = listing.workspaces
             val workspace = notification.destination(available)
             val exactBrowser = workspace?.browsers?.firstOrNull { it.id == notification.surfaceId }
             val surface = workspace?.macSurfaces?.firstOrNull { it.id == notification.surfaceId }
             val terminal = workspace?.terminals?.firstOrNull { it.id == notification.surfaceId }
-                ?: if (exactBrowser == null && surface == null) workspace?.terminals?.firstOrNull() else null
-            val browser = exactBrowser ?: if (terminal == null && surface == null) workspace?.browsers?.firstOrNull() else null
-            check(workspace != null && (terminal != null || browser != null || surface != null)) {
-                "This notification's workspace is no longer available."
+                ?: if (notification.surfaceId == null && exactBrowser == null && surface == null) workspace?.terminals?.firstOrNull() else null
+            val browser = exactBrowser ?: if (notification.surfaceId == null && terminal == null && surface == null) workspace?.browsers?.firstOrNull() else null
+            if (workspace == null || (terminal == null && browser == null && surface == null)) {
+                error = "This notification's workspace or tab is no longer available."
+                notificationRecovery = notificationRecovery.complete()
+                consumeRoute()
+                return@LaunchedEffect
             }
             val opened = withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
-                if (!isCurrent()) false else {
+                if (!isCurrent() || !notificationRecovery.allows(active)) false else {
                     applyListing(listing); notifications = feed
                     finishSearch(); notificationTab = openedFromFeed; showSettings = false; showTaskComposer = false
                     showCreateGroup = false; showLicenses = false; selectedChangesWorkspace = null
@@ -1114,6 +1124,8 @@ fun NativeScreen(
                 }
             }
             if (!opened) return@LaunchedEffect
+            navigationCommitted = true
+            notificationRecovery = notificationRecovery.complete()
             // Navigation is committed. A failed read acknowledgment never targets a different session.
             active.markNotificationRead(notification.id)
             if (!isCurrent()) return@LaunchedEffect
@@ -1122,9 +1134,35 @@ fun NativeScreen(
             error = null
         } catch (failure: Exception) {
             if (failure is CancellationException) throw failure
-            if (isCurrent()) error = failure.message ?: "Could not open this notification"
+            if (isCurrent()) {
+                if (!navigationCommitted) {
+                    notificationRecovery = notificationRecovery.failed(active, failure.message ?: "Could not open this notification")
+                    return@LaunchedEffect
+                }
+                error = failure.message ?: "Could not mark this notification read"
+            }
         }
         if (isCurrent()) consumeRoute()
+    }
+
+    LaunchedEffect(connectionError, busy, notificationRecovery.phase) {
+        if (currentIncomingRoute != null && !busy && connectionError != null &&
+            notificationRecovery.phase == NativeNotificationRouteRecovery.Phase.RECONNECTING)
+            notificationRecovery = notificationRecovery.failed(client, checkNotNull(connectionError))
+    }
+    if (currentIncomingRoute != null && signedIn) {
+        val recoveryRoute = currentIncomingRoute
+        NativeNotificationRecoveryDialog(notificationRecovery, onRetry = {
+            if (currentIncomingRoute == recoveryRoute && notificationRecovery.phase == NativeNotificationRouteRecovery.Phase.FAILED) {
+                notificationRecovery = notificationRecovery.retry(client)
+                connectionError = null; error = null; retryDelay = 2_000; retry++
+            }
+        }, onCancel = {
+            if (currentIncomingRoute == recoveryRoute) {
+                notificationRecovery = notificationRecovery.complete()
+                if (incomingNotificationRoute != null) handleNotification(checkNotNull(recoveryRoute)) else inAppNotification = null
+            }
+        })
     }
 
     val capturedWorkspaceRoute = workspaceRoute

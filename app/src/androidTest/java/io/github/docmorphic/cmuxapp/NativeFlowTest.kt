@@ -2184,6 +2184,81 @@ class NativeFlowTest {
         } finally { releaseFirstFeed.countDown(); other.close() }
     }
 
+    @Test fun notificationRetryWaitsForFreshHandshakeBeforeOpeningTheRetainedTarget() = checkNotificationRetry(false)
+    @Test fun notificationReplacingARetryCannotBeOverriddenByTheOldTarget() = checkNotificationRetry(true)
+
+    private fun checkNotificationRetry(replace: Boolean) {
+        val incoming = mutableStateOf<String?>(null)
+        val handled = java.util.concurrent.atomic.AtomicInteger()
+        val holdNext = java.util.concurrent.atomic.AtomicBoolean()
+        val entered = java.util.concurrent.atomic.AtomicBoolean()
+        val release = CountDownLatch(1)
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, incomingNotificationRoute = incoming.value,
+                    onNotificationHandled = { if (incoming.value == it) { incoming.value = null; handled.incrementAndGet() } },
+                    connector = NativeConnector { _, _ ->
+                        if (holdNext.getAndSet(false)) {
+                            entered.set(true)
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                check(release.await(10, TimeUnit.SECONDS))
+                            }
+                        }
+                        MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                    })
+            } } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+            val mac = NativeCredentialStore(context).pairedMacs().single { it.deviceId == "fixture-mac" }
+            fun route(id: String, workspace: String, surface: String): String {
+                var created: NotificationDestination? = null
+                NativeCredentialStore(context, "native_notification_state").update {
+                    created = NativeNotificationLedger(it).stage(mac.origin, NativeNotification(id, workspace, surface, "Ready", "", false))
+                }
+                return checkNotNull(created).routeId
+            }
+            val first = route("retry-first", "workspace-1", "terminal-1")
+            peer.rejectNextForegroundFeed.set(true)
+            compose.runOnIdle { incoming.value = first }
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Could not open notification").fetchSemanticsNodes().isNotEmpty() }
+            assertEquals(0, handled.get()); assertEquals(first, incoming.value)
+            holdNext.set(true)
+            compose.onNodeWithText("Retry").performClick()
+            compose.waitUntil(5_000) { entered.get() }
+            compose.onNodeWithText("Opening notification").assertIsDisplayed()
+            assertEquals(0, handled.get())
+            assertTrue(peer.requests.none { it.optString("method") in setOf("notification.feed.mark_read", "mobile.terminal.replay") })
+            if (replace) compose.runOnIdle { incoming.value = route("retry-new", "workspace-2", "terminal-2") }
+            release.countDown()
+            compose.waitUntil(15_000) { handled.get() == 1 && peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+            val replay = peer.requests.last { it.optString("method") == "mobile.terminal.replay" }.getJSONObject("params")
+            assertEquals(if (replace) "terminal-2" else "terminal-1", replay.getString("surface_id"))
+            val marks = peer.requests.filter { it.optString("method") == "notification.feed.mark_read" }
+            assertEquals(1, marks.size)
+            assertEquals(if (replace) "retry-new" else "retry-first", marks.single().getJSONObject("params").getJSONArray("notification_ids").getString(0))
+        } finally { release.countDown() }
+    }
+
+    @Test fun missingNotificationTerminalDoesNotOpenASiblingOrMarkRead() = checkUnavailableNotification("missing-terminal", null)
+    @Test fun notificationForAnotherLoginDoesNotNavigateOrMarkRead() = checkUnavailableNotification("terminal-1", "different-login")
+    private fun checkUnavailableNotification(surface: String, login: String?) {
+        val code = "cmux-ios://attach?v=2&r=100.64.0.1:58465"
+        NativeCredentialStore(context).rememberMac(code, "fixture-mac", "Fixture Mac")
+        var route: NotificationDestination? = null
+        NativeCredentialStore(context, "native_notification_state").update {
+            route = NativeNotificationLedger(it).stage(pairingOrigin(code, "fixture-mac"),
+                NativeNotification("unavailable", "workspace-1", surface, "Ready", "", false), login)
+        }
+        val incoming = mutableStateOf<String?>(checkNotNull(route).routeId)
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, incomingNotificationRoute = incoming.value,
+                onNotificationHandled = { incoming.value = null }, connector = NativeConnector { _, _ ->
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                })
+        } } }
+        compose.waitUntil(15_000) { incoming.value == null }
+        assertTrue(peer.requests.none { it.optString("method") in setOf("notification.feed.mark_read", "mobile.terminal.replay") })
+    }
+
     @Test fun forgottenMacNotificationDoesNotUseCurrentMacOrMarkRead() {
         var route: NotificationDestination? = null
         NativeCredentialStore(context, "native_notification_state").update {
@@ -2428,6 +2503,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var releaseNextInput: CountDownLatch? = null
     @Volatile var releaseNextPaste: CountDownLatch? = null
     @Volatile var releaseNextFeed: CountDownLatch? = null
+    val rejectNextForegroundFeed = java.util.concurrent.atomic.AtomicBoolean()
     private val sockets = CopyOnWriteArrayList<Socket>()
     @Volatile private var closed = false
     private var revision = 0
@@ -2572,7 +2648,8 @@ internal class NativeFixturePeer : AutoCloseable {
                         val modelError = taskModelErrorCode.takeIf { request.optString("method") == "mobile.task.models.list" }
                         val directoryError = directoryErrorCode.takeIf { request.optString("method").startsWith("mobile.directory.") }
                         val changesError = changesErrorCode.takeIf { request.optString("method").startsWith("mobile.workspace.changes.") }
-                        val rejected = todoRejected || taskError != null || modelError != null || directoryError != null || changesError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
+                        val feedRejected = !feedConnection && request.optString("method") == "notification.feed.list" && rejectNextForegroundFeed.getAndSet(false)
+                        val rejected = feedRejected || todoRejected || taskError != null || modelError != null || directoryError != null || changesError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
                             (request.optString("method") == "terminal.input" && rejectNextInput.getAndSet(false))
                         val envelope = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
                         if (rejected) envelope.put("error", JSONObject().put("code", taskError ?: modelError ?: directoryError ?: changesError ?: "surface_unavailable")

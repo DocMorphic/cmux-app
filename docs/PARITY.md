@@ -45,12 +45,46 @@ Targeted source findings in this pass:
   host/kind-specific wording and consistency across every entry point remain to
   be checked against the new contract.
 - `MobilePushCoordinator.swift` now awaits explicit reconnect before retrying a
-  pending notification route, cancelling replaced retries. This was identified
-  for Android route/recovery review; no equivalence or fix is claimed by this pass.
+  pending notification route, cancelling replaced retries. Android's targeted
+  recovery implementation and verification are recorded below; this is not a
+  claim of complete push-coordinator parity or configured push delivery.
 
 The browser route, authentication gate, SSH, shell/model and runtime changes in
 the inventory still require contract-by-contract comparison. Earlier dated port
 checkpoints below are evidence for their stated scope, not a full delta audit.
+
+### Notification route recovery (2026-10-03)
+
+A failed notification lookup now retains its route and offers Retry/Cancel.
+Retry reconnects the selected Mac and waits for a newly established client before
+resolving the target; it cannot reuse the failed client. A newer notification
+replaces the pending target, and account changes invalidate the old lookup.
+The route also requires a current authoritative workspace snapshot. If an explicit
+tab no longer exists, Android reports it unavailable instead of opening a sibling
+terminal or marking the notification read. Workspace-only notifications retain
+their existing fallback selection.
+
+Navigation is committed before acknowledging the notification as read. A failed
+read acknowledgment reports an error without repeating navigation. Cancelling
+recovery clears the pending navigation. These changes concern opening existing
+notifications; Firebase configuration, token registration and end-to-end remote
+push delivery remain outstanding. iOS's complete timeout and coordinator contract
+has not been certified by this targeted port.
+
+Debug/test assembly passed in **39 seconds**, with **3 JVM tests** passing.
+**6 Android flow tests passed in 10.444 seconds** on the existing API 37 / 16 KiB
+emulator: retained retry waits for a fresh handshake, replacement during a held
+handshake opens only the new target, missing explicit tabs never open siblings,
+wrong-login routes never navigate or mark read, saved-Mac switching supports
+reopening a route, and forgotten-Mac routes never use the current Mac. These use
+the production screen with loopback RPC fixtures, not a physical Mac/Pixel or
+remote push delivery. The emulator was stopped afterward; no Pixel was connected.
+Signed build 411 is unchanged.
+
+Ignored evidence: `captures/runtime/notification-route-retry-build.txt` and
+`notification-route-retry-ui.txt`. APK SHA-256: debug
+`eddf30aba71458b2724a94cc30836bd59284cb2cca377e1ceee81d002d486f76`, test
+`a8b39a9cb5a5725c836bf88fd7f93b45e6e5733ec5682b87bd871b3c32c3194e`.
 
 ### Terminal picker verification
 
