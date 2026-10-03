@@ -73,9 +73,8 @@ included in the APK notices.
 
 ## Remaining onboarding work
 
-This implements reusable Mac setup guidance. The full five-stage iOS post-sign-in
-tour (agents, notifications, push, pairing, connect), its progress persistence,
-automatic connection phase UI, connection-method choice and connected keep-awake
-offer still need an Android adaptation and acceptance. Android push configuration
-must be accurately reflected in that flow. Current physical Mac/Pixel pairing and
-rotation acceptance remain open; the Pixel is absent from ADB.
+This guide remains reusable independently of the new
+[five-stage introduction](ONBOARDING.md). The introduction now adds persisted
+progress, connection phase UI, method choice, Settings replay and the connected
+keep-awake offer. Physical Mac/Pixel onboarding, rotation and configured push
+acceptance remain open. See the feature document for exact verification scope.

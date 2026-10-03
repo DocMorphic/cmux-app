@@ -206,6 +206,16 @@ fun NativeScreen(
         foreground = pairedMacs.singleOrNull { connectionReady && it.code == connectedCode }?.colorIdentity)
     val paneSelection = feedSession.paneNavigation.select(if (signedIn) store.taskSession() else null,
         pairedMacs.singleOrNull { it.code == code }, teamState.scope)
+    val onboardingPrefs = remember(context) { context.getSharedPreferences("native_onboarding", android.content.Context.MODE_PRIVATE) }
+    val onboardingStore = remember(onboardingPrefs) { NativeOnboardingProgressStore(
+        { onboardingPrefs.getString(NativeOnboardingProgressStore.KEY, null) },
+        { onboardingPrefs.edit().putString(NativeOnboardingProgressStore.KEY, it).commit() }, forceComplete = connector != null) }
+    var onboardingProgress by remember(onboardingStore) { mutableStateOf(onboardingStore.progress) }
+    var replayOnboarding by rememberSaveable(signedIn) { mutableStateOf(false) }
+    var onboardingPermissionBusy by rememberSaveable(signedIn) { mutableStateOf(false) }
+    var onboardingPermissionResult by rememberSaveable(signedIn) { mutableLongStateOf(0L) }
+    var permissionOwner by rememberSaveable { mutableStateOf<String?>(null) }
+    var permissionForOnboarding by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable(signedIn) { mutableStateOf(false) }
     var computersOwner by remember(signedIn) { mutableStateOf<NativeComputerMenuOwner?>(null) }
     var computersReturnToSettings by remember { mutableStateOf(false) }
@@ -901,10 +911,34 @@ fun NativeScreen(
     }
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) runCatching { NativeNotificationService.setEnabled(context, true) }
-            .onSuccess { backgroundNotifications = true; error = null }
-            .onFailure { error = it.message }
-        else error = "Allow notifications to receive cmux updates in the background"
+        val owned = signedIn && permissionOwner != null && store.taskSession() == permissionOwner
+        if (owned) {
+            if (granted) runCatching { NativeNotificationService.setEnabled(context, true) }
+                .onSuccess { backgroundNotifications = true; error = null }
+                .onFailure { error = it.message }
+            else error = "Notifications are not allowed. You can enable them later in Android Settings."
+            if (permissionForOnboarding) onboardingPermissionResult++
+        }
+        onboardingPermissionBusy = false; permissionOwner = null; permissionForOnboarding = false
+    }
+    fun enableNotifications(fromOnboarding: Boolean) {
+        if (!signedIn || onboardingPermissionBusy || permissionOwner != null) return
+        permissionOwner = store.taskSession() ?: return
+        permissionForOnboarding = fromOnboarding
+        onboardingPermissionBusy = fromOnboarding
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            try { notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS) }
+            catch (failure: Exception) {
+                error = failure.message; onboardingPermissionBusy = false; permissionOwner = null; permissionForOnboarding = false
+            }
+        } else {
+            runCatching { NativeNotificationService.setEnabled(context, true) }
+                .onSuccess { backgroundNotifications = true; error = null }
+                .onFailure { error = it.message }
+            if (fromOnboarding) onboardingPermissionResult++
+            onboardingPermissionBusy = false; permissionOwner = null; permissionForOnboarding = false
+        }
     }
 
     LaunchedEffect(signedIn) { if (!signedIn) { drafts.clear(); inAppNotification = null } }
@@ -2008,6 +2042,51 @@ fun NativeScreen(
         ?: NativeMacCompatibilityPolicy.baked
     val displayWarnings = cachedComputers?.warnings(displayPolicy) ?: compatibilityWarnings
         .filterKeys { it.owner == teamState.scope }.mapKeys { it.key.identity }
+    val onboardingOwner = teamState.scope?.takeIf { accountTeams.isCurrent(it) }
+    val onboardingExplicitRoute = incomingCode != null || currentIncomingRoute != null || workspaceRoute != null
+    val onboardingEligible = nativeOnboardingEligible(onboardingProgress, signedIn, onboardingOwner != null,
+        teamState.cached, onboardingExplicitRoute)
+    val showOnboarding = (onboardingEligible && !showSettings && !showSshComputers) ||
+        (replayOnboarding && signedIn && !onboardingExplicitRoute)
+    LaunchedEffect(onboardingExplicitRoute) { if (onboardingExplicitRoute) replayOnboarding = false }
+    var onboardingRetry by remember(onboardingOwner, replayOnboarding) { mutableIntStateOf(0) }
+    var onboardingMethod by rememberSaveable(signedIn) { mutableStateOf(
+        NativeOnboardingMethod.entries.firstOrNull { it.name == onboardingPrefs.getString("connection_method", null) }
+            ?: NativeOnboardingMethod.AUTOMATIC) }
+    val onboardingAutomatic = onboardingMethod == NativeOnboardingMethod.AUTOMATIC
+    val onboardingCandidates = currentDirectory.filter { candidate -> hiddenMacs.none {
+        canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(candidate.deviceId) && it.instanceTag == candidate.buildTag
+    } }
+    val onboardingReady = connectionReady && client?.isClosed == false && pairedMacs.any { it.code == connectedCode }
+    fun onboardingSearch() {
+        val owner = onboardingOwner ?: return
+        if (!feedForeground || !accountTeams.isCurrent(owner) || onboardingReady || busy) return
+        error = null
+        if (code.isNotBlank()) { retryDelay = 2_000; retry++ }
+        else { onboardingRetry++; sharedConnections?.native?.refresh() }
+    }
+    // Discovery and connection still use the existing shared owners. A single
+    // available Mac can be selected automatically; multiple Macs stay explicit.
+    LaunchedEffect(showOnboarding, onboardingOwner, onboardingAutomatic, computerState.ready,
+        onboardingCandidates, onboardingRetry, code, feedForeground, replayOnboarding, deferStartupForPairing,
+        pendingPairingCode, busy, onboardingReady) {
+        val owner = onboardingOwner ?: return@LaunchedEffect
+        if (!nativeOnboardingMayChoose(showOnboarding, feedForeground, deferStartupForPairing || pendingPairingCode != null,
+            replayOnboarding, onboardingRetry > 0, onboardingAutomatic, code.isNotBlank(), busy, onboardingReady) ||
+            !accountTeams.isCurrent(owner) || !computerState.ready || computerState.account != owner) return@LaunchedEffect
+        val candidate = onboardingCandidates.singleOrNull() ?: return@LaunchedEffect
+        selectPairingCode(PairingCodeParser.computer(candidate, owner))
+    }
+    fun scanForOnboarding() {
+        val owner = onboardingOwner ?: return
+        runCatching {
+            GmsBarcodeScanning.getClient(context,
+                GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).enableAutoZoom().build()).startScan()
+        }.onSuccess { scan -> scan.addOnSuccessListener { barcode ->
+            if (signedIn && accountTeams.isCurrent(owner)) proposePairing(barcode.rawValue.orEmpty())
+        }.addOnFailureListener { if (accountTeams.isCurrent(owner)) error = it.message } }
+            .onFailure { error = it.message ?: "Could not open the QR scanner. Paste a code instead." }
+    }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings) {
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
@@ -2019,6 +2098,55 @@ fun NativeScreen(
         when {
             !signedIn -> NativeSignIn(account::sendCode, account::signIn, onUseHelper,
                 onLicenses = { showLicenses = true }, macPolicy = displayPolicy, onSignedIn = { signedIn = true; error = null })
+            showOnboarding -> key(browserLogin, teamState.userId, teamState.selectedTeamId, replayOnboarding) {
+                NativeOnboardingFlow(onboardingProgress, replayOnboarding,
+                    NativeOnboardingPhase.resolve(onboardingReady,
+                        busy || computerState.loading, computerState.ready || computerState.error != null || connectionError != null),
+                    hostName.takeIf { connectionReady }, displayPolicy, onboardingPermissionBusy, onboardingPermissionResult,
+                    error ?: connectionError ?: computerState.error ?: if (onboardingOwner == null) "Refresh your account in Settings before connecting to a Mac." else null,
+                    canConnect = onboardingOwner != null, onEnableNotifications = { enableNotifications(true) },
+                    onReachedConnection = {
+                        if (!replayOnboarding) runCatching { onboardingStore.connect(); onboardingProgress = onboardingStore.progress }
+                            .onFailure { error = it.message }
+                        if (!replayOnboarding) onboardingSearch()
+                    }, onComplete = {
+                        if (replayOnboarding) replayOnboarding = false
+                        else runCatching { onboardingStore.complete(); onboardingProgress = onboardingStore.progress }
+                            .onFailure { error = it.message }
+                    }, onRetry = ::onboardingSearch, onScan = ::scanForOnboarding, onPairing = ::proposePairing,
+                    initialMethod = onboardingMethod, onMethod = { method ->
+                        onboardingMethod = method
+                        if (onboardingPrefs.getString("connection_method", null) != method.name &&
+                            !onboardingPrefs.edit().putString("connection_method", method.name).commit())
+                            error = "Could not save the connection method."
+                    },
+                    onSettings = { replayOnboarding = false; showSettings = true },
+                    computers = {
+                        val saved = displayedVisible.filter(connection::allowsSaved)
+                        if (onboardingCandidates.size + saved.size > 1) Text("Choose a Mac", fontWeight = FontWeight.SemiBold)
+                        saved.forEach { mac -> TextButton(enabled = !busy, onClick = {
+                            val owner = onboardingOwner
+                            if (owner != null && accountTeams.isCurrent(owner) &&
+                                NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac)) {
+                                selectPickerComputer(mac); expectedReconnect = mac
+                            }
+                        }) { Text("${mac.name} · ${mac.instanceTag ?: "legacy"}") } }
+                        onboardingCandidates.filter { candidate -> saved.none {
+                            canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(candidate.deviceId) && it.instanceTag == candidate.buildTag
+                        } }.forEach { mac -> TextButton(enabled = !busy, onClick = {
+                            val owner = onboardingOwner
+                            if (owner != null && accountTeams.isCurrent(owner) &&
+                                NativeReconnectComputers.currentDiscovery(mac, computerStates.value, owner))
+                                selectPairingCode(PairingCodeParser.computer(mac, owner))
+                        }) { Text("${mac.name} · ${mac.buildTag}") } }
+                    }, keepAwake = {
+                        val owner = onboardingOwner
+                        val target = if (owner != null) pairedMacs.singleOrNull { it.code == connectedCode }
+                            ?.let { NativeComputerTarget.from(it, owner) } else null
+                        if (owner != null && target != null && sharedConnections != null)
+                            NativeMacPowerSettings(sharedConnections.native, owner, target, offerOnly = true)
+                    })
+            }
             showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
             showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
             showSettings && computersOwner != null -> {
@@ -2123,12 +2251,7 @@ fun NativeScreen(
                     }
                     Switch(backgroundNotifications, onCheckedChange = { enabled ->
                         if (enabled) {
-                            if (Build.VERSION.SDK_INT >= 33 &&
-                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
-                                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            else runCatching { NativeNotificationService.setEnabled(context, true) }
-                                .onSuccess { backgroundNotifications = true; error = null }
-                                .onFailure { error = it.message }
+                            enableNotifications(false)
                         } else runCatching { NativeNotificationService.setEnabled(context, false) }
                             .onSuccess { backgroundNotifications = false; error = null }
                             .onFailure { error = it.message }
@@ -2137,6 +2260,7 @@ fun NativeScreen(
                 }
                 NativeNotificationSettings()
                 }, preferences = {
+                TextButton(onClick = { replayOnboarding = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.introduction")) { Text("View Introduction Again") }
                 NativeFeedbackSettingsButton()
                 NativeDiagnosticsSettings()
                 TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }

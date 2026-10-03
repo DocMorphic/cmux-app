@@ -12,6 +12,28 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Five-stage Android introduction (2026-10-03)
+
+[ONBOARDING.md](ONBOARDING.md) implements the iOS sequence: workspaces,
+notifications, explicit notification opt-in, Mac setup and connection. Durable
+welcome/connect/complete milestones, saved page/draft state, horizontal paging,
+Settings replay, connection-method selection and the known-state Keep Mac Awake
+offer now use the existing Android account and connection owners. Cached first-run
+credentials cannot initiate the tour; offline Settings replay remains readable
+and routes connection actions to account recovery. Replay never changes first-run
+progress or starts an incidental connection. Incoming links retain precedence.
+
+The original Mac Settings images and cmux logo are retained. Android examples,
+a live connection diagram, compact-height layout and large-text scrolling replace
+platform-specific iPhone promotional screenshots. The notification page clearly
+states the current background connection requirement; FCM configuration is still
+pending. 19 JVM tests passed; the final four onboarding UI tests passed in 38.916 seconds
+at 150% portrait text. Normal landscape and earlier power/help regression runs
+also passed; screenshots and the signed-out production launch were inspected.
+Exact verification scope and hashes are recorded in ONBOARDING.md.
+Build 481 predates this source change. Physical/native/push acceptance and broader
+source/visual parity remain open; the global pin is unchanged.
+
 ## Signed development milestone 481 (2026-10-03)
 
 Build **481** at `59c75e3` passed full app/Ghostty JVM tests and debug/test/release

@@ -2,7 +2,9 @@
 
 Reference: cmux `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`. This is a scoped
 source review for the next implementation, not evidence of full Android parity.
-The reusable [Mac pairing guide](PAIRING_SETUP.md) is already implemented.
+The reusable [Mac pairing guide](PAIRING_SETUP.md) and the
+[five-stage Android introduction](ONBOARDING.md) are now implemented; their
+checkpoint evidence and remaining live acceptance are documented separately.
 
 ## Required flow
 
@@ -107,8 +109,8 @@ actions and readable copy at large font scales rather than blindly fixed heights
   CMUXMobileRootView.swift, MobileSettingsView.swift,
   MobilePushCoordinator.swift (explicit enable and workspace-visible recovery).
 
-Before implementation, map these transitions onto the Android account, connection
-and notification owners and finish the connection/pairing layout comparison. The source review
+The Android checkpoint maps these transitions onto the existing account, connection
+and notification owners. Continue live acceptance and visual comparison; this source review
 does not authorize new analytics collection or automatically enable Mac
 listeners. Existing user pairing authorization remains in force for device tests.
 

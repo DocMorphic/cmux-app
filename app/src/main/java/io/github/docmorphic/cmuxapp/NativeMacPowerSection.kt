@@ -17,7 +17,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.*
 
 @Composable
-internal fun NativeMacPowerSettings(runtime: NativeIrohRuntime, team: NativeTeamScope, target: NativeComputerTarget) {
+internal fun NativeMacPowerSettings(runtime: NativeIrohRuntime, team: NativeTeamScope, target: NativeComputerTarget, offerOnly: Boolean = false) {
     var session by remember(runtime, team, target) { mutableStateOf<NativeMacPowerSession?>(null) }
     var state by remember(runtime, team, target) { mutableStateOf(NativeMacPowerState()) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -40,7 +40,8 @@ internal fun NativeMacPowerSettings(runtime: NativeIrohRuntime, team: NativeTeam
             } finally { session = null; state = NativeMacPowerState() }
         }
     }
-    NativeMacPowerSection(state, { session?.setEnabled(it) }, { session?.refresh() })
+    if (!offerOnly || (state.connected && state.supported == true && state.enabled != null))
+        NativeMacPowerSection(state, { session?.setEnabled(it) }, { session?.refresh() })
 }
 
 @Composable

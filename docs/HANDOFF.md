@@ -29,19 +29,21 @@ records the original September 28 handoff rather than the current APK.
 
 ## User's objective and working preferences
 
-Latest local feature: [PAIRING_SETUP.md](PAIRING_SETUP.md) adds Mac setup help on
-sign-in and Computers, using original iOS Settings images, same-account/team
-instructions, live minimum-version copy and Iroh/Tailscale actions. Help and pasted
-pairing text restore from saved-instance state. The source review also withdrew
-the unsupported presence-version work item: PresenceInstance and registry DTOs at
-0fc35 contain no app-version field; compatibility uses authenticated host status.
+Latest local feature: [ONBOARDING.md](ONBOARDING.md) implements all five introduction
+scenes with durable milestones, explicit completion, Settings replay, saved page/
+method/draft state, connection selection and the scoped Keep Mac Awake offer.
+The first-run gate requires a verified account; offline replay is informational
+and routes connection to Settings. Existing pairing/help, notification service,
+foreground connection and ownership checks are reused. No FCM configuration is
+claimed. See [ONBOARDING_AUDIT.md](ONBOARDING_AUDIT.md) for the scoped source mapping.
 
-Earlier checkpoints added offline Computers presentation, consumer build admission,
-encrypted version history and minimum-version policy. Signed build 481 includes
-these five features. Next implement the full five-stage onboarding flow, following
-[ONBOARDING_AUDIT.md](ONBOARDING_AUDIT.md), including
-honest Android push setup, persistent progress, connection-phase/method selection
-and the live keep-awake offer. Physical/native/browser/keyboard/accessibility and
+Signed build 481 includes the five preceding compatibility/Computers/setup-guide
+features and predates this tour. Next validate the authenticated first-run and
+replay workflow against the Mac/Pixel, including account changes, QR cancellation,
+keep-awake and app restart. Where the phone remains unavailable, continue the
+remaining source/visual audit and Android push integration plan. The delivery
+choice in PUSH_DELIVERY.md is still pending; do not configure a provider without
+that choice and credentials. Physical/native/browser/keyboard/accessibility and
 signed-in upgrade checks remain pending; preserve Pixel app data. The goal is
 active; do not repeat the already-pending Pixel reconnect request.
 
