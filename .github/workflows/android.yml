@@ -202,6 +202,36 @@ jobs:
         run: |
           python3 scripts/verify-signed-apk.py app/build/outputs/apk/release/app-release.apk --version "$GITHUB_RUN_NUMBER" --output "$RUNNER_TEMP/cmux-signed-verification"
           python3 scripts/verify-native-alignment.py app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify release classes on Android 17 ART
+        timeout-minutes: 12
+        run: |
+          sdkmanager 'emulator' 'system-images;android-37.0;google_apis_ps16k;x86_64'
+          test -e /dev/kvm
+          sudo chmod a+rw /dev/kvm
+          echo no | avdmanager create avd --force --name cmux-release-verify --package 'system-images;android-37.0;google_apis_ps16k;x86_64'
+          mkdir -p "$RUNNER_TEMP/cmux-runtime-verification"
+          "$ANDROID_HOME/emulator/emulator" -avd cmux-release-verify -port 5554 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader -memory 2048 -cores 2 > "$RUNNER_TEMP/cmux-runtime-verification/emulator.log" 2>&1 &
+          emulator_pid=$!
+          trap 'adb -s emulator-5554 emu kill >/dev/null 2>&1 || true; wait "$emulator_pid" || true' EXIT
+          ready=false
+          for attempt in $(seq 1 120); do
+            kill -0 "$emulator_pid"
+            if [ "$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          python3 scripts/verify-android-classload.py app/build/outputs/apk/release/app-release.apk --serial emulator-5554 --output "$RUNNER_TEMP/cmux-runtime-verification/classload.log"
+      - name: Retain Android runtime verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmux-android-runtime-verification
+          path: ${{ runner.temp }}/cmux-runtime-verification
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: cmux-app-preview-apk

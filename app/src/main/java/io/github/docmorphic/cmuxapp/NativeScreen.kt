@@ -2091,6 +2091,59 @@ fun NativeScreen(
         }.addOnFailureListener { if (accountTeams.isCurrent(owner)) error = it.message } }
             .onFailure { error = it.message ?: "Could not open the QR scanner. Paste a code instead." }
     }
+    // Keep onboarding in a separate composition group: the root route lambda is
+    // already large, and combining its captures can produce invalid release DEX.
+    val onboardingContent: @Composable () -> Unit = {
+        key(browserLogin, teamState.userId, teamState.selectedTeamId, replayOnboarding) {
+            NativeOnboardingFlow(onboardingProgress, replayOnboarding,
+                NativeOnboardingPhase.resolve(onboardingReady,
+                    busy || computerState.loading, computerState.ready || computerState.error != null || connectionError != null),
+                hostName.takeIf { connectionReady }, displayPolicy, onboardingPermissionBusy, onboardingPermissionResult,
+                error ?: connectionError ?: computerState.error ?: if (onboardingOwner == null) "Refresh your account in Settings before connecting to a Mac." else null,
+                canConnect = onboardingOwner != null, onEnableNotifications = { enableNotifications(true) },
+                onReachedConnection = {
+                    if (!replayOnboarding) runCatching { onboardingStore.connect(); onboardingProgress = onboardingStore.progress }
+                        .onFailure { error = it.message }
+                    if (!replayOnboarding) onboardingSearch()
+                }, onComplete = {
+                    if (replayOnboarding) replayOnboarding = false
+                    else runCatching { onboardingStore.complete(); onboardingProgress = onboardingStore.progress }
+                        .onFailure { error = it.message }
+                }, onRetry = ::onboardingSearch, onScan = ::scanForOnboarding, onPairing = ::proposePairing,
+                initialMethod = onboardingMethod, onMethod = { method ->
+                    onboardingMethod = method
+                    if (onboardingPrefs.getString("connection_method", null) != method.name &&
+                        !onboardingPrefs.edit().putString("connection_method", method.name).commit())
+                        error = "Could not save the connection method."
+                },
+                onSettings = { replayOnboarding = false; showSettings = true },
+                computers = {
+                    val saved = displayedVisible.filter(connection::allowsSaved)
+                    if (onboardingCandidates.size + saved.size > 1) Text("Choose a Mac", fontWeight = FontWeight.SemiBold)
+                    saved.forEach { mac -> TextButton(enabled = !busy, onClick = {
+                        val owner = onboardingOwner
+                        if (owner != null && accountTeams.isCurrent(owner) &&
+                            NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac)) {
+                            selectPickerComputer(mac); expectedReconnect = mac
+                        }
+                    }) { Text("${mac.name} · ${mac.instanceTag ?: "legacy"}") } }
+                    onboardingCandidates.filter { candidate -> saved.none {
+                        canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(candidate.deviceId) && it.instanceTag == candidate.buildTag
+                    } }.forEach { mac -> TextButton(enabled = !busy, onClick = {
+                        val owner = onboardingOwner
+                        if (owner != null && accountTeams.isCurrent(owner) &&
+                            NativeReconnectComputers.currentDiscovery(mac, computerStates.value, owner))
+                            selectPairingCode(PairingCodeParser.computer(mac, owner))
+                    }) { Text("${mac.name} · ${mac.buildTag}") } }
+                }, keepAwake = {
+                    val owner = onboardingOwner
+                    val target = if (owner != null) pairedMacs.singleOrNull { it.code == connectedCode }
+                        ?.let { NativeComputerTarget.from(it, owner) } else null
+                    if (owner != null && target != null && sharedConnections != null)
+                        NativeMacPowerSettings(sharedConnections.native, owner, target, offerOnly = true)
+                })
+        }
+    }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings) {
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
@@ -2102,55 +2155,7 @@ fun NativeScreen(
         when {
             !signedIn -> NativeSignIn(account::sendCode, account::signIn, onUseHelper,
                 onLicenses = { showLicenses = true }, macPolicy = displayPolicy, onSignedIn = { signedIn = true; error = null })
-            showOnboarding -> key(browserLogin, teamState.userId, teamState.selectedTeamId, replayOnboarding) {
-                NativeOnboardingFlow(onboardingProgress, replayOnboarding,
-                    NativeOnboardingPhase.resolve(onboardingReady,
-                        busy || computerState.loading, computerState.ready || computerState.error != null || connectionError != null),
-                    hostName.takeIf { connectionReady }, displayPolicy, onboardingPermissionBusy, onboardingPermissionResult,
-                    error ?: connectionError ?: computerState.error ?: if (onboardingOwner == null) "Refresh your account in Settings before connecting to a Mac." else null,
-                    canConnect = onboardingOwner != null, onEnableNotifications = { enableNotifications(true) },
-                    onReachedConnection = {
-                        if (!replayOnboarding) runCatching { onboardingStore.connect(); onboardingProgress = onboardingStore.progress }
-                            .onFailure { error = it.message }
-                        if (!replayOnboarding) onboardingSearch()
-                    }, onComplete = {
-                        if (replayOnboarding) replayOnboarding = false
-                        else runCatching { onboardingStore.complete(); onboardingProgress = onboardingStore.progress }
-                            .onFailure { error = it.message }
-                    }, onRetry = ::onboardingSearch, onScan = ::scanForOnboarding, onPairing = ::proposePairing,
-                    initialMethod = onboardingMethod, onMethod = { method ->
-                        onboardingMethod = method
-                        if (onboardingPrefs.getString("connection_method", null) != method.name &&
-                            !onboardingPrefs.edit().putString("connection_method", method.name).commit())
-                            error = "Could not save the connection method."
-                    },
-                    onSettings = { replayOnboarding = false; showSettings = true },
-                    computers = {
-                        val saved = displayedVisible.filter(connection::allowsSaved)
-                        if (onboardingCandidates.size + saved.size > 1) Text("Choose a Mac", fontWeight = FontWeight.SemiBold)
-                        saved.forEach { mac -> TextButton(enabled = !busy, onClick = {
-                            val owner = onboardingOwner
-                            if (owner != null && accountTeams.isCurrent(owner) &&
-                                NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac)) {
-                                selectPickerComputer(mac); expectedReconnect = mac
-                            }
-                        }) { Text("${mac.name} · ${mac.instanceTag ?: "legacy"}") } }
-                        onboardingCandidates.filter { candidate -> saved.none {
-                            canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(candidate.deviceId) && it.instanceTag == candidate.buildTag
-                        } }.forEach { mac -> TextButton(enabled = !busy, onClick = {
-                            val owner = onboardingOwner
-                            if (owner != null && accountTeams.isCurrent(owner) &&
-                                NativeReconnectComputers.currentDiscovery(mac, computerStates.value, owner))
-                                selectPairingCode(PairingCodeParser.computer(mac, owner))
-                        }) { Text("${mac.name} · ${mac.buildTag}") } }
-                    }, keepAwake = {
-                        val owner = onboardingOwner
-                        val target = if (owner != null) pairedMacs.singleOrNull { it.code == connectedCode }
-                            ?.let { NativeComputerTarget.from(it, owner) } else null
-                        if (owner != null && target != null && sharedConnections != null)
-                            NativeMacPowerSettings(sharedConnections.native, owner, target, offerOnly = true)
-                    })
-            }
+            showOnboarding -> onboardingContent()
             showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
             showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
             showSettings && computersOwner != null -> {

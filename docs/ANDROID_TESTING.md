@@ -1,5 +1,29 @@
 # Android runtime checks
 
+## Release DEX verification
+
+Before a signed milestone can be uploaded, `android.yml` boots an ephemeral
+Android 17 / 16 KB x86_64 emulator on the GitHub runner and verifies the release
+APK's `NativeScreenKt` with ART. The probe loads the APK's DEX directly through
+`app_process`; it does not install the arm64 APK or run its native libraries.
+This is a class-verification gate, not UI/native runtime acceptance. Its evidence
+is retained even if the gate fails. It creates no additional AVD on this Mac.
+
+For the existing local emulator or an explicitly selected device:
+
+```sh
+python3 scripts/verify-android-classload.py path/to/app-release.apk \
+  --serial emulator-5554 --output captures/runtime/classload.log
+```
+
+Set `JAVA_HOME` to JDK 17 and `ANDROID_HOME` to the SDK. The tool uses a temporary
+on-device directory, requires a completed boot, preserves installed packages and
+app data, and removes its temporary APK/probe afterward. It succeeds only after
+ART loads the class and reflects its methods. This gate reproduced build 486's
+release-only `VerifyError` (`copy-reference v27<-v115 type=BooleanConstant`) and
+passed the same source after moving the unchanged onboarding body into a separate
+composition lambda. Actual signed installation/launch remains a separate check.
+
 ## Opt-in physical terminal acceptance
 
 `LiveNativeTerminalCheck` uses the existing signed-in account and requires exactly

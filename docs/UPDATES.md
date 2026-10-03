@@ -31,6 +31,15 @@ single Android app. GitHub APK releases are the configured Android delivery
 channel; no Play Console application, credentials or Play internal track has been
 configured. These workflows do not silently install an APK on the phone.
 
+## In-app release notices
+
+The official iOS app separately has a channel/version-gated What's New archive
+and launch sheet. Android does not yet implement that surface. The detailed
+[What's New audit](WHATS_NEW_AUDIT.md) records cache, remote retraction, web preload,
+acknowledgement and presentation rules at `0fc35d6`; build automation below is not
+evidence of that UI. Android notices need Android release identities rather than
+copying iOS marketing-version claims.
+
 ## Two different update events
 
 ### A commit lands in manaflow-ai/cmux
