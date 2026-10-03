@@ -3,7 +3,46 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 441 (2026-10-03)
+## Current signed development APK — build 448 (2026-10-03)
+
+[Build 448](https://github.com/DocMorphic/cmux-app/actions/runs/37117513871)
+passed at `b63b875156ed3043d76b63829b05f052dff064e1`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37117513871/artifacts/11271728674)
+and extract `app-release.apk` (repository access required). This combined build
+adds filtered local Java/Kotlin and native crash stacks, recovery from connection
+request timeouts, and foreground notification reconciliation on retained terminal
+connections. It contains all build 441 features. PR #1 remains a draft; this is an
+Actions artifact, not a published GitHub release.
+
+- Package `io.github.docmorphic.cmuxapp`, version code **448**, version `0.2.0`.
+- SHA-256: `6a171f57f263a6601c4592cbf4e421c2ba1f731fb2deb7311d338c57cb16adfa`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK size: **38,991,226 bytes**; min SDK 26, target SDK 36.
+- Local file: `build/signed-run-37117513871/app-release.apk` (ignored).
+
+The full app/Ghostty JVM suites and debug/test/release assembly passed in CI;
+Gradle reported **4m 51s**. Four helper tests, ten update-policy tests and the
+reusable signed-APK gate passed. No full JVM count is inferred from CI logs.
+Independent verification of the downloaded artifact confirmed its exact CI hash,
+stable signer, all 14 viewer hashes, six native LOAD/RELRO checks, 16 KB ZIP
+alignment, disabled backup, no debuggable flag, diagnostics Application and
+exclusion of all five debug fixture activities. Packaged attribution matches source.
+
+The existing API 37 / 16,384-byte emulator upgraded **441 → 448** with `install -r`,
+preserving first-install time `2026-09-30 01:57:49`. Before the upgrade, emulator
+System UI showed a startup ANR; Wait dismissed it and the baseline settled on the
+sign-in screen. After upgrade, force-stop/cold launch reported **1,149 ms** and
+reached the visually reviewed sign-in screen without a compatibility warning or
+ANR dialog; `pageSizeCompat=0`. This single emulator launch is not a benchmark.
+The baseline was already signed out, so authenticated migration remains unverified.
+No additional AVD was created; the emulator was shut down after verification.
+Evidence is retained in ignored `captures/runtime/build448/`.
+
+The Pixel remains unavailable to ADB. Physical acceptance, authenticated release
+migration, configured push, ANR stacks and the remaining source audit are open.
+This milestone does not establish full iOS parity.
+
+## Previous signed development APK — build 441 (2026-10-03)
 
 [Build 441](https://github.com/DocMorphic/cmux-app/actions/runs/37112575050)
 passed at `55e8dde507fe9360ad2cb4fc30661927055e20a1`. Download the

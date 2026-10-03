@@ -12,7 +12,23 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest signed integration checkpoint — build 441 (2026-10-03)
+## Latest signed integration checkpoint — build 448 (2026-10-03)
+
+[Signed build 448](https://github.com/DocMorphic/cmux-app/actions/runs/37117513871)
+at `b63b875` combines the Java/native crash-stack additions, connection-timeout
+recovery and foreground banner reconciliation with all build 441 features. Full
+CI passed; the exact downloaded artifact passed independent stable-signer, 14
+viewer asset, six native/16 KB ZIP, manifest/debug-fixture and attribution checks.
+The existing emulator upgraded 441 → 448 without clearing data, preserved its
+original install time and cold-launched to the visually reviewed sign-in screen.
+The baseline was already signed out. [Artifact, hashes and evidence](PIXEL_INSTALL.md).
+
+The baseline emulator System UI ANR is recorded separately from the successful
+upgraded launch. This is packaging and signed-out upgrade evidence; physical
+Pixel/Mac acceptance, authenticated migration, configured push, ANR stack recovery
+and the remaining upstream source audit are still open.
+
+## Previous signed integration checkpoint — build 441 (2026-10-03)
 
 [Signed build 441](https://github.com/DocMorphic/cmux-app/actions/runs/37112575050)
 at `55e8dde` includes the recent browser capability/fallback and live-inventory
