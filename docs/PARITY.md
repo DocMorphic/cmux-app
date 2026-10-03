@@ -12,18 +12,20 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest signed integration checkpoint — build 428 (2026-10-03)
+## Latest signed integration checkpoint — build 434 (2026-10-03)
 
-The SSH picker, plain-shell browser and browser-return changes below are now
-included in [signed build 428](https://github.com/DocMorphic/cmux-app/actions/runs/37100622349)
-at `139dcbe`, along with build 421's notification recovery and feedback work.
-Full CI passed, and independent downloaded-APK checks verified the
-signer, 14 viewer assets, six native libraries' LOAD/RELRO alignment, 16 KB ZIP
-alignment and release manifest. The existing emulator upgraded 421 → 428 and
-launched successfully; it was already signed out. See [install evidence and
-checksums](PIXEL_INSTALL.md). Later references to unchanged builds 411/421 describe
-the earlier individual feature checkpoints. Physical acceptance, configured push,
-authenticated release migration and the remaining source audit are still open.
+The workspace close confirmations and persistent diagnostics/process-history
+changes below are now included in
+[signed build 434](https://github.com/DocMorphic/cmux-app/actions/runs/37105849273)
+at `5bac7f7`, together with build 428's SSH/browser features. DEBUG-only clipboard
+log copying stays excluded from release menus. Full CI passed; independent
+downloaded-APK checks verified the stable signer, 14 viewer assets, six native
+libraries' LOAD/RELRO alignment, 16 KB ZIP alignment and release manifest.
+The existing emulator upgraded 428 → 434 and cold-launched successfully; it was
+already signed out. See [install evidence and checksums](PIXEL_INSTALL.md).
+Earlier signed-build references below describe individual feature checkpoints.
+Physical acceptance, configured push, authenticated release migration, safe crash
+stack capture and the remaining source audit are still open.
 
 ## SSH browser picker restoration and tmux acceptance (2026-10-03)
 
@@ -111,6 +113,20 @@ Targeted source findings in this pass:
   construct Ghostty without a reply callback; its plain SSH shell owns one live
   PTY and retains the same emulator across view changes. Source inspection does
   not establish new runtime coverage or justify adding a second parser blindly.
+- **Picker capability audit (2026-10-03):** exact `TerminalPickerMenuValue.swift`
+  and `TerminalPickerMenuContent.swift` distinguish an unknown capability state
+  during reconnect from a connected Mac that authoritatively lacks
+  `browser.stream.v1`. Only the latter shows the disabled **Update cmux on your
+  Mac to stream browser panes** hint. Android's `NativePanePicker` currently
+  receives rows and action callbacks but no capability-known/support state, so
+  this menu hint is missing in terminal, surface and routed-browser headers.
+  Threading the current connection state through those entry points and the
+  browser-process snapshot remains open; it must not infer an update requirement
+  from temporary disconnects. The same iOS model retains browser-kind Mac
+  surfaces as a fallback when streaming is unsupported; Android's
+  `NativeWorkspace.macSurfaces` excludes that kind unconditionally. Review the
+  old-host inventory/navigation contract before choosing that fallback's Android
+  behavior. These are outstanding parity items, not changes included in build 434.
 - [`MobileWorkspaceCloseConfirmation.swift`](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileWorkspaceCloseConfirmation.swift)
   centralizes destructive Mac/tmux/cmux-tui confirmation while allowing
   phone-owned shell closure directly. Android now shares one confirmation model
