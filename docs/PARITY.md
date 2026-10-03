@@ -45,8 +45,15 @@ terminal paths expose wheel actions. Manual TalkBack and physical acceptance rem
 open. **12 focused JVM and 10 emulator UI checks passed**, including the exported
 Android accessibility action. Android uses the supported
 `unknown` kind plus its model; upstream's automatic exclusion rules still need an
-Android kind for identical behavior. Signed build 397 and the installed Pixel app
-are unchanged. [Contract, evidence and remaining work](TERMINAL_SHARED_SIZING.md).
+Android kind for identical behavior. Signed build 411 includes these changes;
+the installed Pixel app is unchanged. [Contract, evidence and remaining work](TERMINAL_SHARED_SIZING.md).
+
+**Signed build 411 verified (2026-10-03):** full CI passed at `28265f8`;
+downloaded signer, 14 packaged viewer hashes, six native libraries and 16 KB ZIP
+alignment were independently checked. The existing emulator upgraded 397 → 411
+without clearing app data and cold-launched the sign-in UI; its baseline was
+already signed out, so authenticated migration remains pending. The emulator is
+stopped and the Pixel was absent. [Current download and limits](PIXEL_INSTALL.md#current-signed-development-apk--build-411-2026-10-03).
 
 **Signed build 397 delivered (2026-10-03):** full CI passed at `8f1ce42`,
 including the production account/credential deadlock fix. Downloaded APK signer,
@@ -54,7 +61,7 @@ including the production account/credential deadlock fix. Downloaded APK signer,
 verified. The existing emulator upgraded 385 → 397 without clearing data and
 cold-launched the sign-in UI; it is now stopped. No additional AVD was created.
 The Pixel retains the verified debug build; signed-in release migration and live
-push remain open. [Download and limits](PIXEL_INSTALL.md#current-signed-development-apk--build-397-2026-10-03).
+push remain open. [Previous download and limits](PIXEL_INSTALL.md#previous-signed-development-apk--build-397-2026-10-03).
 
 **Physical checklist UI passed (2026-10-03):** **1 test, 29.055 s**, using actual
 MainActivity and the saved NIGHTLY Mac. Add/edit/state changes, touchscreen drag,

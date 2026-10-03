@@ -1,5 +1,13 @@
 # Shared terminal sizing and explicit detach
 
+**Current delivery (2026-10-03):** signed build 411 at `28265f8` includes the
+implementation checkpoints below. Full CI, independent APK signature/assets/16 KB
+alignment checks and an emulator 397 → 411 upgrade passed. Physical Mac/Pixel
+acceptance and the remaining checklist are still open. See [download and exact
+verification scope](PIXEL_INSTALL.md#current-signed-development-apk--build-411-2026-10-03).
+The dated sections below retain the evidence at each implementation checkpoint;
+references there to build 397 describe that earlier checkpoint.
+
 ## New NIGHTLY contract found — 2026-10-03
 
 The physical terminal UI check failed before keyboard entry: phone geometry was
