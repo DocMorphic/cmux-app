@@ -12,6 +12,24 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Signed development milestone 481 (2026-10-03)
+
+Build **481** at `59c75e3` passed full app/Ghostty JVM tests and debug/test/release
+assembly (6m 57s), helper/update-policy tests and packaging gates. Independent
+verification confirmed the downloaded artifact, signer, 14 viewer hashes, six
+native libraries and 16 KB alignment. The existing API 37 / 16 KB emulator upgraded
+474 → 481 with its first-install timestamp preserved, then cold-launched the
+actual MainActivity in 1,376 ms. The signed-out setup guide opened and Back
+returned to sign-in; screenshots were reviewed and the crash buffer was empty.
+The emulator was stopped. See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for artifact,
+hashes, provenance and limits. This includes the five feature checkpoints below.
+
+The Pixel was unavailable; authenticated migration and physical browser/native
+acceptance are still pending. [ONBOARDING_AUDIT.md](ONBOARDING_AUDIT.md) records the
+next implementation's durable progress, root/auth gate, Settings replay, paging,
+shared discovery ownership and push opt-in behavior. Full onboarding, configured
+push and the broader source/visual audit remain open; the global pin is unchanged.
+
 ## Pairing setup help and source audit correction (2026-10-03)
 
 [PAIRING_SETUP.md](PAIRING_SETUP.md) adds the iOS-style Mac setup explanation to
@@ -33,8 +51,8 @@ contrast fix. Dark/light screenshots and the actual signed-out MainActivity help
 screen were inspected; Back returned to sign-in. Existing API 37 / 16 KB AVD stopped.
 Compose saved-instance restoration is verified; physical rotation is still pending.
 Verification evidence: captures/runtime/pairing-help and the feature document.
-Signed 474 predates this feature and the four preceding compatibility/Computers
-features; a combined signed milestone is the next delivery step.
+Signed 481 now includes this feature and the four preceding compatibility/Computers
+features; see the verified delivery checkpoint above.
 
 ## Saved Computers during offline account restoration (2026-10-03)
 

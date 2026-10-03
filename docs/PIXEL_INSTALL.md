@@ -3,7 +3,52 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 474 (2026-10-03)
+## Current signed development APK — build 481 (2026-10-03)
+
+[Build 481](https://github.com/DocMorphic/cmux-app/actions/runs/37148164630)
+passed at `59c75e3ff8c95f00c52096c9877ea7fbfd15a5ce`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37148164630/artifacts/11282812782)
+and extract `app-release.apk` (repository access required). This batch adds the
+minimum Mac version policy, encrypted version history, consumer build admission,
+saved Computers during offline startup, and the iOS-based Mac pairing guide.
+It includes all build 474 features. PR #1 remains a draft; this is an Actions
+artifact, not a published GitHub release.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **481**, version 0.2.0.
+- SHA-256: `4d1ffcbbe6106c38c33eb29ab17aad043a1b1b14a3c4c9af52f6abb94e4f3a54`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK size: **39,197,706 bytes**; min SDK 26, target SDK 36.
+- Local file: `build/signed-run-37148164630/app-release.apk` (ignored).
+
+Full app/Ghostty JVM suites and debug/test/release assembly passed in CI;
+Gradle reported **6m 57s**. Four helper tests, ten update-policy tests and the
+signed-APK gate passed. No full JVM count is inferred from CI logs. Native
+libraries were restored from pinned caches. Independent downloaded-APK checks
+confirmed CI's APK hash, source/run artifact metadata, stable signer, all 14 viewer
+hashes, six native LOAD/RELRO checks, 16 KB ZIP alignment, disabled backup,
+non-debuggable manifest and exclusion of all five debug fixture activities.
+Packaged NOTICE matches the source; the original guide images resolve through
+the optimized resource table with source-matching 618 × 171 dimensions. AAPT
+changes their PNG encoding, so raw image byte identity is not claimed.
+
+The existing API 37 / 16,384-byte emulator upgraded **474 → 481** with `install -r`,
+preserving first-install time `2026-09-30 01:57:49`. Explicit stop/start reported
+COLD, the actual MainActivity and **1,376 ms**, reaching the reviewed sign-in
+screen without a compatibility warning or ANR dialog. `pageSizeCompat=0` and the
+crash buffer was empty. The new setup link opened the visually inspected guide,
+and Back returned to sign-in. This single launch is not a benchmark; the baseline
+was already signed out, so authenticated migration remains unverified. No new
+AVD was created; the existing emulator was shut down. Evidence:
+`captures/runtime/build481/` (ignored).
+
+The Pixel was absent from ADB. Physical native/browser/keyboard acceptance,
+authenticated release migration and configured push remain open. Full five-stage
+onboarding is the next implementation; [ONBOARDING_AUDIT.md](ONBOARDING_AUDIT.md)
+records reviewed root, progress, replay, discovery, permission and layout behavior.
+The broader source/visual audit remains incomplete and the global parity pin is
+unchanged. This milestone does not complete the full goal.
+
+## Previous signed development APK — build 474 (2026-10-03)
 
 [Build 474](https://github.com/DocMorphic/cmux-app/actions/runs/37142127734)
 passed at c45920e8ba20c036bd3ca7c11491a6e03c42d763. Download the

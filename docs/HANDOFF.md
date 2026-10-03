@@ -18,9 +18,9 @@ Read this first, then `PARITY.md`, `ANDROID_TESTING.md`, `RESEARCH.md`, and
 not a request to scaffold another prototype. The dated sections of the other
 documents are historical; newer verified entries supersede older pending claims.
 
-**Delivery update — 2026-10-03:** signed development build **474**, source
-`c45920e8ba20c036bd3ca7c11491a6e03c42d763`, passed CI, independent packaging checks
-and a signed-out 468 → 474 upgrade on the existing API 37 / 16 KB emulator.
+**Delivery update — 2026-10-03:** signed development build **481**, source
+`59c75e3ff8c95f00c52096c9877ea7fbfd15a5ce`, passed CI, independent packaging checks
+and a signed-out 474 → 481 upgrade on the existing API 37 / 16 KB emulator.
 See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the artifact and hashes, and the latest
 [PARITY.md](PARITY.md) entries for feature evidence. The goal remains active on
 this Mac; physical Pixel acceptance, authenticated upgrade, configured push and
@@ -37,8 +37,9 @@ the unsupported presence-version work item: PresenceInstance and registry DTOs a
 0fc35 contain no app-version field; compatibility uses authenticated host status.
 
 Earlier checkpoints added offline Computers presentation, consumer build admission,
-encrypted version history and minimum-version policy. Signed build 474 predates
-these five features. Next implement the full five-stage onboarding flow, including
+encrypted version history and minimum-version policy. Signed build 481 includes
+these five features. Next implement the full five-stage onboarding flow, following
+[ONBOARDING_AUDIT.md](ONBOARDING_AUDIT.md), including
 honest Android push setup, persistent progress, connection-phase/method selection
 and the live keep-awake offer. Physical/native/browser/keyboard/accessibility and
 signed-in upgrade checks remain pending; preserve Pixel app data. The goal is
