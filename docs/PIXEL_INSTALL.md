@@ -3,7 +3,46 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 434 (2026-10-03)
+## Current signed development APK — build 441 (2026-10-03)
+
+[Build 441](https://github.com/DocMorphic/cmux-app/actions/runs/37112575050)
+passed at `55e8dde507fe9360ad2cb4fc30661927055e20a1`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37112575050/artifacts/11271230339)
+and extract `app-release.apk` (repository access required). It includes the
+browser capability/fallback handling, live browser workspace inventory and
+permissions, iOS-style pane menu icons, bounded recent-terminal text capture,
+and one-time SSH key installation with independent key-only verification.
+It includes all build 434 features. PR #1 remains a draft; this is an Actions
+artifact, not a published GitHub release.
+
+- Package `io.github.docmorphic.cmuxapp`, version code **441**, version `0.2.0`.
+- SHA-256: `4113ad56ce9575755d83ab5813327e4ea7225eb3046d5abb4eae375f9d3ce07a`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK size: **38,958,458 bytes**; min SDK 26, target SDK 36.
+- Local file: `build/signed-run-37112575050/app-release.apk` (ignored).
+
+The full app/Ghostty JVM suites and debug/test/release assembly passed in CI;
+Gradle reported **7m 46s**. Four helper tests, ten update-policy tests and CI
+packaging gates passed. No full JVM count is inferred from the logs. Local
+verification of the exact downloaded APK passed with `verify-signed-apk.py`:
+stable signer, all 14 packaged viewer hashes, six native LOAD/RELRO checks,
+16 KB ZIP alignment, disabled backup, no debuggable flag, diagnostics Application,
+and exclusion of five debug fixture activities. The packaged attribution text
+also exactly matches source, including the new SSH installation notice.
+
+The existing API 37 / 16,384-byte emulator upgraded **434 → 441** with `install -r`,
+preserving first-install time `2026-09-30 01:57:49`. Force-stop/cold launch reported
+**631 ms** and displayed the visually reviewed sign-in screen without a
+compatibility warning; `pageSizeCompat=0`. This single emulator launch is not a
+performance benchmark. Its baseline was already signed out, so this does not
+prove authenticated migration. No new AVD was created. Evidence is retained in
+ignored `captures/runtime/build441/`; the emulator was shut down afterward.
+
+The Pixel was absent. Physical acceptance, authenticated release migration,
+configured push, safe crash stacks and the remaining source audit are open.
+This milestone does not establish full iOS parity.
+
+## Previous signed development APK — build 434 (2026-10-03)
 
 [Build 434](https://github.com/DocMorphic/cmux-app/actions/runs/37105849273)
 passed at `5bac7f793d8c4f8a0e8596b3fdbc37d46a4d4307`. Download the

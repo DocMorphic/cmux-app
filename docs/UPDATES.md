@@ -124,6 +124,13 @@ prove source provenance, runtime correctness or account migration. Resolve the
 source/run identity from GitHub separately, then perform the applicable device
 acceptance. None of these checks publishes or promotes a release.
 
+Local acceptance (2026-10-03): the reusable verifier passed on signed builds 434
+and 441. Passing 434 while expecting 441 was rejected and removed a deliberately
+stale receipt. Actionlint accepted the workflow change, and all ten policy tests
+passed. Build 441 itself used the prior workflow gates; its downloaded artifact
+was independently checked with the new command. No redundant APK build was
+triggered solely for this gate refactor.
+
 ## Activation and operation
 
 GitHub schedules only workflows present on the default branch. This work is on

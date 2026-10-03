@@ -70,8 +70,9 @@ fix and the declined-trust retry correction. Evidence is in ignored
 `2c40e2426fded576e5333280d22e69583ddedf03bd969eff4119f3b03becdc45`;
 test SHA-256: `3caa0469fb33734074e6889e67feccfa863d4b505d5a9aaed584f9b171cb9f51`.
 The attribution notice was appended after this runtime build; production code was
-unchanged. Physical Pixel/Mac SSH acceptance and signed delivery of this feature
-remain open. No physical phone, personal SSH account or Mac SSH daemon was changed.
+unchanged. The feature and attribution are now included in verified signed build
+441; see [delivery evidence](PIXEL_INSTALL.md). Physical Pixel/Mac SSH acceptance
+remains open. No physical phone, personal SSH account or Mac SSH daemon was changed.
 
 ## SFTP publication replies and refresh outcomes (2026-10-02)
 

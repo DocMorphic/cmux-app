@@ -12,18 +12,19 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest signed integration checkpoint — build 434 (2026-10-03)
+## Latest signed integration checkpoint — build 441 (2026-10-03)
 
-The workspace close confirmations and persistent diagnostics/process-history
-changes below are now included in
-[signed build 434](https://github.com/DocMorphic/cmux-app/actions/runs/37105849273)
-at `5bac7f7`, together with build 428's SSH/browser features. DEBUG-only clipboard
-log copying stays excluded from release menus. Full CI passed; independent
-downloaded-APK checks verified the stable signer, 14 viewer assets, six native
-libraries' LOAD/RELRO alignment, 16 KB ZIP alignment and release manifest.
-The existing emulator upgraded 428 → 434 and cold-launched successfully; it was
-already signed out. See [install evidence and checksums](PIXEL_INSTALL.md).
-Earlier signed-build references below describe individual feature checkpoints.
+[Signed build 441](https://github.com/DocMorphic/cmux-app/actions/runs/37112575050)
+at `55e8dde` includes the recent browser capability/fallback and live-inventory
+fixes, pane menu icons, bounded terminal text capture and one-time SSH key setup,
+as well as build 434's workspace close confirmations and diagnostics. Full CI
+passed; the exact downloaded artifact passed independent signer, packaged viewer,
+16 KB native/ZIP, manifest and attribution checks. The existing emulator upgraded
+434 → 441 and cold-launched to the reviewed sign-in screen, preserving its
+installation time. It was already signed out. See [install evidence and checksums](PIXEL_INSTALL.md).
+
+A reusable verifier now enforces these APK-content checks for future builds.
+Older signed-build references below describe their original checkpoints.
 Physical acceptance, configured push, authenticated release migration, safe crash
 stack capture and the remaining source audit are still open.
 
@@ -44,8 +45,8 @@ same ownership checks; the restored UI reports an interrupted attempt without a
 password or automatic retry. See [implementation and evidence](DIRECT_SSH.md#one-time-public-key-installation-2026-10-03).
 **Verification:** 13 new installation checks, 14 existing transport checks and
 four host-editor checks passed on API 37 / 16 KB. The editor screenshot was
-inspected. This is a targeted source-parity addition. The broad upstream pin, physical
-acceptance and last verified signed build remain unchanged.
+inspected. This is a targeted source-parity addition. Signed build 441 includes this change. The broad upstream pin and physical
+acceptance remain unchanged.
 
 ## Recent terminal text capture (2026-10-03)
 
