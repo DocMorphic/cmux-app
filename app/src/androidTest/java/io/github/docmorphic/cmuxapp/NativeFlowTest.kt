@@ -624,6 +624,24 @@ class NativeFlowTest {
         compose.onNodeWithTag("terminal-picker-$tag").performScrollTo().performClick()
     }
 
+    @Test fun feedbackFromTerminalAndSettingsCancelsWithoutLosingSessionOrPane() {
+        showMixedPickerWorkspace()
+        val login = NativeCredentialStore(context).taskSession()
+        compose.onNodeWithTag("terminal-picker").performClick()
+        compose.onNodeWithText("Send Feedback").performScrollTo().performClick()
+        compose.onNodeWithTag("feedback-message").performTextInput("Unsent fixture note")
+        compose.onNodeWithText("Cancel").performClick()
+        compose.onNodeWithTag("native-terminal").assertExists()
+        compose.onNodeWithText("Shell ▾").assertExists()
+        compose.onNodeWithContentDescription("Back to workspaces").performClick()
+        compose.onNodeWithContentDescription("cmux settings").performClick()
+        compose.onNodeWithText("Send Feedback").performScrollTo().performClick()
+        compose.onNodeWithTag("feedback-send").assertIsNotEnabled()
+        compose.onNodeWithText("Cancel").performClick()
+        assertEquals(login, NativeCredentialStore(context).taskSession())
+        assertTrue(peer.requests.none { it.optString("method") == "dogfood.feedback.submit" })
+    }
+
     @Test fun sharedPickerNavigatesBrowserSurfaceAndTerminalWithExactSelection() {
         showMixedPickerWorkspace()
         pickMixedPane("browser-web")

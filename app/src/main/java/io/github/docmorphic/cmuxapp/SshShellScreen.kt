@@ -85,6 +85,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     LaunchedEffect(state.revision) { scroll = scroll.coerceIn(0.0, display.historyLineCount.toDouble()) }
     snapshot?.let { TerminalTextSheet(it) { snapshot = null } }
     if (shortcuts) TerminalToolbarSettings(toolbar) { shortcuts = false }
+    val feedback = LocalNativeFeedback.current
     Column(Modifier.fillMaxSize().testTag("ssh.shell")) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }) { Text("Back") }
@@ -95,6 +96,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                     Text("${shell.title} ▾", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    if (feedback != null) DropdownMenuItem(text = { Text("Send Feedback") }, onClick = { menu = false; feedback() })
                     DropdownMenuItem(text = { Text("Open Browser") }, onClick = {
                         menu = false; rawKeyboard?.finishComposition(); keyboard?.hide(); onBrowser()
                     })

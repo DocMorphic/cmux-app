@@ -1766,7 +1766,7 @@ fun NativeScreen(
 
     NativeAccountDeletionAlerts(deletionReceipt, ::signOutCurrentAccount, accountDeletion::acknowledge)
 
-    NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding()) {
+    NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
         if (signedIn && terminalStartupState.failure?.key?.let { it == displayedTab?.first } == true) {
             NativeTerminalCreationRecovery(creatingTerminal, connectionReady && selectedWorkspace != null) {
@@ -1853,6 +1853,7 @@ fun NativeScreen(
                 }
                 NativeNotificationSettings()
                 }, preferences = {
+                NativeFeedbackSettingsButton()
                 TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
                 NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences)
                 TextButton(onClick = { showShortcuts = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Terminal Shortcuts") }

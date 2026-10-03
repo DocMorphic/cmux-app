@@ -145,7 +145,7 @@ class RoutedBrowserActivity : ComponentActivity() {
         if (id == null) { finish(); return }
         controller = ViewModelProvider(this)[RoutedBrowserController::class.java]
         controller.begin(id)
-        setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+        setContent { CmuxTheme { NativeFeedbackHost(id) { Surface(Modifier.fillMaxSize()) {
             val ui by controller.state.collectAsState()
             BackHandler { leave("back") }
             LaunchedEffect(ui.retired, ui.restart) {
@@ -177,7 +177,7 @@ class RoutedBrowserActivity : ComponentActivity() {
                     else -> LocalBrowserPane(checkNotNull(ui.surface), beforeNavigation = controller::prepare) { leave("close") }
                 }
             }
-        } } }
+        } } } }
     }
     override fun onStart() { super.onStart(); if (::controller.isInitialized) controller.foreground(true) }
     override fun onStop() { if (::controller.isInitialized) controller.foreground(false); super.onStop() }

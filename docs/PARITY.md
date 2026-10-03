@@ -54,6 +54,48 @@ The browser route, authentication gate, SSH, shell/model and runtime changes in
 the inventory still require contract-by-contract comparison. Earlier dated port
 checkpoints below are evidence for their stated scope, not a full delta audit.
 
+### Public feedback composer (2026-10-03)
+
+Targeted upstream review covered `MobileFeedbackEmailClient.swift`,
+`MobileFeedbackRoute.swift`, `WorkspaceDetailView.swift` and
+`web/app/api/feedback/route.ts` at `0fc35d6`. Ordinary feedback is a multipart POST
+to `/api/feedback`, carrying email, message, version/build, bundle, build type, OS,
+hardware model and locale. The server limits messages to 4,000 characters.
+The separate internal `@manaflow.ai` + active Mac + `dogfood.v1` route sends a
+diagnostic bundle through `dogfood.feedback.submit`; that route is **not yet
+ported**. Android currently uses the public route, including for internal accounts.
+
+Android now offers Send Feedback from Settings and the shared pane menus, including
+the separate on-device browser Activity; the existing SSH terminal menu also has
+the action. The sheet pre-fills the known email in the main process and asks for
+it in the credential-free browser process. It identifies the unofficial Android
+build, validates email/message, shows build/device metadata, prevents concurrent
+Send taps, retains the draft on failure, allows explicit retry, and cancels its
+call when dismissed or the account owner changes. It sends no credentials, terminal
+text, logs or attachments. The client disables redirects and automatic retries.
+Cancellation after dispatch cannot establish that the server did not receive a
+request. Feedback draft preservation across Activity/process recreation remains
+to be implemented and checked; the sheet currently closes on Activity recreation.
+
+The first build caught an unavailable generated BuildConfig; stamps now read the
+installed package metadata. Final debug/test assembly passed in **1m 8s**, with
+**4 JVM tests** covering the exact public field set, input limits, HTTP rejection/
+redirect handling and cancellation without retry, using MockWebServer only.
+The final test APK built in **22s**; **7 Android tests passed in 27.648s**: four
+composer flows (validation/single dispatch, failure/retry, cancel/reopen, owner
+change), production terminal-menu/Settings cancellation with preserved sign-in,
+terminal keyboard/resize regression, and the separate browser process lifecycle.
+The composer screenshot was visually reviewed; its fixture background is not the
+production workspace. No message was sent to cmux's real feedback inbox, so live
+delivery remains unverified. No Pixel was attached. The single emulator is stopped.
+
+Ignored evidence: `captures/runtime/feedback-public-build-final.txt`,
+`feedback-public-test-build.txt`, `feedback-public-ui.txt`, `feedback-composer.png`.
+Debug SHA-256 `b837f3f98550bebf01fc57c0027bacc4e5e71d2d4930f669942b9f790dd2e3dd`;
+test SHA-256 `e085f4255a3423ef155d28ee3e317128c4e1a5f428b040105a51814bc753a4bc`.
+Signed build 411 remains unchanged; GitHub confirmed artifact `11261931650`
+unexpired, and the README now points to that verified signed checkpoint.
+
 ### On-device browser picker (2026-10-03)
 
 The pinned iOS `TerminalPickerMenuValue.swift` explicitly checks the linked Mac

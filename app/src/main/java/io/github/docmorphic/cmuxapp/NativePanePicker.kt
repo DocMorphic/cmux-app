@@ -56,6 +56,7 @@ internal fun NativePanePicker(title: String, rows: List<NativePanePickerRow>, se
     var expanded by remember(selectedRow?.kind, selectedRow?.id, checksNewBrowser) {
         mutableStateOf(false)
     }
+    val feedback = LocalNativeFeedback.current
     Box(modifier, contentAlignment = Alignment.Center) {
         Text("$title ▾", Modifier.testTag("terminal-picker").semantics { contentDescription = "Choose terminal or pane" }
             .clickable { expanded = true }.background(Color(0xFF191B1F), RoundedCornerShape(18.dp))
@@ -85,6 +86,7 @@ internal fun NativePanePicker(title: String, rows: List<NativePanePickerRow>, se
                 trailingIcon = { if (checksNewBrowser) Text("✓", Modifier.clearAndSetSemantics { }) },
                 onClick = { close(); onNewBrowser?.invoke() })
             utilities(close)
+            if (feedback != null) DropdownMenuItem(text = { Text("Send Feedback") }, onClick = { close(); feedback() })
         }
     }
 }

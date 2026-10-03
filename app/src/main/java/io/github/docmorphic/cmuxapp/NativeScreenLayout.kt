@@ -7,6 +7,6 @@ import androidx.compose.ui.Modifier
 
 /** Keep screen rendering out of the main state/effect method's JVM bytecode. */
 @Composable
-internal fun NativeScreenLayout(modifier: Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier, content = content)
+internal fun NativeScreenLayout(modifier: Modifier, feedbackOwner: Any? = null, feedbackEmail: String? = null, content: @Composable ColumnScope.() -> Unit) {
+    NativeFeedbackHost(feedbackOwner, feedbackEmail) { Column(modifier, content = content) }
 }
