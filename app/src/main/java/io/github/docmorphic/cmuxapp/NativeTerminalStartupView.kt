@@ -33,11 +33,13 @@ internal fun NativeTerminalStartupExpiry(startup: NativeTerminalStartup,
 @Composable
 internal fun NativeStartingTerminalPane(terminal: NativeTerminal, workspace: NativeWorkspace?, workspaceCount: Int,
     onBack: () -> Unit, onTerminal: (NativeTerminal) -> Unit, onSurface: (NativeSurface) -> Unit,
-    onBrowser: (NativeBrowser) -> Unit, onNewBrowser: () -> Unit) {
+    onBrowser: (NativeBrowser) -> Unit, onNewBrowser: () -> Unit,
+    onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null) {
     BackHandler(onBack = onBack)
     Column(Modifier.fillMaxSize().testTag("TerminalStarting")) {
         NativeTerminalHeader(terminal, workspace, workspaceCount, emptySet(), false, false,
-            onBack, onSurface, {}, {}, onNewBrowser, {}, onBrowser, onTerminal)
+            onBack, onSurface, {}, {}, onNewBrowser, {}, onBrowser, onTerminal,
+            onNewWorkspace = onNewWorkspace, onNewTerminal = onNewTerminal)
         NativeTerminalTabs(workspace?.terminals.orEmpty(), terminal, onTerminal)
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)) {

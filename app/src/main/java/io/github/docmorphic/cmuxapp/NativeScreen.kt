@@ -271,6 +271,7 @@ fun NativeScreen(
         }
     }
     var creatingTerminal by remember { mutableStateOf(false) }
+    var creatingWorkspace by remember { mutableStateOf(false) }
     val workspaceTabs = feedSession.workspaceTabs
     val terminalStartup = feedSession.terminalStartup
     val terminalStartupState by terminalStartup.state.collectAsState()
@@ -344,7 +345,7 @@ fun NativeScreen(
             })
     }
     fun createTerminal(source: NativeFeedSource, workspace: NativeWorkspace) {
-        if (creatingTerminal) return
+        if (creatingTerminal || creatingWorkspace) return
         val entryNavigation = navigationGeneration.observe(browserNavigationContext())
         val entryLogin = browserLogin
         val entryOwner = teamState.scope
@@ -417,6 +418,7 @@ fun NativeScreen(
     }
     val canCreateOnCurrentMac = connectionReady && client != null && connectedCode == code &&
         (selectedComputer == null || selectedComputer.code == connectedCode)
+    val canCreateInCurrentPane = connectionReady && client != null && connectedCode == code
     val computerConnections = nativeComputerConnections(pairedMacs, feedSources,
         activeCode = connectedCode.takeIf { connectionReady && client != null && it == code },
         pendingCode = code.takeIf { signedIn && it.isNotBlank() && !connectionReady && busy },
@@ -962,6 +964,51 @@ fun NativeScreen(
         val latest = workspaceSnapshots.latest(mac)
         if (latest != null) applyListing(latest) else workspaces = result.merge(workspaces)
         return created
+    }
+
+    fun createWorkspace() {
+        if (creatingWorkspace || creatingTerminal || !canCreateInCurrentPane) return
+        val active = client ?: return
+        val entryNavigation = navigationGeneration.observe(browserNavigationContext())
+        val entryLogin = browserLogin
+        val mac = pairedMacs.singleOrNull { it.code == code } ?: return
+        fun stillCurrent() = signedIn && client === active && store.taskSession() == entryLogin &&
+            navigationGeneration.matches(entryNavigation, browserNavigationContext()) &&
+            store.pairedMacs().contains(mac) && connection.allowsSaved(mac)
+        rawKeyboardView?.finishComposition(); directTyping = false
+        stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide()
+        creatingWorkspace = true
+        scope.launch {
+            try {
+                if (!stillCurrent()) return@launch
+                requireWorkspaceConnection(active, mac)
+                val response = workspaceSnapshots.mutate(mac) { active.request("workspace.create") }
+                if (!stillCurrent()) return@launch
+                val result = TaskCreationResult.parse(response, "workspace")
+                val created = applyCreatedWorkspace(mac, result)
+                refreshFeed(); notificationTab = false; error = null
+                selectedSurface = null; selectedBrowser = null; selectedWorkspace = created
+                selectedTerminal = created.terminals.firstOrNull { it.id == response.optString("created_terminal_id") }
+                    ?: created.preferredTerminal
+                selectedTerminal?.let { terminal ->
+                    workspaceTabKey(entryLogin, teamState.scope, mac, created.id)?.let { key ->
+                        workspaceTabs.cancel(); terminalStartup.begin(key, terminal)
+                    }
+                }
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                if (stillCurrent()) error = failure.message
+            } finally { creatingWorkspace = false }
+        }
+    }
+
+    fun createTerminalInPane() {
+        if (!canCreateInCurrentPane) return
+        val workspace = selectedWorkspace ?: return
+        val source = workspaceSourceForPane() ?: return
+        rawKeyboardView?.finishComposition(); directTyping = false
+        stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide()
+        createTerminal(source, workspace)
     }
 
     fun proposePairing(value: String) {
@@ -1929,6 +1976,8 @@ fun NativeScreen(
             }
             selectedTerminal?.isReady == false -> {
                 NativeStartingTerminalPane(selectedTerminal!!, selectedWorkspace, workspaces.size,
+                    onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
+                    onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
                     onBack = { selectedTerminal = null; selectedWorkspace = null; selectedSurface = null },
                     onTerminal = { selectPane(NativeWorkspacePane(terminal = it)) },
                     onSurface = { selectPane(NativeWorkspacePane(surface = it)) },
@@ -1939,6 +1988,8 @@ fun NativeScreen(
                 val terminal = selectedTerminal!!
                 var showSizing by remember(client, terminal.id) { mutableStateOf(false) }
                 NativeTerminalHeader(terminal, selectedWorkspace, workspaces.size, hostCapabilities, connectionReady, directTyping,
+                    onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
+                    onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
                     onBack = { selectedTerminal = null; selectedWorkspace = null; selectedSurface = null },
                     onTerminal = { next ->
                         rawKeyboardView?.finishComposition(); directTyping = false
@@ -2322,37 +2373,8 @@ fun NativeScreen(
                                 Text("+", color = nativeAccent, fontSize = 25.sp)
                             }
                             DropdownMenu(createMenuOpen, onDismissRequest = { createMenuOpen = false }) {
-                                DropdownMenuItem(text = { Text("New workspace") }, enabled = canCreateOnCurrentMac, onClick = {
-                                    createMenuOpen = false
-                                    val active = client
-                                    val entryContext = browserNavigationContext()
-                                    val entryNavigation = navigationGeneration.observe(entryContext)
-                                    val entryLogin = browserLogin
-                                    val mac = pairedMacs.singleOrNull { it.code == code }
-                                    fun stillCurrent() = signedIn && client === active && store.taskSession() == entryLogin &&
-                                        navigationGeneration.matches(entryNavigation, browserNavigationContext()) && mac != null && store.pairedMacs().contains(mac) && connection.allowsSaved(mac)
-                                    if (active != null) scope.launch {
-                                        try {
-                                            if (!stillCurrent()) return@launch
-                                            requireWorkspaceConnection(active, checkNotNull(mac))
-                                            val response = workspaceSnapshots.mutate(mac) { active.request("workspace.create") }
-                                            if (!stillCurrent()) return@launch
-                                            val result = TaskCreationResult.parse(response, "workspace")
-                                            val created = applyCreatedWorkspace(checkNotNull(mac), result)
-                                            refreshFeed(); notificationTab = false; error = null
-                                            selectedSurface = null; selectedBrowser = null; selectedWorkspace = created
-                                            selectedTerminal = created.terminals.firstOrNull { it.id == response.optString("created_terminal_id") }
-                                                ?: created.preferredTerminal
-                                            selectedTerminal?.let { terminal -> mac?.let {
-                                                workspaceTabKey(entryLogin, teamState.scope, it, created.id)?.let { key ->
-                                                    workspaceTabs.cancel(); terminalStartup.begin(key, terminal)
-                                                }
-                                            } }
-                                        } catch (failure: Exception) {
-                                            if (failure is CancellationException) throw failure
-                                            if (stillCurrent()) error = failure.message
-                                        }
-                                    }
+                                DropdownMenuItem(text = { Text("New workspace") }, enabled = canCreateOnCurrentMac && !creatingWorkspace && !creatingTerminal, onClick = {
+                                    createMenuOpen = false; createWorkspace()
                                 })
                                 DropdownMenuItem(text = { Text("New task") }, onClick = {
                                     createMenuOpen = false; finishSearch(); newTaskDraft()

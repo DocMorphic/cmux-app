@@ -32,7 +32,7 @@ Targeted source findings in this pass:
   omitted terminal selection. It now provides those grouped rows, live inventory
   updates and selected accessibility semantics, routing through the existing pane
   selection callbacks in ready and starting-terminal views. Browser-active
-  checkmarks, unified menus on other pane types, creation/feedback utility entries,
+  checkmarks, unified menus on other pane types, feedback utility entries,
   and the remaining picker contract still need review and implementation as needed.
 - `TerminalReplayQueryFilter.swift` and `Data+TerminalQueryReplies.swift` prevent
   historical output from generating new PTY input. Android's tmux/cmux-tui mirrors
@@ -68,6 +68,40 @@ Final local APK SHA-256: debug
 `95e57164eaffc3187763135b74c6fba5a1774b621a6bbd903a540b40ada6e8ac`, test
 `71ee34cec95dfdd0a14234703e93766a01d2d94b8032f79a041c4fb1082e8061`.
 Signed build 411 and the disconnected Pixel installation are unchanged.
+
+### Terminal picker creation actions (2026-10-03)
+
+New Workspace and New Terminal are now present in both ready and starting-terminal
+title menus. They reuse the existing workspace creation/startup and terminal
+creation flows. Workspace creation was extracted from the list's menu so both
+entry points share account/Mac/current-navigation checks, partial-response merge,
+created-terminal selection and lazy-startup handling. Creation targets the Mac
+shown in the terminal pane; the list's selected-computer filter remains its own
+creation admission rule.
+
+While either workspace or terminal creation is awaiting its reply, both picker
+creation actions and the list's workspace creation action are disabled. The
+handlers also reject a repeated creation, preserving single dispatch even if an
+old callback runs. Entering creation finishes direct IME composition and clears
+keyboard/focus/scroll motion through the existing mechanisms.
+
+Debug/test APK assembly passed in **49 seconds**. **11 emulator tests passed in
+68.181 seconds**, covering both workspace entry points, partial response retention,
+new-terminal picker creation, disabled repeated/cross-kind creation during a held
+reply, startup preparation/timeout/retry, sibling/disappearance/late-navigation
+behavior, grouped picker callbacks, and the native keyboard/input flow. The menu
+capture was visually inspected; its component fixture shows the creation entries
+disabled because it supplies no creation callbacks. Actual enabled creation and
+pending-state behavior are exercised by the production-screen tests. This does
+not establish physical Pixel/Mac acceptance. The one existing emulator is stopped;
+the Pixel was absent and signed build 411 is unchanged.
+
+Ignored evidence: `captures/runtime/terminal-picker-creation-build.txt`,
+`terminal-picker-creation-ui.txt`, and `terminal-picker-creation.png` in the same
+directory. Final APK SHA-256:
+
+- Debug: `d778825e15ef23b2eeb994ff8d5c66e57bfe0b9c0d8c72c04f4b8c14267fad3f`
+- Test: `bf764e54182db29e9b9df84cec7ad324ce0983982f4a1d5b941bf948f024ad64`
 
 ## Recent checkpoints
 

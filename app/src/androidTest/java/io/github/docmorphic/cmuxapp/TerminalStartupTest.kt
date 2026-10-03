@@ -138,7 +138,10 @@ class TerminalStartupTest {
             assertTrue(terminalCalls("new-terminal").isEmpty()); assertCreatedOnce()
         } finally { gate.countDown() }
     }
-    @Test fun newWorkspaceUsesStartupPinAndPreservesUnrelatedRowsFromPartialResponse() {
+    @Test fun newWorkspaceUsesStartupPinAndPreservesUnrelatedRowsFromPartialResponse() = checkNewWorkspace(false)
+    @Test fun newWorkspaceFromTerminalPickerUsesTheSameStartupAndSnapshotRules() = checkNewWorkspace(true)
+
+    private fun checkNewWorkspace(fromTerminal: Boolean) {
         peer.workspaceCreationResponse = {
             val created = JSONObject("""{"id":"created-workspace","title":"Created workspace","terminals":[
                 {"id":"new-terminal","title":"New shell","is_ready":false},{"id":"ready-created","title":"Ready shell","is_ready":true}]}""")
@@ -147,11 +150,40 @@ class TerminalStartupTest {
             JSONObject().put("created_workspace_id", "created-workspace").put("created_terminal_id", "new-terminal")
                 .put("workspaces", org.json.JSONArray().put(created))
         }
-        launch(); compose.onNodeWithText("+").performClick(); compose.onNodeWithText("New workspace").performClick()
+        launch()
+        if (fromTerminal) {
+            compose.onNodeWithText("Startup workspace").performClick(); waitFor("Ready shell ▾")
+            compose.onNodeWithTag("terminal-picker").performClick()
+            compose.onNodeWithText("New Workspace").performScrollTo().performClick()
+        } else {
+            compose.onNodeWithText("+").performClick(); compose.onNodeWithText("New workspace").performClick()
+        }
         waitFor("Starting terminal…"); compose.onNodeWithText("New shell ▾").assertExists()
         assertOnlyPreparation("new-terminal")
         compose.onNodeWithContentDescription("Back to workspaces").performClick()
         waitFor("Startup workspace"); waitFor("Other workspace"); waitFor("Created workspace")
         assertEquals(1, peer.requests.count { it.optString("method") == "workspace.create" })
+    }
+
+    @Test fun terminalPickerCreationDisablesRepeatedMutationsUntilAcknowledged() {
+        val gate = CountDownLatch(1)
+        val respond = checkNotNull(peer.terminalCreationResponse)
+        peer.terminalCreationResponse = { params ->
+            check(gate.await(10, TimeUnit.SECONDS)); respond(params)
+        }
+        try {
+            launch(); compose.onNodeWithText("Startup workspace").performClick(); waitFor("Ready shell ▾")
+            compose.onNodeWithTag("terminal-picker").performClick()
+            compose.onNodeWithText("New Terminal").performScrollTo().performClick()
+            compose.waitUntil(5_000) { peer.requests.any { it.optString("method") == "terminal.create" } }
+            compose.onNodeWithTag("terminal-picker").performClick()
+            compose.onNodeWithText("New Terminal").assertIsNotEnabled()
+            compose.onNodeWithText("New Workspace").assertIsNotEnabled()
+            androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).pressBack()
+            gate.countDown()
+            waitFor("Starting terminal…"); compose.onNodeWithText("New shell ▾").assertExists()
+            assertCreatedOnce(); assertOnlyPreparation("new-terminal")
+            assertTrue(peer.requests.none { it.optString("method") == "workspace.create" })
+        } finally { gate.countDown() }
     }
 }

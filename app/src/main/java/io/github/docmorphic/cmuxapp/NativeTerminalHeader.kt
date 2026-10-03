@@ -45,6 +45,7 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
     onBack: () -> Unit, onSurface: (NativeSurface) -> Unit, onText: () -> Unit, onFiles: () -> Unit,
     onNewBrowser: () -> Unit, onKeyboard: () -> Unit, onBrowser: (NativeBrowser) -> Unit,
     onTerminal: (NativeTerminal) -> Unit,
+    onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null,
     onSizing: (() -> Unit)? = null) {
     val accent = Color(0xFF76B9FF)
     Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -83,6 +84,10 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
                     DropdownMenuItem(text = { Text(browser.title.ifBlank { "Browser" }) }, onClick = { menu = false; onBrowser(browser) })
                 }
                 HorizontalDivider()
+                DropdownMenuItem(text = { Text("New Workspace") }, enabled = onNewWorkspace != null,
+                    onClick = { menu = false; onNewWorkspace?.invoke() })
+                DropdownMenuItem(text = { Text("New Terminal") }, enabled = onNewTerminal != null,
+                    onClick = { menu = false; onNewTerminal?.invoke() })
                 DropdownMenuItem(text = { Text("New Browser") }, onClick = { menu = false; onNewBrowser() }, enabled = workspace != null)
                 DropdownMenuItem(text = { Text("View as Text") }, onClick = { menu = false; onText() }, enabled = terminal.isReady)
                 if (onSizing != null) DropdownMenuItem(text = { Text("Terminal size") }, onClick = { menu = false; onSizing() })
