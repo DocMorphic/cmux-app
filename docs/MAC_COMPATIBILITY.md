@@ -83,9 +83,10 @@ exception, development tag grants, and discovery/presence audience filtering
 still require implementation. Android debug must not inherit iOS DEBUG's
 development-only audience unintentionally.
 
-Version observations are retained only for the current process/account scope;
-offline warning restoration after process death and warning-only presence
-metadata are not implemented. New pairings without a saved row receive the
+[Saved version history](MAC_VERSION_HISTORY.md) now restores warnings from
+encrypted observations for an existing saved Mac after account scope restoration.
+Warning-only presence metadata and the fully offline cached-account Computers
+projection remain unimplemented. New pairings without a saved row receive the
 connection error; full iOS onboarding warning presentation remains unverified.
 Physical stable/nightly Mac acceptance and current iOS visual comparison remain
 open. Signed build 474 predates this feature; no signed milestone was dispatched

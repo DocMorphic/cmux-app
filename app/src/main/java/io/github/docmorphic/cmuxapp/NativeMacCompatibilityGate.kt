@@ -10,13 +10,17 @@ internal data class MacCompatibilityKey(val owner: NativeTeamScope, val identity
 /** Tracks authenticated wires, including all pooled foreground and background borrowers. */
 internal class NativeMacCompatibilityGate(
     private val isCurrent: (NativeTeamScope) -> Boolean,
-    initial: NativeMacCompatibilityPolicy = NativeMacCompatibilityPolicy.baked
+    initial: NativeMacCompatibilityPolicy = NativeMacCompatibilityPolicy.baked,
+    private val recordObservation: (NativeTeamScope, NativeMacIdentity, String?) -> Unit = { _, _, _ -> }
 ) {
     private data class Host(val key: MacCompatibilityKey, val version: String?)
     private val lock = Any()
     private var policy = initial
     private val wires = WeakHashMap<MobileRpcClient, Host>()
     private val observed = linkedMapOf<MacCompatibilityKey, Host>()
+    private val restored = linkedMapOf<MacCompatibilityKey, Host>()
+    private val mutableObservations = MutableStateFlow<Map<MacCompatibilityKey, String?>>(emptyMap())
+    val observations = mutableObservations.asStateFlow()
     private val mutableWarnings = MutableStateFlow<Map<MacCompatibilityKey, MacCompatibilityViolation>>(emptyMap())
     val warnings = mutableWarnings.asStateFlow()
 
@@ -37,10 +41,23 @@ internal class NativeMacCompatibilityGate(
                 if (it == null) wires[client.compatibilityWire] = host
             }
         }
+        // Never enter credential storage while holding the gate monitor: account guards use that lock.
+        runCatching { recordObservation(owner, host.key.identity, host.version) }
         if (failure != null) {
             client.retireForCompatibility(failure)
             throw failure
         }
+    }
+
+    /** Warning-only restoration; never registers a wire or replaces a fresh authenticated observation. */
+    fun restore(owner: NativeTeamScope, versions: Map<NativeMacIdentity, String?>) = synchronized(lock) {
+        prune()
+        restored.keys.removeAll { it.owner == owner }
+        if (isCurrent(owner)) versions.entries.take(256).forEach { (identity, version) ->
+            val key = MacCompatibilityKey(owner, identity)
+            restored[key] = Host(key, version)
+        }
+        publish()
     }
 
     /** Remote refresh rechecks each wire, never a sibling Mac/build or a retired account. */
@@ -60,9 +77,11 @@ internal class NativeMacCompatibilityGate(
     private fun prune() {
         wires.entries.removeAll { it.key.isClosed || !isCurrent(it.value.key.owner) }
         observed.keys.removeAll { !isCurrent(it.owner) }
+        restored.keys.removeAll { !isCurrent(it.owner) }
     }
     private fun publish() {
-        mutableWarnings.value = observed.mapNotNull { (key, host) ->
+        mutableObservations.value = observed.mapValues { it.value.version }
+        mutableWarnings.value = (restored + observed).mapNotNull { (key, host) ->
             policy.violation(key.identity.buildTag, host.version)?.let { key to it }
         }.toMap()
     }

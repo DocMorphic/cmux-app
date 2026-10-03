@@ -13,6 +13,38 @@ class NativeMacCompatibilityGateTest {
     private fun stricter() = checkNotNull(NativeMacCompatibilityPolicy.decode(
         """{"entries":[{"minIOSVersion":"1.0.6","stableMinVersion":"0.65.0"}]}"""))
 
+    @Test fun restoredVersionWarnsWithoutRegisteringAWireAndReevaluatesCurrentPolicy() {
+        val gate = NativeMacCompatibilityGate({ it == team })
+        val identity = NativeMacIdentity("mac", "default")
+        gate.restore(team, mapOf(identity to "0.64.24"))
+        assertEquals("0.64.25", gate.warnings.value.values.single().required)
+        assertTrue(gate.observations.value.isEmpty())
+        gate.replace(stricter()); assertEquals("0.65.0", gate.warnings.value.values.single().required)
+        gate.replace(NativeMacCompatibilityPolicy(emptyList())); assertTrue(gate.warnings.value.isEmpty())
+        gate.replace(stricter()); assertEquals(1, gate.warnings.value.size)
+        gate.restore(team, emptyMap()); assertTrue(gate.warnings.value.isEmpty())
+    }
+    @Test fun cachedOldVersionCannotOverrideOrRetireFreshCompatibleWire() = runBlocking<Unit> {
+        val gate = NativeMacCompatibilityGate({ it == team })
+        MobileRpcClient(PoolTestTransport(), { "fixture" }).use { client ->
+            client.connect(); gate.admit(team, client, host("0.65.0"))
+            gate.restore(team, mapOf(NativeMacIdentity("mac", "default") to "0.1"))
+            assertTrue(gate.warnings.value.isEmpty())
+            gate.replace(stricter()); assertFalse(client.isClosed)
+            assertEquals("0.65.0", gate.observations.value.values.single())
+        }
+    }
+    @Test fun restoredWarningsAreRemovedOnAccountRetirementAndLateRestoreIsIgnored() {
+        var current = team
+        val gate = NativeMacCompatibilityGate({ it == current })
+        gate.restore(team, mapOf(NativeMacIdentity("mac", "nightly") to null))
+        assertEquals(1, gate.warnings.value.size)
+        current = team.copy(login = "replacement", generation = 2)
+        gate.reconcile(); assertTrue(gate.warnings.value.isEmpty())
+        gate.restore(team, mapOf(NativeMacIdentity("mac", "nightly") to null))
+        assertTrue(gate.warnings.value.isEmpty())
+    }
+
     @Test fun outdatedAdmissionClosesWireBeforePoolCanPublishAndRecordsGuidance() = runBlocking<Unit> {
         val gate = NativeMacCompatibilityGate({ it == team })
         val transport = PoolTestTransport()

@@ -12,6 +12,32 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Encrypted saved Mac version history (2026-10-03)
+
+[MAC_VERSION_HISTORY.md](MAC_VERSION_HISTORY.md) documents last-authenticated
+version persistence outside pairing records, exact account/team/device/build
+identity, warning-only restoration, current-policy reevaluation and fresh-host
+precedence. Hiding retains observations; forgetting the last exact pairing and
+sign-out remove stored history. A first pairing committed after its handshake
+receives the version through the credential observer. Delayed callbacks read the
+latest observation inside the transaction, and unchanged values do not rewrite storage.
+
+60 focused JVM tests passed, and final debug/test APKs built in 52 seconds. Five
+Android tests passed in 31.355 seconds on the existing API 37 / 16 KB emulator:
+three real encrypted-storage/observer fixtures plus two update-guidance tests.
+The restored hidden-row warning screenshot was inspected. Evidence is in
+captures/runtime/mac-version-history. The emulator was stopped; no new AVD exists.
+
+Debug SHA-256: 5da5d21eaad897f7549be2252fd1a1bd4a9432ccba1b620873816d819332bb09.
+Test SHA-256: cba51214a98bae959f061ba2cfbbcdf0dd49312b522fb5547fb1ff20fdd775ab.
+Signed build 474 remains the published development milestone and predates this work.
+
+The tests recreate storage/gate objects and exercise the production observer;
+they do not prove a physical Mac/Pixel or OS force-stop journey. A restored,
+verified account scope is still required for the current Computers projection.
+Fully offline cached-account UI, build audience/namespace/grants, presence version
+metadata and physical stable/nightly acceptance remain pending.
+
 ## Mac minimum-version admission and update guidance (2026-10-03)
 
 [MAC_COMPATIBILITY.md](MAC_COMPATIBILITY.md) records the explicit Android protocol
@@ -32,8 +58,8 @@ Final debug SHA-256: c1ae723c268447eec8a3b803db6959af18da75e8245b0e5a3a34c92aefb
 Test SHA-256: a05597ae50ea551ae73cf50152ec585e38843ca1df54549fb08f95aa886a0c44.
 These are local debug artifacts; signed build 474 predates this work.
 
-Remaining: separate build-audience/namespace/development-grant policy, durable
-offline version observations, presence warning metadata, onboarding/layout
+At this checkpoint, remaining work included separate build-audience/namespace/development-grant policy, durable
+offline version observations (implemented above), presence warning metadata, onboarding/layout
 comparison and physical stable/nightly acceptance. The Pixel was not visible in
 ADB. No global parity-pin advancement or full compatibility claim is made.
 

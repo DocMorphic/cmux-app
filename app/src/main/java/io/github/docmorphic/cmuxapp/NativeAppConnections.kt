@@ -14,7 +14,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     private val activityLock = Any()
     private val activityOwners = mutableSetOf<Any>()
     private val applicationActive = MutableStateFlow(IrxProbeActivity(false))
-    val compatibility = NativeMacCompatibilityRuntime(context.applicationContext, applicationActive, teams.state, teams::isCurrent)
+    val compatibility = NativeMacCompatibilityRuntime(context.applicationContext, store, applicationActive, teams.state, teams::isCurrent)
     private val savedTailscale = NativeSavedTailscaleRuntime(teams.state, teams::isCurrent, { account.accessToken() },
         admitCompatibility = { team, client, host -> compatibility.gate.admit(team, client, host) }) { team ->
         val routes = NativeTailscaleRoutes(context.applicationContext, store, team)

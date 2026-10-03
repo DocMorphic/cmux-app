@@ -11,8 +11,8 @@ import okhttp3.Request
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
-internal class NativeMacCompatibilityRuntime(context: Context, active: StateFlow<IrxProbeActivity>,
-    teams: StateFlow<NativeAccountTeamsState>, isCurrent: (NativeTeamScope) -> Boolean) : AutoCloseable {
+internal class NativeMacCompatibilityRuntime(context: Context, private val store: NativeCredentialStore, active: StateFlow<IrxProbeActivity>,
+    teams: StateFlow<NativeAccountTeamsState>, private val isCurrent: (NativeTeamScope) -> Boolean) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val preferences = context.getSharedPreferences("native_mac_compatibility", Context.MODE_PRIVATE)
     private val stamp = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -21,7 +21,7 @@ internal class NativeMacCompatibilityRuntime(context: Context, active: StateFlow
     private val cache = NativeMacPolicyCache({ preferences.getString(key, null) }) {
         preferences.edit().clear().putString(key, it).apply()
     }
-    val gate = NativeMacCompatibilityGate(isCurrent, cache.policy)
+    val gate = NativeMacCompatibilityGate(isCurrent, cache.policy) { owner, _, _ -> persist(owner) }
     private val http = OkHttpClient.Builder().callTimeout(15, TimeUnit.SECONDS)
         .followRedirects(false).followSslRedirects(false).build()
     private val refreshLock = Mutex()
@@ -32,8 +32,13 @@ internal class NativeMacCompatibilityRuntime(context: Context, active: StateFlow
             preferences.edit().apply { old.forEach(::remove) }.apply()
         }
         scope.launch { teams.collect { gate.reconcile() } }
+        scope.observeMacVersionHistory(store, teams, isCurrent, gate)
         scope.launch { while (isActive) { refresh(); delay(60 * 60 * 1000L) } }
         scope.launch { active.collectLatest { if (it.active) refresh() } }
+    }
+
+    private fun persist(owner: NativeTeamScope) {
+        persistMacVersionHistory(store, gate, owner, isCurrent)
     }
 
     private suspend fun refresh() = refreshLock.withLock {

@@ -157,12 +157,20 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         if (NativeMacLastSeen.record(value, login, mac, time, permits)) save(value)
     }
 
+    internal fun recordMacVersions(owner: NativeTeamScope, permits: () -> Boolean,
+        versions: () -> Map<NativeMacIdentity, String?>): Unit = synchronized(storageLock) {
+        val value = load() ?: return@synchronized
+        if (!permits()) return@synchronized
+        if (NativeMacVersionHistory.record(value, owner, versions(), permits)) save(value)
+    }
+
     /** Caller holds storageLock. */
     private fun save(value: JSONObject) {
         NativeAccountDeletionRecord.prune(value)
         NativeAccountProfileCache.prune(value)
         NativeNotificationDismissOutbox(value).prune()
         NativeMacLastSeen.prune(value)
+        NativeMacVersionHistory.prune(value)
         NativeComputerVisibility.prune(value)
         PhonePushKeyState(value).prune()
         PhonePushInbox(value).prune()
