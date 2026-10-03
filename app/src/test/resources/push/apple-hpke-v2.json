@@ -1,0 +1,49 @@
+[
+  {
+    "canonicalTupleBase64" : "eyJhY2NvdW50SUQiOiJ0ZXN0LWFjY291bnQiLCJpb3NCdWlsZElEIjoiaW8uZ2l0aHViLmRvY21vcnBoaWMuY211eGFwcCIsImlvc0luc3RhbGxhdGlvbklEIjoidGVzdC1waG9uZSIsIm1hY0J1aWxkSUQiOiJkZXYuY211eC5hcHAiLCJtYWNEZXZpY2VJRCI6InRlc3QtbWFjIiwibWFjSW5zdGFuY2VUYWciOiJ0ZXN0LWluc3RhbmNlIiwidGVhbUlEIjoidGVzdC10ZWFtIn0=",
+    "envelope" : {
+      "ciphertext" : "p1uqyWF5c+xrx5XsALvsWhYX6ZsOrcGQlCL2+1D9jAUCsK3\/TlrXyN+iM3eSlFjfyweC4mw=",
+      "encapsulatedKey" : "KqSOJhnKV1IZ+e1REFcIbMTRBLPZyix5LpcaFefjuG8=",
+      "installationID" : "test-phone",
+      "keyID" : "test-recipient-key",
+      "senderKeyID" : "test-sender-key",
+      "tuple" : {
+        "accountID" : "test-account",
+        "iosBuildID" : "io.github.docmorphic.cmuxapp",
+        "iosInstallationID" : "test-phone",
+        "macBuildID" : "dev.cmux.app",
+        "macDeviceID" : "test-mac",
+        "macInstanceTag" : "test-instance",
+        "teamID" : "test-team"
+      },
+      "version" : 2
+    },
+    "plaintextBase64" : "R2VuZXJhdGVkIEFwcGxlIHB1c2ggZml4dHVyZSDOuyDkuK0gMA==",
+    "recipientPrivateKeyBase64" : "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "recipientPublicKeyBase64" : "j0DFrbaPJWJK5bIU6nZ6bslNgp09e14a0bpvPiE4KF8=",
+    "senderPrivateKeyBase64" : "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+    "senderPublicKeyBase64" : "NYBy1jZYgNGu6jKa35EhODhR7SGijjt16WXQ0s0WYlQ="
+  },
+  {
+    "canonicalTupleBase64" : "eyJpb3NCdWlsZElEIjoidGVzdFwvYnVpbGQiLCJpb3NJbnN0YWxsYXRpb25JRCI6InRlc3QtcGhvbmUiLCJtYWNEZXZpY2VJRCI6InRlc3RcL867XC\/kuK1cL\/CfmIDigKjigKkiLCJtYWNJbnN0YW5jZVRhZyI6InRlc3Rcblx0XHUwMDAxXCJcXCJ9",
+    "envelope" : {
+      "ciphertext" : "735KZK2vNiOdWmigga7g4Db21u2Mr3jLzk6XPrMxIQMHTyoH2azBJ9dd0sW3udjN5psJs2w=",
+      "encapsulatedKey" : "+HO7ufy2PqiUf2fxbrWhFiptj\/2blfs0WpgVN7oYh1Q=",
+      "installationID" : "test-phone",
+      "keyID" : "test-recipient-key",
+      "senderKeyID" : "test-sender-key",
+      "tuple" : {
+        "iosBuildID" : "test\/build",
+        "iosInstallationID" : "test-phone",
+        "macDeviceID" : "test\/λ\/中\/😀  ",
+        "macInstanceTag" : "test\n\t\u0001\"\\"
+      },
+      "version" : 2
+    },
+    "plaintextBase64" : "R2VuZXJhdGVkIEFwcGxlIHB1c2ggZml4dHVyZSDOuyDkuK0gMQ==",
+    "recipientPrivateKeyBase64" : "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "recipientPublicKeyBase64" : "j0DFrbaPJWJK5bIU6nZ6bslNgp09e14a0bpvPiE4KF8=",
+    "senderPrivateKeyBase64" : "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+    "senderPublicKeyBase64" : "NYBy1jZYgNGu6jKa35EhODhR7SGijjt16WXQ0s0WYlQ="
+  }
+]

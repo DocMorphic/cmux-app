@@ -1,0 +1,422 @@
+{
+  "upstream": "4c5272e9153eca2033c9f40ac749f0c3a5bcb291",
+  "source_sha256": {
+    "Packages/iOS/CmuxMobileBrowser/Sources/CmuxMobileBrowser/BrowserURLResolver.swift": "60c125e2be6cbf37db8c7d579f3a1d770fee6c20cc5853284130244e64ba2a8c"
+  },
+  "cases": [
+    {
+      "expected": null,
+      "input": ""
+    },
+    {
+      "expected": null,
+      "input": "   "
+    },
+    {
+      "expected": null,
+      "input": "\n\t"
+    },
+    {
+      "expected": null,
+      "input": "  "
+    },
+    {
+      "expected": "https://example.com/path?q=1",
+      "input": "https://example.com/path?q=1"
+    },
+    {
+      "expected": "https://auth.example.com/oauth/authorize?client_id=fixture_app&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&response_type=code&scope=openid%20profile%20email%20offline_access&code_challenge=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&code_challenge_method=S256&state=fixture_state&codex_cli_simplified_flow=true",
+      "input": "https://auth.example.com/oauth/authorize?client_id=fixture_app&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&response_type=code&scope=openid%20profile%20email%20offline_access&code_challenge=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&code_challenge_method=S256&state=fixture_state&codex_cli_simplified_flow=true"
+    },
+    {
+      "expected": "https://auth.example.com/oauth/authorize?client_id=fixture_app&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&response_type=code&scope=openid%20profile%20email%20offline_access&code_challenge=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&code_challenge_method=S256&state=fixture_state&codex_cli_simplified_flow=true",
+      "input": "https://auth.example.com/oauth/authorize?client_id=fixture_app&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&response_type=code&\nscope=openid%20profile%20email%20offline_access&code_challenge=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&code_challenge_method=S256&state=fixture_state&codex_cli_simplified_flow=true"
+    },
+    {
+      "expected": "https://auth.example.com/oauth/authorize?client_id=fixture_app&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&response_type=code&scope=openid%20profile%20email%20offline_access&code_challenge=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&code_challenge_method=S256&state=fixture_state&codex_cli_simplified_flow=true",
+      "input": "https://auth.example.com/oauth/authorize?client_id=fixture_app&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&response_type=code&\tscope=openid%20profile%20email%20offline_access&code_challenge=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&code_challenge_method=S256&state=fixture_state&codex_cli_simplified_flow=true"
+    },
+    {
+      "expected": "https://auth.example.com/oauth/authorize?client_id=fixture_app&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&response_type=code&scope=openid%20profile%20email%20offline_access&code_challenge=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&code_challenge_method=S256&state=fixture_state&codex_cli_simplified_flow=true",
+      "input": "  \n\thttps://auth.example.com/oauth/authorize?client_id=fixture_app&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&response_type=code&scope=openid%20profile%20email%20offline_access&code_challenge=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ&code_challenge_method=S256&state=fixture_state&codex_cli_simplified_flow=true\r\n  "
+    },
+    {
+      "expected": "https://example.com/search?q=hello%20world",
+      "input": "https://example.com/search?q=hello world"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=a%20b.com/path%3Fx%3D1",
+      "input": "a b.com/path?x=1"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=go%09example.com/path",
+      "input": "go\texample.com/path"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=go%0Aexample.com/path",
+      "input": "go\nexample.com/path"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=https://trusted.example%0A@evil.example/path",
+      "input": "https://trusted.example\n@evil.example/path"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=https://trusted.example%20@evil.example/path",
+      "input": "https://trusted.example @evil.example/path"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=trusted.example%0A@evil.example/path",
+      "input": "trusted.example\n@evil.example/path"
+    },
+    {
+      "expected": "http://example.com",
+      "input": "http://example.com"
+    },
+    {
+      "expected": "https://example.com",
+      "input": "example.com"
+    },
+    {
+      "expected": "https://example.com/docs/page",
+      "input": "example.com/docs/page"
+    },
+    {
+      "expected": "http://localhost:3000",
+      "input": "localhost:3000"
+    },
+    {
+      "expected": "https://example.com/path?x=1",
+      "input": "example.com/path?x=1"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=example.%0Acom/path%3Fx%3D1",
+      "input": "example.\ncom/path?x=1"
+    },
+    {
+      "expected": "https://example.com/path?x=1",
+      "input": "example.com/path?\nx=1"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=node.js%20tutorial",
+      "input": "node.js tutorial"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=node.js%09tutorial",
+      "input": "node.js\ttutorial"
+    },
+    {
+      "expected": "http://127.0.0.1:8080",
+      "input": "127.0.0.1:8080"
+    },
+    {
+      "expected": "http://192.168.1.10",
+      "input": "192.168.1.10"
+    },
+    {
+      "expected": "http://10.0.0.5",
+      "input": "10.0.0.5"
+    },
+    {
+      "expected": "http://172.16.0.1",
+      "input": "172.16.0.1"
+    },
+    {
+      "expected": "https://8.8.8.8",
+      "input": "8.8.8.8"
+    },
+    {
+      "expected": "https://localhost.evil.com",
+      "input": "localhost.evil.com"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=localhost:80@evil.example/path",
+      "input": "localhost:80@evil.example/path"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=127.0.0.1:80@evil.example",
+      "input": "127.0.0.1:80@evil.example"
+    },
+    {
+      "expected": "https://example.com/path?email=user@example.com",
+      "input": "example.com/path?email=user@example.com"
+    },
+    {
+      "expected": "http://[::1]",
+      "input": "::1"
+    },
+    {
+      "expected": "http://[::1]:3000",
+      "input": "[::1]:3000"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=how%20to%20write%20swift",
+      "input": "how to write swift"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=swift",
+      "input": "swift"
+    },
+    {
+      "expected": "https://example.com",
+      "input": "  example.com  "
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=javascript:alert(1)",
+      "input": "javascript:alert(1)"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=AT%26T%20earnings",
+      "input": "AT&T earnings"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=C%2B%2B%20tutorial",
+      "input": "C++ tutorial"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=foo.",
+      "input": "foo."
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=.foo",
+      "input": ".foo"
+    },
+    {
+      "expected": "https://foo..example",
+      "input": "foo..example"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=hello%20%F0%9F%98%80",
+      "input": "hello 😀"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=%E6%97%A5%E6%9C%AC%E8%AA%9E%E3%81%A7%E6%A4%9C%E7%B4%A2",
+      "input": "日本語で検索"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=x%3D1%26y%3D2%3F%23z",
+      "input": "x=1&y=2?#z"
+    },
+    {
+      "expected": "https://example.com/path?x=1",
+      "input": "example.com/path?\r\nx=1"
+    },
+    {
+      "expected": "https://example.com/path?q=1",
+      "input": "https://example.com/pa th?q=1"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=https://exa%09mple.com/path",
+      "input": "https://exa\tmple.com/path"
+    },
+    {
+      "expected": "https://example.com/path?q=1",
+      "input": "https://example.com/path\n?q=1"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=example.com%0A/path",
+      "input": "example.com\n/path"
+    },
+    {
+      "expected": "https://example.com/path",
+      "input": "example.com/\tpath"
+    },
+    {
+      "expected": "https://example.com?q=hello",
+      "input": "example.com?\nq=hello"
+    },
+    {
+      "expected": "https://example.com#fragment",
+      "input": "example.com#\tfragment"
+    },
+    {
+      "expected": "https://example.com/a%20b?x=%26&y=%2f",
+      "input": "https://example.com/a%20b?x=%26&y=%2f"
+    },
+    {
+      "expected": "https://example.com/a%20b?q=a%20b#c%20d",
+      "input": "https://example.com/a b?q=a b#c d"
+    },
+    {
+      "expected": "https://example.com/%C3%BCber?q=%C3%A9",
+      "input": "https://example.com/über?q=é"
+    },
+    {
+      "expected": "https://xn--bcher-kva.example/stra%C3%9Fe",
+      "input": "https://bücher.example/straße"
+    },
+    {
+      "expected": "https://xn--bcher-kva.example/stra%C3%9Fe",
+      "input": "bücher.example/straße"
+    },
+    {
+      "expected": "HTTPS://EXAMPLE.COM:443/path",
+      "input": "HTTPS://EXAMPLE.COM:443/path"
+    },
+    {
+      "expected": "http://localhost",
+      "input": "localhost"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=LOCALHOST:8080",
+      "input": "LOCALHOST:8080"
+    },
+    {
+      "expected": "https://test.localhost",
+      "input": "test.localhost"
+    },
+    {
+      "expected": "http://127.255.0.2",
+      "input": "127.255.0.2"
+    },
+    {
+      "expected": "https://172.15.255.1",
+      "input": "172.15.255.1"
+    },
+    {
+      "expected": "http://172.31.255.1",
+      "input": "172.31.255.1"
+    },
+    {
+      "expected": "https://172.32.0.1",
+      "input": "172.32.0.1"
+    },
+    {
+      "expected": "https://192.168.1.256",
+      "input": "192.168.1.256"
+    },
+    {
+      "expected": "http://10.0.0.1/path?q=1",
+      "input": "10.0.0.1/path?q=1"
+    },
+    {
+      "expected": "http://[::1]/path",
+      "input": "[::1]/path"
+    },
+    {
+      "expected": "http://[::1]:8080/path",
+      "input": "[::1]:8080/path"
+    },
+    {
+      "expected": "https://[2001:db8::1]",
+      "input": "2001:db8::1"
+    },
+    {
+      "expected": "https://[2001:db8::1]:443/path",
+      "input": "[2001:db8::1]:443/path"
+    },
+    {
+      "expected": "http://localhost:3000/path#fragment",
+      "input": "localhost:3000/path#fragment"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=https://",
+      "input": "https://"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=http://",
+      "input": "http://"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=https://example.com:abc/path",
+      "input": "https://example.com:abc/path"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=http:/example.com",
+      "input": "http:/example.com"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=javascript://example.com/path",
+      "input": "javascript://example.com/path"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=file:///tmp/example.txt",
+      "input": "file:///tmp/example.txt"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=data:text/html,hello",
+      "input": "data:text/html,hello"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=mailto:person@example.com",
+      "input": "mailto:person@example.com"
+    },
+    {
+      "expected": "https://user:pass@example.com/path",
+      "input": "https://user:pass@example.com/path"
+    },
+    {
+      "expected": "https://example.com/%25zz",
+      "input": "https://example.com/%zz"
+    },
+    {
+      "expected": "https://example.com/100%25",
+      "input": "https://example.com/100%"
+    },
+    {
+      "expected": "https://example.com/%5Ba%5D?x=%5Bb%5D",
+      "input": "https://example.com/[a]?x=[b]"
+    },
+    {
+      "expected": "https://example.com/path%5Cname",
+      "input": "https://example.com/path\\name"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=example.com%5C@evil.example",
+      "input": "example.com\\@evil.example"
+    },
+    {
+      "expected": "https://example.com?x=onetwo",
+      "input": "https://example.com?x=onetwo"
+    },
+    {
+      "expected": "https://duckduckgo.com/?q=foo%20bar/baz:!$()*;,%5B%5D",
+      "input": "foo bar/baz:!$()*;,[]"
+    },
+    {
+      "expected": "https://xn--fa-hia.de/",
+      "input": "https://faß.de/"
+    },
+    {
+      "expected": "https://xn--fa-hia.de",
+      "input": "faß.de"
+    },
+    {
+      "expected": "https://xn--3xa.example/",
+      "input": "https://ς.example/"
+    },
+    {
+      "expected": "https://xn--9ca.example/",
+      "input": "https://é.example/"
+    },
+    {
+      "expected": "https://xn--r8jz45g.xn--zckzah/",
+      "input": "https://例え.テスト/"
+    },
+    {
+      "expected": "https://example.com:99999/",
+      "input": "https://example.com:99999/"
+    },
+    {
+      "expected": "https://example.com:/",
+      "input": "https://example.com:/"
+    },
+    {
+      "expected": "https://exa_mple.com/",
+      "input": "https://exa_mple.com/"
+    },
+    {
+      "expected": "https://foo..example/path",
+      "input": "https://foo..example/path"
+    },
+    {
+      "expected": "https://search.example/q=hello%20world",
+      "input": "hello world",
+      "template": "https://search.example/q=%@"
+    },
+    {
+      "expected": "https://search.example/?q=a%26b%2Bc%3F%23d&lang=en",
+      "input": "a&b+c?#d",
+      "template": "https://search.example/?q=%@&lang=en"
+    }
+  ]
+}

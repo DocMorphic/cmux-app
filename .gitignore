@@ -7,5 +7,8 @@ local.properties
 *.apk
 *.aab
 *.jks
+*.p12
 *.keystore
 captures/
+__pycache__/
+**/google-services.json

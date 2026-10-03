@@ -1,0 +1,98 @@
+{
+  "acknowledgements": [
+    {
+      "body": "0101ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "envelope": "434d585401030000000000000000000000000000000000000000000000000022000000220101ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "rpc": {
+        "input_ack": {
+          "expected": "0",
+          "sequence": "18446744073709551615",
+          "status": "applied",
+          "stream_id": "FFEEDDCC-BBAA-9988-7766-554433221100"
+        }
+      }
+    },
+    {
+      "body": "0102ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "envelope": "434d585401030000000000000000000000000000000000000000000000000022000000220102ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "rpc": {
+        "input_ack": {
+          "expected": "0",
+          "sequence": "18446744073709551615",
+          "status": "duplicate",
+          "stream_id": "FFEEDDCC-BBAA-9988-7766-554433221100"
+        }
+      }
+    },
+    {
+      "body": "0103ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000007",
+      "envelope": "434d585401030000000000000000000000000000000000000000000000000022000000220103ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000007",
+      "rpc": {
+        "input_ack": {
+          "expected": "7",
+          "sequence": "18446744073709551615",
+          "status": "gap",
+          "stream_id": "FFEEDDCC-BBAA-9988-7766-554433221100"
+        }
+      }
+    },
+    {
+      "body": "0104ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "envelope": "434d585401030000000000000000000000000000000000000000000000000022000000220104ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "rpc": {
+        "input_ack": {
+          "expected": "0",
+          "sequence": "18446744073709551615",
+          "status": "surface_mismatch",
+          "stream_id": "FFEEDDCC-BBAA-9988-7766-554433221100"
+        }
+      }
+    },
+    {
+      "body": "0105ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "envelope": "434d585401030000000000000000000000000000000000000000000000000022000000220105ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "rpc": {
+        "input_ack": {
+          "expected": "0",
+          "sequence": "18446744073709551615",
+          "status": "terminal_unavailable",
+          "stream_id": "FFEEDDCC-BBAA-9988-7766-554433221100"
+        }
+      }
+    },
+    {
+      "body": "0106ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "envelope": "434d585401030000000000000000000000000000000000000000000000000022000000220106ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "rpc": {
+        "input_ack": {
+          "expected": "0",
+          "sequence": "18446744073709551615",
+          "status": "busy",
+          "stream_id": "FFEEDDCC-BBAA-9988-7766-554433221100"
+        }
+      }
+    },
+    {
+      "body": "0107ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "envelope": "434d585401030000000000000000000000000000000000000000000000000022000000220107ffeeddccbbaa99887766554433221100ffffffffffffffff0000000000000000",
+      "rpc": {
+        "input_ack": {
+          "expected": "0",
+          "sequence": "18446744073709551615",
+          "status": "rejected",
+          "stream_id": "FFEEDDCC-BBAA-9988-7766-554433221100"
+        }
+      }
+    }
+  ],
+  "both": "c000003affffffffffffffff00112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100ffffffffffffffff1b5b41f09f9880c3a90d",
+  "identified": "4000003200112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100ffffffffffffffff1b5b41f09f9880c3a90d",
+  "identity": "00112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100ffffffffffffffff",
+  "legacy": "0000000a1b5b41f09f9880c3a90d",
+  "marked": "80000012ffffffffffffffff1b5b41f09f9880c3a90d",
+  "sequence": "18446744073709551615",
+  "source": "204a11dfcc76280205e50406ab94270a1c152155",
+  "stream": "FFEEDDCC-BBAA-9988-7766-554433221100",
+  "surface": "00112233-4455-6677-8899-AABBCCDDEEFF",
+  "text": "\u001b[A😀é\r"
+}

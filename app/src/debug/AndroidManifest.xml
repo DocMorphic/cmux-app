@@ -1,0 +1,15 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name=".NativeFeedbackLifecycleTestActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".NativeAccountProcessTestActivity" android:exported="false"
+            android:process=":account_restore_test" android:taskAffinity="${applicationId}.accountrestore" />
+        <activity android:name=".RoutedBrowserTestActivity" android:exported="false"
+            android:process=":browser" android:taskAffinity="${applicationId}.browsertest" />
+        <activity android:name=".NativeLifecycleTestActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".NativeProcessRestoreTestActivity" android:exported="false"
+            android:process=":restore_test" android:taskAffinity="${applicationId}.processrestore"
+            android:windowSoftInputMode="adjustResize" />
+    </application>
+</manifest>

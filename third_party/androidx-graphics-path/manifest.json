@@ -1,0 +1,20 @@
+{
+  "repository": "https://github.com/androidx/androidx",
+  "revision": "7b1104d5e67bd061e736e8d576b539498b498be4",
+  "mavenVersion": "1.1.0",
+  "originalAarSha256": "d031370d45ba4129a175fe9de913328a512b01a3c267e0eaf6b9b759f35842ae",
+  "files": {
+    "LICENSE.txt": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+    "cpp/Conic.cpp": "49b3da93aa43480cf9cd481590be48705cb9340c52e5d09635efbd0ece07be83",
+    "cpp/Conic.h": "cd315ad7c8d030c72e96893e9a0feec463d72d2066209a203dedcf0925398a6f",
+    "cpp/Path.h": "4ee841338063d8c6f71ff4c655ecf52559f6c6df9af79835388dae1ebcd8b982",
+    "cpp/PathIterator.cpp": "3705946b43bf894e013f46ccc940f9923f43285340f8fc2128f95c59238ec7f8",
+    "cpp/PathIterator.h": "a16e99b0273fb7205607eb0cf51fc7be518a55f3446a304f92ecab353e77be6f",
+    "cpp/libandroidx.graphics.path.map": "bc338abd36eeb27059572903ad167cf4231a36ca92be4eae3574501aa83f0d8c",
+    "cpp/math/TVecHelpers.h": "1b0d6b06c5bbd6b438f9d8440ac78cf93fb8a713761badc59a4412b6457c1014",
+    "cpp/math/compiler.h": "d53e85383580e5dbf81cbcb24426b0fe1bf419b4837540242dbdca3f1df4cf66",
+    "cpp/math/vec2.h": "09e1a8eb3f8fdf9c1071500f1a4933f67caeb6d0f765d5c44ba968370de9fcb1",
+    "cpp/pathway.cpp": "4be68d6fdb6376e95560f7c49a79aa0cd97218d758cf11ea3230ac9124485800",
+    "cpp/scalar.h": "b1d2bba80a4c9272d84473b6f09f700972b016f7579842d3a87bdbbdb2af1edc"
+  }
+}

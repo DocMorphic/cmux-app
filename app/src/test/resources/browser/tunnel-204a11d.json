@@ -1,0 +1,356 @@
+{
+  "capability": "browser.tunnel.v1",
+  "descriptors": [
+    {
+      "host": "localhost",
+      "lane": "tcp_connect",
+      "port": 3000,
+      "v": 1
+    },
+    {
+      "host": "::1",
+      "lane": "tcp_connect",
+      "port": 65535,
+      "v": 1
+    },
+    {
+      "lane": "listening_ports",
+      "v": 1
+    }
+  ],
+  "listing": {
+    "allowsNonLoopbackHosts": true,
+    "ports": [
+      {
+        "address": "127.0.0.1",
+        "port": 80
+      },
+      {
+        "address": "::1",
+        "port": 3000
+      },
+      {
+        "address": "127.9.8.7",
+        "port": 3000
+      }
+    ],
+    "v": 1
+  },
+  "loopback": [
+    {
+      "host": "127.0.0.1",
+      "matches": true
+    },
+    {
+      "host": " 127.0.0.1 ",
+      "matches": true
+    },
+    {
+      "host": "127.0.0.2",
+      "matches": true
+    },
+    {
+      "host": "127.255.255.255",
+      "matches": true
+    },
+    {
+      "host": "localhost",
+      "matches": true
+    },
+    {
+      "host": "LocalHost",
+      "matches": true
+    },
+    {
+      "host": "dev.localhost",
+      "matches": true
+    },
+    {
+      "host": "localhost.",
+      "matches": true
+    },
+    {
+      "host": "dev.localhost.",
+      "matches": true
+    },
+    {
+      "host": "::1",
+      "matches": true
+    },
+    {
+      "host": "[::1]",
+      "matches": true
+    },
+    {
+      "host": "::ffff:127.0.0.1",
+      "matches": true
+    },
+    {
+      "host": "[::ffff:127.0.0.1]",
+      "matches": true
+    },
+    {
+      "host": "0:0:0:0:0:0:0:1",
+      "matches": true
+    },
+    {
+      "host": "[0:0:0:0:0:0:0:1]",
+      "matches": true
+    },
+    {
+      "host": "[::1%lo0]",
+      "matches": true
+    },
+    {
+      "host": "::ffff:7f00:1",
+      "matches": true
+    },
+    {
+      "host": "::127.0.0.1",
+      "matches": true
+    },
+    {
+      "host": "127.1",
+      "matches": true
+    },
+    {
+      "host": "127.0.1",
+      "matches": true
+    },
+    {
+      "host": "2130706433",
+      "matches": true
+    },
+    {
+      "host": "0x7f.0.0.1",
+      "matches": true
+    },
+    {
+      "host": "0177.0.0.1",
+      "matches": true
+    },
+    {
+      "host": "0.0.0.0",
+      "matches": true
+    },
+    {
+      "host": "0",
+      "matches": true
+    },
+    {
+      "host": "::",
+      "matches": true
+    },
+    {
+      "host": "127.0.0",
+      "matches": true
+    },
+    {
+      "host": "100.64.0.5",
+      "matches": false
+    },
+    {
+      "host": "128.0.0.1",
+      "matches": false
+    },
+    {
+      "host": "126.255.255.255",
+      "matches": false
+    },
+    {
+      "host": "10.0.0.1",
+      "matches": false
+    },
+    {
+      "host": "lawrences-mac.tail1234.ts.net",
+      "matches": false
+    },
+    {
+      "host": "localhost.example.com",
+      "matches": false
+    },
+    {
+      "host": "fd7a:115c:a1e0::1",
+      "matches": false
+    },
+    {
+      "host": "::ffff:100.64.0.5",
+      "matches": false
+    },
+    {
+      "host": "127.0.0.0.1",
+      "matches": false
+    },
+    {
+      "host": "",
+      "matches": false
+    },
+    {
+      "host": "128.1",
+      "matches": false
+    },
+    {
+      "host": "1681915909",
+      "matches": false
+    },
+    {
+      "host": "127.0.0.01",
+      "matches": true
+    },
+    {
+      "host": "0x7fffffff",
+      "matches": true
+    },
+    {
+      "host": "017777777777",
+      "matches": true
+    },
+    {
+      "host": "0x100000000",
+      "matches": true
+    },
+    {
+      "host": "4294967296",
+      "matches": true
+    },
+    {
+      "host": "127.16777215",
+      "matches": true
+    },
+    {
+      "host": "127.16777216",
+      "matches": false
+    },
+    {
+      "host": "127..1",
+      "matches": false
+    },
+    {
+      "host": "127.0.0.09",
+      "matches": false
+    },
+    {
+      "host": "+127.0.0.1",
+      "matches": false
+    },
+    {
+      "host": "localhost..",
+      "matches": false
+    },
+    {
+      "host": ".localhost",
+      "matches": true
+    },
+    {
+      "host": "[::ffff:0.8.7.6]",
+      "matches": true
+    },
+    {
+      "host": "::ffff:8080:1",
+      "matches": false
+    },
+    {
+      "host": "127.0.0.1.",
+      "matches": true
+    },
+    {
+      "host": "0:0:0:0:0:0:7f00:1",
+      "matches": true
+    },
+    {
+      "host": "[::1%en0]",
+      "matches": true
+    },
+    {
+      "host": "::gggg",
+      "matches": false
+    },
+    {
+      "host": "0.255.255.255",
+      "matches": true
+    },
+    {
+      "host": "1.0.0.0",
+      "matches": false
+    },
+    {
+      "host": "\u00a0localhost\u00a0",
+      "matches": true
+    },
+    {
+      "host": "4294967423.1",
+      "matches": false
+    },
+    {
+      "host": "127.4294967297",
+      "matches": false
+    },
+    {
+      "host": "18446744073709551616",
+      "matches": true
+    },
+    {
+      "host": "0x100000000000000007f",
+      "matches": true
+    },
+    {
+      "host": "99999999999999999999999999999",
+      "matches": false
+    },
+    {
+      "host": "0x",
+      "matches": false
+    },
+    {
+      "host": "0x.1",
+      "matches": true
+    },
+    {
+      "host": "127.0.0.1x",
+      "matches": false
+    },
+    {
+      "host": "127.0.0.1 x",
+      "matches": true
+    }
+  ],
+  "replies": [
+    {
+      "status": "connected",
+      "v": 1
+    },
+    {
+      "status": "denied",
+      "v": 1
+    },
+    {
+      "status": "refused",
+      "v": 1
+    },
+    {
+      "status": "host_unreachable",
+      "v": 1
+    },
+    {
+      "status": "network_unreachable",
+      "v": 1
+    },
+    {
+      "status": "timed_out",
+      "v": 1
+    },
+    {
+      "status": "unresolved",
+      "v": 1
+    },
+    {
+      "status": "busy",
+      "v": 1
+    },
+    {
+      "status": "failed",
+      "v": 1
+    }
+  ],
+  "source": "204a11dfcc76280205e50406ab94270a1c152155"
+}

@@ -1,0 +1,84 @@
+[
+  {
+    "cmux" : {
+      "encryptedPayloads" : [
+        {
+          "ciphertext" : "7HHwMebaR0eGkr\/Pg4JRywmNdHS5dMvzULvURVRepM+m4y0QlD9UojiUmLeNEruv9Sq2WA8Rj7ZxdlrRMQf\/KXoqQubtiiRJBa\/vO8Qw8jIljXZJO0y6\/5z6uQak8WzAKx7xQyPEWtAnya1sNPjup907LsQ4G9i9HzsgkFL9ZiYiAsNG\/Bz4Cagj2EhBjiqq9czCOr0EDAhFdfVAvBaNSTOZj7r+kBh5TilxslIDzn6ee0BN8rI63sYN8MNaOhEa8UVerdMlkWnjg9N10ggsdVbnosMKgZITzrQK01AzXx7mmjId4019hbkhD3i\/GuBNraZZhGNF7utDQHp85Efy4nOqFU5sQmmfftk9VvVIQc\/I4z\/uoo0+ZQ3LZ13wDyB6aPGBOoLMw1COJL29joKucRVZNJjU5wEtTMDIR6UDUoLfkkjZ50U0PJrLg6cs1+p7d4+cYpbCDQiIWRcZ9aZI1l0Y8k3ir0mKij8O\/lJoRB7yLd6\/6TuWrL7ofQry96KIxp70V+CMoz4x147ae5fKUOQ27CDssJm\/s7cuwCGAxxDtqCHNfwFC7pvWFvy4QQAqiszbxdgW\/Ug4E8+pauztIOa4Y97FNFDM5KOVPV97wRr9Udp43rdfQDzOX\/gzmUAbTtnqwduYqIv\/4V4\/Rh3b1SCx5VryO6BK4jOVW4DaoU\/TDTGZyyQWcfac2i3MeLn1ZR5+GqVSdQ9EjzDQOohWcKrccfvPqMbLaRg3H4E7sUsqC5ySYb3+361R+iT\/LT8ak341k4+TEZtnha2c",
+          "encapsulatedKey" : "AAzgc7URdTiuwA2rIMV+oczjR13N5zzN\/JbiIWTHN0c=",
+          "installationID" : "fixture-phone",
+          "keyID" : "phone-key",
+          "senderKeyID" : "mac-key",
+          "tuple" : {
+            "accountID" : "fixture-user",
+            "iosBuildID" : "android.fixture",
+            "iosInstallationID" : "fixture-phone",
+            "macBuildID" : "fixture.mac",
+            "macDeviceID" : "physical-mac",
+            "macInstanceTag" : "stable"
+          },
+          "version" : 2
+        }
+      ]
+    },
+    "kind" : "notify",
+    "plaintext" : {
+      "badgeCount" : 1,
+      "body" : "Choose the next step",
+      "category" : "cmux.terminal.reply",
+      "correlationId" : "00000000-0000-4000-8000-000000000001",
+      "expirationEpochSeconds" : 1800000120,
+      "hideContent" : false,
+      "kind" : "notify",
+      "macBuildID" : "fixture.mac",
+      "macDeviceId" : "physical-mac",
+      "macInstallationID" : "fixture-mac",
+      "macInstanceTag" : "stable",
+      "macPushPublicKey" : "NYBy1jZYgNGu6jKa35EhODhR7SGijjt16WXQ0s0WYlQ=",
+      "notificationId" : "notice",
+      "replyShape" : "text",
+      "retargetsToLiveSurfaceOwner" : false,
+      "subtitle" : "Fixture workspace",
+      "surfaceId" : "surface",
+      "title" : "Ready λ 中",
+      "workspaceId" : "workspace"
+    }
+  },
+  {
+    "cmux" : {
+      "encryptedPayloads" : [
+        {
+          "ciphertext" : "jHXYkVMSXnmNqY3fQKvwsW3JhsxM\/zf0\/v7An9zlSA4JhETSbj5z7fgMMkjOZuVRYNp20mWkn6raxpwHnj\/o2P1VSNTuZDqIRFvYSorgcth+LeO+fe3mv5svfS7TcX3Uj+Lrr8FDqYbV7sYR8\/jmAyt5r9BrizTlAgn2KsJzZhf+BvPmonytOySlLy9bVeTZ5r1ujC15KRKdamflNSjP4y5JEGU6bGkQ86\/SKjj5vQKSVkvV1ZbFM+mPDmAwaxNjWMm+L4RYckcEELIwRqLz7E1+xWYjZOkj+12ludcyiMUSS++30l2AKEgKLSjTahaAoZq+k8TO1z0sPHjGYx+PImmUm8hAUhzqTfSFQVUg1iIBzn3XpDIxCtY0JpvNKId7XrK\/3+T\/OY1U61+Sa5KqjI5vkkHW\/YFgG2HxA9ATQhJqnXHAO7M1jCHNTwcDe\/DkGw==",
+          "encapsulatedKey" : "alOsLhotYc5qVpg2LJUxt1Ha\/6qAnchZuWU9eOwJOSU=",
+          "installationID" : "fixture-phone",
+          "keyID" : "phone-key",
+          "senderKeyID" : "mac-key",
+          "tuple" : {
+            "accountID" : "fixture-user",
+            "iosBuildID" : "android.fixture",
+            "iosInstallationID" : "fixture-phone",
+            "macBuildID" : "fixture.mac",
+            "macDeviceID" : "physical-mac",
+            "macInstanceTag" : "stable"
+          },
+          "version" : 2
+        }
+      ]
+    },
+    "kind" : "dismiss",
+    "plaintext" : {
+      "badgeCount" : 0,
+      "body" : "",
+      "correlationId" : "00000000-0000-4000-8000-000000000002",
+      "expirationEpochSeconds" : 1800000120,
+      "hideContent" : false,
+      "kind" : "dismiss",
+      "macBuildID" : "fixture.mac",
+      "macInstallationID" : "fixture-mac",
+      "macPushPublicKey" : "NYBy1jZYgNGu6jKa35EhODhR7SGijjt16WXQ0s0WYlQ=",
+      "notificationIds" : [
+        "notice"
+      ],
+      "title" : ""
+    }
+  }
+]

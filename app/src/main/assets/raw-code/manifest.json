@@ -1,0 +1,23 @@
+{
+  "cmux": "4c5272e9153eca2033c9f40ac749f0c3a5bcb291",
+  "highlightr": "05e7fcc63b33925cd0c1faaa205cdd5681e7bbef",
+  "highlightrVersion": "2.3.0",
+  "highlightJsVersion": "11.11.1",
+  "files": [
+    {
+      "path": "src/assets/highlighter/highlight.min.js",
+      "asset": "highlight.min.js",
+      "sha256": "b0be6be098db3b98f605333f2d482309ceee680132c17aa3f79c0a466ac975c2"
+    },
+    {
+      "path": "src/assets/styles/xcode-dark.min.css",
+      "asset": "xcode-dark.min.css",
+      "sha256": "e906e7a73d542c9c4540edc141aa89fb231eafaf1eea718f5176ff9df408ee6c"
+    },
+    {
+      "path": "src/assets/styles/xcode.min.css",
+      "asset": "xcode.min.css",
+      "sha256": "5152183724f5ebb632ddd5a8262f7bf98a9df421225da51b38df60a831c26a82"
+    }
+  ]
+}

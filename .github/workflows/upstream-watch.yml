@@ -1,0 +1,35 @@
+name: Upstream cmux watch
+on:
+  schedule:
+    - cron: '13,33,53 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: upstream-cmux-watch
+  cancel-in-progress: false
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test update policy
+        run: python3 -m unittest discover -s scripts/tests -p 'test_update_policy.py'
+      - name: Inspect upstream mobile changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+            python3 scripts/upstream-watch.py --output build/upstream-watch --publish
+          else
+            python3 scripts/upstream-watch.py --output build/upstream-watch
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: upstream-cmux-review
+          path: build/upstream-watch
+          retention-days: 7

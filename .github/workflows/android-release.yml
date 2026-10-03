@@ -1,0 +1,84 @@
+name: Promote Android release
+on:
+  workflow_dispatch:
+    inputs:
+      preview_tag:
+        description: Existing verified android-preview-N tag to promote without rebuilding
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: android-production-release
+  cancel-in-progress: false
+jobs:
+  promote:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Validate selected preview and download exact assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_TAG: ${{ inputs.preview_tag }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, subprocess
+          tag = os.environ['PREVIEW_TAG']
+          if not re.fullmatch(r'android-preview-[0-9]+', tag):
+              raise ValueError('Choose an android-preview-N release')
+          repo = os.environ['GITHUB_REPOSITORY']
+          release = json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/releases/tags/{tag}']))
+          if release['draft'] or not release['prerelease']:
+              raise ValueError('Choose a published preview')
+          os.mkdir('release')
+          subprocess.run(['gh', 'release', 'download', tag, '--repo', repo, '--dir', 'release',
+                          '--pattern', 'app-release.apk', '--pattern', 'manifest.json', '--pattern', 'SHA256SUMS'], check=True)
+          from pathlib import Path
+          import hashlib
+          receipt = json.loads(Path('release/manifest.json').read_text())
+          if not re.fullmatch(r'[0-9a-f]{40}', receipt['source']) or receipt['source'] != release['target_commitish']:
+              raise ValueError('Source provenance mismatch')
+          if f"android-preview-{receipt['versionCode']}" != tag:
+              raise ValueError('Version provenance mismatch')
+          digest = hashlib.sha256(Path('release/app-release.apk').read_bytes()).hexdigest()
+          if digest != receipt['sha256'] or Path('release/SHA256SUMS').read_text() != digest + '  app-release.apk\n':
+              raise ValueError('APK digest mismatch')
+          run_id = str(receipt['workflowRun'])
+          if not run_id.isdigit():
+              raise ValueError('Invalid workflow receipt')
+          run = json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/actions/runs/{run_id}']))
+          if run['head_sha'] != receipt['source'] or run['head_branch'] != 'main' or run['conclusion'] != 'success' or run['path'] != '.github/workflows/android.yml':
+              raise ValueError('The preview must come from a successful main Android build')
+          PY
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Verify stable signer and packaged alignment
+        run: |
+          sdkmanager 'build-tools;36.0.0'
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs release/app-release.apk > release/signer.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          expected = '1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4'
+          assert 'Signer #1 certificate SHA-256 digest: ' + expected in Path('release/signer.txt').read_text(), 'Release signer changed'
+          PY
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 release/app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging release/app-release.apk > release/package.txt
+          python3 - <<'PY'
+          import json, re
+          from pathlib import Path
+          receipt = json.loads(Path('release/manifest.json').read_text())
+          package = re.search(r"^package: name='([^']+)' versionCode='([0-9]+)'", Path('release/package.txt').read_text(), re.M)
+          assert package and package[1] == 'io.github.docmorphic.cmuxapp' and int(package[2]) == receipt['versionCode'], 'APK package/version mismatch'
+          PY
+      - name: Promote the verified preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_TAG: ${{ inputs.preview_tag }}
+        run: gh release edit "$PREVIEW_TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest

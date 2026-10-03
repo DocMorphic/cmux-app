@@ -1,0 +1,350 @@
+package io.github.docmorphic.cmuxapp
+
+import android.os.Build
+import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.channels.Channel
+import org.json.JSONObject
+import org.junit.Assume.assumeTrue
+import org.junit.Test
+import java.util.UUID
+import java.io.File
+
+/** Opt-in physical acceptance. Only the newly created workspace receives input or is closed.
+ * Existing account/pairing/preferences are never reset. Reports omit terminal text and host IDs.
+ * Optional stream acceptance covers GRID events and the native input lane, not Gboard or pixels.
+ */
+class LiveNativeTerminalCheck {
+    @Test fun disposableTerminalOutputSurvivesNativeReconnect() = runBlocking<Unit> {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("cmux_live_terminal_fixture") == "true")
+        val streamCheck = InstrumentationRegistry.getArguments().getString("cmux_live_terminal_stream") == "true"
+        val retryCheck = InstrumentationRegistry.getArguments().getString("cmux_live_input_retry") == "true"
+        require(!retryCheck || streamCheck) { "Input retry acceptance requires live stream acceptance" }
+        val discoveredBuild = InstrumentationRegistry.getArguments().getString("cmux_live_discovered_build")
+        require(discoveredBuild == null || discoveredBuild.matches(Regex("[a-z0-9][a-z0-9._-]{0,63}")))
+        check(!Build.FINGERPRINT.contains("generic") && !Build.MODEL.contains("sdk")) { "Physical device required" }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val receipt = File(context.filesDir, "live-terminal-fixture.json")
+        check(!receipt.exists()) { "Inspect the previous terminal fixture receipt before rerunning" }
+        var stage = "existing account"
+        var creationAttempted = false
+        var fixtureCreated = false
+        var fixtureClosed = false
+        try {
+            withTimeout(120_000) {
+                NativeAppConnections.acquire(context).use { handle ->
+                    val connections = handle.connections
+                    check(connections.account.isSignedIn())
+                    val probe = Any()
+                    connections.setProbeActive(probe, true)
+                    var active: MobileRpcClient? = null
+                    var owned: NativeWorkspace? = null
+                    try {
+                        stage = "account refresh"
+                        val team = checkNotNull(connections.teams.refresh().scope)
+                        val mac = if (discoveredBuild != null) {
+                            stage = "single discovered Mac selection for requested build"
+                            val directory = withTimeout(30_000) {
+                                connections.native.state.first { it.account == team && it.ready }
+                            }
+                            val selected = directory.computers.single { it.buildTag == discoveredBuild }
+                            NativeCredentialStore.PairedMac(PairingCodeParser.computer(selected, team),
+                                selected.deviceId, selected.name, selected.buildTag,
+                                accountUserId = team.userId, accountTeamId = team.teamId)
+                        } else connections.store.pairedMacs().filter {
+                            connections.connector.allowsSaved(it) &&
+                                PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Iroh
+                        }.single()
+                        suspend fun connect(): MobileRpcClient {
+                            check(connections.teams.isCurrent(team) && connections.connector.allowsSaved(mac))
+                            val next = if (discoveredBuild != null) connections.connector.connectPairing(
+                                PairingCodeParser.parse(mac.code).getOrThrow(), connections.account)
+                            else connections.connector.connectSaved(mac, connections.account)
+                            try { mac.requireMatchingHost(next.hostStatus()); return next }
+                            catch (failure: Throwable) { next.close(); throw failure }
+                        }
+                        stage = "native connection"
+                        active = connect()
+                        val first = checkNotNull(active)
+                        val originalIds = parseAuthoritativeWorkspaces(first.workspaces()).map { it.id }.toSet()
+                        stage = "create disposable workspace"
+                        // Never retry creation or input: a lost reply may already have applied it.
+                        creationAttempted = true
+                        val title = "Android terminal check " + UUID.randomUUID().toString().take(8)
+                        val created = TaskCreationResult.parse(first.request("workspace.create",
+                            JSONObject().put("title", title), timeoutMillis = 30_000)).created
+                        check(created.id !in originalIds)
+                        owned = created
+                        fixtureCreated = true
+                        receipt.writeText(JSONObject().put("id", created.id).put("windowId", created.windowId)
+                            .put("title", title).put("build", discoveredBuild).toString())
+                        check(created.title == title)
+                        stage = "prepare lazy terminal"
+                        val initial = checkNotNull(created.terminals.firstOrNull())
+                        try { first.prepareTerminal(created.id, initial.id) }
+                        catch (failure: Exception) { if (failure is CancellationException) throw failure }
+                        stage = "new terminal readiness"
+                        val terminal = withTimeout(20_000) {
+                            var ready: NativeTerminal? = null
+                            while (ready == null) {
+                                ready = parseAuthoritativeWorkspaces(first.workspaces()).single { it.id == created.id }
+                                    .terminals.firstOrNull { it.id == initial.id && it.isReady }
+                                if (ready == null) delay(250)
+                            }
+                            ready
+                        }
+                        val suffix = UUID.randomUUID().toString().replace("-", "")
+                        val marker = "CMUX_OK_" + suffix
+                        // The exact output marker never appears in the echoed shell command.
+                        stage = "single terminal input"
+                        check(connections.teams.isCurrent(team))
+                        first.input(created.id, terminal.id, "printf '%s%s\\n' 'CMUX_OK_' '$suffix'\r")
+
+                        suspend fun requireOutput(client: MobileRpcClient): String {
+                            val status = client.hostStatus()
+                            mac.requireMatchingHost(status)
+                            val caps = status.optJSONArray("capabilities")
+                            val capabilities = if (caps == null) emptySet() else
+                                (0 until caps.length()).map { caps.getString(it) }.toSet()
+                            val transport = TerminalTransport.resolve(capabilities)
+                            withTimeout(20_000) {
+                                while (true) {
+                                    check(connections.teams.isCurrent(team))
+                                    // No viewport report: retain this fixture's current host dimensions.
+                                    val replay = client.request("mobile.terminal.replay", JSONObject()
+                                        .put("workspace_id", created.id).put("surface_id", terminal.id)
+                                        .put("anchor", "screen").put("max_scrollback_rows", 0))
+                                    val found = withContext(Dispatchers.Main) {
+                                        TerminalStreamMirror(terminal.id, transport, TerminalViewport(80, 24),
+                                            ghosttyTerminalFactory(TerminalCellMetrics(8f, 16f, 14f))).use { mirror ->
+                                            check(mirror.replay(replay) == TerminalStreamMirror.Result.APPLIED)
+                                            check(mirror.display.columns > 0 && mirror.display.rows > 0)
+                                            mirror.display.visibleLines().any { spans ->
+                                                spans.joinToString("") { it.text }.trim() == marker
+                                            }
+                                        }
+                                    }
+                                    if (found) break
+                                    delay(500)
+                                }
+                            }
+                            return transport.mode.name
+                        }
+
+                        stage = "real terminal replay decoding"
+                        val mode = requireOutput(first)
+                        val streamReport = if (streamCheck) {
+                            stage = "live grid events and native input lane"
+                            verifyLiveGrid(first, created.id, terminal.id) { check(connections.teams.isCurrent(team)) }
+                        } else null
+                        stage = "native disconnect and reconnect"
+                        first.close(); active = null
+                        active = connect()
+                        val second = checkNotNull(active)
+                        // Leases can share one wire. A new wrapper alone does not prove reconnect.
+                        check(first.events !== second.events) { "The original shared connection is still leased" }
+                        check(parseAuthoritativeWorkspaces(second.workspaces()).any {
+                            it.id == created.id && it.terminals.any { pane -> pane.id == terminal.id }
+                        })
+                        stage = "same terminal output after reconnect"
+                        check(requireOutput(second) == mode)
+                        val retryReport = if (retryCheck) {
+                            stage = "identified input retry after fresh reconnect"
+                            verifyDuplicateInput(second, created.id, checkNotNull(streamReport?.retry),
+                                onStage = { stage = it }) {
+                                check(connections.teams.isCurrent(team))
+                            }
+                        } else null
+                        stage = "close disposable workspace"
+                        owned = null // Do not repeat a close even if its acknowledgement is lost.
+                        second.closeWorkspace(created.id, created.windowId)
+                        withTimeout(10_000) {
+                            while (parseAuthoritativeWorkspaces(second.workspaces()).any { it.id == created.id }) delay(250)
+                        }
+                        fixtureClosed = true
+                        check(receipt.delete())
+                        println("CMUX_LIVE_TERMINAL_REPORT " + JSONObject()
+                            .put("identityVerified", true).put("accountAccessVerified", true)
+                            .put("createdWorkspace", true).put("inputRequests", if (retryCheck) 4 else if (streamCheck) 2 else 1)
+                            .put("decodedOutput", true).put("reconnectedSameTerminal", true)
+                            .put("freshConnection", true)
+                            .put("discoveredBuildMatched", discoveredBuild != null && mac.instanceTag == discoveredBuild)
+                            .put("outputAfterReconnect", true).put("outputMode", mode)
+                            .put("liveStream", streamReport?.report ?: JSONObject.NULL)
+                            .put("identifiedRetry", retryReport ?: JSONObject.NULL)
+                            .put("fixtureClosed", true))
+                    } finally {
+                        // Cleanup only a positively identified workspace created by this invocation.
+                        // No reconnect/retry on an uncertain close; surface the incomplete cleanup.
+                        val cleanup = owned
+                        if (cleanup != null && active != null) withContext(NonCancellable) {
+                            runCatching { withTimeout(10_000) {
+                                checkNotNull(active).closeWorkspace(cleanup.id, cleanup.windowId)
+                                fixtureClosed = parseAuthoritativeWorkspaces(checkNotNull(active).workspaces())
+                                    .none { it.id == cleanup.id }
+                                if (fixtureClosed) check(receipt.delete())
+                            } }
+                        }
+                        active?.close()
+                        connections.setProbeActive(probe, false)
+                    }
+                }
+            }
+        } catch (failure: Throwable) {
+            throw AssertionError("Live terminal check failed at $stage (${failure.javaClass.simpleName}); " +
+                "creationAttempted=$creationAttempted, fixtureCreated=$fixtureCreated, fixtureClosed=$fixtureClosed")
+        }
+    }
+
+    private data class IdentifiedProbe(val surfaceId: String, val delivery: TerminalInputDelivery, val command: String, val marker: String)
+    private data class LiveGridEvidence(val report: JSONObject, val retry: IdentifiedProbe?)
+
+    /** No replay is requested after sending the marker: only live events may satisfy this check. */
+    private suspend fun verifyLiveGrid(client: MobileRpcClient, workspace: String, surface: String,
+        requireCurrent: () -> Unit): LiveGridEvidence = withContext(Dispatchers.Main) {
+        coroutineScope {
+            val status = client.hostStatus()
+            val values = status.getJSONArray("capabilities")
+            val capabilities = (0 until values.length()).map { values.getString(it) }.toSet()
+            val transport = TerminalTransport.resolve(capabilities, status.optString("terminal_fidelity"))
+            check(transport.mode == TerminalOutputMode.GRID) { "This live case requires the host's GRID mode" }
+            val identified = TerminalInputDelivery.CAPABILITY in capabilities
+            val delivery = TerminalInputDelivery(UUID.fromString(surface), UUID.randomUUID(), 1uL)
+            val suffix = UUID.randomUUID().toString().replace("-", "")
+            val marker = "CMUX_STREAM_" + suffix
+            val output = CompletableDeferred<Unit>()
+            val acknowledgement = CompletableDeferred<Unit>()
+            val subscription = UUID.randomUUID().toString()
+            val viewport = TerminalViewport(80, 24)
+            var subscribed = false
+            var reportedViewport = false
+            var sending = false
+            var gridEvents = 0
+            var input: TerminalInputLaneOwner? = null
+            val mirror = TerminalStreamMirror(surface, transport, viewport,
+                ghosttyTerminalFactory(TerminalCellMetrics(8f, 16f, 14f)))
+            val events = launch(start = CoroutineStart.UNDISPATCHED) {
+                client.events.collect { event ->
+                    if (event.topic != "terminal.render_grid" ||
+                        (event.streamId != null && event.streamId != subscription)) return@collect
+                    val frame = event.payload.optJSONObject("render_grid") ?: event.payload
+                    if (frame.optString("surface_id") != surface) return@collect
+                    requireCurrent()
+                    val result = mirror.grid(event.payload)
+                    if (sending) {
+                        check(result != TerminalStreamMirror.Result.REPLAY) { "Live grid lost continuity" }
+                        if (result == TerminalStreamMirror.Result.APPLIED) {
+                            gridEvents++
+                            if (mirror.display.visibleLines().any { spans ->
+                                spans.joinToString("") { it.text }.trim() == marker
+                            }) output.complete(Unit)
+                        }
+                    }
+                }
+            }
+            try {
+                subscribed = true
+                withContext(NonCancellable) { client.subscribe(transport.topics, subscription, transport.screenAnchor) }
+                reportedViewport = true
+                client.reportViewport(workspace, surface, viewport, 1)
+                val baseline = TerminalReplayRecovery().replay {
+                    client.replay(workspace, surface, viewport.columns, viewport.rows, 1,
+                        transport.screenAnchor, maxScrollbackRows = 0)
+                }
+                check(mirror.replay(baseline) == TerminalStreamMirror.Result.APPLIED)
+                input = TerminalInputLaneOwner(this, onAcknowledgement = { ack ->
+                    check(identified && ack.stream == delivery.stream && ack.sequence == delivery.sequence &&
+                        ack.status == TerminalInputAcknowledgement.Status.APPLIED) { "Unexpected live input acknowledgement" }
+                    acknowledgement.complete(Unit)
+                }) { use -> client.useTerminalInputLane(surface, use) }
+                withTimeout(15_000) { input.ready.first { it } }
+                requireCurrent()
+                sending = true
+                val command = "printf '%s%s\\n' 'CMUX_STREAM_' '$suffix'\r"
+                check(if (identified) input.sendIdentified(command, delivery) else input.send(command))
+                // Control remains usable while the independent terminal input lane is open.
+                client.hostStatus()
+                withTimeout(15_000) {
+                    output.await()
+                    if (identified) acknowledgement.await()
+                }
+                check(gridEvents > 0)
+                val report = JSONObject().put("nativeInputLane", true).put("liveGridOutput", true)
+                    .put("gridEventsAfterInput", gridEvents).put("identifiedInputAdvertised", identified)
+                    .put("inputAcknowledgementVerified", identified && acknowledgement.isCompleted)
+                LiveGridEvidence(report, if (identified) IdentifiedProbe(surface, delivery, command, marker) else null)
+            } finally {
+                withContext(NonCancellable) {
+                    input?.close()
+                    events.cancelAndJoin()
+                    mirror.close()
+                    runCatching { withTimeout(10_000) {
+                        if (reportedViewport) runCatching { client.clearViewport(workspace, surface, 2) }
+                        if (subscribed) runCatching { client.unsubscribe(subscription) }
+                    } }
+                }
+            }
+        }
+    }
+
+    /** Retry identical bytes/identity, then send a new ordered shell fence before counting output. */
+    private suspend fun verifyDuplicateInput(client: MobileRpcClient, workspace: String, probe: IdentifiedProbe,
+        onStage: (String) -> Unit,
+        requireCurrent: () -> Unit): JSONObject = withContext(Dispatchers.Main) {
+        coroutineScope {
+            // Keep the exact host wire ID for replay matching; UUID encoding is binary-only.
+            val surface = probe.surfaceId
+            onStage("reconnected identified-input capability")
+            val values = client.hostStatus().getJSONArray("capabilities")
+            val capabilities = (0 until values.length()).map { values.getString(it) }.toSet()
+            check(TerminalInputDelivery.CAPABILITY in capabilities)
+            val transport = TerminalTransport.resolve(capabilities)
+            val acknowledgements = Channel<TerminalInputAcknowledgement>(Channel.UNLIMITED)
+            val input = TerminalInputLaneOwner(this, onAcknowledgement = {
+                check(acknowledgements.trySend(it).isSuccess)
+            }) { use -> client.useTerminalInputLane(surface, use) }
+            suspend fun expect(sequence: ULong, status: TerminalInputAcknowledgement.Status) {
+                val ack = withTimeout(15_000) { acknowledgements.receive() }
+                check(ack.stream == probe.delivery.stream && ack.sequence == sequence && ack.status == status)
+                requireCurrent()
+            }
+            try {
+                withTimeout(15_000) { input.ready.first { it } }
+                requireCurrent()
+                onStage("duplicate command acknowledgement after reconnect")
+                check(input.sendIdentified(probe.command, probe.delivery))
+                expect(probe.delivery.sequence, TerminalInputAcknowledgement.Status.DUPLICATE)
+                val suffix = UUID.randomUUID().toString().replace("-", "")
+                val fence = "CMUX_FENCE_" + suffix
+                val next = probe.delivery.copy(sequence = probe.delivery.sequence + 1uL)
+                onStage("next input sequence and fence acknowledgement")
+                check(input.sendIdentified("printf '%s%s\\n' 'CMUX_FENCE_' '$suffix'\r", next))
+                expect(next.sequence, TerminalInputAcknowledgement.Status.APPLIED)
+                onStage("single original output after ordered shell fence")
+                withTimeout(15_000) {
+                    while (true) {
+                        requireCurrent()
+                        val replay = client.request("mobile.terminal.replay", JSONObject()
+                            .put("workspace_id", workspace).put("surface_id", surface)
+                            .put("anchor", "screen").put("max_scrollback_rows", 0))
+                        val lines = TerminalStreamMirror(surface, transport, TerminalViewport(80, 24),
+                            ghosttyTerminalFactory(TerminalCellMetrics(8f, 16f, 14f))).use { mirror ->
+                            check(mirror.replay(replay) == TerminalStreamMirror.Result.APPLIED)
+                            mirror.display.visibleLines().map { spans -> spans.joinToString("") { it.text }.trim() }
+                        }
+                        if (lines.count { it == fence } == 1) {
+                            check(lines.count { it == probe.marker } == 1)
+                            break
+                        }
+                        delay(250)
+                    }
+                }
+                JSONObject().put("duplicateAcknowledgement", true).put("nextSequenceApplied", true)
+                    .put("singleOutputAfterFence", true).put("afterFreshConnection", true)
+            } finally {
+                withContext(NonCancellable) { input.close(); acknowledgements.close() }
+            }
+        }
+    }
+}

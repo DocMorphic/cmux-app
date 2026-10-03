@@ -1,6 +1,6 @@
 # cmux Android research
 
-Reviewed 2026-09-26 against public cmux source at `manaflow-ai/cmux` commit `e7f1c40bf0d05b6fdaf8c48d2e834897640a3cc5`. This is a source and documentation review; the TestFlight iOS app was not installed or run here.
+Reviewed 2026-09-26 against public cmux source at `manaflow-ai/cmux` commit `4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0`. This is a source and documentation review; the TestFlight iOS app was not installed or run here.
 
 ## What the iOS app does
 
@@ -18,9 +18,9 @@ The official app is a **companion**, not a terminal process running locally on t
 ## Connection model found in source
 
 1. The phone signs in with the same account as the Mac. The [iOS README](https://github.com/manaflow-ai/cmux/blob/main/ios/README.md) names Stack Auth sign-in and QR/manual pairing.
-2. The current [pairing QR codec](https://github.com/manaflow-ai/cmux/blob/main/Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxPairingQRCode.swift) has a v2 Tailscale route form and a v3 Iroh peer identity form. Codes intentionally contain no bearer token. The parser in this project only recognizes those minimal forms; it is not a pairing implementation.
+2. The current [pairing QR codec](https://github.com/manaflow-ai/cmux/blob/main/Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxPairingQRCode.swift) has a v2 Tailscale route form and a v3 Iroh peer identity form. Codes intentionally contain no bearer token. This Android project parses both forms and connects over v2 Tailscale routes. Iroh transport remains to be implemented.
 3. The Mac issues an attach ticket and route. Shared types live in [CMUXMobileCore](https://github.com/manaflow-ai/cmux/tree/main/Packages/Shared/CMUXMobileCore).
-4. The [mobile RPC client](https://github.com/manaflow-ai/cmux/blob/main/Packages/iOS/CmuxMobileRPC/Sources/CmuxMobileRPC/MobileCoreRPCClient.swift) uses a persistent byte transport, sends authorized requests, and subscribes to server events. The [frame codec](https://github.com/manaflow-ai/cmux/blob/main/Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/MobileSyncProtocol.swift) uses a four-byte big-endian length prefix and an 8 MiB default frame cap.
+4. The [mobile RPC client](https://github.com/manaflow-ai/cmux/blob/main/Packages/iOS/CmuxMobileRPC/Sources/CmuxMobileRPC/MobileCoreRPCClient.swift) uses a persistent byte transport, sends authorized requests, and subscribes to server events. The [frame codec](https://github.com/manaflow-ai/cmux/blob/main/Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/MobileSyncProtocol.swift) uses a four-byte big-endian length prefix and an 8 MiB default frame cap. Android implements that framed RPC contract with a VPN-bound socket and Stack account token.
 5. Terminal output and rendering have separate protocol models and fidelity requirements. A plain text terminal is insufficient for full-screen programs, colors, cursor movement, and scrollback.
 
 ## Constraints and decisions
@@ -42,9 +42,172 @@ The official app is a **companion**, not a terminal process running locally on t
 
 ## Sources
 
+### Composer contract checked against the pinned source (2026-09-27)
+
+`MobileShellComposite.sendRemoteTerminalPaste` sends `terminal.paste` with
+`workspace_id`, `surface_id`, `client_id`, literal `text`, and `submit_key`.
+The Mac's `TerminalController.v2MobileTerminalPaste` accepts `return` for
+submission and `none` for insertion. It chooses the agent-specific submit key
+on the Mac, including Ctrl+Enter for a multiline Claude prompt. Sending the
+same composed block through `terminal.input` can split newlines into separate
+submissions; Android now uses the dedicated paste method.
+
+The iOS composer captures the target and text before awaits, prevents
+overlapping sends, keeps failed drafts, and reconciles an acknowledgement with
+the original terminal's draft. Android now follows those behaviors, additionally
+scoping stored drafts by pairing and workspace. Drafts are encrypted with
+Android Keystore. Pending delivery is saved before transmission; restored
+pending drafts show an unconfirmed-delivery notice and are never auto-sent.
+
+References at `4d3385b9d7ac80a9bbdf5c886cc276849b1e4fa0`:
+
+- `Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite.swift`
+- `Sources/TerminalController.swift`, `v2MobileTerminalPaste`
+
+### Website and repository links
+
 - [cmux site](https://cmux.com/)
 - [official iOS page](https://cmux.com/ios)
 - [official iOS guide](https://cmux.com/docs/ios)
 - [cmux GitHub repository](https://github.com/manaflow-ai/cmux)
 - [iOS app directory](https://github.com/manaflow-ai/cmux/tree/main/ios)
 - [shared mobile core](https://github.com/manaflow-ai/cmux/tree/main/Packages/Shared/CMUXMobileCore)
+
+### Terminal attachments (2026-09-27)
+
+At the pinned upstream revision, `MobileShellComposite.submitComposer` sends
+images using `terminal.paste_image` and acknowledges each image separately.
+Files use `mobile.task.attachment.upload` with `task.attachments.v1`, 3 MiB
+chunks, and each attachment UUID as both `operation_id` and `upload_id`.
+The resulting absolute paths are POSIX single-quoted and prepended to the
+captured message. Files remain staged until that message is acknowledged.
+See `MobileShellComposite+ComposerFileAttachments.swift`,
+`MobileShellComposite+TaskAttachments.swift`, and
+`TerminalComposerAttachmentInsertion.swift` in the official source.
+
+Android now follows those contracts, captures the original target, checks
+connection identity between awaited operations, and never automatically replays
+a send. Pending payloads are AES-GCM encrypted in app-owned, backup-excluded
+files; encrypted draft metadata retains their IDs across process death. The
+system document picker grants access only to selected photos/files, following
+[Android's Storage Access Framework](https://developer.android.com/training/data-storage/shared/documents-files).
+
+Images use the upstream 2048-pixel maximum dimension and PNG/JPEG preparation.
+The current Android control transport caps frames at 8 MiB, so encoded image
+bytes are kept below 5 MiB before base64 expansion. This is an implementation
+constraint to revisit with transport parity, not an unavoidable Android limit.
+Per-terminal caps are 10 attachments/32 MiB; global caps are 20/64 MiB, matching
+the upstream terminal composer. A single file is limited to 32 MiB. Task
+composer attachments, rich keyboard image paste, and shared-file intents remain
+separate work.
+
+### Direct terminal keyboard (2026-09-27)
+
+The official `TerminalInputTextView` keeps only transient marked text locally,
+commits it once, and uses an empty-buffer deletion anchor for repeated Backspace.
+`TerminalInputTextView+CommittedTextSequences.swift` applies one-shot modifiers
+to committed text. Android now uses a native view with a
+[`BaseInputConnection`](https://developer.android.com/reference/android/view/inputmethod/BaseInputConnection)
+endpoint for the same distinction: composing text stays local; commits, control
+keys, and navigation go through `terminal.input`. An invisible local anchor
+keeps deletion working without copying remote terminal contents into an editor.
+Newline commits become Return, while clipboard paste uses `terminal.paste` with
+`submit_key: none`. A Keyboard/Compose switch preserves the separate composer
+draft. Switching terminals invalidates the old input connection.
+
+Keys and clipboard paste share a bounded, ordered queue. Composer submission
+waits for that queue to drain. A failed acknowledgement or buffer overflow
+pauses input, discards queued bytes, and requires explicit Resume typing; it
+never retries uncertain keystrokes. An RPC timeout leaves the worker available
+for that explicit resume. Cancelling the screen or connection cancels its lane.
+The 64 KiB pending-byte limit is an implementation bound, not an Android limit.
+Physical keyboards with international layouts, rich keyboard image paste,
+live interactive terminal applications, and physical Pixel behavior still
+require additional verification.
+
+
+### Render-grid cell placement and continuity (2026-09-27)
+
+At the pinned upstream revision, `MobileTerminalRenderGridReplay` positions
+width-sensitive grapheme clusters at individual producer columns. Its cell-width
+helper uses wide/emoji widths and reconciles ambiguous or narrowed glyphs with
+the span's authoritative `cell_width`. Android now uses the platform ICU
+[`BreakIterator`](https://developer.android.com/reference/android/icu/text/BreakIterator)
+and [`UCharacter`](https://developer.android.com/reference/android/icu/lang/UCharacter)
+tables to segment combining sequences, emoji modifiers, flags, and ZWJ emoji.
+Each cluster is drawn at its own cell position. Fallback fonts can shrink to fit
+the allocated cells; an entire mixed-width text run is never stretched. Unknown
+width mismatches leave unused cells or clip excess clusters, so this does not
+replace the upstream VT fallback for every terminal width convention.
+
+`MobileTerminalRenderGridVisualSnapshot` requires a new full frame when the
+active screen or geometry changes. `MobileTerminalRenderGridRevisionContinuity`
+drops superseded revisions inside a real producer epoch and requests a replay
+for broken delta bases. Android now follows these checks, also fences changed
+row-space revisions, preserves carried scrollback during burst scrolls, and
+clears incompatible history on resize. Only visible rows are copied and laid out
+for drawing; scrolling no longer copies all retained history.
+
+Style color sources retain default/palette/RGB semantics, following
+`MobileTerminalRenderGridStyle+ColorSource`. The painter resolves theme colors,
+reverse-video defaults, cursor color and wide-cell cursor placement, and hides
+invisible glyphs from accessibility text. At that stage, raw VT parsing was still missing; the implementation below adds
+it. Exact Ghostty font/cursor semantics, mouse reporting, selection, and live
+Mac-to-Pixel interactive-program verification remain outstanding.
+
+
+### Terminal byte fallback and hybrid delivery (2026-09-27)
+
+`TerminalOutputTransportSelection.swift` chooses screen-anchored render grids
+when supported, hybrid grid/byte delivery for hosts with both capabilities but
+no screen anchor, and raw bytes when render grids are unavailable. Android now
+implements that selection and subscribes to the actual `workspace.updated`
+topic. Subscriptions include `client_id` and negotiate `render_grid_anchor:
+"screen"`; anchored cold replay requests hydrate up to 10,000 scrollback rows.
+A replacement subscription settles its handshake before its old stream is
+unsubscribed, and stream IDs are checked before accepting terminal events.
+
+`MobileTerminalBytesEvent.swift` defines `data_b64` and byte-start `seq`.
+`MobileTerminalReplayResponse.swift` prefers a full `render_grid`, then
+`snapshot_data_b64`, then a raw `data_b64` tail, with the end sequence in
+`state_seq` or `seq`. The Android mirror retains parser state across chunks,
+trims overlaps by byte count, rejects malformed/overflowing sequences, and
+requests a fresh baseline on gaps. Pending output is bounded to 2 MiB and 256
+chunks. A local event ordinal also detects dropped events in the shared RPC
+buffer. Recovery is limited to three attempts per episode; a visible Reconnect
+action handles failures. Keystrokes are never automatically replayed.
+
+The VT parser is the native Java engine from
+[Termux](https://github.com/termux/termux-app/tree/8629e632fcb95da272221be327db653fb24befe9/terminal-emulator),
+vendored with its licenses and a documented source pin under `third_party/termux`.
+No Termux shell or JNI process is started. Its screen, colors, modes, cursor and
+history are exposed through the existing Android painter. Parser-generated
+terminal replies and clipboard operations are suppressed because the Mac owns
+the PTY; explicit Android input uses the existing ordered RPC queue. Licenses
+are available inside the app.
+
+Hybrid delivery lets raw bytes own the primary screen and authoritative grids
+own alternate-screen content. A full primary frame restores the byte parser
+when leaving the alternate screen; stale grids cannot replace newer byte
+content. A VT-only replay remains visible until an authoritative alternate
+baseline arrives. Grid snapshots seed the parser with positioned, styled glyphs,
+terminal colors, input modes and bounded history. The scrollback control floats
+over the terminal so its appearance does not resize the Mac's PTY. During
+keyboard transitions, old frames use uniform fitting on both axes until the
+new viewport arrives, avoiding distorted character spacing.
+
+A reproducible local Vim capture is in `scripts/capture-vim-fixture.py` and
+`app/src/test/resources/terminal/vim-session.json`: Vim 9.1 opens a temporary
+Unicode document, inserts text and exits. The parser test consumes those real
+bytes in seven-byte chunks and verifies both screens and the edited text.
+This is a captured PTY regression test, not a live connection to the user's cmux.
+The emulator also exercises the production framed RPC client with streamed
+bytes, an alternate-screen transition, a forced sequence gap and scrollback.
+
+Remaining terminal differences are tracked in PARITY.md. In particular,
+Termux and Ghostty do not implement identical grapheme/graphics/control-sequence
+behavior; VT inline graphics are not painted by this adapter, mouse reporting
+and terminal text selection are still missing, and physical-device latency
+and sustained output need live verification. Legacy hosts without a sequence
+baseline cannot provide lossless overlap recovery. These are explicit
+implementation or host-protocol limits, not claimed Android platform limits.

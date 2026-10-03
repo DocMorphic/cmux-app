@@ -1,8 +1,31 @@
 # cmux-app
 
-An **unofficial Android companion project** for [cmux](https://cmux.com). The goal is to attach to terminals running on a Mac, view workspaces and agent notifications, and send terminal input from Android.
+An **unofficial Android companion project** for [cmux](https://cmux.com). The release goal is feature parity with the official iOS companion on a Pixel 6a.
 
-The current app is a **research build**. It opens an offline UI preview and validates the current minimal cmux pairing QR formats. It does **not** sign in, pair, connect to a Mac, stream a terminal, or send keystrokes yet. See [the implementation plan](docs/PLAN.md) before treating it as a usable companion.
+The app opens on the direct cmux connection path: same-account sign-in, selected-team computer discovery, framed mobile RPC, workspace and notification feeds, browser streams, and a styled terminal with scrollback. The previously tested [Mac helper](bridge/README.md) remains available in the app. The direct path is under physical-device validation; it is not yet a parity release. The [parity tracker](docs/PARITY.md) records every feature and its acceptance check.
+
+For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
+
+**Signed download:** [build 428 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37100622349/artifacts/11266620691)
+from `139dcbe` adds grouped SSH pane menus, browser-driven workspace creation,
+plain-shell browser navigation, and linked-browser restoration and stale-return
+fixes. It includes build 421's feedback, notification retry and terminal work.
+Full CI, signature, viewer assets, 16 KB packaging, and a signed emulator
+upgrade passed. Physical Pixel/Mac acceptance, authenticated release migration,
+and live Android push provider delivery remain open. See the
+[install guide](docs/PIXEL_INSTALL.md) for checksums and verification scope.
+
+**Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
+Android now wires Iroh/V2 discovery and admitted RPC connections into the app and
+background feeds. Earlier Pixel/Mac checks verified account enrollment and native
+traffic; newer terminal/settings work still needs physical acceptance. Legacy
+Tailscale QR routes remain available for older hosts.
+See [the connection migration](docs/IROH_V2.md).
+
+**Continuing on another laptop:** start with [HANDOFF.md](docs/HANDOFF.md) for the
+working branch, source research, implementation map, unfinished checks, release
+state, setup commands, and next steps. The latest feature work is on
+`feature/local-mac-bridge`; the signed checkpoint is identified above.
 
 ## What was researched
 
@@ -10,19 +33,48 @@ The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux
 
 ## Open the Android project
 
-Install Android Studio with Android SDK 36 and JDK 17 or newer, then open this directory. For a command line build:
+Install Android Studio with Android SDK 36 and JDK 17. The app now includes its
+native Iroh, rebuilt graphics-path, Ghostty VT and simulator-video dependencies.
+Obtain the four reviewed checkpoints below (requires GitHub CLI access), or
+reproduce them from pinned source as described in [IROH_V2.md](docs/IROH_V2.md#android-native-module):
 
 ```bash
+gh run download 36539047261 --repo DocMorphic/cmux-app --name cmux-iroh-android-arm64 --dir build/iroh-android
+gh run download 36539507313 --repo DocMorphic/cmux-app --name cmux-graphics-path-android-arm64 --dir build/graphics-path-android
+gh run download 36642877666 --repo DocMorphic/cmux-app --name cmux-ghostty-android-arm64 --dir build/ghostty-vt-android
+gh run download 36653485468 --repo DocMorphic/cmux-app --name cmux-simulator-video-android-arm64 --dir build/simulator-codecs-android
 ./gradlew :app:assembleDebug
 ```
 
-The APK will be at `app/build/outputs/apk/debug/app-debug.apk`. It is a preview APK, not a connected cmux client.
+Gradle verifies all four native receipts and every listed hash before compiling. Move
+any older checkpoint directories aside before downloading these replacements.
+If artifacts expire, use reviewed new `native_only`, `graphics_only`, `ghostty_only` and `video_only` workflow
+runs or the documented source builds (see also
+[Ghostty build notes](docs/GHOSTTY_VT_ANDROID.md#app-build-dependency) and
+[graphics-path source notes](third_party/androidx-graphics-path/README.md)).
+The simulator decoder uses [FFmpeg n9.0.2 source](https://github.com/FFmpeg/FFmpeg/tree/946fcce07b6dcd0331c8cc609192aeff5e1924f8),
+licensed under LGPL-2.1-or-later; build instructions and attribution are in
+[SIMULATOR_STREAMING.md](docs/SIMULATOR_STREAMING.md) and [NOTICE.md](NOTICE.md).
+
+These builds require 16 KiB LOAD and RELRO alignment. Current native APKs target **arm64**, including Pixel 6a;
+x86 emulator and other ABI support remains to be added. CI builds the pinned
+native source on a cache miss and validates it again through Gradle.
+
+On Windows, use `.\gradlew.bat :app:assembleDebug` from PowerShell. See
+[Windows development](docs/WINDOWS_DEVELOPMENT.md) for setup and the focused
+handoff runtime runner shared by Windows and macOS.
+
+The APK will be at `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions
+produces a stable signed release APK at manually dispatched milestones or
+eligible non-draft PR builds. Draft feature commits intentionally skip the build
+job; see [build cadence](docs/ANDROID_TESTING.md#build-cadence).
 
 ## Project choices
 
-- Kotlin, Jetpack Compose, one Android app module.
+- Kotlin and Jetpack Compose, with separate Iroh transport and Ghostty VT native modules.
 - `io.github.docmorphic.cmuxapp` is a temporary independent app ID.
-- Pairing QR parsing is isolated from future auth and transport code.
-- No cmux source is copied into this app. Any future port of cmux implementation must honor its GPL-3.0-or-later license and notices.
+- The native path follows the cmux mobile RPC protocol and the optional Mac helper remains available during migration.
+- The optional Mac helper binds loopback by default; it requires an explicit flag to listen on Tailscale.
+- The launcher and in-app logo come from the official cmux iOS assets; see [NOTICE.md](NOTICE.md) for attribution and license details.
 
 This project is not affiliated with Manaflow or the cmux team.

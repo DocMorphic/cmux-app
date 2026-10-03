@@ -1,18 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" android:maxSdkVersion="27" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
+        android:name=".CmuxApplication"
         android:allowBackup="false"
-        android:label="cmux companion (unofficial)"
+        android:icon="@drawable/cmux_logo"
+        android:label="cmux companion"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="true">
+        <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
+        <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
+        <meta-data android:name="firebase_messaging_notification_delegation_enabled" android:value="false" />
+        <service android:name="com.google.firebase.messaging.FirebaseMessagingService" tools:node="remove" />
+        <service android:name=".PhoneFcmService" android:exported="false">
+            <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
+        </service>
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
+        <provider android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.task-previews"
+            android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/task_preview_paths" />
+        </provider>
+        <service android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync" tools:node="merge" />
+        <service android:name=".NativeNotificationService"
+            android:exported="false"
+            android:foregroundServiceType="remoteMessaging" />
+        <service android:name=".RoutedBrowserHostService" android:exported="false" />
+        <activity android:name=".RoutedBrowserActivity" android:exported="false"
+            android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize"
+            android:process=":browser" android:windowSoftInputMode="adjustResize" />
+        <receiver android:name=".NativeNotificationDismissReceiver" android:exported="false" />
+        <receiver android:name=".PhoneReplyReceiver" android:exported="false" />
+        <receiver android:name=".NativeNotificationRestartReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cmux-android" android:host="attach" />
+                <data android:scheme="cmux-ios-dev.cmux.ios" android:host="attach" />
+                <data android:scheme="cmux-ios" android:host="attach" />
+                <data android:scheme="cmux-ios-dev" android:host="attach" />
+                <data android:scheme="cmux-ios-com.cmux.app" android:host="attach" />
+                <data android:scheme="cmux-ios-dev.cmux.app.beta" android:host="attach" />
+                <data android:scheme="cmux-ios-dev.cmux.app.internal" android:host="attach" />
+                <data android:scheme="cmux-ios-dev.cmux.app.demo" android:host="attach" />
             </intent-filter>
         </activity>
     </application>
