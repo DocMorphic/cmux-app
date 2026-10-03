@@ -12,6 +12,7 @@ fun interface NativeConnector {
     suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient =
         connectPairing(PairingCodeParser.parse(mac.code).getOrThrow(), account)
     fun allowsSaved(pairing: PairingCode): Boolean = true
+    fun pairingCompatibilityError(pairing: PairingCode): String? = null
     fun allowsSaved(mac: NativeCredentialStore.PairedMac): Boolean =
         PairingCodeParser.parse(mac.code).getOrNull()?.let(::allowsSaved) == true
     /** Called only by the visible pairing confirmation, never by deep-link receipt or reconnect. */

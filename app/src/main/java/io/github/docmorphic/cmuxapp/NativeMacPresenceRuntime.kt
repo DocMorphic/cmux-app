@@ -17,7 +17,8 @@ internal class NativeMacPresenceRuntime(
     private val isCurrent: (NativeTeamScope) -> Boolean,
     private val accessToken: suspend (Boolean) -> String?,
     private val origin: HttpUrl = "https://presence.cmux.dev/".toHttpUrl(),
-    client: OkHttpClient = OkHttpClient(), private val retryBaseMs: Long = 1000
+    client: OkHttpClient = OkHttpClient(), private val retryBaseMs: Long = 1000,
+    private val audience: NativeMacBuildAudience? = null
 ) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val client = client.newBuilder().followRedirects(false).followSslRedirects(false)
@@ -45,7 +46,7 @@ internal class NativeMacPresenceRuntime(
                             currentCoroutineContext().ensureActive()
                             if (!isCurrent(team)) return@collectLatest
                             subscribe(team, token) { next ->
-                                synchronized(lock) { if (!closed && isCurrent(team)) mutableState.value = next }
+                                synchronized(lock) { if (!closed && isCurrent(team)) mutableState.value = audience?.presence(next) ?: next }
                                 attempt = 0
                             }
                         } catch (failure: Exception) {

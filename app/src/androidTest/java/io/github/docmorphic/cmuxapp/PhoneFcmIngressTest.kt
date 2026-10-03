@@ -71,13 +71,24 @@ class PhoneFcmIngressTest {
         enqueue(MockResponse().setBody(JSONObject().put("items", JSONArray((listOf("other-team") +
             if (member) listOf(team.teamId) else emptyList()).map { JSONObject().put("id", it).put("display_name", it) })).toString()))
     }
-    private fun worker(server: MockWebServer) = TestListenableWorkerBuilder<PhoneFcmWorker>(context)
+    private fun worker(server: MockWebServer, audience: NativeMacBuildAudience? = null) = TestListenableWorkerBuilder<PhoneFcmWorker>(context)
         .setWorkerFactory(object : WorkerFactory() {
             override fun createWorker(appContext: Context, workerClassName: String, workerParameters: WorkerParameters): ListenableWorker? =
                 if (workerClassName != PhoneFcmWorker::class.java.name) null else PhoneFcmWorker(appContext, workerParameters) {
-                    PhoneFcmBackground(context, store, NativeAccountTeams({ "fixture-token" }, { store.taskSession() }, server.url("/api/v1/")))
+                    PhoneFcmBackground(context, store, NativeAccountTeams({ "fixture-token" }, { store.taskSession() }, server.url("/api/v1/")),
+                        audience = audience)
                 }
         }).build()
+
+    @Test fun consumerAudienceDiscardsAnAuthenticatedPushFromUnsupportedBuild() = runBlocking {
+        queue(raw())
+        MockWebServer().use { server ->
+            server.profile()
+            assertEquals(ListenableWorker.Result.success(), worker(server, NativeMacBuildAudience.consumer).doWork())
+            assertTrue(alerts().isEmpty())
+            assertTrue(PhoneFcmQueue(store.load()!!).waiting(System.currentTimeMillis()).isEmpty())
+        }
+    }
 
     @Test fun freshMembershipDecryptsStoredCiphertextPostsOnceAndDismisses() = runBlocking {
         val data = raw(); queue(data)

@@ -77,11 +77,11 @@ rejection and completes under a bounded deadline. The initial log is retained.
 
 ## Remaining work
 
-This implements minimum-version admission, not the entire separate iOS build
-audience policy. Official namespace/tag admission, the narrow legacy Tailscale
-exception, development tag grants, and discovery/presence audience filtering
-still require implementation. Android debug must not inherit iOS DEBUG's
-development-only audience unintentionally.
+[Consumer build audience](MAC_BUILD_AUDIENCE.md) now adds official namespace/tag
+admission, the narrow authorized legacy Tailscale exception, discovery/presence
+filtering and background worker checks. Both Android variants explicitly use the
+consumer audience. Upstream internal development identity and sibling tag grants
+remain separate work.
 
 [Saved version history](MAC_VERSION_HISTORY.md) now restores warnings from
 encrypted observations for an existing saved Mac after account scope restoration.

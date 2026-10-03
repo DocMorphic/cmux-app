@@ -1,5 +1,11 @@
 # Attribution
 
+Consumer Mac build admission follows MobileMacBuildCompatibilityPolicy.swift,
+MobileMacCompatiblePairedMacStore.swift and MobileShellComposite+BuildCompatibility.swift
+at cmux 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright Manaflow, Inc.; GPL-3.0-or-later. Android explicitly selects the
+distributed consumer audience for debug and release, retaining its own identity.
+
 Mac minimum-version compatibility follows MobileMacCompatPolicy.swift and its DTOs,
 MobileMacAppVersion.swift, MobileMacVersionCompatibility.swift, MobileMacCompatCenter.swift
 and MobileShellComposite+BuildCompatibility.swift at cmux

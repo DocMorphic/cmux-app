@@ -16,6 +16,7 @@ internal data class NativeConnectionReport(
         TIMEOUT("The Mac did not answer in time. Check your connection and try again."),
         TAILSCALE("The Tailscale VPN did not become ready. Open Tailscale, connect this phone, then try again."),
         UPDATE("Update cmux on the Mac to a current release, then reconnect and run the check again."),
+        BUILD("Use the stable, nightly, or RC cmux Mac release with this Android app, then pair again."),
         CONNECTION("Reconnect to your Mac, then run the check again.")
     }
     val route: String get() = transport?.route?.label ?: "Not Reported"

@@ -32,13 +32,26 @@ class NativeMacPresenceRuntimeTest {
                 }
             }
         }
-        fun start() = NativeMacPresenceRuntime(teams, active, { teams.value.scope == it },
-            { refreshes += it; "fixture-token" }, server.url("/"), retryBaseMs = 10).also { runtime = it }
+        fun start(audience: NativeMacBuildAudience? = null) = NativeMacPresenceRuntime(teams, active, { teams.value.scope == it },
+            { refreshes += it; "fixture-token" }, server.url("/"), retryBaseMs = 10, audience = audience).also { runtime = it }
         suspend fun peer() = withTimeout(5000) { peers.receive() }
         suspend fun ready(runtime: NativeMacPresenceRuntime, scope: NativeTeamScope = team) = withTimeout(5000) {
             runtime.state.first { it.owner == scope }
         }
         override fun close() { runtime?.close(); peers.close(); server.shutdown() }
+    }
+    @Test fun consumerPresenceFiltersSnapshotAndSubsequentDevelopmentEvents() = runBlocking {
+        Fixture().use { f ->
+            f.active.value = IrxProbeActivity(true)
+            val runtime = f.start(NativeMacBuildAudience.consumer); val peer = f.peer()
+            peer.send(NativeMacPresenceTest.snapshot("team", NativeMacPresenceTest.instance(),
+                NativeMacPresenceTest.instance(tag = "dev", bundle = "com.cmuxterm.app.debug")))
+            assertEquals(setOf("default"), f.ready(runtime).instances.keys.map { it.buildTag }.toSet())
+            peer.send(NativeMacPresenceTest.event("online", NativeMacPresenceTest.instance(tag = "staging")))
+            peer.send(NativeMacPresenceTest.event("online", NativeMacPresenceTest.instance(tag = "nightly")))
+            val state = withTimeout(5000) { runtime.state.first { it.instances.size == 2 } }
+            assertEquals(setOf("default", "nightly"), state.instances.keys.map { it.buildTag }.toSet())
+        }
     }
     @Test fun foregroundSocketAuthenticatesScopesUpdatesAndStopsOnBackground() = runBlocking {
         Fixture().use { f ->

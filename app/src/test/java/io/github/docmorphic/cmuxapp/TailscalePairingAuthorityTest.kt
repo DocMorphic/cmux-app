@@ -7,7 +7,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TailscalePairingAuthorityTest {
-    private class Fixture {
+    private class Fixture(audience: NativeMacBuildAudience? = null) {
         var scope: NativeTeamScope? = NativeTeamScope("login", "user", "team", 1)
         var state = JSONObject().put("task_session", "login").put("refresh_token", "fixture-refresh")
         var failSave = false
@@ -29,7 +29,7 @@ class TailscalePairingAuthorityTest {
         var rejectWorkspace = false
         var enforceCompatibility = false
         var version = "0.64.24"
-        val compatibility = NativeMacCompatibilityGate({ it == scope })
+        val compatibility = NativeMacCompatibilityGate({ it == scope }, audience = audience)
         val transports = mutableListOf<Transport>()
         val authority = TailscalePairingAuthority({ scope }, { it == scope }, grants,
             resolve = { _, allowed -> check(allowed()); resolves++; resolveHook(allowed); numeric },
@@ -37,7 +37,7 @@ class TailscalePairingAuthorityTest {
                 val transport = Transport(route, allowed, this).also { transports += it }
                 MobileRpcClient(transport, token)
             }, expected = { expected }, admitCompatibility = { owner, client, host ->
-                if (enforceCompatibility) compatibility.admit(owner, client, host)
+                if (enforceCompatibility) compatibility.admit(owner, client, host, locallyAuthorizedTailscale = true)
             })
         suspend fun connect() = authority.connect(pairing) { tokenCalls++; tokenHook(); "fixture-access" }
         fun authorize() = authority.authorize(pairing)
@@ -47,6 +47,18 @@ class TailscalePairingAuthorityTest {
             if (next == null) { state.remove("task_session"); state.remove("refresh_token") }
             else state.put("task_session", next.login)
         }
+    }
+    @Test fun consumerPairingRejectsDevBeforeSavingGrantButPassesActualLegacyRouteFlag() = runBlocking<Unit> {
+        val f = Fixture(NativeMacBuildAudience.consumer); f.enforceCompatibility = true; f.authorize()
+        try {
+            f.build = "dev"; f.version = "999.0"
+            assertTrue(runCatching { f.connect() }.exceptionOrNull() is MacBuildNotSupported)
+            assertNull(f.grant()); assertTrue(f.compatibility.observations.value.isEmpty())
+            f.build = ""; f.version = "0.64.17"
+            f.compatibility.replace(NativeMacCompatibilityPolicy(emptyList()))
+            f.connect().use { assertFalse(it.isClosed) }
+            assertNull(checkNotNull(f.grant()).build)
+        } finally { f.authority.close() }
     }
     private class Transport(val route: PairingCode.Route, val allowed: () -> Boolean, val fixture: Fixture) : MobileRpcTransport {
         val replies = Channel<ByteArray>(8)

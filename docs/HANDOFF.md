@@ -29,14 +29,16 @@ records the original September 28 handoff rather than the current APK.
 
 ## User's objective and working preferences
 
-Latest local feature: [MAC_VERSION_HISTORY.md](MAC_VERSION_HISTORY.md) extends
-[MAC_COMPATIBILITY.md](MAC_COMPATIBILITY.md) with encrypted version observations
-and warning restoration after the account scope returns. This checkpoint has
-60 passing focused JVM tests and five passing Android tests; the preceding
-admission checkpoint had 85 JVM/two Android tests. Signed build 474 predates both.
-Next implement the separate build audience policy and fully offline cached-account
-computer projection, then resume physical acceptance when the Pixel is available.
-The goal remains active; do not repeat the already-pending Pixel reconnect request.
+Latest local feature: [MAC_BUILD_AUDIENCE.md](MAC_BUILD_AUDIENCE.md) explicitly
+selects the consumer Mac policy for both Android variants, across authenticated
+connections, discovery/presence, saved rows and background push/reply workers.
+130 focused JVM tests and two Android worker tests passed. Earlier checkpoints
+added [encrypted version history](MAC_VERSION_HISTORY.md) and
+[minimum-version admission](MAC_COMPATIBILITY.md). Signed build 474 predates all
+three. Next implement the fully offline cached-account computer projection and
+presence version metadata; resume physical acceptance when ADB sees the Pixel.
+Internal development identity/grants remain separate. The goal remains active;
+do not repeat the already-pending Pixel reconnect request.
 
 - Deliver a fully functioning unofficial Android companion matching the official
   cmux iOS app's UI and behavior, including native pairing, workspaces, terminal

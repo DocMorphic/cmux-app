@@ -65,7 +65,7 @@ by these fixtures. They create new store/gate instances using the real encrypted
 storage and the production observation binding, with synthetic account data.
 The existing signed build 474 predates this work.
 
-## Separate build-audience work
+## Separate build-audience policy
 
 The reviewed iOS MobileMacBuildCompatibilityPolicy at
 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc applies a separate policy before version
@@ -76,8 +76,8 @@ Tailscale 0.64.17–before-0.64.18 exception. The minimum-version floor still ap
 after that audience check, so an audience exception alone does not admit 0.64.17
 under the current production floor.
 
-That audience enforcement and discovery/presence filtering remain unimplemented.
-Android debug currently exercises consumer stable/nightly Macs, so iOS DEBUG's
-development-only selection must not be inferred from Android's debuggable flag.
-An eventual development profile needs explicit identity and grant persistence.
-This scoped source review does not advance the global parity pin.
+[Consumer audience enforcement](MAC_BUILD_AUDIENCE.md) now covers authenticated
+admission, discovery/presence, saved rows and background workers. Both Android
+variants explicitly use the consumer audience. An eventual internal development
+profile still needs explicit identity and grant persistence. These scoped source
+reviews do not advance the global parity pin.

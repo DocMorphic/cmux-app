@@ -12,7 +12,8 @@ import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
 class NativeSavedTailscaleRuntimeTest {
-    private class Fixture(private val enforceCompatibility: Boolean = false) : AutoCloseable {
+    private class Fixture(private val enforceCompatibility: Boolean = false,
+        audience: NativeMacBuildAudience? = null) : AutoCloseable {
         val team = NativeTeamScope("login", "user", "team", 1)
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
         val target = NativeComputerTarget("mac", "default", "Mac")
@@ -34,7 +35,8 @@ class NativeSavedTailscaleRuntimeTest {
         init {
             settings.update(target, { true }) { it.copy(method = NativeMacConnectionMethod.TAILSCALE) }
             local = NativeSavedTailscaleRuntime(teams, { teams.value.scope == it }, { tokenHook(); "fixture-token" },
-                admitCompatibility = { owner, client, host -> if (enforceCompatibility) compatibility.admit(owner, client, host) }) { owner ->
+                admitCompatibility = { owner, client, host -> if (enforceCompatibility) compatibility.admit(owner, client, host, true) },
+                audience = audience) { owner ->
                 NativeSavedTailscaleAccount(settings, revisions, { selected -> grants.value.filter {
                     it.user == owner.userId && it.team == owner.teamId && it.device == selected.deviceId && it.build == selected.buildTag
                 } }, { selected, allowed ->
@@ -47,6 +49,16 @@ class NativeSavedTailscaleRuntimeTest {
             team.userId, team.teamId, target.buildTag)
         fun setRoutes(values: List<TailscaleSavedGrant>) { grants.value = values; revisions.value++ }
         override fun close() = local.close()
+    }
+    @Test fun consumerSavedTailscaleCannotDialDevelopmentTargetOrBorrowItsPowerSession() = runBlocking<Unit> {
+        Fixture(audience = NativeMacBuildAudience.consumer).use { f ->
+            val dev = f.target.copy(buildTag = "dev")
+            f.settings.update(dev, { true }) { it.copy(method = NativeMacConnectionMethod.TAILSCALE) }
+            f.setRoutes(listOf(f.grant.copy(build = "dev")))
+            assertTrue(runCatching { f.local.connectIfSelected(f.team, dev) }.exceptionOrNull() is MacBuildNotSupported)
+            assertNull(f.local.powerSession(f.team, dev))
+            assertTrue(f.wires.isEmpty())
+        }
     }
     private class Wire(val grant: TailscaleSavedGrant, val allowed: () -> Boolean, val fixture: Fixture) : MobileRpcTransport {
         val replies = Channel<ByteArray>(32)

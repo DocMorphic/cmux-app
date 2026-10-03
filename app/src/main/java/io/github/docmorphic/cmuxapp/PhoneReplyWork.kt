@@ -19,7 +19,8 @@ internal interface PhoneReplyBackground : AutoCloseable {
 internal class NativePhoneReplyBackground(
     private val store: NativeCredentialStore, private val teams: NativeAccountTeams,
     token: suspend () -> String?, origin: HttpUrl, private val notices: () -> Unit,
-    private val now: () -> Long = System::currentTimeMillis
+    private val now: () -> Long = System::currentTimeMillis,
+    private val audience: NativeMacBuildAudience? = null
 ) : PhoneReplyBackground {
     private val relay = PhoneReplyRelay(origin, token, ::permits, now = now)
     private fun waiting(): List<PreparedPhoneReply> {
@@ -37,6 +38,7 @@ internal class NativePhoneReplyBackground(
             membership.teams.none { it.id == reply.teamID }) return false
         val selected = NativeTeamScope(reply.login, scope.userId, reply.teamID, scope.generation)
         val mac = store.visiblePairedMacs().singleOrNull { it.ownsOrigin(reply.origin) } ?: return false
+        if (audience?.allowsSavedTag(mac.instanceTag) == false || audience?.allowsPush(reply.peer.tuple) == false) return false
         return NativePairingRecords.usable(mac, selected, TailscaleGrantStore({ state }, { error("read only") }))
     }
     override suspend fun runPass(): Boolean {
@@ -61,7 +63,7 @@ internal class NativePhoneReplyBackground(
         fun create(context: Context): NativePhoneReplyBackground {
             val store = NativeCredentialStore(context); val account = NativeAccount(store)
             return NativePhoneReplyBackground(store, NativeAccountTeams(account, store), { account.accessToken() }, ORIGIN,
-                { PhoneReplyNotices(context).sync() })
+                { PhoneReplyNotices(context).sync() }, audience = NativeMacBuildAudience.consumer)
         }
     }
 }

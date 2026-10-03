@@ -12,6 +12,27 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Consumer Mac build admission (2026-10-03)
+
+[MAC_BUILD_AUDIENCE.md](MAC_BUILD_AUDIENCE.md) records the explicit consumer policy
+for both Android build variants: stable/nightly/RC tag and namespace admission,
+the actual authorized-Tailscale legacy exception, discovery/presence and saved-row
+filtering, pairing guidance, and independent background push/reply checks.
+Unsupported authenticated builds cannot produce version observations or retain
+an admitted shared wire. The minimum-version floor remains independent.
+
+130 focused JVM tests passed; final debug/test APKs built in 36 seconds. Two
+Android worker tests passed in 7.979 seconds on the existing API 37 / 16 KB AVD,
+proving unsupported encrypted push suppression and no queued reply POST. The
+emulator was stopped. Evidence: captures/runtime/mac-build-audience.
+
+Debug SHA-256: 350933d6533ca7f7dde8117370444ee9966301dfdffb116b39505cbbaa77b02d.
+Test SHA-256: 7ae5b17fd4864d6926d2cd9bb1c5d65c2f33c6bd8d7eb0d25dd5f81c53e7eb18.
+Signed 474 remains the latest signed milestone and predates this feature.
+Physical Mac/Pixel acceptance, configured push, internal development identity/grants,
+offline account projection and the full source/visual audit remain open. The
+global parity pin is unchanged.
+
 ## Encrypted saved Mac version history (2026-10-03)
 
 [MAC_VERSION_HISTORY.md](MAC_VERSION_HISTORY.md) documents last-authenticated
@@ -35,8 +56,9 @@ Signed build 474 remains the published development milestone and predates this w
 The tests recreate storage/gate objects and exercise the production observer;
 they do not prove a physical Mac/Pixel or OS force-stop journey. A restored,
 verified account scope is still required for the current Computers projection.
-Fully offline cached-account UI, build audience/namespace/grants, presence version
-metadata and physical stable/nightly acceptance remain pending.
+At that checkpoint, fully offline cached-account UI, build audience/namespace/grants,
+presence version metadata and physical acceptance remained pending. Consumer audience
+enforcement is now implemented above; internal development grants remain open.
 
 ## Mac minimum-version admission and update guidance (2026-10-03)
 

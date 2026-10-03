@@ -31,7 +31,8 @@ internal class NativeIrohRuntime(
     private val now: () -> Long = { System.currentTimeMillis() / 1000 },
     private val retryDelayMillis: Long = 2000,
     private val savedTailscale: NativeSavedTailscaleRuntime? = null,
-    private val admitCompatibility: (suspend (NativeTeamScope, MobileRpcClient, org.json.JSONObject) -> Unit)? = null
+    private val admitCompatibility: (suspend (NativeTeamScope, MobileRpcClient, org.json.JSONObject, Boolean) -> Unit)? = null,
+    private val audience: NativeMacBuildAudience? = null
 ) : AutoCloseable {
     private class Owner(val account: NativeTeamScope) {
         val connections = MobileRpcConnections()
@@ -132,6 +133,7 @@ internal class NativeIrohRuntime(
     suspend fun checkComputer(team: NativeTeamScope, target: NativeComputerTarget,
                               timeoutMillis: Long = 30_000): NativeConnectionReport = try {
         withTimeout(timeoutMillis) {
+            audience?.requireTag(target.buildTag)
             savedTailscale?.connectIfSelected(team, target)?.let { client ->
                 return@withTimeout client.use {
                     NativeConnectionCheck.run(it, NativeCredentialStore.PairedMac("", target.deviceId, target.name, target.buildTag))
@@ -161,6 +163,7 @@ internal class NativeIrohRuntime(
             failure is TimeoutCancellationException -> NativeConnectionReport.Failure.TIMEOUT
             failure is TailscaleReadinessException -> NativeConnectionReport.Failure.TAILSCALE
             failure is MacUpdateRequired -> NativeConnectionReport.Failure.UPDATE
+            failure is MacBuildNotSupported -> NativeConnectionReport.Failure.BUILD
             !isCurrent(team) || (failure is IrohV2ServerFailure &&
                 (failure.code in IrohV2Recovery.terminalCodes || failure.code in IrohV2Recovery.authenticationCodes)) ||
                 (failure is IrohV2HttpFailure && failure.status in setOf(401, 403)) -> NativeConnectionReport.Failure.ACCOUNT
@@ -191,6 +194,7 @@ internal class NativeIrohRuntime(
     }
 
     fun powerSession(team: NativeTeamScope, target: NativeComputerTarget): NativeMacPowerSession? {
+        if (audience?.allowsTag(target.buildTag) == false) return null
         if (savedTailscale?.selected(team, target) == true) return savedTailscale.powerSession(team, target)
         val run = synchronized(lock) { owner } ?: return null
         if (!current(run) || run.account != team) return null
@@ -214,7 +218,7 @@ internal class NativeIrohRuntime(
     /** Also used by the short-lived, identity-checked Add Tailscale Connection probe. */
     suspend fun admitAuthenticatedHost(team: NativeTeamScope, client: MobileRpcClient, host: org.json.JSONObject) {
         check(permitsAppearance(team)) { "Account or team changed. Reopen Computer Details." }
-        admitCompatibility?.invoke(team, client, host)
+        admitCompatibility?.invoke(team, client, host, true)
         check(permitsAppearance(team)) { "Account or team changed. Reopen Computer Details." }
     }
 
@@ -257,6 +261,7 @@ internal class NativeIrohRuntime(
     }
 
     private suspend fun connectCurrent(pairing: PairingCode.Iroh, expectedOwner: Owner? = null): MobileRpcClient {
+        pairing.buildTag?.let { audience?.requireTag(it) }
         savedTailscale?.connectIfSelected(pairing)?.let { return it }
         val available = withTimeout(30_000) { state.first { it.ready || (!it.loading && it.error != null) } }
         check(available.ready) { available.error ?: "Waiting for your computers" }
@@ -268,6 +273,7 @@ internal class NativeIrohRuntime(
         val service = synchronized(lock) { run.service } ?: error("Account session changed")
         val mac = service.state.value.computers.singleOrNull { it.endpointId == pairing.endpointId }
             ?: error("This Mac is not available in your selected team")
+        audience?.requireTag(mac.buildTag)
         require(pairing.macDeviceId == null || canonicalMacDeviceId(pairing.macDeviceId) == canonicalMacDeviceId(mac.deviceId)) { "Mac identity changed" }
         require(pairing.buildTag == null || pairing.buildTag == mac.buildTag) { "Mac build changed" }
         val intent = dialIntent(run, mac)
@@ -281,7 +287,7 @@ internal class NativeIrohRuntime(
                     NativeCredentialStore.PairedMac("", mac.deviceId, mac.name, mac.buildTag).requireMatchingHost(host)
                     client.workspaces()
                     requireCurrent(run)
-                    admit(run.account, client, host)
+                    admit(run.account, client, host, intent.method == NativeMacConnectionMethod.TAILSCALE)
                 }
             }) {
             MobileRpcClient(service.transport(mac, permits, intent), {
@@ -292,7 +298,8 @@ internal class NativeIrohRuntime(
     }
 
     private fun publish(run: Owner, snapshot: IrohV2ControlState) {
-        val computers = if (snapshot.ready && (snapshot.permissionExpiresAt ?: 0) > now()) snapshot.computers else emptyList()
+        val computers = if (snapshot.ready && (snapshot.permissionExpiresAt ?: 0) > now())
+            snapshot.computers.filter { audience?.allowsTag(it.buildTag) != false } else emptyList()
         val intents = computers.associateWith { mac -> runCatching { dialIntent(run, mac) }.getOrNull() }
         val keys = intents.entries.associate { (mac, intent) -> mac.endpointId to (intent?.let { connectionKey(mac, it) } ?: "unavailable") }
         synchronized(lock) {
@@ -306,6 +313,7 @@ internal class NativeIrohRuntime(
     }
 
     private fun authorized(run: Owner, mac: IrohV2Computer, intent: NativeMacDialIntent): Boolean {
+        if (audience?.allowsTag(mac.buildTag) == false) return false
         if (!current(run) || runCatching { dialIntent(run, mac) != intent }.getOrDefault(true)) return false
         val snapshot = synchronized(lock) { run.service }?.state?.value ?: return false
         return snapshot.ready && (snapshot.permissionExpiresAt ?: 0) > now() && snapshot.computers.any {

@@ -67,17 +67,27 @@ class PhoneReplyWorkTest {
                 JSONObject().put("id", it).put("display_name", it)
             })).toString()))
     }
-    private fun worker(server: MockWebServer, now: () -> Long = System::currentTimeMillis): PhoneReplyWorker =
+    private fun worker(server: MockWebServer, audience: NativeMacBuildAudience? = null,
+        now: () -> Long = System::currentTimeMillis): PhoneReplyWorker =
         TestListenableWorkerBuilder<PhoneReplyWorker>(context).setWorkerFactory(object : WorkerFactory() {
             override fun createWorker(appContext: Context, workerClassName: String, params: WorkerParameters): ListenableWorker? {
                 if (workerClassName != PhoneReplyWorker::class.java.name) return null
                 return PhoneReplyWorker(appContext, params) {
                     NativePhoneReplyBackground(store, NativeAccountTeams({ "fixture-token" }, { store.taskSession() },
                         server.url("/api/v1/")), { "fixture-token" }, server.url("/"),
-                        { PhoneReplyNotices(context).sync(now()) }, now)
+                        { PhoneReplyNotices(context).sync(now()) }, now, audience)
                 }
             }
         }).build()
+    @Test fun consumerAudienceNeverSendsQueuedReplyToUnsupportedMacBuild() = runBlocking {
+        queue()
+        MockWebServer().use { server ->
+            server.profile()
+            assertEquals(ListenableWorker.Result.retry(), worker(server, audience = NativeMacBuildAudience.consumer).doWork())
+            assertEquals(2, server.requestCount)
+            repeat(2) { assertEquals("GET", server.takeRequest(1, TimeUnit.SECONDS)!!.method) }
+        }
+    }
     private fun alerts() = manager.activeNotifications.filter { it.notification.channelId == PhoneReplyNotices.CHANNEL &&
         it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }
     private suspend fun waitFor(condition: () -> Boolean) {

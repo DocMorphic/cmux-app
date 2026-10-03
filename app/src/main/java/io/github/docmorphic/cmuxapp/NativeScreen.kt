@@ -270,6 +270,7 @@ fun NativeScreen(
     LaunchedEffect(teamState.scope, signedIn) {
         val pairing = PairingCodeParser.parse(code).getOrNull()
         if (pairing is PairingCode.Iroh && (!signedIn || (teamState.scope != null && !connection.allowsSaved(pairing)))) {
+            connection.pairingCompatibilityError(pairing)?.let { error = it }
             client?.close(); client = null; code = ""
             selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null
         }
@@ -1146,7 +1147,9 @@ fun NativeScreen(
     fun proposePairing(value: String) {
         PairingCodeParser.parse(value).fold(
             onSuccess = { pairing ->
-                if (pairing is PairingCode.Tailscale) {
+                val compatibilityError = connection.pairingCompatibilityError(pairing)
+                if (compatibilityError != null) error = compatibilityError
+                else if (pairing is PairingCode.Tailscale) {
                     pendingPairingCode = value.trim()
                     error = null
                 } else if (pairing is PairingCode.Iroh) {
@@ -1164,6 +1167,9 @@ fun NativeScreen(
     LaunchedEffect(incomingCode, signedIn, code, pairedMacs, teamState.scope, computerState) {
         val incoming = incomingCode ?: return@LaunchedEffect
         pendingPairingCode = null
+        PairingCodeParser.parse(incoming).getOrNull()?.let(connection::pairingCompatibilityError)?.let {
+            error = it; handlePairing(incoming); return@LaunchedEffect
+        }
         val action = incomingPairingAction(incoming, signedIn,
             alreadySelected = incoming == code && pairedMacs.any { it.code == code }, teamState.scope, computerState)
         when (action) {

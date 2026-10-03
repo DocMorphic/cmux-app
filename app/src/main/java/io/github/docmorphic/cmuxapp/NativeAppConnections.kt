@@ -16,7 +16,8 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     private val applicationActive = MutableStateFlow(IrxProbeActivity(false))
     val compatibility = NativeMacCompatibilityRuntime(context.applicationContext, store, applicationActive, teams.state, teams::isCurrent)
     private val savedTailscale = NativeSavedTailscaleRuntime(teams.state, teams::isCurrent, { account.accessToken() },
-        admitCompatibility = { team, client, host -> compatibility.gate.admit(team, client, host) }) { team ->
+        admitCompatibility = { team, client, host -> compatibility.gate.admit(team, client, host, locallyAuthorizedTailscale = true) },
+        audience = compatibility.audience) { team ->
         val routes = NativeTailscaleRoutes(context.applicationContext, store, team)
         NativeSavedTailscaleAccount(NativeMacConnectionStore.create(context.applicationContext, team), store.revisions,
             routes::grants, routes::transport, resolve = { pairing ->
@@ -31,18 +32,25 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     val native = NativeIrohRuntime(teams.state, teams::isCurrent, { account.accessToken() },
         { team, current -> NativeIrohBackend.create(context, team, account, current, applicationActive) },
         savedTailscale = savedTailscale,
-        admitCompatibility = { team, client, host -> compatibility.gate.admit(team, client, host) })
+        admitCompatibility = { team, client, host, tailscale -> compatibility.gate.admit(team, client, host, tailscale) },
+        audience = compatibility.audience)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->
         NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
     }
-    val presence = NativeMacPresenceRuntime(teams.state, applicationActive, teams::isCurrent, account::accessToken)
+    val presence = NativeMacPresenceRuntime(teams.state, applicationActive, teams::isCurrent, account::accessToken,
+        audience = compatibility.audience)
     val ssh = NativeSshRuntime(context.applicationContext, store, scope)
-    private val tailscale = TailscaleConnector(context, store, teams) { team, client, host -> compatibility.gate.admit(team, client, host) }
+    private val tailscale = TailscaleConnector(context, store, teams) { team, client, host ->
+        compatibility.gate.admit(team, client, host, locallyAuthorizedTailscale = true)
+    }
     val connector = object : NativeConnector {
         override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = tailscale.connect(pairing, account)
         override suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount) = native.connect(pairing)
         override fun authorizePairing(pairing: PairingCode.Tailscale) = tailscale.authorizePairing(pairing)
+        override fun pairingCompatibilityError(pairing: PairingCode): String? =
+            (pairing as? PairingCode.Iroh)?.buildTag?.takeUnless(compatibility.audience::allowsTag)
+                ?.let { MacBuildNotSupported().message }
         override suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient {
             val team = checkNotNull(teams.state.value.scope) { "Refresh your account teams before connecting." }
             check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden, changed, or belongs to another account or team." }
@@ -57,6 +65,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             } catch (failure: Throwable) { client.close(); throw failure }
         }
         override fun allowsSaved(mac: NativeCredentialStore.PairedMac): Boolean {
+            if (!compatibility.audience.allowsSavedTag(mac.instanceTag)) return false
             val team = teams.state.value.scope ?: return false
             return teams.isCurrent(team) && runCatching {
                 NativePairingRecords.usable(mac, team, TailscaleGrantStore(store::load, store::update)) &&
@@ -66,6 +75,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         override fun allowsSaved(pairing: PairingCode): Boolean {
             if (pairing is PairingCode.Tailscale) return tailscale.allowsSaved(pairing)
             pairing as PairingCode.Iroh
+            if (!compatibility.audience.allowsSavedTag(pairing.buildTag)) return false
             val team = teams.state.value.scope ?: return false
             return teams.isCurrent(team) && (pairing.userId == null || pairing.userId == team.userId) &&
                 (pairing.teamId == null || pairing.teamId == team.teamId)

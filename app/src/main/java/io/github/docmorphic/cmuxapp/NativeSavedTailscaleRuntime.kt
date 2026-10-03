@@ -23,6 +23,7 @@ internal class NativeSavedTailscaleRuntime(
     private val isCurrent: (NativeTeamScope) -> Boolean,
     private val token: suspend () -> String?,
     private val admitCompatibility: suspend (NativeTeamScope, MobileRpcClient, org.json.JSONObject) -> Unit = { _, _, _ -> },
+    private val audience: NativeMacBuildAudience? = null,
     private val account: (NativeTeamScope) -> NativeSavedTailscaleAccount
 ) : AutoCloseable {
     private class Owner(val team: NativeTeamScope, val account: NativeSavedTailscaleAccount) {
@@ -104,6 +105,7 @@ internal class NativeSavedTailscaleRuntime(
 
     private suspend fun connectIfSelected(run: Owner, target: NativeComputerTarget): MobileRpcClient? {
         checkCurrent(run)
+        audience?.requireTag(target.buildTag)
         val intent = intent(run, target)
         if (intent.method != NativeMacConnectionMethod.TAILSCALE) return null
         check(intent.dialable) { "Add a Tailscale connection in Computer Details first." }
@@ -128,6 +130,7 @@ internal class NativeSavedTailscaleRuntime(
     }
 
     fun powerSession(team: NativeTeamScope, target: NativeComputerTarget): NativeMacPowerSession? {
+        if (audience?.allowsTag(target.buildTag) == false) return null
         val run = owners.value ?: return null
         if (run.team != team || !current(run)) return null
         val captured = runCatching { intent(run, target) }.getOrNull() ?: return null
@@ -156,7 +159,8 @@ internal class NativeSavedTailscaleRuntime(
         runCatching { current(run) && intent(run, target) == captured }.getOrDefault(false)
 
     private fun publish(run: Owner) {
-        val targets = run.account.settings.state.value.values.filterValues { it.method == NativeMacConnectionMethod.TAILSCALE }.keys
+        val targets = run.account.settings.state.value.values.filterValues { it.method == NativeMacConnectionMethod.TAILSCALE }
+            .keys.filter { audience?.allowsTag(it.buildTag) != false }
         val resolved = targets.associateWith { id ->
             val target = NativeComputerTarget(id.deviceId, checkNotNull(id.buildTag), "Mac")
             target to runCatching { intent(run, target) }.getOrNull()

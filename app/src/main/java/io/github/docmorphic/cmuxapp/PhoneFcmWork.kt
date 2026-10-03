@@ -13,7 +13,8 @@ import java.util.concurrent.TimeUnit
 internal class PhoneFcmBackground(
     private val context: Context, private val store: NativeCredentialStore,
     private val teams: NativeAccountTeams,
-    private val now: () -> Long = System::currentTimeMillis
+    private val now: () -> Long = System::currentTimeMillis,
+    private val audience: NativeMacBuildAudience? = null
 ) : AutoCloseable {
     private fun waiting(): List<QueuedPhonePush> {
         if (store.load()?.has(PhoneFcmQueue.KEY) != true) return emptyList()
@@ -37,7 +38,7 @@ internal class PhoneFcmBackground(
                 val message = openQueuedPhonePush(item, state, membership, context.packageName, now())
                 if (message != null) {
                     NativeNotificationDelivery(context).receivePush(message) {
-                        teams.isCurrent(authority) && store.taskSession() == item.login
+                        teams.isCurrent(authority) && store.taskSession() == item.login && audience?.allowsPush(message.peer.tuple) != false
                     }
                 }
                 store.update { PhoneFcmQueue(it).remove(item, now()) }
@@ -49,7 +50,8 @@ internal class PhoneFcmBackground(
     companion object {
         fun create(context: Context): PhoneFcmBackground {
             val store = NativeCredentialStore(context)
-            return PhoneFcmBackground(context, store, NativeAccountTeams(NativeAccount(store), store))
+            return PhoneFcmBackground(context, store, NativeAccountTeams(NativeAccount(store), store),
+                audience = NativeMacBuildAudience.consumer)
         }
     }
 }

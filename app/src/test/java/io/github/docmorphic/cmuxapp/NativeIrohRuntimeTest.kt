@@ -9,11 +9,29 @@ import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeIrohRuntimeTest {
+    @Test fun consumerDiscoveryExcludesDevAndCannotDialItThroughAStaleLocatorOrDiagnostic() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        val dev = mac.copy(endpointId = "cd".repeat(32), recordId = "dev", buildTag = "dev")
+        val nightly = mac.copy(endpointId = "ef".repeat(32), recordId = "nightly", buildTag = "nightly")
+        backend.state.value = ready().copy(computers = listOf(mac, dev, nightly))
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 },
+            audience = NativeMacBuildAudience.consumer).use { runtime ->
+            val state = withTimeout(2000) { runtime.state.first { it.ready } }
+            assertEquals(setOf("default", "nightly"), state.computers.map { it.buildTag }.toSet())
+            assertFalse(state.connectionKeys.containsKey(dev.endpointId))
+            val locator = PairingCodeParser.parse(PairingCodeParser.computer(dev, team)).getOrThrow() as PairingCode.Iroh
+            assertTrue(runCatching { runtime.connect(locator) }.exceptionOrNull() is MacBuildNotSupported)
+            assertTrue(runCatching { runtime.connect(locator.copy(buildTag = null)) }.exceptionOrNull() is MacBuildNotSupported)
+            assertEquals(NativeConnectionReport.Failure.BUILD, runtime.checkComputer(team, NativeComputerTarget.from(dev)).failure)
+            assertTrue(backend.transports.isEmpty())
+            runtime.connect(pairing()).use { assertFalse(it.isClosed) }
+        }
+    }
     @Test fun compatibilityAdmissionVerifiesHostBeforePublishingAndReportsUpdateInDiagnostics() = runBlocking<Unit> {
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
         val gate = NativeMacCompatibilityGate({ teams.value.scope == it })
         NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 },
-            admitCompatibility = { owner, client, host -> gate.admit(owner, client, host) }).use { runtime ->
+            admitCompatibility = { owner, client, host, tailscale -> gate.admit(owner, client, host, tailscale) }).use { runtime ->
             suspend fun answerAttempt(index: Int, device: String, version: String) {
                 val wire = withTimeout(2000) {
                     while (synchronized(backend.transports) { backend.transports.size <= index }) delay(1)

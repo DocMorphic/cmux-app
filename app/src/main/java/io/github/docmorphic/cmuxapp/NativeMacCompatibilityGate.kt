@@ -11,6 +11,7 @@ internal data class MacCompatibilityKey(val owner: NativeTeamScope, val identity
 internal class NativeMacCompatibilityGate(
     private val isCurrent: (NativeTeamScope) -> Boolean,
     initial: NativeMacCompatibilityPolicy = NativeMacCompatibilityPolicy.baked,
+    private val audience: NativeMacBuildAudience? = null,
     private val recordObservation: (NativeTeamScope, NativeMacIdentity, String?) -> Unit = { _, _, _ -> }
 ) {
     private data class Host(val key: MacCompatibilityKey, val version: String?)
@@ -25,7 +26,10 @@ internal class NativeMacCompatibilityGate(
     val warnings = mutableWarnings.asStateFlow()
 
     /** Invoke only after transport/account authorization and exact expected-host checks. */
-    fun admit(owner: NativeTeamScope, client: MobileRpcClient, status: JSONObject) {
+    fun admit(owner: NativeTeamScope, client: MobileRpcClient, status: JSONObject, locallyAuthorizedTailscale: Boolean = false) {
+        check(isCurrent(owner) && !client.isClosed) { "Account or connection changed" }
+        try { audience?.requireAuthenticated(status, locallyAuthorizedTailscale) }
+        catch (failure: MacBuildNotSupported) { client.retireForCompatibility(failure); throw failure }
         val device = (status.opt("mac_device_id") as? String)?.takeIf { it.isNotBlank() && it.length <= 128 }
         require(device != null) { "The Mac did not provide its device identity." }
         val tag = (status.opt("mac_instance_tag") as? String)?.takeIf { it.isNotBlank() }
