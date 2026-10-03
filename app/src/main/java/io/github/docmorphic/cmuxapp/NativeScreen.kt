@@ -2541,7 +2541,11 @@ fun NativeScreen(
                     }
                     NativeComputerSelector(pairedMacs, selectedComputer, appearances, machineColorIndices, computerConnections,
                         computerMenuOpen, { computerMenuOpen = it }, ::selectPickerComputer, pendingPickerComputer,
-                        onPair = { computerMenuOpen = false; code = "" })
+                        onPair = { computerMenuOpen = false; code = "" },
+                        owner = NativeComputerMenuOwner(store.taskSession(), teamState.scope),
+                        isOwnerCurrent = { owner -> account.isSignedIn() && store.taskSession() == owner.login &&
+                            accountTeams.state.value.scope == owner.team },
+                        canSelect = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.pairedMacs()) && connection.allowsSaved(mac) })
                     Column(Modifier.weight(1f)) {
                         Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
                             fontSize = 17.sp)
@@ -3087,35 +3091,6 @@ private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>,
             }
             NativeMacAwakeIndicator(connection)
             NativeSavedComputerDetailsButton(runtime, state, mac, colorIndices[mac.colorIdentity], connection, forgetCallbacks, presentDetails)
-        }
-    }
-}
-
-@Composable
-private fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, selected: NativeCredentialStore.PairedMac?,
-    appearances: NativeMacAppearances, colorIndices: Map<NativeMacIdentity, Int>,
-    connections: Map<NativeMacIdentity, NativeComputerConnection>, open: Boolean, onOpen: (Boolean) -> Unit,
-    onSelect: (NativeCredentialStore.PairedMac?) -> Unit, pending: NativeCredentialStore.PairedMac?, onPair: () -> Unit) {
-    Box {
-        IconButton(onClick = { onOpen(true) }, modifier = Modifier.semantics {
-            contentDescription = "Computer filter"
-            stateDescription = pending?.let { "Connecting to ${appearances.name(it)}" }
-                ?: selected?.let(appearances::name) ?: "All Computers"
-        }) {
-            if (pending != null) CircularProgressIndicator(Modifier.size(20.dp).testTag("computer.switch.progress"), strokeWidth = 2.dp, color = nativeAccent)
-            else if (selected == null) Icon(painterResource(R.drawable.ic_feed_computer), null,
-                tint = nativeMuted, modifier = Modifier.size(22.dp))
-            else NativeMacAvatar(appearances.get(selected), selected.colorIdentity.colorSeed, Modifier.size(28.dp), colorIndices[selected.colorIdentity])
-        }
-        DropdownMenu(open, onDismissRequest = { onOpen(false) }) {
-            DropdownMenuItem(text = { Text("All Computers") }, onClick = { onSelect(null) },
-                leadingIcon = { Text(if (selected == null && pending == null) "✓" else " ") })
-            macs.forEach { mac ->
-                DropdownMenuItem(text = { Text(appearances.name(mac)) }, onClick = { onSelect(mac) },
-                    leadingIcon = { Text(if ((pending ?: selected)?.origin == mac.origin) "✓" else " ") },
-                    trailingIcon = { NativeMacAwakeIndicator(connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()) })
-            }
-            DropdownMenuItem(text = { Text("Pair another Mac") }, onClick = onPair)
         }
     }
 }

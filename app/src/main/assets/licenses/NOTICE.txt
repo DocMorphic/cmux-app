@@ -1,6 +1,13 @@
 cmux-app is an unofficial Android companion distributed under GNU GPL version 3.
 Source: https://github.com/DocMorphic/cmux-app
 
+NativeComputerSelector follows per-opening presentation and callback snapshots in
+WorkspaceMacTitlePickerMenuButton.swift and WorkspaceMacTitlePickerMenuTests.swift
+under Packages/iOS/CmuxMobileShellUI at cmux
+0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright Manaflow, Inc.; GPL-3.0-or-later. Android independently checks current
+account scope and exact saved pairing before invoking a captured menu action.
+
 Pending picker selection and cancellation follow WorkspaceListView.swift's
 handleMacTitlePickerSelection, cancelMacTitlePickerSwitch and
 applyMacTitlePickerSelection, with shell restore-generation checks, at cmux

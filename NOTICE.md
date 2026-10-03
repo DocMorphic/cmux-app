@@ -1,5 +1,12 @@
 # Attribution
 
+`NativeComputerSelector.kt` follows the per-opening presentation and callback
+snapshot in `WorkspaceMacTitlePickerMenuButton.swift` and
+`WorkspaceMacTitlePickerMenuTests.swift` under `Packages/iOS/CmuxMobileShellUI`
+at cmux `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`
+(GPL-3.0-or-later, Manaflow, Inc.). Android independently checks current account
+scope and exact saved pairing before invoking a captured menu action.
+
 Pending picker selection and cancellation in `NativeScreen.kt` and
 `NativeMacSwitchRecovery.kt` follow `WorkspaceListView.swift`'s
 `handleMacTitlePickerSelection`, `cancelMacTitlePickerSwitch` and

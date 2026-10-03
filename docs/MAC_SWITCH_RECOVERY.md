@@ -132,3 +132,53 @@ instrumentation logs, screenshot, APK hashes). Signed build 456 is unchanged.
 | --- | --- |
 | Debug APK | `46e9355156f6bbbdc908ad4bba317ba02c2c9daf973d98269099d0dd04ce0efe` |
 | Test APK | `e96c1fd681e53cfa4dff22c90613f41d39d4c4a484288a59bab6645d2fea1f10` |
+
+
+## Stable open computer menu — 2026-10-03
+
+The scoped `0fc35d6` review of
+`Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/WorkspaceMacTitlePickerMenuButton.swift`
+and its `WorkspaceMacTitlePickerMenuTests.swift` establishes a separate menu
+contract: rows and callbacks are captured together for each opening, while the
+button's accessibility state stays live. Twenty refreshes leave the open iOS
+menu unchanged; reopening gets current values and actions even when rows compare
+equal. Android previously iterated live row/appearance/selection values.
+
+`NativeComputerSelector` now captures names, order, selection checkmarks,
+keep-awake indicators and actions for one opening. The toolbar's pending progress
+and accessible target continue to update. Selecting a row dismisses the menu and
+checks the current login/team scope and connector permission before invoking the
+captured action. A removed, ambiguous or replaced saved route is rejected; a name
+change alone is accepted. Account/team generation changes dismiss the opening.
+These checks read current authority at the tap, including changes that have not
+yet caused recomposition. All Computers and Pair actions also require the original
+account scope. No action silently substitutes a newly saved route.
+
+This is a scoped menu-stability change, not a complete visual-parity claim.
+iOS also displays authoritative build subtitles and conditionally exposes Add
+Computer; the Android subtitle/source resolution and add-availability mapping
+remain to be audited. `WorkspaceMacBuildLabelResolver.swift` was inspected as
+context, but a tag such as `default` is not assumed to uniquely mean Stable.
+The whole-parity upstream pin is unchanged. This follow-up is not in signed 463.
+
+
+### Verification
+
+Four JVM checks passed (zero failures/errors/skips). Eight Android checks passed
+on the existing API 37 / 16 KB emulator in **78.592 seconds**: four new menu cases,
+two pending/cancelled-switch cases and the existing workspace routing and
+notification-filter integration cases. The new cases cover twenty in-place
+refreshes, live toolbar semantics, next-opening state and callbacks, unchanged-row
+callback updates, forgotten/replaced pairings, account-scope dismissal and
+revocation before recomposition. Debug/test builds passed in 64 seconds; final
+packaged attribution was also verified after the incremental asset build.
+
+Evidence: `captures/runtime/computer-menu-snapshot/` (ignored), including build
+logs, JVM XML, instrumentation output and hashes. The emulator was stopped after
+verification. ADB showed no physical Pixel; no real Mac/Pixel or visual acceptance
+is claimed for this checkpoint. No additional AVD or signed APK was created.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Debug APK | `98cabf022348434d321423447a392ec806f2c8d90463db74aa93e70db211bc00` |
+| Test APK | `f4823ad403aca951998d148c6b44ebf45f9892693f28922649c2baee9c372a08` |

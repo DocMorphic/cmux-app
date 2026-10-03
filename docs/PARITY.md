@@ -12,6 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Stable open computer menu (2026-10-03)
+
+The computer picker now keeps its rows, checkmarks and actions fixed until it
+closes, matching the scoped iOS menu review. Toolbar progress stays live and the
+next opening uses fresh state. Taps recheck account scope, current connector
+permission and exact saved pairing; forgotten/replaced routes cannot be selected
+from an old row. Four JVM and eight Android checks passed, including existing
+switch, workspace and notification flows. [Source and evidence](MAC_SWITCH_RECOVERY.md#stable-open-computer-menu--2026-10-03).
+
+Not yet in signed build 463. Physical acceptance, build-label subtitles,
+Add Computer availability mapping and broader source/visual parity remain open.
+
 ## Pending computer picker and cancellation (2026-10-03)
 
 The toolbar picker now retains the current workspace/notification filter until
