@@ -270,6 +270,64 @@ JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeResize)(JNIEnv *env, jobject self,
     return result;
 }
 
+// User-generated mouse bytes are separate from emulator query replies. Mirrors
+// can encode an explicit interaction without enabling WRITE_PTY during replay.
+JNIEXPORT jint JNICALL JNI_METHOD(nativeInputModes)(JNIEnv *env, jobject self, jlong id) {
+    (void)self;
+    pthread_mutex_lock(&lock);
+    Terminal *entry = lookup(env, id);
+    bool mouse = false, alternate_scroll = false, focus = false;
+    jint modes = 0;
+    if (entry &&
+        ok(env, ghostty_terminal_get(entry->terminal, GHOSTTY_TERMINAL_DATA_MOUSE_TRACKING, &mouse)) &&
+        ok(env, ghostty_terminal_mode_get(entry->terminal, GHOSTTY_MODE_ALT_SCROLL, &alternate_scroll)) &&
+        ok(env, ghostty_terminal_mode_get(entry->terminal, GHOSTTY_MODE_FOCUS_EVENT, &focus)))
+        modes = (mouse ? 1 : 0) | (alternate_scroll ? 2 : 0) | (focus ? 4 : 0);
+    pthread_mutex_unlock(&lock);
+    return modes;
+}
+
+JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeMouse)(JNIEnv *env, jobject self, jlong id,
+        jint action, jint button, jint column, jint row) {
+    (void)self;
+    if (action < 0 || action > 2 || button < 1 || button > 11 ||
+        column < 0 || column > 999 || row < 0 || row > 999) {
+        fail(env, "java/lang/IllegalArgumentException", "Invalid terminal mouse event"); return NULL;
+    }
+    pthread_mutex_lock(&lock);
+    Terminal *entry = lookup(env, id);
+    GhosttyMouseEncoder encoder = NULL;
+    GhosttyMouseEvent event = NULL;
+    jbyteArray result = NULL;
+    if (!entry || !ok(env, ghostty_mouse_encoder_new(NULL, &encoder)) ||
+        !ok(env, ghostty_mouse_event_new(NULL, &event))) goto done;
+    GhosttyMouseEncoderSize size = {
+        .size = sizeof(GhosttyMouseEncoderSize),
+        .screen_width = entry->size.columns * entry->size.cell_width,
+        .screen_height = entry->size.rows * entry->size.cell_height,
+        .cell_width = entry->size.cell_width, .cell_height = entry->size.cell_height,
+    };
+    if (column >= entry->size.columns) column = entry->size.columns - 1;
+    if (row >= entry->size.rows) row = entry->size.rows - 1;
+    ghostty_mouse_encoder_setopt_from_terminal(encoder, entry->terminal);
+    ghostty_mouse_encoder_setopt(encoder, GHOSTTY_MOUSE_ENCODER_OPT_SIZE, &size);
+    ghostty_mouse_event_set_action(event, (GhosttyMouseAction)action);
+    ghostty_mouse_event_set_button(event, (GhosttyMouseButton)button);
+    ghostty_mouse_event_set_position(event, (GhosttyMousePosition){
+        .x = (column + 0.5f) * size.cell_width, .y = (row + 0.5f) * size.cell_height,
+    });
+    char output[128];
+    size_t length = 0;
+    if (!ok(env, ghostty_mouse_encoder_encode(encoder, event, output, sizeof(output), &length))) goto done;
+    result = (*env)->NewByteArray(env, (jsize)length);
+    if (result && length) (*env)->SetByteArrayRegion(env, result, 0, (jsize)length, (const jbyte *)output);
+done:
+    ghostty_mouse_event_free(event);
+    ghostty_mouse_encoder_free(encoder);
+    pthread_mutex_unlock(&lock);
+    return result;
+}
+
 typedef struct { uint8_t *data; size_t length, capacity; bool failed; } Buffer;
 static void bytes(Buffer *b, const void *data, size_t length) {
     if (b->failed) return;
