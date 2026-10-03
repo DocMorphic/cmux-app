@@ -132,7 +132,7 @@ class NativeFlowTest {
         compose.onNodeWithText("Done").performClick()
         val terminal = compose.onNodeWithText("open notes.md", substring = true)
         compose.waitUntil(10_000) { compose.onAllNodesWithText("open notes.md", substring = true).fetchSemanticsNodes().isNotEmpty() }
-        val viewport = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }.getJSONObject("params")
+        val viewport = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" && !it.getJSONObject("params").optBoolean("clear") }.getJSONObject("params")
         val metrics = context.resources.displayMetrics
         val cells = TerminalCellMetrics.fromFontSize(TerminalFontSize.DEFAULT * metrics.scaledDensity, 2f * metrics.density)
         val bounds = terminal.fetchSemanticsNode().boundsInRoot
@@ -192,7 +192,7 @@ class NativeFlowTest {
     private fun tapArtifactCell(text: String, column: Float) {
         compose.waitUntil(10_000) { compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty() }
         val terminal = compose.onNodeWithText(text, substring = true)
-        val viewport = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }.getJSONObject("params")
+        val viewport = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" && !it.getJSONObject("params").optBoolean("clear") }.getJSONObject("params")
         val metrics = context.resources.displayMetrics
         val cells = TerminalCellMetrics.fromFontSize(TerminalFontSize.DEFAULT * metrics.scaledDensity, 2f * metrics.density)
         val bounds = terminal.fetchSemanticsNode().boundsInRoot
@@ -247,7 +247,7 @@ class NativeFlowTest {
 
         compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
         waitForTerminalText()
-        val initialRows = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }
+        val initialRows = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" && !it.getJSONObject("params").optBoolean("clear") }
             .getJSONObject("params").getInt("viewport_rows")
         screenshot("terminal")
         compose.onNode(hasSetTextAction()).performClick()
@@ -709,7 +709,8 @@ class NativeFlowTest {
         fun sizeIs(size: Float): Boolean = compose.onAllNodes(SemanticsMatcher.expectValue(
             SemanticsProperties.StateDescription, "Terminal font size $size")).fetchSemanticsNodes().isNotEmpty()
         fun awaitSize(size: Float) = compose.waitUntil(10_000) { pump(); sizeIs(size) }
-        fun viewportColumns() = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }
+        fun viewportColumns() = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" &&
+            !it.getJSONObject("params").optBoolean("clear") }
             .getJSONObject("params").getInt("viewport_columns")
         fun push(size: Int, surface: String? = null, workspace: String? = null) {
             peer.pushTerminalEvent("terminal.set_font", JSONObject().put("font_size", size)
@@ -1162,7 +1163,7 @@ class NativeFlowTest {
         waitForTerminalFixture(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Claude Code task").performClick()
         waitForTerminalText()
-        val initialRows = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" }
+        val initialRows = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" && !it.getJSONObject("params").optBoolean("clear") }
             .getJSONObject("params").getInt("viewport_rows")
         compose.onNode(hasSetTextAction()).performTextInput("Keep my composer draft")
         compose.onNodeWithText("Keyboard").performClick()

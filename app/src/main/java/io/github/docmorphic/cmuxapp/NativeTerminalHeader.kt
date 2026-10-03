@@ -18,6 +18,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/** A separate generated composition method for the terminal branch of the main screen. */
+@Composable
+internal fun ColumnScope.NativeTerminalContent(content: @Composable ColumnScope.() -> Unit) {
+    content()
+}
+
 @Composable
 internal fun NativeTerminalTabs(terminals: List<NativeTerminal>, selected: NativeTerminal, onSelect: (NativeTerminal) -> Unit) {
     if (terminals.size > 1) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),

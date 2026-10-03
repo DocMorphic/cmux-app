@@ -38,7 +38,7 @@ import kotlin.math.roundToInt
 /** Only the chip receives touches; the decoration cannot intercept terminal gestures. */
 @Composable
 internal fun TerminalSizingOverlay(presentation: TerminalSizingPresentation, display: TerminalDisplay,
-    cells: TerminalCellMetrics, onOpen: () -> Unit) {
+    cells: TerminalCellMetrics, displayGeometry: TerminalGeometry? = null, onOpen: () -> Unit) {
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
     val style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 16.sp)
@@ -51,7 +51,7 @@ internal fun TerminalSizingOverlay(presentation: TerminalSizingPresentation, dis
     val line = sizingContrast(lerp(background, foreground, .45f), background, 3f)
     BoxWithConstraints(Modifier.fillMaxSize().clipToBounds().testTag("terminal-sizing-overlay")) {
         val viewport = Rect(0f, 0f, constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
-        val geometry = TerminalGeometry.fit(viewport.width, viewport.height, display.columns, display.rows, cells)
+        val geometry = displayGeometry ?: TerminalGeometry.fit(viewport.width, viewport.height, display.columns, display.rows, cells)
             ?: return@BoxWithConstraints
         val render = Rect(geometry.originX, geometry.originY, geometry.originX + display.columns * geometry.cellWidth,
             geometry.originY + display.rows * geometry.cellHeight)

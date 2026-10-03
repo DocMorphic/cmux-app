@@ -637,12 +637,12 @@ fun NativeScreen(
     val inputClient = client
     val inputTarget = draftTarget
     val selectedSizing = selectedTerminal?.id?.let(terminalSizingStates::get)
-    val terminalAttached = selectedSizing?.allowsTraffic != false
+    val terminalAttached = selectedSizing?.allowsTraffic ?: true
     // Each viewport effect owns its own confirmation. Old acknowledgements/cleanup
     // cannot confirm or hide the chrome of a replacement surface or connection.
     var sizingViewportConfirmed by remember(client, selectedWorkspace?.id, selectedTerminal?.id,
         selectedTerminal?.isReady, terminalViewport, terminalCells, terminalTransport, terminalAttached,
-        selectedSizing?.viewportRevision, selectedSizing?.reconnecting) { mutableStateOf(false) }
+        selectedSizing?.viewportRevision ?: 0L, selectedSizing?.reconnecting ?: false) { mutableStateOf(false) }
     var outputInput by remember(inputClient, inputTarget) { mutableStateOf<TerminalOutputLaneOwner?>(null) }
     val nativeInput = remember(inputClient, inputTarget, terminalTransport.mode, connectionReady, selectedTerminal?.isReady, terminalAttached) {
         if (terminalAttached && inputClient != null && inputTarget != null && selectedTerminal?.isReady == true && connectionReady && terminalTransport.mode == TerminalOutputMode.GRID)
@@ -1375,7 +1375,7 @@ fun NativeScreen(
         }
     }
 
-    LaunchedEffect(client, selectedWorkspace?.id, selectedTerminal?.id, selectedTerminal?.isReady, terminalColumns, terminalRows, terminalCells, terminalTransport, terminalAttached, selectedSizing?.viewportRevision, selectedSizing?.reconnecting) {
+    LaunchedEffect(client, selectedWorkspace?.id, selectedTerminal?.id, selectedTerminal?.isReady, terminalColumns, terminalRows, terminalCells, terminalTransport, terminalAttached, selectedSizing?.viewportRevision ?: 0L, selectedSizing?.reconnecting ?: false) {
         val active = client ?: return@LaunchedEffect
         val workspace = selectedWorkspace ?: return@LaunchedEffect
         val terminal = selectedTerminal?.takeIf { it.isReady } ?: return@LaunchedEffect
@@ -1917,7 +1917,7 @@ fun NativeScreen(
                     onBrowser = { selectPane(NativeWorkspacePane(browser = it)) },
                     onNewBrowser = { selectedWorkspace?.let { workspace -> workspaceSourceForPane()?.let { openNewBrowser(it, workspace) } } })
             }
-            selectedTerminal != null -> {
+            selectedTerminal != null -> NativeTerminalContent {
                 val terminal = selectedTerminal!!
                 var showSizing by remember(client, terminal.id) { mutableStateOf(false) }
                 NativeTerminalHeader(terminal, selectedWorkspace, workspaces.size, hostCapabilities, connectionReady, directTyping,
@@ -1943,6 +1943,9 @@ fun NativeScreen(
                     })
                 NativeTerminalTabs(selectedWorkspace?.terminals.orEmpty(), terminal) { selectPane(NativeWorkspacePane(terminal = it)) }
                 val currentGrid = grid
+                val gridPresentation = rememberTerminalGridPresentation(client, terminal.id, selectedSizing?.state,
+                    currentGrid, terminalViewportPixels, terminalCells, density.density)
+                val displayGeometry = gridPresentation.geometry
                 val visibleArtifactScroll by rememberUpdatedState(scrollViewport)
                 Box(Modifier.fillMaxWidth().weight(1f)) {
                 RenderGridView(currentGrid, terminalCells, gridRevision,
@@ -1956,13 +1959,12 @@ fun NativeScreen(
                             onClick("Open keyboard") { openDirectKeyboard(); true }
                             customActions = listOf(CustomAccessibilityAction("View as Text") { openTerminalText(); true })
                         }
-                        .terminalPinchZoom(terminalZoom)
-                        .pointerInput(terminal.id, currentGrid, terminalCells, artifactRpc, artifactsReady, artifactTapController) {
+                        .terminalPinchZoom(terminalZoom, gridPresentation.sharedLayout, gridPresentation.transform)
+                        .pointerInput(terminal.id, currentGrid, terminalCells, displayGeometry, artifactRpc, artifactsReady, artifactTapController) {
                             detectTapGestures(onTap = { point ->
                                 artifactTapController.invalidate()
                                 var handlingArtifact = false
-                                TerminalGeometry.fit(size.width.toFloat(), size.height.toFloat(),
-                                    currentGrid.columns, currentGrid.rows, terminalCells)?.let { geometry ->
+                                displayGeometry?.let { geometry ->
                                     val cell = visibleArtifactScroll.cell(geometry, point.x, point.y)
                                     val path = if (artifactsReady && geometry.contains(point.x, point.y)) TerminalArtifactHitTest.path(
                                         RenderGrid.plainText(visibleArtifactScroll.lines(currentGrid)), cell.column, cell.row, currentGrid.columns) else null
@@ -1988,18 +1990,18 @@ fun NativeScreen(
                                                 if (sendClick) terminalClick?.invoke(cell)
                                                 openDirectKeyboard()
                                             })
-                                    } else terminalClick?.invoke(cell)
+                                    } else if (geometry.contains(point.x, point.y)) terminalClick?.invoke(cell)
                                 }
                                 if (!handlingArtifact) openDirectKeyboard()
                             }, onLongPress = { artifactTapController.invalidate(); openTerminalText() })
                         }
                         .terminalScrollGestures(terminalMotion,
-                            TerminalGeometry.fit(terminalViewportPixels.width.toFloat(), terminalViewportPixels.height.toFloat(),
-                                currentGrid.columns, currentGrid.rows, terminalCells),
+                            displayGeometry,
                             replayGeneration, currentGrid.activeScreen,
                             linePath = !(terminalTransport.screenAnchor && currentGrid.activeScreen == "primary"),
                             enabled = terminalScroll != null,
-                            onScroll = { lines, cell -> terminalScroll?.invoke(lines, cell) ?: false }), scrollPosition = scrollPosition)
+                            onScroll = { lines, cell -> terminalScroll?.invoke(lines, cell) ?: false }), scrollPosition = scrollPosition,
+                    displayGeometry = displayGeometry)
                 if (scrollOffset > 0) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp)
                     .background(nativePanel, RoundedCornerShape(14.dp)).padding(start = 12.dp),
                     verticalAlignment = Alignment.CenterVertically) {
@@ -2012,22 +2014,19 @@ fun NativeScreen(
                         stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
                     }
                 }
-                if (terminalAttached) selectedSizing?.state?.let { sizing ->
-                    val sheetClient = client
-                    val sheetWorkspace = selectedWorkspace
-                    val sheetCode = code
-                    val presentation = TerminalSizingPresentation(sizing, selectedSizing?.selfId ?: sheetClient?.terminalParticipantId)
-                    if (currentGrid.columns > 0 && currentGrid.rows > 0 && !terminalZoom.overlayVisible &&
-                        TerminalSizingChrome.settled(sizing, presentation.selfId, terminalViewport, sizingViewportConfirmed,
-                            SharedTerminalGrid(currentGrid.columns, currentGrid.rows), connectionReady && selectedSizing?.reconnecting != true))
-                        TerminalSizingOverlay(presentation, currentGrid, terminalCells) { showSizing = true }
-                    if (showSizing) TerminalSizeSheet(presentation, enabled = connectionReady && sheetClient != null,
-                        onDismiss = { showSizing = false }) { action ->
+                val sheetClient = client
+                val sheetWorkspace = selectedWorkspace
+                val sheetCode = code
+                TerminalSizingSurfaceView(selectedSizing, terminal.id, currentGrid, terminalCells, displayGeometry,
+                    terminalViewport, sizingViewportConfirmed, connectionReady && sheetClient != null,
+                    terminalZoom.overlayVisible, sheetClient?.terminalParticipantId, showSizing,
+                    onSheet = { showSizing = it }, onAction = { action ->
                         val active = checkNotNull(sheetClient)
                         val workspace = checkNotNull(sheetWorkspace)
                         val viewport = terminalViewport
                         val viewportGeneration = viewportRequestGeneration
-                        if (action is TerminalSizingAction.Disconnect) require(action.ids.none { it == presentation.selfId })
+                        val selfId = selectedSizing?.selfId ?: active.terminalParticipantId
+                        if (action is TerminalSizingAction.Disconnect) require(action.ids.none { it == selfId })
                         fun current() = client === active && selectedWorkspace?.id == workspace.id &&
                             selectedTerminal?.id == terminal.id && code == sheetCode && signedIn && connectionReady &&
                             TerminalSizingTraffic.CAPABILITY in hostCapabilities &&
@@ -2035,35 +2034,18 @@ fun NativeScreen(
                                 (terminalViewport == viewport && viewportRequestGeneration == viewportGeneration))
                         val response = active.changeTerminalSizing(workspace.id, terminal.id, action, viewport, viewportGeneration, ::current)
                         terminalSizing.mutation(active, terminal.id, response)
-                    }
-                }
-                selectedSizing?.detached?.let { detached ->
-                    Column(Modifier.fillMaxSize().background(nativePanel).padding(24.dp),
-                        verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Terminal disconnected", color = Color.White, fontSize = 20.sp)
-                        Text(listOfNotNull(detached.byName, detached.byDevice, detached.at).joinToString(" · ")
-                            .ifBlank { "Reattach to continue using this terminal." }, color = nativeMuted)
-                        var reattaching by remember(terminal.id, detached) { mutableStateOf(false) }
-                        fun reattach(viewer: Boolean) {
-                            val active = client ?: return
-                            val workspace = selectedWorkspace ?: return
-                            val expected = selectedSizing ?: return
-                            reattaching = true
-                            scope.launch {
-                                try {
-                                    val result = active.reattachTerminal(workspace.id, terminal.id, viewer, terminalViewport)
-                                    if (!terminalSizing.reattached(active, terminal.id, result, expected))
-                                        error = "Terminal connection changed. Check its status before retrying."
-                                } catch (failure: Exception) {
-                                    if (failure is CancellationException) throw failure
-                                    error = failure.message ?: "Could not reattach terminal"
-                                } finally { reattaching = false }
-                            }
+                    }, onReattach = { viewer ->
+                        val active = checkNotNull(sheetClient)
+                        val workspace = checkNotNull(sheetWorkspace)
+                        val expected = checkNotNull(selectedSizing)
+                        check(client === active && selectedWorkspace?.id == workspace.id && selectedTerminal?.id == terminal.id) {
+                            "Terminal connection changed. Check its status before retrying."
                         }
-                        Button(enabled = connectionReady && !reattaching, onClick = { reattach(false) }) { Text("Reattach") }
-                        TextButton(enabled = connectionReady && !reattaching, onClick = { reattach(true) }) { Text("Reattach as viewer") }
-                    }
-                }
+                        val result = active.reattachTerminal(workspace.id, terminal.id, viewer, terminalViewport)
+                        check(terminalSizing.reattached(active, terminal.id, result, expected)) {
+                            "Terminal connection changed. Check its status before retrying."
+                        }
+                    })
                 TerminalZoomOverlay(terminalZoom, displayPreferences,
                     foreground = runCatching { Color(android.graphics.Color.parseColor(currentGrid.foreground)) }.getOrDefault(Color.White),
                     background = runCatching { Color(android.graphics.Color.parseColor(currentGrid.background)) }.getOrDefault(nativePanel),

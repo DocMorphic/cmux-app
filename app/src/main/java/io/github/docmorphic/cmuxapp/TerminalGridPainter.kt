@@ -17,13 +17,13 @@ class TerminalGridPainter : AutoCloseable {
 
     fun draw(canvas: Canvas, width: Float, height: Float, grid: TerminalDisplay,
              lines: List<List<PlacedSpan>>, cells: TerminalCellMetrics, scrollOffset: Int, blinkVisible: Boolean,
-             topClipFraction: Float = 0f) {
+             topClipFraction: Float = 0f, displayGeometry: TerminalGeometry? = null) {
         val background = color(if (grid.reverseVideo) grid.foreground else grid.background, Color.rgb(17, 19, 22))
         canvas.drawColor(background)
         if (grid.columns <= 0 || grid.rows <= 0) { images.prepare(null); return }
         // A keyboard animation can resize the view before the host's next grid.
         // Scale both axes together so the transient frame cannot stretch letter spacing.
-        val geometry = TerminalGeometry.fit(width, height, grid.columns, grid.rows, cells) ?: return
+        val geometry = displayGeometry ?: TerminalGeometry.fit(width, height, grid.columns, grid.rows, cells) ?: return
         val scale = geometry.scale
         val cellWidth = geometry.cellWidth; val cellHeight = geometry.cellHeight
         val clipped = canvas.save()

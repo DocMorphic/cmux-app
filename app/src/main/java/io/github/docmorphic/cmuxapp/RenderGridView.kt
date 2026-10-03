@@ -26,7 +26,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun RenderGridView(
     grid: TerminalDisplay, cells: TerminalCellMetrics, revision: Int,
-    modifier: Modifier = Modifier, scrollOffset: Int = 0, scrollPosition: Double = scrollOffset.toDouble()
+    modifier: Modifier = Modifier, scrollOffset: Int = 0, scrollPosition: Double = scrollOffset.toDouble(),
+    displayGeometry: TerminalGeometry? = null
 ) {
     var blinkVisible by remember(grid) { mutableStateOf(true) }
     LaunchedEffect(grid) {
@@ -44,7 +45,8 @@ fun RenderGridView(
             // Image-only or cursor-only updates can leave the text plan equal.
             // Read revision state in the draw scope to invalidate the display list.
             drawRevision.value
-            drawIntoCanvas { painter.draw(it.nativeCanvas, size.width, size.height, grid, plan, cells, viewport.rowOffset, blinkVisible, viewport.topClipFraction) }
+            drawIntoCanvas { painter.draw(it.nativeCanvas, size.width, size.height, grid, plan, cells, viewport.rowOffset,
+                blinkVisible, viewport.topClipFraction, displayGeometry) }
         }
     }
 }

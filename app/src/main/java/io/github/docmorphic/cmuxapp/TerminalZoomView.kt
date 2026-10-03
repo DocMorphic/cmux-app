@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -28,21 +30,46 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 /** The pointer coroutine is keyed to the mounted view, never to changing font/viewport sizes. */
-internal fun Modifier.terminalPinchZoom(zoom: TerminalZoomState): Modifier = pointerInput(zoom) {
-    awaitPointerEventScope {
-        var steps: TerminalPinchSteps? = null
-        var pinching = false
-        while (true) {
-            val event = awaitPointerEvent(PointerEventPass.Initial)
-            val fingers = event.changes.count { it.pressed }
-            if (fingers >= 2) {
-                pinching = true
-                val current = steps ?: TerminalPinchSteps().also { steps = it }
-                current.update(event.calculateZoom(), zoom::step)
+@Composable
+internal fun Modifier.terminalPinchZoom(zoom: TerminalZoomState, sharedLayout: TerminalSharedGridLayout? = null,
+    onSharedTransform: (TerminalGridTransform) -> Unit = {}): Modifier {
+    val latestShared by rememberUpdatedState(sharedLayout)
+    val latestTransform by rememberUpdatedState(onSharedTransform)
+    return pointerInput(zoom) {
+        awaitPointerEventScope {
+            var steps: TerminalPinchSteps? = null
+            var pinching = false
+            var sharedPinch = false
+            var pinchLayout: TerminalSharedGridLayout? = null
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val fingers = event.changes.count { it.pressed }
+                if (fingers >= 2) {
+                    if (!pinching) {
+                        pinchLayout = latestShared?.takeIf { it.scaledMode }
+                        sharedPinch = pinchLayout != null
+                    }
+                    pinching = true
+                    if (sharedPinch) {
+                        val layout = pinchLayout
+                        val latest = latestShared
+                        // A layout replacement during a gesture cancels display zoom;
+                        // it must not fall through into a font/PTY resize mid-pinch.
+                        if (layout != null && latest != null && layout.width == latest.width && layout.height == latest.height &&
+                            layout.columns == latest.columns && layout.rows == latest.rows && layout.cells == latest.cells) {
+                            val moved = layout.panned(event.calculatePan())
+                            pinchLayout = moved.zoomed(layout.transform.magnification * event.calculateZoom(), event.calculateCentroid())
+                            latestTransform(pinchLayout!!.transform)
+                        } else pinchLayout = null
+                    } else {
+                        val current = steps ?: TerminalPinchSteps().also { steps = it }
+                        current.update(event.calculateZoom(), zoom::step)
+                    }
+                }
+                // Suppress taps/scroll until both fingers lift, including the final up event.
+                if (pinching) event.changes.forEach { it.consume() }
+                if (fingers == 0) { steps = null; pinching = false; sharedPinch = false; pinchLayout = null }
             }
-            // Suppress taps/scroll until both fingers lift, including the final up event.
-            if (pinching) event.changes.forEach { it.consume() }
-            if (fingers == 0) { steps = null; pinching = false }
         }
     }
 }

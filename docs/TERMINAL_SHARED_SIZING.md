@@ -249,12 +249,87 @@ Ignored evidence: `captures/runtime/sizing-chrome-build.txt`,
 `sizing-chrome-final-build.txt`, `sizing-chrome-ui-final.txt`, and
 `sizing-chrome-screenshots-final/{dark,light}.png`.
 
-This does not change terminal zoom/pan behavior: Android still fits both axes and
-centers the grid. Upstream's width-fitting, top-pinned surface and keyboard movement
-need a separate renderer/input-geometry integration. Cut-edge geometry is covered
-by unit tests but cannot occur with the current fit-both-axes painter. Physical
+At that checkpoint Android still fitted both axes and centered the grid; the
+shared-grid layout integration below replaces that behavior for negotiated shared
+sizes. The preceding cut-edge tests alone did not prove clipped rendering. Physical
 policy/detach/reattach acceptance and live viewport confirmation remain pending;
 the Pixel was disconnected during this checkpoint.
+
+## Shared-grid display zoom and placement (2026-10-03)
+
+The native terminal now uses one `TerminalSharedGridLayout` for its painter,
+artifact and terminal taps, scroll-cell mapping and sizing decoration whenever the
+host's shared size matches the rendered grid. Smaller grids render at 1:1,
+left-aligned and top-pinned when at least a row shorter than the viewport. A natural
+grid's sub-row remainder stays above it, keeping the last row at the dock.
+
+An oversized grid fits the viewport **width**, retaining the host's exact columns
+and rows. A tall display starts bottom-pinned. Two-finger pinching magnifies up to
+1:1 around the fingers, and moving both fingers pans to reveal clipped rows and
+columns. Pan offsets clamp to the overflowing grid; no empty interior gap is
+introduced. These gestures only change the display transform: they do not change
+the font preference, natural viewport report, replay keys or PTY dimensions.
+Geometry changes during a gesture cancel display zoom without switching into a
+font resize. The non-shared font-zoom path and SSH remain available. Taps in unused
+native-terminal space open the keyboard without sending a clamped mouse click to
+an unrelated grid cell.
+
+`scripts/generate-terminal-layout-fixtures.py` compiles the unmodified
+`TerminalGridFit.swift` and `TerminalLetterboxGeometry.swift` at the exact NIGHTLY
+revision above. The checked-in compressed fixture includes both source hashes and
+**189 reference cases** covering natural/letterbox/oversized grids, width fit,
+initial offsets, zoom focus and pan clamping. Android matches those outputs to
+0.001 pixels at density 1. The Swift files are read with `git show`; the upstream
+checkout is not modified.
+
+**27 focused JVM tests passed**, including all 189 reference cases, invalid
+gesture/resize handling, corner reachability, focus-preserving cell mapping and the
+existing sizing-chrome, scroll, font-zoom and artifact-hit regressions. An initial
+boxed-float assertion distinguished `-0.0` from `0.0`; the Android origin expression
+was corrected to match the upstream subtraction. The first instrumentation compile
+used an obsolete touch-injection helper; it was updated to this project's
+`updatePointerTo` API before building successfully.
+
+The final regression run passed **36 JVM tests** (the 27 above plus 9 native sizing
+session tests), with zero failures/errors/skips, and **10 emulator UI tests in
+28.449 seconds**. The UI run includes real two-finger pinch/pan, unchanged font and
+grid dimensions, transformed tap coordinates, small-grid/chip placement, both
+theme overlays, and six full `NativeScreen` flows: legacy font zoom, keyboard
+resize/input, alternate-screen scrolling/mouse input, terminal file taps, and
+grid/byte replay retention across resize and terminal changes. The small-grid and
+zoomed/panned coordinate-label screenshots were visually reviewed. These are
+synthetic emulator peers, not live Mac/Pixel acceptance.
+
+The full-screen checks caught failures that the isolated components did not:
+Android rejected generated code in the large screen method, and subsequent runs
+hit a null sizing-snapshot path on an older-host fixture. `NativeTerminalContent`,
+`TerminalGridPresentation` and `TerminalSizingSurfaceView` now provide smaller
+composition boundaries; the final full-screen checks exercise the absent sizing
+snapshot successfully. Reattach errors are shown inside the detached view. Initial
+absent sizing revisions/reconnect flags now use their default values in effect
+keys, avoiding an unnecessary clear/replay cycle when the first empty sizing
+snapshot arrives. Test viewport readers also distinguish actual size reports from
+clear requests; a clear request contains no columns or rows. Earlier failed runs
+remain in local diagnostics and are not counted as acceptance.
+
+The final production/test APK build passed in **51 seconds**. SHA-256:
+
+- Debug: `51b45dca0e3550edb2dfc86b40c70cd317671e89c0a6e20971f4c2cf529acc62`.
+- Instrumentation: `b7ede680fec0199c894d0da73b60ace19196e68a1f1ba03a474553f97d79dd1b`.
+
+Evidence is ignored under `captures/runtime/`: `shared-grid-regression-build.txt`,
+`shared-grid-final-build.txt`, `shared-grid-final-ui.txt`, and
+`shared-grid-screenshots-final/`. The existing emulator was shut down after the
+checks; no new AVD was created. The 138 MB temporary bytecode dump and extracted
+DEX were removed after diagnosis, retaining the original failure logs. No physical
+phone was connected or changed. Signed build 397 remains the last delivered release.
+
+Keyboard behavior remains a separate gap: the Android primary screen still
+reports the keyboard-reduced viewport, while iOS keeps a keyboard-independent
+primary grid and slides/reveals content using measured blank space. That behavior,
+the alternate-screen keyboard transaction fence, and physical Mac/Pixel
+policy/detach/viewer-reattach checks remain pending. Local display geometry tests
+do not prove any of those host/device workflows.
 
 ## Full integration acceptance checklist
 

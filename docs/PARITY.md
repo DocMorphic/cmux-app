@@ -23,8 +23,11 @@ admission on secondary feed connections; **68 focused JVM tests passed** for tha
 logic checkpoint. Settled viewport gating, themed bounds/hatch decoration and
 prompt-safe size chip placement are now implemented; **20 focused JVM tests and
 2 emulator UI tests passed**, with both theme captures reviewed.
-The renderer still needs iOS-style top pinning/width fitting, and physical Mac/Pixel
-checks remain open. Android uses the supported
+Shared grids now use iOS-style top-left placement, width fitting and display-only
+pinch/pan. **36 focused JVM tests passed**, including 189 reference cases generated
+by the pinned Swift implementation, and **10 emulator UI checks passed**, including
+the full native terminal flow. Primary-screen keyboard sliding/reveal and physical
+Mac/Pixel checks remain open. Android uses the supported
 `unknown` kind plus its model; upstream's automatic exclusion rules still need an
 Android kind for identical behavior. Signed build 397 and the installed Pixel app
 are unchanged. [Contract, evidence and remaining work](TERMINAL_SHARED_SIZING.md).
