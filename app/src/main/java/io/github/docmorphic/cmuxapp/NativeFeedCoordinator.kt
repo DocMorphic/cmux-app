@@ -13,7 +13,8 @@ internal class NativeFeedCoordinator(
     private val scope: CoroutineScope,
     private val connect: suspend (NativeCredentialStore.PairedMac) -> MobileRpcClient,
     private val isAllowed: (NativeCredentialStore.PairedMac) -> Boolean,
-    private val workspaceSnapshots: NativeWorkspaceSnapshots = NativeWorkspaceSnapshots()
+    private val workspaceSnapshots: NativeWorkspaceSnapshots = NativeWorkspaceSnapshots(),
+    private val onVerified: (NativeCredentialStore.PairedMac) -> Unit = {}
 ) : AutoCloseable {
     private class Handle(val mac: NativeCredentialStore.PairedMac, val revision: NativeFeedRevision, val routeKey: String?) {
         var client: MobileRpcClient? = null
@@ -133,6 +134,7 @@ internal class NativeFeedCoordinator(
                 handle.mac.requireMatchingHost(status)
                 ensureActiveSession(handle)
                 handle.verified = true
+                onVerified(handle.mac)
                 val capabilities = status.optJSONArray("capabilities")?.let { values ->
                     (0 until values.length()).mapNotNull { values.optString(it).takeIf(String::isNotBlank) }.toSet()
                 }.orEmpty()

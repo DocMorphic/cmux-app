@@ -136,9 +136,20 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     fun update(transform: (JSONObject) -> Unit): Unit = synchronized(storageLock) {
         val value = load() ?: JSONObject()
         transform(value)
+        save(value)
+    }
+
+    internal fun recordMacSeen(login: String?, mac: PairedMac, time: Long, permits: () -> Boolean): Unit = synchronized(storageLock) {
+        val value = load() ?: return@synchronized
+        if (NativeMacLastSeen.record(value, login, mac, time, permits)) save(value)
+    }
+
+    /** Caller holds storageLock. */
+    private fun save(value: JSONObject) {
         NativeAccountDeletionRecord.prune(value)
         NativeAccountProfileCache.prune(value)
         NativeNotificationDismissOutbox(value).prune()
+        NativeMacLastSeen.prune(value)
         PhonePushKeyState(value).prune()
         PhonePushInbox(value).prune()
         PhoneFcmQueue(value).prune()

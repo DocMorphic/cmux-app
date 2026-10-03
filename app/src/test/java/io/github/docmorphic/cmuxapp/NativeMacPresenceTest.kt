@@ -72,6 +72,27 @@ class NativeMacPresenceTest {
         val records = Array(NativeMacPresenceReducer.MAX_INSTANCES + 1) { instance(tag = "tag-$it") }
         assertThrows(IllegalArgumentException::class.java) { NativeMacPresenceReducer(team).apply(snapshot("team", *records)) }
     }
+    @Test fun onlineAndLastSeenStaySeparateFromPhoneConnectionAndSiblingInstances() {
+        val reducer = NativeMacPresenceReducer(team)
+        val online = instance().put("online", true).put("lastSeenAt", 1000)
+        var state = reducer.apply(snapshot("team", online, instance("nightly").put("online", false).put("lastSeenAt", 900)))
+        assertEquals(NativeComputerPresence(true, 1000), state.presence("mac", "default"))
+        assertEquals(NativeComputerPresence(false, 900), state.presence("mac", "nightly"))
+        assertEquals(NativeComputerPresence(null, 1100), state.presence("mac", null, 1100))
+        assertEquals(NativeComputerPresence(), state.presence("missing", "default"))
+        state = reducer.apply(event("offline", online.put("online", false)))
+        assertEquals(NativeComputerPresence(false, 1200), state.presence("mac", "default", 1200))
+        state = reducer.apply(JSONObject().put("type", "seen").put("deviceId", "mac").put("tag", "default").put("lastSeenAt", 1300).toString())
+        assertEquals(NativeComputerPresence(false, 1300), state.presence("mac", "default"))
+        assertEquals("Not connected", NativeComputerConnection().phrase)
+    }
+    @Test fun malformedPresenceDoesNotInventLivenessOrLastSeenDates() {
+        val reducer = NativeMacPresenceReducer(team)
+        val state = reducer.apply(snapshot("team", instance().put("online", "true").put("lastSeenAt", -1)))
+        assertEquals(NativeComputerPresence(), state.presence("mac", "default"))
+        assertEquals(NativeComputerPresence(), reducer.apply(snapshot("team")).presence("mac", "default"))
+    }
+
     @Test fun retryAfterUsesSecondsDateAndConservativeDefault() {
         assertEquals(120_000L, PresenceHttpFailure(429, "120").retryDelay(0))
         assertEquals(60_000L, PresenceHttpFailure(429, "bad").retryDelay(0))

@@ -1,5 +1,12 @@
 # Attribution
 
+Computer presence rows follow MacComputerRow.swift and MacComputerSnapshot+Store.swift
+in Packages/iOS/CmuxMobileShellUI, plus PresenceMap.swift in CmuxMobileShell,
+at cmux 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.
+Copyright Manaflow, Inc.; GPL-3.0-or-later. Android keeps phone connection and
+server heartbeat separate, with verified last-seen history stored independently
+of pairing identity inside the existing encrypted account state.
+
 Mac build subtitles follow MacBuildChannel.swift, LocalizedMacBuildLabel.swift,
 MobileShellComposite+PairedMacAliases.swift and WorkspaceMacTitlePickerMenuButton.swift
 at cmux 0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc.

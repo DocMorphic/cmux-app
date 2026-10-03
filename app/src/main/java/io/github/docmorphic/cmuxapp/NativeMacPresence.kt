@@ -3,15 +3,24 @@ package io.github.docmorphic.cmuxapp
 import org.json.JSONObject
 import java.io.IOException
 
-internal data class NativeMacPresenceInstance(val identity: NativeMacIdentity, val bundleId: String?)
+internal data class NativeComputerPresence(val online: Boolean? = null, val lastSeenAtMillis: Long? = null)
+internal data class NativeMacPresenceInstance(val identity: NativeMacIdentity, val bundleId: String?,
+    val online: Boolean? = null, val lastSeenAtMillis: Long? = null)
 internal data class NativeMacPresenceState(val owner: NativeTeamScope? = null,
     val instances: Map<NativeMacIdentity, NativeMacPresenceInstance> = emptyMap()) {
-    fun buildLabel(mac: NativeCredentialStore.PairedMac): String? {
-        val device = canonicalMacDeviceId(mac.deviceId)
-        val instance = if (mac.instanceTag == null) instances.values.filter { it.identity.deviceId == device }.singleOrNull()
-            else instances[NativeMacIdentity(device, mac.instanceTag.trim().takeIf(String::isNotEmpty))]
-        return instance?.let { NativeMacBuildLabel.label(it.bundleId, it.identity.buildTag) }
-            ?: NativeMacBuildLabel.label(null, mac.instanceTag)
+    private fun instance(deviceId: String, tag: String?): NativeMacPresenceInstance? {
+        val device = canonicalMacDeviceId(deviceId)
+        return if (tag == null) instances.values.filter { it.identity.deviceId == device }.singleOrNull()
+            else instances[NativeMacIdentity(device, tag.trim().takeIf(String::isNotEmpty))]
+    }
+    fun buildLabel(mac: NativeCredentialStore.PairedMac) = buildLabel(mac.deviceId, mac.instanceTag)
+    fun buildLabel(deviceId: String, tag: String?): String? = instance(deviceId, tag)?.let {
+        NativeMacBuildLabel.label(it.bundleId, it.identity.buildTag)
+    } ?: NativeMacBuildLabel.label(null, tag)
+
+    fun presence(deviceId: String, tag: String?, savedLastSeen: Long? = null): NativeComputerPresence {
+        val instance = instance(deviceId, tag)
+        return NativeComputerPresence(instance?.online, listOfNotNull(instance?.lastSeenAtMillis, savedLastSeen).maxOrNull())
     }
 }
 
@@ -58,7 +67,13 @@ internal class NativeMacPresenceReducer(private val team: NativeTeamScope) {
                         instances = instances + (value.identity to value)
                     }
                 }
-                "seen" -> Unit // Heartbeats carry no display metadata.
+                "seen" -> {
+                    val key = NativeMacIdentity(canonicalMacDeviceId(identifier(frame, "deviceId")),
+                        identifier(frame, "tag").trim().takeIf(String::isNotEmpty))
+                    val time = NativeMacLastSeen.timestamp(frame.opt("lastSeenAt"))
+                    val previous = instances[key]
+                    if (previous != null && time != null) instances = instances + (key to previous.copy(lastSeenAtMillis = time))
+                }
                 else -> throw IOException("Unknown presence event")
             }
         }
@@ -73,7 +88,7 @@ internal class NativeMacPresenceReducer(private val team: NativeTeamScope) {
             identifier(value, "tag").trim().takeIf(String::isNotEmpty))
         // Cosmetic malformed metadata cannot invalidate an otherwise usable pairing.
         val bundle = (value.opt("bundleId") as? String)?.takeIf { it.length <= 512 && it.none(Char::isISOControl) }
-        return NativeMacPresenceInstance(identity, bundle)
+        return NativeMacPresenceInstance(identity, bundle, value.opt("online") as? Boolean, NativeMacLastSeen.timestamp(value.opt("lastSeenAt")))
     }
     companion object { const val MAX_FRAME = 2 * 1024 * 1024; const val MAX_INSTANCES = 4096 }
 }

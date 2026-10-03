@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Computer connection versus presence (2026-10-03)
+
+Saved computer rows now distinguish this phone's Connected/Reconnecting/Not
+connected state from the Mac's separate heartbeat. Reconnect rows show online or
+relative last-seen state and omit cached workspace counts; both use build badges
+and accessible status indicators. Verified host handshakes save display history
+outside pairing records, inside the existing encrypted account state, with
+current-login/route checks and Forget pruning.
+
+**46 JVM and seven Android cases passed**, including host identity verification,
+real encrypted history reload, sign-out rejection and existing switch/routing
+regressions. Two component screenshots were visually checked. [Source and evidence](COMPUTER_PRESENCE_ROWS.md).
+Not yet in signed build 463. Live Pixel/Mac acceptance, full Computers layout,
+route captions and the remaining presence consumers are still open.
+
 ## Computer build subtitles and presence metadata (2026-10-03)
 
 Picker rows now show the iOS Stable/Nightly/RC/Staging/DEV build labels. A new
@@ -27,8 +42,9 @@ clean component screenshot was visually checked. An older integration assertion
 was corrected to wait for the asynchronous Mac switch, and an emulator System UI
 dialog was cleared before visual recapture. [Source, implementation and verification scope](COMPUTER_BUILD_LABELS.md).
 Not yet in signed build 463. Production service/Pixel acceptance and the other
-presence consumers (online state, route updates, workspace announcements and push
-recovery) remain unverified or unaudited; this does not close full presence parity.
+presence consumers (route updates, workspace announcements and push recovery)
+remain unverified or unaudited; online/last-seen row display is covered above.
+This does not close full presence parity.
 
 ## Stable open computer menu (2026-10-03)
 

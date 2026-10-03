@@ -63,9 +63,11 @@ callback. Menu actions retain their current account/pairing admission checks.
 
 Production presence-service interoperability on the physical Pixel and Mac is
 still pending. This implements the build-label consumer of presence, not the
-entire upstream presence feature set (online indicators, reconnect-route updates,
+entire upstream presence feature set (reconnect-route updates,
 workspace presence announcements and presence-triggered push recovery). Those
 must be audited individually rather than inferred from this subscription.
+Row online/last-seen display and verified history were subsequently added in
+[Computer presence rows](COMPUTER_PRESENCE_ROWS.md).
 This change is not yet included in signed development build 463.
 
 

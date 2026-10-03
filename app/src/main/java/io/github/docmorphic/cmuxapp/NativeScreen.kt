@@ -139,6 +139,10 @@ fun NativeScreen(
     val accountTeams = remember(account, store) { sharedConnections?.teams ?: NativeAccountTeams(account, store) }
     val teamState by accountTeams.state.collectAsState()
     val appearances = nativeMacAppearances(teamState.scope)
+    val scopedPresence = presenceState.takeIf { it.owner != null && it.owner == teamState.scope && accountTeams.isCurrent(it.owner) }
+        ?: NativeMacPresenceState()
+    val historyRevision by store.revisions.collectAsState()
+    val lastSeenHistory = remember(store, historyRevision) { runCatching { NativeMacLastSeen.values(store.load()) }.getOrDefault(emptyMap()) }
     DisposableEffect(accountTeams) { onDispose { if (sharedConnections == null) accountTeams.close() } }
     LaunchedEffect(signedIn, accountTeams) {
         if (!signedIn) accountTeams.clear()
@@ -1479,6 +1483,7 @@ fun NativeScreen(
                     connectionError = null; retryDelay = 2_000; busy = false
                     return@LaunchedEffect
                 }
+                feedSession.recordMacSeen(remembered)
                 hostName = displayName; hostCapabilities = capabilities
                 terminalTransport = TerminalTransport.resolve(capabilities, status.optString("terminal_fidelity"))
                 applyListing(listing); notifications = feed
@@ -1944,7 +1949,7 @@ fun NativeScreen(
                 Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
                 if (sharedConnections != null) TextButton(onClick = { showSshComputers = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.computers")) { Text("SSH Computers") }
                 NativeSavedComputerRows(pairedMacs, appearances, machineColorIndices, sharedConnections?.native,
-                    computerState, computerConnections, forgetCallbacks, { computerDetails = it }) { mac -> selectMacCode(mac.code); showSettings = false }
+                    computerState, computerConnections, scopedPresence, lastSeenHistory, forgetCallbacks, { computerDetails = it }) { mac -> selectMacCode(mac.code); showSettings = false }
                 TextButton(onClick = {
                     code = ""; showSettings = false; selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
                 }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Find another Mac") }
@@ -2145,7 +2150,7 @@ fun NativeScreen(
             }
             code.isBlank() -> NativeComputerPicker(teamState, computerState, runtime = sharedConnections?.native,
                 onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
-                colorIndices = machineColorIndices, connections = computerConnections, forgetCallbacks = forgetCallbacks,
+                colorIndices = machineColorIndices, connections = computerConnections, presence = scopedPresence, saved = pairedMacs, lastSeenHistory = lastSeenHistory, forgetCallbacks = forgetCallbacks,
                 presentDetails = { computerDetails = it },
                 hasSavedComputers = pairedMacs.isNotEmpty(),
                 onSelect = { mac -> computerState.account?.let { selectMacCode(PairingCodeParser.computer(mac, it)) } },
@@ -2550,8 +2555,7 @@ fun NativeScreen(
                         isOwnerCurrent = { owner -> account.isSignedIn() && store.taskSession() == owner.login &&
                             accountTeams.state.value.scope == owner.team },
                         canSelect = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.pairedMacs()) && connection.allowsSaved(mac) },
-                        presence = presenceState.takeIf { it.owner != null && it.owner == teamState.scope && accountTeams.isCurrent(it.owner) }
-                            ?: NativeMacPresenceState())
+                        presence = scopedPresence)
                     Column(Modifier.weight(1f)) {
                         Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
                             fontSize = 17.sp)
@@ -2946,6 +2950,8 @@ private fun NativeComputerPicker(
     teamState: NativeAccountTeamsState, computerState: NativeComputersState, runtime: NativeIrohRuntime? = null,
     colorIndices: Map<NativeMacIdentity, Int> = emptyMap(),
     connections: Map<NativeMacIdentity, NativeComputerConnection> = emptyMap(),
+    presence: NativeMacPresenceState = NativeMacPresenceState(), saved: List<NativeCredentialStore.PairedMac> = emptyList(),
+    lastSeenHistory: Map<String, Long> = emptyMap(),
     forgetCallbacks: NativeComputerForgetCallbacks = NativeComputerForgetCallbacks(),
     presentDetails: ((NativeComputerDetailsPresentation) -> Unit)? = null,
     onSsh: (() -> Unit)? = null,
@@ -2982,11 +2988,13 @@ private fun NativeComputerPicker(
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                     NativeMacAvatar(appearances.get(mac.deviceId, mac.buildTag), mac.colorIdentity.colorSeed,
                         index = colorIndices[mac.colorIdentity])
-                    Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                        Text(appearances.get(mac.deviceId, mac.buildTag).displayName(mac.name), fontWeight = FontWeight.Medium)
-                        Text("Available", color = nativeMuted, fontSize = 12.sp)
-                    }
                     val connection = connections[NativeMacIdentity(mac.deviceId, mac.buildTag)] ?: NativeComputerConnection()
+                    val savedMac = saved.singleOrNull { canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(mac.deviceId) && it.instanceTag == mac.buildTag }
+                    val heartbeat = presence.presence(mac.deviceId, mac.buildTag, savedMac?.let { NativeMacLastSeen.read(lastSeenHistory, it) })
+                    NativeComputerRowLabel(appearances.get(mac.deviceId, mac.buildTag).displayName(mac.name),
+                        presence.buildLabel(mac.deviceId, mac.buildTag), connection, heartbeat,
+                        reconnect = true, modifier = Modifier.weight(1f).padding(horizontal = 14.dp))
+                    NativeComputerStatusDot(connection, heartbeat, reconnect = true)
                     NativeMacAwakeIndicator(connection)
                     NativeComputerDetailsButton(runtime, computerState, NativeComputerTarget.from(mac), colorIndices[mac.colorIdentity], connection, forgetCallbacks, presentDetails)
                     Text("›", color = nativeMuted, fontSize = 24.sp)
@@ -3083,7 +3091,8 @@ internal fun NativeSignIn(sendCode: suspend (String) -> Unit, signIn: suspend (S
 @Composable
 private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>, appearances: NativeMacAppearances,
     colorIndices: Map<NativeMacIdentity, Int>, runtime: NativeIrohRuntime?, state: NativeComputersState,
-    connections: Map<NativeMacIdentity, NativeComputerConnection>, forgetCallbacks: NativeComputerForgetCallbacks,
+    connections: Map<NativeMacIdentity, NativeComputerConnection>, presence: NativeMacPresenceState, lastSeenHistory: Map<String, Long>,
+    forgetCallbacks: NativeComputerForgetCallbacks,
     presentDetails: (NativeComputerDetailsPresentation) -> Unit, onSelect: (NativeCredentialStore.PairedMac) -> Unit) {
     macs.forEach { mac ->
         Row(Modifier.fillMaxWidth().clickable { onSelect(mac) }
@@ -3091,10 +3100,10 @@ private fun NativeSavedComputerRows(macs: List<NativeCredentialStore.PairedMac>,
             NativeMacAvatar(appearances.get(mac), mac.colorIdentity.colorSeed, index = colorIndices[mac.colorIdentity])
             Spacer(Modifier.width(14.dp))
             val connection = connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()
-            Column(Modifier.weight(1f)) {
-                Text(appearances.name(mac))
-                Text(connection.phrase, color = nativeMuted, fontSize = 12.sp)
-            }
+            val heartbeat = presence.presence(mac.deviceId, mac.instanceTag, NativeMacLastSeen.read(lastSeenHistory, mac))
+            NativeComputerRowLabel(appearances.name(mac), presence.buildLabel(mac), connection, heartbeat,
+                reconnect = false, modifier = Modifier.weight(1f))
+            NativeComputerStatusDot(connection, heartbeat, reconnect = false)
             NativeMacAwakeIndicator(connection)
             NativeSavedComputerDetailsButton(runtime, state, mac, colorIndices[mac.colorIdentity], connection, forgetCallbacks, presentDetails)
         }

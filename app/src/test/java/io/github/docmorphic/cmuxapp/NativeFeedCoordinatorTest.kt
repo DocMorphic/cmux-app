@@ -14,6 +14,21 @@ class NativeFeedCoordinatorTest {
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 
+    @Test fun lastSeenCallbackRunsOnlyAfterExactHostVerification() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val seen = mutableListOf<NativeCredentialStore.PairedMac>()
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true }, onVerified = { seen += it })
+            try {
+                coordinator.updateMacs(listOf(mac("wrong")))
+                awaitState { coordinator.sources.value[mac("wrong").origin]?.availability == NativeFeedAvailability.OFFLINE }
+                assertTrue(seen.isEmpty())
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                assertEquals(listOf(mac("a")), seen)
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun localDialTimeoutPublishesOfflineAndCanReconnectOnRefresh() = runBlocking {
         FeedPeer("a").use { peer ->
             var attempts = 0

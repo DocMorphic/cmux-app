@@ -9,6 +9,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /** Activity recreation retains account-scoped snapshots; process death refetches from the Mac. */
 internal class NativeFeedSession(
@@ -32,7 +35,16 @@ internal class NativeFeedSession(
                 terminalSizing.allowsTraffic(owner, surface) }
         }
     }, isAllowed = { mac -> account.isSignedIn() && store.pairedMacs().contains(mac) &&
-        connector.allowsSaved(mac) }, workspaceSnapshots = workspaceSnapshots)
+        connector.allowsSaved(mac) }, workspaceSnapshots = workspaceSnapshots, onVerified = ::recordMacSeen)
+
+    fun recordMacSeen(mac: NativeCredentialStore.PairedMac) {
+        val login = store.taskSession()
+        val time = System.currentTimeMillis()
+        scope.launch(Dispatchers.IO) {
+            try { store.recordMacSeen(login, mac, time) { connector.allowsSaved(mac) } }
+            catch (failure: Exception) { currentCoroutineContext().ensureActive() }
+        }
+    }
 
     val workspaceMoves = NativeWorkspaceMoves(scope, coordinator)
     val taskModels = TaskModelRepository()
