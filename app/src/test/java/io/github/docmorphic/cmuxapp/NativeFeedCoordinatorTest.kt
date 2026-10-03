@@ -14,6 +14,47 @@ class NativeFeedCoordinatorTest {
     private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 
+    @Test fun localDialTimeoutPublishesOfflineAndCanReconnectOnRefresh() = runBlocking {
+        FeedPeer("a").use { peer ->
+            var attempts = 0
+            val coordinator = NativeFeedCoordinator(this, {
+                if (++attempts == 1) withTimeout(30) { awaitCancellation() }
+                peer.connect()
+            }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.OFFLINE }
+                coordinator.refresh()
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                assertEquals(2, attempts)
+            } finally { coordinator.close() }
+        }
+    }
+
+    @Test fun retiringTimedOutDialCannotReplaceItsNewerOwner() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val started = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>(); val oldFinished = CompletableDeferred<Unit>()
+            var attempts = 0
+            val coordinator = NativeFeedCoordinator(this, {
+                if (++attempts == 1) {
+                    try { withContext(NonCancellable) {
+                        started.complete(Unit); release.await()
+                        withTimeout(1) { awaitCancellation() }
+                    } } finally { oldFinished.complete(Unit) }
+                }
+                peer.connect()
+            }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"))); started.await()
+                coordinator.pause(); coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                release.complete(Unit); oldFinished.await(); yield()
+                assertEquals(NativeFeedAvailability.CONNECTED, coordinator.sources.value[mac("a").origin]?.availability)
+                assertEquals(2, attempts)
+            } finally { release.complete(Unit); coordinator.close() }
+        }
+    }
+
     @Test fun replyUsesOnlyTheRequestedExistingMacAndCannotSurviveItsRetirement() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             val listing = JSONObject().put("workspaces", JSONArray().put(JSONObject().put("id", "w").put("title", "W")

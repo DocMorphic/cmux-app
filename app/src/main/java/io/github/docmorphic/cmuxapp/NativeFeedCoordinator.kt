@@ -167,7 +167,10 @@ internal class NativeFeedCoordinator(
                     }
                 }
             } catch (failure: Exception) {
-                if (failure is CancellationException) throw failure
+                // A request deadline must not permanently retire this Mac's
+                // monitor. Parent/account/route cancellation must still stop it.
+                currentCoroutineContext().ensureActive()
+                if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
                 val source = mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac)
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
                     error = failure.message ?: "Computer unavailable", keepAwake = null))

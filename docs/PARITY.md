@@ -52,6 +52,44 @@ This adds Java/Kotlin stack capture to the existing OS reason summaries. Native
 stacks are covered below. ANR stacks, native Iroh detailed tracing, broader event coverage and physical
 acceptance are still open; signed build 441 predates this change.
 
+## Connection deadline recovery (2026-10-03)
+
+Targeted inspection of upstream
+[`MobileShellComposite+ConnectionRecovery.swift`](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite+ConnectionRecovery.swift)
+confirms that unsuccessful recovery must stand down when a newer connection owns
+the shell. The stored-Mac dial changes separately bound candidates by deadlines.
+Android uses Compose effect cancellation and identity-checked feed handles rather
+than that Swift state machine. This review exposed an Android timeout bug: a
+child dial/RPC `TimeoutCancellationException` was treated as permanent cancellation,
+leaving the screen connecting or its computer feed without a running monitor.
+
+Both connection owners now check whether their coroutine is still active before
+handling a local timeout as a retryable failure. Genuine account/route/screen
+cancellation and explicit supersession still propagate; a retired attempt cannot
+publish an error or schedule a retry. The screen closes its failed handshake
+lease, shows the existing actionable connection error, and uses its existing
+2–30 second backoff. The feed publishes Offline and retains its existing refresh
+wake-up/10-second reconnect behavior. Terminal mutation replay policy is unchanged.
+
+Verification: the new feed timeout regression failed before the fix because the
+monitor never published Offline. Afterward, all **26 JVM tests** passed (21 feed
+coordinator and five refresh tests; zero failures/skips). They include recovery
+on refresh and a delayed timeout from a retired owner while its replacement is
+already connected. Debug/test APK assembly and release Kotlin compilation passed
+in 1m 6s; the final test-only rebuild passed in 31s.
+
+All **three Android checks passed in 43.046s** on the existing API 37 / 16 KB
+emulator. They exercise the production screen through a dial deadline, an actual
+framed host-status request left unanswered for its normal deadline, successful
+automatic retry into the workspace, closure of the timed-out lease, and disposal
+before a late timeout (no retry, saved pairing or network request afterward).
+Evidence is ignored at `captures/runtime/connection-timeout/`. Debug SHA-256:
+`cced02a7c4e8b3aeb0137fe79af98a8afb95a7559ff107eaa6aac945cd43ff3b`;
+test SHA-256: `4fede277ff143c697d3a5c49de4027e0f8ae2b30ac795b10f5e2c7ab56140fa3`.
+This is targeted recovery evidence, not full upstream reconnect-contract or
+physical Pixel/Mac acceptance. Signed build 441 predates this fix. The broad
+source pin remains unchanged.
+
 ## Native crash stack recovery (2026-10-03)
 
 Android 12+ native-crash history now includes filtered code frames recovered from

@@ -2638,6 +2638,7 @@ internal class NativeFixturePeer : AutoCloseable {
     val port get() = server.localPort
     val requests = CopyOnWriteArrayList<JSONObject>()
     val failures = CopyOnWriteArrayList<String>()
+    val ignoreNextHostStatus = AtomicBoolean(false)
     @Volatile var identifiedInput = false
     @Volatile var identifiedInputBusy = false
     val appliedInputIdentities = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
@@ -2737,6 +2738,7 @@ internal class NativeFixturePeer : AutoCloseable {
                     for (frame in decoder.feed(buffer.copyOf(count))) {
                         val request = JSONObject(String(frame, Charsets.UTF_8))
                         requests += request
+                        if (request.optString("method") == "mobile.host.status" && ignoreNextHostStatus.getAndSet(false)) continue
                         if (request.optString("method") == "mobile.events.subscribe" &&
                             request.optJSONObject("params")?.optJSONArray("topics")?.toString()?.contains("notification.feed.changed") == true)
                             feedConnection = true

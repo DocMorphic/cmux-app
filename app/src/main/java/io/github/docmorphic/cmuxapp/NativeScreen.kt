@@ -1392,7 +1392,10 @@ fun NativeScreen(
                 retryDelay = 2_000
             } catch (failure: Throwable) { active.close(); throw failure }
         } catch (failure: Throwable) {
-            if (failure is CancellationException) throw failure
+            // A child RPC/dial deadline is a connection failure, not retirement
+            // of this screen's attempt. A newer attempt still wins cancellation.
+            ensureActive()
+            if (failure is CancellationException && failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
             connectionError = nativeConnectionFailure(failure)
             busy = false
             delay(retryDelay)
@@ -2792,7 +2795,8 @@ private fun NativeWorkspaceRow(
 private fun nativeConnectionFailure(failure: Throwable): String {
     val networkFailure = generateSequence(failure) { it.cause }.take(8).any {
         it is java.net.SocketException || it is java.net.SocketTimeoutException ||
-            it is java.net.UnknownHostException || it is java.io.EOFException
+            it is java.net.UnknownHostException || it is java.io.EOFException ||
+            it is kotlinx.coroutines.TimeoutCancellationException
     }
     return if (networkFailure) "Could not reach this Mac. Check that cmux is running, mobile pairing is enabled, and both devices are online, then retry."
         else failure.message ?: "Could not connect to this Mac."
