@@ -13,19 +13,16 @@ internal object RoutedBrowserProtocol {
     const val CONTEXT = 101
     const val EXTRA = "browser_request"
 
-    data class Pane(val kind: String, val id: String, val title: String)
-    fun panes(workspace: NativeWorkspace) = workspace.terminals.map { Pane("terminal", it.id, it.title.ifBlank { "Terminal" }) } +
-        workspace.browsers.map { Pane("browser", it.id, it.title.ifBlank { "Browser" }) } +
-        workspace.macSurfaces.map { Pane("surface", it.id, it.displayTitle) }
-    fun context(workspace: NativeWorkspace, modes: Boolean = false, linkedPanel: String? = null) = Bundle().apply {
-        putBoolean("modes", modes); putString("linked_panel", linkedPanel)
+    fun panes(workspace: NativeWorkspace) = nativePanePickerRows(workspace)
+    fun context(workspace: NativeWorkspace, modes: Boolean = false, linkedPanel: String? = null, creationEnabled: Boolean = false) = Bundle().apply {
+        putBoolean("creation_enabled", creationEnabled); putBoolean("modes", modes); putString("linked_panel", linkedPanel)
         putString("workspace", workspace.title)
         putString("panes", JSONArray().also { rows -> panes(workspace).forEach {
-            rows.put(JSONObject().put("kind", it.kind).put("id", it.id).put("title", it.title))
+            rows.put(JSONObject().put("kind", it.kind).put("id", it.id).put("title", it.title).put("simulator", it.simulator))
         } }.toString())
     }
-    fun panes(bundle: Bundle): List<Pane> = JSONArray(bundle.getString("panes") ?: "[]").let { rows ->
-        (0 until rows.length()).map { rows.getJSONObject(it).let { row -> Pane(row.getString("kind"), row.getString("id"), row.getString("title")) } }
+    fun panes(bundle: Bundle): List<NativePanePickerRow> = JSONArray(bundle.getString("panes") ?: "[]").let { rows ->
+        (0 until rows.length()).map { rows.getJSONObject(it).let { row -> NativePanePickerRow(row.getString("kind"), row.getString("id"), row.getString("title"), row.optBoolean("simulator")) } }
     }
     fun snapshot(value: LocalBrowserSnapshot) = Bundle().apply {
         putString("url", value.url); putString("title", value.title); putString("address", value.address)

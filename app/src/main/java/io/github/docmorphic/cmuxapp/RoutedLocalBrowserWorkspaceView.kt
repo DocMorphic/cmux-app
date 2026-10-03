@@ -23,7 +23,9 @@ internal class RoutedBrowserHostLease(private val release: () -> Unit, private v
 @Composable
 internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestination, navigation: LocalBrowserNavigation,
     workspace: NativeWorkspace, network: () -> RoutedBrowserNetwork?, retainHost: () -> RoutedBrowserHostLease,
-    onClose: () -> Unit, onRoute: (NativeWorkspaceRoute) -> Unit, browserModes: Boolean = false) {
+    onClose: () -> Unit, onRoute: (NativeWorkspaceRoute) -> Unit, browserModes: Boolean = false,
+    onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null) {
+    val creationEnabled = onNewWorkspace != null && onNewTerminal != null && onNewBrowser != null
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var requestId by rememberSaveable(destination.surface.id) { mutableStateOf<String?>(null) }
@@ -42,7 +44,15 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
                 val kind = result.data?.getStringExtra("kind")
                 val paneId = result.data?.getStringExtra("pane")
                 val panel = RoutedBrowserProtocol.panes(currentWorkspace).singleOrNull { it.kind == kind && it.id == paneId }
+                val creation = when (action) {
+                    "new_workspace" -> onNewWorkspace
+                    "new_terminal" -> onNewTerminal
+                    "new_browser" -> onNewBrowser
+                    else -> null
+                }
                 when {
+                    creation != null && creationEnabled && entry?.network?.retired?.isCompleted == false &&
+                        entry.destination.surface === destination.surface && navigation.state.value.local?.surface === destination.surface -> creation()
                     action == "stream" && browserModes && panel?.kind == "browser" &&
                         navigation.switchToStream(destination.key, currentWorkspace, panel.id) -> {
                         onRoute(NativeWorkspaceRoute(destination.key.computerId, workspace.id, browserId = panel.id))
@@ -65,7 +75,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             scope.launch { RoutedBrowserSessions.abandon(context, id); RoutedBrowserSessions.consume(id) }
         }
     }
-    SideEffect { RoutedBrowserSessions.refresh(requestId, workspace) }
+    SideEffect { RoutedBrowserSessions.refresh(requestId, workspace, creationEnabled) }
     LaunchedEffect(destination.surface.id, attempt) {
         if (requestId != null) { routed = true; return@LaunchedEffect }
         var lease: RoutedBrowserHostLease? = null
@@ -76,7 +86,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             routed = true; failure = null
             lease = retainHost()
             val held = lease
-            val entry = RoutedBrowserSessions.register(context, owner, destination, workspace, held::close, held::foreground, browserModes)
+            val entry = RoutedBrowserSessions.register(context, owner, destination, workspace, held::close, held::foreground, browserModes, creationEnabled)
             registered = entry.id; requestId = entry.id
             launcher.launch(Intent(context, RoutedBrowserActivity::class.java).putExtra(RoutedBrowserProtocol.EXTRA, entry.id))
         } catch (error: Exception) {
@@ -87,7 +97,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             requestId = null; failure = error.message ?: "Could not open the browser"
         }
     }
-    if (routed == false) LocalBrowserWorkspaceView(destination, navigation, workspace, onClose, onRoute)
+    if (routed == false) LocalBrowserWorkspaceView(destination, navigation, workspace, onClose, onRoute, onNewWorkspace, onNewTerminal, onNewBrowser)
     else {
         fun back() {
             val id = requestId

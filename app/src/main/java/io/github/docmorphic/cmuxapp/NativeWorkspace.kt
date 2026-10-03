@@ -48,8 +48,10 @@ internal data class NativeWorkspaceRoute(
     val browserId: String? = null, val changes: Boolean = false,
     val id: String = java.util.UUID.randomUUID().toString(), val surfaceId: String? = null,
     val createdWorkspace: NativeWorkspace? = null, val createdAtMillis: Long? = null,
-    val resume: NativeScreenCheckpoint? = null
+    val resume: NativeScreenCheckpoint? = null,
+    val creation: NativeWorkspaceCreation? = null, val creationLogin: String? = null
 )
+internal enum class NativeWorkspaceCreation { WORKSPACE, TERMINAL, BROWSER }
 internal fun workspaceSearchId(source: NativeFeedSource, workspace: NativeWorkspace) =
     source.mac.origin + ":workspace:" + workspace.id
 

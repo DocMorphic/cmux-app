@@ -32,8 +32,8 @@ Targeted source findings in this pass:
   omitted terminal selection. It now provides those grouped rows, live inventory
   updates and selected accessibility semantics, routing through the existing pane
   selection callbacks in ready and starting-terminal views. The shared-picker
-  follow-up below extends this to streamed browsers and Mac surfaces. Local-browser
-  and SSH menus, feedback utility entries, and the remaining picker contract still
+  follow-ups below extend this to streamed browsers, Mac surfaces and on-device
+  browsers. SSH menus, feedback utility entries, and the remaining picker contract still
   need review and implementation as needed.
 - `TerminalReplayQueryFilter.swift` and `Data+TerminalQueryReplies.swift` prevent
   historical output from generating new PTY input. Android's tmux/cmux-tui mirrors
@@ -54,6 +54,50 @@ The browser route, authentication gate, SSH, shell/model and runtime changes in
 the inventory still require contract-by-contract comparison. Earlier dated port
 checkpoints below are evidence for their stated scope, not a full delta audit.
 
+### On-device browser picker (2026-10-03)
+
+The pinned iOS `TerminalPickerMenuValue.swift` explicitly checks the linked Mac
+browser row when its page is shown on the phone. Only an independent phone-local
+browser checks New Browser. Android now follows this in both the in-process local
+browser and the browser Activity that uses a separate process and Mac proxy.
+Both use the common grouped picker; simulator rows retain their section across
+the process boundary and duplicate simulator browser entries are omitted.
+
+New Workspace and New Terminal return an explicit creation intent to the main app.
+The main app binds that intent to the current login, resolves the owning saved Mac,
+waits for its foreground connection and a current authoritative workspace snapshot,
+then invokes the existing guarded creation flow. A pane-less workspace can create
+a workspace or terminal. A linked on-device Mac tab can also request New Browser;
+an independent local browser keeps its existing selected New Browser action.
+The browser process receives presentation rows and an enablement flag, not account
+credentials; the main process rechecks the current destination and account before
+dispatch. These ephemeral creation intents are not restored as mutations after
+process death.
+
+Debug/test assembly passed in **1m 3s**. Ten local/native checks passed in the
+initial selection (all eight `LocalBrowserRoutingTest` cases, the terminal picker,
+and mixed native-pane navigation). The initial routed checks exposed harness
+errors: UiAutomator matched the label child, and this Compose menu's Selected
+semantics export as Android **checked**, not selected; the return-to-parent path
+also needed the fixture's Compose idle synchronization. The original hierarchy
+and screenshot confirmed the correct checked row before correcting the tests.
+The final test APK assembled in **16s** and **all four routed checks passed in
+28.373s**, covering linked panel mode return, New Terminal/New Browser action
+delivery and host release, and retained page/back/reopen/pane selection. Thus all
+**14 selected checks** pass across these runs; this was not a clean first run.
+Linked and independent local picker screenshots were visually reviewed, including
+the distinct checkmark placement and visible creation entries.
+
+The single emulator is stopped. No physical Pixel was connected; signed build 411
+is unchanged. This does not establish physical Mac/Pixel acceptance or complete
+SSH/feedback/picker parity. Ignored evidence is under `captures/runtime/`:
+`local-picker-parity-build.txt`, `local-picker-parity-ui.txt`,
+`local-picker-parity-test-build.txt`, `local-picker-parity-routed-final-ui.txt`,
+and `on-device-{linked,local}-picker.png`. Debug SHA-256
+`5c81727fcd4c803787e5664a523f358b6419a6e83801851c207e6a35ac2f5d97`;
+final test APK SHA-256
+`74c48861bc13c8a831a60774d0397a6e7019d4134fd4e0d5ac1f65ae85507fa9`.
+
 ### Shared picker for native panes (2026-10-03)
 
 Ready/starting terminals, streamed Mac browsers and Mac surfaces now share one
@@ -63,8 +107,8 @@ checkmark and Android selected semantics. Streamed browsers retain their changin
 page title and mode control, and expose the picker while disconnected as well.
 Mac surfaces and streamed browsers now use the same guarded New Workspace and New
 Terminal callbacks as terminal views. View as Text, Files and terminal sizing
-remain terminal-specific actions. Local/on-device browser and SSH menus are still
-separate and require their own contract review; feedback utility parity remains.
+remain terminal-specific actions. The on-device browser follow-up above extends
+this shared picker further; SSH menus and feedback utility parity remain.
 
 Debug/test assembly passed in **1m 11s**. **9 emulator tests passed in 24.834s**:
 production-screen navigation from terminal to browser to surface and back,

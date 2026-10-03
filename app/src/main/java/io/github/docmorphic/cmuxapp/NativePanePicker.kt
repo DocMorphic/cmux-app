@@ -16,6 +16,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/** Only pane identity and presentation cross the routed-browser process boundary. */
+internal data class NativePanePickerRow(val kind: String, val id: String, val title: String, val simulator: Boolean = false)
+internal fun nativePanePickerRows(workspace: NativeWorkspace): List<NativePanePickerRow> =
+    workspace.terminals.map { NativePanePickerRow("terminal", it.id, it.title.ifBlank { "Terminal" }) } +
+        workspace.macSurfaces.map { NativePanePickerRow("surface", it.id, it.displayTitle, it.simulator != null) } +
+        workspace.browsers.filter { browser -> workspace.simulators.none { it.panelId == browser.id } }
+            .map { NativePanePickerRow("browser", it.id, it.title.ifBlank { "Browser" }) }
+
 /** Shared live inventory for terminal, streamed browser and Mac surface headers. */
 @Composable
 internal fun NativePanePicker(title: String, workspace: NativeWorkspace?, selection: NativeWorkspacePane,
@@ -23,7 +31,29 @@ internal fun NativePanePicker(title: String, workspace: NativeWorkspace?, select
     onBrowser: (NativeBrowser) -> Unit, onNewWorkspace: (() -> Unit)? = null,
     onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null,
     utilities: @Composable ColumnScope.(close: () -> Unit) -> Unit = {}) {
-    var expanded by remember(workspace?.id, selection.terminal?.id, selection.browser?.id, selection.surface?.id) {
+    val rows = workspace?.let(::nativePanePickerRows).orEmpty()
+    val selected = rows.singleOrNull { row -> when (row.kind) {
+        "terminal" -> row.id == selection.terminal?.id
+        "surface" -> row.id == selection.surface?.id
+        "browser" -> row.id == selection.browser?.id
+        else -> false
+    } }
+    NativePanePicker(title, rows, selected, modifier, onSelect = { row ->
+        when (row.kind) {
+            "terminal" -> workspace?.terminals?.singleOrNull { it.id == row.id }?.let(onTerminal)
+            "surface" -> workspace?.macSurfaces?.singleOrNull { it.id == row.id }?.let(onSurface)
+            "browser" -> workspace?.browsers?.singleOrNull { it.id == row.id }?.let(onBrowser)
+        }
+    }, onNewWorkspace, onNewTerminal, onNewBrowser, utilities = utilities)
+}
+
+@Composable
+internal fun NativePanePicker(title: String, rows: List<NativePanePickerRow>, selectedRow: NativePanePickerRow?,
+    modifier: Modifier = Modifier, onSelect: (NativePanePickerRow) -> Unit,
+    onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null,
+    onNewBrowser: (() -> Unit)? = null, checksNewBrowser: Boolean = false,
+    utilities: @Composable ColumnScope.(close: () -> Unit) -> Unit = {}) {
+    var expanded by remember(selectedRow?.kind, selectedRow?.id, checksNewBrowser) {
         mutableStateOf(false)
     }
     Box(modifier, contentAlignment = Alignment.Center) {
@@ -33,34 +63,16 @@ internal fun NativePanePicker(title: String, workspace: NativeWorkspace?, select
             fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
             val close = { expanded = false }
-            val terminals = workspace?.terminals.orEmpty()
-            if (terminals.isNotEmpty()) PanePickerSection("Terminals")
-            terminals.forEach { item ->
-                PanePickerItem(item.title.ifBlank { "Terminal" }, "terminal-${item.id}", selection.terminal?.id == item.id) {
-                    close(); onTerminal(item)
-                }
-            }
-            val surfaces = workspace?.macSurfaces.orEmpty().filter { it.simulator == null }
-            if (surfaces.isNotEmpty()) PanePickerSection("Mac Surfaces")
-            surfaces.forEach { item ->
-                PanePickerItem(item.displayTitle, "surface-${item.id}", selection.surface?.id == item.id) {
-                    close(); onSurface(item)
-                }
-            }
-            val simulators = workspace?.macSurfaces.orEmpty().filter { it.simulator != null }
-            if (simulators.isNotEmpty()) PanePickerSection("Mac Simulators")
-            simulators.forEach { item ->
-                PanePickerItem(item.displayTitle, "surface-${item.id}", selection.surface?.id == item.id) {
-                    close(); onSurface(item)
-                }
-            }
-            val browsers = workspace?.browsers.orEmpty().filter { browser ->
-                workspace?.simulators.orEmpty().none { it.panelId == browser.id }
-            }
-            if (browsers.isNotEmpty()) PanePickerSection("Mac Browsers")
-            browsers.forEach { item ->
-                PanePickerItem(item.title.ifBlank { "Browser" }, "browser-${item.id}", selection.browser?.id == item.id) {
-                    close(); onBrowser(item)
+            val sections = listOf("Terminals" to rows.filter { it.kind == "terminal" },
+                "Mac Surfaces" to rows.filter { it.kind == "surface" && !it.simulator },
+                "Mac Simulators" to rows.filter { it.kind == "surface" && it.simulator },
+                "Mac Browsers" to rows.filter { it.kind == "browser" })
+            sections.forEach { (heading, items) ->
+                if (items.isNotEmpty()) PanePickerSection(heading)
+                items.forEach { row ->
+                    PanePickerItem(row.title, "${row.kind}-${row.id}", row.kind == selectedRow?.kind && row.id == selectedRow?.id) {
+                        close(); onSelect(row)
+                    }
                 }
             }
             HorizontalDivider()
@@ -69,6 +81,8 @@ internal fun NativePanePicker(title: String, workspace: NativeWorkspace?, select
             DropdownMenuItem(text = { Text("New Terminal") }, enabled = onNewTerminal != null,
                 onClick = { close(); onNewTerminal?.invoke() })
             DropdownMenuItem(text = { Text("New Browser") }, enabled = onNewBrowser != null,
+                modifier = Modifier.testTag("terminal-picker-new-browser").semantics { selected = checksNewBrowser },
+                trailingIcon = { if (checksNewBrowser) Text("✓", Modifier.clearAndSetSemantics { }) },
                 onClick = { close(); onNewBrowser?.invoke() })
             utilities(close)
         }

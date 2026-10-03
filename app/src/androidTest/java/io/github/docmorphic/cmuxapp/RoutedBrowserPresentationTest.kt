@@ -47,6 +47,18 @@ class RoutedBrowserPresentationTest {
     private lateinit var server: MockWebServer
     private lateinit var surface: LocalBrowserSurface
     private var route: NativeWorkspaceRoute? = null
+    private val creationRequests = CopyOnWriteArrayList<String>()
+    private fun created(kind: String) { creationRequests += kind; navigation.leave(close = true) }
+    private fun selectedRow(label: String): Boolean {
+        // Compose exports Selected for non-tab menu items as Android checked state on the clickable parent.
+        val row = generateSequence(text(label)) { it.parent }.firstOrNull { it.isClickable }
+        return row?.isCheckable == true && row.isChecked
+    }
+    private fun capturePicker(name: String) {
+        val shots = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        device.dumpWindowHierarchy(File(shots, "$name.xml"))
+        assertTrue(device.takeScreenshot(File(shots, "$name.png")))
+    }
     private fun <T> main(block: () -> T): T = runBlocking { withContext(Dispatchers.Main) { block() } }
     private fun text(value: String) = checkNotNull(device.wait(Until.findObject(By.text(value)), 30_000)) { "Missing: $value" }
     private fun browser(value: String): UiObject2 {
@@ -102,7 +114,8 @@ class RoutedBrowserPresentationTest {
             else RoutedLocalBrowserWorkspaceView(destination, navigation, workspace, { network }, {
                 holds.incrementAndGet()
                 RoutedBrowserHostLease({ holds.decrementAndGet(); releases.incrementAndGet() }, { probes += it })
-            }, {}, { route = it }, browserModes = true)
+            }, {}, { route = it }, browserModes = true,
+                onNewWorkspace = { created("workspace") }, onNewTerminal = { created("terminal") }, onNewBrowser = { created("browser") })
         } } }
     }
     @After fun cleanup() {
@@ -139,12 +152,39 @@ class RoutedBrowserPresentationTest {
         main { navigation.openOnDevice(key, workspace, "second", "http://localhost:34876/next") }
         browser("Next ▾")
         assertTrue(main { navigation.prefersOnDevice(key, "second") })
+        text("Next ▾").click()
+        capturePicker("on-device-linked-picker"); assertTrue(selectedRow("Second"))
+        assertFalse(selectedRow("First"))
+        assertFalse(selectedRow("New Browser"))
+        text("Mac Browsers")
+        device.pressBack()
         desc("Browser mode").click(); text("Streamed").click()
         compose.waitUntil(15000) { route != null }
         assertEquals("second", main { route?.browserId })
         assertFalse(main { navigation.prefersOnDevice(key, "second") })
         assertNull(main { navigation.state.value.local })
         until { holds.get() == 0 }
+    }
+    @Test fun routedPickerReturnsCreationActionAndReleasesItsHost() {
+        browser("Routed fixture ▾")
+        text("Routed fixture ▾").click()
+        capturePicker("on-device-local-picker"); assertTrue(selectedRow("New Browser"))
+        text("New Terminal").click(); compose.waitForIdle()
+        text("Reopen fixture")
+        until { holds.get() == 0 }
+        assertEquals(listOf("terminal"), creationRequests.toList())
+        assertNull(main { route })
+        assertTrue(main { surface.state.value.closed })
+    }
+    @Test fun linkedOnDevicePickerCanRequestANewBrowser() {
+        browser("Routed fixture ▾"); desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
+        main { navigation.openOnDevice(key, workspace, "second", "http://localhost:34876/next") }
+        browser("Next ▾"); text("Next ▾").click()
+        capturePicker("on-device-linked-picker"); assertTrue(selectedRow("Second"))
+        text("New Browser").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
+        assertEquals(listOf("browser"), creationRequests.toList())
     }
     @Test fun retiredOwnerClosesPresentationReleasesHostAndRemovesOnlyItsStorage() {
         browser("Routed fixture ▾")

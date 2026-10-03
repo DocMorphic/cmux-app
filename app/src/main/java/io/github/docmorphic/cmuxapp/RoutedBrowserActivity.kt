@@ -7,19 +7,14 @@ import android.webkit.CookieManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -30,8 +25,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal data class RoutedBrowserUi(val surface: LocalBrowserSurface? = null,
-    val panes: List<RoutedBrowserProtocol.Pane> = emptyList(), val error: String? = null,
-    val retired: Boolean = false, val restart: Boolean = false, val modes: Boolean = false, val linkedPanel: String? = null)
+    val panes: List<NativePanePickerRow> = emptyList(), val error: String? = null,
+    val retired: Boolean = false, val restart: Boolean = false, val modes: Boolean = false, val linkedPanel: String? = null, val creationEnabled: Boolean = false)
 
 internal class RoutedBrowserController(application: Application) : AndroidViewModel(application) {
     private val app = application.applicationContext
@@ -48,7 +43,7 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         when (message.what) {
             RoutedBrowserProtocol.RETIRE -> mutable.value = state.value.copy(retired = true)
             RoutedBrowserProtocol.CONTEXT -> mutable.value = state.value.copy(panes = RoutedBrowserProtocol.panes(message.data),
-                modes = message.data.getBoolean("modes"), linkedPanel = message.data.getString("linked_panel"))
+                modes = message.data.getBoolean("modes"), linkedPanel = message.data.getString("linked_panel"), creationEnabled = message.data.getBoolean("creation_enabled"))
             else -> replies.remove(message.arg1)?.complete(Bundle(message.data))
         }
         true
@@ -64,7 +59,7 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
                     RoutedBrowserEnvironment.requireReady(configured)
                     binding = configured
                     val surface = LocalBrowserSurface(checkNotNull(response.getString("surface")), response.getString("url"))
-                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(response), modes = response.getBoolean("modes"), linkedPanel = response.getString("linked_panel"))
+                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(response), modes = response.getBoolean("modes"), linkedPanel = response.getString("linked_panel"), creationEnabled = response.getBoolean("creation_enabled"))
                     publishForeground()
                     surface.state.collect { snapshot ->
                         request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(snapshot))
@@ -130,7 +125,7 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
 class RoutedBrowserActivity : ComponentActivity() {
     private lateinit var controller: RoutedBrowserController
     private var leaving = false
-    private fun leave(action: String, pane: RoutedBrowserProtocol.Pane? = null) {
+    private fun leave(action: String, pane: NativePanePickerRow? = null) {
         if (leaving) return
         leaving = true
         lifecycleScope.launch {
@@ -158,17 +153,14 @@ class RoutedBrowserActivity : ComponentActivity() {
             }
             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
                 val page = ui.surface?.state?.collectAsState()?.value
-                var menu by remember { mutableStateOf(false) }
                 Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { leave("back") }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        Text((page?.title ?: "Browser") + " ▾", Modifier.clip(RoundedCornerShape(18.dp)).background(Color(0xFF191B1F))
-                            .clickable { menu = true }.padding(horizontal = 15.dp, vertical = 7.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                            ui.panes.forEach { pane -> DropdownMenuItem(text = { Text(pane.title) }, onClick = { menu = false; leave("pane", pane) }) }
-                            DropdownMenuItem(text = { Text("✓  New Browser") }, onClick = { menu = false })
-                        }
-                    }
+                    val selected = ui.panes.singleOrNull { it.kind == "browser" && it.id == ui.linkedPanel }
+                    NativePanePicker(page?.title ?: "Browser", ui.panes, selected, Modifier.weight(1f),
+                        onSelect = { leave("pane", it) },
+                        onNewWorkspace = if (ui.creationEnabled) ({ leave("new_workspace") }) else null,
+                        onNewTerminal = if (ui.creationEnabled) ({ leave("new_terminal") }) else null,
+                        onNewBrowser = if (selected == null) ({}) else if (ui.creationEnabled) ({ leave("new_browser") }) else null, checksNewBrowser = selected == null)
                 }
                 if (ui.modes) {
                     val target = ui.panes.firstOrNull { it.kind == "browser" && it.id == ui.linkedPanel }

@@ -100,6 +100,35 @@ class LocalBrowserRoutingTest {
         waitFor(hasText("Shell ▾")); compose.onNodeWithTag("LocalBrowserPane").assertDoesNotExist()
     }
 
+    @Test fun localPickerCreatesTerminalInItsOwningWorkspace() {
+        peer.terminalCreationResponse = { params ->
+            assertEquals("workspace-1", params.getString("workspace_id"))
+            val listing = JSONObject(peer.customWorkspaceListing.toString())
+            listing.getJSONArray("workspaces").getJSONObject(0).getJSONArray("terminals")
+                .put(JSONObject().put("id", "created-shell").put("title", "Created shell"))
+            peer.customWorkspaceListing = listing
+            JSONObject(listing.toString()).put("created_terminal_id", "created-shell")
+        }
+        show(); newFromRow(); browseFixture()
+        compose.onNodeWithTag("terminal-picker").performClick()
+        compose.onNodeWithTag("terminal-picker-new-browser").assertIsSelected()
+        compose.onNodeWithText("Terminals").assertExists()
+        compose.onNodeWithText("New Terminal").performScrollTo().performClick()
+        waitFor(hasText("Created shell ▾"))
+        assertEquals(1, peer.requests.count { it.optString("method") == "terminal.create" })
+        compose.onNodeWithTag("LocalBrowserPane").assertDoesNotExist()
+    }
+
+    @Test fun localPickerCanCreateWorkspaceFromAnOtherwiseEmptyWorkspace() {
+        peer.customWorkspaceListing!!.getJSONArray("workspaces").getJSONObject(0).put("terminals", JSONArray())
+        show(); newFromRow(); browseFixture()
+        compose.onNodeWithTag("terminal-picker").performClick()
+        compose.onNodeWithText("New Workspace").performScrollTo().performClick()
+        waitFor(hasText("Agent ▾"))
+        assertEquals(1, peer.requests.count { it.optString("method") == "workspace.create" })
+        compose.onNodeWithTag("LocalBrowserPane").assertDoesNotExist()
+    }
+
     @Test fun workspaceWithNoMacPanesCanReopenItsLocalBrowser() {
         peer.customWorkspaceListing!!.getJSONArray("workspaces").getJSONObject(0).put("terminals", JSONArray())
         show(); newFromRow(); browseFixture()
