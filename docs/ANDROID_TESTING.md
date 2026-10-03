@@ -8,6 +8,9 @@ APK's `NativeScreenKt` with ART. The probe loads the APK's DEX directly through
 `app_process`; it does not install the arm64 APK or run its native libraries.
 The AVD manager and emulator use one explicit directory under `RUNNER_TEMP`;
 build 488 exposed their differing default search paths on the Linux runner.
+The temporary CI userdata partition is explicitly 6 GiB: build 491 booted
+successfully but exhausted the default partition before the APK probe could copy.
+The gate retains `/data` free-space diagnostics alongside its emulator log.
 This is a class-verification gate, not UI/native runtime acceptance. Its evidence
 is retained even if the gate fails. It creates no additional AVD on this Mac.
 

@@ -216,7 +216,7 @@ jobs:
           test -f "$ANDROID_AVD_HOME/cmux-release-verify.ini"
           "$ANDROID_HOME/emulator/emulator" -list-avds
           mkdir -p "$RUNNER_TEMP/cmux-runtime-verification"
-          "$ANDROID_HOME/emulator/emulator" -avd cmux-release-verify -port 5554 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader -memory 2048 -cores 2 > "$RUNNER_TEMP/cmux-runtime-verification/emulator.log" 2>&1 &
+          "$ANDROID_HOME/emulator/emulator" -avd cmux-release-verify -port 5554 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader -memory 2048 -cores 2 -partition-size 6144 > "$RUNNER_TEMP/cmux-runtime-verification/emulator.log" 2>&1 &
           emulator_pid=$!
           trap 'adb -s emulator-5554 emu kill >/dev/null 2>&1 || true; wait "$emulator_pid" || true' EXIT
           ready=false
@@ -229,6 +229,7 @@ jobs:
             sleep 2
           done
           test "$ready" = true
+          adb -s emulator-5554 shell df -h /data > "$RUNNER_TEMP/cmux-runtime-verification/data-space.txt"
           python3 scripts/verify-android-classload.py app/build/outputs/apk/release/app-release.apk --serial emulator-5554 --output "$RUNNER_TEMP/cmux-runtime-verification/classload.log"
       - name: Retain Android runtime verification evidence
         if: always()
