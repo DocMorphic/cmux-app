@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## What's New web exchange and load lifetime (2026-10-04)
+
+[WHATS_NEW_WEB.md](WHATS_NEW_WEB.md) adds an origin-confined session-cookie
+exchange, account snapshot checks and the whole-load deadline/retirement owner.
+Sixteen JVM tests passed using synthetic tokens and loopback fixtures. Native
+credentials never enter a page/JavaScript path in this implementation. No actual
+renderer or live service exchange is connected yet. AndroidX 1.17.1 exposes named
+profiles rather than an in-memory profile factory; a real Android isolation and
+cleanup experiment is the next step, not a claim of nonpersistent privacy.
+No emulator or signed build was started; global parity pin unchanged.
+
 ## Native What's New archive and launch sheet (2026-10-04)
 
 [WHATS_NEW.md](WHATS_NEW.md) now records Settings archive/detail navigation,

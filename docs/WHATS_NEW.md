@@ -6,6 +6,14 @@ now includes the model, persistence, native archive and launch-sheet integration
 Web rendering/session exchange and live feed delivery remain incomplete. The
 global parity pin is unchanged.
 
+## Web exchange and bounded lifetime (2026-10-04)
+
+[WHATS_NEW_WEB.md](WHATS_NEW_WEB.md) implements the native-to-web session broker
+and renderer-neutral load lifetime. Sixteen focused JVM tests passed. It also
+records the verified WebView API limitation and the required real-device profile
+isolation experiment. The broker/lifetime are not yet connected to a renderer;
+web notices remain incomplete and no real account exchange was made.
+
 ## Native archive and launch UI (2026-10-04)
 
 `NativeScreen` now exposes **What's New** in Settings only when the eligible archive

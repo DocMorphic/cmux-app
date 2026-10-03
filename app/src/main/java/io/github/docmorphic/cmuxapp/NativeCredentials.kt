@@ -281,6 +281,24 @@ class NativeAccount(private val store: NativeCredentialStore, private val refres
         return NativeDeletionCredentials(access, state.optString("refresh_token"))
     }
 
+    /** Same captured account before token refresh, after it, and after the web exchange. */
+    internal suspend fun webSessionSnapshot(login: String): NativeWebSessionSnapshot? {
+        if (store.taskSession() != login) throw kotlinx.coroutines.CancellationException("Account changed")
+        val access = accessToken() ?: return null
+        val state = store.load() ?: return null
+        if (state.optString("task_session") != login || state.optString("access_token") != access)
+            throw kotlinx.coroutines.CancellationException("Account changed")
+        val refresh = state.optString("refresh_token").takeIf { it.isNotBlank() } ?: return null
+        return NativeWebSessionSnapshot(login, access, refresh)
+    }
+
+    internal fun isWebSessionCurrent(snapshot: NativeWebSessionSnapshot): Boolean {
+        val state = store.load() ?: return false
+        return state.optString("task_session") == snapshot.login &&
+            state.optString("refresh_token") == snapshot.refreshToken &&
+            state.optString("access_token") == snapshot.accessToken
+    }
+
     fun signOut(expectedLogin: String? = null): Boolean {
         val applied = emailSignIn.clearIf {
             var retired = false

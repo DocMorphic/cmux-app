@@ -52,16 +52,28 @@ debug/test APKs rebuilt successfully. No Pixel or signed upgrade was verified.
 The existing emulator is stopped, original settings restored and all processes
 reaped. Evidence and APK hashes: `captures/runtime/whats-new-ui/`.
 
-Continue the **incomplete web announcement path**: isolated nonpersistent renderer,
-optional cookie exchange, allowlist for every navigation, theme integration,
-10-second launch preload and 20-second archive Retry. Current native catalog has
-no web pages and no feed is configured; the web archive placeholder is explicitly
-temporary. Do not stop at that placeholder. Android notice IDs/version/channel
-must stay separate from host admission and the iOS endpoint. Debug replay,
-physical modal/lifecycle/TalkBack and actual signed-upgrade acceptance remain open.
-[WHATS_NEW_AUDIT.md](WHATS_NEW_AUDIT.md) retains the complete source contract.
-The goal stays active. Do not repeat the pending Pixel reconnect request or
-start a signed build for this feature commit alone; batch the next milestone.
+Continue the **incomplete web announcement path** using [WHATS_NEW_WEB.md](WHATS_NEW_WEB.md).
+The origin-confined native-to-web session broker and renderer-neutral load lifetime
+are implemented and passed 16 JVM tests (10 exchange, 6 deadline/lifecycle). They
+are not connected to a renderer and made no real account exchange. Synthetic
+loopback tests establish no physical account/cookie acceptance.
+
+Next run an Android profile isolation/cleanup experiment with synthetic cookies
+and owned test profiles only. Direct private browsing is removed from WebView;
+installed AndroidX1.17.1 has no in-memory profile factory, and documented profile
+deletion restrictions need runtime verification. Do not call random profile names
+nonpersistent, wipe unrelated/default web state, or claim an Android-wide
+impossibility before assessing alternatives. Then implement renderer/cookie
+seeding, theme, navigation policy and the existing10sec/20sec lifetimes in launch
+and archive UI. Current native catalog has no web pages or configured feed; the
+explicit archive placeholder is temporary, not acceptable as finished parity.
+
+Debug replay/suppression, measured native fitting, physical modal/lifecycle/
+TalkBack and signed-upgrade acceptance remain open. Signed494 is still current;
+no APK assembly, emulator or signed build ran for the web-core checkpoint.
+All processes are stopped/reaped, the Pixel remains absent, and the previous
+reconnect request is pending. Keep the goal active and do not repeat that request.
+Batch the next signed milestone after coherent implementation work.
 
 ## User's objective and working preferences
 
