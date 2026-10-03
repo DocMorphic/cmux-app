@@ -2,9 +2,6 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.*
@@ -15,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -36,7 +32,7 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
     capabilities: Set<String>, ready: Boolean, onBack: () -> Unit, onSurface: (NativeSurface) -> Unit,
     onTerminal: (NativeTerminal) -> Unit, onBrowser: (NativeBrowser) -> Unit,
     mutateWorkspace: (suspend (MobileRpcClient, String, org.json.JSONObject) -> org.json.JSONObject)? = null,
-    onNewBrowser: (() -> Unit)? = null) {
+    onNewBrowser: (() -> Unit)? = null, onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null) {
     BackHandler(onBack = onBack)
     val currentClient by rememberUpdatedState(client)
     val currentReady by rememberUpdatedState(ready)
@@ -61,23 +57,10 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
         (SimStreamWire.CAPABILITY in capabilities && client.supportsSimulatorLanes))
     if (ready) SideEffect { supportedSimulator = simulatorReady }
     Column(Modifier.fillMaxSize()) {
-        var picker by remember { mutableStateOf(false) }
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                Text(surface.displayTitle + " ▾", Modifier.clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xFF191B1F)).clickable { picker = true }.padding(horizontal = 15.dp, vertical = 7.dp),
-                    fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                DropdownMenu(picker, onDismissRequest = { picker = false }) {
-                    workspace.terminals.forEach { item -> DropdownMenuItem(text = { Text(item.title.ifBlank { "Terminal" }) },
-                        onClick = { picker = false; onTerminal(item) }) }
-                    workspace.browsers.forEach { item -> DropdownMenuItem(text = { Text(item.title.ifBlank { "Browser" }) },
-                        onClick = { picker = false; onBrowser(item) }) }
-                    workspace.macSurfaces.forEach { item -> DropdownMenuItem(text = { Text(item.displayTitle) },
-                        onClick = { picker = false; onSurface(item) }) }
-                    onNewBrowser?.let { open -> DropdownMenuItem(text = { Text("New Browser") }, onClick = { picker = false; open() }) }
-                }
-            }
+            NativePanePicker(surface.displayTitle, workspace, NativeWorkspacePane(surface = surface), Modifier.weight(1f),
+                onTerminal, onSurface, onBrowser, onNewWorkspace, onNewTerminal, onNewBrowser)
         }
         if (!ready) Text("Reconnecting to your Mac…", Modifier.padding(horizontal = 16.dp))
         if (surface.simulator != null && (simulatorReady || supportedSimulator)) key(workspace.id, surface.id) {

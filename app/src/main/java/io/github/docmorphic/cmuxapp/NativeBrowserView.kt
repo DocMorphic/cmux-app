@@ -48,17 +48,18 @@ internal data class BrowserFrame(val sequence: Long, val image: ImageBitmap, val
 @Composable
 internal fun NativeBrowserView(client: MobileRpcClient, panelId: String, title: String, onBack: () -> Unit,
     recoveryClock: BrowserRecoveryClock = MonotonicBrowserRecoveryClock,
-    onOnDevice: ((String) -> Unit)? = null, onDeviceUnavailable: String? = null) {
+    onOnDevice: ((String) -> Unit)? = null, onDeviceUnavailable: String? = null,
+    panePicker: (@Composable (String) -> Unit)? = null) {
     val stream = remember(client) { MacBrowserStreamClient(client) }
     NativeBrowserView(stream, panelId, title, onBack, recoveryClock,
-        onOnDevice = onOnDevice, onDeviceUnavailable = onDeviceUnavailable)
+        onOnDevice = onOnDevice, onDeviceUnavailable = onDeviceUnavailable, panePicker = panePicker)
 }
 
 @Composable
 internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, title: String, onBack: () -> Unit,
     recoveryClock: BrowserRecoveryClock = MonotonicBrowserRecoveryClock,
     onReconnect: (() -> Unit)? = null, onOnDevice: ((String) -> Unit)? = null, onDeviceUnavailable: String? = null,
-    connectionError: String? = null) {
+    connectionError: String? = null, panePicker: (@Composable (String) -> Unit)? = null) {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
@@ -199,7 +200,10 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
     Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))) {
         Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { policy = policy.hide(); focusManager.clearFocus(); keyboard?.hide(); onBack() }) { Text("‹  Workspaces") }
-            Text(page.title.ifBlank { title.ifBlank { "Browser" } }, modifier = Modifier.weight(1f), maxLines = 1)
+            val heading = page.title.ifBlank { title.ifBlank { "Browser" } }
+            Box(Modifier.weight(1f)) {
+                if (panePicker != null) panePicker(heading) else Text(heading, maxLines = 1)
+            }
             if (onOnDevice != null) BrowserModePicker(BrowserMode.STREAMED, onDeviceUnavailable) { onOnDevice(page.url) }
             // Android requires nonzero bounds for IME focus. Keep this endpoint
             // in the header so its invisible View cannot intercept page taps.

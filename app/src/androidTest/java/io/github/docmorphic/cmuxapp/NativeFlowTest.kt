@@ -604,6 +604,79 @@ class NativeFlowTest {
         } catch (failure: Throwable) { screenshot("todo-flow-failure"); throw failure }
     }
 
+    private fun showMixedPickerWorkspace() {
+        peer.browserCreationSupported = true
+        peer.customWorkspaceListing = JSONObject("""{"workspaces":[{"id":"mixed","title":"Mixed workspace",
+            "terminals":[{"id":"shell","title":"Shell","is_focused":true}],"surfaces":[
+                {"surface_id":"web","kind":"browser","title":"Preview"},
+                {"surface_id":"canvas","kind":"future.canvas","title":"Canvas"}]}]}""")
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
+                MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+            })
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Mixed workspace").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Mixed workspace").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Shell ▾").fetchSemanticsNodes().isNotEmpty() }
+    }
+    private fun pickMixedPane(tag: String) {
+        compose.onNodeWithTag("terminal-picker").performClick()
+        compose.onNodeWithTag("terminal-picker-$tag").performScrollTo().performClick()
+    }
+
+    @Test fun sharedPickerNavigatesBrowserSurfaceAndTerminalWithExactSelection() {
+        showMixedPickerWorkspace()
+        pickMixedPane("browser-web")
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Browser fixture ▾").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("terminal-picker").performClick()
+        compose.onNodeWithTag("terminal-picker-browser-web").assertIsSelected()
+        compose.onNodeWithTag("terminal-picker-terminal-shell").assertIsNotSelected()
+        compose.onNodeWithTag("terminal-picker-surface-canvas").assertIsNotSelected().performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Canvas ▾").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(5_000) { peer.requests.any { it.optString("method") == "mobile.browser.stream.stop" } }
+        compose.onNodeWithTag("terminal-picker").performClick()
+        compose.onNodeWithTag("terminal-picker-surface-canvas").assertIsSelected()
+        compose.onNodeWithTag("terminal-picker-browser-web").assertIsNotSelected()
+        compose.onNodeWithText("New Workspace").assertIsEnabled()
+        compose.onNodeWithText("New Terminal").assertIsEnabled()
+        val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(androidx.test.uiautomator.By.text("Mac Surfaces")), 5_000))
+        device.waitForIdle(1_000); screenshot("shared-pane-picker-surface")
+        compose.onNodeWithTag("terminal-picker-terminal-shell").performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Shell ▾").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("native-terminal").assertExists()
+        assertEquals(setOf("web"), peer.requests.filter { it.optString("method") == "mobile.browser.stream.start" }
+            .map { it.getJSONObject("params").getString("panel_id") }.toSet())
+    }
+
+    @Test fun streamedBrowserPickerCreatesTerminalInItsWorkspace() {
+        showMixedPickerWorkspace(); pickMixedPane("browser-web")
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Browser fixture ▾").fetchSemanticsNodes().isNotEmpty() }
+        peer.terminalCreationResponse = { params ->
+            assertEquals("mixed", params.getString("workspace_id"))
+            val listing = JSONObject(peer.customWorkspaceListing.toString())
+            listing.getJSONArray("workspaces").getJSONObject(0).getJSONArray("terminals")
+                .put(JSONObject().put("id", "created-shell").put("title", "Created shell"))
+            peer.customWorkspaceListing = listing
+            JSONObject(listing.toString()).put("created_terminal_id", "created-shell")
+        }
+        compose.onNodeWithTag("terminal-picker").performClick()
+        compose.onNodeWithText("New Terminal").performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Created shell ▾").fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(1, peer.requests.count { it.optString("method") == "terminal.create" })
+        compose.onNodeWithTag("native-terminal").assertExists()
+    }
+
+    @Test fun macSurfacePickerCreatesWorkspaceAndSelectsItsTerminal() {
+        showMixedPickerWorkspace(); pickMixedPane("surface-canvas")
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Canvas ▾").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("terminal-picker").performClick()
+        compose.onNodeWithText("New Workspace").performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Agent ▾").fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(1, peer.requests.count { it.optString("method") == "workspace.create" })
+        compose.onNodeWithTag("native-terminal").assertExists()
+    }
+
     @Test fun panelOnlyWorkspacePreviewsExactFileAndMarkdownAndFocusesUnknownSurface() {
         peer.panelArtifactsSupported = true
         peer.customWorkspaceListing = JSONObject("""{"workspaces":[{"id":"panels","title":"Panel workspace","terminals":[],"surfaces":[

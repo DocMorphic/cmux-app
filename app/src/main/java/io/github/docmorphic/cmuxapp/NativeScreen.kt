@@ -1997,6 +1997,8 @@ fun NativeScreen(
             }
             selectedSurface != null && selectedWorkspace != null -> {
                 NativeSurfaceView(selectedWorkspace!!, selectedSurface!!, client, hostCapabilities, connectionReady,
+                    onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
+                    onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
                     onBack = { selectedSurface = null; selectedTerminal = null; selectedBrowser = null; selectedWorkspace = null },
                     onSurface = { selectPane(NativeWorkspacePane(surface = it)) },
                     onTerminal = { selectPane(NativeWorkspacePane(terminal = it)) },
@@ -2312,6 +2314,15 @@ fun NativeScreen(
                 val mac = pairedMacs.singleOrNull { it.code == code }
                 val browserKey = if (mac != null && workspace != null) localBrowserKey(browserLogin, teamState.scope, mac, workspace.id) else null
                 NativeRemoteBrowserPane(client, browser, busy, connectionError,
+                    panePicker = { title ->
+                        NativePanePicker(title, workspace, NativeWorkspacePane(browser = browser), Modifier.fillMaxWidth(),
+                            onTerminal = { focusManager.clearFocus(); softwareKeyboard?.hide(); selectPane(NativeWorkspacePane(terminal = it)) },
+                            onSurface = { focusManager.clearFocus(); softwareKeyboard?.hide(); selectPane(NativeWorkspacePane(surface = it)) },
+                            onBrowser = { focusManager.clearFocus(); softwareKeyboard?.hide(); selectPane(NativeWorkspacePane(browser = it)) },
+                            onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
+                            onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
+                            onNewBrowser = workspace?.let { current -> workspaceSourceForPane()?.let { source -> ({ openNewBrowser(source, current) }) } })
+                    },
                     onBack = { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }, onReconnect = { retry++ },
                     modeRevision = listOf(connectionReady, hostCapabilities, mac, feedSources[mac?.origin]?.availability),
                     prefersOnDevice = browserKey?.let { localBrowsers.prefersOnDevice(it, browser.id) } == true,

@@ -13,7 +13,8 @@ import androidx.compose.ui.unit.dp
 internal fun NativeRemoteBrowserPane(client: MobileRpcClient?, browser: NativeBrowser, busy: Boolean,
     connectionError: String?, onBack: () -> Unit, onReconnect: () -> Unit,
     modeRevision: Any? = null, prefersOnDevice: Boolean = false,
-    availability: (suspend () -> MacBrowserAvailability)? = null, onOnDevice: ((String) -> Unit)? = null) {
+    availability: (suspend () -> MacBrowserAvailability)? = null, onOnDevice: ((String) -> Unit)? = null,
+    panePicker: (@Composable (String) -> Unit)? = null) {
     key(client, browser.id) {
         val scope = rememberCoroutineScope()
         val currentAvailability by rememberUpdatedState(availability)
@@ -36,13 +37,14 @@ internal fun NativeRemoteBrowserPane(client: MobileRpcClient?, browser: NativeBr
             }; Unit
         }
         if (client != null) NativeBrowserView(client, browser.id, browser.title, onBack,
-            onOnDevice = switch, onDeviceUnavailable = access.onDeviceUnavailableReason)
+            onOnDevice = switch, onDeviceUnavailable = access.onDeviceUnavailableReason, panePicker = panePicker)
         else {
             BackHandler(onBack = onBack)
             Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 TextButton(onClick = onBack) { Text("‹  Workspaces") }
                 if (switch != null) BrowserModePicker(BrowserMode.STREAMED, access.onDeviceUnavailableReason) { switch("") }
-                Text(browser.title.ifBlank { "Browser" }, style = MaterialTheme.typography.titleMedium)
+                val heading = browser.title.ifBlank { "Browser" }
+                if (panePicker != null) panePicker(heading) else Text(heading, style = MaterialTheme.typography.titleMedium)
                 Text(if (busy) "Reconnecting to your Mac…" else "Browser disconnected", color = Color(0xFF9B9FA8))
                 connectionError?.let { Text(it, color = Color(0xFFFF9999)) }
                 TextButton(onClick = onReconnect, enabled = !busy) { Text("Reconnect") }

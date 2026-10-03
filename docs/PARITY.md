@@ -31,9 +31,10 @@ Targeted source findings in this pass:
   terminal/surface/simulator/browser sections. Android's terminal title menu had
   omitted terminal selection. It now provides those grouped rows, live inventory
   updates and selected accessibility semantics, routing through the existing pane
-  selection callbacks in ready and starting-terminal views. Browser-active
-  checkmarks, unified menus on other pane types, feedback utility entries,
-  and the remaining picker contract still need review and implementation as needed.
+  selection callbacks in ready and starting-terminal views. The shared-picker
+  follow-up below extends this to streamed browsers and Mac surfaces. Local-browser
+  and SSH menus, feedback utility entries, and the remaining picker contract still
+  need review and implementation as needed.
 - `TerminalReplayQueryFilter.swift` and `Data+TerminalQueryReplies.swift` prevent
   historical output from generating new PTY input. Android's tmux/cmux-tui mirrors
   construct Ghostty without a reply callback; its plain SSH shell owns one live
@@ -52,6 +53,35 @@ Targeted source findings in this pass:
 The browser route, authentication gate, SSH, shell/model and runtime changes in
 the inventory still require contract-by-contract comparison. Earlier dated port
 checkpoints below are evidence for their stated scope, not a full delta audit.
+
+### Shared picker for native panes (2026-10-03)
+
+Ready/starting terminals, streamed Mac browsers and Mac surfaces now share one
+live-inventory picker. It groups terminals, surfaces, simulators and browsers,
+omits duplicate simulator browser rows, and gives the current pane both a visible
+checkmark and Android selected semantics. Streamed browsers retain their changing
+page title and mode control, and expose the picker while disconnected as well.
+Mac surfaces and streamed browsers now use the same guarded New Workspace and New
+Terminal callbacks as terminal views. View as Text, Files and terminal sizing
+remain terminal-specific actions. Local/on-device browser and SSH menus are still
+separate and require their own contract review; feedback utility parity remains.
+
+Debug/test assembly passed in **1m 11s**. **9 emulator tests passed in 24.834s**:
+production-screen navigation from terminal to browser to surface and back,
+selected-row semantics and stream shutdown, creating a terminal in the browser's
+workspace, creating a workspace from a surface, existing live inventory grouping,
+pending-creation guards, terminal-menu workspace startup, browser navigation and
+viewport continuity, disconnected mode admission, and long terminal title controls.
+The surface picker screenshot was visually reviewed: section labels, current-pane
+checkmark and creation actions are visible without clipping. These loopback fixture
+results do not establish physical Pixel/Mac acceptance. The existing emulator was
+stopped; no Pixel was connected, and signed build 411 remains unchanged.
+
+Ignored evidence: `captures/runtime/shared-pane-picker-build.txt`,
+`shared-pane-picker-ui.txt`, and `shared-pane-picker-surface.png`.
+APK SHA-256: debug
+`1528c4ecb57c36eeb2989c01ea1a99ef4d399e025643e7c3a4014dc609c9f8d1`, test
+`874f06f6c68110a01ddaa9fe423c09445c2e4df16dd95bac949d67a86ce94573`.
 
 ### Notification route recovery (2026-10-03)
 
