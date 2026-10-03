@@ -9,7 +9,8 @@ import java.io.File
 /** One bounded event queue and writer per process. Control commands cannot be displaced by traffic. */
 internal class DiagnosticRecorder(private val files: DiagnosticFiles, private val boot: Int, private val role: DiagnosticRole,
     private val elapsed: () -> Long = System::nanoTime, private val wall: () -> Long = System::currentTimeMillis,
-    private val capacity: Int = 4096, private val onClear: (Long) -> Unit = {}) : AutoCloseable {
+    private val capacity: Int = 4096, private val onClear: (Long) -> Unit = {},
+    private val exitHistory: () -> List<DiagnosticExit> = { emptyList() }) : AutoCloseable {
     private sealed interface Command {
         data class Record(val value: DiagnosticRecord) : Command
         class Control(val run: suspend () -> Unit) : Command
@@ -20,6 +21,7 @@ internal class DiagnosticRecorder(private val files: DiagnosticFiles, private va
     private var pending = 0
     private var dropped = 0L
     private var closed = false
+    private var recoveryPending = false
     private lateinit var worker: Job
     private val failed = MutableStateFlow(false)
     val storageFailed = failed.asStateFlow()
@@ -79,11 +81,31 @@ internal class DiagnosticRecorder(private val files: DiagnosticFiles, private va
     suspend fun flush() = control { Unit }
     suspend fun clearCutoff(): Long = control { files.clearCutoff(boot) }
     suspend fun setVerbose(enabled: Boolean) = control { files.setVerbose(enabled) }
+    private fun recoverSystemExits() {
+        val exits = try { exitHistory() } catch (_: Exception) {
+            // An unavailable OS service must not prevent sharing the logs already on disk.
+            files.record(listOf(DiagnosticRecord(DebugOperation.EXIT_HISTORY, DebugOutcome.FAILURE, role, wall(), elapsed(), boot)))
+            return
+        }
+        files.recoverExits(exits)
+    }
+    fun recoverExits() = synchronized(admission) {
+        if (closed || recoveryPending) return@synchronized
+        recoveryPending = true
+        commands.trySend(Command.Control {
+            try { recoverSystemExits(); failed.value = false }
+            catch (_: Exception) { failed.value = true }
+            finally { synchronized(admission) { recoveryPending = false } }
+        })
+        Unit
+    }
     suspend fun clear() {
         val cutoff = elapsed()
-        control { files.clear(boot, cutoff); synchronized(admission) { dropped = 0 }; onClear(cutoff) }
+        val wallCutoff = wall()
+        control { files.clear(boot, cutoff, wallCutoff); synchronized(admission) { dropped = 0 }; onClear(cutoff) }
     }
     suspend fun export(): File = control(discard = { it: File -> it.delete() }) { caller ->
+        recoverSystemExits()
         val omitted = synchronized(admission) { dropped }
         if (omitted > 0) {
             files.record(listOf(DiagnosticRecord(DebugOperation.LOG_DROPPED, DebugOutcome.FAILURE, role, wall(), elapsed(), boot, count = omitted)))

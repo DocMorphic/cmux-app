@@ -23,7 +23,9 @@ internal object MobileDiagnostics {
         check(boot >= 0) { "Boot identity unavailable" }
         elapsed = SystemClock::elapsedRealtimeNanos
         recorder = DiagnosticRecorder(files, boot, role,
-            elapsed = SystemClock::elapsedRealtimeNanos, onClear = MobileDebugLog::clearThrough)
+            elapsed = SystemClock::elapsedRealtimeNanos, onClear = MobileDebugLog::clearThrough,
+            exitHistory = { androidExitHistory(context.applicationContext) })
+        recorder?.recoverExits()
     }
     fun event(operation: DebugOperation) { recorder?.record(operation, DebugOutcome.SUCCESS) }
 }
@@ -38,7 +40,10 @@ class CmuxApplication : Application() {
         MobileDiagnostics.event(DebugOperation.APP_START)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             private var visible = 0
-            override fun onActivityStarted(activity: Activity) { if (visible++ == 0) MobileDiagnostics.event(DebugOperation.APP_FOREGROUND) }
+            override fun onActivityStarted(activity: Activity) { if (visible++ == 0) {
+                MobileDiagnostics.event(DebugOperation.APP_FOREGROUND)
+                MobileDiagnostics.recorder?.recoverExits()
+            } }
             override fun onActivityStopped(activity: Activity) { if (--visible == 0) MobileDiagnostics.event(DebugOperation.APP_BACKGROUND) }
             override fun onActivityCreated(activity: Activity, state: Bundle?) {}
             override fun onActivityDestroyed(activity: Activity) {}

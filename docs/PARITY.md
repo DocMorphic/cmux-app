@@ -149,8 +149,8 @@ Targeted source findings in this pass:
   submitted. Browser copies request the main-process ring through the existing
   same-UID, current-presentation-validated service, then append browser-process
   diagnostics. Cancellation preserves the existing clipboard.
-  The durable logging/export follow-up below extends this debug-menu path. Crash
-  capture, native Iroh detailed traces and broader rendering/input telemetry
+  The durable logging/export and process-history follow-ups below extend this
+  debug-menu path. Crash stack capture, native Iroh detailed traces and broader rendering/input telemetry
   remain pending; this is not complete diagnostics-taxonomy parity.
   Twenty focused JVM checks passed (buffer bounds/concurrency and RPC behavior),
   as did four clipboard/menu/browser-process UI checks and 14 real SSH transport
@@ -202,6 +202,40 @@ Targeted source findings in this pass:
   `captures/runtime/durable-diagnostics/`. The Pixel was absent from ADB. This
   does not advance the whole upstream parity pin or prove native crash capture
   or physical-device acceptance. Signed build 428 predates these changes.
+- **Previous process failure summaries (2026-10-03):** inspected exact
+  [`MobileDebugLogCrashCapture.swift`](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileDiagnostics/Sources/CmuxMobileDiagnostics/MobileDebugLogCrashCapture.swift).
+  iOS DEBUG writes fixed fatal-signal records and Objective-C exception stacks,
+  then preserves the previous crash handlers. Android now reads its own
+  [system exit history](https://developer.android.com/reference/android/app/ActivityManager#getHistoricalProcessExitReasons(java.lang.String,%20int,%20int))
+  on API 30+, without replacing ART/native signal handling. Startup, foreground
+  return and Export Logs recover Java crashes, native crashes and ANR reasons
+  for exactly the app and `:browser` processes. External services, WebView child
+  processes, normal exits, fixture processes, OS descriptions and trace streams
+  are excluded. The schema contains only a fixed role/reason, death timestamp,
+  PID and numeric exit status/signal. Failure to query the OS adds a fixed
+  `EXIT_HISTORY FAILURE` marker and still allows export of existing logs.
+  The query requests at most 32 recent OS records; an atomic shared snapshot
+  retains at most 64 failure summaries and merges repeat/cross-process reads.
+  They appear once in `app-events.log` inside the existing two-member ZIP.
+  Confirmed clearing also empties that snapshot and persists a wall-clock death
+  cutoff, including for late OS reports. The cutoff never moves backwards.
+  If the device clock is manually moved backwards after clearing, new reports
+  dated before that cutoff are suppressed until the clock catches up; ordinary
+  event logging continues to use the independent boot/monotonic barrier.
+  Android's history is a bounded OS buffer and may be absent. API 26–29 have no
+  recovery through this API. Summaries are retrospective metadata, not stacks,
+  and do not establish the app version that crashed. Safe stack/tombstone
+  capture, live ANR acceptance and full iOS diagnostics parity remain open.
+  Verification: seven focused history tests and eight existing storage tests
+  passed; debug/test APK assembly and release Kotlin compilation passed. Two
+  emulator-only checks passed in **1.729 seconds**, triggering a real Java crash
+  (`am crash`) and native SIGABRT in the disposable browser process, reading
+  the OS reports, checking their role/reason/signal, exporting each once across
+  repeat reads, and confirming clear prevents re-import. The initial fallback
+  test looked for a networking event in the app-events member; its fixture was
+  corrected to use a workspace event. No production filtering was relaxed.
+  Evidence is ignored at `captures/runtime/exit-history/`. The existing API 37
+  emulator was used; the Pixel was absent. Signed build 428 predates this work.
 - `MobilePushCoordinator.swift` now awaits explicit reconnect before retrying a
   pending notification route, cancelling replaced retries. Android's targeted
   recovery implementation and verification are recorded below; this is not a

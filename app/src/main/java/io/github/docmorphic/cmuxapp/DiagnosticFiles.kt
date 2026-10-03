@@ -26,7 +26,8 @@ internal data class DiagnosticPolicy(val generationBytes: Long = 5_000_000, val 
 /** Shared by both app processes. No open log handle survives an operation or rotation. */
 internal class DiagnosticFiles(private val root: File, private val exports: File, private val build: String,
     private val policy: DiagnosticPolicy = DiagnosticPolicy(), private val debugVerbose: Boolean = false) {
-    private data class State(val verbose: Boolean = false, val boot: Int = -1, val clearedThrough: Long = -1)
+    private data class State(val verbose: Boolean = false, val boot: Int = -1, val clearedThrough: Long = -1,
+        val exitCutoff: Long = -1, val exits: List<DiagnosticExit> = emptyList())
     private val names = listOf("cmux-app.log", "cmux-network.log")
     private fun state(): State {
         val file = File(root, "state")
@@ -34,13 +35,17 @@ internal class DiagnosticFiles(private val root: File, private val exports: File
         val value = Properties().apply { file.inputStream().use(::load) }
         return State(value.getProperty("verbose")?.toBooleanStrictOrNull() ?: throw IOException("Invalid diagnostic state"),
             value.getProperty("boot")?.toIntOrNull() ?: throw IOException("Invalid diagnostic state"),
-            value.getProperty("cutoff")?.toLongOrNull() ?: throw IOException("Invalid diagnostic state"))
+            value.getProperty("cutoff")?.toLongOrNull() ?: throw IOException("Invalid diagnostic state"),
+            value.getProperty("exitCutoff", "-1").toLong(),
+            value.getProperty("exits", "").split(';').filter(String::isNotEmpty).map(DiagnosticExit::decode)
+                .also { require(it.size <= 64) })
     }
     private fun save(value: State) {
         val temporary = File(root, "state.partial")
         temporary.outputStream().use { output ->
             Properties().apply { setProperty("verbose", value.verbose.toString()); setProperty("boot", value.boot.toString());
-                setProperty("cutoff", value.clearedThrough.toString()) }.store(output, null)
+                setProperty("cutoff", value.clearedThrough.toString()); setProperty("exitCutoff", value.exitCutoff.toString())
+                setProperty("exits", value.exits.joinToString(";") { it.encode() }) }.store(output, null)
             output.fd.sync()
         }
         Files.move(temporary.toPath(), File(root, "state").toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
@@ -66,6 +71,14 @@ internal class DiagnosticFiles(private val root: File, private val exports: File
         // Probe both destinations before reporting that recording is enabled.
         if (enabled) names.forEach { java.io.FileOutputStream(file(it), true).use { stream -> stream.fd.sync() } }
         save(state().copy(verbose = enabled))
+    }
+    fun recoverExits(exits: List<DiagnosticExit>) = locked {
+        val current = state()
+        // The shared, atomic snapshot avoids append/checkpoint crash windows and duplicate imports.
+        val merged = (current.exits + exits.filter { it.timestamp > current.exitCutoff })
+            .associateBy { it.key }.values.sortedWith(compareBy<DiagnosticExit> { it.timestamp }.thenBy { it.pid })
+            .takeLast(64)
+        if (merged != current.exits) save(current.copy(exits = merged))
     }
     private fun file(name: String) = File(root, name)
     private fun generations(name: String) = (policy.archives downTo 1).map { file("$name.$it") }.filter(File::exists) + listOf(file(name)).filter(File::exists)
@@ -112,9 +125,10 @@ internal class DiagnosticFiles(private val root: File, private val exports: File
             if (network || both) append(names[1], text)
         }
     }
-    fun clear(boot: Int, cutoff: Long) = locked {
+    fun clear(boot: Int, cutoff: Long, wallMillis: Long = System.currentTimeMillis()) = locked {
         // Persist the barrier first, including when deletion subsequently fails.
-        save(state().copy(boot = boot, clearedThrough = cutoff))
+        val current = state()
+        save(current.copy(boot = boot, clearedThrough = cutoff, exitCutoff = maxOf(current.exitCutoff, wallMillis), exits = emptyList()))
         var success = true
         names.flatMap(::generations).forEach { if (!it.delete()) success = false }
         exports.listFiles()?.filter { it.name.startsWith("cmux-diagnostics-") }?.forEach { if (!it.delete()) success = false }
@@ -135,6 +149,10 @@ internal class DiagnosticFiles(private val root: File, private val exports: File
                         val buffer = ByteArray(64 * 1024)
                         while (true) { checkCurrent(); val n = input.read(buffer); if (n < 0) break; zip.write(buffer, 0, n) }
                     } }
+                    if (source == names[0]) {
+                        zip.write("\nPrevious process failures (Android 11+ system history; at most 64; no stack traces):\n".toByteArray())
+                        state().exits.forEach { checkCurrent(); zip.write(it.line().toByteArray()) }
+                    }
                     zip.closeEntry()
                 }
             }
