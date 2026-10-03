@@ -69,6 +69,6 @@ predates this feature; no signed workflow was dispatched for this single feature
 Upstream's internal development profile, explicit expected tag, persisted sibling
 grants and owner-only grant updates are not implemented. They require a separate
 explicit Android development identity. The consumer policy is immutable for the
-process; no runtime development grant update is claimed. Fully offline cached
-account UI, presence version metadata and the broader source/visual audit remain
-separate work.
+process; no runtime development grant update is claimed. Offline cached-account
+Computers presentation is now documented in [CACHED_COMPUTERS.md](CACHED_COMPUTERS.md).
+Presence version metadata and the broader source/visual audit remain separate work.

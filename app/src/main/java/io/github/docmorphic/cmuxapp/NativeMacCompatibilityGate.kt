@@ -17,6 +17,8 @@ internal class NativeMacCompatibilityGate(
     private data class Host(val key: MacCompatibilityKey, val version: String?)
     private val lock = Any()
     private var policy = initial
+    private val mutablePolicy = MutableStateFlow(initial)
+    val policyState = mutablePolicy.asStateFlow()
     private val wires = WeakHashMap<MobileRpcClient, Host>()
     private val observed = linkedMapOf<MacCompatibilityKey, Host>()
     private val restored = linkedMapOf<MacCompatibilityKey, Host>()
@@ -68,6 +70,7 @@ internal class NativeMacCompatibilityGate(
     fun replace(next: NativeMacCompatibilityPolicy) {
         val retired = synchronized(lock) {
             policy = next
+            mutablePolicy.value = next
             prune()
             publish()
             wires.entries.mapNotNull { (client, host) ->

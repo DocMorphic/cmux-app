@@ -131,9 +131,11 @@ internal class NativeMacConnectionStore(private val read: () -> String?, private
             require(entries.map { it.address }.distinct().size == entries.size) { "This address is already saved" }
             return preference.copy(addresses = entries)
         }
-        fun create(context: Context, team: NativeTeamScope): NativeMacConnectionStore = synchronized(lock) {
+        fun create(context: Context, team: NativeTeamScope): NativeMacConnectionStore = scoped(context, team.userId, team.teamId)
+        fun display(context: Context, owner: NativeComputerDisplayOwner) = scoped(context, owner.user, owner.team).state
+        private fun scoped(context: Context, user: String, team: String): NativeMacConnectionStore = synchronized(lock) {
             val root = File(context.noBackupFilesDir, "computer-connections")
-            val file = AtomicFile(File(root, NativeMacAppearanceStore.scopeFile(context.packageName, NativeAccount.PROJECT_ID, team.userId, team.teamId)))
+            val file = AtomicFile(File(root, NativeMacAppearanceStore.scopeFile(context.packageName, NativeAccount.PROJECT_ID, user, team)))
             stores.getOrPut(file.baseFile.absolutePath) {
                 NativeMacConnectionStore(read = {
                     if (file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()) file.openRead().use {

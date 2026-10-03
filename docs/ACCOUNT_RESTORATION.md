@@ -113,3 +113,12 @@ screenshots. A launch before Android services finished booting failed before tes
 started; the final run waited for boot completion. The emulator was stopped after
 verification. Harness design and rerun command are in
 [ANDROID_TESTING.md](ANDROID_TESTING.md#account-process-death-harness).
+
+## Saved Computers projection — 2026-10-03
+
+[CACHED_COMPUTERS.md](CACHED_COMPUTERS.md) extends the cached account display to
+saved Mac rows in reconnect and management, including customization, hidden state,
+route labels and minimum-version warnings. A distinct display owner preserves the
+account controller's null authority scope until fresh verification. This feature's
+Android fixtures recreate the controller and encrypted store; they do not extend
+the earlier process-death proof to the complete Computers screen automatically.

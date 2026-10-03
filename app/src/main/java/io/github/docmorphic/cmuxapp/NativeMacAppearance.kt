@@ -112,9 +112,11 @@ internal class NativeMacAppearanceStore(private val read: () -> String?, private
             return MessageDigest.getInstance("SHA-256").digest(JSONArray(listOf(app, project, user, team)).toString().toByteArray())
                 .joinToString("") { "%02x".format(it) } + ".json"
         }
-        fun create(context: Context, team: NativeTeamScope): NativeMacAppearanceStore = synchronized(lock) {
+        fun create(context: Context, team: NativeTeamScope): NativeMacAppearanceStore = scoped(context, team.userId, team.teamId)
+        fun display(context: Context, owner: NativeComputerDisplayOwner) = scoped(context, owner.user, owner.team).state
+        private fun scoped(context: Context, user: String, team: String): NativeMacAppearanceStore = synchronized(lock) {
             val root = File(context.noBackupFilesDir, "computer-appearance")
-            val file = AtomicFile(File(root, scopeFile(context.packageName, NativeAccount.PROJECT_ID, team.userId, team.teamId)))
+            val file = AtomicFile(File(root, scopeFile(context.packageName, NativeAccount.PROJECT_ID, user, team)))
             stores.getOrPut(file.baseFile.absolutePath) {
                 NativeMacAppearanceStore(read = {
                     if (file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()) file.openRead().use {

@@ -85,8 +85,9 @@ remain separate work.
 
 [Saved version history](MAC_VERSION_HISTORY.md) now restores warnings from
 encrypted observations for an existing saved Mac after account scope restoration.
-Warning-only presence metadata and the fully offline cached-account Computers
-projection remain unimplemented. New pairings without a saved row receive the
+[Offline cached-account Computers presentation](CACHED_COMPUTERS.md) now includes
+saved version warnings before account admission. Warning-only presence metadata
+remains unimplemented. New pairings without a saved row receive the
 connection error; full iOS onboarding warning presentation remains unverified.
 Physical stable/nightly Mac acceptance and current iOS visual comparison remain
 open. Signed build 474 predates this feature; no signed milestone was dispatched

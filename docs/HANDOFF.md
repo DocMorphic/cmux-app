@@ -29,16 +29,18 @@ records the original September 28 handoff rather than the current APK.
 
 ## User's objective and working preferences
 
-Latest local feature: [MAC_BUILD_AUDIENCE.md](MAC_BUILD_AUDIENCE.md) explicitly
-selects the consumer Mac policy for both Android variants, across authenticated
-connections, discovery/presence, saved rows and background push/reply workers.
-130 focused JVM tests and two Android worker tests passed. Earlier checkpoints
-added [encrypted version history](MAC_VERSION_HISTORY.md) and
-[minimum-version admission](MAC_COMPATIBILITY.md). Signed build 474 predates all
-three. Next implement the fully offline cached-account computer projection and
-presence version metadata; resume physical acceptance when ADB sees the Pixel.
-Internal development identity/grants remain separate. The goal remains active;
-do not repeat the already-pending Pixel reconnect request.
+Latest local feature: [CACHED_COMPUTERS.md](CACHED_COMPUTERS.md) projects saved Macs
+for the cached account/team while startup account verification is offline. Both
+reconnect and management show customizations, routes, hidden rows and update
+warnings, with cached connection/mutation controls disabled. A distinct display
+owner does not create network authority. 38 JVM and six Android tests passed;
+the offline screenshot was reviewed and the existing emulator stopped.
+Previous checkpoints added consumer build admission, encrypted version history
+and minimum-version policy. Signed build 474 predates these four features.
+Next review presence version metadata and onboarding/current iOS layouts, then
+resume physical acceptance when ADB sees the Pixel. Internal development identity
+and grants remain separate. The goal remains active; do not repeat the already
+pending Pixel reconnect request.
 
 - Deliver a fully functioning unofficial Android companion matching the official
   cmux iOS app's UI and behavior, including native pairing, workspaces, terminal

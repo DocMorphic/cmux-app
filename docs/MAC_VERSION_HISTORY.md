@@ -43,10 +43,10 @@ Account retirement removes restored warnings and rejects late restoration from
 the old scope. Restarted runtime generations can read the same login/user/team's
 encrypted history after the account scope is verified again.
 
-The cached-account-profile UI currently has no connection-authority scope until
-account refresh succeeds. This feature does not make the entire Computers UI
-available during a completely networkless account bootstrap. That display-only
-projection remains separate work; cached versions must not fabricate authority.
+The cached-account profile has no connection-authority scope until account refresh
+succeeds. [Offline Computers presentation](CACHED_COMPUTERS.md) now reads the same
+history through a separate display owner, so saved rows and warnings can appear
+during offline bootstrap. Cached versions never fabricate connection authority.
 
 ## Verification
 

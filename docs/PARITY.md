@@ -12,6 +12,26 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Saved Computers during offline account restoration (2026-10-03)
+
+[CACHED_COMPUTERS.md](CACHED_COMPUTERS.md) extends cached account presentation to
+both reconnect and management lists. Saved names/icons/colors, connection methods
+and routes, hidden rows, last-seen data and update warnings survive offline account
+bootstrap. Cached rows have no live connection or mutation authority; successful
+membership refresh replaces the projection, and definitive rejection removes it.
+
+38 focused JVM tests and six Android tests passed (45.889 seconds), including two
+new encrypted account-controller recreation fixtures and four existing reconnect/
+Mac-SSH management checks. The offline screenshot was visually inspected. The
+existing API 37 / 16 KB emulator was stopped; no new AVD was created.
+Evidence: captures/runtime/cached-computers. Debug/test assembly passed in 1m39s;
+the final test-only fixture adjustment built in 19 seconds.
+
+Debug SHA-256: d48585dff21039093d0a3a399474c364715fcd9f19c95ff408114f4753afc5f9.
+Test SHA-256: 7677bf131311b657241240d239e07395c8542665fafb4a05946472e7057b2353.
+Signed 474 predates this work. Whole-app process-death and physical offline/native
+acceptance remain unverified for this checkpoint. The global parity pin is unchanged.
+
 ## Consumer Mac build admission (2026-10-03)
 
 [MAC_BUILD_AUDIENCE.md](MAC_BUILD_AUDIENCE.md) records the explicit consumer policy
@@ -30,7 +50,8 @@ Debug SHA-256: 350933d6533ca7f7dde8117370444ee9966301dfdffb116b39505cbbaa77b02d.
 Test SHA-256: 7ae5b17fd4864d6926d2cd9bb1c5d65c2f33c6bd8d7eb0d25dd5f81c53e7eb18.
 Signed 474 remains the latest signed milestone and predates this feature.
 Physical Mac/Pixel acceptance, configured push, internal development identity/grants,
-offline account projection and the full source/visual audit remain open. The
+offline account projection (implemented above) and the full source/visual audit were
+open at this checkpoint. The
 global parity pin is unchanged.
 
 ## Encrypted saved Mac version history (2026-10-03)

@@ -10,9 +10,14 @@ internal object NativeMacVersionHistory {
     private data class Key(val user: String, val team: String, val identity: NativeMacIdentity)
 
     fun read(state: JSONObject?, owner: NativeTeamScope): Map<NativeMacIdentity, String?> {
-        if (state == null || !owns(state, owner)) return emptyMap()
+        return readDisplay(state, NativeComputerDisplayOwner(owner.login, owner.userId, owner.teamId))
+    }
+
+    fun readDisplay(state: JSONObject?, owner: NativeComputerDisplayOwner): Map<NativeMacIdentity, String?> {
+        if (state == null || owner.login.isBlank() || state.optString("task_session") != owner.login ||
+            state.optString("refresh_token").isBlank()) return emptyMap()
         val eligible = eligible(state)
-        return decode(state).filterKeys { it.user == owner.userId && it.team == owner.teamId && it in eligible }
+        return decode(state).filterKeys { it.user == owner.user && it.team == owner.team && it in eligible }
             .mapKeys { it.key.identity }
     }
 

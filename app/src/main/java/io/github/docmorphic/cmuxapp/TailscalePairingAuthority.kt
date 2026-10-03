@@ -32,6 +32,11 @@ internal class TailscaleGrantStore(private val read: () -> JSONObject?,
             it.device == canonicalMacDeviceId(target.deviceId) && it.build == target.buildTag }
         .asReversed().distinctBy { it.route }
 
+    fun displayRoutes(owner: NativeComputerDisplayOwner, identity: NativeMacIdentity): List<PairingCode.Route> = decode(read())
+        .filter { it.user == owner.user && it.team == owner.team &&
+            it.device == canonicalMacDeviceId(identity.deviceId) && it.build == identity.buildTag }
+        .asReversed().map { it.route }.distinct()
+
     fun removeRoute(scope: NativeTeamScope, target: NativeComputerTarget, grant: TailscaleSavedGrant, permits: () -> Boolean) {
         check(permits()) { "Account or team changed. Reopen Computer Details." }
         update { state ->
