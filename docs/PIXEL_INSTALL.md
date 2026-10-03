@@ -17,9 +17,12 @@ An ART probe reproduces the exact error in 486 and verifies the fixed local
 release APK (1,339 declared methods). The CI workflow now runs that check on an
 ephemeral Android 17 emulator before uploading APKs. This is a DEX gate; actual
 signed launch and authenticated device acceptance remain separate.
-[Replacement build 488](https://github.com/DocMorphic/cmux-app/actions/runs/37153210672)
-was dispatched at `555e4b89257d73a984f6dbec74894dff1a18759b`; its result and signed
-upgrade are pending. Build 481 remains the last verified signed milestone.
+Build 488 at `555e4b8` passed full build/tests and package checks, then failed
+before ART: the CI emulator could not find the AVD created by avdmanager. No signed
+APK was uploaded. `063c5a8` gives both tools explicit shared AVD/user directories.
+[Replacement build 491](https://github.com/DocMorphic/cmux-app/actions/runs/37153788476)
+is running at `063c5a8523fdbda631888286fc947c6161c0e4d9`; the runtime gate and signed
+upgrade remain pending. Build 481 remains the last verified signed milestone.
 Local evidence: `captures/runtime/build486/`, including negative/fixed class probes.
 
 ## Current signed development APK — build 481 (2026-10-03)

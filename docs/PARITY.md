@@ -19,7 +19,8 @@ verification in the large NativeScreen root lambda. The onboarding body now live
 in a separate composition lambda, with identical normalized body content. The
 new APK class-loading probe reproduces 486's exact VerifyError and passes the
 fixed local release. CI now runs that gate before artifact upload. Replacement
-build 488 is pending; 481 remains the last verified signed milestone. See
+build 488 failed before ART because the CI AVD was not discoverable. The explicit
+path fix is running in build 491; 481 remains the last verified signed milestone. See
 [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for precise evidence and rejection status.
 
 The [What's New audit](WHATS_NEW_AUDIT.md) also records an unimplemented iOS surface:

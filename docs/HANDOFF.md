@@ -27,14 +27,17 @@ this Mac; physical Pixel acceptance, authenticated upgrade, configured push and
 broader source/visual parity remain open. The repository/delivery table below
 records the original September 28 handoff rather than the current APK.
 
-## Immediate continuation — build 488
+## Immediate continuation — build 491
 
 **Do not recommend candidate 486.** It passed CI/packaging but actual signed
 startup failed with an ART VerifyError. `555e4b8` separates the unchanged onboarding
 composition; the fixed unsigned release passed an ART class-loading probe, whose
 negative control reproduces 486 exactly. CI now has the same check before uploads.
-Run **37153210672**, build **488**, source **555e4b89257d73a984f6dbec74894dff1a18759b**
-was confirmed in progress. Poll this exact run; do not dispatch another because
+Run 37153210672 / build 488 passed full build/tests/package checks but failed
+before ART: the emulator could not find the AVD. No installable artifact uploaded.
+Fix `063c5a8` sets explicit shared AVD/user paths. Run **37153788476**, build **491**,
+source **063c5a8523fdbda631888286fc947c6161c0e4d9** was confirmed in progress.
+Poll this exact run; do not dispatch another because
 an observation times out. After success, download its signed artifact, verify
 provenance/packaging and actual signed cold launch on the existing AVD. Build 481
 is still the last verified signed milestone. Existing AVD is stopped; its stable
