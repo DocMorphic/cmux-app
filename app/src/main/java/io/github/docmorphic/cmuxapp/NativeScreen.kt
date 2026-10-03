@@ -1940,6 +1940,11 @@ fun NativeScreen(
                 var showSizing by remember(client, terminal.id) { mutableStateOf(false) }
                 NativeTerminalHeader(terminal, selectedWorkspace, workspaces.size, hostCapabilities, connectionReady, directTyping,
                     onBack = { selectedTerminal = null; selectedWorkspace = null; selectedSurface = null },
+                    onTerminal = { next ->
+                        rawKeyboardView?.finishComposition(); directTyping = false
+                        inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
+                        selectPane(NativeWorkspacePane(terminal = next))
+                    },
                     onSurface = { surface ->
                         rawKeyboardView?.finishComposition(); directTyping = false
                         inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()

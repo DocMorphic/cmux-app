@@ -37,7 +37,7 @@ internal fun NativeStartingTerminalPane(terminal: NativeTerminal, workspace: Nat
     BackHandler(onBack = onBack)
     Column(Modifier.fillMaxSize().testTag("TerminalStarting")) {
         NativeTerminalHeader(terminal, workspace, workspaceCount, emptySet(), false, false,
-            onBack, onSurface, {}, {}, onNewBrowser, {}, onBrowser)
+            onBack, onSurface, {}, {}, onNewBrowser, {}, onBrowser, onTerminal)
         NativeTerminalTabs(workspace?.terminals.orEmpty(), terminal, onTerminal)
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)) {

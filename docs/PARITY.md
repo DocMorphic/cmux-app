@@ -12,6 +12,65 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Upstream delta audit in progress (2026-10-03)
+
+The metadata comparison from the whole-parity baseline `4c5272e` to installed
+NIGHTLY reference `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` contains **331 files**
+under `ios`, `Packages/iOS`, and `Packages/Shared/CMUXMobileCore`: 184 additions
+and 147 modifications. Major groups are ShellUI (82), Shell (78), SSH (44),
+TerminalKit (25), Tunnel (15), and RPC (14). This is an inventory, not a claim that
+331 implementations have been reviewed. The whole-parity pin above remains
+unchanged until the remaining source contracts and acceptance gates are audited.
+Raw inventory is ignored at `captures/runtime/ios-parity-delta-0fc35.tsv`
+(SHA-256 `1fa1594cffc6f82ef79a8fdac22eaa1b88cf2316e63f9089fca9faad1abd3fd5`).
+
+Targeted source findings in this pass:
+
+- [`TerminalPickerMenuContent.swift`](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/TerminalPickerMenuContent.swift)
+  and its value model use current terminal rows, a selected checkmark, and separate
+  terminal/surface/simulator/browser sections. Android's terminal title menu had
+  omitted terminal selection. It now provides those grouped rows, live inventory
+  updates and selected accessibility semantics, routing through the existing pane
+  selection callbacks in ready and starting-terminal views. Browser-active
+  checkmarks, unified menus on other pane types, creation/feedback utility entries,
+  and the remaining picker contract still need review and implementation as needed.
+- `TerminalReplayQueryFilter.swift` and `Data+TerminalQueryReplies.swift` prevent
+  historical output from generating new PTY input. Android's tmux/cmux-tui mirrors
+  construct Ghostty without a reply callback; its plain SSH shell owns one live
+  PTY and retains the same emulator across view changes. Source inspection does
+  not establish new runtime coverage or justify adding a second parser blindly.
+- `MobileWorkspaceCloseConfirmation.swift` centralizes destructive Mac/tmux/
+  cmux-tui confirmation while allowing phone-owned shell closure directly.
+  Android has confirmations for persistent workspaces and direct shell closure;
+  host/kind-specific wording and consistency across every entry point remain to
+  be checked against the new contract.
+- `MobilePushCoordinator.swift` now awaits explicit reconnect before retrying a
+  pending notification route, cancelling replaced retries. This was identified
+  for Android route/recovery review; no equivalence or fix is claimed by this pass.
+
+The browser route, authentication gate, SSH, shell/model and runtime changes in
+the inventory still require contract-by-contract comparison. Earlier dated port
+checkpoints below are evidence for their stated scope, not a full delta audit.
+
+### Terminal picker verification
+
+Debug and test assembly passed in **42 seconds**. **Three emulator checks passed
+in 8.682 seconds**: live picker inventory/selection and pane routing, existing
+starting-terminal sibling selection, and native terminal keyboard/input. The
+initial screenshot caught the popup before it was drawn, so it is not visual
+acceptance. The fixture was corrected to use the app's surface colors and wait
+for Android's exported popup tree before capture; final test assembly passed in
+13 seconds. The corrected picker check passed in **7 seconds**, and the final
+popup screenshot was visually reviewed: section labels, current terminal checkmark,
+and pane actions are visible without clipping. The single existing API 37 / 16 KiB
+emulator is stopped. Evidence is ignored under `captures/runtime/terminal-picker-*`.
+Final local APK SHA-256: debug
+`95e57164eaffc3187763135b74c6fba5a1774b621a6bbd903a540b40ada6e8ac`, test
+`71ee34cec95dfdd0a14234703e93766a01d2d94b8032f79a041c4fb1082e8061`.
+Signed build 411 and the disconnected Pixel installation are unchanged.
+
+## Recent checkpoints
+
 **NIGHTLY shared-sizing controls implemented, live acceptance pending (2026-10-03):**
 the foreground session handles sizing/detach events, gates traffic and provides
 explicit reattach. The size sheet now edits all five policies, fixed dimensions,
