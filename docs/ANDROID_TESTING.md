@@ -6,6 +6,8 @@ Before a signed milestone can be uploaded, `android.yml` boots an ephemeral
 Android 17 / 16 KB x86_64 emulator on the GitHub runner and verifies the release
 APK's `NativeScreenKt` with ART. The probe loads the APK's DEX directly through
 `app_process`; it does not install the arm64 APK or run its native libraries.
+The AVD manager and emulator use one explicit directory under `RUNNER_TEMP`;
+build 488 exposed their differing default search paths on the Linux runner.
 This is a class-verification gate, not UI/native runtime acceptance. Its evidence
 is retained even if the gate fails. It creates no additional AVD on this Mac.
 
