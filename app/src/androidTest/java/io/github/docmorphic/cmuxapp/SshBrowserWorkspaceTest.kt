@@ -198,6 +198,119 @@ class SshBrowserWorkspaceTest {
         selected(created.tabs.single())
         assertEquals(browser.resource, provider().state.value.tree!!.workspaces.single { it.key == original.key }.tabs.single { it.isBrowser }.resource)
     }
+    @Test fun tmuxBrowserMenuCreatesWindowsSplitsAndWorkspacesInExactTargets() {
+        val originalCmux = workspace()
+        val tmux = runBlocking { session.tmux.open(hostId) }
+        compose.waitUntil(10000) { !tmux.state.value.loading }
+        val original = tmux.state.value.workspaces.single()
+        val originalPane = original.panes.single()
+        val network = compose.runOnIdle { session.browsers.network(hostId) }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshWorkspacesRoute(session, hostId) {}
+        } } }
+        val tag = "ssh.tmux.pane.${original.id}.${originalPane.id}"
+        compose.waitUntil(15000) { compose.onAllNodes(hasTestTag(tag) and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag(tag).performScrollTo().performClick()
+        fun selected(workspace: SshTmuxWorkspace, pane: SshTmuxPaneRow) {
+            compose.waitUntil(15000) { compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) }
+            compose.waitUntil(15000) {
+                compose.onAllNodesWithTag("ssh.shell.identity.cmux-ssh-$hostId:tmux:${workspace.id}/%${pane.id}").fetchSemanticsNodes().isNotEmpty() &&
+                    compose.onAllNodes(hasTestTag("ssh.shell.composer") and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+            }
+        }
+        fun phoneMenu(workspace: SshTmuxWorkspace, pane: SshTmuxPaneRow) {
+            selected(workspace, pane)
+            val browserWorkspace = sshBrowserWorkspace(SshWorkspaceTarget.Tmux(workspace.id, pane.window, pane.id), pane.title)
+            compose.runOnIdle {
+                network.navigation.restoreRemembered(sshLocalBrowserKey(network, browserWorkspace), browserWorkspace)
+                network.navigation.state.value.local!!.surface.load("http://localhost:${args.getString("cmux_ssh_browserport")}/next")
+            }
+            compose.onNodeWithTag("ssh.shell.menu").performClick(); compose.onNodeWithText("New Browser").performClick()
+            compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) }
+            uiText("SSH Chrome next ▾").click(); uiText("New Window")
+            assertFalse(device.hasObject(By.text("New Tab")))
+            assertFalse(device.hasObject(By.text("New Screen")))
+        }
+        phoneMenu(original, originalPane)
+        capture("ssh-tmux-browser-picker")
+        uiText("New Window").click()
+        compose.waitUntil(15000) { tmux.state.value.workspaces.single().panes.size == 2 }
+        var current = tmux.state.value.workspaces.single()
+        val newWindow = current.panes.single { it.id != originalPane.id }
+        assertNotEquals(originalPane.window, newWindow.window)
+        selected(current, newWindow)
+        phoneMenu(current, newWindow)
+        // Choose the first window's split action while viewing the second.
+        // Routing must honor that section, not whichever pane was previously open.
+        uiText("Split Right").click()
+        compose.waitUntil(15000) { tmux.state.value.workspaces.single().panes.size == 3 }
+        current = tmux.state.value.workspaces.single()
+        val split = current.panes.single { it.id !in original.panes.map { p -> p.id } && it.id != newWindow.id }
+        assertEquals(originalPane.window, split.window)
+        selected(current, split)
+        val splitTerminal = runBlocking { tmux.open(current, split) }
+        compose.onNodeWithTag("ssh.shell.composer").performTextReplacement("browser selected split λ")
+        compose.onNodeWithTag("ssh.shell.send").performClick()
+        compose.waitUntil(10000) { compose.runOnIdle { TerminalTextSnapshot.capture(splitTerminal.display).text.contains("browser selected split λ") } }
+        phoneMenu(current, split); uiText("New Workspace").click()
+        compose.waitUntil(15000) { tmux.state.value.workspaces.size == 2 }
+        val created = tmux.state.value.workspaces.single { it.id != original.id }
+        selected(created, created.panes.single())
+        assertEquals(3, tmux.state.value.workspaces.single { it.id == original.id }.panes.size)
+        assertEquals(originalCmux.key, workspace().key)
+        assertEquals(originalCmux.tabs.map { it.resource }, workspace().tabs.map { it.resource })
+        capture("ssh-tmux-browser-created-workspace")
+    }
+    @Test fun linkedPhoneBrowserCreatesIndependentBrowserAndReturnsToOriginalPage() {
+        val original = workspace()
+        val browserTab = original.tabs.single { it.isBrowser }
+        val provider = cmux.state.value.providers.single { it.session == "fixture" }
+        val network = compose.runOnIdle { session.browsers.network(hostId) }
+        val browserTitle = sshCmuxPicker(provider.session, provider.state.value.tree!!, original).browsers.single().title
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshWorkspacesRoute(session, hostId) {}
+        } } }
+        open(); ready("SSH browser page")
+        compose.onNodeWithContentDescription("Browser mode").performClick(); compose.onNodeWithText("On Android").performClick()
+        compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) }
+        uiText("SSH Chrome start ▾")
+        val linked = runBlocking { withContext(Dispatchers.Main) { network.navigation.state.value.local!!.surface } }
+        assertNotNull(linked.linkedStreamPanelId)
+        // Give the phone-linked page its own URL, independently of Chrome's page.
+        uiText("Next Chrome page").click()
+        uiText("SSH Chrome next ▾").click(); uiText("New Browser").click()
+        compose.waitUntil(15000) {
+            network.navigation.state.value.local?.surface?.let { it !== linked && it.linkedStreamPanelId == null } == true &&
+                !compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        }
+        val independent = runBlocking { withContext(Dispatchers.Main) { network.navigation.state.value.local!!.surface } }
+        // The browser process owns its live WebView. Navigate through its actual
+        // address field rather than changing the parent's detached page model.
+        val selector = By.clazz("android.widget.EditText").hasDescendant(By.desc("Browser address"))
+        val address = checkNotNull(device.wait(Until.findObject(By.copy(selector).text("https://duckduckgo.com/")), 15000))
+        address.click()
+        assertTrue(device.wait(Until.hasObject(By.copy(selector).focused(true)), 5000))
+        val url = "http://localhost:${args.getString("cmux_ssh_browserport")}/"
+        address.text = url
+        assertTrue(device.wait(Until.hasObject(By.copy(selector).text(url)), 5000))
+        device.pressEnter()
+        uiText("SSH Chrome start ▾").click()
+        uiText("New Browser")
+        capture("ssh-linked-to-independent-browser")
+        uiText("New Browser").click() // Already selected: must not create another page.
+        assertSame(independent, network.navigation.state.value.local!!.surface)
+        uiText("SSH Chrome start ▾").click(); uiText(browserTitle).click()
+        compose.waitUntil(15000) {
+            network.navigation.state.value.local?.surface === linked && !compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        }
+        uiText("SSH Chrome next ▾")
+        assertFalse(linked.state.value.closed)
+        assertTrue(independent.state.value.closed)
+        assertEquals(browserTab.resource, workspace().tabs.single { it.isBrowser }.resource)
+        uiText("Fixture click").click(); uiText("SSH Chrome clicked ▾")
+        compose.waitUntil(10000) { events().contains("\"click\":[\"1\"]") }
+        capture("ssh-returned-linked-browser")
+    }
     @Test fun providerRegistrationRestartRecoversSamePageWithoutStaleOrReplayedClicks() {
         val original = workspace().tabs.single { it.isBrowser }.resource
         val connection = cmux.connection

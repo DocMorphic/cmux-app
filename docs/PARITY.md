@@ -24,6 +24,36 @@ checksums](PIXEL_INSTALL.md). Later references to unchanged build 411 below desc
 the earlier individual feature checkpoints. Physical acceptance, configured push,
 authenticated release migration and the remaining source audit are still open.
 
+## SSH browser picker restoration and tmux acceptance (2026-10-03)
+
+An independent phone browser opened over a linked cmux-tui browser could return
+to the wrong mode when selecting that same linked tab. The workspace selection
+had not changed, so its restoration effect did not run. The return handler now
+explicitly reopens the remembered on-device page for that unchanged selection,
+using the live provider row and the existing per-panel browser preference.
+Explicit Streamed selection still clears that preference and returns to Chrome.
+
+The production SSH/Chrome suite now contains **nine** flows. All nine passed on
+the existing API 37 emulator in **104.64 seconds** after the fix. Added coverage:
+
+- Real tmux New Window, a split in the first window while viewing the second,
+  and New Workspace from the separate browser process. Each operation selects
+  its exact created pane; typed input reaches that split, and the original tmux
+  and cmux-tui workspaces remain intact.
+- Linked phone page → independent New Browser → original linked phone page,
+  preserving the original URL and surface. Selecting the already-active New
+  Browser is a no-op; returning retires the independent page. A strengthened
+  focused rerun passed in **27.848 seconds**, additionally checking an actual
+  button click and server-observed event after restoration. Menu and restored
+  page screenshots were inspected.
+
+Initial test iterations corrected parent-process navigation and accessibility
+field targeting before reproducing the real wrong-mode bug. Debug/test APKs
+built successfully. Evidence is ignored at `captures/runtime/ssh-browser-actions/`;
+run the full suite with `scripts/check-ssh-transport.py --cmux-browser`.
+The Pixel was absent. This proves these emulator fixture flows, not physical
+acceptance or completion of the remaining upstream parity audit.
+
 ## Plain SSH shortcut browser and creation actions (2026-10-03)
 
 The **New Shell** shortcut in SSH Computers now exposes New Browser and New

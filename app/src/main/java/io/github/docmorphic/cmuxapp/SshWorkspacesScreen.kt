@@ -286,7 +286,20 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                 } }?.singleOrNull { it.selection.panelId == route.browserId }
             } else route.terminalId?.let(SshWorkspaceTarget::decode)
             browser = null
-            if (target != null) select(target) else leave()
+            if (target != null) {
+                val sameSelection = selection == "$hostId\n${target.encode()}"
+                select(target)
+                // An independent phone browser can sit over this same streamed
+                // pane. Selecting its linked tab must restore the phone page
+                // even though the workspace selection effect will not rerun.
+                val owner = presentation.provider
+                if (sameSelection && target is SshWorkspaceTarget.Browser && owner != null) {
+                    val row = owner.state.value.tree?.let { target.selection.resolve(owner.session, it)?.second }
+                    val key = sshLocalBrowserKey(presentation.network, presentation.workspace)
+                    if (row != null && presentation.network.navigation.prefersOnDevice(key, target.selection.panelId))
+                        act { presentBrowser(owner, target, row.name ?: row.title, target.selection.panelId, row.url) }
+                }
+            } else leave()
         }) { if (presentation.linkedPanel != null) leave() else browser = null } }
         val streamed = opened?.takeIf { it.reference == selection }?.browser
         if (streamed != null) {
