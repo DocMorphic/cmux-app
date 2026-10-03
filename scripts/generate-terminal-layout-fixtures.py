@@ -10,7 +10,7 @@ import tempfile
 
 PIN = '0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc'
 SOURCES = [f'Packages/iOS/CmuxMobileTerminalKit/Sources/CmuxMobileTerminalKit/{name}.swift'
-           for name in ['TerminalGridFit', 'TerminalLetterboxGeometry']]
+           for name in ['TerminalGridFit', 'TerminalLetterboxGeometry', 'TerminalKeyboardViewport']]
 MAIN = r'''
 import Foundation
 import CoreGraphics
@@ -44,7 +44,29 @@ for size in sizes {
         }
     }
 }
-print(String(data: try JSONSerialization.data(withJSONObject: cases, options: [.sortedKeys]), encoding: .utf8)!)
+var keyboardCases: [[String: Any]] = []
+for intrusion in [0.0, 100.0, 400.0] {
+    for blank: Double? in [nil, 0, 100, 600] {
+        for reveal in [0.0, 50.0, 1000.0] {
+            let layout = TerminalKeyboardViewport(viewportRect: CGRect(x: 0, y: 0, width: 400, height: 800),
+                intrusion: intrusion, blankBelowContent: blank.map { CGFloat($0) }, scrollTopReveal: reveal)
+            keyboardCases.append(["intrusion": intrusion, "blank": blank as Any? ?? NSNull(), "reveal": reveal, "slide": layout.slide])
+        }
+    }
+}
+var scrollCases: [[String: Any]] = []
+for history in [0.0, 50.0] { for position in [0.0, 25.0, 50.0] {
+    for reveal in [0.0, 40.0, 200.0] { for delta in [-100.0, -10.0, 0.25, 10.0, 100.0] {
+        let primary = TerminalLetterboxGeometry.scrollTopRevealResolution(currentPositionPx: (history - min(history, position)) * 20,
+            currentRevealPx: reveal, deltaPixels: -delta * 20, maxPositionPx: history * 20, maxRevealPx: 120)
+        let line = TerminalLetterboxGeometry.lineScrollTopRevealResolution(currentRevealPx: reveal, deltaPixels: -delta * 20, maxRevealPx: 120)
+        scrollCases.append(["history": history, "position": position, "reveal": reveal, "delta": delta,
+            "primary_position": history - primary.positionPx / 20, "primary_reveal": primary.revealPx,
+            "line_reveal": line.revealPx, "line_remaining": -line.leftoverDeltaPixels / 20])
+    } }
+} }
+let result: [String: Any] = ["cases": cases, "keyboard_cases": keyboardCases, "scroll_cases": scrollCases]
+print(String(data: try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys]), encoding: .utf8)!)
 '''
 
 
@@ -68,10 +90,10 @@ def main():
         binary = work / 'reference'
         subprocess.run(['xcrun', 'swiftc', *files, str(entry), '-o', str(binary)], check=True)
         cases = json.loads(subprocess.check_output([str(binary)], text=True))
-        result = json.dumps({'revision': PIN, 'source_sha256': hashes, 'cases': cases}, sort_keys=True).encode()
+        result = json.dumps({'revision': PIN, 'source_sha256': hashes, **cases}, sort_keys=True).encode()
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(gzip.compress(result, mtime=0))
-        print(f'Wrote {len(cases)} iOS layout cases to {args.output}')
+        print(f'Wrote {sum(len(values) for values in cases.values())} iOS layout/keyboard/scroll cases to {args.output}')
 
 
 if __name__ == '__main__':

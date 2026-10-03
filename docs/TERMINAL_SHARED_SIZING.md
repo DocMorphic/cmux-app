@@ -324,12 +324,75 @@ checks; no new AVD was created. The 138 MB temporary bytecode dump and extracted
 DEX were removed after diagnosis, retaining the original failure logs. No physical
 phone was connected or changed. Signed build 397 remains the last delivered release.
 
-Keyboard behavior remains a separate gap: the Android primary screen still
-reports the keyboard-reduced viewport, while iOS keeps a keyboard-independent
-primary grid and slides/reveals content using measured blank space. That behavior,
-the alternate-screen keyboard transaction fence, and physical Mac/Pixel
-policy/detach/viewer-reattach checks remain pending. Local display geometry tests
-do not prove any of those host/device workflows.
+At this shared-grid checkpoint, keyboard-independent primary geometry remained
+open. The following checkpoint implements it. The alternate-screen keyboard
+transaction fence and physical Mac/Pixel policy/detach/viewer-reattach checks remain
+pending; local geometry tests do not prove those host/device workflows.
+
+## Primary keyboard absorption and top reveal (2026-10-03)
+
+Primary screens now retain their keyboard-independent PTY grid. The visible view
+size and unconsumed keyboard inset are sampled together in the layout callback;
+the primary report adds that overlap back instead of reporting each smaller
+keyboard-animation frame. Shared grids use the same stable container. Unshared
+alternate screens continue reporting the visible container. Screen-mode changes
+are published separately from mutable terminal snapshots so entering/leaving an
+alternate screen is observable even when the underlying display object is reused.
+
+The renderer measures the lower of the cursor row and last non-whitespace row,
+including content drawn below the cursor. Blank rows and letterbox space absorb
+the keyboard intrusion first. Remaining intrusion slides the render up enough
+to keep the last content row visible. Primary scrollback and the hidden-top-row
+reveal form one continuous axis: scrolling past the oldest stored row reveals
+the clipped top without fabricating history or sending a remote wheel event.
+The line path consumes that reveal zone before sending remaining wheel input.
+Dismissal clamps away any held reveal without inventing a compensating scroll.
+
+Painting, mouse/file hits, scrolling and sizing chrome all use the shifted
+geometry. Scroll gesture ownership now depends on grid/cell dimensions, not the
+moving origin, so a reveal can continue through multiple Compose frames without
+cancelling its own drag. Shared-grid pinch focus is converted back into the
+keyboard-independent coordinate space; zooming preserves the cell under the
+fingers while the keyboard has shifted the renderer.
+
+Reference evidence adds the unmodified `TerminalKeyboardViewport.swift` and the
+blank absorption / primary and line scroll-reveal functions from
+`TerminalLetterboxGeometry.swift` at `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`.
+The generated fixture now contains **315 cases**: the prior 189 shared-grid cases,
+36 keyboard absorption/reveal cases and 90 cases checked against both Swift scroll
+paths. Source hashes remain embedded in the fixture.
+
+**16 focused JVM tests passed**, zero failures/errors/skips, covering the new
+keyboard behavior, both scroll paths, all Swift reference cases, paired inset
+measurements, content below the cursor, and existing scroll geometry/motion.
+The native keyboard test now requires the view to shrink while its primary PTY
+row count stays unchanged, then verifies exactly one submitted command. File and
+mouse tests target explicit cells in the new top/bottom-pinned geometry.
+
+**10 emulator UI tests passed in 25.701 seconds** on the existing API 37 / 16 KiB
+AVD: two keyboard-layout checks, two shared-grid checks, and six native flow checks
+covering keyboard submission, alternate mouse/scroll, zoom, file hits, raw output
+screen changes/recovery and local primary scroll. Continuous drags reveal the
+oldest rows without remote scroll; a real two-finger pinch preserves its focused
+cell while the grid is shifted above the keyboard. Prompt-visible, top-revealed,
+keyboard-dismissed and full native/Gboard captures were visually reviewed.
+
+Final debug/test APK build passed in 52 seconds. SHA-256:
+
+- Debug: `796c81e5270753a8fcd7982f12c58d5a75f36f0209816bc372afd21cb7b1eb48`
+- Test: `f8b068e7036d064e5115f6c1cce9220c696fd3b3f9bb388c69d45db9e929dfce`
+
+Ignored local evidence: `captures/runtime/keyboard-layout-build.txt`,
+`keyboard-layout-final-build.txt`, `keyboard-layout-ui-final.txt` and
+`keyboard-layout-screenshots-final/` in that directory. The existing emulator was
+stopped after verification; no new virtual device was created. Content-bottom
+measurement still needs bounded-cost/performance and graphics-content coverage.
+
+This is not complete keyboard parity. Unshared alternate screens still need the
+iOS-equivalent settled-animation transaction fence and prepared target geometry.
+Physical Pixel/Gboard and Mac shared-policy/reattach acceptance, hardware keyboard
+checks and accessibility/performance coverage remain pending. No physical phone
+was connected for this checkpoint, and signed build 397 remains unchanged.
 
 ## Full integration acceptance checklist
 

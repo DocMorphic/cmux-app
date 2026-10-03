@@ -26,7 +26,11 @@ prompt-safe size chip placement are now implemented; **20 focused JVM tests and
 Shared grids now use iOS-style top-left placement, width fitting and display-only
 pinch/pan. **36 focused JVM tests passed**, including 189 reference cases generated
 by the pinned Swift implementation, and **10 emulator UI checks passed**, including
-the full native terminal flow. Primary-screen keyboard sliding/reveal and physical
+the full native terminal flow. Primary-screen keyboard absorption/sliding and
+top-row reveal are now implemented with **16 focused JVM tests** and 315 pinned
+Swift reference cases, plus **10 emulator UI checks** covering real keyboard entry,
+continuous top reveal, shifted-grid pinch focus and native terminal regressions.
+Unshared alternate-screen animation fencing and physical
 Mac/Pixel checks remain open. Android uses the supported
 `unknown` kind plus its model; upstream's automatic exclusion rules still need an
 Android kind for identical behavior. Signed build 397 and the installed Pixel app

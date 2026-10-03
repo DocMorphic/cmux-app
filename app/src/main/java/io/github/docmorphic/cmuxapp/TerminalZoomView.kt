@@ -17,6 +17,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -32,9 +33,11 @@ import kotlin.math.roundToInt
 /** The pointer coroutine is keyed to the mounted view, never to changing font/viewport sizes. */
 @Composable
 internal fun Modifier.terminalPinchZoom(zoom: TerminalZoomState, sharedLayout: TerminalSharedGridLayout? = null,
+    coordinateOffset: Offset = Offset.Zero,
     onSharedTransform: (TerminalGridTransform) -> Unit = {}): Modifier {
     val latestShared by rememberUpdatedState(sharedLayout)
     val latestTransform by rememberUpdatedState(onSharedTransform)
+    val latestOffset by rememberUpdatedState(coordinateOffset)
     return pointerInput(zoom) {
         awaitPointerEventScope {
             var steps: TerminalPinchSteps? = null
@@ -58,7 +61,7 @@ internal fun Modifier.terminalPinchZoom(zoom: TerminalZoomState, sharedLayout: T
                         if (layout != null && latest != null && layout.width == latest.width && layout.height == latest.height &&
                             layout.columns == latest.columns && layout.rows == latest.rows && layout.cells == latest.cells) {
                             val moved = layout.panned(event.calculatePan())
-                            pinchLayout = moved.zoomed(layout.transform.magnification * event.calculateZoom(), event.calculateCentroid())
+                            pinchLayout = moved.zoomed(layout.transform.magnification * event.calculateZoom(), event.calculateCentroid() + latestOffset)
                             latestTransform(pinchLayout!!.transform)
                         } else pinchLayout = null
                     } else {

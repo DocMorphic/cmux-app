@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -222,10 +223,10 @@ fun NativeScreen(
     val terminalCells = remember(density, terminalZoom.size) {
         TerminalCellMetrics.fromFontSize(with(density) { terminalZoom.size.sp.toPx() }, with(density) { 2.dp.toPx() })
     }
-    var terminalViewportPixels by remember { mutableStateOf(IntSize.Zero) }
-    val terminalViewport = TerminalViewport.fit(terminalViewportPixels.width, terminalViewportPixels.height, terminalCells)
-    val terminalColumns = terminalViewport?.columns ?: 0
-    val terminalRows = terminalViewport?.rows ?: 0
+    var terminalMeasurement by remember { mutableStateOf(TerminalViewportMeasurement()) }
+    val terminalViewportPixels = terminalMeasurement.visible
+    val terminalImeInsets = WindowInsets.ime
+    val terminalNavigationInsets = WindowInsets.navigationBars
     var selectedBrowser by paneSelection.browser
     var selectedChangesWorkspace by paneSelection.changesWorkspace
     var connectedCode by remember { mutableStateOf<String?>(null) }
@@ -543,6 +544,7 @@ fun NativeScreen(
     } }
     val terminalDraft = draftStates[draftTarget] ?: TerminalDrafts.Draft()
     var grid by remember(draftTarget, client) { mutableStateOf<TerminalDisplay>(RenderGrid()) }
+    var terminalActiveScreen by remember(draftTarget, client) { mutableStateOf("primary") }
     var gridRevision by remember { mutableIntStateOf(0) }
     var replayGeneration by remember { mutableIntStateOf(0) }
     var terminalTransport by remember { mutableStateOf(TerminalTransport.resolve(emptySet())) }
@@ -638,6 +640,10 @@ fun NativeScreen(
     val inputTarget = draftTarget
     val selectedSizing = selectedTerminal?.id?.let(terminalSizingStates::get)
     val terminalAttached = selectedSizing?.allowsTraffic ?: true
+    val terminalReportPixels = terminalMeasurement.reportSize(terminalActiveScreen == "primary" || selectedSizing?.state != null)
+    val terminalViewport = TerminalViewport.fit(terminalReportPixels.width, terminalReportPixels.height, terminalCells)
+    val terminalColumns = terminalViewport?.columns ?: 0
+    val terminalRows = terminalViewport?.rows ?: 0
     // Each viewport effect owns its own confirmation. Old acknowledgements/cleanup
     // cannot confirm or hide the chrome of a replacement surface or connection.
     var sizingViewportConfirmed by remember(client, selectedWorkspace?.id, selectedTerminal?.id,
@@ -1408,6 +1414,7 @@ fun NativeScreen(
             else scrollPosition = TerminalScrollViewport.at(scrollPosition, next.historyLineCount, next.activeScreen).position
             previousScrollAnchor = anchor
             grid = next
+            terminalActiveScreen = next.activeScreen
             terminalSizing.rendered(active, terminal.id, SharedTerminalGrid(next.columns, next.rows))
             gridRevision++
         }
@@ -1944,13 +1951,17 @@ fun NativeScreen(
                 NativeTerminalTabs(selectedWorkspace?.terminals.orEmpty(), terminal) { selectPane(NativeWorkspacePane(terminal = it)) }
                 val currentGrid = grid
                 val gridPresentation = rememberTerminalGridPresentation(client, terminal.id, selectedSizing?.state,
-                    currentGrid, terminalViewportPixels, terminalCells, density.density)
+                    currentGrid, terminalReportPixels, terminalCells, density.density, terminalViewportPixels.height,
+                    gridRevision, scrollViewport, scrollInteractionEpoch)
                 val displayGeometry = gridPresentation.geometry
                 val visibleArtifactScroll by rememberUpdatedState(scrollViewport)
                 Box(Modifier.fillMaxWidth().weight(1f)) {
                 RenderGridView(currentGrid, terminalCells, gridRevision,
                     Modifier.fillMaxSize().testTag("native-terminal")
-                        .onSizeChanged { terminalViewportPixels = it }
+                        .onGloballyPositioned { coordinates ->
+                            terminalMeasurement = TerminalViewportMeasurement(coordinates.size,
+                                (terminalImeInsets.getBottom(density) - terminalNavigationInsets.getBottom(density)).coerceAtLeast(0))
+                        }
                         .focusRequester(terminalFocusRequester)
                         .onPreviewKeyEvent { event -> directHardware(event.nativeKeyEvent) }
                         .focusable()
@@ -1959,7 +1970,7 @@ fun NativeScreen(
                             onClick("Open keyboard") { openDirectKeyboard(); true }
                             customActions = listOf(CustomAccessibilityAction("View as Text") { openTerminalText(); true })
                         }
-                        .terminalPinchZoom(terminalZoom, gridPresentation.sharedLayout, gridPresentation.transform)
+                        .terminalPinchZoom(terminalZoom, gridPresentation.sharedLayout, gridPresentation.pinchOffset, gridPresentation.transform)
                         .pointerInput(terminal.id, currentGrid, terminalCells, displayGeometry, artifactRpc, artifactsReady, artifactTapController) {
                             detectTapGestures(onTap = { point ->
                                 artifactTapController.invalidate()
@@ -1998,9 +2009,16 @@ fun NativeScreen(
                         .terminalScrollGestures(terminalMotion,
                             displayGeometry,
                             replayGeneration, currentGrid.activeScreen,
-                            linePath = !(terminalTransport.screenAnchor && currentGrid.activeScreen == "primary"),
+                            linePath = !(currentGrid.activeScreen == "primary" &&
+                                (terminalTransport.screenAnchor || terminalTransport.mode != TerminalOutputMode.GRID)),
                             enabled = terminalScroll != null,
-                            onScroll = { lines, cell -> terminalScroll?.invoke(lines, cell) ?: false }), scrollPosition = scrollPosition,
+                            onScroll = { lines, cell ->
+                                val local = currentGrid.activeScreen == "primary" &&
+                                    (terminalTransport.screenAnchor || terminalTransport.mode != TerminalOutputMode.GRID)
+                                val move = gridPresentation.scroll(lines, scrollPosition, currentGrid.historyLineCount, local)
+                                val sent = if (move.rows != 0.0) terminalScroll?.invoke(move.rows, cell) ?: false else false
+                                sent || move.revealed
+                            }), scrollPosition = scrollPosition,
                     displayGeometry = displayGeometry)
                 if (scrollOffset > 0) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp)
                     .background(nativePanel, RoundedCornerShape(14.dp)).padding(start = 12.dp),

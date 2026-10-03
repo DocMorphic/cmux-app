@@ -1,25 +1,40 @@
 package io.github.docmorphic.cmuxapp
 
 import androidx.compose.runtime.*
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
 
 internal data class TerminalGridPresentation(
     val sharedLayout: TerminalSharedGridLayout?, val geometry: TerminalGeometry?,
-    val transform: (TerminalGridTransform) -> Unit
+    val pinchOffset: Offset,
+    val transform: (TerminalGridTransform) -> Unit,
+    val scroll: (Double, Double, Int, Boolean) -> TerminalGridScroll
 )
+internal data class TerminalGridScroll(val rows: Double, val revealed: Boolean)
 
 /** Keep per-surface display state out of the large screen's generated Compose method. */
 @Composable
 internal fun rememberTerminalGridPresentation(client: MobileRpcClient?, surface: String,
     shared: TerminalSizeState?, grid: TerminalDisplay, pixels: IntSize, cells: TerminalCellMetrics,
-    density: Float): TerminalGridPresentation {
+    density: Float, visibleHeight: Int = pixels.height, revision: Int = 0,
+    scrollViewport: TerminalScrollViewport = TerminalScrollViewport.at(0.0, 0), resetReveal: Int = 0): TerminalGridPresentation {
     var transform by remember(client, surface) { mutableStateOf(TerminalGridTransform()) }
-    val layout = shared?.takeIf { it.grid.columns == grid.columns && it.grid.rows == grid.rows }?.let {
-        TerminalSharedGridLayout.resolve(pixels.width.toFloat(), pixels.height.toFloat(), grid.columns,
-            grid.rows, cells, density, transform)
+    var reveal by remember(client, surface, resetReveal) { mutableFloatStateOf(0f) }
+    val sharedMatches = shared?.grid?.let { it.columns == grid.columns && it.rows == grid.rows } == true
+    val layout = TerminalSharedGridLayout.resolve(pixels.width.toFloat(), pixels.height.toFloat(), grid.columns,
+        grid.rows, cells, density, if (sharedMatches) transform else TerminalGridTransform())
+    val contentBottom = remember(grid, revision, scrollViewport) { TerminalKeyboardLayout.contentBottomRows(grid, scrollViewport) }
+    val keyboard = layout?.let { TerminalKeyboardLayout(it.geometry, pixels.height.toFloat(), visibleHeight.toFloat(), contentBottom, reveal) }
+    SideEffect {
+        if (sharedMatches) layout?.let { transform = it.transform }
+        if (keyboard != null) reveal = keyboard.reveal
     }
-    SideEffect { layout?.let { transform = it.transform } }
-    val geometry = layout?.geometry ?: TerminalGeometry.fit(pixels.width.toFloat(), pixels.height.toFloat(),
-        grid.columns, grid.rows, cells)
-    return TerminalGridPresentation(layout, geometry) { transform = it }
+    return TerminalGridPresentation(layout.takeIf { sharedMatches }, keyboard?.geometry,
+        Offset(0f, keyboard?.slide ?: 0f), { transform = it }) { rows, position, history, local ->
+        val next = TerminalKeyboardLayout.scroll(position, history, reveal, keyboard?.maximumReveal ?: 0f,
+            rows, keyboard?.geometry?.cellHeight ?: cells.heightPx, local)
+        val revealed = next.reveal != reveal
+        reveal = next.reveal
+        TerminalGridScroll(next.remainingRows, revealed)
+    }
 }

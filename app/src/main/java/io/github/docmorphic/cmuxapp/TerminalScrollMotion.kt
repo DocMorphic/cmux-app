@@ -86,11 +86,15 @@ internal fun Modifier.terminalScrollGestures(motion: TerminalScrollMotion, geome
     surfaceGeneration: Int, activeScreen: String, linePath: Boolean, enabled: Boolean,
     onScroll: (Double, TerminalGeometry.Cell) -> Boolean): Modifier {
     val latestSend by rememberUpdatedState(onScroll)
+    val latestGeometry by rememberUpdatedState(geometry)
+    // Keyboard top-reveal changes the origin continuously during a drag. Keep
+    // that gesture alive; only cell/grid changes replace its coordinate scale.
+    val gestureGeometry = geometry?.copy(originX = 0f, originY = 0f)
     val tracker = remember(motion) { VelocityTracker() }
     var multiTouch by remember(motion) { mutableStateOf(false) }
     var cell by remember(motion) { mutableStateOf(TerminalGeometry.Cell(0, 0)) }
-    DisposableEffect(motion, geometry, surfaceGeneration, activeScreen, linePath, enabled) { onDispose { motion.stop() } }
-    return this.pointerInput(motion, geometry, surfaceGeneration, activeScreen, linePath, enabled) {
+    DisposableEffect(motion, gestureGeometry, surfaceGeneration, activeScreen, linePath, enabled) { onDispose { motion.stop() } }
+    return this.pointerInput(motion, gestureGeometry, surfaceGeneration, activeScreen, linePath, enabled) {
         // Observe down/up before the drag detector: touch-down stops momentum even
         // when it becomes a tap, and a held finger's up event clears stale velocity.
         awaitPointerEventScope {
@@ -104,18 +108,20 @@ internal fun Modifier.terminalScrollGestures(motion: TerminalScrollMotion, geome
                 event.changes.firstOrNull { it.id == primary }?.let { change ->
                     change.historical.forEach { tracker.addPosition(it.uptimeMillis, it.position) }
                     tracker.addPosition(change.uptimeMillis, change.position)
-                    geometry?.let { cell = it.cell(change.position.x, change.position.y) }
+                    latestGeometry?.let { cell = it.cell(change.position.x, change.position.y) }
                 }
                 if (event.changes.none { it.pressed }) primary = null
             }
         }
-    }.pointerInput(motion, geometry, surfaceGeneration, activeScreen, linePath, enabled) {
+    }.pointerInput(motion, gestureGeometry, surfaceGeneration, activeScreen, linePath, enabled) {
         try {
             detectVerticalDragGestures(onDragStart = { motion.stop() }, onDragCancel = { motion.stop() },
                 onDragEnd = {
+                    val geometry = latestGeometry
                     if (enabled && !multiTouch && geometry != null) motion.fling(tracker.calculateVelocity().y,
                         geometry.cellHeight, cell, linePath) { rows, at -> latestSend(rows, at) }
                 }, onVerticalDrag = { change, pixels ->
+                    val geometry = latestGeometry
                     if (enabled && !multiTouch && geometry != null) {
                         motion.move(pixels, geometry.cellHeight, geometry.cell(change.position.x, change.position.y), linePath) { rows, at -> latestSend(rows, at) }
                         change.consume()

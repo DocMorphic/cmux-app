@@ -136,7 +136,7 @@ class NativeFlowTest {
         val metrics = context.resources.displayMetrics
         val cells = TerminalCellMetrics.fromFontSize(TerminalFontSize.DEFAULT * metrics.scaledDensity, 2f * metrics.density)
         val bounds = terminal.fetchSemanticsNode().boundsInRoot
-        val geometry = TerminalGeometry.fit(bounds.width, bounds.height, viewport.getInt("viewport_columns"), viewport.getInt("viewport_rows"), cells)!!
+        val geometry = TerminalSharedGridLayout.resolve(bounds.width, bounds.height, viewport.getInt("viewport_columns"), viewport.getInt("viewport_rows"), cells, metrics.density)!!.geometry
         terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(geometry.originX + geometry.cellWidth * 7.5f, geometry.originY + geometry.cellHeight * .5f)) }
         compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Rendered Markdown").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription("Viewer actions").performClick()
@@ -196,7 +196,7 @@ class NativeFlowTest {
         val metrics = context.resources.displayMetrics
         val cells = TerminalCellMetrics.fromFontSize(TerminalFontSize.DEFAULT * metrics.scaledDensity, 2f * metrics.density)
         val bounds = terminal.fetchSemanticsNode().boundsInRoot
-        val geometry = TerminalGeometry.fit(bounds.width, bounds.height, viewport.getInt("viewport_columns"), viewport.getInt("viewport_rows"), cells)!!
+        val geometry = TerminalSharedGridLayout.resolve(bounds.width, bounds.height, viewport.getInt("viewport_columns"), viewport.getInt("viewport_rows"), cells, metrics.density)!!.geometry
         terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(geometry.originX + geometry.cellWidth * column, geometry.originY + geometry.cellHeight * .5f)) }
     }
 
@@ -249,18 +249,20 @@ class NativeFlowTest {
         waitForTerminalText()
         val initialRows = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" && !it.getJSONObject("params").optBoolean("clear") }
             .getJSONObject("params").getInt("viewport_rows")
+        val initialHeight = compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot.height
+        val beforeKeyboard = peer.requests.size
         screenshot("terminal")
         compose.onNode(hasSetTextAction()).performClick()
         compose.onNode(hasSetTextAction()).performTextInput("printf cmux")
         try { compose.waitUntil(10_000) {
-            peer.requests.any {
-                it.optString("method") == "mobile.terminal.viewport" &&
-                    it.getJSONObject("params").optInt("viewport_rows", initialRows) < initialRows
-            }
+            compose.onNodeWithTag("native-terminal").fetchSemanticsNode().boundsInRoot.height < initialHeight - 50
         } } finally {
             waitForTerminalText()
             screenshot("terminal-keyboard")
         }
+        assertTrue("Opening the keyboard must not reflow the primary PTY", peer.requests.drop(beforeKeyboard)
+            .filter { it.optString("method") == "mobile.terminal.viewport" && !it.getJSONObject("params").optBoolean("clear") }
+            .all { it.getJSONObject("params").getInt("viewport_rows") == initialRows })
         compose.onNodeWithText("The coroutine scope left the composition").assertDoesNotExist()
         compose.onNodeWithText("Send").performClick()
         compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "terminal.paste" } }
@@ -1423,12 +1425,18 @@ class NativeFlowTest {
         assertTrue(scroll.sumOf { it.getJSONObject("params").getDouble("delta_lines") } > 0)
         assertEquals(600, scroll.first().getJSONObject("params").getInt("max_scrollback_rows"))
         assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.mouse" })
-        terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(width / 2f, height / 2f)) }
+        val viewport = peer.requests.last { it.optString("method") == "mobile.terminal.viewport" && !it.getJSONObject("params").optBoolean("clear") }.getJSONObject("params")
+        val bounds = terminal.fetchSemanticsNode().boundsInRoot
+        val metrics = context.resources.displayMetrics
+        val cells = TerminalCellMetrics.fromFontSize(TerminalFontSize.DEFAULT * metrics.scaledDensity, 2f * metrics.density)
+        val geometry = TerminalSharedGridLayout.resolve(bounds.width, bounds.height, viewport.getInt("viewport_columns"),
+            viewport.getInt("viewport_rows"), cells, metrics.density)!!.geometry
+        terminal.performTouchInput { click(androidx.compose.ui.geometry.Offset(geometry.originX + geometry.cellWidth * 4.5f,
+            geometry.originY + geometry.cellHeight * 5.5f)) }
         compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.mouse" } }
         val click = peer.requests.single { it.optString("method") == "mobile.terminal.mouse" }.getJSONObject("params")
-        val viewport = peer.requests.first { it.optString("method") == "mobile.terminal.viewport" }.getJSONObject("params")
-        assertEquals(viewport.getInt("viewport_columns") / 2, click.getInt("col"))
-        assertEquals(viewport.getInt("viewport_rows") / 2, click.getInt("row"))
+        assertEquals(4, click.getInt("col"))
+        assertEquals(5, click.getInt("row"))
         val clientId = peer.requests.first { it.optString("method") == "mobile.events.subscribe" &&
             it.optJSONObject("params")?.optJSONArray("topics")?.toString()?.contains("terminal.") == true }
             .getJSONObject("params").getString("client_id")

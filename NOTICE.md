@@ -305,3 +305,9 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android adapts the layout to Compose pixels and shares geometry with Canvas and
 input hit-testing. scripts/generate-terminal-layout-fixtures.py compiles the
 unmodified upstream math to produce JVM test-only reference data with source hashes.
+
+TerminalKeyboardLayout.kt adapts TerminalKeyboardViewport and the blank-space and
+top-reveal functions in TerminalLetterboxGeometry at that same cmux revision.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later. Android translates the
+geometry into its clipped viewport and converts the scroll axis to distance from
+the live bottom. The reference fixture generator also compiles these Swift functions.
