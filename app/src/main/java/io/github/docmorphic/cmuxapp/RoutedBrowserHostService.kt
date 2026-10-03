@@ -17,6 +17,7 @@ class RoutedBrowserHostService : Service() {
             try {
                 val entry = checkNotNull(RoutedBrowserSessions.live(args.getString(RoutedBrowserProtocol.EXTRA))) { "Browser session ended. Open it again from the workspace." }
                 if (kind == RoutedBrowserProtocol.OPEN) RoutedBrowserSessions.attach(entry, peer)
+                check(!entry.menuRetired) { "Browser workspace ended" }
                 check(entry.peer?.binder == peer.binder) { "Browser session belongs to another presentation" }
                 when (kind) {
                     RoutedBrowserProtocol.OPEN -> {

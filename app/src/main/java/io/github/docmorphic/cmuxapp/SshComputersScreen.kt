@@ -92,7 +92,9 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
             fun ownsShell() = session.admitted() && selectedShell == activeShell.id &&
                 session.shells.state.value.any { it === activeShell } && session.hosts.state.value.hosts.any { it.id == activeShell.hostId }
             fun canCreate() = ownsShell() && !busy && activeShell.state.value.phase == SshShellPhase.RUNNING
-            val picker = SshPickerPresentation(layout, ownsShell() && !busy && shellState.phase == SshShellPhase.RUNNING, true)
+            fun livePicker(): SshPickerPresentation? = if (!ownsShell()) null else
+                SshPickerPresentation(layout, !busy && shellState.phase == SshShellPhase.RUNNING, true)
+            val picker = livePicker() ?: SshPickerPresentation(layout, false, false)
             fun replaceShell(reconnect: Boolean) {
                 if (!ownsShell() || busy || (!reconnect && !canCreate())) return
                 busy = true; failure = null
@@ -121,8 +123,8 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit) {
             }
             if (files) SshFilesSheet(session, activeShell.hostId, activeShell) { files = false }
             browser?.let { presentation ->
-                SshBrowserSheet(presentation, sshPicker = picker, onSshCommand = { command ->
-                    if (picker.permits(command) && canCreate() && command.operation == SshPickerOperation.WORKSPACE) {
+                SshBrowserSheet(presentation, sshPicker = picker, sshPickerSource = ::livePicker, onSshCommand = { command ->
+                    if (livePicker()?.permits(command) == true && canCreate() && command.operation == SshPickerOperation.WORKSPACE) {
                         browser = null; replaceShell(false)
                     }
                 }, onRoute = { route ->

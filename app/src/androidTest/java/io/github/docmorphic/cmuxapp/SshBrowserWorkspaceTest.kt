@@ -198,6 +198,30 @@ class SshBrowserWorkspaceTest {
         selected(created.tabs.single())
         assertEquals(browser.resource, provider().state.value.tree!!.workspaces.single { it.key == original.key }.tabs.single { it.isBrowser }.resource)
     }
+    @Test fun pausedParentPublishesNewSshScreenAndTargetsItsFreshPane() {
+        val provider = cmux.state.value.providers.single { it.session == "fixture" }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshWorkspacesRoute(session, hostId) {}
+        } } }
+        open(); ready("SSH browser page")
+        compose.onNodeWithContentDescription("Browser mode").performClick()
+        compose.onNodeWithText("On Android").performClick()
+        compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) }
+        uiText("SSH Chrome start ▾").click(); uiText("Screen 1")
+        // Model a desktop change while the parent no longer produces frames.
+        val created = runBlocking { provider.newScreen(workspace()) }
+        val heading = uiText("Screen 2")
+        val tab = workspace().tabs.single { it.surface == created.surface }
+        capture("ssh-browser-live-new-screen")
+        // Multiple screens legitimately use the same default terminal title.
+        // Select the new screen's row, not the first matching text on screen.
+        val title = tab.name?.takeIf { it.isNotBlank() } ?: tab.title.ifBlank { workspace().name }
+        device.findObjects(By.text(title)).single { it.visibleBounds.top >= heading.visibleBounds.bottom }.click()
+        val target = SshWorkspaceTarget.Cmux(created)
+        val tag = "ssh.shell.identity.cmux-ssh-$hostId\n${target.encode()}"
+        compose.waitUntil(15000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("ssh.shell.composer").assertIsEnabled()
+    }
     @Test fun tmuxBrowserMenuCreatesWindowsSplitsAndWorkspacesInExactTargets() {
         val originalCmux = workspace()
         val tmux = runBlocking { session.tmux.open(hostId) }

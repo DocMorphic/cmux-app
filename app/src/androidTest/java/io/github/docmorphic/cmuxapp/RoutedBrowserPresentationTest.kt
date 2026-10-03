@@ -50,6 +50,8 @@ class RoutedBrowserPresentationTest {
     private lateinit var surface: LocalBrowserSurface
     private var route: NativeWorkspaceRoute? = null
     private var browserState by mutableStateOf(NativeBrowserPickerState())
+    private var menuWorkspace by mutableStateOf(workspace)
+    private var menuCreationEnabled by mutableStateOf(true)
     private val creationRequests = CopyOnWriteArrayList<String>()
     private var frozenDestination by mutableStateOf<LocalBrowserDestination?>(null)
     private fun created(kind: String) { creationRequests += kind; navigation.leave(close = true) }
@@ -115,13 +117,55 @@ class RoutedBrowserPresentationTest {
             val state by navigation.state.collectAsState()
             val destination = frozenDestination ?: state.local
             if (destination == null) Button(onClick = { navigation.restoreRemembered(key, workspace) }) { Text("Reopen fixture") }
-            else RoutedLocalBrowserWorkspaceView(destination, navigation, workspace, { network }, {
+            else RoutedLocalBrowserWorkspaceView(destination, navigation, menuWorkspace, { network }, {
                 holds.incrementAndGet()
                 RoutedBrowserHostLease({ holds.decrementAndGet(); releases.incrementAndGet() }, { probes += it })
             }, {}, { route = it }, browserModes = true,
-                onNewWorkspace = { created("workspace") }, onNewTerminal = { created("terminal") }, onNewBrowser = { created("browser") }, browserState = { browserState })
+                onNewWorkspace = { created("workspace") }, onNewTerminal = { created("terminal") }, onNewBrowser = { created("browser") },
+                menuSource = { RoutedBrowserMenu(menuWorkspace, menuCreationEnabled, browserState = browserState) })
         } } }
     }
+    @Test fun pausedParentPublishesRenamedRemovedAndNewPanesWithoutReopeningBrowser() {
+        browser("Routed fixture ▾")
+        assertFalse(compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED))
+        main { menuWorkspace = workspace.copy(terminals = listOf(NativeTerminal("terminal", "Renamed shell"),
+            NativeTerminal("new-shell", "Added shell")), browsers = listOf(workspace.browsers.first())) }
+        text("Routed fixture ▾").click()
+        text("Renamed shell")
+        text("Added shell")
+        assertFalse(device.hasObject(By.text("Fixture shell")))
+        assertFalse(device.hasObject(By.text("Second")))
+        text("Added shell").click()
+        compose.waitUntil(10_000) { route?.terminalId == "new-shell" }
+        assertEquals("generated-mac", route?.origin)
+        until { holds.get() == 0 }
+    }
+
+    @Test fun pausedParentRevokesAndRestoresCreationWithoutReopeningBrowser() {
+        browser("Routed fixture ▾")
+        text("Routed fixture ▾").click()
+        main { menuCreationEnabled = false }
+        fun disabled(node: UiObject2) = generateSequence(node) { it.parent }.any { !it.isEnabled }
+        until { disabled(text("New Workspace")) }
+        assertTrue(disabled(text("New Terminal")))
+        text("New Workspace").click()
+        assertTrue(creationRequests.isEmpty())
+        main { menuCreationEnabled = true }
+        until { !disabled(text("New Workspace")) }
+        text("New Workspace").click()
+        compose.waitUntil(10_000) { creationRequests == listOf("workspace") }
+        until { holds.get() == 0 }
+    }
+
+    @Test fun replacementWorkspaceCannotPopulateOrNavigateTheOldBrowserMenu() {
+        browser("Routed fixture ▾")
+        main { menuWorkspace = workspace.copy(id = "unrelated-workspace") }
+        compose.waitUntil(15_000) { navigation.state.value.local == null }
+        assertNull(route)
+        assertTrue(creationRequests.isEmpty())
+        until { holds.get() == 0 }
+    }
+
     @Test fun browserCapabilityUpdatesReachTheLiveSeparateProcessMenu() {
         browser("Routed fixture ▾")
         main { browserState = NativeBrowserPickerState(known = false, streaming = false) }

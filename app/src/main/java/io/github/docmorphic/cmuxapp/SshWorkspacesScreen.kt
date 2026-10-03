@@ -81,6 +81,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     val hosts by session.hosts.state.collectAsState()
     val shells by session.shells.state.collectAsState()
     val disconnected by tmux.connection.disconnected.collectAsState()
+    val connectionStatuses by session.connections.statuses.collectAsState()
     val providers = cmuxState.providers.map { provider -> key(provider) { provider to provider.state.collectAsState().value } }
     val scope = rememberCoroutineScope()
     var selection by rememberSaveable(hostId.toString()) { mutableStateOf<String?>(null) }
@@ -214,17 +215,48 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
             tmuxWorkspace != null -> !tmuxState.loading && tmuxState.error == null
             else -> terminal?.state?.value?.phase == SshShellPhase.RUNNING
         }
+        val observedProvider = provider?.state?.collectAsState()
+        val observedTerminal = terminal?.state?.collectAsState()
+        val browserOwner = selection
+        val browserWorkspaceId = target?.let { sshBrowserWorkspace(it, "").id }
+        fun liveCmuxWorkspace(): SshCmuxWorkspace? = observedProvider?.value?.tree?.let { current ->
+            current.workspaces.singleOrNull { sshCmuxBrowserWorkspace(checkNotNull(provider).session, current, it).id == browserWorkspaceId }
+        }
+        fun liveTmuxWorkspace() = (target as? SshWorkspaceTarget.Tmux)?.let { ref -> tmuxState.workspaces.singleOrNull { it.id == ref.workspace } }
+        fun liveBrowserPicker(): SshPickerPresentation? {
+            if (selection != browserOwner || opened?.reference != browserOwner || !session.admitted()) return null
+            val currentTree = observedProvider?.value?.tree
+            val currentCmux = liveCmuxWorkspace()
+            val currentTmux = liveTmuxWorkspace()
+            val currentLayout = when {
+                provider != null && currentTree != null && currentCmux != null -> sshCmuxPicker(provider.session, currentTree, currentCmux)
+                currentTmux != null -> sshTmuxPicker(currentTmux)
+                target is SshWorkspaceTarget.Shell && terminal != null -> SshPickerLayout(listOf(SshPickerSection(0, "Terminals", listOf(SshPickerRow(target, terminal.title)))))
+                else -> SshPickerLayout(emptyList())
+            }
+            val enabled = !disconnected && !busy && !restoring && cmuxState.operation == null &&
+                (connectionStatuses[hostId]?.phase ?: SshConnectionPhase.CONNECTED) == SshConnectionPhase.CONNECTED && when {
+                    provider != null -> provider in cmuxState.providers && observedProvider?.value?.let { !it.loading && !it.ended && it.error == null } == true && currentCmux != null
+                    target is SshWorkspaceTarget.Tmux -> currentTmux != null && !tmuxState.loading && tmuxState.error == null
+                    else -> observedTerminal?.value?.phase == SshShellPhase.RUNNING
+                }
+            return SshPickerPresentation(currentLayout, enabled, true)
+        }
+        val browserPicker = liveBrowserPicker() ?: SshPickerPresentation(layout, false, false)
         fun pickerMutation(action: suspend () -> SshWorkspaceTarget?) {
-            if (!pickerEnabled) return
+            if (liveBrowserPicker()?.enabled != true) return
             val entry = selection
             act { val next = action(); if (selection == entry && next != null) select(next) }
         }
         fun openBrowser() {
-            if (pickerEnabled && target != null) act { presentBrowser(provider, target, terminal?.title ?: opened?.title.orEmpty()) }
+            if (liveBrowserPicker()?.enabled == true && target != null) act { presentBrowser(provider, target, terminal?.title ?: opened?.title.orEmpty()) }
         }
-        val browserPicker = SshPickerPresentation(layout, pickerEnabled, true)
         fun pickerCommand(command: SshPickerCommand) {
-            if (!browserPicker.permits(command)) return
+            val fresh = liveBrowserPicker() ?: return
+            if (!fresh.permits(command)) return
+            val layout = fresh.layout
+            val cmuxWorkspace = liveCmuxWorkspace()
+            val tmuxWorkspace = liveTmuxWorkspace()
             if (command.operation == SshPickerOperation.BROWSER) { openBrowser(); return }
             pickerMutation {
                 when (command.operation) {
@@ -276,7 +308,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
             } else { onReconnect(); retry++ }
         }
         if (files && terminal != null) SshFilesSheet(session, hostId, terminal) { files = false }
-        browser?.let { presentation -> SshBrowserSheet(presentation, sshPicker = browserPicker,
+        browser?.let { presentation -> SshBrowserSheet(presentation, sshPicker = browserPicker, sshPickerSource = ::liveBrowserPicker,
             onSshCommand = { command -> browser = null; pickerCommand(command) }, onRoute = { route ->
             val target = if (route.browserId != null) {
                 val provider = presentation.provider

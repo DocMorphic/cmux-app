@@ -28,6 +28,7 @@ internal object RoutedBrowserSessions {
         var sshPicker: SshPickerPresentation? = null, var browserState: NativeBrowserPickerState = NativeBrowserPickerState()) {
         val exited = CompletableDeferred<Unit>()
         var surfaceWatch: Job? = null
+        var menuRetired = false
         var peer: Messenger? = null
         var death: IBinder.DeathRecipient? = null
         val attachment = destination.surface.attach()
@@ -69,6 +70,7 @@ internal object RoutedBrowserSessions {
         val death = IBinder.DeathRecipient { scope.launch { finished(entry) } }
         peer.binder.linkToDeath(death, 0)
         entry.peer = peer; entry.death = death
+        if (entry.menuRetired) entry.send(RoutedBrowserProtocol.RETIRE)
     }
     fun refresh(id: String?, workspace: NativeWorkspace, creationEnabled: Boolean = false, sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState()) {
         val entry = live(id) ?: return
@@ -78,9 +80,14 @@ internal object RoutedBrowserSessions {
                 entry.destination.surface.linkedStreamPanelId, creationEnabled, sshPicker, browserState))
         }
     }
-    fun refreshBrowserState(id: String?, browserState: NativeBrowserPickerState) {
+    fun refreshMenu(id: String?, menu: RoutedBrowserMenu?) {
         val entry = live(id) ?: return
-        refresh(id, entry.workspace, entry.creationEnabled, entry.sshPicker, browserState)
+        if (entry.menuRetired || menu == null || menu.workspace.id != entry.destination.key.workspaceId) {
+            entry.menuRetired = true
+            entry.send(RoutedBrowserProtocol.RETIRE)
+            return
+        }
+        refresh(id, menu.workspace, menu.creationEnabled, menu.sshPicker, menu.browserState)
     }
     fun finished(entry: Entry) {
         if (entry.exited.isCompleted) return
@@ -95,7 +102,7 @@ internal object RoutedBrowserSessions {
     }
     fun consume(id: String?) { if (completed?.id == id) completed = null }
     suspend fun prepare(entry: Entry, url: String?): Int {
-        check(live(entry.id) === entry)
+        check(live(entry.id) === entry && !entry.menuRetired)
         val parsed = url?.toHttpUrlOrNull()
         return entry.network.prepare(parsed?.takeIf { BrowserLoopbackHost.matches(it.host) }?.port)
     }

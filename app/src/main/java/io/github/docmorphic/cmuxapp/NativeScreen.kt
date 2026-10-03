@@ -1967,12 +1967,25 @@ fun NativeScreen(
             }
             localBrowser != null && pairedMacs.any { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key } -> {
                 val browserMac = pairedMacs.first { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key }
-                val canCreateFromBrowser = !creatingWorkspace && !creatingTerminal &&
-                    (feedSources[browserMac.origin]?.availability == NativeFeedAvailability.CONNECTED ||
-                        (connectionReady && connectedCode == browserMac.code && client != null))
+                fun browserMenu(): RoutedBrowserMenu? {
+                    if (!signedIn || localBrowserKey(browserLogin, teamState.scope, browserMac, localBrowser.key.workspaceId) != localBrowser.key) return null
+                    val source = (moveSources[browserMac.origin] ?: feedSources[browserMac.origin])?.takeIf { it.mac == browserMac }
+                    val primary = connectionReady && connectedCode == browserMac.code && client?.isClosed == false
+                    val currentWorkspace = when {
+                        source?.hasWorkspaceSnapshot == true -> source.workspaces.singleOrNull { it.id == localBrowser.key.workspaceId }
+                        client != null && connectedCode == browserMac.code -> workspaces.singleOrNull { it.id == localBrowser.key.workspaceId }
+                        else -> localBrowser.workspace
+                    } ?: return null
+                    val feed = feedSources[browserMac.origin]?.takeIf { it.mac == browserMac }
+                    val support = if (primary) NativeBrowserPickerState.from(true, hostCapabilities)
+                        else feed?.let { NativeBrowserPickerState.from(it.availability == NativeFeedAvailability.CONNECTED, it.capabilities) }
+                            ?: NativeBrowserPickerState(known = false, streaming = false)
+                    return RoutedBrowserMenu(currentWorkspace, !creatingWorkspace && !creatingTerminal &&
+                        (primary || feed?.availability == NativeFeedAvailability.CONNECTED), browserState = support)
+                }
                 fun createFromBrowser(kind: NativeWorkspaceCreation) {
                     val login = store.taskSession() ?: return
-                    if (!canCreateFromBrowser || localBrowsers.state.value.local?.surface !== localBrowser.surface ||
+                    if (browserMenu()?.creationEnabled != true || localBrowsers.state.value.local?.surface !== localBrowser.surface ||
                         localBrowserKey(login, teamState.scope, browserMac, localBrowser.key.workspaceId) != localBrowser.key ||
                         !store.pairedMacs().contains(browserMac) || !connection.allowsSaved(browserMac)) return
                     localBrowsers.leave(close = true)
@@ -1993,14 +2006,9 @@ fun NativeScreen(
                     },
                     onClose = { displayedTab?.first?.let { key -> browserLogin?.let { workspaceTabs.forget(it, key) } } },
                     onRoute = { workspaceRoute = it }, browserModes = true,
-                    onNewWorkspace = if (canCreateFromBrowser) ({ createFromBrowser(NativeWorkspaceCreation.WORKSPACE) }) else null,
-                    onNewTerminal = if (canCreateFromBrowser) ({ createFromBrowser(NativeWorkspaceCreation.TERMINAL) }) else null,
-                    onNewBrowser = if (canCreateFromBrowser) ({ createFromBrowser(NativeWorkspaceCreation.BROWSER) }) else null,
-                    browserState = { if (connectionReady && connectedCode == browserMac.code && client?.isClosed == false)
-                        NativeBrowserPickerState.from(true, hostCapabilities)
-                    else feedSources[browserMac.origin]?.takeIf { it.mac == browserMac }?.let {
-                        NativeBrowserPickerState.from(it.availability == NativeFeedAvailability.CONNECTED, it.capabilities)
-                    } ?: NativeBrowserPickerState(known = false, streaming = false) })
+                    onNewWorkspace = { createFromBrowser(NativeWorkspaceCreation.WORKSPACE) },
+                    onNewTerminal = { createFromBrowser(NativeWorkspaceCreation.TERMINAL) },
+                    onNewBrowser = { createFromBrowser(NativeWorkspaceCreation.BROWSER) }, menuSource = ::browserMenu)
             }
             code.isBlank() -> NativeComputerPicker(teamState, computerState, runtime = sharedConnections?.native,
                 onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,

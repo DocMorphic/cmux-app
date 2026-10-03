@@ -67,7 +67,7 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
                     val surface = LocalBrowserSurface(checkNotNull(response.getString("surface")), response.getString("url"))
                     // Route setup suspends; a newer context can arrive before it finishes.
                     val metadata = latestContext ?: response
-                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(metadata), modes = metadata.getBoolean("modes"), linkedPanel = metadata.getString("linked_panel"), creationEnabled = metadata.getBoolean("creation_enabled"),
+                    mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(metadata), retired = state.value.retired, modes = metadata.getBoolean("modes"), linkedPanel = metadata.getString("linked_panel"), creationEnabled = metadata.getBoolean("creation_enabled"),
                         sshPicker = SshPickerPresentation.decode(metadata.getString("ssh_picker")), browserState = RoutedBrowserProtocol.browserState(metadata))
                     publishForeground()
                     surface.state.collect { snapshot ->

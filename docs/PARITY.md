@@ -27,6 +27,48 @@ Earlier signed-build references below describe individual feature checkpoints.
 Physical acceptance, configured push, authenticated release migration, safe crash
 stack capture and the remaining source audit are still open.
 
+## Live browser menu inventory and permissions (2026-10-03)
+
+The separate browser Activity now receives current workspace rows, creation
+permissions and SSH picker targets even while the parent Activity has stopped
+producing frames. The previous capability-only observer left renamed, added and
+removed panes stale until the parent redrew. A regression reproduced this on the
+previous code with **Missing: Renamed shell** before the fix.
+
+`RoutedBrowserMenu` provides one owner-scoped snapshot for publication and for
+checking a returned action. Native Mac sources read the current authoritative
+workspace list and connection capabilities. SSH sources read the current cmux-tui
+tree, tmux windows or shell state. Creation handlers recheck permissions and use
+the current section/pane targets. A source belonging to another workspace cannot
+replace the displayed menu or apply a returned action. Existing account,
+connection, destination and presentation identity checks remain in force.
+
+A removed workspace retires its presentation permanently, including when removal
+precedes the browser service attachment. A later attachment receives that closure;
+route preparation and returned actions are rejected. Retirement received during
+WebView setup survives completion of the earlier opening request.
+
+Verification uses the existing API 37 emulator, with no new AVD. Eight production
+browser checks passed in **44.097 seconds**, covering inventory updates, creation
+revocation/restoration, capabilities, replacement-workspace rejection, rotation,
+retired-owner cleanup and late pane/creation results. Nine existing real
+SSH/tmux/Chrome flows passed in the first integration run. The new tenth flow
+observed its remotely created Screen 2 immediately, but its first assertion clicked
+the first of two identically titled terminal rows. Saved semantics confirmed the
+wrong row was selected. After selecting the row under Screen 2 explicitly, the
+new flow passed and opened the exact returned terminal identity. Its menu
+screenshot was inspected. A final **five-test pass in 27.496 seconds** combines
+that SSH flow, pre-attachment retirement and three replacement/late-result checks.
+All four plain-SSH screen checks also passed, including the browser round trip
+and workspace creation. There are **23 distinct passing Android checks** across
+these runs; this is not a full application or physical-device acceptance run.
+Debug/test APK assembly and release Kotlin compilation passed; the final build
+took **31 seconds**. Evidence is ignored at `captures/runtime/browser-live-menu/`.
+
+Physical Pixel acceptance, configured push and the wider source/UI audit remain
+open. The Pixel was absent from ADB. Signed build 434 predates this change and the
+capability/fallback change; the whole-parity reference pin is unchanged.
+
 ## SSH browser picker restoration and tmux acceptance (2026-10-03)
 
 An independent phone browser opened over a linked cmux-tui browser could return
