@@ -3,7 +3,35 @@
 var noticeCookies = class extends ExtensionCommon.ExtensionAPI {
   getAPI(context) {
     const leases = new Map();
+    let fixtureCert = null;
+    let savedDns = null;
     return { noticeCookies: {
+      async httpsFixture(action) {
+        const pref = "network.dns.localDomains";
+        const certDb = Cc["@mozilla.org/security/x509certdb;1"].getService(Ci.nsIX509CertDB);
+        if (action === "resolve") {
+          if (savedDns !== null) throw new Error("Fixture already active");
+          savedDns = { existed: Services.prefs.prefHasUserValue(pref), value: Services.prefs.getCharPref(pref, "") };
+          Services.prefs.setCharPref(pref, "cmux-notice.invalid");
+          return true;
+        }
+        if (action === "trust") {
+          if (savedDns === null || fixtureCert) throw new Error("Invalid fixture lifecycle");
+          const fixture = await context.extension.readJSON("fixture-ca.json");
+          fixtureCert = certDb.addCertFromBase64(fixture.base64, "CT,,");
+          return true;
+        }
+        if (action === "clear") {
+          if (fixtureCert) { certDb.deleteCertificate(fixtureCert); fixtureCert = null; }
+          if (savedDns) {
+            if (savedDns.existed) Services.prefs.setCharPref(pref, savedDns.value);
+            else Services.prefs.clearUserPref(pref);
+            savedDns = null;
+          }
+          return true;
+        }
+        throw new Error("Invalid HTTPS fixture operation");
+      },
       async capture(tabId) {
         const tab = context.extension.tabManager.get(tabId);
         if (!tab || !tab.incognito || !/^http:\/\/127\.0\.0\.1:\d+\/probe\?/.test(tab.browser.currentURI.spec)) {
@@ -29,7 +57,8 @@ var noticeCookies = class extends ExtensionCommon.ExtensionAPI {
         return true;
       },
       async seed(tabId, url, value) {
-        if (!/^http:\/\/127\.0\.0\.1:\d+\/$/.test(url) || !["a", "b"].includes(value)) {
+        const secure = /^https:\/\/cmux-notice\.invalid:\d+\/$/.test(url);
+        if ((!secure && !/^http:\/\/127\.0\.0\.1:\d+\/$/.test(url)) || !["a", "b"].includes(value)) {
           throw new Error("Invalid loopback fixture");
         }
         const tab = context.extension.tabManager.get(tabId);
@@ -40,10 +69,10 @@ var noticeCookies = class extends ExtensionCommon.ExtensionAPI {
         if (attrs.privateBrowsingId !== 1 || !(attrs.geckoViewSessionContextId || attrs.userContextId)) {
           throw new Error("Missing private context attributes");
         }
-        Services.cookies.add("127.0.0.1", "/", "notice_probe", value,
-          false, true, true, Number.MAX_SAFE_INTEGER, attrs,
-          Ci.nsICookie.SAMESITE_UNSET, Ci.nsICookie.SCHEME_HTTP, false);
-        return { contextAttributes: attrs, httpOnly: true };
+        Services.cookies.add(secure ? "cmux-notice.invalid" : "127.0.0.1", "/", "notice_probe", value,
+          secure, true, true, Number.MAX_SAFE_INTEGER, attrs,
+          Ci.nsICookie.SAMESITE_UNSET, secure ? Ci.nsICookie.SCHEME_HTTPS : Ci.nsICookie.SCHEME_HTTP, false);
+        return { contextAttributes: attrs, httpOnly: true, secure };
       }
     } };
   }

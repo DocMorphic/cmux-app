@@ -7,8 +7,9 @@ Gradle settings, and not a replacement APK for the user's signed-in app.
 
 The experiment is unfinished. The original checker incorrectly flagged ten
 libraries; the [corrected Bionic-based gate](../docs/NATIVE_ALIGNMENT.md) passes
-all thirteen. Scoped private cleanup is now verified in the fixture; HTTPS,
-account lifecycle, rendering and physical acceptance remain open.
+all thirteen. Scoped private cleanup and Secure/HTTP-only cookie transport are
+verified in synthetic fixtures; account lifecycle, rendering and physical
+acceptance remain open.
 
 ## Pinned build
 
@@ -58,6 +59,7 @@ An experimental route can be selected with `-e cmux_cookie_api scoped`. It uses 
 bundled privileged extension to read the selected tab's actual origin attributes
 and seed only that private context. Its API accepts only the loopback fixture,
 two fixed synthetic values and an owned `about:blank#notice-...` private tab.
+The HTTPS follow-up also permits the fixed `cmux-notice.invalid` fixture below.
 There are no content scripts, external-message endpoints or arbitrary-code APIs.
 Runtime configuration files and remote debugging are disabled. This relies on
 Gecko internals and needs validation against every adopted engine update.
@@ -153,12 +155,54 @@ The public cleanup call alone is not sufficient for private cookies; use the
 verified combined route as the starting point. The pinned public implementation
 supplies only the context ID to its generic origin-pattern clear. Before adopting
 this internal extension API, verify cancellation/account replacement, leases
-during extension restart, HTTPS/Secure cookies and partitioned state.
+during extension restart and partitioned state. Basic HTTPS/Secure transport is
+verified by the following fixture; real account handoff is still untested.
+
+### HTTPS and Secure cookies
+
+`PrivateHttpsProbe#secureCookiesUseTrustedTlsAndStayIsolated` passed **1 test in
+14.611 s** on the existing API 37 / 16 KB arm64 AVD, with `pageSizeCompat=0`.
+The unchanged HTTP scoped-seeding/script-exclusion check passed **1 test in
+7.567 s** on the same final APKs. Final debug/test build: 7 s.
+
+The fixture uses `cmux-notice.invalid`, temporarily resolved to loopback within
+the separate Gecko experiment, and a bundled synthetic test CA. It first observes
+`ERROR_SECURITY_BAD_CERT` without trust. Only then does the native-only extension
+trust the bundled CA. It seeds distinct Secure, HTTP-only cookies into two private
+contexts and verifies real requests, not only cookie-API return values:
+
+- HTTPS sends only the context's own cookie; MockWebServer observes a TLS handshake
+  and page JavaScript reports a secure context.
+- Plain HTTP to the same hostname sends no cookie and is not a secure context.
+- Returning to HTTPS sends the correct cookie again.
+- `document.cookie` is empty in every page.
+
+Using an ordinary `.invalid` hostname avoids depending on special loopback-host
+cookie/security treatment. No certificate-error override or TLS verification
+preference is used. Teardown deletes the fixture CA and restores the prior DNS
+preference; the experiment packages were also removed after verification.
+The synthetic leaf key is deliberately public test data, described in
+`src/androidTest/assets/tls/README.md`. Fixture trust code must stay outside the
+main app. There are no real credentials or real service exchanges in this test.
+
+An initial attempt correctly rejected untrusted TLS but failed during CA loading
+because `fetch` is unavailable in the privileged extension context. The corrected
+fixture uses the pinned engine's bundled `Extension.readJSON` method. The failed
+run is retained separately; it does not count as transport acceptance. Evidence:
+`captures/runtime/notice-https/` (ignored), including final reports and APK hashes.
+
+Run this selector in its own instrumentation process:
+
+```sh
+adb -s DEVICE shell am instrument -w -r \
+  -e class 'io.github.docmorphic.cmuxapp.noticespike.PrivateHttpsProbe#secureCookiesUseTrustedTlsAndStayIsolated' \
+  io.github.docmorphic.cmuxapp.noticespike.test/androidx.test.runner.AndroidJUnitRunner
+```
 
 ## Adoption gates
 
-Before integrating: verify physical native compatibility, HTTPS/Secure
-cookie handling, partitioned cleanup and account
+Before integrating: verify physical native compatibility,
+partitioned cleanup and account
 replacement, cancellation and update compatibility. Then connect navigation and
 theme policy, actual rendering and bounded preload. This experiment does not
 establish any of those untested behaviors.

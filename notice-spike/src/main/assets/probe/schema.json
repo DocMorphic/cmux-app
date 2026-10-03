@@ -1,5 +1,6 @@
 [{"namespace":"noticeCookies","functions":[{
   "name":"seed","type":"function","async":true,
   "parameters":[{"name":"tabId","type":"integer"},{"name":"url","type":"string"},{"name":"value","type":"string","enum":["a","b"]}]
-},{"name":"capture","type":"function","async":true,"parameters":[{"name":"tabId","type":"integer"}]},
+},{"name":"httpsFixture","type":"function","async":true,"parameters":[{"name":"action","type":"string","enum":["resolve","trust","clear"]}]},
+{"name":"capture","type":"function","async":true,"parameters":[{"name":"tabId","type":"integer"}]},
 {"name":"clear","type":"function","async":true,"parameters":[{"name":"lease","type":"string"}]}]}]

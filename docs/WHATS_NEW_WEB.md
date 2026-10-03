@@ -184,8 +184,9 @@ The initial isolated debug APK was 196,989,177 bytes, including 175,111,152 nati
 bytes; this is not measured cmux-app APK growth. Physical native acceptance and
 the remaining renderer/storage requirements are still necessary before adoption.
 
-Next validate HTTPS/Secure and page-script cookie exclusion, lifetime through
-context close/process death, unrelated-state preservation and account replacement;
+The follow-ups below verify basic HTTPS/Secure and page-script cookie exclusion,
+lifetime through context close/process death and unrelated-state preservation.
+Next validate partitioned state and account replacement;
 evaluate physical native acceptance, package cost and complete third-party
 notices. The internal extension API needs a pinned-engine regression gate. Then
 integrate actual rendering/theme/navigation/preload with the existing broker and
@@ -212,7 +213,7 @@ cleanup. **1 test passed in 17.719 s**, with A empty on the first observation an
 B's cookie/localStorage/IndexedDB/cache values intact. Final debug/test build: 7 s.
 The public-only failure is retained and reproducible; no global cookie clear was
 used. Do not call public cleanup alone sufficient or claim synchronous disk erasure.
-HTTPS/Secure, partitioned cleanup, replacement-account lifecycle, visual
+Partitioned cleanup, replacement-account lifecycle, visual
 integration and physical Pixel remain unverified. See the experiment README for
 reproduction. Debug/test assembly passed in 20 s; no production app code changed.
 Evidence: `captures/runtime/notice-private-storage/` (ignored).
@@ -227,3 +228,24 @@ debug/test build passed in 7 s. This covers top-level visits to distinct hosts,
 not third-party frames, partition keys, HTTPS or account lifecycle. Evidence:
 `captures/runtime/notice-multi-origin/` (ignored). The experiment packages were
 removed and the existing AVD stopped after verification; the real app was untouched.
+
+### HTTPS transport follow-up
+
+The isolated `PrivateHttpsProbe` passed **1 test in 14.611 s** on API 37 / 16 KB
+arm64 (`pageSizeCompat=0`). Its fixed `.invalid` hostname resolves locally, with
+an explicit synthetic CA trusted only in the experiment. Before trust, navigation
+fails with `ERROR_SECURITY_BAD_CERT`; after trust, two private contexts each send
+only their own seeded Secure/HTTP-only cookie over TLS. Plain HTTP sends no
+cookie and reports an insecure context. Returning to HTTPS sends the correct
+cookie again, while all page scripts see an empty cookie string. The server's
+actual handshake/request evidence confirms transport rather than only API results.
+
+The existing HTTP seeding/script-exclusion regression also passed (1 test, 7.567 s)
+on the final APKs; final build took 7 s. Teardown removed the fixture trust and
+restored its DNS preference. Experiment packages were removed and the existing
+AVD stopped. No main app data, system CA store, real account exchange or physical
+Pixel was involved. The failed first fixture used unavailable privileged `fetch`;
+the corrected one uses the pinned engine's bundled resource reader. Logs/reports:
+`captures/runtime/notice-https/` (ignored). Do not copy fixture trust operations or
+the public test key into production. Continue partitioned cleanup and account/lease
+lifecycle, then integrate rendering, theme, navigation and preload with the broker.

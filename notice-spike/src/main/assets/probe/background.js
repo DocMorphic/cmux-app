@@ -3,6 +3,10 @@ const port = browser.runtime.connectNative("notice_probe");
 port.onMessage.addListener(async command => {
   try {
     if (!Number.isInteger(command.id)) throw new Error("Invalid request");
+    if (command.op === "httpsFixture") {
+      port.postMessage({ id: command.id, done: await browser.noticeCookies.httpsFixture(command.action) });
+      return;
+    }
     const tabs = await browser.tabs.query({});
     if (command.op === "tabs") {
       port.postMessage({ id: command.id, tabs: tabs.map(t => ({
@@ -20,8 +24,10 @@ port.onMessage.addListener(async command => {
       port.postMessage({ id: command.id, cleared: await browser.noticeCookies.clear(command.lease) });
       return;
     }
-    if (command.op !== "seed" || !/^http:\/\/127\.0\.0\.1:\d+\/$/.test(command.url)
+    const httpsFixture = /^https:\/\/cmux-notice\.invalid:\d+\/$/.test(command.url);
+    if (command.op !== "seed" || (!/^http:\/\/127\.0\.0\.1:\d+\/$/.test(command.url) && !httpsFixture)
         || !["a", "b"].includes(command.value)) throw new Error("Invalid synthetic fixture");
+    if (httpsFixture && command.scoped !== true) throw new Error("HTTPS requires scoped fixture");
     const matches = tabs.filter(t => t.url === command.tabUrl && t.incognito);
     if (matches.length !== 1 || !matches[0].cookieStoreId) throw new Error("Private tab not uniquely identified");
     const tab = matches[0];

@@ -75,7 +75,7 @@ The public-only failure remains reproducible. The native checker
 was overly broad: NATIVE_ALIGNMENT.md records the Bionic whole-LOAD exemption,
 19 passing Python checks and actual old-JNA negative control. All 13 Gecko libraries
 pass the corrected gate. No main-toolchain update or extra AVD was made. Next
-finish partitioned cleanup/HTTPS/account lifecycle, physical acceptance and package/license cost
+finish partitioned cleanup/account lifecycle, physical acceptance and package/license cost
 before integrating
 the renderer/cookie
 seeding, theme, navigation policy and the existing10sec/20sec lifetimes in launch
@@ -86,8 +86,17 @@ Two-host private cleanup now passes (1 test, 13.292 s): A's cookie and all three
 storage values vanish at both `127.0.0.1` and `127.0.0.2`, while B retains its
 values at both. This verifies top-level cross-host visits, not embedded third-party
 partitions. Evidence: `captures/runtime/notice-multi-origin/`; experiment packages
-removed and existing AVD stopped. Continue HTTPS/Secure and partition/account/lease
+removed and existing AVD stopped. Continue partition/account/lease
 lifecycle checks before renderer integration.
+
+Basic HTTPS/Secure transport now passes (1 test, 14.611 s) with actual TLS requests,
+untrusted-certificate rejection before fixture CA trust, no Secure cookie on HTTP,
+correct per-context cookies after returning to HTTPS, and empty page-script cookie
+strings. The existing HTTP regression also passes (1 test, 7.567 s). The separate
+fixture temporarily changes only its own Gecko DNS/CA state and restores it; never
+copy those test controls or its synthetic key into production. Experiment packages
+removed and AVD stopped; evidence `captures/runtime/notice-https/`. No Pixel or real
+account exchange acceptance. The main renderer remains unfinished.
 
 Native fitting now passes 4 portrait, 3 large-text and 1 landscape UI checks;
 see the follow-up in WHATS_NEW.md and captures/runtime/whats-new-fitting. The
