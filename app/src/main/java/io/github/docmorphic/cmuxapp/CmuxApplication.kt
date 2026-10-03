@@ -26,6 +26,19 @@ internal object MobileDiagnostics {
             elapsed = SystemClock::elapsedRealtimeNanos, onClear = MobileDebugLog::clearThrough,
             exitHistory = { androidExitHistory(context.applicationContext) })
         recorder?.recoverExits()
+        // Separate synchronous publication: a dying process cannot drain the coroutine writer.
+        // Keep ART's original handler responsible for reporting/terminating the process.
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        if (previous != null) {
+            files.crashes.prepare()
+            val pid = android.os.Process.myPid()
+            val slot = "$role-$pid-${SystemClock.elapsedRealtimeNanos()}"
+            val version = androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(info)
+            Thread.setDefaultUncaughtExceptionHandler(DiagnosticCrashHandler(previous) { error ->
+                files.crashes.write(DiagnosticCrash.capture(error, role, boot, SystemClock.elapsedRealtimeNanos(),
+                    System.currentTimeMillis(), pid, version), slot)
+            })
+        }
     }
     fun event(operation: DebugOperation) { recorder?.record(operation, DebugOutcome.SUCCESS) }
 }

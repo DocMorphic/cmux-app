@@ -55,9 +55,7 @@ class AndroidExitHistoryTest {
                 } finally { recorder.shutdown() }
             }
         } finally {
-            context.getSystemService(android.app.ActivityManager::class.java).runningAppProcesses.orEmpty()
-                .firstOrNull { it.pid == pid && it.uid == Process.myUid() && it.processName == "${context.packageName}:browser" }
-                ?.let { Process.killProcess(it.pid) }
+            stopDiagnosticBrowser(context, pid)
             root.deleteRecursively()
         }
     }

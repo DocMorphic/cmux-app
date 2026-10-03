@@ -26,6 +26,7 @@ internal data class DiagnosticPolicy(val generationBytes: Long = 5_000_000, val 
 /** Shared by both app processes. No open log handle survives an operation or rotation. */
 internal class DiagnosticFiles(private val root: File, private val exports: File, private val build: String,
     private val policy: DiagnosticPolicy = DiagnosticPolicy(), private val debugVerbose: Boolean = false) {
+    val crashes = DiagnosticCrashFiles(File(root, "crashes"))
     private data class State(val verbose: Boolean = false, val boot: Int = -1, val clearedThrough: Long = -1,
         val exitCutoff: Long = -1, val exits: List<DiagnosticExit> = emptyList())
     private val names = listOf("cmux-app.log", "cmux-network.log")
@@ -74,6 +75,7 @@ internal class DiagnosticFiles(private val root: File, private val exports: File
     }
     fun recoverExits(exits: List<DiagnosticExit>) = locked {
         val current = state()
+        crashes.retained(current.boot, current.clearedThrough)
         // The shared, atomic snapshot avoids append/checkpoint crash windows and duplicate imports.
         val merged = (current.exits + exits.filter { it.timestamp > current.exitCutoff })
             .associateBy { it.key }.values.sortedWith(compareBy<DiagnosticExit> { it.timestamp }.thenBy { it.pid })
@@ -129,6 +131,7 @@ internal class DiagnosticFiles(private val root: File, private val exports: File
         // Persist the barrier first, including when deletion subsequently fails.
         val current = state()
         save(current.copy(boot = boot, clearedThrough = cutoff, exitCutoff = maxOf(current.exitCutoff, wallMillis), exits = emptyList()))
+        crashes.retained(boot, cutoff)
         var success = true
         names.flatMap(::generations).forEach { if (!it.delete()) success = false }
         exports.listFiles()?.filter { it.name.startsWith("cmux-diagnostics-") }?.forEach { if (!it.delete()) success = false }
@@ -150,6 +153,11 @@ internal class DiagnosticFiles(private val root: File, private val exports: File
                         while (true) { checkCurrent(); val n = input.read(buffer); if (n < 0) break; zip.write(buffer, 0, n) }
                     } }
                     if (source == names[0]) {
+                        val current = state()
+                        zip.write("\nLocal Java/Kotlin crashes (at most 32; code symbols only; no messages or thread names):\n".toByteArray())
+                        crashes.retained(current.boot, current.clearedThrough).forEach {
+                            checkCurrent(); zip.write(it.text().toByteArray())
+                        }
                         zip.write("\nPrevious process failures (Android 11+ system history; at most 64; no stack traces):\n".toByteArray())
                         state().exits.forEach { checkCurrent(); zip.write(it.line().toByteArray()) }
                     }

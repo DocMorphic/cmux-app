@@ -25,8 +25,32 @@ installation time. It was already signed out. See [install evidence and checksum
 
 A reusable verifier now enforces these APK-content checks for future builds.
 Older signed-build references below describe their original checkpoints.
-Physical acceptance, configured push, authenticated release migration, safe crash
-stack capture and the remaining source audit are still open.
+Physical acceptance, configured push, authenticated release migration, native/ANR stack
+capture and the remaining source audit are still open.
+
+## Local Java/Kotlin crash stacks (2026-10-03)
+
+Android now captures bounded local exception-stack metadata through the default
+uncaught-exception handler, then delegates to Android's previous handler. Crash
+writes bypass the ordinary diagnostic queue and locks; complete records publish
+atomically. Exports retain code symbols and numeric app version while excluding
+exception messages, source paths and thread names. The existing two-member ZIP,
+private storage and shared clear cutoff remain in use. Startup/export maintenance
+retains the newest 32 complete records. See [design and evidence](CRASH_DIAGNOSTICS.md).
+
+Verification: eight new JVM checks plus fifteen existing storage/history checks
+passed. Debug/test APKs and release Kotlin compilation passed. All six Android
+crash/history/Settings checks passed in 34.262s on API 37 / 16 KB, including a real
+uncaught exception, preserved system crash reporting, message/thread/path omission,
+repeat export, clear, and native-abort regression. An initial fixture launch timed
+out behind Android's preceding crash dialog; cleanup now verifies and terminates
+the known fixture process before the next launch. No production handler behavior
+was weakened to make this pass.
+
+The targeted source is upstream `MobileDebugLogCrashCapture.swift` at `0fc35d6`.
+This adds Java/Kotlin stack capture to the existing OS reason summaries. Native
+and ANR stacks, native Iroh detailed tracing, broader event coverage and physical
+acceptance are still open; signed build 441 predates this change.
 
 ## One-time SSH key setup (2026-10-03)
 

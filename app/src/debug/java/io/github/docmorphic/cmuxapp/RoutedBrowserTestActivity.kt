@@ -41,9 +41,14 @@ class RoutedBrowserTestActivity : Activity() {
             4 -> { CookieManager.getInstance().flush(); answer("flushed") }
             5 -> { answer("closing"); finishAndRemoveTask() }
             6 -> answer(lastError ?: "none")
+            7 -> { answer("crashing"); Handler(Looper.getMainLooper()).post { crashForDiagnostics() } }
         }
         true
     })
+    private fun crashForDiagnostics(): Nothing {
+        Thread.currentThread().name = "PRIVATE_DIAGNOSTIC_THREAD"
+        throw IllegalStateException("PRIVATE_DIAGNOSTIC_MESSAGE", java.io.IOException("PRIVATE_DIAGNOSTIC_CAUSE"))
+    }
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
