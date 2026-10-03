@@ -110,12 +110,15 @@ internal class SshCmuxTerminal private constructor(override val id: String, val 
         } catch (failure: Exception) { end(failure.message ?: "Could not render terminal") }
     }
     override fun send(text: String, paste: Boolean): Boolean {
+        return sendBytes((if (paste) TerminalKeyEncoding.paste(text, display.bracketedPaste) else text).toByteArray(Charsets.UTF_8))
+    }
+    override fun sendBytes(bytes: ByteArray): Boolean {
         if (!allowed() || attachment == null || state.value.phase != SshShellPhase.RUNNING) return false
-        val bytes = (if (paste) TerminalKeyEncoding.paste(text, display.bracketedPaste) else text).toByteArray(Charsets.UTF_8)
-        if (bytes.size > 256 * 1024 - pending) { bytes.fill(0); end("Input queue was full. Input was not replayed."); return false }
-        pending += bytes.size
-        if (input.trySend(bytes).isSuccess) return true
-        pending -= bytes.size; bytes.fill(0); end("Input queue closed"); return false
+        if (bytes.size > 256 * 1024 - pending) { end("Input queue was full. Input was not replayed."); return false }
+        val owned = bytes.copyOf()
+        pending += owned.size
+        if (input.trySend(owned).isSuccess) return true
+        pending -= owned.size; owned.fill(0); end("Input queue closed"); return false
     }
     override fun resize(columns: Int, rows: Int, cells: TerminalCellMetrics) {
         if (!allowed()) return

@@ -34,9 +34,11 @@ class GhosttyMouseTest {
         GhosttyTerminal(80, 24).use { terminal ->
             terminal.resize(80, 24, 8, 16)
             terminal.append("\u001b[?1000h\u001b[?1016h".toByteArray())
-            assertEquals("\u001b[<0;37;41M", terminal.mouse(0, 1, 4, 2).decodeToString())
+            // Ghostty's upstream SGR-pixel fixture keeps terminal-space positions
+            // unchanged; only cell-coordinate protocols add one.
+            assertEquals("\u001b[<0;36;40M", terminal.mouse(0, 1, 4, 2).decodeToString())
             terminal.resize(2, 2, 10, 20)
-            assertEquals("\u001b[<0;16;31M", terminal.mouse(0, 1, 999, 999).decodeToString())
+            assertEquals("\u001b[<0;15;30M", terminal.mouse(0, 1, 999, 999).decodeToString())
         }
     }
 

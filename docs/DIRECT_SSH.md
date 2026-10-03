@@ -15,6 +15,79 @@ establishes the required behavior at upstream candidate
 reference or establish which App Store/TestFlight binary contains these features.
 Older checkpoints below retain their original evidence boundaries. The lost-reply/readiness checkpoint is the latest real SSH browser acceptance evidence; the unsigned-sequence checkpoint describes the latest browser implementation change.
 
+## Terminal mouse, wheel and focus input (2026-10-03)
+
+The shared SSH shell screen now sends explicit interactions through the owning
+plain SSH, tmux or cmux-tui terminal's existing bounded ordered queue:
+
+- A tap on live terminal content emits one left-button press/release batch when
+  the application captures the mouse. Taps in local history do not click the live
+  application. Keyboard opening remains available; long press still opens Text.
+- Captured swipes emit wheel reports at the gesture's terminal cell. Otherwise,
+  alternate-screen applications receive up/down keys only when alternate-scroll
+  mode is enabled, respecting application cursor-key mode. Ordinary primary
+  scrollback remains local. A captured wheel returns the phone from history to
+  the live viewport. Rejected sends stop momentum; oversized batches fail without
+  replay. Accessibility scroll actions use the same route.
+- Foreground/window focus transitions emit focus reports only when the terminal
+  parser has observed mode 1004. The reports stop when the view/session retires.
+
+Ghostty's pinned mouse encoder selects X10, UTF-8, SGR, URxvt or SGR-pixel format
+from the current parser state. The JNI operation takes zero-based terminal cells,
+uses cell-center positions and current cell metrics, clamps to current grid
+bounds, and returns owned bytes. The three providers now expose a copying byte
+entry point so legacy mouse bytes above 127 never undergo UTF-8 conversion.
+Existing queue ownership, admission, size limits and uncertain-delivery rules
+remain in effect.
+
+Reference: `GhosttySurfaceView.swift` (`sendLocalMouseClick`, local scroll
+ownership, `handleOutboundBytes`), `TerminalLocalEmulation.swift`,
+`Data+TerminalQueryReplies.swift` and `TerminalReplayQueryFilter.swift` at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`. The Android binding separates explicit
+user input from parser writes, so tmux/cmux-tui mirrors continue suppressing all
+query replies during snapshots and live output. Plain SSH is authoritative and
+keeps its existing live query replies. Its retained surface is not rebuilt by
+replaying historical output on navigation; reconnect opens a new PTY. The reviewed
+Swift replay-prefix filter therefore has no corresponding historical-input path
+to filter in the current Android plain-shell implementation. No broad source pin
+is advanced by this targeted review.
+
+Native source `9f9724e` built in [run 37119904537](https://github.com/DocMorphic/cmux-app/actions/runs/37119904537).
+The downloaded library's manifest and file hashes matched the source before it
+replaced the local native checkpoint. Snapshot ABIs are unchanged. Four real
+Ghostty JNI checks passed on API 37 / 16 KB, including SGR press/release/wheel,
+legacy non-UTF-8 bytes, mode retirement, cell-center pixel coordinates and resize
+clamping. The initial pixel test incorrectly applied the cell-coordinate `+1`
+offset; pinned Ghostty `mouse_encode.zig` explicitly preserves terminal-space
+pixel coordinates, and the corrected expectation passed. This changed only the
+test, not the native encoder. Thirteen JVM tmux control/protocol cases passed,
+including exact hexadecimal delivery of a legacy mouse report to the named pane.
+
+Eight app Android checks passed together in **73.272s**, covering real shared-screen
+swipe/click dispatch, lifecycle focus in/out, primary history without remote input,
+transition from history to mouse capture, alternate-scroll/application-cursor
+modes, rejected/retired input, cmux-tui snapshot/geometry ownership and raw-byte
+delivery with a caller-owned buffer modified immediately after submission.
+The preceding app run passed seven cases; its renderer case raced a synthetic
+resize replay that omitted already-emitted output. The same APK passed that case
+alone, and the fixture was corrected to keep its replay consistent with its own
+output before the final eight-case run. Production replay behavior was unchanged.
+
+Final local build: **18s**, including debug/app-test/native-test APKs and the
+13 JVM checks. All six packaged native libraries passed LOAD/RELRO alignment,
+and `zipalign -c -P 16 4` passed. Native runtime: **4 tests in 0.039s**. The CI
+and local debug test certificates differ, so only the emulator's standalone
+Ghostty instrumentation package was replaced. The existing emulator was stopped
+after testing; no additional AVD was created.
+
+- Debug APK: `09e55dcc09657c5c5c5d6ba08d83d09e17915ea0791910a9b087b055ed806901`.
+- App test APK: `9c2963cafcc94ebdc278c45baff1c671ffaab369e06707dc3eb1d4913c506a6c`.
+- Native test APK: `ed5fc329802a6a22952e5a62da0c339d821244826c90be2ee1b0103ded16738d`.
+- Ignored evidence: `captures/runtime/ssh-terminal-interaction/`.
+
+Full physical SSH application/IME/accessibility acceptance remains open. These
+changes are not in signed build 448. No Pixel data was changed.
+
 ## One-time public-key installation (2026-10-03)
 
 The SSH computer editor now offers **Copy Public Key**, **Share**, and **Install

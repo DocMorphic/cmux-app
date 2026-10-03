@@ -85,6 +85,19 @@ class SshTmuxControlTest {
         assertEquals(1, pipe.sent.count { it.startsWith("send-keys") })
         client.close()
     }
+    @Test fun legacyMouseBytesReachTheNamedPaneWithoutUtf8Conversion() = runTest {
+        val pipe = Pipe(); val client = SshTmuxControl("test", pipe, backgroundScope)
+        client.attach(7, 2) {}; runCurrent()
+        pipe.reply(1); pipe.reply(2, "0"); pipe.reply(3, "seed")
+        pipe.reply(4, "pane_width=200,pane_height=24"); pipe.reply(5); runCurrent()
+        val writing = async { client.write(7, byteArrayOf(27, 91, 77, 32, 183.toByte(), 35)) }
+        runCurrent()
+        val command = pipe.sent.single { it.startsWith("send-keys") }
+        assertTrue(command.contains("=test:@2.%7"))
+        assertTrue(command.endsWith(" -H 1b 5b 4d 20 b7 23\n"))
+        pipe.reply(6); runCurrent(); writing.await()
+        client.close()
+    }
     @Test fun gracefulCloseWaitsForKillAndOwnerCancellationClosesImmediately() = runTest {
         val pipe = Pipe(); val owner = CoroutineScope(backgroundScope.coroutineContext + Job())
         val client = SshTmuxControl("group", pipe, owner)

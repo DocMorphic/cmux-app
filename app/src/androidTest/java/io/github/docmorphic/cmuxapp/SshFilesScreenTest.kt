@@ -85,6 +85,7 @@ class SshFilesScreenTest {
             override val state = MutableStateFlow(SshShellState(SshShellPhase.RUNNING))
             override val display: GhosttyVtTerminal get() = error("Files must not inspect terminal pixels")
             override fun send(text: String, paste: Boolean) = false
+            override fun sendBytes(bytes: ByteArray) = false
             override fun resize(columns: Int, rows: Int, cells: TerminalCellMetrics) {}
             override fun close() {}
             override suspend fun currentDirectory() = directory

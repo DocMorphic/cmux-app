@@ -51,7 +51,11 @@ class SshCmuxTerminalTest {
                 }
                 "release-attached-view-size", "detach-attached-view" -> JSONObject().put("outcome", "applied")
                 "send" -> {
-                    feed(JSONObject().put("event", "output").put("surface", 1).put("data", Base64.getEncoder().encodeToString("echo accepted\r\n".toByteArray())))
+                    val output = "echo accepted\r\n"
+                    // A real server's resize replay includes already emitted output.
+                    // Keep the fixture consistent when keyboard resizing races input.
+                    snapshot += output
+                    feed(JSONObject().put("event", "output").put("surface", 1).put("data", Base64.getEncoder().encodeToString(output.toByteArray())))
                     JSONObject()
                 }
                 else -> JSONObject()
@@ -76,6 +80,19 @@ class SshCmuxTerminalTest {
         if (::owner.isInitialized) compose.runOnIdle { if (::terminal.isInitialized) terminal.close(); if (::control.isInitialized) control.close(); owner.cancel() }
     }
     private fun text() = compose.runOnIdle { TerminalTextSnapshot.capture(terminal.display).text }
+    @Test fun rawMouseBytesAreCopiedAndDeliveredWithoutUtf8Conversion() {
+        val expected = byteArrayOf(27, 91, 77, 32, 183.toByte(), 35)
+        compose.runOnIdle {
+            val caller = expected.copyOf()
+            assertTrue(terminal.sendBytes(caller))
+            caller.fill(0)
+        }
+        compose.waitUntil(5000) { pipe.sent.any { it.optString("cmd") == "send" } }
+        compose.runOnIdle {
+            val write = pipe.sent.single { it.optString("cmd") == "send" }
+            assertArrayEquals(expected, Base64.getDecoder().decode(write.getString("bytes")))
+        }
+    }
     @Test fun nativeRendererAndComposerApplyReplayColorsModesAndSendOnlyUserInput() {
         assertTrue(text().contains("seed λ 中"))
         compose.runOnIdle {

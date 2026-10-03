@@ -63,6 +63,8 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     val focus = remember { FocusRequester() }
     val display = shell.display
     val canInput = state.phase == SshShellPhase.RUNNING && !reconnecting
+    val interactions = remember(shell) { SshTerminalInteraction(shell) }
+    ObserveSshTerminalFocus(interactions, canInput)
     val motion = rememberTerminalScrollMotion(shell.id, shell)
     fun write(text: String, paste: Boolean = false): Boolean {
         if (!canInput) return false
@@ -84,6 +86,15 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     BackHandler { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }
     DisposableEffect(shell) { onDispose { rawKeyboard?.dispose(); motion.stop() } }
     val viewport = TerminalViewport.fit(size.width, size.height, cells)
+    val geometry = TerminalGeometry.fit(size.width.toFloat(), size.height.toFloat(), display.columns, display.rows, cells)
+    fun scrollTerminal(rows: Double, cell: TerminalGeometry.Cell): Boolean {
+        if (reconnecting) return false
+        val remote = interactions.scroll(rows, cell)
+        if (remote == true) scroll = 0.0
+        return remote ?: run {
+            scroll = (scroll + rows).coerceIn(0.0, display.historyLineCount.toDouble()); true
+        }
+    }
     LaunchedEffect(shell, viewport, cells) { viewport?.let { shell.resize(it.columns, it.rows, cells) } }
     LaunchedEffect(state.revision) { scroll = scroll.coerceIn(0.0, display.historyLineCount.toDouble()) }
     snapshot?.let { TerminalTextSheet(it) { snapshot = null } }
@@ -120,12 +131,23 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                     stateDescription = "SSH terminal ${shell.title}, ${state.phase.name.lowercase()}"
                     onClick("Open keyboard") { showKeyboard(); true }
                     customActions = listOf(CustomAccessibilityAction("View as Text") { showText(); true })
+                    scrollBy { _, y ->
+                        val grid = geometry
+                        if (grid == null || !y.isFinite()) false else {
+                            motion.stop()
+                            scrollTerminal(-y / grid.cellHeight.toDouble(), TerminalGeometry.Cell(display.columns / 2, display.rows / 2))
+                        }
+                    }
                 }
                 .terminalPinchZoom(zoom)
-                .pointerInput(shell.id, canInput) { detectTapGestures(onTap = { showKeyboard() }, onLongPress = { showText() }) }
-                .terminalScrollGestures(motion, TerminalGeometry.fit(size.width.toFloat(), size.height.toFloat(), display.columns, display.rows, cells),
+                .pointerInput(shell.id, canInput, geometry, scroll == 0.0) { detectTapGestures(onTap = { point ->
+                    if (canInput && scroll == 0.0) geometry?.takeIf { it.contains(point.x, point.y) }
+                        ?.cell(point.x, point.y)?.let(interactions::click)
+                    showKeyboard()
+                }, onLongPress = { showText() }) }
+                .terminalScrollGestures(motion, geometry,
                     0, display.activeScreen, linePath = true, enabled = true,
-                    onScroll = { rows, _ -> scroll = (scroll + rows).coerceIn(0.0, display.historyLineCount.toDouble()); true }),
+                    onScroll = ::scrollTerminal),
                 scrollPosition = scroll)
             if (state.phase == SshShellPhase.OPENING) CircularProgressIndicator(Modifier.align(Alignment.Center))
             if (scroll > 0) TextButton(onClick = { motion.stop(); scroll = 0.0 }, modifier = Modifier.align(Alignment.BottomEnd)) { Text("Latest") }

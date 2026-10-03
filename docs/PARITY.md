@@ -12,6 +12,20 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## SSH terminal mouse and scrolling (2026-10-03)
+
+SSH screens now route captured clicks/wheel events through Ghostty's current
+mouse protocol, map alternate-scroll gestures to the current cursor-key mode,
+retain ordinary primary history locally, and send requested focus reports across
+window/activity transitions. All three SSH providers preserve raw mouse bytes in
+their existing bounded queues; query replies remain suppressed for mirrors.
+Targeted iOS source comparison used `0fc35d6`; the wider pin remains unchanged.
+
+Verification: 13 JVM, four native Android and eight app Android checks passed.
+All six packaged native libraries and the debug APK passed the 16 KB alignment
+gates. [Protocol, test corrections and evidence](DIRECT_SSH.md#terminal-mouse-wheel-and-focus-input-2026-10-03).
+Physical SSH/Pixel acceptance remains open; signed build 448 predates this work.
+
 ## Terminal background input ownership (2026-10-03)
 
 The targeted iOS input-session review at `0fc35d6` now has an Android lifecycle

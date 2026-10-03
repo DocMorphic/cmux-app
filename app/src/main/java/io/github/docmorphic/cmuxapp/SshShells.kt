@@ -73,7 +73,15 @@ internal class SshShell(
     override fun send(text: String, paste: Boolean): Boolean {
         if (!allowed() || mutable.value.phase != SshShellPhase.RUNNING) return false
         val encoded = if (paste) TerminalKeyEncoding.paste(text, display.bracketedPaste) else text
-        return enqueue(Command.Write(encoded.toByteArray(Charsets.UTF_8)))
+        return sendBytes(encoded.toByteArray(Charsets.UTF_8))
+    }
+    override fun sendBytes(bytes: ByteArray): Boolean {
+        if (!allowed() || mutable.value.phase != SshShellPhase.RUNNING) return false
+        if (bytes.size > MAX_PENDING_BYTES - pendingBytes) {
+            end("SSH input could not keep up. This shell was closed; queued input was not replayed.")
+            return false
+        }
+        return enqueue(Command.Write(bytes.copyOf()))
     }
     override fun resize(columns: Int, rows: Int, cells: TerminalCellMetrics) {
         if (!allowed()) return
