@@ -111,19 +111,30 @@ Targeted source findings in this pass:
   construct Ghostty without a reply callback; its plain SSH shell owns one live
   PTY and retains the same emulator across view changes. Source inspection does
   not establish new runtime coverage or justify adding a second parser blindly.
-- `MobileWorkspaceCloseConfirmation.swift` centralizes destructive Mac/tmux/
-  cmux-tui confirmation while allowing phone-owned shell closure directly.
-  Exact source comparison on 2026-10-03 confirms Android has the persistence
-  distinction but not the full presentation contract. iOS names the workspace
-  **and host**, uses **End Session** for tmux and **Close Workspace** for cmux-tui,
-  with kind-specific text explaining effects on other devices. Its paired-Mac
-  confirmation is **Delete Workspace? / Delete**, explicitly saying it closes
-  the workspace on the Mac. Android's `SshWorkspacesScreen` uses generic
-  **End Workspace** without the host; legacy `SshTmuxScreen` also lacks the host
-  and specific action label. `NativeScreen` uses **Close** and weaker generic
-  terminal-stop text. A shared Android confirmation model and consistency across
-  entry points remain to be implemented. This finding does not imply those
-  dialogs are included in signed build 428.
+- [`MobileWorkspaceCloseConfirmation.swift`](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileWorkspaceCloseConfirmation.swift)
+  centralizes destructive Mac/tmux/cmux-tui confirmation while allowing
+  phone-owned shell closure directly. Android now shares one confirmation model
+  and dialog across `NativeScreen`, mixed `SshWorkspacesScreen`, and legacy
+  `SshTmuxScreen`. SSH confirmations name the workspace **and current host**,
+  use **End Session** for tmux and **Close Workspace** for cmux-tui, and explain
+  the effects on other devices. The paired-Mac dialog uses **Delete Workspace? /
+  Delete** and explicitly says it closes the workspace on the Mac. Existing
+  availability guards and workspace/window targeting remain in place.
+  Eight real mixed SSH UI checks and four dedicated tmux checks passed on the
+  existing API 37 / 16 KB emulator. The mixed test now cancels and confirms both
+  persistent workspace kinds, verifies the last tmux session disappears from
+  inventory, and preserves the independent phone-owned shell. Its fixture was
+  corrected to forward tmux stderr over SSH (while retaining its local log), as
+  real SSH does; the suppressed no-server diagnostic had prevented empty-list
+  discovery after the final session ended. No production error handling was
+  relaxed. One paired-Mac UI test against the framed RPC fixture also passed:
+  cancel sends no close request; confirmation sends exactly one request with
+  the selected workspace/window IDs, removes that workspace after refresh, and
+  retains the other workspace group. All three dialog screenshots were visually
+  reviewed. Evidence is ignored at `captures/runtime/workspace-close/`. The Pixel
+  was absent from ADB; physical acceptance remains pending. These changes
+  postdate signed build 428, and this targeted check does not establish
+  missing-entrypoint or whole-app parity.
 - `MobilePushCoordinator.swift` now awaits explicit reconnect before retrying a
   pending notification route, cancelling replaced retries. Android's targeted
   recovery implementation and verification are recorded below; this is not a

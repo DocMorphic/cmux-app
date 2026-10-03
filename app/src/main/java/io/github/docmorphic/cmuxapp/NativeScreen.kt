@@ -2767,13 +2767,8 @@ private fun NativeWorkspaceRow(
         confirmButton = { TextButton(onClick = { rename = false; onAction("rename", title) }, enabled = title.isNotBlank()) { Text("Save") } },
         dismissButton = { TextButton(onClick = { rename = false }) { Text("Cancel") } }
     )
-    if (confirmClose) AlertDialog(
-        onDismissRequest = { confirmClose = false },
-        title = { Text("Close ${workspace.title}?") },
-        text = { Text("Running terminals in this workspace may stop.") },
-        confirmButton = { TextButton(onClick = { confirmClose = false; onAction("close", null) }) { Text("Close", color = Color(0xFFFF9999)) } },
-        dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("Cancel") } }
-    )
+    if (confirmClose) WorkspaceCloseDialog(WorkspaceCloseConfirmation.mac,
+        onDismiss = { confirmClose = false }, onConfirm = { confirmClose = false; onAction("close", null) })
 }
 
 private fun nativeConnectionFailure(failure: Throwable): String {

@@ -53,7 +53,7 @@ class SshTmuxScreenTest {
         if (::root.isInitialized) root.deleteRecursively()
     }
     private fun show(route: Boolean = false) = compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
-        if (route) SshTmuxRoute(session, provider.hostId) {} else SshTmuxScreen(provider) {}
+        if (route) SshTmuxRoute(session, provider.hostId) {} else SshTmuxScreen(provider, hostName = "tmux fixture") {}
     } } }
     private fun remoteWindow(workspace: SshTmuxWorkspace): String = runBlocking {
         val result = provider.connection.exec(SshTmuxInventory.command("/fixture/tmux", "display-message", "-p", "-t", workspace.target, "#{window_id}"))
@@ -109,10 +109,12 @@ class SshTmuxScreenTest {
         compose.runOnIdle { assertEquals(provider.state.value.workspaces.single().panes.first { it.id == pane.id }.title, terminal.title) }
         capture("tmux-workspaces")
         compose.onNodeWithTag("ssh.tmux.end.${workspace.id}").performScrollTo().performClick()
+        compose.onNodeWithText("End “desktop” on tmux fixture?").assertIsDisplayed()
+        compose.onNodeWithText("End Session").assertIsDisplayed()
         compose.onNodeWithText("Cancel").performClick()
         assertEquals(1, provider.state.value.workspaces.size)
         compose.onNodeWithTag("ssh.tmux.end.${workspace.id}").performClick()
-        compose.onAllNodesWithText("End Workspace").onLast().performClick()
+        compose.onNodeWithText("End Session").performClick()
         compose.waitUntil(10000) { provider.state.value.workspaces.isEmpty() && !provider.state.value.loading }
         assertNull(provider.state.value.error)
         val remaining = runBlocking { provider.connection.exec(SshTmuxInventory.command("/fixture/tmux", "list-sessions", "-F", "#{session_name}")) }

@@ -24,6 +24,7 @@ import java.util.UUID
 
 @Composable
 internal fun SshTmuxRoute(session: NativeSshSession, hostId: UUID, onBack: () -> Unit) {
+    val hosts by session.hosts.state.collectAsState()
     var host by remember(session, hostId) { mutableStateOf<SshTmuxHost?>(null) }
     var failure by remember(session, hostId) { mutableStateOf<String?>(null) }
     var connecting by remember(session, hostId) { mutableStateOf(false) }
@@ -63,7 +64,7 @@ internal fun SshTmuxRoute(session: NativeSshSession, hostId: UUID, onBack: () ->
     }
     val reconnect = { scope.launch { connect(true) }; Unit }
     val current = host
-    if (current != null) SshTmuxScreen(current, connecting, failure, recovery, reconnect, onBack)
+    if (current != null) SshTmuxScreen(current, connecting, failure, recovery, reconnect, hosts.host(hostId)?.name.orEmpty(), onBack)
     else Column(Modifier.padding(20.dp)) {
         BackHandler(onBack = onBack)
         TextButton(onClick = onBack) { Text("Back") }
@@ -74,7 +75,7 @@ internal fun SshTmuxRoute(session: NativeSshSession, hostId: UUID, onBack: () ->
 
 @Composable
 internal fun SshTmuxScreen(host: SshTmuxHost, reconnecting: Boolean = false, reconnectError: String? = null,
-    recovery: Int = 0, onReconnect: (() -> Unit)? = null, onBack: () -> Unit) {
+    recovery: Int = 0, onReconnect: (() -> Unit)? = null, hostName: String, onBack: () -> Unit) {
     val state by host.state.collectAsState()
     val disconnected by host.connection.disconnected.collectAsState()
     val scope = rememberCoroutineScope()
@@ -173,9 +174,7 @@ internal fun SshTmuxScreen(host: SshTmuxHost, reconnecting: Boolean = false, rec
         }
     }
     ending?.let { workspace ->
-        AlertDialog(onDismissRequest = { ending = null }, title = { Text("End ${workspace.name}?") },
-            text = { Text("This ends the tmux session and its programs, including work opened from another device.") },
-            confirmButton = { TextButton(onClick = { ending = null; act { host.endWorkspace(workspace) } }, enabled = !busy && !disconnected) { Text("End Workspace") } },
-            dismissButton = { TextButton(onClick = { ending = null }) { Text("Cancel") } })
+        WorkspaceCloseDialog(WorkspaceCloseConfirmation.ssh(PersistentSshWorkspaceKind.TMUX, workspace.name, hostName),
+            enabled = !busy && !disconnected, onDismiss = { ending = null }, onConfirm = { ending = null; act { host.endWorkspace(workspace) } })
     }
 }

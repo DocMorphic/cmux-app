@@ -86,6 +86,30 @@ class NativeFlowTest {
         TerminalDraftRepository.get(context).drafts.clear()
     }
 
+    @Test fun workspaceDeleteConfirmationCancelsThenClosesOnlySelectedWorkspace() {
+        peer.notificationFeed = searchNotifications()
+        showSearchFixture()
+        fun openConfirmation() {
+            compose.onNodeWithContentDescription("Actions for Claude Code task").performClick()
+            compose.onNodeWithText("Close workspace").performClick()
+            compose.onNodeWithText("Delete Workspace?").assertIsDisplayed()
+            compose.onNodeWithText("This will close the workspace on your Mac.").assertIsDisplayed()
+            compose.onNodeWithTag("workspace.close.confirm").assertTextEquals("Delete")
+        }
+        openConfirmation(); screenshot("mac-workspace-delete-confirmation")
+        compose.onNodeWithText("Cancel").performClick()
+        assertTrue(peer.requests.none { it.optString("method") == "workspace.close" })
+        compose.onNodeWithText("Claude Code task").assertExists()
+        openConfirmation(); compose.onNodeWithTag("workspace.close.confirm").performClick()
+        compose.waitUntil(10000) { peer.requests.any { it.optString("method") == "workspace.close" } }
+        compose.onNodeWithText("Delete Workspace?").assertDoesNotExist()
+        val request = peer.requests.single { it.optString("method") == "workspace.close" }.getJSONObject("params")
+        assertEquals("workspace-1", request.getString("workspace_id"))
+        assertEquals("fixture-window", request.getString("window_id"))
+        compose.waitUntil(10000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithContentDescription("Open Completed group").assertIsDisplayed()
+    }
+
     @Test fun accountDeletionConfirmationCancelsInNativeSettingsWithoutChangingSession() {
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
             NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
@@ -2769,6 +2793,7 @@ internal class NativeFixturePeer : AutoCloseable {
             JSONObject().put("source", "discovered").put("models", JSONArray().put(model)).put("default_model", model)
         }
         "terminal.create" -> terminalCreationResponse?.invoke(params) ?: JSONObject()
+        "workspace.close" -> JSONObject().also { hiddenWorkspaceId = params.getString("workspace_id") }
         "workspace.create" -> workspaceCreationResponse?.invoke() ?: JSONObject("""{"created_workspace_id":"task-created",
             "created_terminal_id":"task-terminal","workspaces":[{"id":"task-created","title":"Created task",
             "terminals":[{"id":"task-terminal","title":"Agent"}]}]}""").also { created ->

@@ -126,10 +126,13 @@ class SshWorkspacesScreenTest {
         capture("cmux-ssh-workspaces")
         ready("ssh.cmux.end.$key")
         compose.onNodeWithTag("ssh.cmux.end.$key").performScrollTo().performClick()
+        compose.onNodeWithText("End “Desktop cmux” on SSH fixture?").assertIsDisplayed()
+        compose.onNodeWithText("Close Workspace").assertIsDisplayed()
+        capture("cmux-close-confirmation")
         compose.onNodeWithText("Cancel").performClick()
         assertEquals(2, provider().state.value.tree!!.workspaces.size)
         compose.onNodeWithTag("ssh.cmux.end.$key").performClick()
-        compose.onAllNodesWithText("End Workspace").onLast().performClick()
+        compose.onNodeWithText("Close Workspace").performClick()
         compose.waitUntil(15000) { provider().state.value.tree!!.workspaces.none { it.key == key } }
         val tmux = runBlocking { session.tmux.open(hostId) }
         compose.waitUntil(10000) { !tmux.state.value.loading }
@@ -139,6 +142,17 @@ class SshWorkspacesScreenTest {
         compose.onNodeWithText("Back").performClick()
         compose.onNodeWithTag("ssh.workspaces.new-shell").performScrollTo().performClick()
         ready(); waitText("Plain shell fixture λ 中"); send("Phone shell")
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithTag("ssh.tmux.end.${tw.id}").performScrollTo().performClick()
+        compose.onNodeWithText("End “desktop-tmux” on SSH fixture?").assertIsDisplayed()
+        compose.onNodeWithText("End Session").assertIsDisplayed()
+        capture("tmux-close-confirmation")
+        compose.onNodeWithText("Cancel").performClick()
+        assertTrue(tmux.state.value.workspaces.any { it.id == tw.id })
+        compose.onNodeWithTag("ssh.tmux.end.${tw.id}").performClick()
+        compose.onNodeWithText("End Session").performClick()
+        compose.waitUntil(10000) { tmux.state.value.workspaces.none { it.id == tw.id } }
+        assertEquals(1, session.shells.state.value.size)
     }
     @Test fun createsOnlyPhoneOwnedSessionAndKeepsDesktopWorkspaceIntact() {
         show(); ready("ssh.cmux.create-owned")
@@ -158,7 +172,7 @@ class SshWorkspacesScreenTest {
         waitText("created from Android")
         compose.onNodeWithText("Back").performClick()
         compose.onNodeWithTag("ssh.cmux.end.${phone.key}").performScrollTo().performClick()
-        compose.onAllNodesWithText("End Workspace").onLast().performClick()
+        compose.onNodeWithText("Close Workspace").performClick()
         compose.waitUntil(10000) { owned.state.value.tree!!.workspaces.isEmpty() }
         assertEquals(desktop.key, desktopProvider.state.value.tree!!.workspaces.single().key)
         capture("cmux-ssh-created-owner")
@@ -189,7 +203,7 @@ class SshWorkspacesScreenTest {
         assertTrue(workspace().tabs.any { it.terminal == original.tabs.single().terminal })
         capture("cmux-ssh-layout-actions")
         compose.onNodeWithTag("ssh.cmux.end.$key").performScrollTo().performClick()
-        compose.onAllNodesWithText("End Workspace").onLast().performClick()
+        compose.onNodeWithText("Close Workspace").performClick()
         compose.waitUntil(15000) { provider().state.value.tree!!.workspaces.none { it.key == key } }
     }
     @Test fun groupedCmuxPickerCreatesSelectsAndReturnsToExactTerminal() {

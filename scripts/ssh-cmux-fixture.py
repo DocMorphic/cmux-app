@@ -50,9 +50,9 @@ async def main():
     stop = asyncio.Event()
     for sig in (signal.SIGINT, signal.SIGTERM): asyncio.get_running_loop().add_signal_handler(sig, stop.set)
     stderr = (root / "stderr.txt").open("ab")
-    async def spawn(*tokens):
+    async def spawn(*tokens, forward_stderr=False):
         return await asyncio.create_subprocess_exec(*tokens, cwd=root, env=env, stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE, stderr=stderr, limit=16 * 1024 * 1024)
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE if forward_stderr else stderr, limit=16 * 1024 * 1024)
     install_spec = importlib.util.spec_from_file_location("install_fixture", Path(__file__).with_name("ssh-cmux-install-fixture.py"))
     install_module = importlib.util.module_from_spec(install_spec)
     install_spec.loader.exec_module(install_module)
@@ -230,7 +230,7 @@ async def main():
                     delimiter = tmux_args.index(";")
                     if not tmux_fixture.approved(tmux_args[1:delimiter]) or not tmux_fixture.approved(tmux_args[delimiter+1:]): raise ValueError("Invalid tmux control startup")
                 elif not tmux_fixture.approved(tmux_args): raise ValueError("Invalid tmux operation")
-                child = await spawn(tmux, "-L", tmux_socket, "-f", str(tmux_config), *tmux_args)
+                child = await spawn(tmux, "-L", tmux_socket, "-f", str(tmux_config), *tmux_args, forward_stderr=True)
             else: raise ValueError("Unexpected fixture exec or PTY")
             children.add(child)
             if os.environ.get("CMUX_SSH_TRACE") == "1": print(json.dumps({"started": kind}), flush=True)
@@ -280,9 +280,20 @@ async def main():
                             encoded = data.encode()
                         child.stdin.write(encoded); await child.stdin.drain()
                 finally: child.stdin.close()
-            tasks = [asyncio.create_task(output()), asyncio.create_task(input_stream())]
+            async def error_output():
+                # Real SSH exec returns stderr to the caller. In particular,
+                # tmux's last-session exit must expose its no-server diagnostic
+                # so discovery can distinguish an empty server from a failure.
+                if child.stderr is None: return
+                import codecs
+                decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+                while data := await child.stderr.read(8192):
+                    stderr.write(data); stderr.flush()
+                    proc.stderr.write(decoder.decode(data))
+                proc.stderr.write(decoder.decode(b"", final=True))
+            tasks = [asyncio.create_task(output()), asyncio.create_task(input_stream()), asyncio.create_task(error_output())]
             try:
-                await child.wait(); await tasks[0]; proc.exit(child.returncode)
+                await child.wait(); await asyncio.gather(tasks[0], tasks[2]); proc.exit(child.returncode)
             finally:
                 for task in tasks: task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)

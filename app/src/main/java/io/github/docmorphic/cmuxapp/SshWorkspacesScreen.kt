@@ -71,7 +71,7 @@ internal fun SshWorkspacesRoute(session: NativeSshSession, hostId: UUID, onBack:
 
 private data class SshWorkspaceView(val reference: String, val terminal: SshTerminal? = null, val owner: SshCmuxProvider? = null,
     val browser: SshCmuxBrowserStream? = null, val title: String = "Browser")
-private data class SshWorkspaceEnd(val name: String, val action: suspend () -> Unit)
+private data class SshWorkspaceEnd(val name: String, val kind: PersistentSshWorkspaceKind, val action: suspend () -> Unit)
 
 @Composable
 internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: SshTmuxHost, cmux: SshCmuxHost,
@@ -361,7 +361,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                             Row {
                                 TextButton(onClick = { act { select(SshWorkspaceTarget.Cmux(provider.newScreen(workspace))) } }, enabled = available && !state.ended && !state.loading,
                                     modifier = Modifier.testTag("ssh.cmux.new-terminal.${workspace.key}")) { Text("New Screen") }
-                                TextButton(onClick = { ending = SshWorkspaceEnd(workspace.name) { provider.endWorkspace(workspace) } },
+                                TextButton(onClick = { ending = SshWorkspaceEnd(workspace.name, PersistentSshWorkspaceKind.CMUX_TUI) { provider.endWorkspace(workspace) } },
                                     enabled = available && !state.ended, modifier = Modifier.testTag("ssh.cmux.end.${workspace.key}")) { Text("End Workspace") }
                             }
                             if (workspace.tabs.isEmpty()) Text("No terminals in this workspace.")
@@ -408,7 +408,8 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                             Text(workspace.name, style = MaterialTheme.typography.titleMedium)
                             Row {
                                 TextButton(onClick = { act { tmux.createWindow(workspace) } }, enabled = available) { Text("New Terminal") }
-                                TextButton(onClick = { ending = SshWorkspaceEnd(workspace.name) { tmux.endWorkspace(workspace) } }, enabled = available) { Text("End Workspace") }
+                                TextButton(onClick = { ending = SshWorkspaceEnd(workspace.name, PersistentSshWorkspaceKind.TMUX) { tmux.endWorkspace(workspace) } },
+                                    enabled = available, modifier = Modifier.testTag("ssh.tmux.end.${workspace.id}")) { Text("End Workspace") }
                             }
                             for (pane in workspace.panes) {
                                 TextButton(onClick = { select(SshWorkspaceTarget.Tmux(workspace.id, pane.window, pane.id)) }, enabled = available,
@@ -440,9 +441,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         }
     }
     ending?.let { confirmation ->
-        AlertDialog(onDismissRequest = { ending = null }, title = { Text("End ${confirmation.name}?") },
-            text = { Text("This ends the workspace and its programs, including work opened from another device.") },
-            confirmButton = { TextButton(onClick = { ending = null; act(confirmation.action) }, enabled = available) { Text("End Workspace") } },
-            dismissButton = { TextButton(onClick = { ending = null }) { Text("Cancel") } })
+        WorkspaceCloseDialog(WorkspaceCloseConfirmation.ssh(confirmation.kind, confirmation.name, hosts.host(hostId)?.name.orEmpty()),
+            enabled = available, onDismiss = { ending = null }, onConfirm = { ending = null; act(confirmation.action) })
     }
 }
