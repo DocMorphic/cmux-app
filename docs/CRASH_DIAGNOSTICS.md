@@ -139,6 +139,9 @@ an actual Ghostty/Iroh fault. Signed build 441 predates both stack additions.
 
 ## ANR thread stacks (Android 11+)
 
+Included in signed development build **463**. See
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) for delivery and signed upgrade verification.
+
 For exit records classified by Android as `REASON_ANR`, recovery now selectively
 reads available [`ApplicationExitInfo` traces](https://developer.android.com/reference/android/app/ApplicationExitInfo#getTraceInputStream()).
 It requires a complete section matching the recorded PID. ART's `sysTid` identifies

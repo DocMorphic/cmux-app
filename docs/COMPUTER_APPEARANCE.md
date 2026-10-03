@@ -12,6 +12,9 @@ Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`:
 
 ## App-instance color stability — 2026-10-03
 
+Included in signed development build **463**. Delivery and signed upgrade
+verification are recorded in [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
+
 The targeted review at `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` changes the
 automatic color contract. [`MobileShellComposite+MacSwitchState.swift`](https://github.com/manaflow-ai/cmux/blob/0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite+MacSwitchState.swift)
 keeps additive assignments per exact Mac app instance, clears them on sign-out,

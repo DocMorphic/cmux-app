@@ -1,5 +1,9 @@
 # Recovery after a failed computer switch
 
+Included, with the pending-picker follow-up below, in signed development build
+**463**. See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for delivery and upgrade evidence;
+the individual debug checkpoints below retain their original artifact details.
+
 ## Source comparison — 2026-10-03
 
 Targeted reference: cmux

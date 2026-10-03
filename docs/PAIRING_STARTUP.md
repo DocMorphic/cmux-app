@@ -1,5 +1,9 @@
 # Pairing links and startup reconnect
 
+Included in signed development build **463**; see
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) for delivery and upgrade evidence. The focused
+debug checks below predate that combined milestone.
+
 ## Source scope
 
 Reviewed cmux at `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:

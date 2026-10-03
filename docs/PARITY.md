@@ -26,8 +26,8 @@ missing requirement.
 **12 JVM and 14 Android cases passed**. The Android checks include deliberate
 late dial completion, terminal routing, and existing workspace/notification
 picker regressions. [Source comparison and evidence](MAC_SWITCH_RECOVERY.md#pending-picker-selection-and-cancellation--2026-10-03).
-Physical acceptance and broader source/visual parity remain open. Signed build
-456 is unchanged.
+Physical acceptance and broader source/visual parity remain open. Included in
+signed build 463.
 
 ## Launch pairing and saved reconnect (2026-10-03)
 
@@ -43,7 +43,7 @@ real local RPC destinations and five Android process-restoration scenarios.
 [Source scope, evidence, initial test failures and limitations](PAIRING_STARTUP.md).
 The iOS development-only injected startup task runner was reviewed, not copied
 into production. Physical acceptance, the broader source audit and the full goal
-remain open; signed build 456 is unchanged.
+remain open. Included in signed build 463.
 
 ## Failed computer switch recovery (2026-10-03)
 
@@ -55,7 +55,7 @@ the baseline. Eight JVM and five Android recovery cases passed, including real
 local RPC terminal routing after rollback and a superseded connection attempt.
 [Source comparison, ownership, evidence and remaining limits](MAC_SWITCH_RECOVERY.md).
 The Pixel was absent from ADB; physical acceptance, exact pane restoration and
-the wider startup/switch audit remain open. Signed build 456 is unchanged.
+the wider startup/switch audit remain open. Included in signed build 463.
 
 ## Stable computer colors per app instance (2026-10-03)
 
@@ -70,8 +70,8 @@ use the same keys, with custom colors retaining precedence.
 Twelve JVM checks and four existing emulator editor/UI checks passed; attribution,
 source scope, screenshots and limits are recorded in
 [Computer appearance](COMPUTER_APPEARANCE.md#app-instance-color-stability--2026-10-03).
-Physical multi-Mac/Activity-recreation acceptance remains open. Signed build 456
-and the whole-parity upstream pin are unchanged.
+Physical multi-Mac/Activity-recreation acceptance remains open. Included in signed
+build 463; the whole-parity upstream pin is unchanged.
 
 ## ANR stack recovery (2026-10-03)
 
@@ -85,7 +85,7 @@ crash regressions and export/clear checks. The initial test event-timestamp erro
 and separate launcher startup ANR are documented in the
 [design and evidence](CRASH_DIAGNOSTICS.md#anr-thread-stacks-android-11).
 
-No new signed milestone was built; build 456 remains current. Physical Pixel
+Included in signed build 463. Physical Pixel
 acceptance, configured push, native Iroh tracing and the wider source audit remain open.
 
 ## SSH keyboard and composer image integration (2026-10-03)
@@ -143,7 +143,23 @@ Unicode, pause/resume and target-switch flow. [Evidence and APK hashes](TERMINAL
 Included in signed build 456; verification on the physical Pixel and the wider
 source audit remain open.
 
-## Latest signed integration checkpoint — build 456 (2026-10-03)
+## Latest signed integration checkpoint — build 463 (2026-10-03)
+
+[Signed build 463](https://github.com/DocMorphic/cmux-app/actions/runs/37131181771)
+at `6fc1433` combines ANR stack recovery, app-instance colors, switch recovery,
+launch pairing and picker cancellation with all build 456 features. Full CI passed.
+The exact downloaded artifact passed independent signer, viewer-asset, native
+LOAD/RELRO, 16 KB ZIP, manifest/debug-fixture and attribution checks. The existing
+emulator upgraded 456 → 463 without clearing data, preserving its original install
+time, and cold-launched to the visually reviewed sign-in screen. There was no
+compatibility/ANR dialog and the crash buffer was empty.
+[Artifact, hashes and evidence](PIXEL_INSTALL.md).
+
+The baseline was already signed out. This verifies packaging and signed-out
+upgrade, not authenticated migration or physical Pixel/Mac acceptance. Configured
+push, broader Iroh diagnostics and the remaining source/visual audit are open.
+
+## Previous signed integration checkpoint — build 456 (2026-10-03)
 
 [Signed build 456](https://github.com/DocMorphic/cmux-app/actions/runs/37124887007)
 at `ac3b20d` combines the background-input, SSH mouse/focus and SSH image/composer
