@@ -392,11 +392,21 @@ fun NativeScreen(
     }
     val selectedComputer = pairedMacs.firstOrNull { it.ownsOrigin(selectedComputerOrigin) }
     val selectedOrigin = selectedComputer?.origin
+    val macSwitchRecovery = feedSession.macSwitchRecovery
+    fun switchOwner() = store.taskSession()?.takeIf { signedIn }?.let { NativeMacSwitchRecovery.Owner(it, teamState.scope) }
+    macSwitchRecovery.reconcile(switchOwner())
+    fun selectMacCode(target: String) {
+        switchOwner()?.let { owner ->
+            macSwitchRecovery.begin(owner, target,
+                connectedCode.takeIf { connectionReady && client?.isClosed == false }, selectedComputerOrigin)
+        }
+        code = target; error = null; retryDelay = 2_000
+    }
     fun selectComputer(mac: NativeCredentialStore.PairedMac?) {
         screenResume.cancel()
+        if (mac != null) selectMacCode(mac.code) else macSwitchRecovery.cancel()
         selectedComputerOrigin = mac?.origin.orEmpty()
         store.update { it.put("computer_selection", selectedComputerOrigin) }
-        if (mac != null) code = mac.code
         workspaceRoute = null
         computerMenuOpen = false
     }
@@ -1353,6 +1363,7 @@ fun NativeScreen(
 
     LaunchedEffect(signedIn, code, retry,
         computerState.connectionKey(PairingCodeParser.parse(code).getOrNull() as? PairingCode.Iroh)) {
+        val switchAttempt = macSwitchRecovery.entering(switchOwner(), code)
         connectionReady = false
         client?.close(); client = null; connectedCode = null
         if (!signedIn || code.isBlank()) return@LaunchedEffect
@@ -1399,6 +1410,7 @@ fun NativeScreen(
                 if (remembered.code != requestedCode) {
                     active.close()
                     savedPairedMacs = store.pairedMacs()
+                    macSwitchRecovery.retarget(switchAttempt, switchOwner(), remembered.code)
                     code = remembered.code
                     connectionError = null; retryDelay = 2_000; busy = false
                     return@LaunchedEffect
@@ -1418,6 +1430,7 @@ fun NativeScreen(
                 }
                 client = active; connectedCode = requestedCode
                 connectionReady = true
+                switchOwner()?.let { macSwitchRecovery.connected(it, remembered) }
                 savedPairedMacs = store.pairedMacs()
                 connectionError = null
                 retryDelay = 2_000
@@ -1429,6 +1442,22 @@ fun NativeScreen(
             if (failure is CancellationException && failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
             connectionError = nativeConnectionFailure(failure)
             busy = false
+            val restore = macSwitchRecovery.failed(switchAttempt, switchOwner(), requestedCode) { previous ->
+                connection.allowsSaved(previous) && store.pairedMacs().any {
+                    it.code == previous.code && it.deviceId == previous.deviceId && it.instanceTag == previous.instanceTag &&
+                        it.accountUserId == previous.accountUserId && it.accountTeamId == previous.accountTeamId
+                }
+            }
+            if (restore != null) {
+                // Restore only a previously verified, still-authorized route. Clear a
+                // target-specific UI intent before it can redial the failed computer.
+                workspaceRoute = null
+                selectedComputerOrigin = restore.selection
+                store.update { it.put("pairing_code", restore.mac.code).put("computer_selection", restore.selection) }
+                code = restore.mac.code; retryDelay = 2_000
+                error = "Could not switch computers. Your previous computer is selected again."
+                return@LaunchedEffect
+            }
             delay(retryDelay)
             retryDelay = (retryDelay * 2).coerceAtMost(30_000)
             retry++
@@ -1845,7 +1874,7 @@ fun NativeScreen(
                 Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
                 if (sharedConnections != null) TextButton(onClick = { showSshComputers = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.computers")) { Text("SSH Computers") }
                 NativeSavedComputerRows(pairedMacs, appearances, machineColorIndices, sharedConnections?.native,
-                    computerState, computerConnections, forgetCallbacks, { computerDetails = it }) { mac -> code = mac.code; showSettings = false }
+                    computerState, computerConnections, forgetCallbacks, { computerDetails = it }) { mac -> selectMacCode(mac.code); showSettings = false }
                 TextButton(onClick = {
                     code = ""; showSettings = false; selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
                 }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Find another Mac") }
@@ -2049,7 +2078,7 @@ fun NativeScreen(
                 colorIndices = machineColorIndices, connections = computerConnections, forgetCallbacks = forgetCallbacks,
                 presentDetails = { computerDetails = it },
                 hasSavedComputers = pairedMacs.isNotEmpty(),
-                onSelect = { mac -> computerState.account?.let { code = PairingCodeParser.computer(mac, it) } },
+                onSelect = { mac -> computerState.account?.let { selectMacCode(PairingCodeParser.computer(mac, it)) } },
                 onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
                 onRefresh = { scope.launch {
                     try { accountTeams.refresh(); sharedConnections?.native?.refresh() }

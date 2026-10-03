@@ -1,5 +1,13 @@
 # Attribution
 
+`NativeMacSwitchRecovery.kt` and the picker recovery integration follow cmux's
+live foreground baseline and superseding switch-attempt behavior in
+`MobileShellComposite.swift`, `MobileShellComposite+MacSwitchState.swift` and
+`IrohMacSwitchRecoveryTests.swift` at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` (GPL-3.0-or-later, Manaflow, Inc.).
+Android reconnects through its existing authenticated connector and rechecks the
+exact saved route, instance and account/team before restoring the previous Mac.
+
 `NativeMacColorSlots.kt` follows the additive app-instance palette assignment and
 scope pruning in cmux's `MobileWorkspaceAggregation`, `MacPairingKey` and
 `MobileShellComposite+MacSwitchState` at

@@ -12,6 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Failed computer switch recovery (2026-10-03)
+
+Manual computer switches now retain the previous verified route and filter. If
+the new dial fails, Android restores that still-authorized saved pairing rather
+than indefinitely retrying the new selection. Newer selections supersede late
+failures, route normalization retains intent, and sign-out/team changes retire
+the baseline. Eight JVM and five Android recovery cases passed, including real
+local RPC terminal routing after rollback and a superseded connection attempt.
+[Source comparison, ownership, evidence and remaining limits](MAC_SWITCH_RECOVERY.md).
+The Pixel was absent from ADB; physical acceptance, exact pane restoration and
+the wider startup/switch audit remain open. Signed build 456 is unchanged.
+
 ## Stable computer colors per app instance (2026-10-03)
 
 The `0fc35d6` Mac-switch/aggregation source review found a visible mismatch:

@@ -12,6 +12,8 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import org.junit.*
 import org.junit.Assert.*
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
+import androidx.compose.ui.semantics.SemanticsProperties
 
 /** Production connection effects, using a disposable account and a local Mac peer. */
 @OptIn(ExperimentalTestApi::class)
@@ -34,6 +36,88 @@ class NativeConnectionRecoveryTest {
     }
     private suspend fun connected() = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" })
         .also { it.connect() }
+
+    private val firstCode = "cmux-ios://attach?v=2&r=100.64.0.1:58465"
+    private val secondCode = "cmux-ios://attach?v=2&r=100.64.0.2:58465"
+    private fun seedComputers() {
+        NativeCredentialStore(context).apply {
+            rememberMac(secondCode, "second-mac", "Second Mac")
+            rememberMac(firstCode, "fixture-mac", "Fixture Mac")
+            update { it.put("computer_selection", pairedMacs().single { mac -> mac.code == firstCode }.origin) }
+        }
+    }
+    private fun selectComputer(name: String) {
+        compose.onNodeWithContentDescription("Computer filter").performClick()
+        compose.onNode(hasText(name) and hasAnyAncestor(isPopup())).performClick()
+    }
+
+    @Test fun failedComputerSwitchRestoresVerifiedMacAndFilter() {
+        val other = NativeFixturePeer().apply { deviceId = "second-mac"; displayName = "Second Mac" }
+        val failOther = AtomicBoolean(); val firstDials = AtomicInteger(); val failed = AtomicInteger()
+        seedComputers()
+        try {
+            compose.setContent { MaterialTheme {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    if (pairing.routes.first().host == "100.64.0.2") {
+                        if (failOther.get()) { failed.incrementAndGet(); throw java.io.IOException("Fixture dial failure") }
+                        MobileRpcClient(PairingCode.Route("127.0.0.1", other.port), { "fixture-token" }).also { it.connect() }
+                    } else { firstDials.incrementAndGet(); connected() }
+                })
+            } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().size == 1 }
+            val before = firstDials.get()
+            failOther.set(true)
+            selectComputer("Second Mac")
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Could not switch computers. Your previous computer is selected again.").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(15_000) { firstDials.get() > before && NativeCredentialStore(context).load()?.optString("pairing_code") == firstCode }
+            compose.onNodeWithContentDescription("Computer filter").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Fixture Mac"))
+            compose.onNodeWithText("Claude Code task").performClick()
+            compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+            assertTrue(failed.get() > 0)
+            assertFalse(other.requests.any { it.optString("method") == "mobile.terminal.replay" })
+        } finally { other.close() }
+    }
+
+    @Test fun newerComputerSelectionWinsOverLateFailedSwitch() {
+        val other = NativeFixturePeer().apply { deviceId = "second-mac"; displayName = "Second Mac" }
+        val third = NativeFixturePeer().apply { deviceId = "third-mac"; displayName = "Third Mac" }
+        val thirdCode = "cmux-ios://attach?v=2&r=100.64.0.3:58465"
+        val holdOther = AtomicBoolean(); val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>(); val completed = CompletableDeferred<Unit>()
+        NativeCredentialStore(context).rememberMac(thirdCode, "third-mac", "Third Mac")
+        seedComputers()
+        try {
+            compose.setContent { MaterialTheme {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    val target = when (pairing.routes.first().host) {
+                        "100.64.0.2" -> {
+                            if (holdOther.get()) try { withContext(NonCancellable) {
+                                started.complete(Unit); release.await(); throw java.io.IOException("Late fixture failure")
+                            } } finally { completed.complete(Unit) }
+                            other
+                        }
+                        "100.64.0.3" -> third
+                        else -> peer
+                    }
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                })
+            } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().size == 1 }
+            holdOther.set(true); selectComputer("Second Mac")
+            compose.waitUntil(5_000) { started.isCompleted }
+            selectComputer("Third Mac")
+            compose.waitUntil(15_000) { NativeCredentialStore(context).load()?.optString("pairing_code") == thirdCode }
+            release.complete(Unit)
+            compose.waitUntil(5_000) { completed.isCompleted }
+            compose.waitForIdle()
+            compose.onNodeWithContentDescription("Computer filter").assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Third Mac"))
+            compose.onNodeWithText("Could not switch computers. Your previous computer is selected again.").assertDoesNotExist()
+            compose.onNodeWithText("Claude Code task").performClick()
+            compose.waitUntil(15_000) { third.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+            assertEquals(thirdCode, NativeCredentialStore(context).load()?.optString("pairing_code"))
+            assertFalse(peer.requests.any { it.optString("method") == "mobile.terminal.replay" })
+        } finally { release.complete(Unit); other.close(); third.close() }
+    }
 
     @Test fun expiredDialAutomaticallyRetriesAndReachesWorkspace() {
         val attempts = AtomicInteger()
