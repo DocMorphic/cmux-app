@@ -74,8 +74,8 @@ Send taps, retains the draft on failure, allows explicit retry, and cancels its
 call when dismissed or the account owner changes. It sends no credentials, terminal
 text, logs or attachments. The client disables redirects and automatic retries.
 Cancellation after dispatch cannot establish that the server did not receive a
-request. Feedback draft preservation across Activity/process recreation remains
-to be implemented and checked; the sheet currently closes on Activity recreation.
+request. The lifecycle follow-up below adds retained drafts and request ownership;
+the initial composer closed on Activity recreation.
 
 The first build caught an unavailable generated BuildConfig; stamps now read the
 installed package metadata. Final debug/test assembly passed in **1m 8s**, with
@@ -95,6 +95,36 @@ Debug SHA-256 `b837f3f98550bebf01fc57c0027bacc4e5e71d2d4930f669942b9f790dd2e3dd`
 test SHA-256 `e085f4255a3423ef155d28ee3e317128c4e1a5f428b040105a51814bc753a4bc`.
 Signed build 411 remains unchanged; GitHub confirmed artifact `11261931650`
 unexpired, and the README now points to that verified signed checkpoint.
+
+#### Feedback lifecycle follow-up
+
+The composer now uses an Activity ViewModel and SavedStateHandle. Draft, reply email,
+failure and success receipt survive view/Activity recreation. A pending HTTP call
+belongs to the retained controller and continues once across recreation. Cancel
+or changing account ownership clears the draft and cancels that call; late results
+cannot close a newer composer. Saved process state contains bounded draft and
+status data, never a command to resend. Restoring a snapshot taken during Send
+produces an uncertain-result message and requires explicit user action to retry.
+Successful state clears the message and retains only the receipt until acknowledged.
+
+Debug/test assembly passed in **1m 3s**, including **8 JVM tests** (four controller
+and four HTTP client checks). All **three real Activity recreation tests** passed:
+draft/email without dispatch, a held request retained exactly once, and failed
+draft/error retained until explicit retry. Four existing composer tests and the
+separate-browser lifecycle check also passed in the initial Android run. Its one
+Settings reopening assertion ran before the StateFlow render; after adding a
+bounded wait for the actual sheet, test assembly passed in **26s** and that test
+passed in **3.974s**. All **9 selected Android checks** therefore pass across these
+runs. Restored pending-process state is covered at the serialized-controller level;
+this is not a claim of a new physical process-death test or live inbox delivery.
+The debug-only lifecycle fixture is excluded from release sources.
+
+The single emulator was stopped. The Pixel remained disconnected, and signed build
+411 is unchanged. Evidence: `captures/runtime/feedback-lifecycle-build.txt`,
+`feedback-lifecycle-ui.txt`, `feedback-lifecycle-test-build.txt`, and
+`feedback-lifecycle-root-ui.txt`. APK SHA-256: debug
+`4997036f3e917ed2c3d9d80d386677781fe430b8d6e489ed6163cae13582b5ae`, final test
+`21a60272697e2c0461ec1744c5ed401d48f76024d1a4c2c6c1e39e2bd77047fa`.
 
 ### On-device browser picker (2026-10-03)
 

@@ -636,6 +636,7 @@ class NativeFlowTest {
         compose.onNodeWithContentDescription("Back to workspaces").performClick()
         compose.onNodeWithContentDescription("cmux settings").performClick()
         compose.onNodeWithText("Send Feedback").performScrollTo().performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag("feedback-send").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("feedback-send").assertIsNotEnabled()
         compose.onNodeWithText("Cancel").performClick()
         assertEquals(login, NativeCredentialStore(context).taskSession())
