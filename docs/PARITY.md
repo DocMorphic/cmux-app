@@ -12,15 +12,16 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest signed integration checkpoint — build 421 (2026-10-03)
+## Latest signed integration checkpoint — build 428 (2026-10-03)
 
-The picker, notification recovery and feedback changes described below are now
-included in [signed build 421](https://github.com/DocMorphic/cmux-app/actions/runs/37095448842)
-at `72a1b10`. Full CI passed, and independent downloaded-APK checks verified the
+The SSH picker, plain-shell browser and browser-return changes below are now
+included in [signed build 428](https://github.com/DocMorphic/cmux-app/actions/runs/37100622349)
+at `139dcbe`, along with build 421's notification recovery and feedback work.
+Full CI passed, and independent downloaded-APK checks verified the
 signer, 14 viewer assets, six native libraries' LOAD/RELRO alignment, 16 KB ZIP
-alignment and release manifest. The existing emulator upgraded 411 → 421 and
+alignment and release manifest. The existing emulator upgraded 421 → 428 and
 launched successfully; it was already signed out. See [install evidence and
-checksums](PIXEL_INSTALL.md). Later references to unchanged build 411 below describe
+checksums](PIXEL_INSTALL.md). Later references to unchanged builds 411/421 describe
 the earlier individual feature checkpoints. Physical acceptance, configured push,
 authenticated release migration and the remaining source audit are still open.
 
@@ -112,9 +113,17 @@ Targeted source findings in this pass:
   not establish new runtime coverage or justify adding a second parser blindly.
 - `MobileWorkspaceCloseConfirmation.swift` centralizes destructive Mac/tmux/
   cmux-tui confirmation while allowing phone-owned shell closure directly.
-  Android has confirmations for persistent workspaces and direct shell closure;
-  host/kind-specific wording and consistency across every entry point remain to
-  be checked against the new contract.
+  Exact source comparison on 2026-10-03 confirms Android has the persistence
+  distinction but not the full presentation contract. iOS names the workspace
+  **and host**, uses **End Session** for tmux and **Close Workspace** for cmux-tui,
+  with kind-specific text explaining effects on other devices. Its paired-Mac
+  confirmation is **Delete Workspace? / Delete**, explicitly saying it closes
+  the workspace on the Mac. Android's `SshWorkspacesScreen` uses generic
+  **End Workspace** without the host; legacy `SshTmuxScreen` also lacks the host
+  and specific action label. `NativeScreen` uses **Close** and weaker generic
+  terminal-stop text. A shared Android confirmation model and consistency across
+  entry points remain to be implemented. This finding does not imply those
+  dialogs are included in signed build 428.
 - `MobilePushCoordinator.swift` now awaits explicit reconnect before retrying a
   pending notification route, cancelling replaced retries. Android's targeted
   recovery implementation and verification are recorded below; this is not a

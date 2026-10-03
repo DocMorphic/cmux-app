@@ -6,9 +6,10 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 421 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37095448842/artifacts/11264196689)
-from `72a1b10` includes shared pane pickers, notification route retry, feedback
-with retained drafts, and the preceding terminal sizing/accessibility work.
+**Signed download:** [build 428 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37100622349/artifacts/11266620691)
+from `139dcbe` adds grouped SSH pane menus, browser-driven workspace creation,
+plain-shell browser navigation, and linked-browser restoration and stale-return
+fixes. It includes build 421's feedback, notification retry and terminal work.
 Full CI, signature, viewer assets, 16 KB packaging, and a signed emulator
 upgrade passed. Physical Pixel/Mac acceptance, authenticated release migration,
 and live Android push provider delivery remain open. See the
