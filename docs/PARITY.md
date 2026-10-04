@@ -12,6 +12,24 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — responsive license dialog (2026-10-04)
+
+[LICENSE_DIALOG.md](LICENSE_DIALOG.md) replaces synchronous asset loading and one
+huge Text with off-main loading and bounded, lazily rendered sections. All 18
+license assets remain complete; loading can be dismissed and failures retried.
+One JVM and three Android tests pass, including traversal of the full packaged
+license list. Actual MainActivity open/close/reopen and screenshots were checked.
+
+The prior 3,019 ms frame did not recur in these two debug emulator openings;
+first-open HWUI reported 761 ms and reopen's 99th-percentile bucket was 500 ms.
+These are not controlled release benchmarks and remaining jank is not ruled out.
+Debug/test assembly and engine packaging pass. The sole AVD is stopped; ADB still
+shows no Pixel. No signed milestone was created; build 517 does not include this fix.
+
+**Next:** physical Pixel/Mac browser and connection recovery; notice cold-start,
+HTTPS/account acceptance and broader source parity. Push/feed configuration remain
+open. The goal remains active; this checkpoint does not establish full parity.
+
 ## Latest checkpoint — signed development build 517 (2026-10-04)
 
 [PIXEL_INSTALL.md](PIXEL_INSTALL.md) records source `7b01538`, successful CI run

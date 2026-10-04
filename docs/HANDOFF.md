@@ -22,9 +22,27 @@ documents are historical; newer verified entries supersede older pending claims.
 `7b01538b49b6a58cd11bb7290b1fa5128582950f`, passed CI, independent packaging,
 Android 17 ART and an in-place signed-out 494 → 517 emulator upgrade/cold launch.
 See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the download, evidence and limitations.
-The observed license-dialog opening stall is the immediate next fix. The goal
-remains active; physical/authenticated acceptance, feed/push configuration and
+The license-dialog correction is now verified in debug (see the newer checkpoint
+below). The goal remains active; physical/authenticated acceptance, feed/push configuration and
 broader parity remain open. Older delivery sections below are historical.
+
+## Latest checkpoint — responsive license dialog (2026-10-04)
+
+[LICENSE_DIALOG.md](LICENSE_DIALOG.md) replaces synchronous asset loading and one
+huge Text with off-main loading and bounded, lazily rendered sections. All 18
+license assets remain complete; loading can be dismissed and failures retried.
+One JVM and three Android tests pass, including traversal of the full packaged
+license list. Actual MainActivity open/close/reopen and screenshots were checked.
+
+The prior 3,019 ms frame did not recur in these two debug emulator openings;
+first-open HWUI reported 761 ms and reopen's 99th-percentile bucket was 500 ms.
+These are not controlled release benchmarks and remaining jank is not ruled out.
+Debug/test assembly and engine packaging pass. The sole AVD is stopped; ADB still
+shows no Pixel. No signed milestone was created; build 517 does not include this fix.
+
+**Next:** physical Pixel/Mac browser and connection recovery; notice cold-start,
+HTTPS/account acceptance and broader source parity. Push/feed configuration remain
+open. The goal remains active; this checkpoint does not establish full parity.
 
 ## Latest checkpoint — signed development build 517 (2026-10-04)
 
