@@ -27,6 +27,113 @@ internal class PoolTestTransport : MobileRpcTransport {
 }
 
 class MobileRpcConnectionsTest {
+    @Test fun slowMacAdmissionDoesNotDelayOtherMacs() = runBlocking<Unit> {
+        val slow = PoolTestTransport().apply { gate = CompletableDeferred() }
+        val healthy = PoolTestTransport()
+        MobileRpcConnections().use { pool ->
+            val pending = async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { pool.acquire("slow", { true }) { MobileRpcClient(slow, { "fixture" }) } }
+            }
+            val quick = async { runCatching { pool.acquire("healthy", { true }) { MobileRpcClient(healthy, { "fixture" }) } } }
+            try {
+                val lease = withTimeout(1_000) { quick.await().getOrThrow() }
+                assertEquals(1, slow.connects.get()); assertFalse(pending.isCompleted)
+                lease.close()
+            } finally { pool.close(); pending.await(); quick.await() }
+        }
+    }
+
+    @Test fun slowHostProbeDoesNotDelayOtherMacAndRevocationIsScoped() = runBlocking<Unit> {
+        val slow = PoolTestTransport()
+        val healthy = PoolTestTransport().apply { gate = CompletableDeferred() }
+        MobileRpcConnections().use { pool ->
+            val pending = async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { pool.acquire("slow", { true }, validate = { it.hostStatus() }) { MobileRpcClient(slow, { "fixture" }) } }
+            }
+            withTimeout(2000) { slow.sent.receive() }
+            val quick = async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { pool.acquire("healthy", { true }) { MobileRpcClient(healthy, { "fixture" }) } }
+            }
+            try {
+                assertEquals(1, healthy.connects.get())
+                pool.retain(setOf("healthy"))
+                assertTrue(withTimeout(2000) { pending.await() }.isFailure)
+                assertEquals(0, healthy.closes.get())
+                healthy.gate!!.complete(Unit)
+                val lease = withTimeout(2000) { quick.await().getOrThrow() }
+                val request = async { lease.workspaces() }
+                healthy.answer(withTimeout(2000) { healthy.sent.receive() })
+                assertEquals("mobile.workspace.list", withTimeout(2000) { request.await() }.getString("method"))
+                lease.close()
+            } finally { pool.close(); pending.await(); quick.await() }
+        }
+    }
+
+    @Test fun cancellingSameMacWaiterPreservesDialAndOtherWaitersShareTheWire() = runBlocking<Unit> {
+        val wire = PoolTestTransport().apply { gate = CompletableDeferred() }
+        MobileRpcConnections().use { pool ->
+            val first = async(start = CoroutineStart.UNDISPATCHED) { pool.acquire("mac", { true }) { MobileRpcClient(wire, { "fixture" }) } }
+            val cancelled = async(start = CoroutineStart.UNDISPATCHED) { pool.acquire("mac", { true }) { error("duplicate") } }
+            val remaining = async(start = CoroutineStart.UNDISPATCHED) { pool.acquire("mac", { true }) { error("duplicate") } }
+            cancelled.cancelAndJoin()
+            assertFalse(first.isCompleted); assertEquals(0, wire.closes.get())
+            wire.gate!!.complete(Unit)
+            val a = withTimeout(2000) { first.await() }
+            val b = withTimeout(2000) { remaining.await() }
+            assertEquals(1, wire.connects.get())
+            a.close(); assertFalse(b.isClosed); assertEquals(0, wire.closes.get())
+            b.close(); assertEquals(1, wire.closes.get())
+        }
+    }
+
+    @Test fun closeAbortsAllParallelCandidatesAndSameMacWaiters() = runBlocking<Unit> {
+        val wires = List(3) { PoolTestTransport().apply { gate = CompletableDeferred() } }
+        MobileRpcConnections().use { pool ->
+            val attempts = wires.mapIndexed { index, wire -> async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { pool.acquire("mac-$index", { true }) { MobileRpcClient(wire, { "fixture" }) } }
+            } }
+            val waiter = async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { pool.acquire("mac-0", { true }) { error("duplicate") } }
+            }
+            assertTrue(wires.all { it.connects.get() == 1 })
+            pool.close()
+            withTimeout(2000) { assertTrue((attempts + waiter).awaitAll().all { it.isFailure }) }
+            assertTrue(wires.all { it.closes.get() == 1 })
+        }
+    }
+
+    @Test fun capacityCountsPendingMacsAndIsReclaimedAfterCancellationAndRelease() = runBlocking<Unit> {
+        MobileRpcConnections().use { pool ->
+            val wires = List(64) { PoolTestTransport().apply { gate = CompletableDeferred() } }
+            val pending = wires.mapIndexed { index, wire -> async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { pool.acquire("mac-$index", { true }) { MobileRpcClient(wire, { "fixture" }) } }
+            } }
+            try {
+                assertTrue(wires.all { it.connects.get() == 1 })
+                var created = false
+                val overflow = runCatching { pool.acquire("overflow", { true }) {
+                    created = true; MobileRpcClient(PoolTestTransport(), { "fixture" })
+                } }
+                assertEquals("Too many active Mac connections", overflow.exceptionOrNull()?.message)
+                assertFalse(created)
+                val sameMac = async(start = CoroutineStart.UNDISPATCHED) {
+                    pool.acquire("mac-1", { true }) { error("duplicate") }
+                }
+                wires[1].gate!!.complete(Unit)
+                val existing = withTimeout(2000) { pending[1].await().getOrThrow() }
+                withTimeout(2000) { sameMac.await() }.close()
+                assertFalse(existing.isClosed)
+                pending[0].cancelAndJoin()
+                assertEquals(1, wires[0].closes.get())
+                // Each completed lease frees both the wire and its admission reservation.
+                repeat(70) { index ->
+                    pool.acquire("replacement-$index", { true }) { MobileRpcClient(PoolTestTransport(), { "fixture" }) }.close()
+                }
+                existing.close()
+            } finally { pool.close(); pending.joinAll() }
+        }
+    }
+
     @Test fun admissionProbeMustFinishBeforeAnyLeaseCanBeBorrowed() = runBlocking<Unit> {
         val transport = PoolTestTransport()
         MobileRpcConnections().use { pool ->

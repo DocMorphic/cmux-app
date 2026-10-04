@@ -28,6 +28,7 @@ class NativeSavedTailscaleRuntimeTest {
         @Volatile var transportFailure: Exception? = null
         @Volatile var tokenHook: suspend () -> Unit = {}
         @Volatile var hostGate: CompletableDeferred<Unit>? = null
+        val hostGates = java.util.concurrent.ConcurrentHashMap<Pair<String, String>, CompletableDeferred<Unit>>()
         val hostEntered = Channel<Unit>(16)
         var version = "0.64.24"
         val compatibility = NativeMacCompatibilityGate({ teams.value.scope == it })
@@ -61,6 +62,7 @@ class NativeSavedTailscaleRuntimeTest {
         }
     }
     private class Wire(val grant: TailscaleSavedGrant, val allowed: () -> Boolean, val fixture: Fixture) : MobileRpcTransport {
+        private val hostGate = fixture.hostGates[grant.device to grant.build] ?: fixture.hostGate
         val replies = Channel<ByteArray>(32)
         val methods = CopyOnWriteArrayList<String>()
         @Volatile var closed = false
@@ -72,7 +74,7 @@ class NativeSavedTailscaleRuntimeTest {
             assertEquals("fixture-token", request.getJSONObject("auth").getString("stack_access_token"))
             val result = when (method) {
                 "mobile.host.status" -> {
-                    fixture.hostEntered.send(Unit); fixture.hostGate?.await()
+                    fixture.hostEntered.send(Unit); hostGate?.await()
                     JSONObject().put("mac_device_id", if (fixture.badIdentity) "other" else grant.device)
                         .put("mac_instance_tag", grant.build).put("mac_app_version", fixture.version).put("capabilities", JSONArray())
                 }
@@ -83,7 +85,7 @@ class NativeSavedTailscaleRuntimeTest {
                 .put("ok", true).put("result", result).toString().toByteArray()))
         }
         override suspend fun read(): ByteArray? = replies.receiveCatching().getOrNull()?.also { check(allowed() && !closed) }
-        override fun close() { closed = true; replies.close(); fixture.hostGate?.cancel() }
+        override fun close() { closed = true; replies.close(); hostGate?.cancel() }
     }
 
     @Test fun savedTailscaleCannotBypassVersionGateAndNewPolicyRetiresItsSharedWire() = runBlocking<Unit> {
@@ -99,6 +101,30 @@ class NativeSavedTailscaleRuntimeTest {
             assertTrue(withTimeout(1000) { background.disconnected.first() } is MacUpdateRequired)
             assertNull(f.local.powerSession(f.team, f.target))
             foreground.close(); background.close()
+        }
+    }
+
+    @Test fun stalledHostProbeDoesNotBlockSiblingAndGrantRevocationKeepsSiblingLive() = runBlocking<Unit> {
+        Fixture().use { f ->
+            val sibling = f.target.copy(deviceId = "other-mac")
+            val otherGrant = f.grant.copy(id = UUID.randomUUID().toString(), source = "b".repeat(64), device = sibling.deviceId)
+            f.settings.update(sibling, { true }) { it.copy(method = NativeMacConnectionMethod.TAILSCALE) }
+            f.setRoutes(listOf(f.grant, otherGrant))
+            f.hostGates[f.target.deviceId to f.target.buildTag] = CompletableDeferred()
+            val pending = async { runCatching { f.local.connectIfSelected(f.pairing()) } }
+            try {
+                withTimeout(2000) { f.hostEntered.receive() }
+                val active = checkNotNull(withTimeout(2000) { f.local.connectIfSelected(f.pairing(sibling)) })
+                val shared = checkNotNull(withTimeout(2000) { f.local.connectIfSelected(f.pairing(sibling)) })
+                assertEquals(2, f.wires.size)
+                assertFalse(pending.isCompleted)
+                f.setRoutes(listOf(otherGrant))
+                assertTrue(withTimeout(2000) { pending.await() }.isFailure)
+                active.close(); assertFalse(shared.isClosed)
+                assertEquals(0, withTimeout(2000) { shared.workspaces() }.getJSONArray("workspaces").length())
+                assertFalse(f.wires.last().closed)
+                shared.close(); assertTrue(f.wires.last().closed)
+            } finally { f.close(); pending.await() }
         }
     }
 

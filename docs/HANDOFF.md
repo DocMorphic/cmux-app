@@ -26,6 +26,26 @@ The license-dialog correction is now verified in debug (see the newer checkpoint
 below). The goal remains active; physical/authenticated acceptance, feed/push configuration and
 broader parity remain open. Older delivery sections below are historical.
 
+## Latest checkpoint — independent Mac connection admission (2026-10-04)
+
+[COMPUTER_CONNECTION.md](COMPUTER_CONNECTION.md#independent-mac-connection-admission--2026-10-04)
+fixes a reproduced shared-pool bottleneck: one stalled Mac no longer blocks other
+Macs during dial or host validation. Same-key callers still share a validated
+wire; revocation/close handles all pending candidates, and pending keys count
+toward the existing capacity limit.
+
+**50 focused JVM tests pass** (13 pool, 21 Iroh runtime, 16 saved-Tailscale runtime),
+including healthy-sibling RPC after the stalled Mac is revoked. Production
+runtime classes use fixture transports; this does not establish live account,
+Iroh/Tailscale or full production-graph acceptance. No emulator was started and
+no APK installed. ADB showed no device; the physical browser check remains
+pending. Signed build 517 is unchanged.
+
+**Next:** physical Pixel/Mac browser/recovery and production connection-graph
+acceptance; workspace-action failure presentation; broader upstream source/UI
+audit. Current-source signed/cold-start verification and push/feed provider
+configuration remain open. The overall goal remains active.
+
 ## Latest checkpoint — native selection haptic policy (2026-10-04)
 
 [DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#native-selection-haptics-and-toast-policy-audit--2026-10-04)

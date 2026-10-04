@@ -91,6 +91,7 @@ class NativeIrohRuntimeTest {
         val transports = mutableListOf<PoolTestTransport>()
         var startAction: suspend () -> Unit = { }
         var dial: suspend () -> Unit = { }
+        var prepareWire: (IrohV2Computer, PoolTestTransport) -> Unit = { _, _ -> }
         var networkRefresh: suspend () -> Unit = { refreshes.incrementAndGet() }
         override suspend fun refreshNetworking() { networkRefresh() }
         override suspend fun start() { startAction() }
@@ -98,6 +99,7 @@ class NativeIrohRuntimeTest {
         override fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport {
             assertTrue(permits())
             val wire = PoolTestTransport().also { synchronized(transports) { transports += it } }
+            prepareWire(mac, wire)
             return object : MobileRpcTransport by wire {
                 override suspend fun connect() { dial(); wire.connect() }
             }
@@ -105,6 +107,35 @@ class NativeIrohRuntimeTest {
         override fun close() { closes.incrementAndGet() }
     }
     private fun pairing(scope: NativeTeamScope = team) = PairingCodeParser.parse(PairingCodeParser.computer(mac, scope)).getOrThrow() as PairingCode.Iroh
+
+    @Test fun stalledMacDialDoesNotBlockSiblingAndDirectoryRevocationKeepsSiblingLive() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        val sibling = mac.copy(endpointId = "cd".repeat(32), recordId = "sibling", deviceId = "other-mac")
+        backend.state.value = ready().copy(computers = listOf(mac, sibling))
+        val entered = CompletableDeferred<Unit>()
+        backend.prepareWire = { selected, wire -> if (selected == mac) {
+            wire.gate = CompletableDeferred(); entered.complete(Unit)
+        } }
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            val pending = async { runCatching { runtime.connect(pairing()) } }
+            try {
+                withTimeout(2000) { entered.await() }
+                val locator = PairingCodeParser.parse(PairingCodeParser.computer(sibling, team)).getOrThrow() as PairingCode.Iroh
+                val active = withTimeout(2000) { runtime.connect(locator) }
+                val shared = withTimeout(2000) { runtime.connect(locator) }
+                assertEquals(2, synchronized(backend.transports) { backend.transports.size })
+                assertFalse(pending.isCompleted)
+                backend.state.value = ready().copy(computers = listOf(sibling))
+                assertTrue(withTimeout(2000) { pending.await() }.isFailure)
+                active.close(); assertFalse(shared.isClosed)
+                val wire = synchronized(backend.transports) { backend.transports.last() }
+                val request = async { shared.workspaces() }
+                wire.answer(withTimeout(2000) { wire.sent.receive() })
+                assertEquals("mobile.workspace.list", withTimeout(2000) { request.await() }.getString("method"))
+                shared.close()
+            } finally { runtime.close(); pending.await() }
+        }
+    }
 
     @Test fun tailscaleRouteChangesWakeDisconnectedConsumersAndRetireOnlyTheirMac() = runBlocking<Unit> {
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()

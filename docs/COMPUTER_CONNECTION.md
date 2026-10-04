@@ -66,3 +66,35 @@ Keep-awake row indicators are implemented by the subsequent
 [power indicators checkpoint](MAC_POWER_INDICATORS.md). Method/direct-route controls,
 version compatibility and account-wide Forget/revocation remain separate parity work. This presentation
 does not claim completion of the full computer-detail or companion goal.
+
+## Independent Mac connection admission — 2026-10-04
+
+The shared RPC pool previously held one global coroutine mutex throughout dial
+and authenticated host validation. A stalled Mac could therefore delay new
+connections to every other Mac in that account. A regression reproduced this:
+the healthy Mac's acquire timed out after 1,000ms while another dial was gated.
+
+Admission now serializes by connection key. Different Macs can dial and validate
+independently; callers for the same key still share one validated wire and own
+independent leases. The pool tracks every in-progress candidate so scoped
+revocation and account teardown retire all affected wires. The 64-key capacity
+includes active connections and pending admissions, and reservations are released
+on success, failure or cancellation. No transport work runs under the shared
+state lock. Host identity, account/route permissions and compatibility checks
+still complete before a candidate can become a borrowed connection.
+
+**50 JVM tests pass:** 13 pool, 21 Iroh runtime and 16 saved-Tailscale runtime
+cases. New coverage checks independent dial/probe progress, cancellation of a
+same-Mac waiter, successful wire sharing, selective candidate revocation,
+closing multiple candidates, and capacity reclamation. Runtime cases use the
+production managers with fixture transports: a stalled Mac does not block a
+healthy sibling; revoking the stalled Mac's discovery/grant preserves the
+sibling's shared lease and subsequent workspace RPC.
+
+The original regression failed before the fix and passes afterward. Gradle's
+focused JVM build finished successfully in 22s. Original logs, XML and source
+hashes are retained in ignored `captures/runtime/connection-admission/`.
+No emulator was started and no APK was built or installed for this pure Kotlin
+connection change. Signed 517 is unchanged. ADB listed no physical device;
+Pixel/Mac browser/reconnect acceptance and the full production account/network
+graph remain unverified by these fixtures.
