@@ -24,7 +24,39 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — signed build 546 and upgrade verification (2026-10-04)
+## Latest checkpoint — Mac creation target chooser (2026-10-04)
+
+All Computers now offers the visible paired Macs as workspace-creation targets,
+with display/build labels and connection dots. A selected-computer view offers
+only its Mac. Creation uses that exact owner's verified feed connection;
+Stable/Nightly, account/team, replaced-pairing and stale-menu checks prevent
+retargeting. Plain legacy list-only responses refresh without guessing a created
+workspace, while task/spec parsing remains strict. Changing the computer filter
+or leaving the list retires delayed navigation. See [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md).
+
+**39 focused JVM tests passed.** The initial nine Android checks passed in
+72.691s. Visual review found a missing status dot; the final implementation uses
+the existing connection-dot component and also guards an in-flight filter change.
+**All 10 final Android checks passed in 78.546s**, including background-Mac RPC
+routing, same-device Stable/Nightly targets, stale account/pairing/menu rejection,
+legacy response handling, delayed navigation and new-terminal/empty-workspace
+startup. Final debug/test builds succeeded; screenshots inspected, source hashes
+unchanged during verification and crash buffers empty. Evidence:
+`captures/runtime/workspace-create-targets/verification.json`.
+
+The sole existing AVD was stopped/reaped. The Pixel remains absent from ADB, so
+physical browser/Mac acceptance is still pending and phone data was untouched.
+Signed build **546 remains the current download**; no new signed milestone was
+dispatched. Commit the coherent feature now and batch it into the next APK.
+
+**Next:** integrate saved SSH targets/kind submenus and the iOS single-computer
+primary tap/long-press interaction, then compound filters/sort and wider layouts.
+Android currently retains its single-computer menu and New Task item; offline
+creation targets remain disabled. Broader upstream audit, legacy tickets,
+configured push/notice feed and physical acceptance remain open. Goal active;
+PR still draft and scheduled updates remain dormant until merge to main.
+
+## Earlier checkpoint — signed build 546 and upgrade verification (2026-10-04)
 
 [PIXEL_INSTALL.md](PIXEL_INSTALL.md) now links signed development build **546**
 from source `2a2c928b5626a23d08921827e34360ebb4e5517a`. It includes the accumulated

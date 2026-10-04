@@ -7,11 +7,11 @@ import org.junit.Test
 class NativeGroupWorkspaceCreationTest {
     @Test fun exactCreatedIdentityIsUsedEvenWhenItIsNotFirst() {
         val response = JSONObject("""{"created_workspace_id":"new","workspaces":[{"id":"old"},{"id":"new","group_id":"g"}]}""")
-        assertEquals("new", createdGroupWorkspace(response)?.id)
+        assertEquals("new", createdPlainWorkspace(response)?.id)
     }
     @Test fun legacySuccessDoesNotGuessAWorkspaceOrWeakenTaskCreation() {
         val response = JSONObject("""{"workspaces":[{"id":"old"},{"id":"new"}]}""")
-        assertNull(createdGroupWorkspace(response))
+        assertNull(createdPlainWorkspace(response))
         assertTrue(runCatching { TaskCreationResult.parse(response) }.isFailure)
     }
     @Test fun malformedOrAmbiguousResponsesCannotSelectAnotherWorkspace() {
@@ -19,7 +19,7 @@ class NativeGroupWorkspaceCreationTest {
             """{"created_workspace_id":12,"workspaces":[{"id":"12"}]}""",
             """{"created_workspace_id":"","workspaces":[]}""",
             """{"workspaces":[{"id":"same"},{"id":"same"}]}""").forEach {
-            assertTrue(it, runCatching { createdGroupWorkspace(JSONObject(it)) }.isFailure)
+            assertTrue(it, runCatching { createdPlainWorkspace(JSONObject(it)) }.isFailure)
         }
     }
 }

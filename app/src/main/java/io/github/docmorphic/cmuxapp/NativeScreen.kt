@@ -1203,9 +1203,11 @@ fun NativeScreen(
                 requireWorkspaceConnection(active, mac)
                 val response = workspaceSnapshots.mutate(mac) { active.request("workspace.create") }
                 if (!stillCurrent()) return@launch
-                val result = TaskCreationResult.parse(response, "workspace")
-                val created = applyCreatedWorkspace(mac, result)
-                refreshFeed(); notificationTab = false; error = null
+                val returned = createdPlainWorkspace(response)
+                refreshFeed(); error = null
+                if (returned == null) return@launch
+                val created = workspaceSnapshots.createdWorkspace(mac, returned)
+                notificationTab = false
                 selectedSurface = null; selectedBrowser = null; selectedWorkspace = created
                 selectedTerminal = created.terminals.firstOrNull { it.id == response.optString("created_terminal_id") }
                     ?: created.preferredTerminal
@@ -1220,27 +1222,31 @@ fun NativeScreen(
         }
     }
 
-    fun createWorkspaceInGroup(source: NativeFeedSource, group: NativeGroup) {
+    fun createWorkspaceOnMac(mac: NativeCredentialStore.PairedMac, groupId: String? = null) {
         if (creatingWorkspace || creatingTerminal) return
         val entryNavigation = navigationGeneration.observe(browserNavigationContext())
         val entryLogin = browserLogin
         val entryOwner = teamState.scope
-        fun stillCurrent() = signedIn && store.taskSession() == entryLogin && teamState.scope == entryOwner &&
+        val entryComputerSelection = selectedComputerOrigin
+        fun stillCurrent() = signedIn && store.taskSession() == entryLogin && accountTeams.state.value.scope == entryOwner &&
+            selectedComputerOrigin == entryComputerSelection &&
             navigationGeneration.matches(entryNavigation, browserNavigationContext()) &&
-            store.visiblePairedMacs().contains(source.mac) && connection.allowsSaved(source.mac)
+            store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)
         creatingWorkspace = true
         workspaceTabs.cancel()
         scope.launch {
             try {
                 if (!stillCurrent()) return@launch
-                val response = feedCoordinator.createWorkspaceInGroup(source.mac, group.id)
+                val response = if (groupId == null) feedCoordinator.createWorkspace(mac)
+                    else feedCoordinator.createWorkspaceInGroup(mac, groupId)
                 if (!stillCurrent()) return@launch
-                val returned = createdGroupWorkspace(response) ?: return@launch
-                val created = workspaceSnapshots.createdWorkspace(source.mac, returned)
+                error = null
+                val returned = createdPlainWorkspace(response) ?: return@launch
+                val created = workspaceSnapshots.createdWorkspace(mac, returned)
                 val terminal = created.terminals.singleOrNull { it.id == response.optString("created_terminal_id") }
                     ?: created.preferredTerminal
                 inAppNotification = null; error = null
-                workspaceRoute = NativeWorkspaceRoute(source.mac.origin, created.id, terminalId = terminal?.id,
+                workspaceRoute = NativeWorkspaceRoute(mac.origin, created.id, terminalId = terminal?.id,
                     createdWorkspace = created, createdAtMillis = android.os.SystemClock.elapsedRealtime())
             } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
@@ -2968,24 +2974,23 @@ fun NativeScreen(
                         }, leadingIcon = { Text(if (unreadWorkspacesOnly) "✓" else " ") })
                     }
                 }
-                Box {
-                    TextButton(onClick = { createMenuOpen = true }) {
-                        Text("+", color = nativeAccent, fontSize = 25.sp)
-                    }
-                    DropdownMenu(createMenuOpen, onDismissRequest = { createMenuOpen = false }) {
-                        DropdownMenuItem(text = { Text("New workspace") }, enabled = canCreateOnCurrentMac && !creatingWorkspace && !creatingTerminal, onClick = {
-                            createMenuOpen = false; createWorkspace()
-                        })
-                        DropdownMenuItem(text = { Text("New task") }, onClick = {
-                            createMenuOpen = false; finishSearch(); newTaskDraft()
-                        })
-                        if ("workspace.group_create.v1" in hostCapabilities) {
-                            DropdownMenuItem(text = { Text("New group") }, enabled = canCreateOnCurrentMac, onClick = {
-                                createMenuOpen = false; showCreateGroup = true
-                            })
-                        }
-                    }
-                }
+                NativeWorkspaceCreateMenu(
+                    macs = pairedMacs.filter { selectedOrigin == null || it.origin == selectedOrigin },
+                    appearances = appearances, presence = scopedPresence,
+                    connections = computerConnections, open = createMenuOpen, onOpen = { createMenuOpen = it },
+                    owner = NativeComputerMenuOwner(browserLogin, teamState.scope), selection = selectedOrigin,
+                    busy = creatingWorkspace || creatingTerminal,
+                    isOwnerCurrent = { owner -> signedIn && store.taskSession() == owner.login &&
+                        accountTeams.state.value.scope == owner.team },
+                    canCreate = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
+                        connection.allowsSaved(mac) && feedCoordinator.sources.value[mac.origin]?.let {
+                            it.mac == mac && it.availability == NativeFeedAvailability.CONNECTED
+                        } == true },
+                    onCreate = { createWorkspaceOnMac(it) },
+                    onTask = { finishSearch(); newTaskDraft() },
+                    onGroup = if (canCreateOnCurrentMac && WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY in hostCapabilities &&
+                        "workspace.group_create.v1" in hostCapabilities) ({ showCreateGroup = true }) else null)
+
             }
         }
         if (busy && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -3057,7 +3062,7 @@ fun NativeScreen(
                             canEdit = owner.canEditGroups(),
                             canCreate = owner.canCreateInGroup(),
                             creationEnabled = !creatingWorkspace && !creatingTerminal,
-                            onCreate = { createWorkspaceInGroup(owner, group) },
+                            onCreate = { createWorkspaceOnMac(owner.mac, group.id) },
                             onToggle = {
                                 collapsedGroups = collapsedGroups + (entry.key to !group.isCollapsed)
                                 store.update { it.put("collapsed_groups", JSONObject(collapsedGroups)) }

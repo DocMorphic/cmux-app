@@ -11,6 +11,42 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun plainCreateTargetsExactMacAndAcceptsLegacyWithoutAccountGroupCapability() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            b.accountMutationsSupported = false
+            b.createResponse = JSONObject("""{"workspaces":[{"id":"legacy-created"}]}""")
+            val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.hasWorkspaceSnapshot } == 2 }
+                assertNull(createdPlainWorkspace(coordinator.createWorkspace(mac("b"))))
+                assertTrue(a.requests.none { it.optString("method") == "workspace.create" })
+                assertEquals(0, b.requests.single { it.optString("method") == "workspace.create" }.getJSONObject("params").length())
+                b.rejectedMethods = setOf("workspace.create"); b.workspaceTitle = "Authoritative after rejection"
+                assertTrue(runCatching { coordinator.createWorkspace(mac("b")) }.isFailure)
+                assertEquals("Authoritative after rejection", coordinator.sources.value.getValue(mac("b").origin).workspaces.single().title)
+            } finally { coordinator.close() }
+        } }
+    }
+
+    @Test fun plainCreateRejectsReplacedPairingBuildAndRevokedAccountBeforeSending() = runBlocking {
+        FeedPeer("a").use { peer ->
+            var allowed = true
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { allowed })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                for (stale in listOf(mac("a").copy(code = "replaced"), mac("a").copy(instanceTag = "nightly"),
+                    mac("a").copy(accountUserId = "other-user"))) {
+                    assertTrue(runCatching { coordinator.createWorkspace(stale) }.isFailure)
+                }
+                allowed = false
+                assertTrue(runCatching { coordinator.createWorkspace(mac("a")) }.isFailure)
+                assertTrue(peer.requests.none { it.optString("method") == "workspace.create" })
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun groupDeleteAndCreateUseOnlyTheirOwnerAndReconcileRejections() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             b.groupCreationSupported = true

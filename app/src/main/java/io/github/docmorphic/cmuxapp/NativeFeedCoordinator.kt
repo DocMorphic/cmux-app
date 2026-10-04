@@ -359,6 +359,14 @@ internal class NativeFeedCoordinator(
         }
     }
 
+    /** Plain creates are pinned to an exact verified Mac, including its build and account. */
+    suspend fun createWorkspace(mac: NativeCredentialStore.PairedMac): JSONObject =
+        withContext(scope.coroutineContext.minusKey(Job)) {
+            owningMutation(mac) { _, client ->
+                client.request("workspace.create").also(::createdPlainWorkspace)
+            }
+        }
+
     suspend fun createWorkspaceInGroup(mac: NativeCredentialStore.PairedMac, groupId: String): JSONObject =
         withContext(scope.coroutineContext.minusKey(Job)) {
             owningMutation(mac) { _, client ->
@@ -366,7 +374,7 @@ internal class NativeFeedCoordinator(
                 check(source.canCreateInGroup()) { "Update cmux on this Mac to create workspaces in groups with account authentication." }
                 check(source.groups.any { it.id == groupId }) { "This group is no longer available." }
                 client.request("workspace.create", JSONObject().put("group_id", groupId)).also {
-                    createdGroupWorkspace(it) // Validate legacy list-only success without inventing a selected workspace.
+                    createdPlainWorkspace(it) // Validate legacy list-only success without inventing a selected workspace.
                 }
             }
         }

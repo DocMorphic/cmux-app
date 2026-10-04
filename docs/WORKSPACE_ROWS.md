@@ -516,3 +516,56 @@ Build 546 now delivers the preceding row/group implementation. CI and local
 signed-out upgrade verification are documented in `PIXEL_INSTALL.md`. The
 upstream watcher remains absent on main (GitHub contents/workflow queries
 returned 404), consistent with the activation requirements in `UPDATES.md`.
+
+
+## Mac target chooser — 2026-10-04
+
+The native workspace toolbar now offers the visible paired Macs under **New
+Workspace** when All Computers contains several Macs. A selected-computer view
+only offers that Mac. Each target carries its display name, build label and
+connection status. Stable and Nightly remain distinct even on the same device.
+Offline or replaced pairings cannot receive a create request from an old menu.
+
+The menu captures its displayed identities and callbacks at opening, while
+rechecking account/team, pairing and availability at action time. Account or
+computer-filter changes dismiss the old menu. A create uses the exact owner's
+verified feed connection, sends `workspace.create` with empty parameters, and
+refreshes that owner's authoritative list after success or rejection. It does
+not send the request to the foreground Mac or retry the mutation automatically.
+
+Plain creates, including the existing in-pane path, accept valid legacy lists
+without a created ID. Such responses refresh the list without guessing what to
+open; task/spec creates remain strict. Known created workspaces use the existing
+route/startup logic, including partial responses and delayed first terminals.
+Leaving the list, changing its computer filter or changing the account/team
+prevents a delayed reply from taking over navigation. Group creation shares
+this navigation guard. New Group discovery now also requires account-mutation
+authority, matching the existing account-only connector.
+
+The scoped iOS `MobileShellComposite+WorkspaceCreateRequest.swift` only requires
+Mac-wide mutation authority when `groupID` is present; plain creation therefore
+does not require the group/account capability. The coordinator's owner/verified-
+connection checks still apply to both operations.
+
+This is the Mac target portion of the iOS menu contract. Saved SSH targets and
+their shell/tmux/cmux-tui kind submenus still need integration with the unified
+list. The iOS single-target primary tap/long-press behavior is also outstanding;
+Android currently retains its single-target menu and New Task entry. Automatic
+connection of an offline creation target is not implemented. Compound filters,
+sort modes and regular-width navigation remain separate parity work. No broader
+parity pin was advanced.
+
+### Target chooser verification
+
+39 focused JVM tests passed. Initial Android run: 9/9 in 72.691s. The final
+implementation corrected the connection dots found during screenshot review and
+added a delayed filter-change guard: 10/10 Android tests passed in 78.546s. The
+runs cover owner routing, stale menus/accounts/pairings, Stable/Nightly identity,
+legacy group responses, delayed settings/filter navigation, partial create
+responses, terminal startup and late first panes. Screenshots show the target
+menu with both connected dots and the selected Mac's terminal. Final crash
+buffer empty; production/test source hashes matched the build snapshot.
+
+Evidence: `captures/runtime/workspace-create-targets/verification.json`. Debug
+and test APKs built; no new signed APK was requested. Signed 546 remains the
+current download. Sole existing AVD stopped/reaped; Pixel absent and untouched.

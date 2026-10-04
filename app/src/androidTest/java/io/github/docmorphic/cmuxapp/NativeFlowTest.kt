@@ -2137,6 +2137,50 @@ class NativeFlowTest {
         } finally { gate.countDown() }
     }
 
+    @Test fun changingComputerFilterRetiresDelayedCreationEvenOnTheSameConnection() {
+        val gate = CountDownLatch(1)
+        try {
+            showGroupCreationFixture(legacy = false, gate = gate)
+            compose.onNodeWithContentDescription("Computer filter").performClick()
+            compose.onNode(hasText("Fixture Mac") and hasAnyAncestor(isPopup())).performClick()
+            compose.waitUntil(5_000) {
+                NativeCredentialStore(context).load()?.optString("computer_selection").orEmpty().isNotBlank()
+            }
+            gate.countDown()
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Created in group").fetchSemanticsNodes().isNotEmpty() }
+            assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.replay" })
+            assertEquals(1, peer.requests.count { it.optString("method") == "workspace.create" })
+        } finally { gate.countDown() }
+    }
+
+    @Test fun toolbarCreatesOnChosenBackgroundMacWithoutTouchingForeground() {
+        val other = NativeFixturePeer().apply { deviceId = "second-mac"; displayName = "Second Mac" }
+        fun listing(name: String) = JSONObject("""{"workspaces":[{"id":"workspace-1","title":"$name task","terminals":[]}]}""")
+        peer.customWorkspaceListing = listing("First"); other.customWorkspaceListing = listing("Second")
+        val store = NativeCredentialStore(context)
+        store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.2:58465", "second-mac", "Second Mac")
+        store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    val target = if (pairing.routes.first().host == "100.64.0.2") other else peer
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Second task").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("New workspace").performClick()
+            compose.onNode(hasText("Fixture Mac") and hasAnyAncestor(isPopup())).assertIsDisplayed()
+            compose.onNode(hasText("Second Mac") and hasAnyAncestor(isPopup())).assertIsDisplayed()
+            screenshot("workspace-create-computer-chooser")
+            compose.onNode(hasText("Second Mac") and hasAnyAncestor(isPopup())).performClick()
+            compose.waitUntil(15_000) { other.requests.any { it.optString("method") == "mobile.terminal.replay" &&
+                it.getJSONObject("params").optString("surface_id") == "task-terminal" } }
+            assertEquals(0, other.requests.single { it.optString("method") == "workspace.create" }.getJSONObject("params").length())
+            assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.create", "mobile.terminal.replay") })
+            screenshot("workspace-created-chosen-mac")
+        } finally { other.close() }
+    }
+
     @Test fun groupCreationAndDeleteTargetBackgroundMacWithCollidingGroupIds() {
         val other = NativeFixturePeer().apply {
             deviceId = "second-mac"; displayName = "Second Mac"
