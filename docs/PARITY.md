@@ -12,6 +12,25 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Partition cleanup and callback safety (2026-10-04)
+
+[NOTICE_PARTITIONS.md](NOTICE_PARTITIONS.md) records actual browser partition
+cleanup under two top-level sites. Both normal retirement and extension recovery
+clear the retired context's cookies, localStorage, IndexedDB and Cache Storage
+while preserving a separate context. A real disconnect crash exposed by the test
+was fixed by revoking page eligibility immediately and deferring session teardown
+until Gecko finishes its port callback.
+
+Final checks: **52 JVM tests and five Android cases passed** (90.184 s). Final-source
+debug/test and unsigned release builds, engine packaging and the Android 17 / 16 KB
+release ART gate pass. The fixture is absent from both app APKs. The existing AVD
+is stopped; no new virtual device or signed milestone was created.
+
+**Next:** whole-runtime crash behavior, real HTTPS/native-account exchange and
+physical Pixel/Mac acceptance. Android feed, push configuration and broader parity
+remain open. Build 494 remains the last signed milestone. ADB currently shows no
+Pixel; preserve app data and do not repeat the pending reconnect question.
+
 ## Private extension recovery (2026-10-04 follow-up)
 
 A real extension shutdown now retires old pages, and a new page attempt recovers

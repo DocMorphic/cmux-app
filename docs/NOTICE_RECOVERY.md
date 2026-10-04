@@ -4,6 +4,10 @@ This follows [launch preloading](NOTICE_LAUNCH.md) and the
 [production renderer](NOTICE_RENDERER.md). It replaces the old permanent
 process-level failure state after an extension disconnect.
 
+**Follow-up:** [NOTICE_PARTITIONS.md](NOTICE_PARTITIONS.md) records real browser
+partition cleanup and a subsequent disconnect-callback crash fix. Its final-source
+release verification supersedes the older pending gate below.
+
 ## Recovery contract
 
 A connection loss invalidates its generation, fails pending native commands and

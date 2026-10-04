@@ -2,6 +2,7 @@ package io.github.docmorphic.cmuxapp
 
 import android.content.Context
 import android.os.Looper
+import android.os.Handler
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,7 @@ import kotlin.coroutines.resumeWithException
 /** Main-thread, process-owned engine. No activity, account token or persistent session is retained. */
 internal class NativeNoticeEngine private constructor(context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val runtime = GeckoRuntime.create(context.applicationContext, GeckoRuntimeSettings.Builder()
         .configFilePath("").remoteDebuggingEnabled(false).consoleOutput(false).debugLogging(false)
         .loginAutofillEnabled(false).aboutConfigEnabled(false).build())
@@ -77,7 +79,14 @@ internal class NativeNoticeEngine private constructor(context: Context) {
                                 override fun onDisconnect(source: WebExtension.Port) {
                                     if (source === port && ticket == generation) {
                                         ready.value = null; port = null
-                                        if (used) invalidate()
+                                        if (used) {
+                                            // Gecko calls this delegate BEFORE shutting down the port's
+                                            // native dispatcher. Closing private sessions reentrantly can
+                                            // destroy that dispatcher first (NullHandle on shutdown).
+                                            // Revoke the channel now; retire sessions on the next UI turn.
+                                            pages.toList().forEach { it.revokeConnection() }
+                                            mainHandler.post { if (ticket == generation) invalidate() }
+                                        }
                                     }
                                 }
                             })
@@ -222,6 +231,7 @@ internal class NativeNoticeRenderer(
     private var session: GeckoSession? = null
     private var view: GeckoView? = null
     private var closed = false
+    private var unavailable = false
     private val mutableClosed = MutableStateFlow(false)
     override val isClosed = mutableClosed.asStateFlow()
     internal val diagnostic: String get() = "$stage/${engine?.failureCode.orEmpty()}"
@@ -298,10 +308,10 @@ internal class NativeNoticeRenderer(
     }
     private fun checkCurrent() {
         NativeNoticeEngine.checkMain()
-        check(!closed && currentOwner()) { "Notice owner changed" }
+        check(!closed && !unavailable && currentOwner()) { "Notice owner changed" }
     }
     private fun navigation(uri: String, main: Boolean, newWindow: Boolean): GeckoResult<AllowOrDeny> {
-        val allowed = if (closed || !currentOwner()) { close(); false }
+        val allowed = if (closed || unavailable || !currentOwner()) { close(); false }
             else if (newWindow) false
             else if (!remoteStarted && uri == blank) true
             else load.allowsNavigation(uri, main)
@@ -309,12 +319,14 @@ internal class NativeNoticeRenderer(
     }
     fun attach(target: GeckoView) {
         NativeNoticeEngine.checkMain()
-        if (closed || !currentOwner()) { close(); return }
+        if (closed || unavailable || !currentOwner()) { close(); return }
         if (view !== target) { detach(); view = target; session?.let(target::setSession) }
     }
     fun detach(target: GeckoView) { if (view === target) detach() }
     fun detach() { NativeNoticeEngine.checkMain(); view?.releaseSession(); view = null }
-    override fun theme(dark: Boolean) { isDark = dark; if (!closed) engine?.theme(dark) }
+    override fun theme(dark: Boolean) { isDark = dark; if (!closed && !unavailable) engine?.theme(dark) }
+    // Revoke UI/acknowledgement eligibility without reentering Gecko during its port callback.
+    internal fun revokeConnection() { unavailable = true; mutableClosed.value = true }
     internal fun engineFailed() { load.failedInitialPage(); retire() }
     private fun retire() {
         NativeNoticeEngine.checkMain()

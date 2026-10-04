@@ -1,0 +1,46 @@
+<!doctype html><meta charset="utf-8"><title>Partition fixture</title>
+<body>Partitioned private storage fixture<script>
+(async () => {
+  const params = new URL(location.href).searchParams;
+  const id = params.get('id');
+  const report = async value => fetch('/report?id=' + encodeURIComponent(id), {
+    method:'POST', credentials:'include', body:JSON.stringify(value)
+  });
+  try {
+    let databaseExisted = true;
+    const db = await new Promise((resolve,reject) => {
+      const request = indexedDB.open('notice-partition', 1);
+      request.onupgradeneeded = () => { databaseExisted = false; request.result.createObjectStore('kv'); };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      request.onblocked = () => reject(new Error('Database blocked'));
+    });
+    const cacheExisted = await caches.has('notice-partition');
+    const cache = await caches.open('notice-partition');
+    const cacheUrl = location.origin + '/cached';
+    const read = async () => ({
+      local: localStorage.getItem('marker'),
+      indexed: await new Promise((resolve,reject) => {
+        const request = db.transaction('kv','readonly').objectStore('kv').get('marker');
+        request.onsuccess = () => resolve(request.result ?? null);
+        request.onerror = () => reject(request.error);
+      }),
+      cache: await (await cache.match(cacheUrl))?.text() ?? null
+    });
+    const before = await read();
+    const value = params.get('write');
+    if (value !== null) {
+      if (!/^[AB][12]$/.test(value)) throw new Error('Unexpected fixture value');
+      localStorage.setItem('marker',value);
+      await new Promise((resolve,reject) => {
+        const tx = db.transaction('kv','readwrite');
+        tx.objectStore('kv').put(value,'marker'); tx.oncomplete=resolve;
+        tx.onerror=tx.onabort=() => reject(tx.error);
+      });
+      await cache.put(cacheUrl,new Response(value));
+    }
+    const after = await read(); db.close();
+    await report({before,after,databaseExisted,cacheExisted,scriptCookie:document.cookie,secureContext:isSecureContext});
+  } catch (error) { await report({error:String(error)}); }
+})();
+</script>
