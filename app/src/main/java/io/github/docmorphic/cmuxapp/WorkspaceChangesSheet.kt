@@ -9,8 +9,8 @@ import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 
 @Composable
-internal fun WorkspaceChangesSheet(access: WorkspaceChangesAccess, onDismiss: () -> Unit,
-    navigation: ChangesNavigationState = remember(access) { ChangesNavigationState() }) {
+internal fun WorkspaceChangesSheet(presentation: WorkspaceChangesPresentation, onDismiss: () -> Unit) {
+    val access = presentation.access
     val dismiss by rememberUpdatedState(onDismiss)
     LaunchedEffect(access) {
         while (access.current()) delay(250)
@@ -19,13 +19,7 @@ internal fun WorkspaceChangesSheet(access: WorkspaceChangesAccess, onDismiss: ()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         CompositionLocalProvider(LocalWorkspaceShellChrome provides WorkspaceShellChrome()) {
             Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
-                val scope = rememberCoroutineScope()
-                val store = remember(access) { ChangesStore(scope, access.workspaceId,
-                    { access.read(WorkspaceChangesRead.Files) }, { path, budget -> access.read(WorkspaceChangesRead.Diff(path, budget)) },
-                    fetchLines = { path -> access.content.currentLines(path) }) }
-                DisposableEffect(store) { onDispose { store.close() } }
-                LaunchedEffect(store) { store.refresh().join() }
-                ChangesContent(store, access.title, onDismiss, access.content, navigation)
+                ChangesContent(presentation.store, access.title, onDismiss, access.content, presentation.navigation)
             }
         }
     }

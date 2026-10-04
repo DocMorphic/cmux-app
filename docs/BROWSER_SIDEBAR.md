@@ -976,3 +976,42 @@ exercise every such UI path through the new sheet. Modal restoration/rotation,
 main-list presentation retention, process recovery, real Mac/Pixel and account/team
 replacement remain acceptance work. Drag ordering remains open. Signed 571 predates
 this change; no new signed build or release was dispatched.
+
+
+## Changes sheet recreation and diff retention (2026-10-05)
+
+`WorkspaceChangesPresentation` owns the selected-file navigation, `ChangesStore`
+and its seven-page cache/scroll positions. NativeFeedSession and RoutedChangesModel
+retain this presentation independently of Compose/Activity recreation. The shared
+sheet no longer refreshes/disposes the store whenever composition is replaced.
+Dismissal and owner disposal close it; current account/workspace/capability checks
+continue to gate rendering and every read. Main-list admission errors are caught
+at the click boundary and displayed through the existing screen error state.
+
+Verification:
+
+- 10 JVM checks passed: ChangesStoreTest (7), RoutedSidebarChangesTest (3).
+- Two Android scenarios passed in **77.514s** on the existing API37/16KB emulator.
+  NativeScreen with a real TCP RPC fixture preserves presentation identity,
+  selected README.md and a visible scrolled line across recreation and landscape
+  rotation, with no extra files/diff reads. Explicit close clears it; sign-out plus
+  recreation removes it without another read or terminal replay.
+- The production browser changes Activity recreates while B's selected diff is
+  open. No extra B files/diff request or early lease release occurs. Dismissal
+  preserves the browser page/draft; A capability revocation dismisses its sheet;
+  all three leases release. The injected parent Activity is not recreated.
+- First main-list attempt failed on a stale accessibility node; the test reacquires
+  only on StaleObjectException with a bounded deadline. Two intermediate test
+  compiler failures while adapting the lookup are saved alongside original logs.
+  A later review added tap-time error handling; final tests use that exact app.
+- App APK SHA-256:
+  `acf8ff126b27a9632d69fab97ec13bc5266c5fb3b60729fd01e0520df036ea96`.
+  Test APK SHA-256:
+  `8741c5cb5d14701209866a72b613f77df2bfe04415ee3ae964bd557cf649c163`.
+  Source/installed hashes match. Screenshots inspected, crash log empty, original
+  display/settings restored; sole emulator stopped/reaped, Pixel absent/untouched.
+  Evidence: `captures/runtime/changes-sheet-restoration/` (ignored).
+
+No process-death recovery, browser-parent rotation, full binary/content-preview
+modal restoration, real Mac/Pixel or account/team acceptance is inferred. Signed
+571 predates this change. Browser drag ordering and the broader parity gates remain.

@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 
 internal data class RoutedChangesCapture(val access: WorkspaceChangesAccess, val retain: () -> RoutedSidebarLease,
     val current: () -> Boolean)
@@ -12,9 +13,14 @@ internal data class RoutedChangesCapture(val access: WorkspaceChangesAccess, val
 internal class RoutedChangesModel : ViewModel() {
     var capture: RoutedChangesCapture? = null
     var lease: RoutedSidebarLease? = null
-    val navigation = ChangesNavigationState()
-    fun bind(value: RoutedChangesCapture) { capture = value; lease = value.retain() }
-    override fun onCleared() { lease?.close(); lease = null; capture = null }
+    var presentation: WorkspaceChangesPresentation? = null
+        private set
+    fun bind(value: RoutedChangesCapture) {
+        check(capture == null)
+        capture = value; lease = value.retain()
+        presentation = WorkspaceChangesPresentation(viewModelScope, value.access)
+    }
+    override fun onCleared() { presentation?.close(); presentation = null; lease?.close(); lease = null; capture = null }
 }
 
 /** Main-process sheet above the browser Activity, which retains its live WebView and unsent page state. */
@@ -34,7 +40,7 @@ class RoutedChangesActivity : ComponentActivity() {
                 while (captured.current()) kotlinx.coroutines.delay(250)
                 finish()
             }
-            WorkspaceChangesSheet(captured.access, { finish() }, model.navigation)
+            if (captured.current()) WorkspaceChangesSheet(checkNotNull(model.presentation), { finish() })
         } }
     }
     override fun onStart() { super.onStart(); if (::model.isInitialized) model.lease?.active(true) }

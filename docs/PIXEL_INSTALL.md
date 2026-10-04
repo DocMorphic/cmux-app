@@ -52,7 +52,9 @@ and the global parity pin is unchanged.
 
 The branch now also includes SSH sidebar Close, the iOS shell-confirmation
 correction, shared browser workspace display preferences, and workspace/group
-selection highlighting, plus changes sheets that retain the live browser. These
+selection highlighting, plus changes sheets that retain the live browser and
+retain their selected diff/cache/scroll across Activity recreation (main-list
+landscape rotation also verified). These
 have focused debug verification documented in
 `BROWSER_SIDEBAR.md`; they are not in signed 571.
 

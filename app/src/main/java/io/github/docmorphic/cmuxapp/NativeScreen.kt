@@ -2986,7 +2986,7 @@ internal fun NativeScreen(
                 }
             })
     }
-    var sidebarChanges by remember { mutableStateOf<WorkspaceChangesAccess?>(null) }
+    val sidebarChanges = feedSession.changesSheet
     val changesContent: @Composable ColumnScope.() -> Unit = {
         val active = client
         val workspace = selectedChangesWorkspace!!
@@ -3277,8 +3277,12 @@ internal fun NativeScreen(
                         onOpen = { open() },
                         onAction = { action, title ->
                             if (action == "customize") customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, owner.mac, workspace.id)
-                            else if (action == "changes") sidebarChanges = feedCoordinator.changesAccess(owner.mac, workspace) {
-                                store.taskSession() == browserLogin && store.visiblePairedMacs().contains(owner.mac) && connection.allowsSaved(owner.mac)
+                            else if (action == "changes") {
+                                try { feedSession.openChanges(owner.mac, workspace) }
+                                catch (failure: Exception) {
+                                    recordWorkspaceActionFailure(failure)
+                                    error = failure.message ?: "Could not open workspace changes"
+                                }
                             }
                             else if (action.startsWith("move:")) {
                                 val target = action.removePrefix("move:").takeIf { it.isNotBlank() }
@@ -3475,7 +3479,10 @@ internal fun NativeScreen(
                 checkNotNull(sshSession).workspaceFeed.submitClose(row) { currentOwner() && canSend() }
             })
     } }
-    sidebarChanges?.let { access -> WorkspaceChangesSheet(access, { sidebarChanges = null }) }
+    sidebarChanges?.let { presentation ->
+        if (presentation.access.current()) WorkspaceChangesSheet(presentation, { feedSession.dismissChanges(presentation) })
+        else SideEffect { feedSession.dismissChanges(presentation) }
+    }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
         LocalWorkspaceCustomizationAction provides customizePane, LocalRoutedSidebarHost provides sidebarHost) {
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {

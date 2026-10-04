@@ -58,6 +58,21 @@ internal class NativeFeedSession(
     val workspaceTabs = NativeWorkspaceTabNavigation(store)
     val terminalStartup = NativeTerminalStartup()
     val paneNavigation = NativePaneNavigation()
+    var changesSheet by mutableStateOf<WorkspaceChangesPresentation?>(null)
+        private set
+    fun openChanges(mac: NativeCredentialStore.PairedMac, workspace: NativeWorkspace) {
+        val login = checkNotNull(store.taskSession()) { "Sign in to view changes" }
+        val access = coordinator.changesAccess(mac, workspace) {
+            !viewModelCleared && account.isSignedIn() && store.taskSession() == login
+        }
+        check(access.current()) { "Changes workspace is no longer available" }
+        changesSheet?.close()
+        changesSheet = WorkspaceChangesPresentation(scope, access)
+    }
+    fun dismissChanges(expected: WorkspaceChangesPresentation? = changesSheet) {
+        if (changesSheet !== expected) return
+        changesSheet?.close(); changesSheet = null
+    }
     val terminalInputs = NativeTerminalInputSession(scope)
     fun configureFeed(macs: List<NativeCredentialStore.PairedMac>, routes: Map<String, String>,
         localRoutes: Map<NativeMacIdentity, String>, active: Boolean) {
@@ -99,9 +114,9 @@ internal class NativeFeedSession(
     }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
-    override fun onCleared() { viewModelCleared = true; foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
+    override fun onCleared() { viewModelCleared = true; dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,
         private val store: NativeCredentialStore) : ViewModelProvider.Factory {

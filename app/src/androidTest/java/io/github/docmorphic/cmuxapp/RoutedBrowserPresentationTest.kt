@@ -611,6 +611,19 @@ class RoutedBrowserPresentationTest {
         desc("Changes: 2 files, +22, −2").click()
         sheetDesc("Changes in Changes workspace B"); sheetDesc("Open diff README.md").click(); sheetText("fresh-B")
         assertEquals(listOf("B:Files", "B:Diff"), changesReads.toList())
+        val originalSheet = main {
+            androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED).filterIsInstance<RoutedChangesActivity>().single()
+        }
+        main { originalSheet.recreate() }
+        compose.waitUntil(15_000) { main {
+            androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)
+                .filterIsInstance<RoutedChangesActivity>().any { it !== originalSheet }
+        } }
+        sheetText("fresh-B")
+        assertEquals(listOf("B:Files", "B:Diff"), changesReads.toList())
+        assertEquals(0, sidebarReleases.get())
         capturePicker("browser-sidebar-changes-diff")
         device.pressBack(); sheetDesc("Close changes").click()
         sheetDesc("Choose terminal or pane")

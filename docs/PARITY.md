@@ -12,7 +12,38 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — workspace changes sheets from both sidebars (2026-10-05)
+## Latest checkpoint — changes sheet recreation and rotation (2026-10-05)
+
+Both changes-sheet entry points now retain their presentation, selected file,
+loaded diff cache and diff scroll positions in their owning ViewModel. Main-list
+presentation belongs to `NativeFeedSession`; the browser sheet owns a separate
+presentation and feed lease. Dismissal, sign-out and retired ownership dispose the
+retained store. Tap-time admission failures use the existing screen error state.
+
+**10 JVM checks and two Android scenarios passed** on the sole API37/16KB arm64
+emulator; the final Android run took **77.514s**. The main NativeScreen/TCP fixture
+retains the same selected diff and visible scroll anchor across Activity recreation
+and portrait-to-landscape rotation, without extra files/diff requests, then clears
+on dismissal and sign-out. The browser test recreates the production changes
+Activity, retains its loaded diff without extra reads or early lease release, and
+returns to the unchanged live browser page/draft. Capability revocation and final
+lease cleanup also pass. This does not rotate/recreate the browser's parent host.
+
+The first main-list run encountered a stale UIAutomator node while reading a
+scrolled line. Bounded reacquisition on that specific exception fixes the test;
+original output and intermediate compiler diagnostics are retained. Final source
+and installed APK hashes match, screenshots were inspected, crash buffer is empty,
+display/settings were restored, and the emulator was stopped/reaped. The Pixel was
+absent and untouched. Evidence: `captures/runtime/changes-sheet-restoration/`.
+
+Retention is in memory; process-death restoration, full content-preview modal
+state, browser-parent rotation and physical/account/team acceptance remain open.
+Next: browser drag ordering, a batched signed build, remaining physical/network
+recovery, push/notice configuration, legacy tickets and the upstream audit.
+Signed **571** predates this work. Goal active, PR #1 draft, global parity pin
+unchanged.
+
+## Earlier checkpoint — workspace changes sheets from both sidebars (2026-10-05)
 
 Browser rows now show the owning Mac's changed-file/addition/deletion chip. Tapping
 opens the existing full changes viewer in a main-process sheet above the live
