@@ -47,6 +47,17 @@ class RoutedBrowserHostService : Service() {
                     RoutedBrowserProtocol.SIDEBAR -> result.putString("sidebar", RoutedSidebarWire.page(RoutedBrowserSessions.sidebar(entry, args)))
                     RoutedBrowserProtocol.SIDEBAR_GROUP_MENU -> result.putString("groups", RoutedSidebarGroupWire.encode(
                         RoutedBrowserSessions.groupMenu(entry, checkNotNull(args.getString("key")), args.getString("revision"), args.getInt("offset"))))
+                    RoutedBrowserProtocol.SIDEBAR_EDITOR -> result.putString("editor", RoutedSidebarCustomizationWire.editor(
+                        RoutedBrowserSessions.sidebarEditor(entry, checkNotNull(args.getString("key")))))
+                    RoutedBrowserProtocol.SIDEBAR_EDITOR_CLOSE -> RoutedBrowserSessions.closeSidebarEditor(entry, checkNotNull(args.getString("editor")))
+                    RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE -> {
+                        val key = entry.id to ticket
+                        check(key !in saves) { "Workspace save already submitted" }
+                        saves[key] = currentCoroutineContext().job
+                        try { result.putString("customized", RoutedSidebarCustomizationWire.result(RoutedBrowserSessions.customizeSidebar(entry,
+                            RoutedSidebarCustomizationWire.save(checkNotNull(args.getString("customize")))))) }
+                        finally { saves.remove(key) }
+                    }
                     RoutedBrowserProtocol.SIDEBAR_STATE -> RoutedBrowserSessions.sidebarState(entry, RoutedSidebarWire.query(checkNotNull(args.getString("query"))))
                     RoutedBrowserProtocol.SIDEBAR_SORT -> RoutedBrowserSessions.sortSidebar(entry, RoutedSidebarWire.sort(checkNotNull(args.getString("sort"))))
                     RoutedBrowserProtocol.SIDEBAR_NOTIFICATION -> {

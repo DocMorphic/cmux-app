@@ -101,7 +101,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                 if (controller.sort(RoutedSidebarSort.Mode(mode)) && mode == NativeWorkspaceSortMode.PRIORITY) showOrder = true
             } }, onOrder = { showOrder = true })
     }
-    if (ui.loading || ui.navigating || ui.saving || ui.notificationBusy || ui.snapshot?.loading == true) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (ui.loading || ui.navigating || ui.saving || ui.notificationBusy || ui.editorLoading || ui.snapshot?.loading == true) LinearProgressIndicator(Modifier.fillMaxWidth())
     (ui.actionError ?: ui.error)?.let { message -> Column(Modifier.padding(12.dp)) {
         Text(message, color = MaterialTheme.colorScheme.error)
         TextButton(onClick = controller::retry) { Text("Retry") }
@@ -126,12 +126,14 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
         items(rows, key = { it.key }, contentType = { it.kind }) { row ->
             val mutations = row.mutations.takeUnless { ui.mutationBusy }.orEmpty()
             fun mutate(verb: String, title: String?) {
+                if (verb == "customize") { scope.launch { controller.editWorkspace(row.key) }; return }
                 val kind = RoutedSidebarMutationKind.fromVerb(verb) ?: return
                 if (kind in mutations) scope.launch { controller.mutate(RoutedSidebarMutation(row.key, kind, title)) }
             }
             when (row.kind) {
                 "workspace" -> Column(Modifier.padding(start = if (row.depth == 1) 24.dp else 0.dp)) {
                     NativeWorkspaceRow(row.workspace(), availability = row.availability, handlesHold = true,
+                        canCustomize = row.canCustomize && !ui.mutationBusy,
                         canWorkspaceActions = RoutedSidebarMutationKind.RENAME in mutations,
                         canClose = RoutedSidebarMutationKind.CLOSE in mutations,
                         canReadState = RoutedSidebarMutationKind.MARK_READ in mutations || RoutedSidebarMutationKind.MARK_UNREAD in mutations,

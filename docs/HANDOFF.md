@@ -24,7 +24,35 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — browser Move to Group (2026-10-04)
+## Latest checkpoint — browser workspace customization (2026-10-04)
+
+The browser sidebar now opens the shared Customize Workspace editor for the exact
+owning Mac/workspace. It preserves full editable metadata, offline discovery,
+read-only oversized descriptions, conflicting-Mac-edit handling, partial-save
+rebasing and explicit retry. Host-owned editor tickets and baselines bind saves;
+caller permission is rechecked before each coordinator read/write. Lost capability
+or workspace ownership closes the editor and cancels an in-flight save. The modal
+lives outside the sidebar layout and keeps its feed lease when that sidebar hides.
+See [BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md) for source references and limits.
+
+**67 focused JVM and three Android checks passed**; runtime **73.967s** on the sole
+existing API37/16KB emulator. The new scenarios verify a >2,800-character initial
+description, partial rename/description rejection and retry without duplicate
+rename, colliding workspace IDs on two Macs, unsaved and saving editor revocation,
+unchanged webpage load/draft and lease release. The existing compact browser
+customization scenario also passed. Source/installed hashes matched, screenshots
+were inspected, display settings restored and crash buffer empty. Emulator
+stopped/reaped; Pixel absent/untouched. No new AVD or signed build dispatched.
+
+This is generated-host browser evidence plus separate framed-RPC coordinator
+checks. Live Mac/Pixel, authenticated MainScreen, actual editor resize/rotation,
+process recovery and accessibility acceptance remain open. Signed **563** remains
+the latest verified download. Next: global/in-group workspace creation in the
+browser, SSH actions, drag/order and selection refinements, followed by the
+remaining physical/network, configured push/notice, legacy-ticket and upstream
+audit work. PR #1 remains draft and the full goal remains active.
+
+## Earlier checkpoint — browser Move to Group (2026-10-04)
 
 The browser now uses the shared anchored Move to Group submenu, including current
 membership, icons and Remove from Group. Choices load through bounded IPC pages

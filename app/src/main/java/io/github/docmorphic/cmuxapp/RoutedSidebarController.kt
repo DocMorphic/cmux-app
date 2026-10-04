@@ -10,7 +10,8 @@ internal data class RoutedSidebarUi(val query: RoutedSidebarQuery = RoutedSideba
     val search: NativeSearchState = NativeSearchState(), val snapshot: RoutedSidebarSnapshot? = null,
     val loading: Boolean = false, val more: Boolean = false, val error: String? = null, val navigating: Boolean = false,
     val actionError: String? = null, val saving: Boolean = false, val orderGeneration: Int = 0,
-    val notificationBusy: Boolean = false, val mutationBusy: Boolean = false)
+    val notificationBusy: Boolean = false, val mutationBusy: Boolean = false,
+    val editor: RoutedSidebarCustomization? = null, val editorLoading: Boolean = false)
 
 /** The browser reads a bounded display projection; only the host resolves destinations. */
 internal class RoutedSidebarController(private val scope: CoroutineScope,
@@ -20,7 +21,10 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     private val saveSort: suspend (RoutedSidebarSort) -> Unit = { error("Sidebar sorting is unavailable") },
     private val notificationAction: suspend (RoutedSidebarNotification) -> Unit = { error("Notification actions are unavailable") },
     private val workspaceAction: suspend (RoutedSidebarMutation) -> Unit = { error("Workspace actions are unavailable") },
-    private val readGroupMenu: suspend (String, String?, Int) -> RoutedSidebarGroupPage = { _, _, _ -> error("Group moves are unavailable") }) {
+    private val readGroupMenu: suspend (String, String?, Int) -> RoutedSidebarGroupPage = { _, _, _ -> error("Group moves are unavailable") },
+    private val readEditor: suspend (String) -> RoutedSidebarCustomization = { error("Workspace customization is unavailable") },
+    private val closeEditor: suspend (String) -> Unit = {},
+    private val customizeWorkspace: suspend (RoutedSidebarCustomizationSave) -> WorkspaceCustomizationResult = { error("Workspace customization is unavailable") }) {
     private val sortMutex = Mutex()
     private val mutable = MutableStateFlow(RoutedSidebarUi())
     val state = mutable.asStateFlow()
@@ -41,6 +45,7 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     fun configure(ready: Boolean, active: Boolean) {
         if (available == ready && foreground == active) return
         available = ready; foreground = active; restart()
+        if (!ready) dismissEditor()
     }
     fun visible(value: Boolean) { if (visible != value) { visible = value; restart() } }
     fun query(value: RoutedSidebarQuery) {
@@ -66,6 +71,46 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     }
     fun more() { window = (window + 100).coerceAtMost(RoutedSidebarWire.MAX_ROWS); restart() }
     fun retry() { mutable.value = state.value.copy(actionError = null); restart() }
+    private fun editorVisible() = available && foreground && (visible || state.value.editor != null) && !state.value.query.notifications
+    suspend fun editWorkspace(key: String) {
+        if (!editorVisible() || state.value.mutationBusy || state.value.editorLoading || state.value.editor != null ||
+            state.value.snapshot?.rows?.any { it.key == key && it.canCustomize } != true) return
+        mutable.value = state.value.copy(editorLoading = true, actionError = null)
+        try {
+            val editor = readEditor(key)
+            check(editor.key == key) { "Workspace editor changed. Try again." }
+            currentCoroutineContext().ensureActive()
+            if (!editorVisible()) { closeEditor(editor.ticket); return }
+            mutable.value = state.value.copy(editor = editor)
+            restart()
+        } catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            mutable.value = state.value.copy(actionError = failure.message ?: "Could not open workspace customization")
+        } finally { mutable.value = state.value.copy(editorLoading = false) }
+    }
+    fun dismissEditor() {
+        val editor = state.value.editor ?: return
+        mutable.value = state.value.copy(editor = null)
+        scope.launch { runCatching { closeEditor(editor.ticket) } }
+        restart()
+    }
+    suspend fun customize(editor: RoutedSidebarCustomization, baseline: WorkspaceCustomizationDraft,
+        submitted: WorkspaceCustomizationDraft): WorkspaceCustomizationResult {
+        check(editorVisible() && state.value.editor?.ticket == editor.ticket) { "Workspace editor is no longer active." }
+        check(!state.value.mutationBusy) { "A sidebar update is already in progress" }
+        mutable.value = state.value.copy(mutationBusy = true)
+        try {
+            val result = customizeWorkspace(RoutedSidebarCustomizationSave(editor.key, editor.ticket, baseline, submitted))
+            restart()
+            return result
+        } catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            restart()
+            return WorkspaceCustomizationResult(false, message = if (failure is TimeoutCancellationException)
+                "Workspace save wasn't confirmed. Reopen Customize to review its current values."
+                else failure.message ?: "Could not save this workspace.")
+        } finally { mutable.value = state.value.copy(mutationBusy = false) }
+    }
     suspend fun groupMenu(key: String): RoutedSidebarGroupPage {
         fun current() = available && foreground && visible && !state.value.query.notifications && !state.value.mutationBusy &&
             state.value.snapshot?.rows?.any { it.key == key && RoutedSidebarMutationKind.MOVE_TO_GROUP in it.mutations } == true
@@ -136,7 +181,8 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     private fun restart() {
         job?.cancel()
         job = scope.launch {
-            val active = available && foreground && visible
+            // A modal editor remains active when rotation/resize hides the sidebar.
+            val active = available && foreground && (visible || state.value.editor != null)
             try { publishVisibility(active) }
             catch (failure: Exception) {
                 currentCoroutineContext().ensureActive()
@@ -160,6 +206,11 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
                     }
                     require(rows.map { it.key }.distinct().size == rows.size)
                     currentCoroutineContext().ensureActive()
+                    val editor = state.value.editor
+                    if (editor != null && first.snapshot.editorTicket != editor.ticket) {
+                        dismissEditor()
+                        currentCoroutineContext().ensureActive()
+                    }
                     mutable.value = state.value.copy(snapshot = first.snapshot.copy(rows = rows), more = last.next != null,
                         query = query.copy(machines = first.snapshot.selectedMachines, expanded = first.snapshot.expanded), loading = false, error = null)
                 } catch (failure: Exception) {

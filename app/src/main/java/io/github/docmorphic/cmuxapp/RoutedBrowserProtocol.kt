@@ -21,6 +21,9 @@ internal object RoutedBrowserProtocol {
     const val SIDEBAR_MUTATION = 14
     const val CANCEL_MUTATION = 15
     const val SIDEBAR_GROUP_MENU = 16
+    const val SIDEBAR_EDITOR = 17
+    const val SIDEBAR_CUSTOMIZE = 18
+    const val SIDEBAR_EDITOR_CLOSE = 19
     const val RETIRE = 100
     const val CONTEXT = 101
     const val EXTRA = "browser_request"

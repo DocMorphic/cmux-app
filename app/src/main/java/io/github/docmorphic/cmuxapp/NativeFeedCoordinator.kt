@@ -326,13 +326,14 @@ internal class NativeFeedCoordinator(
         }
 
     suspend fun customizeWorkspace(mac: NativeCredentialStore.PairedMac, workspaceId: String,
-        baseline: WorkspaceCustomizationDraft, submitted: WorkspaceCustomizationDraft): WorkspaceCustomizationResult =
+        baseline: WorkspaceCustomizationDraft, submitted: WorkspaceCustomizationDraft, canSend: () -> Boolean = { true }): WorkspaceCustomizationResult =
         withContext(scope.coroutineContext.minusKey(Job)) {
             val handle = handles[mac.origin] ?: error("Connect to this Mac to customize the workspace.")
             check(handle.mac == mac && isAllowed(mac)) { "Saved computer changed" }
             handle.mutex.withLock {
                 val client = handle.client ?: error("This Mac is offline.")
                 fun requireOwner() {
+                    check(canSend()) { "Workspace editor is no longer active." }
                     check(handle.verified && current(handle, client)) { "Computer connection changed." }
                     check(WORKSPACE_METADATA_CAPABILITY in handle.capabilities && "workspace.actions.v1" in handle.capabilities) { "Update cmux on this Mac to customize workspaces." }
                 }

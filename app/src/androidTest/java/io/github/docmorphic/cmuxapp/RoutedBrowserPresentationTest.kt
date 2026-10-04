@@ -73,6 +73,11 @@ class RoutedBrowserPresentationTest {
     private var rejectWorkspaceRename = true
     private var rejectWorkspaceMove = true
     private val groupMoves = CopyOnWriteArrayList<NativeWorkspaceMove>()
+    private val sidebarDescription = "Full description " + "x".repeat(2800) + " end of Mac description"
+    private var rejectSidebarDescription = true
+    private val sidebarCustomizationWrites = CopyOnWriteArrayList<Pair<String, WorkspaceCustomizationField>>()
+    private val sidebarCustomizationStarted = CompletableDeferred<Unit>()
+    private val sidebarCustomizationCancelled = CompletableDeferred<Unit>()
     private val noticeWrites = CopyOnWriteArrayList<String>()
     private val noticeBulk = CopyOnWriteArrayList<List<String>>()
     private var failNoticeWrite = true
@@ -94,6 +99,7 @@ class RoutedBrowserPresentationTest {
             checkNotNull(projectedSidebar).mutate(command, canSend)
         }
         override fun groupMenu(key: String, revision: String?, offset: Int) = checkNotNull(projectedSidebar).groupMenu(key, revision, offset)
+        override fun customization(key: String) = checkNotNull(projectedSidebar).customization(key)
         override fun sort(command: RoutedSidebarSort) { checkNotNull(projectedSidebar).sort(command) }
         override suspend fun notifications(command: RoutedSidebarNotification, query: RoutedSidebarQuery, canSend: () -> Boolean) {
             checkNotNull(projectedSidebar).notifications(command, query, canSend)
@@ -166,6 +172,40 @@ class RoutedBrowserPresentationTest {
             }; start()
         }
         main {
+            if (scenarioName.startsWith("globalSidebarCustomization")) {
+                noticeSources = listOf("A", "B").map { name -> NativeFeedSource(
+                    NativeCredentialStore.PairedMac("fixture-custom-$name", name, "Mac $name"),
+                    workspaces = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"same","title":"Custom $name","window_id":"window"}]}""")).map {
+                        it.copy(description = sidebarDescription, color = "#123456")
+                    }, availability = NativeFeedAvailability.CONNECTED,
+                    capabilities = setOf("workspace.actions.v1", WORKSPACE_METADATA_CAPABILITY)) }
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-customization", {
+                    NativeSidebarInput(noticeSources, emptyList(), noticeSources.map {
+                        NativeSortComputer(workspaceMacFilterId(it.mac.deviceId, null)!!, it.mac.name)
+                    }, NativeWorkspaceSortState())
+                }, { RoutedSidebarLease({}) {} }, {}, customizeWorkspace = { target, baseline, submitted, canSend ->
+                    check(canSend())
+                    if (scenarioName == "globalSidebarCustomizationRevocationCancelsSaveWithoutReload") {
+                        sidebarCustomizationStarted.complete(Unit)
+                        try { awaitCancellation() } finally { sidebarCustomizationCancelled.complete(Unit) }
+                    }
+                    saveWorkspaceCustomization(baseline, submitted, read = {
+                        check(canSend()); WorkspaceCustomizationDraft.from(noticeSources.single { it.mac == target.mac }.workspaces.single())
+                    }, write = { field, draft ->
+                        check(canSend()); sidebarCustomizationWrites += target.mac.deviceId to field
+                        if (field == WorkspaceCustomizationField.DESCRIPTION && rejectSidebarDescription) {
+                            rejectSidebarDescription = false; error("Fixture description rejected")
+                        }
+                        noticeSources = noticeSources.map { source -> if (source.mac != target.mac) source else source.copy(
+                            workspaces = source.workspaces.map { row -> when (field) {
+                                WorkspaceCustomizationField.NAME -> row.copy(title = draft.name)
+                                WorkspaceCustomizationField.DESCRIPTION -> row.copy(description = draft.description)
+                                WorkspaceCustomizationField.COLOR -> row.copy(color = draft.color)
+                                WorkspaceCustomizationField.PINNED -> row.copy(isPinned = draft.pinned)
+                            } }) }
+                    })
+                })
+            }
             if (scenarioName == "globalSidebarSharesFiltersSortOrderAndBothSearchScopesOnReturn") {
                 fun source(id: String) = NativeFeedSource(NativeCredentialStore.PairedMac("generated-$id", id, "Mac $id"),
                     workspaces = parseWorkspaces(JSONObject("""{"workspaces":[
@@ -589,6 +629,54 @@ class RoutedBrowserPresentationTest {
         assertTrue(desc("Choose terminal or pane").text?.startsWith("Draft ") == true)
         device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
         until { holds.get() == 0 }
+    }
+
+    @Test fun globalSidebarCustomizationRebasesPartialSaveAndPreservesBrowser() = wideSidebar {
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        val picker = desc("Choose terminal or pane"); until { picker.text == "Routed fixture ▾" }
+        text("Keep draft").click(); until { picker.text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        text("Custom B").longClick(); text("Customize").click(); text("Customize Workspace")
+        checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText").text("Custom B")), 5000)).text = "Customized B"
+        val description = checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText").text(sidebarDescription)), 5000))
+        assertTrue(description.text.endsWith("end of Mac description"))
+        description.text = "New browser description"
+        text("Save").click(); text("Fixture description rejected"); text("OK").click()
+        text("Customized B"); text("New browser description")
+        capturePicker("browser-sidebar-customization-retry")
+        text("Save").click()
+        assertTrue(device.wait(Until.gone(By.text("Customize Workspace")), 5000))
+        until { main { noticeSources.last().workspaces.single().description == "New browser description" } }
+        assertEquals(listOf("B" to WorkspaceCustomizationField.NAME, "B" to WorkspaceCustomizationField.DESCRIPTION,
+            "B" to WorkspaceCustomizationField.DESCRIPTION), sidebarCustomizationWrites.toList())
+        assertEquals("Custom A", main { noticeSources.first().workspaces.single().title })
+        assertEquals(sidebarDescription, main { noticeSources.first().workspaces.single().description })
+        text("Customized B").longClick(); text("Customize").click(); text("New browser description")
+        checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText").text("Customized B")), 5000)).text = "Unsaved edit"
+        main { noticeSources = noticeSources.map { if (it.mac.deviceId == "B") it.copy(capabilities = emptySet()) else it } }
+        assertTrue(device.wait(Until.gone(By.text("Customize Workspace")), 10_000))
+        assertEquals(3, sidebarCustomizationWrites.size)
+        assertEquals(loads, paths.count { it == "/start" })
+        assertTrue(desc("Choose terminal or pane").text?.startsWith("Draft ") == true)
+        capturePicker("browser-sidebar-customization-page")
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture"); until { holds.get() == 0 }
+    }
+
+    @Test fun globalSidebarCustomizationRevocationCancelsSaveWithoutReload() = wideSidebar {
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        val picker = desc("Choose terminal or pane"); until { picker.text == "Routed fixture ▾" }
+        val loads = paths.count { it == "/start" }
+        text("Custom B").longClick(); text("Customize").click(); text("Customize Workspace")
+        checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText").text("Custom B")), 5000)).text = "Pending save"
+        text("Save").click(); until { sidebarCustomizationStarted.isCompleted }; text("Saving…")
+        main { noticeSources = noticeSources.map { if (it.mac.deviceId == "B") it.copy(capabilities = emptySet()) else it } }
+        until { sidebarCustomizationCancelled.isCompleted }
+        assertTrue(device.wait(Until.gone(By.text("Customize Workspace")), 5000))
+        assertEquals("Custom B", main { noticeSources.last().workspaces.single().title })
+        assertTrue(sidebarCustomizationWrites.isEmpty())
+        assertEquals(loads, paths.count { it == "/start" })
+        text("Routed fixture ▾")
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture"); until { holds.get() == 0 }
     }
 
     @Test fun customizationSavesAndRetriesWithoutReloadingThePageOrReleasingItsHost() {

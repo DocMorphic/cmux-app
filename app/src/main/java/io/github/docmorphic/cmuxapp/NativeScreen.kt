@@ -3435,6 +3435,9 @@ internal fun NativeScreen(
             }, moveWorkspace = { source, workspace, intent, canSend ->
                 check(currentOwner()) { "Sidebar account changed" }
                 workspaceMoves.submit(source, workspace, intent) { currentOwner() && canSend() }
+            }, customizeWorkspace = { target, baseline, submitted, canSend ->
+                check(currentOwner()) { "Sidebar account changed" }
+                feedCoordinator.customizeWorkspace(target.mac, target.id, baseline, submitted) { currentOwner() && canSend() }
             })
     } }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
@@ -3574,7 +3577,7 @@ internal fun NativeWorkspaceRow(
     var groupPicker by remember(menu, menu.expanded) { mutableStateOf(false) }
     val canMoveGroups = !groupMoveMenu.isEmpty || remoteGroupMenu != null
     val showingGroups = groupPicker && canMoveGroups
-    val hasMenu = canWorkspaceActions || canReadState || canClose || canMoveGroups
+    val hasMenu = canWorkspaceActions || canReadState || canClose || canMoveGroups || canCustomize
     val menuExpanded = menu.expanded && hasMenu
     LaunchedEffect(menu, hasMenu, menu.expanded) { if (!hasMenu) menu.expanded = false }
     val moveActions = LocalWorkspaceMoveActions.current
@@ -3651,7 +3654,7 @@ internal fun NativeWorkspaceRow(
                     if (canWorkspaceActions) DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") },
                         leadingIcon = { WorkspaceActionIcon(if (workspace.isPinned) R.drawable.ic_workspace_unpin else R.drawable.ic_workspace_pin) },
                         onClick = { menu.expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null) })
-                    if (canWorkspaceActions && canCustomize) DropdownMenuItem(text = { Text("Customize") },
+                    if (canCustomize) DropdownMenuItem(text = { Text("Customize") },
                         leadingIcon = { WorkspaceActionIcon(R.drawable.ic_task_options) },
                         onClick = { menu.expanded = false; onAction("customize", null) })
                     if (canWorkspaceActions) DropdownMenuItem(text = { Text("Rename") },

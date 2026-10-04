@@ -56,7 +56,12 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         workspaceAction = { command -> request(RoutedBrowserProtocol.SIDEBAR_MUTATION,
             Bundle().apply { putString("mutation", RoutedSidebarWire.mutation(command)) }); Unit },
         readGroupMenu = { key, revision, offset -> RoutedSidebarGroupWire.decode(checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_GROUP_MENU,
-            Bundle().apply { putString("key", key); putString("revision", revision); putInt("offset", offset) }).getString("groups"))) })
+            Bundle().apply { putString("key", key); putString("revision", revision); putInt("offset", offset) }).getString("groups"))) },
+        readEditor = { key -> RoutedSidebarCustomizationWire.editor(checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_EDITOR,
+            Bundle().apply { putString("key", key) }).getString("editor"))) },
+        closeEditor = { ticket -> request(RoutedBrowserProtocol.SIDEBAR_EDITOR_CLOSE, Bundle().apply { putString("editor", ticket) }); Unit },
+        customizeWorkspace = { command -> RoutedSidebarCustomizationWire.result(checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE,
+            Bundle().apply { putString("customize", RoutedSidebarCustomizationWire.save(command)) }).getString("customized"))) })
     private fun configureSidebar() = sidebar.configure(binding != null && state.value.sidebarAvailable && !state.value.retired, foreground)
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         when (message.what) {
@@ -123,13 +128,13 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         args.putString(RoutedBrowserProtocol.EXTRA, requestId)
         try {
             peer.send(Message.obtain(null, kind).apply { arg1 = serial; data = args; replyTo = endpoint })
-            return withTimeout(if (kind == RoutedBrowserProtocol.CUSTOMIZE) 120_000 else 20_000) { answer.await() }.also {
+            return withTimeout(if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE)) 120_000 else 20_000) { answer.await() }.also {
                 it.getString("failure")?.let { message -> throw IllegalStateException(message) }
             }
         } finally {
             replies.remove(serial)
-            if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_NOTIFICATION, RoutedBrowserProtocol.SIDEBAR_MUTATION) && !answer.isCompleted) runCatching {
-                peer.send(Message.obtain(null, when (kind) { RoutedBrowserProtocol.CUSTOMIZE -> RoutedBrowserProtocol.CANCEL_CUSTOMIZE; RoutedBrowserProtocol.SIDEBAR_MUTATION -> RoutedBrowserProtocol.CANCEL_MUTATION; else -> RoutedBrowserProtocol.CANCEL_NOTIFICATION }).apply {
+            if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_NOTIFICATION, RoutedBrowserProtocol.SIDEBAR_MUTATION) && !answer.isCompleted) runCatching {
+                peer.send(Message.obtain(null, when (kind) { RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE -> RoutedBrowserProtocol.CANCEL_CUSTOMIZE; RoutedBrowserProtocol.SIDEBAR_MUTATION -> RoutedBrowserProtocol.CANCEL_MUTATION; else -> RoutedBrowserProtocol.CANCEL_NOTIFICATION }).apply {
                     arg1 = serial; data = Bundle().apply { putString(RoutedBrowserProtocol.EXTRA, requestId) }; replyTo = endpoint
                 })
             }
@@ -212,6 +217,9 @@ class RoutedBrowserActivity : ComponentActivity() {
                 if (ui.retired) leave("retired") else if (ui.restart) leave("restart")
             }
             val sidebarUi by controller.sidebar.state.collectAsState()
+            sidebarUi.editor?.let { editor -> NativeWorkspaceCustomizationSheet(editor.ticket, editor.draft,
+                onDismiss = controller.sidebar::dismissEditor,
+                save = { baseline, submitted -> controller.sidebar.customize(editor, baseline, submitted) }) }
             val coroutineScope = rememberCoroutineScope()
             val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
             val focus = androidx.compose.ui.platform.LocalFocusManager.current

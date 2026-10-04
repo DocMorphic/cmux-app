@@ -42,7 +42,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val refreshNotifications: (suspend () -> Unit)? = null,
     private val history: NativeSidebarHistory = NativeSidebarHistory(),
     private val mutateWorkspace: (suspend (NativeSidebarMutationTarget, RoutedSidebarMutation, () -> Boolean) -> Unit)? = null,
-    private val moveWorkspace: (suspend (NativeFeedSource, String, NativeWorkspaceMove, () -> Boolean) -> Unit)? = null) : RoutedSidebarHost {
+    private val moveWorkspace: (suspend (NativeFeedSource, String, NativeWorkspaceMove, () -> Boolean) -> Unit)? = null,
+    private val customizeWorkspace: (suspend (NativeSidebarMutationTarget, WorkspaceCustomizationDraft, WorkspaceCustomizationDraft, () -> Boolean) -> WorkspaceCustomizationResult)? = null) : RoutedSidebarHost {
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
@@ -207,6 +208,17 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             RoutedSidebarGroupChoice(group(context.source, it.group.id), it.group.name, it.group.iconSymbol, it.isCurrent, it.isEnabled)
         }, context.menu.canRemoveFromGroup, offset)
     }
+    override fun customization(key: String): RoutedSidebarCustomizationEditor {
+        val save = checkNotNull(customizeWorkspace) { "Workspace customization is unavailable" }
+        val value = checkNotNull(input()) { "Sidebar account changed" }
+        val (source, item) = value.sources.flatMap { source -> source.workspaces.filter { workspace(source.mac, it.id) == key }
+            .map { source to it } }.singleOrNull() ?: error("Workspace changed. Refresh the sidebar.")
+        check(source.canCustomizeWorkspace()) { "Update cmux on this Mac to customize workspaces." }
+        val target = NativeSidebarMutationTarget(source.mac, item.id, false)
+        return RoutedSidebarCustomizationEditor(key, WorkspaceCustomizationDraft.from(item), current = {
+            input()?.sources?.any { it.mac == source.mac && it.canCustomizeWorkspace() && it.workspaces.any { row -> row.id == item.id } } == true
+        }, save = { baseline, submitted, canSend -> save(target, baseline, submitted, canSend) })
+    }
     override fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot? {
         val value = input() ?: return null
         val ordered = orderWorkspaceComputers(value.computers, value.sort, value.locale)
@@ -257,7 +269,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                 is NativeWorkspaceDisplayRow.Mac -> when (val entry = row.entry) {
                     is WorkspaceListEntry.Workspace -> displayWorkspace(workspace(entry.source.mac, entry.workspace.id), entry.workspace,
                         value.appearances.name(entry.source.mac), entry.source.availability, if (entry.indented) 1 else 0, true)
-                        .copy(mutations = buildSet {
+                        .copy(canCustomize = customizeWorkspace != null && entry.source.canCustomizeWorkspace(), mutations = buildSet {
                             if (mutateWorkspace != null) addAll(entry.source.sidebarWorkspaceMutations(entry.workspace))
                             if (entry.workspace.id in movable[entry.source.mac.origin].orEmpty()) add(RoutedSidebarMutationKind.MOVE_TO_GROUP)
                         })

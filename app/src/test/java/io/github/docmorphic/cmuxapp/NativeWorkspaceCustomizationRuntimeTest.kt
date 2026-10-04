@@ -133,4 +133,19 @@ class NativeWorkspaceCustomizationRuntimeTest {
             assertTrue(wire.writes.isEmpty())
         }
     }
+    @Test fun callerWithdrawalBeforeSaveOrBetweenFieldsPreventsFurtherWrites() = runBlocking {
+        fixture { wire, coordinator ->
+            val initial = baseline(coordinator, wire)
+            assertTrue(runCatching { coordinator.customizeWorkspace(wire.mac, "workspace", initial,
+                initial.copy(name = "No write")) { false } }.isFailure)
+            assertTrue(wire.writes.isEmpty())
+            var visible = true
+            wire.afterMutation = { visible = false }
+            val result = coordinator.customizeWorkspace(wire.mac, "workspace", initial,
+                initial.copy(name = "Landed", description = "Never sent", pinned = true)) { visible }
+            assertFalse(result.succeeded)
+            assertEquals(listOf("rename"), wire.writes.map { it.getString("action") })
+            assertEquals("Landed", wire.row.getString("title")); assertEquals("Baseline", wire.row.getString("description"))
+        }
+    }
 }

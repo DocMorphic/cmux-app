@@ -31,6 +31,7 @@ internal object RoutedBrowserSessions {
         var sidebarLease: RoutedSidebarLease? = null
         val sidebarExchange = RoutedSidebarExchange()
         val sidebarGroupExchange = RoutedSidebarGroupExchange()
+        var sidebarEditor: RoutedSidebarCustomizationEditor? = null
         var foreground = false
         var sidebarVisible = false
         var sidebarQuery: RoutedSidebarQuery? = null
@@ -127,7 +128,8 @@ internal object RoutedBrowserSessions {
         val offset = args.getInt("offset")
         return if (offset == 0) {
             val query = RoutedSidebarWire.query(args.getString("query") ?: "{}")
-            val snapshot = checkNotNull(host.read(query)) { "Sidebar account changed" }
+            val snapshot = checkNotNull(host.read(query)) { "Sidebar account changed" }.copy(
+                editorTicket = entry.sidebarEditor?.takeIf { it.current() }?.value?.ticket)
             entry.sidebarExchange.begin(snapshot).also { entry.sidebarQuery = query.copy(expanded = snapshot.expanded) }
         } else entry.sidebarExchange.page(checkNotNull(args.getString("revision")), offset)
     }
@@ -178,6 +180,31 @@ internal object RoutedBrowserSessions {
         }
         return host.groupMenu(key, revision, offset).also { entry.sidebarGroupExchange.issue(key, it) }
     }
+    fun sidebarEditor(entry: Entry, key: String): RoutedSidebarCustomization {
+        val host = checkNotNull(entry.sidebar)
+        check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
+            host.current() && entry.sidebarQuery?.notifications == false && entry.sidebarExchange.permitsCustomization(key)) {
+            "Workspace customization is no longer available. Refresh the sidebar."
+        }
+        check(!entry.sidebarMutationMutex.isLocked) { "A sidebar update is already in progress" }
+        return host.customization(key).also { entry.sidebarEditor = it }.value
+    }
+    fun closeSidebarEditor(entry: Entry, ticket: String) {
+        if (entry.sidebarEditor?.value?.ticket == ticket) entry.sidebarEditor = null
+    }
+    suspend fun customizeSidebar(entry: Entry, command: RoutedSidebarCustomizationSave): WorkspaceCustomizationResult = coroutineScope {
+        val host = checkNotNull(entry.sidebar)
+        val editor = checkNotNull(entry.sidebarEditor) { "Workspace editor ended. Reopen Customize." }
+        fun current() = live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
+            entry.sidebar?.owner == host.owner && host.current() && entry.sidebarQuery?.notifications == false &&
+            entry.sidebarEditor === editor && editor.current()
+        check(current()) { "Workspace editor is no longer active." }
+        check(entry.sidebarMutationMutex.tryLock()) { "A sidebar update is already in progress" }
+        val caller = currentCoroutineContext().job
+        val retirement = launch { entry.exited.await(); caller.cancel(CancellationException("Browser session ended")) }
+        try { editor.save(command, ::current) }
+        finally { retirement.cancel(); entry.sidebarMutationMutex.unlock() }
+    }
     fun selectSidebar(entry: Entry, key: String): String {
         check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible) { "Sidebar is not visible" }
         return entry.sidebarExchange.prepare(key) { entry.sidebar?.resolve(it) != null }
@@ -197,6 +224,7 @@ internal object RoutedBrowserSessions {
     }
     fun finished(entry: Entry) {
         if (entry.exited.isCompleted) return
+        entry.sidebarEditor = null
         entry.death?.let { runCatching { entry.peer?.binder?.unlinkToDeath(it, 0) } }
         entry.surfaceWatch?.cancel(); entry.surfaceWatch = null
         entry.sidebarLease?.close(); entry.sidebarLease = null

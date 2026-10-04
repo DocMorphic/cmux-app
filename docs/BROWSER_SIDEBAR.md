@@ -44,7 +44,8 @@ editing are now shared with the main screen. Settings, Computers and New Task
 entry points return to the existing main-screen flows. Notification rows, read/unread gestures and menus, pull refresh and confirmed bulk
 read now share the main feed. Mac workspace pin/rename/read/delete and group
 pin/rename/ungroup/delete use the owned mutation protocol described below. Mac
-Move to Group shares the main-screen move queue and anchored submenu. Customize,
+Move to Group shares the main-screen move queue and anchored submenu, and
+Customize uses the shared workspace editor and save policy. Global/in-group
 creation, SSH mutations, drag ordering and selection styling still need
 browser parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
@@ -53,8 +54,8 @@ Physical Pixel/Mac acceptance, actual account/team replacement during live
 browser use, real native/SSH feed integration with the new browser sidebar,
 large-text/accessibility review and authenticated process recovery remain open.
 The compact browser stays stacked. Signed build 563 includes the sidebar and
-notification actions; the expansion-restoration, workspace/group-mutation and
-Move to Group changes below await the next signed batch.
+notification actions; the expansion-restoration, workspace/group-mutation,
+Move to Group and workspace-customization changes below await the next signed batch.
 
 ## Verification
 
@@ -541,3 +542,71 @@ source manifests, `second-apks.json`, final screenshot/XML and `verification.jso
 
 - Final app APK SHA-256: `42dac2be66e8950c47538133c21227ebe18daa02f0ae07ba5bca8aeb96f60ef2`.
 - Final test APK SHA-256: `c9f25be96367687991dfaa29f98d79d572a078f17d0ee745d79c5044d2d309bf`.
+
+## Browser workspace customization — 2026-10-04
+
+The workspace context menu now includes Customize when the owning Mac advertises
+both workspace actions and metadata, including retained offline snapshots. It
+uses `NativeWorkspaceCustomizationSheet` and the existing name/description/color/
+pinned save policy. The scoped reference remains
+`WorkspaceListTableCoordinator+Actions.swift` and
+`WorkspaceShellView+WorkspaceActions` at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`; no global pin advance.
+
+The editor requests full metadata from the main process rather than editing the
+sidebar row's display-limited subtitle. Only editor values and opaque workspace/
+editor keys cross the 192 KiB JSON boundary. Descriptions beyond the shared 4 KiB
+editing limit are explicitly read-only and use a bounded preview; editing another
+field does not overwrite that Mac description. Exact pairing/workspace closures
+and the current baseline remain in a single host-owned editing session. Forged or
+outdated baselines/tickets cannot redirect a save or bypass conflict handling.
+Partial results replace that host baseline and the shared sheet's baseline/display
+values together. Explicit retries skip fields already acknowledged on the Mac.
+
+The service serializes saves with other sidebar mutations and cancels them when
+the browser session ends or the client removes the editor. The feed coordinator
+checks the caller in its owning lock before every read and field write. Sidebar
+polls advertise whether the active editor's owner/workspace/capabilities still
+exist; revoked editors close and cancel their save. Disappearing filtered rows do
+not revoke an otherwise valid editor. Discovery can remain offline, but writes
+still require a verified live connection.
+
+The modal is composed at the Activity root, outside the adaptive sidebar. The
+controller continues its foreground feed lease while that modal is open even if
+the sidebar is hidden. Closing the modal releases that extra lease when the
+sidebar is absent. Background saves are denied. Controller checks cover these
+state transitions; an actual resize/rotation of this new modal remains runtime
+acceptance work, as do parent recreation and process death.
+
+### Verification
+
+- **67 JVM checks passed:** seven customization-policy, seven framed-RPC
+  customization/coordinator (including caller withdrawal between fields), six
+  new sidebar customization/protocol/lifetime checks, 34 sidebar, five sidebar
+  mutation, five group-menu and three existing editor-target checks.
+- **Three Android scenarios passed in 73.967s.** Two new wide scenarios exercise
+  the production browser Activity/service/proxy with generated Mac sources:
+  colliding workspace IDs, the complete >2,800-character description, a landed
+  rename followed by rejected description, retained edits and retry with one
+  rename/two description attempts, untouched other Mac, unsaved capability
+  revocation, cancellation of a held save, unchanged browser load/draft, and
+  release on return. The existing compact browser customization/retry check
+  also passed. Color/pin behavior uses the existing sheet and separate policy/RPC
+  checks; the new wide scenario does not claim a live color/pin Mac workflow.
+- Source/installed app and test hashes matched. The editor and preserved-page
+  screenshots were inspected. Display settings were restored, crash buffer
+  empty, and the existing API37/16KB emulator stopped/reaped. No new AVD or
+  physical-device changes. Builds passed in 1m2s, 7s (runtime fixture) and 12s
+  (editor lifetime adjustment); no runtime failure in this batch.
+- Evidence: ignored `captures/runtime/browser-sidebar-customization/`, including
+  build logs, frozen source hashes, `final.log`, `editor.png/xml`, `page.png`,
+  display/crash receipts and `verification.json`.
+
+This does not establish live Mac/Pixel, authenticated MainScreen, actual modal
+resize/rotation, TalkBack or process-recovery acceptance. No signed build was
+dispatched; signed 563 predates this feature and the preceding browser mutation
+batches. Global/in-group creation, SSH mutations, drag and selection refinements
+remain browser parity work.
+
+- App APK SHA-256: `9e6b1c4295e2770a281fbfc8415c26f3feab458ed1ba63d86a0992b66ccf58bc`.
+- Test APK SHA-256: `2476594ba4c1c40e379ba1abbca8fb9283dc96e3f9b85830b38f507db6b88a1d`.
