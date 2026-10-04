@@ -48,16 +48,15 @@ Move to Group shares the main-screen move queue and anchored submenu, and
 Customize uses the shared workspace editor and save policy. Global Mac/SSH
 workspace creation and creation inside an existing Mac group use the shared
 parent flows. New Workspace Group now creates in place with the Mac default name.
-SSH mutations, drag ordering and selection styling still need browser parity work. Main-screen controls remain implemented separately; this does not establish
+SSH Close now uses the shared feed with kind-specific confirmation.
+Drag ordering and selection styling still need browser parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
 Physical Pixel/Mac acceptance, actual account/team replacement during live
 browser use, real native/SSH feed integration with the new browser sidebar,
 large-text/accessibility review and authenticated process recovery remain open.
-The compact browser stays stacked. Signed build 563 includes the sidebar and
-notification actions; the expansion-restoration, workspace/group-mutation,
-Move to Group, workspace-customization, workspace-creation and New Workspace Group
-changes below await the next signed batch.
+The compact browser stays stacked. Signed build 571 includes the changes through
+New Workspace Group; the SSH Close feature below awaits the next signed batch.
 
 ## Verification
 
@@ -775,3 +774,70 @@ logs, the failed first run, frozen manifests, final receipts and `groups.png`.
 These fixtures do not establish real Mac mutations, authenticated MainScreen,
 Pixel integration, process recovery, or TalkBack delivery. The broader parity
 and physical acceptance work remains open.
+
+## SSH workspace Close — 2026-10-05
+
+Reference: `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`, scoped reads of
+`Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileWorkspaceCloseConfirmation.swift`
+and `Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/WorkspaceShellView+WorkspaceActions.swift`.
+iOS directs SSH close to the SSH runtime. Persistent tmux/cmux-tui workspaces ask
+for confirmation; a phone-owned shell closes immediately. Android's main feed
+previously added a shell question; the shared row now supports the same nullable
+confirmation policy and the browser transmits only the display kind.
+
+The host advertises only Close for eligible SSH rows. Issuance, account ownership,
+foreground/visible state and mutation serialization use the existing sidebar
+protocol. No SSH endpoint, credential or arbitrary operation crosses IPC.
+SSH row keys now hash explicit primitive fields (Android JSON wrapping cannot be
+relied upon for Kotlin endpoint/UUID objects), including host, endpoint, key,
+jump host, generation, registry and cmux terminal/content identity list. A changed
+endpoint or confirmation membership retires the old choice. Renames keep the
+underlying owner. Mac mutations and navigation remain separate dispatch branches.
+
+`NativeSshWorkspaceFeed.submitClose` awaits the provider result, holds duplicate
+admission until completion, retains error reporting and passes a caller/owner
+check into the owning provider queue. cmux-tui checks before starting and after
+its suspending identity reads, including the final read for a workspace with no
+terminals. tmux checks before the linked-session detach/kill sequence. Once the
+first destructive operation is dispatched, its existing provider-owned completion
+semantics apply; the UI never implicitly retries an uncertain close. Shell removal
+uses the captured phone-owned shell ID. Real remote identity/content checks remain
+in the existing providers.
+
+### Verification
+
+- **66 JVM checks:** 4 new SSH host/wire/confirmation cases, 11 cmux provider cases
+  (including queued revocation, revocation after lookup, completion after dispatch
+  and empty-workspace final-read revocation), 4 tmux inventory cases, 8 SSH feed
+  cases, 34 sidebar cases and 5 mutation cases. No failures/errors/skips.
+- Debug and instrumentation APKs built. The first build caught an old test helper
+  dereferencing the now-nullable confirmation; it now explicitly requires the
+  persistent-kind confirmation it tests.
+- First Android batch: close/confirmation/retry passed; endpoint-change scenario
+  stopped at readiness because its title lookup was stale. Screenshot pixels
+  showed the loaded browser while accessibility still reported the initial title.
+  The new tests use the stable toolbar accessibility identifier for readiness.
+- Final **2 browser checks passed in 67.684s** on the existing API37/16KB arm64
+  emulator: shell immediate close; cancel/confirm tmux and cmux-tui; rejected close
+  and explicit retry; colliding host session IDs stay separate; endpoint change
+  while a close is held rejects the old request; reopening targets the new endpoint;
+  going offline removes the menu action. Page load count and unsent draft stay
+  unchanged, and returning releases the browser/sidebar leases.
+- Separate production MainScreen/feed test over a generated loopback SSH server,
+  real cmux-tui 0.13.4 and tmux passed in **14.61s**. It rejects a confirmation whose
+  workspace contents changed, then closes the confirmed cmux workspace and tmux
+  session without a Mac workspace-close RPC. The private fixture was terminated
+  cleanly, its directory removed and ADB reverse removed.
+- Source and installed APK hashes matched; final screenshot inspected; display,
+  timeout and stay-awake restored/unchanged; final crash buffer empty; emulator
+  stopped/reaped. No new AVD. Pixel absent and untouched.
+
+Debug APK SHA-256: `7a73685e73b65c548c55b699c17ef18f32c2476ef1deb98050667e468df6929f`.
+Final test APK SHA-256: `6ad9ed11b9210fb237764399843a58115dafa34b216f652881e0d261613cd28d`.
+App APK unchanged across the test-only repair. Evidence:
+`captures/runtime/browser-ssh-close/` (ignored), including build logs, JVM receipts,
+initial/final Android logs, real-SSH log, screenshots, source/installed hashes and
+cleanup receipt. Browser callbacks were generated; the real SSH integration ran
+separately through the main feed. Physical Mac/Pixel, real browser-to-SSH close,
+authenticated migration, process death and accessibility acceptance remain open.
+Signed 571 predates this feature; no signed build or release was dispatched.

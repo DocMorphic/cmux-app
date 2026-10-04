@@ -12,7 +12,36 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — signed sidebar batch 571 verified (2026-10-05)
+## Latest checkpoint — SSH close from the browser sidebar (2026-10-05)
+
+Browser SSH workspace rows now expose Close through the shared row gestures/menu.
+The scoped iOS rule is applied in both main and browser lists: tmux/cmux-tui ask
+for their persistent-session confirmation; phone-owned shells close immediately.
+Opaque keys bind primitive endpoint/key/jump-host fields, generation/registry and
+cmux workspace content identities. The browser waits for the existing feed's real
+result, preserves its page/draft and surfaces failures for explicit retry. Queued
+closes recheck caller/host authority before their first destructive request; an
+already dispatched close retains the provider's completion semantics.
+
+**66 focused JVM checks passed.** Two Android browser scenarios passed in
+**67.684s** after a test-only readiness repair (use the toolbar accessibility ID
+instead of a stale title). A separate **real loopback SSH/cmux-tui/tmux** main-feed
+close scenario passed in **14.61s**, including changed-content rejection and no
+Mac workspace-close RPC. App APK unchanged across the test repair. Sources and
+installed hashes matched, the screenshot was inspected, display/settings restored,
+crash buffer empty, fixture cleaned up and sole existing emulator stopped/reaped.
+Pixel absent/untouched. Evidence: `captures/runtime/browser-ssh-close/` (ignored).
+
+Browser callbacks use generated rows; real SSH execution was exercised separately
+through the main feed. This does not establish browser-to-real-SSH, physical
+Mac/Pixel, live-account, process-death or TalkBack acceptance. Signed **571** remains
+the latest verified download and does not include this feature. No signed batch
+was dispatched for this commit. Next: browser ordering/selection, change previews
+and display preferences, plus the remaining physical/network/process recovery,
+configured push/notice, legacy-ticket and broad upstream audit work. PR #1 stays
+draft; full goal active and global parity pin unchanged.
+
+## Earlier checkpoint — signed sidebar batch 571 verified (2026-10-05)
 
 Signed build **571** at `608000ccd598da44f8939cf8ed08ac95e7b0149e` is now the
 latest verified download. It contains all six sidebar feature checkpoints below,

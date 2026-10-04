@@ -52,6 +52,9 @@ push/notice configuration, legacy tickets and the broader upstream audit remain
 open. The goal remains active; scheduled upstream/preview workflows still await
 merge to main, and the global parity pin is unchanged.
 
+The branch now also includes SSH sidebar Close and the iOS shell-confirmation
+correction, verified in the debug build. Those changes are not in signed 571.
+
 ## Previous signed development APK — build 563 (2026-10-04)
 
 [Build 563](https://github.com/DocMorphic/cmux-app/actions/runs/37227751835)

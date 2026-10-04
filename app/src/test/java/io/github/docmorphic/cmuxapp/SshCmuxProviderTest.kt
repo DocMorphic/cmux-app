@@ -18,6 +18,9 @@ class SshCmuxProviderTest {
         var held: JSONObject? = null
         var holdCommand: String? = null
         var tree = JSONObject().put("generation", "boot-a").put("registry_id", "registry-a").put("workspace_revision", 0).put("workspaces", JSONArray())
+        var uniqueResourceSession = false
+        var beforeResourceReply: (String) -> Unit = {}
+        var beforeListReply: () -> Unit = {}
         var supportsIdle = false
         var rejectIdle = false
         var layoutMutation: (JSONObject) -> Unit = {}
@@ -38,9 +41,11 @@ class SshCmuxProviderTest {
                 val result = when (request.getString("operation")) {
                     "machine.list" -> JSONArray().put(JSONObject().put("id", "machine-a"))
                     "session.list" -> JSONArray().put(JSONObject().put("id", "session-a").put("name", "fixture"))
-                        .put(JSONObject().put("id", "session-b").put("name", "fixture"))
+                        .also { if (!uniqueResourceSession) it.put(JSONObject().put("id", "session-b").put("name", "fixture")) }
+                    "terminal.close" -> JSONObject()
                     else -> error("Unexpected resource mutation")
                 }
+                beforeResourceReply(request.getString("operation"))
                 reply(request, result, true); return
             }
             val data = when (command) {
@@ -52,6 +57,7 @@ class SshCmuxProviderTest {
                 "new-screen", "new-tab", "split" -> JSONObject().put("surface", 5)
                 else -> JSONObject()
             }
+            if (command == "list-workspaces") beforeListReply()
             reply(request, data)
         }
         override fun close() { closed = true; input.close() }
@@ -103,6 +109,40 @@ class SshCmuxProviderTest {
         assertTrue(ending.await().isFailure)
         assertTrue(pipe.sent.none { it.optString("operation") == "terminal.close" })
         assertEquals(0, pipe.count("close-workspace")); provider.close()
+    }
+    @Test fun revokedCloseWaitsForProviderQueueThenSendsNothing() = runTest {
+        val pipe = Pipe(); pipe.tree.put("workspaces", paneTree()); val provider = open(pipe)
+        val captured = provider.state.value.tree!!.workspaces.single()
+        pipe.holdCommand = "list-workspaces"; provider.refresh(); runCurrent()
+        val held = checkNotNull(pipe.held); var allowed = true
+        val close = async { runCatching { provider.endWorkspace(captured) { allowed } } }; runCurrent()
+        allowed = false; pipe.holdCommand = null; pipe.held = null; pipe.reply(held, pipe.tree); runCurrent()
+        assertTrue(close.await().isFailure)
+        assertEquals(0, pipe.count("close-workspace")); assertTrue(pipe.sent.none { it.optString("operation") == "terminal.close" })
+        provider.close()
+    }
+    @Test fun closeRechecksAfterResourceLookupButCompletesOnceDestructiveRequestWasSent() = runTest {
+        val pipe = Pipe().apply { uniqueResourceSession = true; tree.put("workspaces", paneTree()) }
+        val provider = open(pipe); val workspace = provider.state.value.tree!!.workspaces.single(); var allowed = true
+        pipe.beforeResourceReply = { if (it == "session.list") allowed = false }
+        val rejected = async { runCatching { provider.endWorkspace(workspace) { allowed } } }; runCurrent()
+        assertTrue(rejected.await().isFailure); assertTrue(pipe.sent.none { it.optString("operation") == "terminal.close" })
+        allowed = true
+        pipe.beforeResourceReply = { if (it == "terminal.close") allowed = false }
+        val sent = async { provider.endWorkspace(workspace) { allowed } }; runCurrent(); sent.await()
+        assertEquals(1, pipe.sent.count { it.optString("operation") == "terminal.close" })
+        assertEquals(1, pipe.count("close-workspace")); provider.close()
+    }
+    @Test fun emptyWorkspaceCloseRechecksAfterItsFinalRead() = runTest {
+        val pipe = Pipe().apply {
+            uniqueResourceSession = true
+            tree.put("workspaces", JSONArray("""[{"id":1,"key":"empty","name":"Empty","screens":[]}]"""))
+        }
+        val provider = open(pipe); val workspace = provider.state.value.tree!!.workspaces.single()
+        var allowed = true; var reads = 0
+        pipe.beforeListReply = { if (++reads == 2) allowed = false }
+        val close = async { runCatching { provider.endWorkspace(workspace) { allowed } } }; runCurrent()
+        assertTrue(close.await().isFailure); assertEquals(0, pipe.count("close-workspace")); provider.close()
     }
     @Test fun idlePolicyUsesCurrentHostChoiceAndPolicyRejectionDoesNotReplayCreation() = runTest {
         val pipe = Pipe().apply { supportsIdle = true }

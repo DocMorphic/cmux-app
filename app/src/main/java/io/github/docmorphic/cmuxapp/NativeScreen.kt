@@ -3450,6 +3450,10 @@ internal fun NativeScreen(
             }, createWorkspaceGroup = { mac, canSend ->
                 check(currentOwner()) { "Sidebar account changed" }
                 feedCoordinator.createGroup(mac) { currentOwner() && canSend() }
+            }, canCloseSsh = { row -> currentOwner() && sshSession?.workspaceFeed?.isCloseAvailable(row) == true },
+            closeSsh = { row, canSend ->
+                check(currentOwner()) { "Sidebar account changed" }
+                checkNotNull(sshSession).workspaceFeed.submitClose(row) { currentOwner() && canSend() }
             })
     } }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
@@ -3580,7 +3584,7 @@ internal fun NativeWorkspaceRow(
     canReadState: Boolean = false,
     canClose: Boolean = false,
     canWorkspaceActions: Boolean = false,
-    handlesHold: Boolean = false, closeConfirmation: WorkspaceCloseConfirmation = WorkspaceCloseConfirmation.mac,
+    handlesHold: Boolean = false, closeConfirmation: WorkspaceCloseConfirmation? = WorkspaceCloseConfirmation.mac,
     onOpen: () -> Unit,
     onAction: (String, String?) -> Unit,
     remoteGroupMenu: (@Composable (onBack: () -> Unit, onDismiss: () -> Unit) -> Unit)? = null
@@ -3595,7 +3599,10 @@ internal fun NativeWorkspaceRow(
     val moveActions = LocalWorkspaceMoveActions.current
     var rename by remember(menu) { mutableStateOf(false) }
     var pendingClose by remember(menu) { mutableStateOf<Pair<WorkspaceCloseConfirmation, () -> Unit>?>(null) }
-    fun requestClose() { pendingClose = closeConfirmation to { onAction("close", null) } }
+    fun requestClose() {
+        if (closeConfirmation == null) onAction("close", null)
+        else pendingClose = closeConfirmation to { onAction("close", null) }
+    }
     var title by remember(menu, workspace.id) { mutableStateOf(workspace.title) }
     val readLabel = if (workspace.hasUnread) "Mark as Read" else "Mark as Unread"
     val markRead = { onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null) }

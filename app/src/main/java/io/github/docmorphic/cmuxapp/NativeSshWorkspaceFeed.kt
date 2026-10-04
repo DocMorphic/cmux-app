@@ -34,7 +34,7 @@ internal data class SshFeedRow(
     val confirmation get() = when (kind) {
         SshWorkspaceKind.CMUX_TUI -> WorkspaceCloseConfirmation.ssh(PersistentSshWorkspaceKind.CMUX_TUI, title, host.name)
         SshWorkspaceKind.TMUX -> WorkspaceCloseConfirmation.ssh(PersistentSshWorkspaceKind.TMUX, title, host.name)
-        SshWorkspaceKind.SHELL -> WorkspaceCloseConfirmation("Close “$title”?", "This ends the shell on ${host.name}.", "Close Shell")
+        SshWorkspaceKind.SHELL -> null
     }
     fun sameOwner(other: SshFeedRow) = key == other.key && host.connectsLike(other.host) &&
         generation == other.generation && registry == other.registry
@@ -166,33 +166,44 @@ internal class NativeSshWorkspaceFeed(private val session: NativeSshSession, lif
         bindings[host.id] = Binding(host, tmux, cmux, observer); observer.start()
     }
     fun isCurrent(row: SshFeedRow) = current(row.host) && state.value[row.host.id]?.rows?.any { it.sameOwner(row) } == true
-    fun canClose(row: SshFeedRow) = isCurrent(row) && row.key !in closing && bindings[row.host.id]?.tmux?.connection?.isConnected == true
+    fun isCloseAvailable(row: SshFeedRow) = isCurrent(row) && bindings[row.host.id]?.tmux?.connection?.isConnected == true
+    fun canClose(row: SshFeedRow) = isCloseAvailable(row) && row.key !in closing
     fun closeWorkspace(row: SshFeedRow) {
-        if (!canClose(row) || !closing.add(row.key)) return
+        scope.launch { runCatching { submitClose(row) } }
+    }
+    /** Await the real result. A withdrawn caller cannot start a queued close. */
+    suspend fun submitClose(row: SshFeedRow, canSend: () -> Boolean = { true }) {
+        val caller = currentCoroutineContext()[Job]
+        check(canSend() && canClose(row) && closing.add(row.key)) { "SSH workspace changed" }
         val binding = checkNotNull(bindings[row.host.id])
         actionErrors.remove(row.host.id); update(row.host) { it.copy(error = null) }
-        scope.launch {
-            try {
-                check(isCurrent(row) && bindings[row.host.id] === binding) { "SSH workspace changed" }
-                when (row.kind) {
-                    SshWorkspaceKind.CMUX_TUI -> {
-                        val provider = binding.cmux.state.value.providers.single { it.session == row.cmuxSession }
-                        val tree = checkNotNull(provider.state.value.tree)
-                        check(tree.generation == row.generation && tree.registry == row.registry) { "SSH workspace changed" }
-                        provider.endWorkspace(checkNotNull(row.cmuxWorkspace))
-                    }
-                    SshWorkspaceKind.TMUX -> binding.tmux.endWorkspace(checkNotNull(row.tmuxWorkspace))
-                    SshWorkspaceKind.SHELL -> session.shells.remove((row.targets.single() as SshWorkspaceTarget.Shell).id)
+        scope.async {
+        try {
+            val permitted = { caller?.isActive != false && canSend() && isCurrent(row) && bindings[row.host.id] === binding }
+            check(permitted()) { "SSH workspace changed" }
+            when (row.kind) {
+                SshWorkspaceKind.CMUX_TUI -> {
+                    val provider = binding.cmux.state.value.providers.single { it.session == row.cmuxSession }
+                    val tree = checkNotNull(provider.state.value.tree)
+                    check(tree.generation == row.generation && tree.registry == row.registry) { "SSH workspace changed" }
+                    provider.endWorkspace(checkNotNull(row.cmuxWorkspace), permitted)
                 }
-            } catch (failure: Exception) {
-                currentCoroutineContext().ensureActive()
-                if (current(row.host)) {
-                    val message = failure.message ?: "Close was not confirmed. Refresh before trying again."
-                    actionErrors[row.host.id] = message
-                    update(row.host) { it.copy(error = message) }
+                SshWorkspaceKind.TMUX -> binding.tmux.endWorkspace(checkNotNull(row.tmuxWorkspace), permitted)
+                SshWorkspaceKind.SHELL -> {
+                    check(permitted()) { "SSH workspace changed" }
+                    session.shells.remove((row.targets.single() as SshWorkspaceTarget.Shell).id)
                 }
-            } finally { closing.remove(row.key) }
-        }
+            }
+        } catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            if (current(row.host)) {
+                val message = failure.message ?: "Close was not confirmed. Refresh before trying again."
+                actionErrors[row.host.id] = message
+                update(row.host) { it.copy(error = message) }
+            }
+            throw failure
+        } finally { closing.remove(row.key) }
+        }.await()
     }
     override fun close() { job.cancel(); bindings.clear(); opening.clear(); closing.clear(); actionErrors.clear(); mutable.value = emptyMap() }
 }

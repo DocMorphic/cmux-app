@@ -193,8 +193,10 @@ internal class SshTmuxHost(val hostId: UUID, val connection: SshTransport, lifet
         val action = "split-window -d ${environment.joinToString(" ")} ${if (right) "-h" else "-v"} -t ${SshTmuxEncoding.quote(target)}"
         run(SshTmuxInventory.guarded(checkNotNull(tmux), workspace, action, target)); discover()
     }
-    suspend fun endWorkspace(workspace: SshTmuxWorkspace): Unit = mutate {
+    suspend fun endWorkspace(workspace: SshTmuxWorkspace, canSend: () -> Boolean = { true }): Unit = mutate {
+        check(canSend()) { "Workspace close is no longer available" }
         current(workspace)
+        check(canSend()) { "Workspace close is no longer available" }
         // A linked phone session keeps the shared windows alive. Remove it
         // before ending the original, or its programs would survive the action.
         controls.remove(workspace.id)?.let { client ->

@@ -166,7 +166,7 @@ class SshWorkspacesScreenTest {
         val row = feedRow(kind)
         compose.onNodeWithTag("workspace.row:${row.key}").performScrollTo().performTouchInput { longClick() }
         compose.onNodeWithText("Delete").performClick()
-        compose.onNodeWithText(row.confirmation.title).assertIsDisplayed()
+        compose.onNodeWithText(checkNotNull(row.confirmation).title).assertIsDisplayed()
     }
 
     @Test fun mainFeedListsFiltersSearchesAndOpensExistingSshInventoryWithoutMacRpc() = withMainFeed { peer, restoration ->

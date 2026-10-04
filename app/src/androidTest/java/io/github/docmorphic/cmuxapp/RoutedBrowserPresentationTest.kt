@@ -70,6 +70,13 @@ class RoutedBrowserPresentationTest {
     private var creationSsh: NativeSshSession? = null
     private var creationVault: File? = null
     private var creationTargets = emptyList<NativeSshCreateTarget>()
+    private var sshCloseRows = emptyList<SshFeedRow>()
+    private var sshCloseOnline = true
+    private var sshCloseReject = true
+    private var sshCloseHold = false
+    private val sshCloseStarted = CompletableDeferred<Unit>()
+    private val sshCloseContinue = CompletableDeferred<Unit>()
+    private val sshCloseWrites = CopyOnWriteArrayList<String>()
     private var creationBusy = false
     private var groupForeground = "A"
     private val groupAttempts = CopyOnWriteArrayList<String>()
@@ -184,6 +191,31 @@ class RoutedBrowserPresentationTest {
             }; start()
         }
         main {
+            if (scenarioName.startsWith("globalSidebarSshClose")) {
+                val a = SshHostRecord(name = "SSH A", endpoint = SshEndpoint("a.invalid", 22, "user"))
+                val b = a.copy(id = UUID.randomUUID(), name = "SSH B", endpoint = a.endpoint.copy(host = "b.invalid"))
+                sshCloseRows = listOf(a, b).flatMap { host ->
+                    val tmux = sshTmuxFeedRows(host, listOf(SshTmuxWorkspace(42, 2, 100L, "Tmux ${host.name}", emptyList()))).single()
+                    listOf(tmux, tmux.copy(key = "shell-${host.id}", title = "Shell ${host.name}", kind = SshWorkspaceKind.SHELL),
+                        tmux.copy(key = "cmux-${host.id}", title = "Cmux ${host.name}", kind = SshWorkspaceKind.CMUX_TUI))
+                }
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-ssh-close", {
+                    NativeSidebarInput(emptyList(), sshCloseRows, listOf(a, b).map {
+                        NativeSortComputer(workspaceSshFilterId(it.id), it.name)
+                    }, NativeWorkspaceSortState(), sshAvailability = listOf(a, b).associate { it.id to
+                        if (sshCloseOnline) NativeFeedAvailability.CONNECTED else NativeFeedAvailability.OFFLINE })
+                }, { RoutedSidebarLease({}) {} }, { error("Close must preserve the page") },
+                    mutateWorkspace = { _, _, _ -> error("SSH close must not use Mac RPC") },
+                    canCloseSsh = { sshCloseOnline }, closeSsh = { row, canSend ->
+                        if (sshCloseHold) { sshCloseStarted.complete(Unit); sshCloseContinue.await() }
+                        check(canSend()) { "SSH close target changed" }
+                        if (row.kind == SshWorkspaceKind.TMUX && sshCloseReject) {
+                            sshCloseReject = false; error("Fixture SSH close rejected")
+                        }
+                        sshCloseWrites += row.title
+                        sshCloseRows = sshCloseRows.filterNot { it.sameOwner(row) }
+                    })
+            }
             if (scenarioName.startsWith("globalSidebarNewGroup")) {
                 noticeSources = listOf("A", "B").map { name -> NativeFeedSource(
                     NativeCredentialStore.PairedMac("fixture-group-create-$name", name, "Mac $name"),
@@ -509,6 +541,52 @@ class RoutedBrowserPresentationTest {
         assertEquals(sortStore.state.value, NativeWorkspaceSortStore({ sortJson }, {}).state.value)
         assertEquals(false, sidebarActive.last())
     }
+    @Test fun globalSidebarSshCloseConfirmsPersistentKindsAndClosesShellWithoutLosingDraft() = wideSidebar {
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        desc("Choose terminal or pane"); text("Keep draft")
+        text("Keep draft").click(); until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        text("Shell SSH B").longClick(); text("Delete").click()
+        until { sshCloseWrites.contains("Shell SSH B") }
+        assertFalse(device.hasObject(By.text("Delete Workspace?"))); text("Shell SSH A")
+        text("Tmux SSH B").longClick(); text("Delete").click()
+        text("End “Tmux SSH B” on SSH B?"); text("Cancel").click()
+        assertEquals(listOf("Shell SSH B"), sshCloseWrites.toList())
+        text("Tmux SSH B").longClick(); text("Delete").click(); text("End Session").click()
+        text("Fixture SSH close rejected"); text("Tmux SSH B")
+        text("Tmux SSH B").longClick(); text("Delete").click(); text("End Session").click()
+        until { sshCloseWrites.contains("Tmux SSH B") }; text("Tmux SSH A")
+        text("Cmux SSH B").longClick(); text("Delete").click()
+        text("End “Cmux SSH B” on SSH B?"); text("Close Workspace").click()
+        until { sshCloseWrites.contains("Cmux SSH B") }; text("Cmux SSH A")
+        assertEquals(listOf("Shell SSH B", "Tmux SSH B", "Cmux SSH B"), sshCloseWrites.toList())
+        assertEquals(loads, paths.count { it == "/start" }); assertTrue(desc("Choose terminal or pane").text!!.startsWith("Draft "))
+        capturePicker("browser-ssh-close-preserved")
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { sidebarReleases.get() == 1 }; assertEquals(0, holds.get())
+    }
+    @Test fun globalSidebarSshCloseRejectsReplacedEndpointWhileQueued() = wideSidebar {
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        desc("Choose terminal or pane"); text("Keep draft")
+        main { sshCloseHold = true; sshCloseReject = false }
+        text("Tmux SSH B").longClick(); text("Delete").click(); text("End Session").click()
+        until { sshCloseStarted.isCompleted }
+        main {
+            sshCloseRows = sshCloseRows.map { if (it.host.name != "SSH B") it else it.copy(host = it.host.copy(endpoint = it.host.endpoint.copy(port = 2222))) }
+            sshCloseContinue.complete(Unit)
+        }
+        text("SSH close target changed"); assertTrue(sshCloseWrites.isEmpty())
+        main { sshCloseHold = false }
+        text("Tmux SSH B").longClick(); text("Delete").click(); text("End Session").click()
+        until { sshCloseWrites.contains("Tmux SSH B") }; text("Tmux SSH A")
+        text("Shell SSH A").longClick(); text("Delete")
+        main { sshCloseOnline = false }
+        until { !device.hasObject(By.text("Delete")) }
+        text("Shell SSH A").longClick(); assertFalse(device.hasObject(By.text("Delete")))
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { sidebarReleases.get() == 1 }; assertEquals(0, holds.get())
+    }
+
     @Test fun globalSidebarNewGroupUsesCapturedMacAndPreservesPageThroughRetry() = wideSidebar {
         browser("Routed fixture ▾")
         text("Keep draft").click(); until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }

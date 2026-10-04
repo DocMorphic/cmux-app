@@ -165,12 +165,18 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
     private fun members(workspace: SshCmuxWorkspace) = workspace.tabs.map {
         checkNotNull(if (it.isTerminal) it.terminal else it.content) { "This server did not expose a stable content identity" }
     }.toSet()
-    suspend fun endWorkspace(workspace: SshCmuxWorkspace): Unit = mutate {
+    suspend fun endWorkspace(workspace: SshCmuxWorkspace, canSend: () -> Boolean = { true }): Unit = mutate {
+        check(canSend()) { "Workspace close is no longer available" }
         val current = current(read(), workspace)
         val confirmed = members(workspace)
         check(members(current) == confirmed) { "Workspace contents changed. Review it before ending it." }
         val (machine, resourceSession) = resolveScope()
+        // Recheck after suspending reads, before the first destructive request.
+        // Once dispatched, finish the confirmed operation under the provider owner.
+        check(canSend()) { "Workspace close is no longer available" }
+        var dispatched = false
         for (terminal in current.tabs.filter { it.isTerminal }.map { checkNotNull(it.terminal) }.distinct()) {
+            dispatched = true
             control.requestV2("terminal.close", JSONObject().put("machine", machine).put("session", resourceSession)
                 .put("terminal", terminal), UUID.randomUUID().toString()); guard()
         }
@@ -180,6 +186,7 @@ internal class SshCmuxProvider private constructor(val control: SshCmuxControl, 
         check(members(remaining).all { it in confirmed }) { "New workspace content appeared. Review it before ending it." }
         val params = envelope().put("key", checkNotNull(remaining.key))
         latest.revision?.let { params.put("expected_revision", it) }
+        if (!dispatched) check(canSend()) { "Workspace close is no longer available" }
         control.request("close-workspace", params); read(); Unit
     }
     suspend fun open(selection: SshCmuxSelection, id: String): SshCmuxTerminal {

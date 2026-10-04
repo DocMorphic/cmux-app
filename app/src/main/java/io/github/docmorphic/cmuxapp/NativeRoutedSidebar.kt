@@ -47,15 +47,22 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val mutateWorkspace: (suspend (NativeSidebarMutationTarget, RoutedSidebarMutation, () -> Boolean) -> Unit)? = null,
     private val moveWorkspace: (suspend (NativeFeedSource, String, NativeWorkspaceMove, () -> Boolean) -> Unit)? = null,
     private val customizeWorkspace: (suspend (NativeSidebarMutationTarget, WorkspaceCustomizationDraft, WorkspaceCustomizationDraft, () -> Boolean) -> WorkspaceCustomizationResult)? = null,
-    private val createWorkspaceGroup: (suspend (NativeCredentialStore.PairedMac, () -> Boolean) -> Unit)? = null) : RoutedSidebarHost {
+    private val createWorkspaceGroup: (suspend (NativeCredentialStore.PairedMac, () -> Boolean) -> Unit)? = null,
+    private val canCloseSsh: (SshFeedRow) -> Boolean = { false },
+    private val closeSsh: (suspend (SshFeedRow, () -> Boolean) -> Unit)? = null) : RoutedSidebarHost {
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
     private fun computer(key: String) = id("computer", key)
     private fun workspace(mac: NativeCredentialStore.PairedMac, key: String) = id("workspace", mac.origin, mac.code, key)
     private fun group(source: NativeFeedSource, key: String) = id("group", source.mac.origin, source.mac.code, key)
-    private fun ssh(row: SshFeedRow) = id("ssh", row.key, row.generation, row.registry, row.host.endpoint,
-        row.host.keyId, row.host.jumpHostId)
+    private fun ssh(row: SshFeedRow) = id("ssh", row.key, row.kind.name, row.generation, row.registry,
+        row.host.id.toString(), row.host.endpoint.host, row.host.endpoint.port, row.host.endpoint.username,
+        row.host.keyId?.toString(), row.host.jumpHostId?.toString(),
+        row.cmuxWorkspace?.tabs?.map { listOf(it.terminal, it.content) }?.sortedBy { it.toString() })
+    private fun sshCloseTarget(value: NativeSidebarInput, key: String) = value.ssh.singleOrNull {
+        closeSsh != null && ssh(it) == key && canCloseSsh(it)
+    }
     private fun notification(entry: NativeFeedEntry) = id("notification", entry.source.mac.origin, entry.source.mac.code,
         entry.notification.id, entry.notification.workspaceId, entry.notification.surfaceId)
     override fun retain() = retainFeed()
@@ -187,6 +194,15 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                     it.workspaces.any { row -> row.id == context.workspace } } == true
             }
             return
+        }
+        if (command.kind == RoutedSidebarMutationKind.CLOSE) {
+            val row = sshCloseTarget(checkNotNull(input()) { "Sidebar account changed" }, command.key)
+            if (row != null) {
+                checkNotNull(closeSsh).invoke(row) {
+                    canSend() && input()?.let { sshCloseTarget(it, command.key)?.sameOwner(row) } == true
+                }
+                return
+            }
         }
         val target = mutationTarget(checkNotNull(input()) { "Sidebar account changed" }, command)
             ?: error("Workspace action changed. Refresh the sidebar.")
@@ -338,7 +354,9 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             value.computers, value.sort, all, matches, query.text.isNotBlank() || filtering, query.unread, collapsed, value.locale).map { row ->
             when (row) {
                 is NativeWorkspaceDisplayRow.Ssh -> displayWorkspace(ssh(row.row), row.row.workspace, row.row.host.name,
-                    (value.sshAvailability[row.row.host.id] ?: NativeFeedAvailability.OFFLINE), 0, row.row.openTarget() != null)
+                    (value.sshAvailability[row.row.host.id] ?: NativeFeedAvailability.OFFLINE), 0, row.row.openTarget() != null).copy(
+                        sshKind = row.row.kind, mutations = if (closeSsh != null && canCloseSsh(row.row))
+                            setOf(RoutedSidebarMutationKind.CLOSE) else emptySet())
                 is NativeWorkspaceDisplayRow.Mac -> when (val entry = row.entry) {
                     is WorkspaceListEntry.Workspace -> displayWorkspace(workspace(entry.source.mac, entry.workspace.id), entry.workspace,
                         value.appearances.name(entry.source.mac), entry.source.availability, if (entry.indented) 1 else 0, true)

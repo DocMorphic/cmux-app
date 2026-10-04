@@ -140,6 +140,12 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                         canCustomize = row.canCustomize && !ui.mutationBusy,
                         canWorkspaceActions = RoutedSidebarMutationKind.RENAME in mutations,
                         canClose = RoutedSidebarMutationKind.CLOSE in mutations,
+                        closeConfirmation = when (row.sshKind) {
+                            null -> WorkspaceCloseConfirmation.mac
+                            SshWorkspaceKind.SHELL -> null
+                            SshWorkspaceKind.TMUX -> WorkspaceCloseConfirmation.ssh(PersistentSshWorkspaceKind.TMUX, row.title, row.computer.orEmpty())
+                            SshWorkspaceKind.CMUX_TUI -> WorkspaceCloseConfirmation.ssh(PersistentSshWorkspaceKind.CMUX_TUI, row.title, row.computer.orEmpty())
+                        },
                         canReadState = RoutedSidebarMutationKind.MARK_READ in mutations || RoutedSidebarMutationKind.MARK_UNREAD in mutations,
                         onOpen = { if (row.canOpen) onOpen(row.key) }, onAction = ::mutate,
                         remoteGroupMenu = if (RoutedSidebarMutationKind.MOVE_TO_GROUP in mutations) ({ back, dismiss ->
