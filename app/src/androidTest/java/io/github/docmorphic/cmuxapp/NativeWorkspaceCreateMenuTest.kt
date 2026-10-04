@@ -26,6 +26,9 @@ class NativeWorkspaceCreateMenuTest {
     private var connected by mutableStateOf(setOf(stable.origin, nightly.origin))
     private var busy by mutableStateOf(false)
     private var allowed = true
+    private var groupAllowed by mutableStateOf(false)
+    private var groupsCreated = 0
+    private var groupMac by mutableStateOf(stable)
     private val created = mutableListOf<NativeCredentialStore.PairedMac>()
 
     private var sshTargets by mutableStateOf(emptyList<NativeSshCreateTarget>())
@@ -57,12 +60,30 @@ class NativeWorkspaceCreateMenuTest {
                     if (it.origin in connected) NativeFeedAvailability.CONNECTED else NativeFeedAvailability.OFFLINE) },
                 open, { open = it }, owner, selection, busy, { it == owner && allowed },
                 { NativeComputerMenuPairing.isCurrent(it, rows) && it.origin in connected },
-                { created += it }, null, sshTargets = sshTargets,
+                { created += it }, if (groupAllowed) ({ groupsCreated++ }) else null, sshTargets = sshTargets,
                 canCreateSsh = { target, _ -> sshAllowed && sshTargets.any { it.session === target.session && it.host.connectsLike(target.host) } },
-                onCreateSsh = { target, kind -> sshCreated += target.host.id to kind })
+                onCreateSsh = { target, kind -> sshCreated += target.host.id to kind }, groupMac = groupMac)
         } } } }
     }
     private fun openMenu() = compose.onNodeWithContentDescription("New Workspace").performClick()
+
+    @Test fun groupMenuDispatchesImmediatelyAndRevocationRemovesIt() {
+        groupAllowed = true; content(); openMenu()
+        compose.runOnIdle { groupMac = nightly }
+        compose.onNodeWithText("New Workspace Group").assertIsNotEnabled().performClick()
+        compose.runOnIdle { assertEquals(0, groupsCreated); open = false }
+        openMenu()
+        compose.onNodeWithText("New Workspace Group").performClick()
+        compose.runOnIdle { assertEquals(1, groupsCreated); assertTrue(created.isEmpty()) }
+        rows = listOf(stable)
+        compose.onNodeWithContentDescription("New Workspace").performTouchInput { longClick() }
+        compose.onNodeWithText("New Workspace Group").performClick()
+        compose.runOnIdle { assertEquals(2, groupsCreated); assertTrue(created.isEmpty()) }
+        compose.onNodeWithContentDescription("New Workspace").performTouchInput { longClick() }
+        compose.runOnIdle { groupAllowed = false }
+        compose.onNodeWithText("New Workspace Group").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(2, groupsCreated) }
+    }
 
     @Test fun mixedChooserKeepsIdenticalKindsBoundToTheirDisplayedSshHost() {
         addSsh(2); rows = listOf(stable); content()

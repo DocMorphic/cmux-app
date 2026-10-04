@@ -46,10 +46,10 @@ absent from ADB and untouched.
 
 Evidence: `captures/runtime/release-2b8aa38/` (ignored), including CI/provenance,
 package/runtime receipts, screenshots and native comparison. Next work is
-browser New group creation, SSH actions and selection refinements.
+SSH sidebar actions and selection refinements.
 The branch now includes notification/group expansion restoration and Mac workspace/
 group mutations, Move to Group, workspace customization and Mac/SSH workspace
-creation (including creation in an existing Mac group) in the browser,
+creation (including creation in an existing Mac group), and New Workspace Group,
 verified in the debug build; those later changes
 are not included in signed 563. Production push/
 notice configuration, legacy tickets, physical/network/process recovery and the

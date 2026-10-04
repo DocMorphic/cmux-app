@@ -11,6 +11,52 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun newGroupUsesExactMacDefaultNameAndReconcilesSuccessAndRejection() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            b.newGroupCreationSupported = true
+            val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.hasWorkspaceSnapshot } == 2 }
+                b.workspaceResponse = JSONObject("""{"workspaces":[],"groups":[{"id":"new","name":"Group 2"}]}""")
+                coordinator.createGroup(mac("b"))
+                assertEquals("Group 2", coordinator.sources.value.getValue(mac("b").origin).groups.single().name)
+                val command = b.requests.single { it.optString("method") == "workspace.group.create" }
+                assertEquals(0, command.getJSONObject("params").length())
+                assertTrue(a.requests.none { it.optString("method") == "workspace.group.create" })
+                b.workspaceResponse = JSONObject("""{"workspaces":[],"groups":[{"id":"external","name":"External group"}]}""")
+                b.rejectedMethods = setOf("workspace.group.create")
+                assertTrue(runCatching { coordinator.createGroup(mac("b")) }.isFailure)
+                assertEquals("External group", coordinator.sources.value.getValue(mac("b").origin).groups.single().name)
+                assertEquals(2, b.requests.count { it.optString("method") == "workspace.group.create" })
+            } finally { coordinator.close() }
+        } }
+    }
+    @Test fun newGroupRequiresItsOwnCapabilityAccountExactPairingAndCaller() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.newGroupCreationSupported = true
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                assertTrue(runCatching { coordinator.createGroup(mac("a")) { false } }.isFailure)
+                assertTrue(runCatching { coordinator.createGroup(mac("a").copy(instanceTag = "nightly")) }.isFailure)
+                coordinator.pause(); peer.accountMutationsSupported = false
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.single().availability == NativeFeedAvailability.CONNECTED }
+                assertFalse(coordinator.sources.value.values.single().canCreateGroup())
+                assertTrue(runCatching { coordinator.createGroup(mac("a")) }.isFailure)
+                coordinator.pause(); peer.accountMutationsSupported = true; peer.newGroupCreationSupported = false
+                peer.groupCreationSupported = true // In-group creation does not imply New Group.
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.single().availability == NativeFeedAvailability.CONNECTED }
+                assertTrue(coordinator.sources.value.values.single().canCreateInGroup())
+                assertTrue(runCatching { coordinator.createGroup(mac("a")) }.isFailure)
+                assertTrue(peer.requests.none { it.optString("method") == "workspace.group.create" })
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun callerWithdrawalPreventsPlainAndGroupCreationAtSendBoundary() = runBlocking {
         FeedPeer("a").use { peer ->
             peer.groupCreationSupported = true
@@ -811,6 +857,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     @Volatile var accountMutationsSupported = true
     @Volatile var groupActionsSupported = true
     @Volatile var groupCreationSupported = false
+    @Volatile var newGroupCreationSupported = false
     @Volatile var rejectedMethods = emptySet<String>()
     @Volatile var createResponse: JSONObject? = null
     @Volatile var changesSupported = false
@@ -850,6 +897,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                             if (accountMutationsSupported) it.put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)
                             if (groupActionsSupported) it.put("workspace.group_actions.v1")
                             if (groupCreationSupported) it.put("workspace.create_in_group.v1")
+                            if (newGroupCreationSupported) it.put("workspace.group_create.v1")
                             if (rowActionsSupported) it.put("workspace.actions.v1").put("workspace.read_state.v1").put("workspace.close.v1")
                             if (powerSupported) it.put("caffeine.control.v1")
                             if (changesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)

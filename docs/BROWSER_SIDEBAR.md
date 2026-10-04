@@ -47,8 +47,8 @@ pin/rename/ungroup/delete use the owned mutation protocol described below. Mac
 Move to Group shares the main-screen move queue and anchored submenu, and
 Customize uses the shared workspace editor and save policy. Global Mac/SSH
 workspace creation and creation inside an existing Mac group use the shared
-parent flows. New group creation, SSH mutations, drag ordering and selection
-styling still need browser parity work. Main-screen controls remain implemented separately; this does not establish
+parent flows. New Workspace Group now creates in place with the Mac default name.
+SSH mutations, drag ordering and selection styling still need browser parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
 Physical Pixel/Mac acceptance, actual account/team replacement during live
@@ -56,8 +56,8 @@ browser use, real native/SSH feed integration with the new browser sidebar,
 large-text/accessibility review and authenticated process recovery remain open.
 The compact browser stays stacked. Signed build 563 includes the sidebar and
 notification actions; the expansion-restoration, workspace/group-mutation,
-Move to Group, workspace-customization and workspace-creation changes below await
-the next signed batch.
+Move to Group, workspace-customization, workspace-creation and New Workspace Group
+changes below await the next signed batch.
 
 ## Verification
 
@@ -699,3 +699,79 @@ Live Mac/Pixel, authenticated MainScreen, real SSH/native create progress and
 failure recovery, parent recreation/process death and TalkBack acceptance remain
 unverified by this batch. Signed 563 predates this feature and preceding sidebar
 mutation batches; the full goal remains active.
+
+## New Workspace Group — 2026-10-04
+
+A closer source check supersedes the previous plan to share the Android naming
+dialog. At scoped iOS reference `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`,
+`WorkspaceListNewWorkspaceMenu.swift` calls
+`WorkspaceShellView+WorkspaceActions.createWorkspaceGroupIfConnected()`, which
+calls `MobileShellComposite+WorkspaceActions.createWorkspaceGroup()` without a
+title. It sends `workspace.group.create` with empty parameters; the Mac supplies
+the default name. There is no name-confirmation dialog in that iOS flow.
+
+Android now follows that behavior. The main screen's extra dialog and retained
+name draft are removed. Both menus use New Workspace Group and a folder-plus
+icon derived from the existing licensed folder asset. Single-Mac long press opens
+the option; the multi-computer chooser includes it outside SSH kind submenus.
+The main menu captures the foreground pairing and disables an old group choice
+if that identity changes while the menu is open. The main handler rechecks its
+login/team, exact pairing, selected computer and foreground connection.
+
+The browser keeps its webpage mounted while creating a group. Under All
+Computers, the destination is the current foreground Mac; a scoped Mac view uses
+that selected Mac. Search, unread and machine filters do not choose another owner.
+A scoped SSH or missing computer has no group action. Discovery requires the
+specific group-create and account-mutation capabilities plus a connected source.
+The opaque group key binds the pairing and foreground-versus-scoped intent;
+changing the foreground Mac cannot redirect an already open menu choice.
+
+CREATE_GROUP is an explicit sidebar mutation, with no caller-supplied title,
+Mac identifier or RPC method. It uses the existing serialized, cancellable
+mutation path. A queued request also checks that the browser's computer selection
+has not changed. The main-process coordinator checks its exact verified handle,
+current capability and caller permission under its owning lock, then sends the
+unnamed create. Its existing authoritative refresh runs after success or rejection.
+Errors stay visible, and only an explicit user retry sends another request.
+
+This creates an empty group and refreshes the sidebar; it does not navigate to
+or invent a workspace. Existing workspace creation, including creation inside a
+group, continues to use the separate parent navigation flow documented above.
+
+### Verification
+
+- **88 JVM checks passed:** 41 coordinator, five browser creation, five mutation,
+  three new group and 34 sidebar checks. New tests cover empty create parameters
+  on the exact Mac, authoritative refresh after success/rejection, separate
+  group-create capability and account authorization, changed pairing/caller,
+  foreground versus scoped selection, busy/offline/revoked targets, mutation-only
+  wire permission and a rejected caller-supplied title.
+- The initial **91.483s** Android run passed the production main-menu component
+  check. Both new browser scenarios passed their action assertions and then
+  failed cleanup looking for a compact Back button in the wide layout. Changing
+  those two exits to Android Back fixed the harness. The two browser checks
+  passed in **53.628s** on the identical app APK; these are three distinct passing
+  scenarios across two runs, not a green first batch.
+- Main-menu coverage: foreground pairing replacement disables an existing group
+  choice, explicit reopening dispatches once, single-Mac hold exposes the action,
+  and capability removal hides it. Browser coverage: foreground changes cannot
+  retarget an old menu; rejection/manual retry stays on the page; the other Mac
+  remains unchanged; scoped creation uses the selected Mac; revocation disables
+  the option; a held create is rejected after changing computer scope; subsequent
+  explicit creation on the new scope succeeds. Unsent page state/load count,
+  visible created group and release on return are checked.
+- First app/test/JVM build passed in **1m15s**, main-menu owner refinement in
+  **36s**, and test-only exit repair in **13s**. Sources were frozen during each
+  run. Final app/test installed hashes and source hashes matched; screenshots
+  inspected, display restored, crash buffer empty, emulator stopped/reaped. Pixel
+  absent/untouched. No new AVD, merge or release.
+
+Evidence is under ignored `captures/runtime/browser-new-group/`, including build
+logs, the failed first run, frozen manifests, final receipts and `groups.png`.
+
+- App APK SHA-256: `c68b4a2f92b6ee2611747d48969a3a47a38aa309e153a3ab2756da390fa731ca`.
+- Test APK SHA-256: `e4e6b4436af1a88c8e31d8354a8fc82c325e31bf67bbb9015c69e3b59affb41c`.
+
+These fixtures do not establish real Mac mutations, authenticated MainScreen,
+Pixel integration, process recovery, or TalkBack delivery. The broader parity
+and physical acceptance work remains open.

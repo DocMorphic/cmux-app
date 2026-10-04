@@ -160,8 +160,10 @@ internal object RoutedBrowserSessions {
     }
     suspend fun mutateSidebar(entry: Entry, command: RoutedSidebarMutation) = coroutineScope {
         val host = checkNotNull(entry.sidebar)
+        val computer = entry.sidebarQuery?.computer
         fun current() = live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
-            entry.sidebar?.owner == host.owner && host.current() && entry.sidebarQuery?.notifications == false
+            entry.sidebar?.owner == host.owner && host.current() && entry.sidebarQuery?.notifications == false &&
+            (command.kind != RoutedSidebarMutationKind.CREATE_GROUP || entry.sidebarQuery?.computer == computer)
         check(current() && entry.sidebarExchange.permitsMutation(command)) { "Workspace actions changed. Refresh the sidebar." }
         command.validate()
         if (command.kind == RoutedSidebarMutationKind.MOVE_TO_GROUP)

@@ -21,7 +21,7 @@ private data class WorkspaceCreateMenuRow(val mac: NativeCredentialStore.PairedM
     val buildLabel: String?, val connection: NativeComputerConnection)
 private data class WorkspaceCreateMenuOpening(val owner: NativeComputerMenuOwner, val selection: String?,
     val rows: List<WorkspaceCreateMenuRow>, val create: (NativeCredentialStore.PairedMac) -> Unit,
-    val group: (() -> Unit)?, val ssh: List<NativeSshCreateTarget>, val createSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Unit)
+    val group: (() -> Unit)?, val groupMac: NativeCredentialStore.PairedMac?, val ssh: List<NativeSshCreateTarget>, val createSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Unit)
 
 /** Capture the displayed targets once; never let a later account/filter substitute a target under a tap. */
 @Composable
@@ -33,12 +33,13 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
     onCreate: (NativeCredentialStore.PairedMac) -> Unit, onGroup: (() -> Unit)?,
     sshTargets: List<NativeSshCreateTarget> = emptyList(),
     canCreateSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Boolean = { _, _ -> false },
-    onCreateSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Unit = { _, _ -> }) {
+    onCreateSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Unit = { _, _ -> },
+    groupMac: NativeCredentialStore.PairedMac? = null) {
     val opening = remember(open) {
         if (!open) null else WorkspaceCreateMenuOpening(owner, selection, macs.map { mac ->
             WorkspaceCreateMenuRow(mac, appearances.name(mac), presence.buildLabel(mac),
                 connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection())
-        }, onCreate, onGroup, sshTargets, onCreateSsh)
+        }, onCreate, onGroup, groupMac, sshTargets, onCreateSsh)
     }
     var selectedSsh by remember(open) { mutableStateOf<java.util.UUID?>(null) }
     val currentSshCheck by rememberUpdatedState(canCreateSsh)
@@ -46,6 +47,7 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
     val currentCreateCheck by rememberUpdatedState(canCreate)
     val currentBusy by rememberUpdatedState(busy)
     val currentGroupAvailable by rememberUpdatedState(onGroup != null)
+    val currentGroupMac by rememberUpdatedState(groupMac)
     fun admitted(menu: WorkspaceCreateMenuOpening) = menu.owner == owner && menu.selection == selection &&
         currentOwnerCheck(menu.owner) && !currentBusy
     LaunchedEffect(open, owner, selection) {
@@ -110,10 +112,11 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
                 }
                 }
                 if (ssh == null && menu.group != null) HorizontalDivider()
-                if (ssh == null && menu.group != null && onGroup != null) DropdownMenuItem(text = { Text("New group") },
-                    enabled = admitted(menu), onClick = {
+                if (ssh == null && menu.group != null && onGroup != null) DropdownMenuItem(text = { Text("New Workspace Group") },
+                    leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_folder_plus) },
+                    enabled = admitted(menu) && menu.groupMac == currentGroupMac, onClick = {
                         onOpen(false)
-                        if (admitted(menu) && currentGroupAvailable) menu.group()
+                        if (admitted(menu) && currentGroupAvailable && menu.groupMac == currentGroupMac) menu.group()
                     })
             }
         }

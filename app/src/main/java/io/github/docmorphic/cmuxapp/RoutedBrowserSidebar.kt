@@ -101,7 +101,9 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                 if (controller.sort(RoutedSidebarSort.Mode(mode)) && mode == NativeWorkspaceSortMode.PRIORITY) showOrder = true
             } }, onOrder = { showOrder = true })
         if (!ui.query.notifications) RoutedSidebarCreateMenu(ui.snapshot?.creation.orEmpty(), ui.query.computer,
-            ui.navigating || ui.mutationBusy || ui.saving, onOpen)
+            ui.navigating || ui.mutationBusy || ui.saving, onOpen, ui.snapshot?.createGroup) { key ->
+                scope.launch { controller.mutate(RoutedSidebarMutation(key, RoutedSidebarMutationKind.CREATE_GROUP)) }
+            }
     }
     if (ui.loading || ui.navigating || ui.saving || ui.notificationBusy || ui.editorLoading || ui.snapshot?.loading == true) LinearProgressIndicator(Modifier.fillMaxWidth())
     (ui.actionError ?: ui.error)?.let { message -> Column(Modifier.padding(12.dp)) {

@@ -365,6 +365,17 @@ internal class NativeFeedCoordinator(
         }
     }
 
+    /** Matches iOS New Workspace Group: the Mac chooses the default name. */
+    suspend fun createGroup(mac: NativeCredentialStore.PairedMac, canSend: () -> Boolean = { true }): JSONObject =
+        withContext(scope.coroutineContext.minusKey(Job)) {
+            owningMutation(mac, refreshChanges = false) { _, client ->
+                check(canSend()) { "Group creation is no longer available" }
+                val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
+                check(source.canCreateGroup()) { "Update cmux on this Mac to create groups with account authentication." }
+                client.createGroup("")
+            }
+        }
+
     /** Plain creates are pinned to an exact verified Mac, including its build and account. */
     suspend fun createWorkspace(mac: NativeCredentialStore.PairedMac, canSend: () -> Boolean = { true }): JSONObject =
         withContext(scope.coroutineContext.minusKey(Job)) {

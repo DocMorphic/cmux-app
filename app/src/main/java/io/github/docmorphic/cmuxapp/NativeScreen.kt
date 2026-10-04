@@ -266,8 +266,7 @@ internal fun NativeScreen(
     LaunchedEffect(taskDraftRepository) {
         taskDraftRepository?.saveError?.collect { if (it != null) error = it }
     }
-    var showCreateGroup by remember { mutableStateOf(false) }
-    var newGroupName by remember { mutableStateOf("") }
+    var creatingGroup by remember { mutableStateOf(false) }
     var backgroundNotifications by remember { mutableStateOf(NativeNotificationService.isEnabled(context)) }
     var workspaces by paneSelection.workspaces
     var groups by paneSelection.groups
@@ -1320,6 +1319,27 @@ internal fun NativeScreen(
         }
     }
 
+    fun createWorkspaceGroup(mac: NativeCredentialStore.PairedMac) {
+        if (creatingGroup || creatingWorkspace || creatingTerminal || sshCreationBusy) return
+        val login = browserLogin
+        val team = teamState.scope
+        val selection = selectedComputerOrigin
+        fun current() = signedIn && store.taskSession() == login && accountTeams.state.value.scope == team &&
+            code == mac.code && connectedCode == mac.code && selectedComputerOrigin == selection &&
+            (selection.isBlank() || mac.ownsOrigin(selection)) && store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)
+        if (!current()) return
+        creatingGroup = true
+        scope.launch {
+            try {
+                feedCoordinator.createGroup(mac, ::current)
+                if (current()) { error = null; refreshFeed() }
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                if (current()) recordWorkspaceActionFailure(failure)
+            } finally { creatingGroup = false }
+        }
+    }
+
     fun createWorkspaceOnMac(mac: NativeCredentialStore.PairedMac, groupId: String? = null) {
         if (creatingWorkspace || creatingTerminal) return
         val entryNavigation = navigationGeneration.observe(browserNavigationContext())
@@ -1476,7 +1496,7 @@ internal fun NativeScreen(
                 if (!isCurrent() || !notificationRecovery.allows(active)) false else {
                     applyListing(listing); notifications = feed
                     finishSearch(); notificationTab = openedFromFeed; showSettings = false; showTaskComposer = false
-                    showCreateGroup = false; showLicenses = false; selectedChangesWorkspace = null
+                    showLicenses = false; selectedChangesWorkspace = null
                     localBrowserKey(browserLogin, teamState.scope, mac, workspace.id)?.let(localBrowsers::selectMacPane)
                     selectedWorkspace = workspace; selectedTerminal = terminal; selectedBrowser = browser; selectedSurface = surface
                     notificationDelivery.cancel(routeId)
@@ -2129,31 +2149,6 @@ internal fun NativeScreen(
                 selectPairingCode(proposed); pendingPairingCode = null; retry++
             } catch (failure: Exception) { error = failure.message; pendingPairingCode = null }
         })
-    if (showCreateGroup) AlertDialog(
-        onDismissRequest = { showCreateGroup = false },
-        title = { Text("New group") },
-        text = { OutlinedTextField(newGroupName, { newGroupName = it },
-            label = { Text("Name (optional)") }, singleLine = true) },
-        confirmButton = { TextButton(onClick = {
-            val active = client
-            showCreateGroup = false
-            if (active != null) scope.launch {
-                val requestedCode = code
-                try {
-                    val owner = workspaceOwner(requestedCode)
-                    requireWorkspaceConnection(active, owner)
-                    workspaceSnapshots.mutate(owner) { active.createGroup(newGroupName) }
-                    val listing = workspaceSnapshots.read(owner, active)
-                    if (client === active && code == requestedCode && signedIn) {
-                        applyListing(listing); refreshFeed(); newGroupName = ""
-                    }
-                } catch (failure: Exception) {
-                    recordWorkspaceActionFailure(failure)
-                }
-            }
-        }) { Text("Create") } },
-        dismissButton = { TextButton(onClick = { showCreateGroup = false }) { Text("Cancel") } }
-    )
 
     if (signedIn && sshSession != null) key(sshSession) { SshPromptHost(sshSession) }
 
@@ -2326,7 +2321,7 @@ internal fun NativeScreen(
             eligible = signedIn && feedForeground &&
                 onboardingProgress == NativeOnboardingProgress.COMPLETE && !showOnboarding && !onboardingExplicitRoute &&
                 !showSettings && !showSshComputers && !showTaskComposer && !showLicenses && !showShortcuts &&
-                !showCreateGroup && !confirmReadAll && computerDetails == null && deletionReceipt == null &&
+                !creatingGroup && !confirmReadAll && computerDetails == null && deletionReceipt == null &&
                 pendingPairingCode == null && pairingLookup == null && !onboardingPermissionBusy && !whatsNewPromptPending &&
                 selectedTerminal == null && selectedBrowser == null && selectedSurface == null && selectedChangesWorkspace == null &&
                 screenResume.pending == null && textSnapshot == null && !showTerminalFiles && terminalArtifactPath == null &&
@@ -3088,7 +3083,7 @@ internal fun NativeScreen(
                     appearances = appearances, presence = scopedPresence,
                     connections = computerConnections, open = createMenuOpen, onOpen = { createMenuOpen = it },
                     owner = NativeComputerMenuOwner(browserLogin, teamState.scope), selection = selectedComputerOrigin,
-                    busy = creatingWorkspace || creatingTerminal || sshCreationBusy,
+                    busy = creatingWorkspace || creatingTerminal || sshCreationBusy || creatingGroup,
                     isOwnerCurrent = { owner -> signedIn && store.taskSession() == owner.login &&
                         accountTeams.state.value.scope == owner.team },
                     canCreate = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
@@ -3097,13 +3092,15 @@ internal fun NativeScreen(
                         } == true },
                     onCreate = { createWorkspaceOnMac(it) },
                     onGroup = if (canCreateOnCurrentMac && WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY in hostCapabilities &&
-                        "workspace.group_create.v1" in hostCapabilities) ({ showCreateGroup = true }) else null,
+                        "workspace.group_create.v1" in hostCapabilities)
+                        pairedMacs.singleOrNull { it.code == connectedCode }?.let { mac -> { createWorkspaceGroup(mac) } } else null,
                     sshTargets = if (selectedOrigin == null) sshTargets.filter { selectedSshComputer == null || it.host.id == selectedSshComputer.host.id } else emptyList(),
-                    canCreateSsh = ::canCreateSsh, onCreateSsh = ::createSshWorkspace)
+                    canCreateSsh = ::canCreateSsh, onCreateSsh = ::createSshWorkspace,
+                    groupMac = pairedMacs.singleOrNull { it.code == connectedCode })
 
             }
         }
-        if ((busy || sshCreationBusy) && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if ((busy || sshCreationBusy || creatingGroup) && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()) {
             Column(Modifier.padding(horizontal = 18.dp)) {
                 Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
@@ -3341,8 +3338,9 @@ internal fun NativeScreen(
                     add(RoutedSidebarActionKind.SETTINGS); add(RoutedSidebarActionKind.COMPUTERS)
                     if (taskDraftRepository != null) add(RoutedSidebarActionKind.NEW_TASK)
                 }, pendingMoves = workspaceMoves.status.value.mapValues { it.value.pending },
-                creation = NativeSidebarCreation(creatingWorkspace || creatingTerminal || sshCreationBusy,
-                    sshTargets.filter { it.session === ssh && it.session.isOpen && hosts.any { host -> host.connectsLike(it.host) } }))
+                creation = NativeSidebarCreation(creatingWorkspace || creatingTerminal || sshCreationBusy || creatingGroup,
+                    sshTargets.filter { it.session === ssh && it.session.isOpen && hosts.any { host -> host.connectsLike(it.host) } },
+                    foregroundMac = macs.singleOrNull { it.code == connectedCode }))
         }
     })
     val sidebarInitial by rememberUpdatedState<() -> NativeSidebarPresentation>({
@@ -3449,6 +3447,9 @@ internal fun NativeScreen(
             }, customizeWorkspace = { target, baseline, submitted, canSend ->
                 check(currentOwner()) { "Sidebar account changed" }
                 feedCoordinator.customizeWorkspace(target.mac, target.id, baseline, submitted) { currentOwner() && canSend() }
+            }, createWorkspaceGroup = { mac, canSend ->
+                check(currentOwner()) { "Sidebar account changed" }
+                feedCoordinator.createGroup(mac) { currentOwner() && canSend() }
             })
     } }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,

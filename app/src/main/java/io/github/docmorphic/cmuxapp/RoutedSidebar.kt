@@ -49,7 +49,7 @@ internal data class RoutedSidebarSnapshot(val computers: List<RoutedSidebarCompu
     val filterMachines: List<RoutedSidebarComputer> = emptyList(), val selectedMachines: Set<String> = emptySet(),
     val sortMode: NativeWorkspaceSortMode? = null, val actions: List<RoutedSidebarAction> = emptyList(), val readAll: RoutedSidebarReadAll? = null,
     val canRefresh: Boolean = false, val expanded: Set<String> = emptySet(), val editorTicket: String? = null,
-    val creation: List<RoutedSidebarCreateComputer> = emptyList())
+    val creation: List<RoutedSidebarCreateComputer> = emptyList(), val createGroup: String? = null)
 internal data class RoutedSidebarPage(val revision: String, val snapshot: RoutedSidebarSnapshot,
     val offset: Int, val next: Int?, val total: Int)
 
@@ -123,8 +123,9 @@ internal class RoutedSidebarExchange {
         return RoutedSidebarPage(expectedRevision, value.copy(rows = rows), offset,
             (offset + rows.size).takeIf { it < value.rows.size }, value.rows.size)
     }
-    fun permitsMutation(command: RoutedSidebarMutation): Boolean = command.key in mutableRows &&
-        snapshot?.rows?.any { it.key == command.key && command.kind in it.mutations } == true
+    fun permitsMutation(command: RoutedSidebarMutation): Boolean = if (command.kind == RoutedSidebarMutationKind.CREATE_GROUP)
+        snapshot?.createGroup == command.key
+        else command.key in mutableRows && snapshot?.rows?.any { it.key == command.key && command.kind in it.mutations } == true
     fun permitsGroupMenu(key: String) = key in mutableRows && snapshot?.rows?.any {
         it.key == key && RoutedSidebarMutationKind.MOVE_TO_GROUP in it.mutations
     } == true
@@ -248,6 +249,7 @@ internal object RoutedSidebarWire {
         .put("can_refresh", value.snapshot.canRefresh)
         .put("editor", value.snapshot.editorTicket)
         .put("creation", RoutedSidebarCreationWire.encode(value.snapshot.creation))
+        .put("create_group", value.snapshot.createGroup?.let(::token))
         .put("expanded", JSONArray(value.snapshot.expanded.sorted()))
         .put("actions", JSONArray().also { array -> value.snapshot.actions.forEach {
             array.put(JSONObject().put("key", token(it.key)).put("kind", it.kind.name))
@@ -302,6 +304,7 @@ internal object RoutedSidebarWire {
                 json.optJSONObject("read_all")?.let { RoutedSidebarReadAll(token(it.getString("key")), it.getString("computer").bounded(64)) },
                 json.optBoolean("can_refresh"), keys(json.optJSONArray("expanded") ?: JSONArray(), 2000).toSet(),
                 if (json.isNull("editor")) null else token(json.getString("editor")),
-                RoutedSidebarCreationWire.decode(json.optJSONArray("creation") ?: JSONArray())), offset, next, total)
+                RoutedSidebarCreationWire.decode(json.optJSONArray("creation") ?: JSONArray()),
+                if (json.isNull("create_group")) null else token(json.getString("create_group"))), offset, next, total)
     }
 }

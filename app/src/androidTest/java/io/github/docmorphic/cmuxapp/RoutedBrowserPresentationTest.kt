@@ -71,6 +71,13 @@ class RoutedBrowserPresentationTest {
     private var creationVault: File? = null
     private var creationTargets = emptyList<NativeSshCreateTarget>()
     private var creationBusy = false
+    private var groupForeground = "A"
+    private val groupAttempts = CopyOnWriteArrayList<String>()
+    private val createdGroupOwners = CopyOnWriteArrayList<String>()
+    private var rejectNewGroup = true
+    private var holdNewGroup = true
+    private val newGroupStarted = CompletableDeferred<Unit>()
+    private val newGroupContinue = CompletableDeferred<Unit>()
     private var globalActions = RoutedSidebarActionKind.entries.toSet()
     private val openedActions = CopyOnWriteArrayList<RoutedSidebarActionKind>()
     private var noticeSources = emptyList<NativeFeedSource>()
@@ -177,6 +184,30 @@ class RoutedBrowserPresentationTest {
             }; start()
         }
         main {
+            if (scenarioName.startsWith("globalSidebarNewGroup")) {
+                noticeSources = listOf("A", "B").map { name -> NativeFeedSource(
+                    NativeCredentialStore.PairedMac("fixture-group-create-$name", name, "Mac $name"),
+                    availability = NativeFeedAvailability.CONNECTED,
+                    capabilities = setOf(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY, "workspace.group_create.v1")) }
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-new-group", {
+                    NativeSidebarInput(noticeSources, emptyList(), noticeSources.map {
+                        NativeSortComputer(workspaceMacFilterId(it.mac.deviceId, null)!!, it.mac.name)
+                    }, NativeWorkspaceSortState(), creation = NativeSidebarCreation(
+                        foregroundMac = noticeSources.singleOrNull { it.mac.deviceId == groupForeground }?.mac))
+                }, { RoutedSidebarLease({}) {} }, {}, createWorkspaceGroup = { mac, canSend ->
+                    check(canSend()); groupAttempts += mac.deviceId
+                    if (scenarioName == "globalSidebarNewGroupCancelsAQueuedCreateWhenComputerScopeChanges" && holdNewGroup) {
+                        newGroupStarted.complete(Unit); newGroupContinue.await()
+                    }
+                    check(canSend()) { "Group creation is no longer active" }
+                    if (scenarioName == "globalSidebarNewGroupUsesCapturedMacAndPreservesPageThroughRetry" && rejectNewGroup) {
+                        rejectNewGroup = false; error("Fixture group creation rejected")
+                    }
+                    createdGroupOwners += mac.deviceId
+                    noticeSources = noticeSources.map { source -> if (source.mac != mac) source else source.copy(
+                        groups = source.groups + NativeGroup("new-${source.groups.size}", "New group ${mac.deviceId}", false, false)) }
+                })
+            }
             if (scenarioName.startsWith("globalSidebarCreation")) {
                 noticeSources = listOf("A", "B").map { name -> NativeFeedSource(
                     NativeCredentialStore.PairedMac("fixture-create-$name", name, "Mac $name"),
@@ -478,6 +509,52 @@ class RoutedBrowserPresentationTest {
         assertEquals(sortStore.state.value, NativeWorkspaceSortStore({ sortJson }, {}).state.value)
         assertEquals(false, sidebarActive.last())
     }
+    @Test fun globalSidebarNewGroupUsesCapturedMacAndPreservesPageThroughRetry() = wideSidebar {
+        browser("Routed fixture ▾")
+        text("Keep draft").click(); until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        desc("New Workspace").click(); text("New Workspace Group")
+        main { groupForeground = "B" }
+        until { !generateSequence(text("New Workspace Group")) { it.parent }.first { it.isClickable }.isEnabled }
+        text("New Workspace Group").click(); assertTrue(groupAttempts.isEmpty())
+        device.pressBack()
+        desc("New Workspace").click(); text("New Workspace Group").click()
+        text("Fixture group creation rejected")
+        assertEquals(listOf("B"), groupAttempts.toList()); assertTrue(createdGroupOwners.isEmpty())
+        desc("New Workspace").click(); text("New Workspace Group").click()
+        text("New group B")
+        assertEquals(listOf("B", "B"), groupAttempts.toList()); assertEquals(listOf("B"), createdGroupOwners.toList())
+        assertTrue(main { noticeSources.first().groups.isEmpty() })
+        text("All Computers").click(); text("Mac A").click()
+        // A single Mac still creates workspaces on tap; the group option is on hold.
+        desc("New Workspace").longClick(); text("New Workspace Group").click()
+        text("New group A"); assertEquals(listOf("B", "A"), createdGroupOwners.toList())
+        assertFalse(device.hasObject(By.text("Name (optional)")))
+        assertEquals(loads, paths.count { it == "/start" }); assertTrue(desc("Choose terminal or pane").text!!.startsWith("Draft "))
+        capturePicker("browser-new-group-created")
+        desc("New Workspace").longClick(); text("New Workspace Group")
+        main { noticeSources = noticeSources.map { it.copy(capabilities = emptySet()) } }
+        until { !generateSequence(text("New Workspace Group")) { it.parent }.first { it.isClickable }.isEnabled }
+        text("New Workspace Group").click(); device.pressBack()
+        assertEquals(listOf("B", "B", "A"), groupAttempts.toList())
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { sidebarReleases.get() == 1 }; assertEquals(0, holds.get())
+    }
+    @Test fun globalSidebarNewGroupCancelsAQueuedCreateWhenComputerScopeChanges() = wideSidebar {
+        browser("Routed fixture ▾")
+        desc("New Workspace").click(); text("New Workspace Group").click()
+        until { newGroupStarted.isCompleted }
+        text("All Computers").click(); text("Mac B").click(); text("Mac B")
+        main { newGroupContinue.complete(Unit) }
+        text("Group creation is no longer active")
+        assertEquals(listOf("A"), groupAttempts.toList()); assertTrue(createdGroupOwners.isEmpty())
+        main { holdNewGroup = false }
+        desc("New Workspace").longClick(); text("New Workspace Group").click(); text("New group B")
+        assertEquals(listOf("B"), createdGroupOwners.toList())
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { sidebarReleases.get() == 1 }; assertEquals(0, holds.get())
+    }
+
     @Test fun globalSidebarCreationChoosesMacAndGroupThenUsesTheSingleMacPrimaryAction() = wideSidebar {
         browser("Routed fixture ▾")
         text("Keep draft").click(); until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }

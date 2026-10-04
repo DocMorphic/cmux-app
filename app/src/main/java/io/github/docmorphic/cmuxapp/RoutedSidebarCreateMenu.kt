@@ -15,10 +15,12 @@ import androidx.compose.ui.unit.sp
 /** Snapshot the displayed choices. A refresh may revoke a choice, never substitute a new target. */
 @Composable
 internal fun RoutedSidebarCreateMenu(values: List<RoutedSidebarCreateComputer>, selection: String?,
-    busy: Boolean, onCreate: (String) -> Unit) {
+    busy: Boolean, onCreate: (String) -> Unit, groupKey: String? = null, onCreateGroup: (String) -> Unit = {}) {
     var open by remember { mutableStateOf(false) }
     val opening = remember(open) { values.takeIf { open }.orEmpty() }
     val openedSelection = remember(open) { selection }
+    val openedGroup = remember(open) { groupKey }
+    val currentGroup by rememberUpdatedState(groupKey)
     var selectedSsh by remember(open) { mutableStateOf<String?>(null) }
     val currentValues by rememberUpdatedState(values)
     val currentBusy by rememberUpdatedState(busy)
@@ -69,6 +71,17 @@ internal fun RoutedSidebarCreateMenu(values: List<RoutedSidebarCreateComputer>, 
                             else selectedSsh = target.key
                         })
                 }
+            }
+            if (ssh == null && openedGroup != null) {
+                HorizontalDivider()
+                DropdownMenuItem(text = { Text("New Workspace Group") },
+                    leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_folder_plus) },
+                    enabled = !busy && currentGroup == openedGroup && openedSelection == selection,
+                    onClick = {
+                        if (!currentBusy && currentGroup == openedGroup && openedSelection == currentSelection) {
+                            open = false; onCreateGroup(openedGroup)
+                        }
+                    })
             }
         }
     }

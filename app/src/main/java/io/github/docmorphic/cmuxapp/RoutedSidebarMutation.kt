@@ -3,7 +3,7 @@ package io.github.docmorphic.cmuxapp
 /** Explicit operations only; the browser never supplies a Mac, native ID or RPC method. */
 internal enum class RoutedSidebarMutationKind(val verb: String) {
     PIN("pin"), UNPIN("unpin"), RENAME("rename"), MARK_READ("mark_read"), MARK_UNREAD("mark_unread"),
-    CLOSE("close"), UNGROUP("ungroup"), DELETE_GROUP("delete"), MOVE_TO_GROUP("move_to_group");
+    CLOSE("close"), UNGROUP("ungroup"), DELETE_GROUP("delete"), MOVE_TO_GROUP("move_to_group"), CREATE_GROUP("create_group");
     companion object {
         fun fromVerb(value: String) = entries.singleOrNull { it.verb == value }
     }

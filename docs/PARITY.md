@@ -12,7 +12,34 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — browser workspace creation (2026-10-04)
+## Latest checkpoint — New Workspace Group (2026-10-04)
+
+Scoped iOS source inspection corrected the preceding plan: New Workspace Group
+creates immediately with the Mac's default name. Android's extra naming dialog
+is removed. Both main/browser menus now expose that action; a captured Mac change
+disables an old choice. The browser creates in place and preserves its page/draft.
+All Computers uses the foreground Mac; a scoped view uses the selected Mac.
+Requests use the owning verified coordinator with capability/account checks and
+caller revalidation inside its mutation lock. Queued browser creation is rejected
+if the selected computer changes before sending. See [BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md).
+
+**88 focused JVM checks passed. Three distinct Android scenarios passed across
+the batch:** the main menu in the first run, and both browser checks in the final
+**53.628s** retry. The first browser checks reached their final cleanup but used
+a compact-only Back button; the repair uses Android Back. App APK unchanged across
+runs. Source/installed hashes matched, screenshots inspected, display restored,
+crash buffer empty and the existing API37/16KB emulator stopped/reaped. No new AVD;
+Pixel absent/untouched. Evidence: `captures/runtime/browser-new-group/` (ignored).
+
+The browser uses generated Mac state/callbacks; the coordinator uses framed RPC
+peers. This does not prove authenticated MainScreen, actual Mac creation, physical
+Pixel, process recovery or TalkBack acceptance. Signed **563** remains the latest
+verified download until the next batch passes its delivery gates. Next: SSH
+sidebar actions, ordering/selection, and the remaining physical/network,
+configured push/notice, legacy-ticket and broad upstream audit work. PR #1 remains
+draft and the full goal remains active.
+
+## Earlier checkpoint — browser workspace creation (2026-10-04)
 
 New Workspace in the browser now uses the existing parent creation flows:
 single-Mac direct creation, multi-computer selection, SSH cmux-tui/tmux/shell

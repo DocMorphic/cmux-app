@@ -8,3 +8,6 @@ internal fun NativeFeedSource.canEditGroups() = WORKSPACE_ACCOUNT_MUTATIONS_CAPA
     "workspace.group_actions.v1" in capabilities
 internal fun NativeFeedSource.canCreateInGroup() = WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY in capabilities &&
     "workspace.create_in_group.v1" in capabilities
+
+internal fun NativeFeedSource.canCreateGroup() = WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY in capabilities &&
+    "workspace.group_create.v1" in capabilities

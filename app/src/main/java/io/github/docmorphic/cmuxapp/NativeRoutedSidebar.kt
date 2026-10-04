@@ -46,7 +46,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val history: NativeSidebarHistory = NativeSidebarHistory(),
     private val mutateWorkspace: (suspend (NativeSidebarMutationTarget, RoutedSidebarMutation, () -> Boolean) -> Unit)? = null,
     private val moveWorkspace: (suspend (NativeFeedSource, String, NativeWorkspaceMove, () -> Boolean) -> Unit)? = null,
-    private val customizeWorkspace: (suspend (NativeSidebarMutationTarget, WorkspaceCustomizationDraft, WorkspaceCustomizationDraft, () -> Boolean) -> WorkspaceCustomizationResult)? = null) : RoutedSidebarHost {
+    private val customizeWorkspace: (suspend (NativeSidebarMutationTarget, WorkspaceCustomizationDraft, WorkspaceCustomizationDraft, () -> Boolean) -> WorkspaceCustomizationResult)? = null,
+    private val createWorkspaceGroup: (suspend (NativeCredentialStore.PairedMac, () -> Boolean) -> Unit)? = null) : RoutedSidebarHost {
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
@@ -160,6 +161,14 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     override suspend fun mutate(command: RoutedSidebarMutation, canSend: () -> Boolean) {
         command.validate()
         check(canSend()) { "Workspace sidebar is no longer visible" }
+        if (command.kind == RoutedSidebarMutationKind.CREATE_GROUP) {
+            val target = groupCreateTarget(checkNotNull(input()) { "Sidebar account changed" }, command.key)
+                ?: error("Group creation changed. Reopen New Workspace.")
+            checkNotNull(createWorkspaceGroup).invoke(target) {
+                canSend() && input()?.let { groupCreateTarget(it, command.key) == target } == true
+            }
+            return
+        }
         if (command.kind == RoutedSidebarMutationKind.MOVE_TO_GROUP) {
             val context = groupContext(command.key)
             check(command.menuRevision == context.revision) { "Group menu changed. Reopen Move to Group." }
@@ -221,6 +230,20 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         return RoutedSidebarCustomizationEditor(key, WorkspaceCustomizationDraft.from(item), current = {
             input()?.sources?.any { it.mac == source.mac && it.canCustomizeWorkspace() && it.workspaces.any { row -> row.id == item.id } } == true
         }, save = { baseline, submitted, canSend -> save(target, baseline, submitted, canSend) })
+    }
+    private fun groupCreateKey(mac: NativeCredentialStore.PairedMac, scoped: Boolean) = id("create-group", createKey(mac), scoped)
+    private fun groupCreateTarget(value: NativeSidebarInput, key: String): NativeCredentialStore.PairedMac? {
+        if (createWorkspaceGroup == null || value.creation?.busy != false) return null
+        return value.sources.filter { canCreate(value, it) && it.canCreateGroup() }.singleOrNull { source ->
+            key == groupCreateKey(source.mac, true) ||
+                (value.creation.foregroundMac == source.mac && key == groupCreateKey(source.mac, false))
+        }?.mac
+    }
+    private fun groupCreate(value: NativeSidebarInput, selected: String?): String? {
+        if (createWorkspaceGroup == null || value.creation?.busy != false) return null
+        val source = value.sources.singleOrNull { source -> if (selected == null) source.mac == value.creation.foregroundMac
+            else workspaceMacFilterId(source.mac.deviceId, source.mac.instanceTag) == selected } ?: return null
+        return groupCreateKey(source.mac, selected != null).takeIf { canCreate(value, source) && source.canCreateGroup() }
     }
     private fun createKey(mac: NativeCredentialStore.PairedMac, groupId: String? = null) =
         id("create-workspace", mac.origin, mac.code, mac.deviceId, mac.instanceTag, mac.accountUserId,
@@ -299,7 +322,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             readAll = if (query.notifications && validScope && unread > 0 && readAllNotifications != null)
                 RoutedSidebarReadAll(readAllKey(value, query), ordered.singleOrNull { it.id == selected }?.name ?: "All Computers") else null,
             canRefresh = query.notifications && refreshNotifications != null, expanded = expanded(projection),
-            creation = if (!query.notifications && validScope) creation(value, selected) else emptyList())
+            creation = if (!query.notifications && validScope) creation(value, selected) else emptyList(),
+            createGroup = if (!query.notifications && validScope) groupCreate(value, selected) else null)
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
         query: RoutedSidebarQuery, all: Boolean, filtering: Boolean): List<RoutedSidebarRow> {

@@ -11,7 +11,8 @@ internal data class RoutedSidebarCreateComputer(val key: String, val name: Strin
     val options: List<RoutedSidebarCreateOption>) {
     val enabled get() = options.any { it.unavailableReason == null }
 }
-internal data class NativeSidebarCreation(val busy: Boolean = false, val ssh: List<NativeSshCreateTarget> = emptyList())
+internal data class NativeSidebarCreation(val busy: Boolean = false, val ssh: List<NativeSshCreateTarget> = emptyList(),
+    val foregroundMac: NativeCredentialStore.PairedMac? = null)
 
 internal object RoutedSidebarCreationWire {
     private fun token(value: String) = value.also { require(it.length in 1..128 && it.none(Char::isISOControl)) }
