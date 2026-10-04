@@ -241,8 +241,8 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                     enabled = canInput && !preparing && draft.operation == null,
                     modifier = Modifier.testTag("ssh.shell.attach").semantics { contentDescription = "Attach image" }) { Text("+", fontSize = 24.sp) }
                 RichContentEditor(owner = shell, enabled = canInput && input.supportsImages && draft.operation == null,
-                    onContent = { input.paste(it, direct = false) }, onError = { message = it }) {
-                    OutlinedTextField(draft.text, { composer.edit(it) }, Modifier.weight(1f).testTag("ssh.shell.composer"),
+                    onContent = { input.paste(it, direct = false) }, onError = { message = it }) { pasteModifier ->
+                    OutlinedTextField(draft.text, { composer.edit(it) }, Modifier.weight(1f).then(pasteModifier).testTag("ssh.shell.composer"),
                         placeholder = { Text("Message or command") }, maxLines = 5, enabled = canInput)
                 }
                 TextButton(onClick = { rawKeyboard?.finishComposition(); motion.stop(); scroll = 0.0; input.submit() },

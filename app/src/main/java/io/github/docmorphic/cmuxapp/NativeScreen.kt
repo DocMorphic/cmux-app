@@ -2741,9 +2741,9 @@ fun NativeScreen(
                         }
                         RichContentEditor(owner = draftTarget to client,
                             enabled = terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments,
-                            onContent = ::acceptTerminalPaste, onError = { error = it }) {
+                            onContent = ::acceptTerminalPaste, onError = { error = it }) { pasteModifier ->
                             OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
-                                Modifier.weight(1f).onPreviewKeyEvent { event ->
+                                Modifier.weight(1f).then(pasteModifier).onPreviewKeyEvent { event ->
                                     val key = event.nativeKeyEvent
                                     if (key.action == AndroidKeyEvent.ACTION_DOWN &&
                                         key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {

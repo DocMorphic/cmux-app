@@ -12,6 +12,26 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — composer system Paste (2026-10-04)
+
+[COMPOSER_SYSTEM_PASTE.md](COMPOSER_SYSTEM_PASTE.md) closes the shared edit-menu and
+hardware attachment-paste gap in native terminal, SSH and New Task composers.
+Images/files enter existing attachment staging; URI/caption text is not inserted.
+Ordinary text preserves native selection and composition. Disabled, oversized and
+retired-owner actions cannot send attachments to another draft.
+
+Nine selected Android cases pass across two runs, including actual floating-menu
+clicks and a complete pasted-image task upload to the loopback RPC fixture. The
+initial seven-pass/two-failure run exposed a test window-lookup issue; the corrected
+menu cases passed in 31.291 s. Debug/test builds pass, screenshots were inspected,
+and the existing emulator is stopped. No signed milestone or release build here.
+
+**Next:** physical keyboard/provider acceptance, remaining multi-item provider-failure
+and drag/drop behavior, whole-process recreation, HTTPS/native-account acceptance
+and the broader source audit. Android feed and push configuration remain open.
+Build 494 is still the last signed APK; the last unsigned-release/ART gate is
+`786264d`. Do not repeat the pending Pixel reconnect question.
+
 ## Latest checkpoint — content-process crash acceptance (2026-10-04)
 
 [NOTICE_CONTENT_CRASH.md](NOTICE_CONTENT_CRASH.md) verifies an actual native content

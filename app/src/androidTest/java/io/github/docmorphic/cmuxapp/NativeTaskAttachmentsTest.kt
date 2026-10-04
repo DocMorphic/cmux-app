@@ -61,7 +61,9 @@ class NativeTaskAttachmentsTest {
         } } } }
     }
 
-    @Test fun keyboardImageStagesWithPromptAndUploadsWhenTaskIsCreated() {
+    @Test fun keyboardImageStagesWithPromptAndUploadsWhenTaskIsCreated() = imageStagesAndUploads(false)
+    @Test fun systemPasteImageStagesWithPromptAndUploadsWhenTaskIsCreated() = imageStagesAndUploads(true)
+    private fun imageStagesAndUploads(systemPaste: Boolean) {
         show()
         compose.onNodeWithContentDescription("Task prompt").performTextInput("Explain this image")
         compose.waitUntil(10_000) { keyboardRequest != null }
@@ -73,7 +75,16 @@ class NativeTaskAttachmentsTest {
         }
         try {
             val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.task-previews", photo)
-            compose.runOnIdle {
+            if (systemPaste) {
+                val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                val previous = clipboard.primaryClip
+                try {
+                    compose.runOnIdle { clipboard.setPrimaryClip(android.content.ClipData.newUri(context.contentResolver, "Photo", uri)) }
+                    compose.onNodeWithContentDescription("Task prompt").performTouchInput { longClick(center) }
+                    clickSystemPaste { compose.waitForIdle() }
+                    compose.waitUntil(15_000) { repository.drafts.state.value[id]?.attachments?.size == 1 }
+                } finally { compose.runOnIdle { previous?.let(clipboard::setPrimaryClip) ?: clipboard.clearPrimaryClip() } }
+            } else compose.runOnIdle {
                 val attributes = android.view.inputmethod.EditorInfo()
                 val connection = keyboardRequest!!.createInputConnection(attributes)
                 assertArrayEquals(arrayOf("image/*"), attributes.contentMimeTypes)
@@ -83,6 +94,14 @@ class NativeTaskAttachmentsTest {
             compose.waitUntil(15_000) { repository.drafts.state.value[id]?.attachments?.size == 1 }
             val draft = repository.drafts.state.value.getValue(id)
             assertEquals("Explain this image", draft.prompt)
+            if (systemPaste) {
+                compose.waitForIdle()
+                val root = File(context.getExternalFilesDir(null), "composer-system-paste").apply { mkdirs() }
+                InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().let { bitmap ->
+                    File(root, "task-attachment.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                    bitmap.recycle()
+                }
+            }
             val bytes = runBlocking { repository.readAttachment(draft.attachments.single()) }
             android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size).also { bitmap ->
                 assertEquals(android.graphics.Color.MAGENTA, bitmap.getPixel(3, 3)); bitmap.recycle()
