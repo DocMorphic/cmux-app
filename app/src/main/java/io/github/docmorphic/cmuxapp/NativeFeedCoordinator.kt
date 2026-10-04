@@ -272,6 +272,26 @@ internal class NativeFeedCoordinator(
         handle.changesListEvent = false
     }
 
+    fun changesAccess(mac: NativeCredentialStore.PairedMac, workspace: NativeWorkspace, permits: () -> Boolean): WorkspaceChangesAccess {
+        fun ownsWorkspace() = permits() && isAllowed(mac) && mutableSources.value[mac.origin]?.let { source ->
+            source.mac == mac && WORKSPACE_CHANGES_CAPABILITY in source.capabilities && source.workspaces.any { it.id == workspace.id }
+        } == true
+        fun admitted(): Handle? = handles[mac.origin]?.takeIf { handle ->
+            handle.mac == mac && permits() && current(handle) && handle.verified &&
+                WORKSPACE_CHANGES_CAPABILITY in handle.capabilities && handle.client?.isClosed == false &&
+                mutableSources.value[mac.origin]?.workspaces?.any { it.id == workspace.id } == true
+        }
+        return WorkspaceChangesAccess(workspace.id, workspace.title, ::ownsWorkspace) { request ->
+            withContext(scope.coroutineContext.minusKey(Job)) {
+                val handle = checkNotNull(admitted()) { "Changes computer is unavailable" }
+                val client = checkNotNull(handle.client)
+                val result = withContext(Dispatchers.IO) { client.readChanges(workspace.id, request) }
+                check(admitted() === handle && current(handle, client)) { "Changes computer changed" }
+                result
+            }
+        }
+    }
+
     /** Never substitute the foreground Mac when a row's owning session is unavailable. */
     suspend fun workspaceAction(mac: NativeCredentialStore.PairedMac, workspaceId: String,
         action: String, title: String? = null, canSend: () -> Boolean = { true }): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {

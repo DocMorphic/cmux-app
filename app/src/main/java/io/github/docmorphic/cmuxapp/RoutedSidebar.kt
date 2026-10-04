@@ -17,6 +17,7 @@ internal data class RoutedSidebarRow(
     val mutations: Set<RoutedSidebarMutationKind> = emptySet(),
     val canCustomize: Boolean = false, val createKey: String? = null,
     val sshKind: SshWorkspaceKind? = null, val selected: Boolean = false,
+    val changes: WorkspaceChangesChip? = null,
 ) {
     fun workspace() = NativeWorkspace(key, title, emptyList(), null, unread, activity, null, pinned,
         emptyList(), null, preview, color, subtitle, count, previewAt = previewAt)
@@ -67,6 +68,7 @@ internal interface RoutedSidebarHost {
     fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot?
     fun resolve(key: String): (() -> Unit)?
     fun groupMenu(key: String, revision: String?, offset: Int): RoutedSidebarGroupPage { error("Group moves are unavailable") }
+    fun changes(key: String): WorkspaceChangesAccess { error("Changes are unavailable") }
     fun customization(key: String): RoutedSidebarCustomizationEditor { error("Workspace customization is unavailable") }
     suspend fun mutate(command: RoutedSidebarMutation, canSend: () -> Boolean) { error("Workspace actions are unavailable") }
     fun sort(command: RoutedSidebarSort) { error("Sidebar sorting is unavailable") }
@@ -90,6 +92,7 @@ internal class RoutedSidebarExchange {
     private var readable = emptySet<String>()
     private var mutableRows = emptySet<String>()
     private var editable = emptySet<String>()
+    private var changes = emptySet<String>()
     private var selection: Pair<String, String>? = null
     fun begin(value: RoutedSidebarSnapshot): RoutedSidebarPage {
         require(value.rows.size <= RoutedSidebarWire.MAX_ROWS && value.computers.size <= 256)
@@ -103,7 +106,7 @@ internal class RoutedSidebarExchange {
         require(destinations.distinct().size == destinations.size)
         require(destinations.none { key -> value.rows.any { it.key == key } || value.actions.any { it.key == key } })
         revision = UUID.randomUUID().toString(); snapshot = value
-        issued = emptySet(); readable = emptySet(); mutableRows = emptySet(); editable = emptySet()
+        issued = emptySet(); readable = emptySet(); mutableRows = emptySet(); editable = emptySet(); changes = emptySet()
         return page(checkNotNull(revision), 0)
     }
     fun page(expectedRevision: String, offset: Int): RoutedSidebarPage {
@@ -122,6 +125,7 @@ internal class RoutedSidebarExchange {
         check(rows.isNotEmpty() || offset == value.rows.size) { "Sidebar row is too large." }
         mutableRows = mutableRows + rows.filter { it.mutations.isNotEmpty() }.map { it.key }
         editable = editable + rows.filter { it.canCustomize }.map { it.key }
+        changes = changes + rows.filter { it.changes != null }.map { it.key }
         readable = readable + rows.filter { it.kind == "notification" && it.canRead }.map { it.key }
         issued = issued + rows.filter { it.canOpen }.map { it.key } + value.actions.map { it.key } +
             rows.mapNotNull { it.createKey } + value.creation.flatMap { it.options }.filter { it.unavailableReason == null }.map { it.key }
@@ -134,6 +138,7 @@ internal class RoutedSidebarExchange {
     fun permitsGroupMenu(key: String) = key in mutableRows && snapshot?.rows?.any {
         it.key == key && RoutedSidebarMutationKind.MOVE_TO_GROUP in it.mutations
     } == true
+    fun permitsChanges(key: String) = key in changes
     fun permitsCustomization(key: String) = key in editable && snapshot?.rows?.any { it.key == key && it.canCustomize } == true
     fun permitsSort(command: RoutedSidebarSort): Boolean {
         val value = snapshot ?: return false
@@ -164,7 +169,7 @@ internal class RoutedSidebarExchange {
         selection = null
         return pending.second
     }
-    fun clear() { revision = null; snapshot = null; issued = emptySet(); readable = emptySet(); mutableRows = emptySet(); editable = emptySet(); selection = null }
+    fun clear() { revision = null; snapshot = null; issued = emptySet(); readable = emptySet(); mutableRows = emptySet(); editable = emptySet(); changes = emptySet(); selection = null }
 }
 
 internal object RoutedSidebarWire {
@@ -271,7 +276,8 @@ internal object RoutedSidebarWire {
                 .put("activity", value.activity?.takeIf(Double::isFinite)).put("previewAt", value.previewAt?.takeIf(Double::isFinite))
                 .put("mutations", JSONArray(value.mutations.map { it.name }.sorted()))
                 .put("customize", value.canCustomize).put("create", value.createKey?.let(::token))
-                .put("ssh_kind", value.sshKind?.name).put("selected", value.selected)
+                .put("ssh_kind", value.sshKind?.name).put("selected", value.selected).put("changes", value.changes?.let {
+                    JSONObject().put("files", it.files).put("additions", it.additions).put("deletions", it.deletions) })
                 .put("can_read", value.canRead).put("nested", value.notificationContext.nested)
                 .put("hide_headline", value.notificationContext.hideHeadline).put("hide_source", value.notificationContext.hideSource)
                 .put("hide_computer", value.notificationContext.hideComputer)
@@ -305,7 +311,13 @@ internal object RoutedSidebarWire {
                     NativeFeedAvailability.valueOf(item.getString("availability")), item.optInt("depth").coerceIn(0, 1),
                     item.optBoolean("expanded"), item.optBoolean("open"), item.optional("icon", 128), item.optBoolean("can_read"),
                     NativeFeedRowContext(item.optBoolean("nested"), item.optBoolean("hide_headline"), item.optBoolean("hide_source"), item.optBoolean("hide_computer")), mutations(item.optJSONArray("mutations") ?: JSONArray()), item.optBoolean("customize"), if (item.isNull("create")) null else token(item.getString("create")),
-                    if (item.isNull("ssh_kind")) null else SshWorkspaceKind.valueOf(item.getString("ssh_kind")), item.optBoolean("selected"))
+                    if (item.isNull("ssh_kind")) null else SshWorkspaceKind.valueOf(item.getString("ssh_kind")), item.optBoolean("selected"), item.optJSONObject("changes")?.let { chip ->
+                        fun count(key: String): Long {
+                            val raw = chip.get(key); require(raw is Int || raw is Long)
+                            return (raw as Number).toLong().also { require(it >= 0) }
+                        }
+                        WorkspaceChangesChip(count("files").also { require(it > 0 && kind == "workspace") }, count("additions"), count("deletions"))
+                    })
             } }, json.optInt("unread").coerceAtLeast(0), json.optBoolean("loading"), json.optional("status", 2048),
                 computerValues.filter { it.key in machineKeys }, selectedMachines,
                 if (json.isNull("sort_mode")) null else NativeWorkspaceSortMode.entries.single { it.raw == json.getString("sort_mode") }, actions,

@@ -101,6 +101,7 @@ class RoutedBrowserPresentationTest {
     private val sidebarCustomizationWrites = CopyOnWriteArrayList<Pair<String, WorkspaceCustomizationField>>()
     private val sidebarCustomizationStarted = CompletableDeferred<Unit>()
     private val sidebarCustomizationCancelled = CompletableDeferred<Unit>()
+    private val changesReads = CopyOnWriteArrayList<String>()
     private val noticeWrites = CopyOnWriteArrayList<String>()
     private val noticeBulk = CopyOnWriteArrayList<List<String>>()
     private var failNoticeWrite = true
@@ -116,6 +117,7 @@ class RoutedBrowserPresentationTest {
         }
         override fun current() = projectedSidebar?.current() ?: true
         override fun initialQuery() = projectedSidebar?.initialQuery() ?: RoutedSidebarQuery()
+        override fun changes(key: String) = checkNotNull(projectedSidebar).changes(key)
         override fun read(query: RoutedSidebarQuery) = if (projectedSidebar != null) projectedSidebar!!.read(query) else RoutedSidebarSnapshot(listOf(RoutedSidebarComputer("other-mac", "Other Mac")),
             if (query.notifications) listOf(RoutedSidebarRow("notice", "notification", "Remote notification", unread = true))
             else sidebarRows.filter { query.text.isBlank() || it.title.contains(query.text, ignoreCase = true) })
@@ -199,6 +201,27 @@ class RoutedBrowserPresentationTest {
             }; start()
         }
         main {
+            if (scenarioName == "globalSidebarChangesSheetReadsExactMacAndRetainsBrowserThroughDismissalAndRevocation") {
+                val a = NativeCredentialStore.PairedMac("changes-a", "A", "Mac A")
+                val b = NativeCredentialStore.PairedMac("changes-b", "B", "Mac B")
+                noticeSources = listOf(a, b).mapIndexed { index, mac -> NativeFeedSource(mac,
+                    workspaces = listOf(workspace.copy(title = "Changes workspace ${mac.deviceId}")),
+                    availability = NativeFeedAvailability.CONNECTED, capabilities = setOf(WORKSPACE_CHANGES_CAPABILITY),
+                    changes = mapOf(workspace.id to WorkspaceChangesChip(index + 1L, (index + 1L) * 11, index + 1L))) }
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-changes", {
+                    NativeSidebarInput(noticeSources, emptyList(), noticeSources.map { NativeSortComputer(it.mac.deviceId, it.mac.name) }, NativeWorkspaceSortState())
+                }, { RoutedSidebarLease({}) {} }, { error("Changes must not navigate the workspace") },
+                    readChanges = { mac, row, gate -> WorkspaceChangesAccess(row.id, row.title, gate) { request ->
+                        changesReads += "${mac.deviceId}:${request.javaClass.simpleName}"
+                        when (request) {
+                            WorkspaceChangesRead.Files -> JSONObject().put("workspace_id", row.id).put("repo_root", "/fixture")
+                                .put("files", org.json.JSONArray().put(JSONObject().put("path", "README.md").put("status", "modified").put("additions", 1).put("deletions", 1)))
+                            is WorkspaceChangesRead.Diff -> JSONObject().put("path", request.path)
+                                .put("unified_diff", "@@ -1 +1 @@\n-old-${mac.deviceId}\n+fresh-${mac.deviceId}\n").put("truncated", false)
+                            else -> error("Unexpected content request")
+                        }
+                    } })
+            }
             if (scenarioName == "globalSidebarSelectionFollowsCapturedOwnerAndLiveAnchorWithoutReload") {
                 val a = NativeCredentialStore.PairedMac("selection-a", "A", "Mac A")
                 val b = NativeCredentialStore.PairedMac("selection-b", "B", "Mac B")
@@ -572,6 +595,38 @@ class RoutedBrowserPresentationTest {
         assertEquals(sortStore.state.value, NativeWorkspaceSortStore({ sortJson }, {}).state.value)
         assertEquals(false, sidebarActive.last())
     }
+    @Test fun globalSidebarChangesSheetReadsExactMacAndRetainsBrowserThroughDismissalAndRevocation() = wideSidebar {
+        fun sheetDesc(label: String): UiObject2 {
+            compose.waitUntil(15_000) { device.hasObject(By.desc(label)) }
+            return desc(label)
+        }
+        fun sheetText(label: String) {
+            compose.waitUntil(15_000) { device.hasObject(By.text(label)) }
+        }
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        desc("Choose terminal or pane"); text("Keep draft").click()
+        sheetDesc("Choose terminal or pane")
+        until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        desc("Changes: 2 files, +22, −2").click()
+        sheetDesc("Changes in Changes workspace B"); sheetDesc("Open diff README.md").click(); sheetText("fresh-B")
+        assertEquals(listOf("B:Files", "B:Diff"), changesReads.toList())
+        capturePicker("browser-sidebar-changes-diff")
+        device.pressBack(); sheetDesc("Close changes").click()
+        sheetDesc("Choose terminal or pane")
+        until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+        assertEquals(loads, paths.count { it == "/start" }); until { sidebarReleases.get() == 1 }
+        desc("Changes: 1 file, +11, −1").click(); sheetDesc("Changes in Changes workspace A"); sheetDesc("Open diff README.md")
+        main { noticeSources = noticeSources.map { if (it.mac.deviceId == "A") it.copy(capabilities = emptySet()) else it } }
+        sheetDesc("Choose terminal or pane")
+        until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+        until { !device.hasObject(By.desc("Changes: 1 file, +11, −1")) }
+        assertEquals(loads, paths.count { it == "/start" }); assertNull(route); assertTrue(sidebarDestinations.isEmpty())
+        capturePicker("browser-sidebar-changes-return")
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { sidebarReleases.get() == 3 }; assertEquals(0, holds.get())
+    }
+
     @Test fun globalSidebarSelectionFollowsCapturedOwnerAndLiveAnchorWithoutReload() = wideSidebar {
         fun waitSelection(label: String, expected: Boolean) = until {
             try { selectedRow(label) == expected } catch (_: androidx.test.uiautomator.StaleObjectException) { false }

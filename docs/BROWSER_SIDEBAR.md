@@ -51,14 +51,15 @@ parent flows. New Workspace Group now creates in place with the Mac default name
 SSH Close now uses the shared feed with kind-specific confirmation.
 Title wrapping and preview-line preferences now share the main settings.
 Selection styling now shares the main rows and captures the browser owner.
-Drag ordering and changes previews still need browser parity work. Main-screen controls remain implemented separately; this does not establish
+Workspace changes now open the shared viewer above the live browser.
+Drag ordering and modal restoration still need parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
 Physical Pixel/Mac acceptance, actual account/team replacement during live
 browser use, real native/SSH feed integration with the new browser sidebar,
 large-text/accessibility review and authenticated process recovery remain open.
 The compact browser stays stacked. Signed build 571 includes the changes through
-New Workspace Group; SSH Close, display preferences and selection styling below await the next signed batch.
+New Workspace Group; SSH Close, display preferences, selection styling and changes sheets below await the next signed batch.
 
 ## Verification
 
@@ -927,3 +928,51 @@ No physical/account/process-death acceptance is inferred. Native/SSH call sites
 compile and share tested identity policy, but this batch does not exercise their
 full authenticated navigation. Signed 571 predates this feature; no signed build
 or release dispatched. Drag ordering and changes previews remain next.
+
+## Workspace changes sheet and live browser retention (2026-10-05)
+
+Scoped iOS `WorkspaceListView.swift` presents `WorkspaceChangesSheet` with a large
+sheet; `WorkspaceListView+Table.swift` and `WorkspaceListRowModel.swift` supply the
+changes capability/chip/action, and `WorkspaceRow.swift` renders the independent
+44pt button. Reference: `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`.
+
+Android now supplies `WorkspaceChangesChip` in each eligible browser workspace row.
+Only a row actually issued in the current paged snapshot may open a preview. The
+main process resolves its opaque row key against live exact-pairing inventory and
+issues a one-use ticket to the unexported `RoutedChangesActivity`. That transparent
+host keeps the original browser Activity/WebView mounted underneath the changes
+sheet. Its ViewModel owns a feed lease and navigation state; disposal releases the
+lease. No arbitrary RPC method or file-content payload is proxied through Binder.
+
+`WorkspaceChangesAccess` captures the workspace and checks ownership before and
+after each response. The feed coordinator requires the exact admitted, verified
+connection and changes capability for every read, and rejects results from a
+retired/replaced connection. Reads use IO without entering the mutation queue. The
+existing `ChangesStore`, `ChangesContent`, continuation and content-transfer code
+provide the viewer. Main-list chips now open this shared sheet without replacing
+the selected pane. Legacy explicit changes routes remain supported.
+
+Verification:
+
+- 50 JVM checks: three new sidebar/ownership cases, 34 sidebar protocol/controller
+  checks, seven changes-store and six content-transfer cases. No failures/skips.
+- Two chip UI cases and the production NativeScreen/TCP fixture test passed in the
+  first Android batch. The latter opens the owning Mac's files without terminal
+  replay and dismisses back to the workspace list.
+- Final browser scenario passed in **27.219s**: production Activity/service/sheet,
+  generated two-Mac feed with identical workspace IDs; B file/diff calls and visible
+  `fresh-B`; close back to unchanged page count/draft; A capability revocation closes
+  its sheet and removes its chip; no workspace navigation and all three leases
+  released. The first browser attempt needed main-process virtual-clock pumping
+  and also reported an ActivityScenario teardown failure; only the test changed.
+- Source and installed APK hashes matched, screenshots inspected, crash buffer
+  empty, display/settings restored, sole existing emulator stopped/reaped. Evidence:
+  `captures/runtime/sidebar-changes/` (ignored), including original failed output.
+- App APK: `ab2024101e1675676f952a1fbb9eb4a36db252120056c19deff7feea9dac6430`.
+  Test APK: `84bf460af4fd89114b845a2af05f1557d8485363bac6d19958be12421cf6e1ce`.
+
+The new routes reuse expansion/content-preview code, but this batch does not
+exercise every such UI path through the new sheet. Modal restoration/rotation,
+main-list presentation retention, process recovery, real Mac/Pixel and account/team
+replacement remain acceptance work. Drag ordering remains open. Signed 571 predates
+this change; no new signed build or release was dispatched.

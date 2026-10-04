@@ -12,7 +12,42 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — selected workspace and group anchor (2026-10-05)
+## Latest checkpoint — workspace changes sheets from both sidebars (2026-10-05)
+
+Browser rows now show the owning Mac's changed-file/addition/deletion chip. Tapping
+opens the existing full changes viewer in a main-process sheet above the live
+browser; it does not leave the browser or select a terminal/workspace. Main-list
+chips now use the same sheet presentation, matching the scoped iOS list behavior.
+
+A captured read-only workspace supplies files, diffs, expansion and revision
+content through the feed's exact verified Mac connection. Admission is checked
+before/after reads. Browser IPC carries chip counts and a one-use random sheet
+ticket; credentials, RPC clients and file contents stay in the main process. Sheet
+leases keep the feed alive and release on dismissal. Revoked ownership/capability
+closes the sheet; a transient offline read can report an error and retry while the
+workspace remains owned. Browser retirement invalidates its sheet capture.
+
+**50 JVM checks passed. Four Android scenarios passed across two runs.** The first
+run passed both shared-chip UI cases and the main NativeScreen/RPC fixture case.
+Its browser case stalled after the sheet header because that new main-process
+composition needed the test's virtual clock to advance, then had a teardown error.
+After a test-only clock fix, the browser scenario passed in **27.219s** with the
+same app APK: two Macs with colliding workspace IDs, exact B file/diff reads,
+rendered diff, return without page reload/draft loss, capability revocation and
+three released sidebar/sheet leases. Screenshots inspected, crash buffer empty,
+source/installed hashes matched, settings restored, sole emulator stopped/reaped.
+Pixel absent and untouched. Evidence: `captures/runtime/sidebar-changes/` (ignored).
+
+This does not establish physical Mac/Pixel or live-account acceptance, content
+preview UI through every new entry point, or modal recreation/process recovery.
+Main-list sheet presentation currently uses composition memory; retain/restore
+that presentation before claiming recreation parity. Next: modal restoration,
+browser drag ordering, a batched signed build, and remaining physical/network,
+push/notice, legacy-ticket and upstream-audit work. Signed **571** predates this,
+SSH Close, display preferences and selection highlighting. Goal active; PR #1 draft;
+global parity pin unchanged.
+
+## Earlier checkpoint — selected workspace and group anchor (2026-10-05)
 
 Main and browser sidebars now share the scoped iOS selection styles: blue title
 and 14dp / 14% accent background for workspaces, 6dp / 8% primary background for

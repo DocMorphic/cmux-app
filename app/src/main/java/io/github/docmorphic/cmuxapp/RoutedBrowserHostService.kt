@@ -47,6 +47,7 @@ class RoutedBrowserHostService : Service() {
                     RoutedBrowserProtocol.SIDEBAR -> result.putString("sidebar", RoutedSidebarWire.page(RoutedBrowserSessions.sidebar(entry, args)))
                     RoutedBrowserProtocol.SIDEBAR_GROUP_MENU -> result.putString("groups", RoutedSidebarGroupWire.encode(
                         RoutedBrowserSessions.groupMenu(entry, checkNotNull(args.getString("key")), args.getString("revision"), args.getInt("offset"))))
+                    RoutedBrowserProtocol.SIDEBAR_CHANGES -> result.putString("changes", RoutedBrowserSessions.openChanges(entry, checkNotNull(args.getString("key"))))
                     RoutedBrowserProtocol.SIDEBAR_EDITOR -> result.putString("editor", RoutedSidebarCustomizationWire.editor(
                         RoutedBrowserSessions.sidebarEditor(entry, checkNotNull(args.getString("key")))))
                     RoutedBrowserProtocol.SIDEBAR_EDITOR_CLOSE -> RoutedBrowserSessions.closeSidebarEditor(entry, checkNotNull(args.getString("editor")))

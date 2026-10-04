@@ -61,7 +61,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
             Bundle().apply { putString("key", key) }).getString("editor"))) },
         closeEditor = { ticket -> request(RoutedBrowserProtocol.SIDEBAR_EDITOR_CLOSE, Bundle().apply { putString("editor", ticket) }); Unit },
         customizeWorkspace = { command -> RoutedSidebarCustomizationWire.result(checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE,
-            Bundle().apply { putString("customize", RoutedSidebarCustomizationWire.save(command)) }).getString("customized"))) })
+            Bundle().apply { putString("customize", RoutedSidebarCustomizationWire.save(command)) }).getString("customized"))) },
+        readChanges = { key -> checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_CHANGES, Bundle().apply { putString("key", key) }).getString("changes")) })
     private fun configureSidebar() = sidebar.configure(binding != null && state.value.sidebarAvailable && !state.value.retired, foreground)
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         when (message.what) {
@@ -230,7 +231,11 @@ class RoutedBrowserActivity : ComponentActivity() {
                 onSidebarHidden = if (sidebarUi.search.active != null) ({ finishSearch() }) else null,
                 sidebar = { RoutedBrowserSidebar(controller.sidebar, sidebarUi, onOpen = { key ->
                     coroutineScope.launch { controller.sidebar.open(key)?.let { leave("sidebar", selection = it) } }
-                }, onFinishSearch = ::finishSearch) }, detail = {
+                }, onChanges = { key -> coroutineScope.launch {
+                    controller.sidebar.previewChanges(key)?.let { ticket ->
+                        startActivity(Intent(this@RoutedBrowserActivity, RoutedChangesActivity::class.java).putExtra("changes", ticket))
+                    }
+                } }, onFinishSearch = ::finishSearch) }, detail = {
                 val page = ui.surface?.state?.collectAsState()?.value
                 Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
                     NativeWorkspaceBackControl { TextButton(onClick = { leave("back") }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") } }

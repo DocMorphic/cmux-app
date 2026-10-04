@@ -45,14 +45,15 @@ absent from ADB and untouched.
 
 Evidence: `captures/runtime/release-608000c/` (ignored), including CI/provenance,
 package/runtime receipts, screenshots and native comparison. Next: browser drag
-ordering and changes previews, physical/network/process recovery, production
+ordering, modal restoration, physical/network/process recovery, production
 push/notice configuration, legacy tickets and the broader upstream audit. The goal
 remains active; scheduled upstream/preview workflows still await merge to main,
 and the global parity pin is unchanged.
 
 The branch now also includes SSH sidebar Close, the iOS shell-confirmation
 correction, shared browser workspace display preferences, and workspace/group
-selection highlighting. These have focused debug verification documented in
+selection highlighting, plus changes sheets that retain the live browser. These
+have focused debug verification documented in
 `BROWSER_SIDEBAR.md`; they are not in signed 571.
 
 ## Previous signed development APK — build 563 (2026-10-04)

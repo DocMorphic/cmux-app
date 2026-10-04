@@ -29,7 +29,7 @@ import java.time.format.FormatStyle
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarController, ui: RoutedSidebarUi,
-    onOpen: (String) -> Unit, onFinishSearch: (Boolean) -> Unit) {
+    onOpen: (String) -> Unit, onChanges: (String) -> Unit, onFinishSearch: (Boolean) -> Unit) {
     DisposableEffect(controller) { controller.visible(true); onDispose { controller.visible(false) } }
     var computers by remember { mutableStateOf(false) }
     var filters by remember { mutableStateOf(false) }
@@ -136,7 +136,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
             }
             when (row.kind) {
                 "workspace" -> Column(Modifier.padding(start = if (row.depth == 1) 24.dp else 0.dp)) {
-                    NativeWorkspaceRow(row.workspace(), isSelected = row.selected, availability = row.availability, handlesHold = true,
+                    NativeWorkspaceRow(row.workspace(), changesChip = row.changes, isSelected = row.selected, availability = row.availability, handlesHold = true,
                         displayPreferences = NativeDisplayPreferences(wrapTitles = ui.snapshot?.wrapTitles ?: false,
                             previewLines = ui.snapshot?.previewLines ?: 2),
                         canCustomize = row.canCustomize && !ui.mutationBusy,
@@ -149,7 +149,9 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                             SshWorkspaceKind.CMUX_TUI -> WorkspaceCloseConfirmation.ssh(PersistentSshWorkspaceKind.CMUX_TUI, row.title, row.computer.orEmpty())
                         },
                         canReadState = RoutedSidebarMutationKind.MARK_READ in mutations || RoutedSidebarMutationKind.MARK_UNREAD in mutations,
-                        onOpen = { if (row.canOpen) onOpen(row.key) }, onAction = ::mutate,
+                        onOpen = { if (row.canOpen) onOpen(row.key) }, onAction = { action, title ->
+                            if (action == "changes") onChanges(row.key) else mutate(action, title)
+                        },
                         remoteGroupMenu = if (RoutedSidebarMutationKind.MOVE_TO_GROUP in mutations) ({ back, dismiss ->
                             RoutedSidebarGroupMoveItems(controller, row.key, back) { command ->
                                 dismiss(); scope.launch { controller.mutate(command) }

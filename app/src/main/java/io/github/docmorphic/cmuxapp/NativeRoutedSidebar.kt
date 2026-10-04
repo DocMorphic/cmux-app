@@ -49,7 +49,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val customizeWorkspace: (suspend (NativeSidebarMutationTarget, WorkspaceCustomizationDraft, WorkspaceCustomizationDraft, () -> Boolean) -> WorkspaceCustomizationResult)? = null,
     private val createWorkspaceGroup: (suspend (NativeCredentialStore.PairedMac, () -> Boolean) -> Unit)? = null,
     private val canCloseSsh: (SshFeedRow) -> Boolean = { false },
-    private val closeSsh: (suspend (SshFeedRow, () -> Boolean) -> Unit)? = null) : RoutedSidebarHost {
+    private val closeSsh: (suspend (SshFeedRow, () -> Boolean) -> Unit)? = null,
+    private val readChanges: ((NativeCredentialStore.PairedMac, NativeWorkspace, () -> Boolean) -> WorkspaceChangesAccess)? = null) : RoutedSidebarHost {
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
@@ -366,6 +367,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                     is WorkspaceListEntry.Workspace -> displayWorkspace(workspace(entry.source.mac, entry.workspace.id), entry.workspace,
                         value.appearances.name(entry.source.mac), entry.source.availability, if (entry.indented) 1 else 0, true)
                         .copy(selected = selection.matches(entry.source.mac, entry.workspace.id),
+                            changes = entry.source.changes[entry.workspace.id]?.takeIf { it.files > 0 && readChanges != null &&
+                                WORKSPACE_CHANGES_CAPABILITY in entry.source.capabilities && entry.source.availability == NativeFeedAvailability.CONNECTED },
                             canCustomize = customizeWorkspace != null && entry.source.canCustomizeWorkspace(), mutations = buildSet {
                             if (mutateWorkspace != null) addAll(entry.source.sidebarWorkspaceMutations(entry.workspace))
                             if (entry.workspace.id in movable[entry.source.mac.origin].orEmpty()) add(RoutedSidebarMutationKind.MOVE_TO_GROUP)
@@ -421,6 +424,16 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                 }
             }
         }
+    }
+    override fun changes(key: String): WorkspaceChangesAccess {
+        val value = checkNotNull(input()) { "Sidebar account changed" }
+        val (source, workspace) = value.sources.flatMap { source -> source.workspaces.map { source to it } }
+            .singleOrNull { (source, row) -> workspace(source.mac, row.id) == key } ?: error("Workspace changed")
+        fun current() = input()?.sources?.any { live -> live.mac == source.mac &&
+            WORKSPACE_CHANGES_CAPABILITY in live.capabilities &&
+            live.workspaces.any { it.id == workspace.id } } == true
+        check(current() && source.availability == NativeFeedAvailability.CONNECTED) { "Changes workspace is unavailable" }
+        return checkNotNull(readChanges)(source.mac, workspace, ::current)
     }
     override fun resolve(key: String): (() -> Unit)? {
         fun target(): NativeSidebarTarget? {

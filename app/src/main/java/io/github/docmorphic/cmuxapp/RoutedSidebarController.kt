@@ -24,7 +24,8 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     private val readGroupMenu: suspend (String, String?, Int) -> RoutedSidebarGroupPage = { _, _, _ -> error("Group moves are unavailable") },
     private val readEditor: suspend (String) -> RoutedSidebarCustomization = { error("Workspace customization is unavailable") },
     private val closeEditor: suspend (String) -> Unit = {},
-    private val customizeWorkspace: suspend (RoutedSidebarCustomizationSave) -> WorkspaceCustomizationResult = { error("Workspace customization is unavailable") }) {
+    private val customizeWorkspace: suspend (RoutedSidebarCustomizationSave) -> WorkspaceCustomizationResult = { error("Workspace customization is unavailable") },
+    private val readChanges: suspend (String) -> String = { error("Changes are unavailable") }) {
     private val sortMutex = Mutex()
     private val mutable = MutableStateFlow(RoutedSidebarUi())
     val state = mutable.asStateFlow()
@@ -220,6 +221,16 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
                 delay(1_500)
             }
         }
+    }
+    suspend fun previewChanges(key: String): String? {
+        if (!editorVisible() || state.value.editorLoading || state.value.snapshot?.rows?.any { it.key == key && it.changes != null } != true) return null
+        mutable.value = state.value.copy(editorLoading = true, actionError = null)
+        return try { readChanges(key).takeIf { editorVisible() } }
+        catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            mutable.value = state.value.copy(actionError = failure.message ?: "Could not open changes")
+            null
+        } finally { mutable.value = state.value.copy(editorLoading = false) }
     }
     suspend fun open(key: String): String? {
         if (state.value.navigating || !available || !foreground || !visible) return null

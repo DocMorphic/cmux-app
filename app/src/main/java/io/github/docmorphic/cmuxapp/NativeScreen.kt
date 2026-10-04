@@ -2986,6 +2986,7 @@ internal fun NativeScreen(
                 }
             })
     }
+    var sidebarChanges by remember { mutableStateOf<WorkspaceChangesAccess?>(null) }
     val changesContent: @Composable ColumnScope.() -> Unit = {
         val active = client
         val workspace = selectedChangesWorkspace!!
@@ -3276,7 +3277,9 @@ internal fun NativeScreen(
                         onOpen = { open() },
                         onAction = { action, title ->
                             if (action == "customize") customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, owner.mac, workspace.id)
-                            else if (action == "changes") open(changes = true)
+                            else if (action == "changes") sidebarChanges = feedCoordinator.changesAccess(owner.mac, workspace) {
+                                store.taskSession() == browserLogin && store.visiblePairedMacs().contains(owner.mac) && connection.allowsSaved(owner.mac)
+                            }
                             else if (action.startsWith("move:")) {
                                 val target = action.removePrefix("move:").takeIf { it.isNotBlank() }
                                 move(owner, workspace.id, NativeWorkspaceMove(target, null))
@@ -3464,12 +3467,15 @@ internal fun NativeScreen(
             }, createWorkspaceGroup = { mac, canSend ->
                 check(currentOwner()) { "Sidebar account changed" }
                 feedCoordinator.createGroup(mac) { currentOwner() && canSend() }
+            }, readChanges = { mac, workspace, permitted ->
+                feedCoordinator.changesAccess(mac, workspace) { currentOwner() && permitted() }
             }, canCloseSsh = { row -> currentOwner() && sshSession?.workspaceFeed?.isCloseAvailable(row) == true },
             closeSsh = { row, canSend ->
                 check(currentOwner()) { "Sidebar account changed" }
                 checkNotNull(sshSession).workspaceFeed.submitClose(row) { currentOwner() && canSend() }
             })
     } }
+    sidebarChanges?.let { access -> WorkspaceChangesSheet(access, { sidebarChanges = null }) }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
         LocalWorkspaceCustomizationAction provides customizePane, LocalRoutedSidebarHost provides sidebarHost) {
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {

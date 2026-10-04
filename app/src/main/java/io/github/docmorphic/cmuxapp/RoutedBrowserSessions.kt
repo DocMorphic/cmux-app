@@ -32,6 +32,8 @@ internal object RoutedBrowserSessions {
         val sidebarExchange = RoutedSidebarExchange()
         val sidebarGroupExchange = RoutedSidebarGroupExchange()
         var sidebarEditor: RoutedSidebarCustomizationEditor? = null
+        var changesCapture: Pair<String, RoutedChangesCapture>? = null
+        var changesOwner: String? = null
         var foreground = false
         var sidebarVisible = false
         var sidebarQuery: RoutedSidebarQuery? = null
@@ -207,6 +209,27 @@ internal object RoutedBrowserSessions {
         try { editor.save(command, ::current) }
         finally { retirement.cancel(); entry.sidebarMutationMutex.unlock() }
     }
+    fun openChanges(entry: Entry, key: String): String {
+        check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
+            entry.sidebarExchange.permitsChanges(key)) { "Changes preview is no longer visible" }
+        val host = checkNotNull(entry.sidebar)
+        val access = host.changes(key)
+        val ticket = UUID.randomUUID().toString()
+        entry.changesOwner = ticket
+        val captured = RoutedChangesCapture(access, host::retain) {
+            entry.changesOwner == ticket &&
+            !entry.exited.isCompleted && !entry.menuRetired && !entry.network.retired.isCompleted &&
+                entry.sidebar?.owner == host.owner && host.current() && access.current()
+        }
+        entry.changesCapture = ticket to captured
+        return ticket
+    }
+    fun takeChanges(ticket: String?): RoutedChangesCapture? {
+        val entry = active ?: return null
+        val pending = entry.changesCapture?.takeIf { ticket != null && it.first == ticket } ?: return null
+        entry.changesCapture = null
+        return pending.second.takeIf { it.current() }
+    }
     fun selectSidebar(entry: Entry, key: String): String {
         check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible) { "Sidebar is not visible" }
         return entry.sidebarExchange.prepare(key) { entry.sidebar?.resolve(it) != null }
@@ -227,6 +250,7 @@ internal object RoutedBrowserSessions {
     fun finished(entry: Entry) {
         if (entry.exited.isCompleted) return
         entry.sidebarEditor = null
+        entry.changesCapture = null; entry.changesOwner = null
         entry.death?.let { runCatching { entry.peer?.binder?.unlinkToDeath(it, 0) } }
         entry.surfaceWatch?.cancel(); entry.surfaceWatch = null
         entry.sidebarLease?.close(); entry.sidebarLease = null
