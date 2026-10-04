@@ -12,6 +12,26 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — notice engine process death (2026-10-04)
+
+[NOTICE_PROCESS_DEATH.md](NOTICE_PROCESS_DEATH.md) adds a real SIGKILL test of the
+Android process owning the production notice engine, ledger and presentation UI.
+The final case passes in 48.644 s across PIDs 3302 → 3597 → 3903: pending content
+stays unseen, appearance persists acknowledgement, the archive renders after a
+cold process restart, and the exact killed context has no cookies/localStorage
+while the new page remains open. Screenshots were inspected.
+
+Earlier startup/archive failures and the stronger probe ordering are retained.
+The final run used compiled debug bytecode; reliable cold-start timing on Pixel
+remains open. Final debug/test build and packaging pass. Only debug/test/docs
+changed, the existing emulator is stopped, and no signed milestone was created.
+
+**Next:** full production connection-graph/physical Pixel recovery, real HTTPS/native
+account notice acceptance, cold-start performance, remaining storage/API parity
+and broader source audit. ADB still shows no Pixel; do not repeat the pending
+reconnect question. Android feed/push configuration remain open. Build 494 is the
+last signed APK; the last unsigned-release/ART gate is `786264d`.
+
 ## Latest checkpoint — terminal attachment paste (2026-10-04)
 
 [TERMINAL_PASTE_PRECEDENCE.md](TERMINAL_PASTE_PRECEDENCE.md) aligns direct and toolbar
