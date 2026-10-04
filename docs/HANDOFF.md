@@ -26,6 +26,27 @@ The license-dialog correction is now verified in debug (see the newer checkpoint
 below). The goal remains active; physical/authenticated acceptance, feed/push configuration and
 broader parity remain open. Older delivery sections below are historical.
 
+## Latest checkpoint — workspace customization (2026-10-04)
+
+[WORKSPACE_CUSTOMIZATION.md](WORKSPACE_CUSTOMIZATION.md) adds the iOS name,
+pinned, description and optional color editor to workspace rows and the native
+pane picker. Saves check owning-Mac capabilities, preserve untouched Mac edits,
+rebase conflicts and retain unsent edits after partial failure. Truncated
+Mac descriptions are read-only; descriptions use the 4,096-byte wire limit.
+
+**11 JVM + four Android cases pass** (Android 70.401s), including production
+coordinator/local RPC save and clear, partial failure/retry, duplicate-save
+prevention and editor saved-state restoration. Final screenshots inspected,
+crash buffer empty, sole AVD stopped/reaped. Earlier failed test attempts and
+the stale-test-APK diagnosis are retained in the local evidence receipt.
+Signed build 517 is unchanged; no physical Pixel appeared in ADB.
+
+**Next:** routed-browser customization entry, offline entry-point audit and full
+Activity/process restoration; physical Pixel/Mac browser/recovery and metadata
+checks; broader source/UI parity and production connection-graph acceptance.
+Current-source signed/cold-start verification and push/feed provider
+configuration remain open. The overall goal remains active.
+
 ## Latest checkpoint — workspace-action failure policy (2026-10-04)
 
 [DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#workspace-action-failure-policy--2026-10-04)

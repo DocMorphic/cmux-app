@@ -448,6 +448,17 @@ fun NativeScreen(
         }
     }
     val feedSources by feedCoordinator.sources.collectAsState()
+    var customizationTarget by rememberSaveable(browserLogin, teamState.scope, stateSaver = workspaceCustomizationTargetSaver) {
+        mutableStateOf<WorkspaceCustomizationTarget?>(null)
+    }
+    val customizationMac = pairedMacs.singleOrNull { it.origin == customizationTarget?.origin && connection.allowsSaved(it) }
+    val customizationWorkspace = customizationMac?.let { feedSources[it.origin]?.workspaces?.singleOrNull { row -> row.id == customizationTarget?.workspaceId } }
+    if (signedIn && customizationMac != null && customizationWorkspace != null) {
+        NativeWorkspaceCustomizationSheet(customizationWorkspace, onDismiss = { customizationTarget = null }) { baseline, draft ->
+            feedCoordinator.customizeWorkspace(customizationMac, customizationWorkspace.id, baseline, draft)
+        }
+    }
+
     fun workspaceSourceForPane(): NativeFeedSource? = pairedMacs.singleOrNull { it.code == code }?.let { mac ->
         feedSources[mac.origin] ?: NativeFeedSource(mac)
     }
@@ -3016,7 +3027,7 @@ fun NativeScreen(
                     Column(Modifier.padding(start = if (entry.indented) 18.dp else 0.dp)
                         .semantics { contentDescription = "${workspace.title} on ${appearances.name(owner.mac)}" }) {
                     NativeWorkspaceRow(
-                        workspace = workspace, groups = owner.groups,
+                        workspace = workspace, groups = owner.groups, canCustomize = owner.canCustomizeWorkspace(),
                         displayPreferences = displayState,
                         computer = appearances.name(owner.mac).takeIf { selectedOrigin == null && pairedMacs.size > 1 },
                         appearance = appearances.get(owner.mac), machineId = owner.mac.colorIdentity.colorSeed,
@@ -3024,7 +3035,8 @@ fun NativeScreen(
                         canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
                         onOpen = { open() },
                         onAction = { action, title ->
-                            if (action == "changes") open(changes = true)
+                            if (action == "customize") customizationTarget = WorkspaceCustomizationTarget(owner.mac.origin, workspace.id)
+                            else if (action == "changes") open(changes = true)
                             else if (action == "browser.create") openNewBrowser(owner, workspace)
                             else if (action == "terminal.create") createTerminal(owner, workspace)
                             else if (action.startsWith("move:")) {
@@ -3063,7 +3075,11 @@ fun NativeScreen(
             onEdit = { value, generation -> searchState = searchState.edit(value, searchScope, generation) },
             onSubmit = { finishSearch() }, onCancel = { finishSearch(cancel = true) })
     }
-    CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings) {
+    val customizePane: ((NativeWorkspace) -> Unit)? = workspaceSourceForPane()?.takeIf { it.canCustomizeWorkspace() }?.let { source ->
+        { workspace -> customizationTarget = WorkspaceCustomizationTarget(source.mac.origin, workspace.id) }
+    }
+    CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
+        LocalWorkspaceCustomizationAction provides customizePane) {
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
         if (signedIn && terminalStartupState.failure?.key?.let { it == displayedTab?.first } == true) {
@@ -3236,6 +3252,7 @@ internal fun NativeWorkspaceRow(
     workspace: NativeWorkspace,
     groups: List<NativeGroup>,
     canMove: Boolean,
+    canCustomize: Boolean = false,
     displayPreferences: NativeDisplayPreferences = NativeDisplayPreferences(),
     computer: String? = null,
     appearance: NativeMacAppearance = NativeMacAppearance(), machineId: String? = null, machineColorIndex: Int? = null,
@@ -3246,14 +3263,19 @@ internal fun NativeWorkspaceRow(
     var rename by remember { mutableStateOf(false) }
     var confirmClose by remember { mutableStateOf(false) }
     var title by remember(workspace.id) { mutableStateOf(workspace.title) }
-    Row(Modifier.fillMaxWidth().clickable(onClick = onOpen)
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).clickable(onClick = onOpen)
         .semantics {
             stateDescription = listOfNotNull("Pinned".takeIf { workspace.isPinned },
                 workspace.unreadState.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
         }.padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
         NativeUnreadGutter(workspace.unreadState)
         NativeMacAvatar(appearance, machineId ?: workspace.id, index = machineColorIndex, defaultSymbol = "terminal")
-        Spacer(Modifier.width(13.dp))
+        Spacer(Modifier.width(8.dp))
+        val workspaceAccent = workspace.color?.takeIf { Regex("#[0-9a-fA-F]{6}").matches(it) }?.drop(1)?.toLongOrNull(16)
+        Box(Modifier.width(3.dp).fillMaxHeight().padding(vertical = 5.dp)
+            .background(workspaceAccent?.let { Color(0xFF000000L or it).copy(alpha = .95f) } ?: Color.Transparent, RoundedCornerShape(1.5.dp))
+            .testTag("workspace.color:${workspace.id}"))
+        Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             computer?.let { Text(it, color = nativeMuted, fontSize = 10.sp, maxLines = 1) }
             Text(workspace.title.ifBlank { "Workspace" }, Modifier.testTag("workspace.title:${workspace.id}"),
@@ -3286,6 +3308,7 @@ internal fun NativeWorkspaceRow(
                 DropdownMenuItem(text = { Text("New browser") }, onClick = {
                     expanded = false; onAction("browser.create", null)
                 })
+                if (canCustomize) DropdownMenuItem(text = { Text("Customize Workspace") }, onClick = { expanded = false; onAction("customize", null) })
                 DropdownMenuItem(text = { Text("Rename") }, onClick = { expanded = false; title = workspace.title; rename = true })
                 DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") }, onClick = {
                     expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null)

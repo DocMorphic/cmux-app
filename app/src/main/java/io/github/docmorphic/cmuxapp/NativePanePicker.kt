@@ -42,6 +42,7 @@ internal fun NativePanePicker(title: String, workspace: NativeWorkspace?, select
         "browser" -> row.id == selection.browser?.id || (row.fallbackBrowser && row.id == selection.surface?.id)
         else -> false
     } }
+    val customize = LocalWorkspaceCustomizationAction.current
     NativePanePicker(title, rows, selected, modifier, onSelect = { row ->
         when (row.kind) {
             "terminal" -> workspace?.terminals?.singleOrNull { it.id == row.id }?.let(onTerminal)
@@ -49,7 +50,11 @@ internal fun NativePanePicker(title: String, workspace: NativeWorkspace?, select
             "browser" -> (workspace?.browsers?.singleOrNull { it.id == row.id }
                 ?: workspace?.browserFallback(row.id, browserState)?.let { NativeBrowser(it.id, it.displayTitle) })?.let(onBrowser)
         }
-    }, onNewWorkspace, onNewTerminal, onNewBrowser, browserState = browserState, utilities = utilities)
+    }, onNewWorkspace, onNewTerminal, onNewBrowser, browserState = browserState, utilities = { close ->
+        if (workspace != null && customize != null) DropdownMenuItem(text = { Text("Customize Workspace") },
+            onClick = { close(); customize(workspace) })
+        utilities(close)
+    })
 }
 
 @Composable

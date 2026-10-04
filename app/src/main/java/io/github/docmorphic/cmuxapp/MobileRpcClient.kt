@@ -343,6 +343,31 @@ class MobileRpcClient internal constructor(
         return request("workspace.action", params)
     }
 
+    internal suspend fun customizeWorkspace(workspace: NativeWorkspace, field: WorkspaceCustomizationField,
+        draft: WorkspaceCustomizationDraft): JSONObject {
+        if (field == WorkspaceCustomizationField.NAME || field == WorkspaceCustomizationField.PINNED)
+            return workspaceAction(workspace.id, workspace.windowId,
+                if (field == WorkspaceCustomizationField.NAME) "rename" else if (draft.pinned) "pin" else "unpin", draft.name)
+        val params = JSONObject().put("workspace_id", workspace.id).put("client_id", clientId)
+        workspace.windowId?.let { params.put("window_id", it) }
+        when (field) {
+            WorkspaceCustomizationField.DESCRIPTION -> {
+                val description = normalizedWorkspaceDescription(draft.description)
+                require((description?.toByteArray(Charsets.UTF_8)?.size ?: 0) <= WORKSPACE_DESCRIPTION_MAX_BYTES)
+                params.put("action", if (description == null) "clear_description" else "set_description")
+                if (description != null) params.put("description", description)
+            }
+            WorkspaceCustomizationField.COLOR -> {
+                val color = draft.color?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }
+                require(color == null || Regex("#[0-9A-F]{6}").matches(color))
+                params.put("action", if (color == null) "clear_color" else "set_color")
+                if (color != null) params.put("color", color)
+            }
+            else -> error("Unexpected customization field")
+        }
+        return request("workspace.action", params)
+    }
+
     suspend fun closeWorkspace(workspaceId: String, windowId: String?): JSONObject {
         val params = JSONObject().put("workspace_id", workspaceId).put("client_id", clientId)
         if (!windowId.isNullOrBlank()) params.put("window_id", windowId)

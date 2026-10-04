@@ -2663,6 +2663,8 @@ internal class NativeFixturePeer : AutoCloseable {
     val rejectNextInput = AtomicBoolean(false)
     @Volatile var rejectedMethods: Set<String> = emptySet()
     @Volatile var groupActionsSupported = false
+    @Volatile var workspaceMetadataSupported = false
+    @Volatile var workspaceActionResponse: ((JSONObject) -> JSONObject)? = null
     @Volatile var releaseNextInput: CountDownLatch? = null
     @Volatile var releaseNextPaste: CountDownLatch? = null
     @Volatile var releaseNextFeed: CountDownLatch? = null
@@ -2860,6 +2862,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 if (identifiedInput) it.put(TerminalInputDelivery.CAPABILITY)
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (groupActionsSupported) it.put("workspace.group_actions.v1")
+                if (workspaceMetadataSupported) it.put("workspace.actions.v1").put(WORKSPACE_METADATA_CAPABILITY)
                 if (browserCreationSupported) it.put("browser.stream.v1").put("browser.stream.create.v1")
                 if (todoSupported) it.put("todo.v1")
                 if (panelArtifactsSupported) it.put("panel.artifact.v1").put("surface.focus.v1")
@@ -2893,7 +2896,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 customWorkspaceListing = JSONObject(listing.toString()).put("workspaces", JSONArray(rows))
             }
         }
-        "workspace.action" -> JSONObject().also {
+        "workspace.action" -> workspaceActionResponse?.invoke(params) ?: JSONObject().also {
             if (params.optString("action") == "rename" && params.optString("workspace_id") == "workspace-1")
                 renamedWorkspace = params.getString("title")
             if (params.optString("action") in setOf("mark_read", "mark_unread")) {

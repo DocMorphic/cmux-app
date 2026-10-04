@@ -285,6 +285,32 @@ internal class NativeFeedCoordinator(
             }
         }
 
+    suspend fun customizeWorkspace(mac: NativeCredentialStore.PairedMac, workspaceId: String,
+        baseline: WorkspaceCustomizationDraft, submitted: WorkspaceCustomizationDraft): WorkspaceCustomizationResult =
+        withContext(scope.coroutineContext.minusKey(Job)) {
+            val handle = handles[mac.origin] ?: error("Connect to this Mac to customize the workspace.")
+            check(handle.mac == mac && isAllowed(mac)) { "Saved computer changed" }
+            handle.mutex.withLock {
+                val client = handle.client ?: error("This Mac is offline.")
+                fun requireOwner() {
+                    check(handle.verified && current(handle, client)) { "Computer connection changed." }
+                    check(WORKSPACE_METADATA_CAPABILITY in handle.capabilities && "workspace.actions.v1" in handle.capabilities) { "Update cmux on this Mac to customize workspaces." }
+                }
+                fun workspace(): NativeWorkspace = mutableSources.value[mac.origin]?.workspaces?.singleOrNull { it.id == workspaceId }
+                    ?: error("This workspace is no longer available. Reopen the workspace list and try again.")
+                requireOwner()
+                saveWorkspaceCustomization(baseline, submitted, read = {
+                    requireOwner(); refreshWorkspaces(handle, client); requireOwner()
+                    WorkspaceCustomizationDraft.from(workspace())
+                }, write = { field, draft ->
+                    requireOwner()
+                    val latest = workspace()
+                    workspaceSnapshots.mutate(mac) { client.customizeWorkspace(latest, field, draft) }
+                    requireOwner()
+                })
+            }
+        }
+
     suspend fun groupAction(mac: NativeCredentialStore.PairedMac, groupId: String,
         action: String, title: String? = null): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
         owningMutation(mac) { _, client ->
