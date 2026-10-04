@@ -62,9 +62,10 @@ No Pixel was connected; signed build 517 is unchanged.
 
 ## Remaining row parity
 
-The visible Android action button is still present. Swipe read/delete and
-TalkBack action discovery are implemented below. Matching iOS long-press context
-menus still requires coordinating them with the existing drag-reorder surface. The changes-summary chip now has its own list cache
+Workspace rows now use long-press menus instead of a visible action button,
+with coordinated swipe/drag behavior and consolidated accessibility actions.
+The group header's action button and exact context-menu contents/icons/submenus
+still need the remaining presentation audit. The changes-summary chip now has its own list cache
 and opens the existing Changes viewer (see the checkpoint below). Selected/sidebar styling, wider-screen layouts, dynamic type/TalkBack,
 production multi-Mac behavior and physical Pixel comparison still need checks.
 These are remaining work, not unavoidable Android differences.
@@ -217,3 +218,61 @@ app screenshot verifies its theme and confirmation. Final crash buffer empty,
 sole AVD stopped/reaped. Hashes, logs and copied JVM results are recorded in
 `captures/runtime/workspace-swipe/verification.json`. No physical Pixel was
 connected; signed build 537 is unchanged.
+
+## Long-press menu and drag coordination — 2026-10-04
+
+The list owns one long-press recognizer. Holding a row opens that owning row's
+menu without selecting a terminal or admitting a reorder. Moving vertically past
+Android touch slop after the hold dismisses the menu and lifts the same row into
+the existing reorder/autoscroll path. Reorder-disabled lists still allow menus.
+During the original hold, the popup does not take window focus and ignores
+outside-dismiss requests; after release it becomes focusable for keyboard and accessibility navigation. Removing/replacing a
+row dismisses its presentation through the owning composition key, including
+account replacement at the same origin and workspace ID. Rename/delete dialogs
+also reset when that menu owner changes.
+
+The workspace row's visible ellipsis is removed. Its semantic long-click and
+Show workspace actions entry expose the same menu; read/delete and move up/down
+actions now live on that row's accessible node. Captured move actions re-resolve
+the current row and reject a removed/replaced owner before invoking the move
+callback. Generic drag-list consumers can retain container-level move actions.
+Group headers also receive long-press and consolidated move actions, while their
+existing action button remains pending the broader group-menu presentation audit.
+
+This change retains the existing Android menu contents (including pane-creation
+and Changes shortcuts). Exact context-menu grouping/icons and the official
+Move to Group submenu remain presentation work; they are not platform limitations.
+The iOS behavioral reference remains `WorkspaceListTableCoordinator.swift` and
+`WorkspaceListTableCoordinator+Actions.swift` at the scoped revision above.
+
+The list disables scrolling at long-press admission, before a drag is lifted,
+so its scroll recognizer cannot take the first drag movement. Edge scrolling
+starts directly in the admitted gesture callback with an undispatched coroutine;
+waiting for a later composition effect lost the early drag frames in the
+virtualized-list check. A read-only group does not create an invisible menu that
+could block its next tap. Group open/collapse callbacks also respect an active
+context hold. Popup visibility checks wait for asynchronous window attachment
+before asserting that the menu is on screen.
+
+### Context-menu verification
+
+The final production APK passed 13/15 Android cases in 149.132s. Two checks needed
+explicit waits after Save/Resume: the edited name was still visible in the editor
+while writes ran, and the error label persisted until the next UI update. With
+those waits fixed, both cases plus three actual process-restoration cases passed
+(5/5, 144.538s), for **18 distinct passing checks** against this production code.
+This is a combined result, not one green 18-test invocation. The preceding
+six-case gesture gate passed in 47.531s.
+
+Coverage includes OS pointer hold → visible popup → drag, virtualized auto-scroll,
+swipe regression, move/menu/read/delete semantics on one row, owner replacement
+at an unchanged origin, rename dismissal, unsupported group behavior, framed-RPC
+read/delete/rejected-group actions, offline editor recreation, and saved-draft
+process death/conflict/account replacement. Earlier failed and stopped runs
+remain in the local receipt. Main APK assembly passed in 39s; the final test-only
+rebuild passed in 20s. No new JVM run is claimed.
+
+Held-menu and actual app row screenshots without the ellipsis were inspected.
+Final crash buffer empty, sole AVD stopped/reaped. Receipt:
+`captures/runtime/workspace-context-menu/verification.json`. Physical Pixel/Mac
+and spoken TalkBack acceptance remain pending; signed build 537 is unchanged.

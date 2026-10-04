@@ -71,7 +71,7 @@ class LocalBrowserLifecycleTest {
         }
         scenario = ActivityScenario.launch(NativeLifecycleTestActivity::class.java)
         waitFor(hasText("Claude Code task"))
-        compose.onNodeWithContentDescription("Actions for Claude Code task").performClick()
+        compose.onNodeWithText("Claude Code task").performTouchInput { longClick() }
         compose.onNodeWithText("New browser").performClick(); waitFor(hasTestTag("LocalBrowserAddress"))
         compose.onNodeWithTag("LocalBrowserAddress").performTextReplacement(pages.url("/page").toString())
         compose.onNodeWithTag("LocalBrowserAddress").performImeAction(); waitFor(hasText("Lifecycle fixture ▾"))

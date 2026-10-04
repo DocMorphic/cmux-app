@@ -42,6 +42,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -3201,19 +3203,22 @@ private fun NativeGroupHeaderRow(
     onToggle: () -> Unit,
     onAction: (String, String?) -> Unit
 ) {
-    var menuOpen by remember(group.id) { mutableStateOf(false) }
-    var renaming by remember(group.id) { mutableStateOf(false) }
-    var confirmingUngroup by remember(group.id) { mutableStateOf(false) }
-    var name by remember(group.id) { mutableStateOf(group.name) }
+    val menu = rememberWorkspaceContextMenu(group.id)
+    val moveActions = LocalWorkspaceMoveActions.current
+    var renaming by remember(menu, group.id) { mutableStateOf(false) }
+    var confirmingUngroup by remember(menu, group.id) { mutableStateOf(false) }
+    var name by remember(menu, group.id) { mutableStateOf(group.name) }
     Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
         NativeUnreadGutter(unread, gap = 3.dp)
-        IconButton(onClick = onToggle, modifier = Modifier.size(32.dp).semantics {
+        IconButton(onClick = { if (!menu.expanded && !menu.held) onToggle() }, modifier = Modifier.size(32.dp).semantics {
             contentDescription = "${if (expanded) "Collapse" else "Expand"} ${group.name}"
         }) { Icon(painterResource(if (expanded) R.drawable.ic_workspace_chevron_down else R.drawable.ic_workspace_chevron_right),
             null, Modifier.size(16.dp), tint = nativeMuted) }
-        Row(Modifier.weight(1f).then(if (onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier)
+        Row(Modifier.weight(1f).then(if (onOpen != null) Modifier.clickable { if (!menu.expanded && !menu.held) onOpen() } else Modifier)
             .semantics(mergeDescendants = true) {
+                if (canEdit) onLongClick("Show group actions") { menu.expanded = true; true }
+                customActions = moveActions + if (canEdit) listOf(CustomAccessibilityAction("Show group actions") { menu.expanded = true; true }) else emptyList()
                 if (onOpen != null) contentDescription = "Open ${group.name}"
                 stateDescription = listOfNotNull("Pinned".takeIf { group.isPinned },
                     unread.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
@@ -3226,20 +3231,20 @@ private fun NativeGroupHeaderRow(
                 Modifier.size(12.dp), tint = nativeMuted)
         }
         if (canEdit) Box {
-            TextButton(onClick = { menuOpen = true }, modifier = Modifier.semantics {
+            TextButton(onClick = { menu.expanded = true }, modifier = Modifier.semantics {
                 contentDescription = "Actions for ${group.name}"
             }) { Text("⋯", color = nativeMuted) }
-            DropdownMenu(menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenu(menu.expanded, onDismissRequest = { if (!menu.held) menu.expanded = false }, properties = PopupProperties(focusable = !menu.held)) {
                 DropdownMenuItem(text = { Text("Rename group") }, onClick = {
-                    menuOpen = false; name = group.name; renaming = true
+                    menu.expanded = false; name = group.name; renaming = true
                 })
                 DropdownMenuItem(text = { Text(if (group.isPinned) "Unpin group" else "Pin group") },
                     onClick = {
-                        menuOpen = false
+                        menu.expanded = false
                         onAction(if (group.isPinned) "unpin" else "pin", null)
                     })
                 DropdownMenuItem(text = { Text("Ungroup workspaces") }, onClick = {
-                    menuOpen = false; confirmingUngroup = true
+                    menu.expanded = false; confirmingUngroup = true
                 })
             }
         }
@@ -3279,18 +3284,22 @@ internal fun NativeWorkspaceRow(
     onOpen: () -> Unit,
     onAction: (String, String?) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    var rename by remember { mutableStateOf(false) }
-    var confirmClose by remember { mutableStateOf(false) }
-    var title by remember(workspace.id) { mutableStateOf(workspace.title) }
+    val menu = rememberWorkspaceContextMenu(workspace.id)
+    val moveActions = LocalWorkspaceMoveActions.current
+    var rename by remember(menu) { mutableStateOf(false) }
+    var confirmClose by remember(menu) { mutableStateOf(false) }
+    var title by remember(menu, workspace.id) { mutableStateOf(workspace.title) }
     val readLabel = if (workspace.hasUnread) "Mark as Read" else "Mark as Unread"
     val markRead = { onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null) }
     NativeWorkspaceSwipeActions(workspace.id, workspace.hasUnread, canReadState, canClose,
         onRead = markRead, onClose = { confirmClose = true }) { dismissSwipe ->
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).clickable { if (!dismissSwipe()) onOpen() }
+    Box {
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).clickable { if (!menu.expanded && !menu.held && !dismissSwipe()) onOpen() }
         .semantics {
+            onLongClick("Show workspace actions") { dismissSwipe(); menu.expanded = true; true }
             customActions = buildList {
-                add(CustomAccessibilityAction("Show workspace actions") { dismissSwipe(); expanded = true; true })
+                addAll(moveActions)
+                add(CustomAccessibilityAction("Show workspace actions") { dismissSwipe(); menu.expanded = true; true })
                 if (canReadState) add(CustomAccessibilityAction(readLabel) { dismissSwipe(); markRead(); true })
                 if (canClose) add(CustomAccessibilityAction("Delete workspace") { dismissSwipe(); confirmClose = true; true })
             }
@@ -3333,44 +3342,40 @@ internal fun NativeWorkspaceRow(
                 }
             }
         }
-        Spacer(Modifier.width(8.dp))
-        Box {
-            TextButton(onClick = { dismissSwipe(); expanded = true }, modifier = Modifier.semantics {
-                contentDescription = "Actions for ${workspace.title.ifBlank { "Workspace" }}"
-            }) { Text("⋯", color = nativeMuted, fontSize = 20.sp) }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+    }
+            DropdownMenu(expanded = menu.expanded, onDismissRequest = { if (!menu.held) menu.expanded = false },
+                properties = PopupProperties(focusable = !menu.held)) {
                 DropdownMenuItem(text = { Text("View changes") }, onClick = {
-                    expanded = false; onAction("changes", null)
+                    menu.expanded = false; onAction("changes", null)
                 })
                 DropdownMenuItem(text = { Text("New terminal") }, onClick = {
-                    expanded = false; onAction("terminal.create", null)
+                    menu.expanded = false; onAction("terminal.create", null)
                 })
                 DropdownMenuItem(text = { Text("New browser") }, onClick = {
-                    expanded = false; onAction("browser.create", null)
+                    menu.expanded = false; onAction("browser.create", null)
                 })
-                if (canCustomize) DropdownMenuItem(text = { Text("Customize Workspace") }, onClick = { expanded = false; onAction("customize", null) })
-                if (canWorkspaceActions) DropdownMenuItem(text = { Text("Rename") }, onClick = { expanded = false; title = workspace.title; rename = true })
+                if (canCustomize) DropdownMenuItem(text = { Text("Customize Workspace") }, onClick = { menu.expanded = false; onAction("customize", null) })
+                if (canWorkspaceActions) DropdownMenuItem(text = { Text("Rename") }, onClick = { menu.expanded = false; title = workspace.title; rename = true })
                 if (canWorkspaceActions) DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") }, onClick = {
-                    expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null)
+                    menu.expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null)
                 })
                 if (canReadState) DropdownMenuItem(text = { Text(readLabel) }, onClick = {
-                    expanded = false; onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
+                    menu.expanded = false; onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
                 })
                 if (canMove) {
                     groups.filter { it.id != workspace.groupId }.forEach { group ->
                         DropdownMenuItem(text = { Text("Move to ${group.name}") }, onClick = {
-                            expanded = false; onAction("move:${group.id}", null)
+                            menu.expanded = false; onAction("move:${group.id}", null)
                         })
                     }
                     if (workspace.groupId != null) DropdownMenuItem(text = { Text("Remove from group") }, onClick = {
-                        expanded = false; onAction("move:", null)
+                        menu.expanded = false; onAction("move:", null)
                     })
                 }
                 if (canClose) DropdownMenuItem(text = { Text("Close workspace", color = Color(0xFFFF9999)) }, onClick = {
-                    expanded = false; confirmClose = true
+                    menu.expanded = false; confirmClose = true
                 })
             }
-        }
     }
     }
     if (rename) AlertDialog(

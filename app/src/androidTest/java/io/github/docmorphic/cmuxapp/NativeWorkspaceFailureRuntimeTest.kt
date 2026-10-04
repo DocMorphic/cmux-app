@@ -55,19 +55,19 @@ class NativeWorkspaceFailureRuntimeTest {
             ActivityScenario.launch(NativeLifecycleTestActivity::class.java).use {
                 node(By.text("Claude Code task"))
                 reject("workspace.action") {
-                    node(By.desc("Actions for Claude Code task")).click(); node(By.text("Pin")).click()
+                    node(By.text("Claude Code task")).longClick(); node(By.text("Pin")).click()
                 }
                 assertEquals("pin", peer.requests.last { it.optString("method") == "workspace.action" }.getJSONObject("params").getString("action"))
                 reject("workspace.close") {
-                    node(By.desc("Actions for Claude Code task")).click(); node(By.text("Close workspace")).click()
+                    node(By.text("Claude Code task")).longClick(); node(By.text("Close workspace")).click()
                     node(By.text("Delete")).click()
                 }
                 assertNull(peer.hiddenWorkspaceId)
                 reject("workspace.group.action") {
-                    node(By.desc("Actions for Completed group")).click(); node(By.text("Pin group")).click()
+                    node(By.text("Completed group")).longClick(); node(By.text("Pin group")).click()
                 }
                 reject("workspace.move") {
-                    node(By.desc("Actions for Claude Code task")).click(); node(By.text("Move to Completed group")).click()
+                    node(By.text("Claude Code task")).longClick(); node(By.text("Move to Completed group")).click()
                 }
                 assertNull(peer.customWorkspaceListing)
                 device.takeScreenshot(File(folder, "after-rejections.png"))
@@ -86,8 +86,8 @@ class NativeWorkspaceFailureRuntimeTest {
                 node(By.text("Resume typing"))
                 device.takeScreenshot(File(folder, "terminal-error-preserved.png"))
                 node(By.text("Resume typing")).click()
+                assertTrue(device.wait(Until.gone(By.text(deliveryError)), 5_000))
                 node(By.desc("Terminal arrow pad").enabled(true))
-                assertFalse(device.hasObject(By.text(deliveryError)))
                 assertTrue(peer.failures.toString(), peer.failures.isEmpty())
                 File(folder, "verified.txt").writeText("Workspace pin, close, group pin and move rejected without a global banner; terminal input rejection remains visible.\n")
             }

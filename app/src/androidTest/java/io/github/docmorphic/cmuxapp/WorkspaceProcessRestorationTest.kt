@@ -108,7 +108,7 @@ class WorkspaceProcessRestorationTest {
         peer.customWorkspaceListing!!.getJSONArray("workspaces").getJSONObject(0)
             .put("description", "Original description").put("window_id", "fixture-window")
         launch(open = false)
-        description("Actions for Process workspace").click(); text("Customize Workspace").click()
+        text("Process workspace").longClick(); text("Customize Workspace").click()
         text("Process workspace").text = "Restored custom name"
         text("Original description").text = "Unsent description"
         description("Pinned").click(); description("Use Workspace Color").click()
@@ -133,7 +133,9 @@ class WorkspaceProcessRestorationTest {
         killAndRestore()
         text("Restored custom name"); text("Unsent description"); text("#12ABEF")
         assertTrue("Restoration must not submit unfinished edits", calls("workspace.action").isEmpty())
-        text("Save").click(); description("Actions for Restored custom name")
+        text("Save").click()
+        assertTrue(device.wait(Until.gone(By.text("Customize Workspace")), 10_000))
+        text("Restored custom name")
         assertEquals(listOf("rename", "set_description", "set_color", "pin"),
             calls("workspace.action").map { it.getJSONObject("params").getString("action") })
     }
@@ -157,11 +159,11 @@ class WorkspaceProcessRestorationTest {
             store.clear(); store.update { it.put("refresh_token", "replacement-process-login").put("pairing_code", code) }
             store.rememberMac(code, "fixture-mac", "Fixture Mac"); store.taskSession()
         }
-        description("Actions for Process workspace")
+        text("Process workspace")
         assertFalse("Previous login's editor must not be restored", device.hasObject(By.text("Customize Workspace")))
         assertFalse(device.hasObject(By.text("Unsent description")))
         assertTrue(calls("workspace.action").isEmpty())
-        description("Actions for Process workspace").click(); text("Customize Workspace").click()
+        text("Process workspace").longClick(); text("Customize Workspace").click()
         text("Original description")
         assertFalse("Opening a new editor must not consume the old saved draft", device.hasObject(By.text("Unsent description")))
         text("Cancel").click()
@@ -196,7 +198,7 @@ class WorkspaceProcessRestorationTest {
         assertTrue(calls("mobile.browser.create").isEmpty())
     }
     @Test fun changesRestoresAndClosesToWorkspaceList() {
-        launch(open = false); description("Actions for Process workspace").click(); text("View changes").click()
+        launch(open = false); text("Process workspace").longClick(); text("View changes").click()
         description("Close changes"); killAndRestore(); description("Close changes").click(); text("Process workspace")
         assertTrue(calls("mobile.terminal.replay").isEmpty())
     }
@@ -210,7 +212,7 @@ class WorkspaceProcessRestorationTest {
     }
     @Test fun changesDetailAndCollapsedFoldersRestoreFromRealTaskState() {
         changesFiles("README.md", "src/App.kt")
-        launch(open = false); description("Actions for Process workspace").click(); text("View changes").click()
+        launch(open = false); text("Process workspace").longClick(); text("View changes").click()
         description("Collapse folder src").click(); description("Open diff README.md").click()
         text("Restored diff README.md")
         val before = calls("mobile.workspace.changes.file_diff").size
@@ -223,7 +225,7 @@ class WorkspaceProcessRestorationTest {
     }
     @Test fun vanishedChangedFileDoesNotRestoreANeighborOrFetchItsOldPath() {
         changesFiles("README.md", "src/App.kt")
-        launch(open = false); description("Actions for Process workspace").click(); text("View changes").click()
+        launch(open = false); text("Process workspace").longClick(); text("View changes").click()
         description("Open diff README.md").click(); text("Restored diff README.md")
         val before = calls("mobile.workspace.changes.file_diff").count { it.getJSONObject("params").getString("path") == "README.md" }
         killAndRestore { changesFiles("src/App.kt") }
@@ -255,7 +257,7 @@ class WorkspaceProcessRestorationTest {
         text("‹ Back").click(); description("Open file /a.txt"); text("Done").click(); text("Focused shell ▾")
     }
     @Test fun localBrowserRestoresWithoutAttemptingRemoteCreation() {
-        launch(open = false); description("Actions for Process workspace").click(); text("New browser").click()
+        launch(open = false); text("Process workspace").longClick(); text("New browser").click()
         description("Close Browser"); killAndRestore(); description("Close Browser")
         assertTrue(calls("mobile.browser.create").isEmpty())
     }

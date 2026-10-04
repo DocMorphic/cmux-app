@@ -135,7 +135,7 @@ class WorkspaceActivityRestorationTest {
     }
     @Test fun changesSurvivesRecreationAndHostRefreshThenClosesToWorkspaceList() {
         launch(open = false)
-        compose.onNodeWithContentDescription("Actions for Retained workspace").performClick()
+        compose.onNodeWithText("Retained workspace").performTouchInput { longClick() }
         compose.onNodeWithText("View changes").performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("Changes in Retained workspace").fetchSemanticsNodes().isNotEmpty() }
         scenario!!.recreate()

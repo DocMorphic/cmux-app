@@ -21,12 +21,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import kotlin.math.abs
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
 
 /** One stable gesture surface lets a held row cross lazy-list composition and auto-scroll boundaries. */
 @Composable
 internal fun NativeWorkspaceDragList(
     entries: List<WorkspaceListEntry>, reorderEnabled: Boolean, modifier: Modifier = Modifier,
     onMove: (NativeFeedSource, String, NativeWorkspaceMove) -> Boolean,
+    rowHandlesAccessibility: Boolean = true,
     before: LazyListScope.() -> Unit = {}, empty: @Composable () -> Unit,
     row: @Composable (WorkspaceListEntry) -> Unit
 ) {
@@ -34,14 +39,19 @@ internal fun NativeWorkspaceDragList(
     val latestEntries by rememberUpdatedState(entries)
     val latestMove by rememberUpdatedState(onMove)
     val latestEnabled by rememberUpdatedState(reorderEnabled)
+    val scope = rememberCoroutineScope()
+    var autoscroll by remember { mutableStateOf<Job?>(null) }
     val density = LocalDensity.current
     val edge = with(density) { 56.dp.toPx() }
+    val contextMenus = remember { WorkspaceContextMenuCoordinator() }
+    var held by remember { mutableStateOf<WorkspaceListEntry?>(null) }
+    var holdY by remember { mutableFloatStateOf(0f) }
     var dragged by remember { mutableStateOf<WorkspaceListEntry?>(null) }
     var snapshot by remember { mutableStateOf<List<WorkspaceListEntry>>(emptyList()) }
     var pointerY by remember { mutableFloatStateOf(0f) }
     var fingerOffset by remember { mutableFloatStateOf(0f) }
     var destination by remember { mutableIntStateOf(-1) }
-    fun cancel() { dragged = null; snapshot = emptyList(); destination = -1 }
+    fun cancel() { autoscroll?.cancel(); autoscroll = null; held = null; contextMenus.heldKey = null; dragged = null; snapshot = emptyList(); destination = -1 }
     fun updateDestination() {
         val visible = list.layoutInfo.visibleItemsInfo.filter { item -> snapshot.any { it.key == item.key } }
         val next = visible.firstOrNull { pointerY < it.offset + it.size / 2f }
@@ -49,8 +59,9 @@ internal fun NativeWorkspaceDragList(
             else visible.lastOrNull()?.let { item -> snapshot.indexOfFirst { it.key == item.key } + 1 } ?: -1
     }
     LaunchedEffect(reorderEnabled) { if (!reorderEnabled) cancel() }
-    LaunchedEffect(dragged?.key) {
-        if (dragged == null) return@LaunchedEffect
+    fun startAutoscroll() {
+        autoscroll?.cancel()
+        autoscroll = scope.launch(start = CoroutineStart.UNDISPATCHED) {
         var previous = withFrameNanos { it }
         while (dragged != null) {
             val now = withFrameNanos { it }
@@ -64,47 +75,67 @@ internal fun NativeWorkspaceDragList(
             if (speed != 0f) { list.scrollBy(speed * edge * 8 * dt); updateDestination() }
         }
     }
+    }
     val swipeCoordinator = remember { WorkspaceSwipeCoordinator() }
-    CompositionLocalProvider(LocalWorkspaceSwipeCoordinator provides swipeCoordinator) {
+    CompositionLocalProvider(LocalWorkspaceSwipeCoordinator provides swipeCoordinator, LocalWorkspaceContextMenus provides contextMenus) {
     Box(modifier) {
         LazyColumn(Modifier.fillMaxSize().pointerInput(reorderEnabled) {
-            if (reorderEnabled) detectDragGesturesAfterLongPress(
+            detectDragGesturesAfterLongPress(
                 onDragStart = { point ->
                     val item = list.layoutInfo.visibleItemsInfo.firstOrNull { point.y >= it.offset && point.y < it.offset + it.size }
                     val entry = latestEntries.firstOrNull { it.key == item?.key }
-                    if (entry != null && entry !is WorkspaceListEntry.Footer &&
-                        (entry !is WorkspaceListEntry.Header || entry.group.liveAnchorWorkspaceId != null)) {
+                    if (entry != null && entry !is WorkspaceListEntry.Footer) {
                         swipeCoordinator.activeKey = null
-                        snapshot = latestEntries; dragged = entry; pointerY = point.y
+                        val contextKey = WorkspaceContextMenuKey(entry.key, entry.source.mac)
+                        contextMenus.activeKey = contextKey.takeIf { entry !is WorkspaceListEntry.Header || "workspace.group_actions.v1" in entry.source.capabilities }
+                        contextMenus.heldKey = contextKey
+                        snapshot = latestEntries; held = entry; pointerY = point.y; holdY = point.y
                         fingerOffset = point.y - (item?.offset ?: 0)
-                        updateDestination()
                     }
                 },
-                onDrag = { change, amount -> if (dragged != null) {
-                    change.consume(); pointerY += amount.y; updateDestination()
-                } },
+                onDrag = { change, amount ->
+                    val entry = held
+                    if (entry != null) {
+                        change.consume(); pointerY += amount.y
+                        if (dragged == null && latestEnabled && abs(pointerY - holdY) > viewConfiguration.touchSlop &&
+                            (entry !is WorkspaceListEntry.Header || entry.group.liveAnchorWorkspaceId != null)) {
+                            contextMenus.activeKey = null
+                            dragged = entry
+                            startAutoscroll()
+                        }
+                        if (dragged != null) updateDestination()
+                    }
+                },
                 onDragCancel = ::cancel,
                 onDragEnd = {
                     val entry = dragged
-                    if (entry != null && destination >= 0) {
+                    if (entry != null && latestEnabled && destination >= 0) {
                         workspaceDropIntent(entry.source, snapshot, snapshot.indexOfFirst { it.key == entry.key }, destination)
                             ?.let { (id, intent) -> latestMove(entry.source, id, intent) }
                     }
                     cancel()
                 }
             )
-        }, state = list, userScrollEnabled = dragged == null, contentPadding = PaddingValues(bottom = 84.dp)) {
+        }, state = list, userScrollEnabled = held == null, contentPadding = PaddingValues(bottom = 84.dp)) {
             before()
             itemsIndexed(entries, key = { _, item -> item.key }) { index, entry ->
                 val actions = remember(entries, reorderEnabled, index) { if (reorderEnabled) listOf("Move up" to false, "Move down" to true)
                     .mapNotNull { (label, down) ->
                         workspaceStepIntent(entry.source, entries, index, down)?.let { (id, intent) ->
-                            CustomAccessibilityAction(label) { latestEnabled && latestMove(entry.source, id, intent) }
+                            CustomAccessibilityAction(label) {
+                                val currentIndex = latestEntries.indexOfFirst { it.key == entry.key && it.source.mac == entry.source.mac }
+                                if (!latestEnabled || currentIndex < 0) false else {
+                                    val current = latestEntries[currentIndex]
+                                    workspaceStepIntent(current.source, latestEntries, currentIndex, down)
+                                        ?.let { (freshId, freshIntent) -> latestMove(current.source, freshId, freshIntent) } ?: false
+                                }
+                            }
                         }
                     } else emptyList() }
                 Column(Modifier.animateItem().graphicsLayer { alpha = if (dragged?.key == entry.key) 0.25f else 1f }
-                    .semantics { customActions = actions }) {
-                    CompositionLocalProvider(LocalWorkspaceSwipeKey provides entry.key) { row(entry) }
+                    .then(if (rowHandlesAccessibility) Modifier else Modifier.semantics { customActions = actions })) {
+                    CompositionLocalProvider(LocalWorkspaceSwipeKey provides entry.key, LocalWorkspaceMoveActions provides actions,
+                        LocalWorkspaceContextKey provides WorkspaceContextMenuKey(entry.key, entry.source.mac)) { row(entry) }
                 }
             }
             if (entries.isEmpty()) item { empty() }

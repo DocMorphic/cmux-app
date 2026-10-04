@@ -57,11 +57,11 @@ class NativeWorkspaceCustomizationRuntimeTest {
                 MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture" }).also { it.connect() }
             }
             ActivityScenario.launch(NativeLifecycleTestActivity::class.java).use { scenario ->
-                node(By.desc("Actions for Original workspace"))
+                node(By.text("Original workspace"))
                 scenario.onActivity { feed = ViewModelProvider(it)[NativeFeedSession::class.java] }
                 online.set(false); peer.disconnectClients()
                 until { feed.coordinator.sources.value.values.singleOrNull()?.availability == NativeFeedAvailability.OFFLINE }
-                node(By.desc("Actions for Original workspace")).click(); node(By.text("Customize Workspace")).click()
+                node(By.text("Original workspace")).longClick(); node(By.text("Customize Workspace")).click()
                 node(By.text("Original workspace").clazz("android.widget.EditText")).text = "Customized workspace"
                 node(By.text("Baseline").clazz("android.widget.EditText")).text = "Description from Android"
                 node(By.desc("Pinned")).click()
@@ -86,7 +86,8 @@ class NativeWorkspaceCustomizationRuntimeTest {
                 until { feed.coordinator.sources.value.values.singleOrNull()?.availability == NativeFeedAvailability.CONNECTED }
                 assertTrue("Reconnection must not replay pending edits", actions().isEmpty())
                 node(By.text("Save")).click()
-                node(By.desc("Actions for Customized workspace"))
+                assertTrue(device.wait(Until.gone(By.text("Customize Workspace")), 10_000))
+                node(By.text("Customized workspace"))
                 assertEquals(listOf("rename", "set_description", "set_color", "pin"), actions())
                 val saved = peer.customWorkspaceListing!!.getJSONArray("workspaces").getJSONObject(0)
                 assertEquals("#12ABEF", saved.getString("custom_color")); assertTrue(saved.getBoolean("is_pinned"))

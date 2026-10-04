@@ -86,11 +86,24 @@ class NativeFlowTest {
         TerminalDraftRepository.get(context).drafts.clear()
     }
 
+    @Test fun unsupportedGroupLongPressDoesNotLeaveAnInvisibleMenuBlockingNormalTap() {
+        peer.notificationFeed = searchNotifications()
+        showSearchFixture()
+        val group = compose.onNodeWithContentDescription("Open Completed group")
+        group.performTouchInput { longClick() }
+        compose.onNodeWithText("Pin group").assertDoesNotExist()
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        group.performClick()
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+        assertTrue(peer.requests.filter { it.optString("method") == "mobile.terminal.replay" }
+            .all { it.getJSONObject("params").getString("workspace_id") == "workspace-2" })
+    }
+
     @Test fun workspaceDeleteConfirmationCancelsThenClosesOnlySelectedWorkspace() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
         fun openConfirmation() {
-            compose.onNodeWithContentDescription("Actions for Claude Code task").performClick()
+            compose.onNodeWithText("Claude Code task").performTouchInput { longClick() }
             compose.onNodeWithText("Close workspace").performClick()
             compose.onNodeWithText("Delete Workspace?").assertIsDisplayed()
             compose.onNodeWithText("This will close the workspace on your Mac.").assertIsDisplayed()
@@ -2171,13 +2184,13 @@ class NativeFlowTest {
         compose.onNodeWithText("Group child").assertDoesNotExist()
         screenshot("workspace-counts-collapsed")
         compose.onNodeWithContentDescription("Expand Counted group").performClick()
-        compose.onNodeWithContentDescription("Actions for Group child").performClick()
+        compose.onNodeWithText("Group child").performTouchInput { longClick() }
         compose.onNodeWithText("Mark as Read").performClick()
         childState("")
         compose.onNodeWithContentDescription("Collapse Counted group").performClick()
         headerState("Pinned, 2 unread")
         compose.onNodeWithContentDescription("Expand Counted group").performClick()
-        compose.onNodeWithContentDescription("Actions for Group child").performClick()
+        compose.onNodeWithText("Group child").performTouchInput { longClick() }
         compose.onNodeWithText("Mark as Unread").performClick()
         childState("1 unread")
         compose.onNodeWithContentDescription("Collapse Counted group").performClick()

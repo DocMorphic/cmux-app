@@ -66,7 +66,7 @@ class WorkspaceSnapshotOrderingTest {
                 peer.customWorkspaceListing = listing(created = true)
                 JSONObject(peer.customWorkspaceListing.toString()).put("created_terminal_id", "new-terminal")
             }
-            compose.onNodeWithContentDescription("Actions for Ordered workspace").performClick()
+            compose.onNodeWithText("Ordered workspace").performTouchInput { longClick() }
             compose.onNodeWithText("New terminal").performClick(); waitFor("Starting terminal…")
             gate.countDown()
             compose.waitUntil(15_000) { foregroundReads.get() >= 2 }

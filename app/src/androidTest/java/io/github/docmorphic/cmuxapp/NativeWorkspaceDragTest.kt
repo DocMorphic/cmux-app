@@ -32,7 +32,7 @@ class NativeWorkspaceDragTest {
         compose.setContent { CmuxTheme {
             NativeWorkspaceDragList(workspaceHierarchy(source), true,
                 Modifier.width(320.dp).height(320.dp).testTag("list"),
-                onMove = { _, id, intent -> moved = id to intent; true }, empty = {}) { entry ->
+                onMove = { _, id, intent -> moved = id to intent; true }, rowHandlesAccessibility = false, empty = {}) { entry ->
                 Text((entry as WorkspaceListEntry.Workspace).workspace.title, Modifier.fillMaxWidth().height(56.dp))
             }
         } }
@@ -63,7 +63,7 @@ class NativeWorkspaceDragTest {
         var moveCount = 0
         compose.setContent { CmuxTheme {
             NativeWorkspaceDragList(workspaceHierarchy(source), enabled, Modifier.fillMaxSize(),
-                onMove = { _, id, intent -> moveCount++; moved = id to intent; true }, empty = {}) { entry ->
+                onMove = { _, id, intent -> moveCount++; moved = id to intent; true }, rowHandlesAccessibility = false, empty = {}) { entry ->
                 Text((entry as WorkspaceListEntry.Workspace).workspace.title, Modifier.height(56.dp).fillMaxWidth())
             }
         } }

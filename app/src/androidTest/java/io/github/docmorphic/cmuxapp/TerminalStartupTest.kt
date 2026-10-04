@@ -46,7 +46,7 @@ class TerminalStartupTest {
         compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
     }
     private fun create() {
-        compose.onNodeWithContentDescription("Actions for Startup workspace").performClick()
+        compose.onNodeWithText("Startup workspace").performTouchInput { longClick() }
         compose.onNodeWithText("New terminal").performClick()
     }
     private fun terminalCalls(id: String) = peer.requests.filter { it.optString("method").startsWith("mobile.terminal.") &&

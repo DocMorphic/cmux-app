@@ -56,7 +56,7 @@ class LocalBrowserRoutingTest {
     }
     private fun waitFor(matcher: SemanticsMatcher) = compose.waitUntil(15000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
     private fun newFromRow(title: String = "Browser workspace") {
-        compose.onNodeWithContentDescription("Actions for $title").performClick()
+        compose.onNodeWithText("$title").performTouchInput { longClick() }
         compose.onNodeWithText("New browser").performClick()
     }
     private fun browseFixture() {

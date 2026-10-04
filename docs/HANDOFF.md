@@ -24,7 +24,37 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — workspace swipe actions (2026-10-04)
+## Latest checkpoint — long-press workspace menus (2026-10-04)
+
+The workspace ellipsis is removed. Holding a row opens its owning menu; continued
+vertical movement dismisses it and starts the existing reorder/autoscroll path.
+The menu is visible while the original Android touch is still held, and that
+same OS-level pointer can continue into a drag. Read/reorder/menu accessibility
+actions share the row node. Menus and simple dialogs retire when the Mac/account
+owner changes, including an account change at the same origin/workspace ID.
+Group headers gain coordinated context handling; read-only groups cannot leave
+an invisible menu blocking their next tap. See [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md).
+
+**18 distinct Android checks pass across the final focused runs.** The full run
+passed 13/15 in 149.132s; its two remaining assertions observed Save/Resume before
+asynchronous UI transitions finished. After fixing those test waits, both cases
+and three real process-restoration cases passed (5/5, 144.538s) against the same
+production APK. The preceding six-case gesture gate passed in 47.531s. This is
+not a claim of one green 18-test invocation. Final main APK assembly passed in
+39s; the test-only synchronization rebuild took 20s. No new JVM count is claimed.
+
+Original gesture failures, the intentionally stopped initial run, source/APK
+hashes and screenshots are recorded in
+`captures/runtime/workspace-context-menu/verification.json`. Held-menu and actual
+app row screenshots inspected; final crash buffer empty; sole AVD stopped/reaped.
+No physical Pixel was connected. Signed build **537 is unchanged**.
+
+**Next:** match exact iOS context-menu contents/icons/grouping and Move to Group
+submenu, then the group-header presentation audit. These are remaining parity
+work, not unavoidable Android differences. Broader source parity, live account/
+network/Pixel acceptance and push/feed configuration remain open. Goal active.
+
+## Earlier checkpoint — workspace swipe actions (2026-10-04)
 
 Workspace rows now reveal read/unread and Delete actions with horizontal swipes,
 including full swipes, partial action buttons, RTL handling, Back/tap dismissal
