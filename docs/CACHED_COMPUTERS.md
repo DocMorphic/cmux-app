@@ -79,3 +79,47 @@ do not kill/relaunch the entire production app or connect to a real Mac. The Pix
 is absent from ADB. Physical offline/reconnect, current native Mac acceptance and
 configured push remain open. Signed build 474 predates this work; no signed build
 was dispatched for this individual feature.
+
+## Process-death acceptance — 2026-10-04
+
+`NativeCachedComputerProcessTest` launches the debug-only
+`NativeCachedComputerProcessActivity` in a separate process, kills that process
+with SIGKILL, and launches a fresh process against the same encrypted store. The
+instrumentation process stays alive and records the killed/restarted PIDs.
+The harness uses the production account controller, profile cache, saved pairing
+records, appearance storage, cached projection, visibility rules, version policy,
+and reconnect picker. Account requests go to loopback HTTP; data belongs to a
+unique generated test account. The activity is not exported and rejects physical
+devices. No user's account store is cleared or substituted.
+
+The first case verifies custom names, hidden rows and update guidance after cold
+restart, with no fresh account requests or row-selection/visibility callbacks.
+A 503 preserves the read-only display. Fresh membership permits an explicit row
+selection. The second case changes membership to another team, restarts again,
+and checks that only that team's cached rows return. A definitive 401 rejection
+removes the cached display across another restart while retaining all saved
+pairing records.
+
+Both Android cases pass in **38.747 seconds** on the existing API 37 / 16 KB arm64
+emulator. Four transitions report different killed/restarted process IDs while
+the instrumentation process remains unchanged. The initial run failed on locating
+a scrolled-out banner and attempting a scroll before the next window was ready;
+the final helper waits for text and explicitly returns the scroll container to
+its beginning. The account-rejection assertion uses the controller's actual
+sign-in-required message. No production cache or authorization logic was changed.
+
+Debug/test assembly passed in 1m 6s; the final test-only rebuild passed in 17s.
+The debug engine packaging gate passed, and the merged manifest confirms the
+isolated fixture activity is not exported. Cold-restoration and offline-error
+screenshots were inspected; the latter shows the cached banner, disabled rows,
+saved name/icon, unknown presence, hidden computer and update guidance together.
+No new JVM, release/ART or signed build was run. The single existing emulator is
+stopped. Evidence is retained under ignored `captures/runtime/cached-computers-process/`,
+including both runtime logs, process IDs, screenshots/XML and APK hashes.
+
+This extends process-death evidence to the saved Computers projection and actual
+reconnect picker components. It does not exercise the complete `MainActivity` /
+`NativeScreen` connection graph, real Iroh/Mac traffic, the management page in a
+new process, physical Pixel recovery or authenticated signed-APK upgrade. Those
+remain separate acceptance gates; the global parity pin and signed milestone are
+unchanged.

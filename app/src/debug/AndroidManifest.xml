@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <activity android:name=".NativeCachedComputerProcessActivity" android:exported="false"
+            android:process=":cached_computers_test" android:taskAffinity="${applicationId}.cachedcomputers" />
         <activity android:name=".NativeNoticeTestActivity" android:exported="false" />
         <activity android:name=".NativeFeedbackLifecycleTestActivity" android:exported="false"
             android:windowSoftInputMode="adjustResize" />

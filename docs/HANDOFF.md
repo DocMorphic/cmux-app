@@ -27,6 +27,26 @@ active; physical Pixel acceptance, authenticated upgrade, configured push and
 broader source/visual parity remain open. The table below records the original
 September 28 handoff rather than the current APK.
 
+## Latest checkpoint — Computers process-death recovery (2026-10-04)
+
+[CACHED_COMPUTERS.md](CACHED_COMPUTERS.md#process-death-acceptance--2026-10-04)
+adds actual SIGKILL/cold-launch evidence for saved account-scoped Computers rows.
+Two Android cases pass in 38.747 s across four verified process transitions.
+Saved names, hidden rows and update warnings survive with no live authority;
+503 retains the read-only display, fresh membership enables selection, changed
+membership replaces the displayed team, and 401 removes cached display across
+another restart while preserving saved pairings.
+
+Initial failures were UI lookup timing/scrolling; production cache/authorization
+code is unchanged. The debug-only isolated harness uses real production components
+and loopback HTTP. Debug/test builds and engine packaging pass; screenshots were
+inspected. The existing emulator is stopped. No signed milestone was created.
+
+**Next:** full production connection-graph/physical Pixel cold recovery, remaining
+notice process-death and HTTPS/native-account acceptance, clipboard grant behavior
+and the broader source audit. Android feed and push configuration remain open.
+Build 494 remains the last signed APK; last unsigned-release/ART gate `786264d`.
+
 ## Latest checkpoint — real keyboard URI grants (2026-10-04)
 
 [KEYBOARD_URI_GRANTS.md](KEYBOARD_URI_GRANTS.md) verifies the existing image-input
