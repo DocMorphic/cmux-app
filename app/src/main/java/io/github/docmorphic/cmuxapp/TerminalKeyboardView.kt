@@ -65,6 +65,7 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
         contentDescription = "Direct terminal input"
         showComposition("")
         setOnClickListener { showKeyboard() }
+        NativeViewHaptics(this)
     }
 
     fun showKeyboard() {

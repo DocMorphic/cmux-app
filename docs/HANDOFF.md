@@ -26,6 +26,26 @@ The license-dialog correction is now verified in debug (see the newer checkpoint
 below). The goal remains active; physical/authenticated acceptance, feed/push configuration and
 broader parity remain open. Older delivery sections below are historical.
 
+## Latest checkpoint — native selection haptic policy (2026-10-04)
+
+[DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#native-selection-haptics-and-toast-policy-audit--2026-10-04)
+fixes the Haptic Feedback switch bypass in native TextViews/WebViews: Terminal
+Text, file text, direct terminal input, browser and Markdown now share the live
+preference. Detached views unsubscribe and reattach with current state.
+**Two Android cases pass in 28.079s**, including real selection/copy with the
+switch off. Screenshot inspected, crash buffer empty, sole AVD stopped/reaped.
+
+The scoped iOS generic toast presenter is explicitly disabled in shipped builds;
+an enabled generic overlay is not a missing shipped feature. The separate
+workspace-action failure toast still needs an Android/source audit. Existing
+feedback receipts/debug copy messages are not covered by that conclusion.
+
+**Next:** production shared-connection-graph acceptance and workspace-action
+failure presentation; physical Pixel/Mac browser/recovery and tactile/TalkBack
+checks; broader upstream source/UI audit. No Pixel appeared in ADB. Signed 517
+is unchanged; current-source signed/cold-start verification and push/feed
+provider configuration remain open. The overall goal remains active.
+
 ## Latest checkpoint — terminal arrow pad (2026-10-04)
 
 [DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#terminal-arrow-pad--2026-10-04) adds

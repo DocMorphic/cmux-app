@@ -264,6 +264,7 @@ internal class ArtifactNumberedTextView(context: Context) : TextView(context) {
         setTextColor(0xFFE7E9ED.toInt()); typeface = Typeface.MONOSPACE
         setTextIsSelectable(true); setBackgroundColor(android.graphics.Color.TRANSPARENT)
         setPadding(12, 12, 12, 24); includeFontPadding = false
+        NativeViewHaptics(this)
     }
     fun setNumbers(value: Boolean) {
         numbers = value

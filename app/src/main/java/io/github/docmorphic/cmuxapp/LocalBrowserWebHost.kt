@@ -38,6 +38,7 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
     private fun createBrowser() {
         val ticket = surface.attach(); token = ticket
         val view = WebView(context)
+        NativeViewHaptics(view)
         browser = view; rendererGone = false; stopped = false; failed = false
         view.tag = "LocalBrowserWebView"; view.contentDescription = "Browser page"
         view.settings.apply {

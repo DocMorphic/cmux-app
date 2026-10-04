@@ -443,3 +443,58 @@ Debug APK SHA-256:
 `bd4796e5553a12d38c5868765e609f6fc3642ae03edd027e75fa28d4b10d3b7b`.
 Test APK SHA-256:
 `0b01a48bcdf27e58fd89c6927fabda88642ebff7833ce1e69352beb1d5a8f360`.
+
+
+## Native selection haptics and toast policy audit — 2026-10-04
+
+The scoped `ToastCenter.swift` at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` explicitly sets
+`shippedEnabled = false`. Presentation returns before queueing or showing a
+notice when disabled; only a DEBUG gallery environment opt-in changes that
+default. The generic toast overlay and its presentation haptics therefore are
+not a missing shipped feature to enable on Android. The separate
+`WorkspaceActionToast.swift` remains active code: bottom placement, dismiss
+button and a six-second timer. Auditing that workspace-failure path is still
+required. Existing Android feedback receipts and debug-only copy messages are
+not declared visually equivalent by this limited audit.
+
+The Android haptic switch previously gated explicit events and Compose, but
+not framework TextView/WebView selection feedback. `NativeViewHaptics` now binds
+the native view's haptic-enabled flag to the same `cmux-display` preference.
+Android documents this flag as controlling standard feedback, including default
+long-press feedback; see [haptics APIs](https://developer.android.com/develop/ui/views/haptics/haptics-apis).
+It does not change the system setting, ask for vibration permission, or force
+feedback through ignore-setting flags. A view that was intrinsically silent
+remains silent. Missing or malformed preference values use the same default-on
+policy as the existing Compose gate.
+
+The binding reads on creation and attachment, observes only while attached, and
+unregisters on detach. Reusing a detached view reads the current setting before
+it is interacted with again. It is installed in the Terminal Text sheet, native
+file text view, direct terminal input endpoint, local browser WebView, and
+Markdown WebView. The invisible syntax-highlighter WebView has no interactive
+selection surface. Keyboard-app and notification haptics remain system-owned.
+
+Verification: **two Android cases pass in 28.079s**. Tests instantiate all five
+production view types, verify live off/on/off flags and disabled framework
+feedback results, and exercise real long-press selection, native Copy, clipboard
+contents, Copy All, and preference changes while the text sheet remains open.
+The lifecycle case verifies detached views stop receiving updates, reattachment
+refreshes state, corrupt/missing values default on, and an intrinsically silent
+view remains silent. The inspected screenshot confirms the text/copy UI remains
+readable. These checks establish policy and native selection behavior, not
+physical vibration or Chromium's end-to-end gesture behavior.
+
+The initial 44s build produced the debug APK but test compilation rejected a
+local lateinit-variable reference in cleanup. Correcting test cleanup produced
+the test APK in 24s; production source was unchanged between those builds.
+Final crash buffer is empty. The sole existing AVD is stopped/reaped and no Pixel
+was visible. No extra AVD or signed milestone was created; signed 517 remains
+the last published build.
+
+Evidence: ignored `captures/runtime/native-view-haptics/verification.json`,
+source excerpts, build/runtime logs, crash buffer and screenshot.
+Debug APK SHA-256:
+`f882d4e80d6871e67c580e6441f67c07b55cf1cefaf8c0b8e36a760706e20b74`.
+Test APK SHA-256:
+`6e4c06b0334941752ca280a954a264c4d27da515adfddbe427ad048fe6cfbe01`.

@@ -109,6 +109,7 @@ internal class MarkdownWebController(private val context: Context, private val s
         })
     }).also { web ->
         view = web
+        NativeViewHaptics(web)
         web.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         web.settings.apply {
             javaScriptEnabled = true; allowFileAccess = false; allowContentAccess = false

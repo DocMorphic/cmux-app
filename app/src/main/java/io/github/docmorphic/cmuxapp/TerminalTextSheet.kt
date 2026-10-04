@@ -59,6 +59,7 @@ fun TerminalTextSheet(snapshot: TerminalTextSnapshot, onDismiss: () -> Unit) {
                             setPadding(padding, padding, padding, padding)
                             setTextIsSelectable(true)
                             tag = "terminal-text-snapshot"
+                            NativeViewHaptics(this)
                         })
                     }
                 }, modifier = Modifier.fillMaxWidth().weight(1f))
