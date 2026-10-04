@@ -4,7 +4,48 @@
 See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for download and verification scope; older
 checkpoint delivery numbers are historical.
 
-## Latest checkpoint — compound workspace filters and SSH pane search (2026-10-04)
+## Latest checkpoint — All Computers sorting (2026-10-04)
+
+All Computers now offers **Last Opened**, **Custom Order**, and **Recent Activity**.
+Mac and SSH rows share one display projection. Last Opened ranks the foreground
+Mac, then phone-side use timestamps, then localized name/identity. Custom Order
+ranks exact computer/build identities ahead of that fallback, retains absent
+computer priority slots and provides a drag editor with accessibility move actions.
+Choices persist locally; unknown future modes remain readable without being
+rewritten by unrelated timestamp changes. Single-computer scope keeps its host's
+order and hides the cross-computer sort controls. Controls are not hidden merely
+because only one computer is available.
+
+Recent Activity ranks pinned rows/blocks first, then activity, with missing times
+last and stable ties. Unfiltered groups remain atomic, ranked by their newest
+member, preserving member order, anchor/header behavior, collapse and durable
+empty groups. Search/filter results flatten and retain pinned-first behavior.
+Every row action still receives its original source snapshot; sorting sends no
+workspace move RPC. Spatial drag is disabled for All Computers Recent Activity.
+SSH inventories do not currently supply activity timestamps; the projection leaves
+those missing rather than substituting connection time. Scoped iOS reference:
+aggregation/recency/sort-store/computer-order sheet at `0fc35d6`; global pin unchanged.
+
+**18 JVM tests and eight Android checks passed.** Main/test APK build: **1m56s**.
+Android completed in **108.332s** on the sole existing API37/16KB AVD with the real
+private SSH/cmux-tui/tmux fixture. Checks cover drag/accessibility ordering, sort
+controls with no machine-filter choices, Mac/SSH custom and recent ordering,
+saved-screen restoration, single-Mac sidebar order, no move RPC, existing filters,
+workspace drag/autoscroll and real SSH pane search/input. Grouped activity ordering
+has JVM coverage; the main-screen runtime fixture used flat rows. Source/installed
+APK hashes matched; screenshots inspected and final crash buffer empty.
+Evidence: `captures/runtime/workspace-sort/verification.json`.
+
+The sole AVD and private fixture were stopped/reaped. The Pixel was absent from
+ADB and untouched. Signed **554** remains the current download; this batch is
+committed for the next signed milestone. PR #1 remains draft; goal active.
+**Next:** regular-width sidebar/navigation. The scoped iOS layout policy uses
+stacked navigation when either dimension is compact; phone landscape width alone
+must not enable a tablet sidebar. Full production process/network recovery,
+broader upstream audit, physical Pixel/Mac acceptance, configured push/notice feed
+and legacy tickets remain open. Saved-screen checks do not prove process death.
+
+## Earlier checkpoint — compound workspace filters and SSH pane search (2026-10-04)
 
 The workspace filter now combines unread state with multiple exact computer
 identities, across native Macs and SSH hosts. Stable/nightly siblings remain
@@ -53,8 +94,8 @@ Read-only audit at upstream `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
 `WorkspaceListView.swift`, `WorkspaceListFilterState.swift`,
 `WorkspaceListFilterControls.swift`, `MobileWorkspaceListFilter.swift`,
 `MobileWorkspaceAggregation.swift`, `MobileWorkspaceRecencyOrder.swift`, and
-`MobileWorkspaceSortStore.swift`. The search/filter steps were implemented in the checkpoint above; sorting
-remains pending. The global parity pin remains unchanged.
+`MobileWorkspaceSortStore.swift`. The search/filter/sort steps were implemented in the checkpoints above.
+The global parity pin remains unchanged; regular-width layout remains pending.
 
 1. Index live SSH pane names alongside workspace title, preview and host name.
    Mac search already indexes terminal and group names. Build metadata from the

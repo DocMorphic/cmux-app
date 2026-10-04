@@ -94,9 +94,16 @@ private val nativeMuted = Color(0xFF9B9FA8)
 internal fun NativeScreen(
     onUseHelper: () -> Unit, incomingCode: String? = null, incomingNotificationRoute: String? = null,
     onNotificationHandled: (String) -> Unit = {}, onPairingHandled: (String) -> Unit = {},
-    connector: NativeConnector? = null, sshSessionOverride: NativeSshSession? = null
+    connector: NativeConnector? = null, sshSessionOverride: NativeSshSession? = null,
+    sortStoreOverride: NativeWorkspaceSortStore? = null
 ) {
     val context = LocalContext.current
+    val workspaceSortStore = remember(context, sortStoreOverride) {
+        sortStoreOverride ?: context.getSharedPreferences("native_workspace_sort", android.content.Context.MODE_PRIVATE).let { prefs ->
+            NativeWorkspaceSortStore({ prefs.getString("state", null) }, { prefs.edit().putString("state", it).apply() })
+        }
+    }
+    val workspaceSort by workspaceSortStore.state.collectAsState()
     val runtimeOwner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
     val sharedConnections = remember(runtimeOwner, connector) {
         if (connector == null) ViewModelProvider(runtimeOwner, NativeConnectionsViewModel.Factory(context))
@@ -325,6 +332,7 @@ internal fun NativeScreen(
     val localBrowserState by localBrowsers.state.collectAsState()
     val localBrowser = localBrowserState.local
     val browserLogin = if (signedIn) store.taskSession() else null
+    var showComputerOrder by rememberSaveable(browserLogin, teamState.scope) { mutableStateOf(false) }
     var workspaceFilter by rememberSaveable(browserLogin, teamState.scope, stateSaver = NativeWorkspaceFilter.saver) {
         mutableStateOf(NativeWorkspaceFilter())
     }
@@ -756,6 +764,31 @@ internal fun NativeScreen(
     val effectiveWorkspaceFilter = workspaceFilter.forMenu(filterMachines.map { it.id }.toSet(),
         selectedOrigin != null || selectedSshComputer != null)
     SideEffect { if (workspaceFilter != effectiveWorkspaceFilter) workspaceFilter = effectiveWorkspaceFilter }
+    val allWorkspaceComputers = selectedOrigin == null && selectedSshComputer == null
+    val sortComputers = pairedMacs.mapNotNull { mac -> workspaceMacFilterId(mac.deviceId, mac.instanceTag)?.let {
+        NativeSortComputer(it, appearances.name(mac), connectedCode == mac.code && connectionReady, scopedPresence.buildLabel(mac))
+    } } + sshTargets.map { NativeSortComputer(workspaceSshFilterId(it.host.id), it.name) }
+    LaunchedEffect(browserLogin, connectedCode, connectionReady) {
+        if (browserLogin != null && connectionReady) pairedMacs.singleOrNull { it.code == connectedCode }?.let {
+            workspaceMacFilterId(it.deviceId, it.instanceTag)?.let { id -> workspaceSortStore.recordOpened(id, System.currentTimeMillis()) }
+        }
+    }
+    LaunchedEffect(browserLogin, selectedSshComputer?.host?.id, selectedSshComputer?.connection?.phase) {
+        if (browserLogin != null && selectedSshComputer?.connection?.phase == SshConnectionPhase.CONNECTED)
+            workspaceSortStore.recordOpened(workspaceSshFilterId(selectedSshComputer.host.id), System.currentTimeMillis())
+    }
+    LaunchedEffect(workspaceRoute?.id) {
+        workspaceRoute?.let { route -> pairedMacs.singleOrNull { it.ownsOrigin(route.origin) }?.let {
+            workspaceMacFilterId(it.deviceId, it.instanceTag)?.let { id -> workspaceSortStore.recordOpened(id, System.currentTimeMillis()) }
+        } }
+    }
+    if (showComputerOrder && signedIn) key(browserLogin, teamState.scope) {
+        NativeComputerOrderSheet(orderWorkspaceComputers(sortComputers, workspaceSort, searchLocale),
+            onDismiss = { showComputerOrder = false }) { ids ->
+            if (store.taskSession() == browserLogin && accountTeams.state.value.scope == teamState.scope)
+                workspaceSortStore.setPriority(ids.filter { id -> sortComputers.any { it.id == id } })
+        }
+    }
     val workspaceSearch = remember(workspaceSources, searchLocale, appearances) {
         NativeSearchIndex(workspaceSources.flatMap { source ->
             val groupNames = source.groups.associate { it.id to it.name }
@@ -3027,11 +3060,14 @@ internal fun NativeScreen(
                 }
             } else {
                 NativeWorkspaceFilterMenu(effectiveWorkspaceFilter,
-                    if (selectedOrigin == null && selectedSshComputer == null) filterMachines else emptyList(),
-                    workspaceFilterMenuOpen, { workspaceFilterMenuOpen = it }) { next ->
-                    if (store.taskSession() == browserLogin && accountTeams.state.value.scope == teamState.scope)
-                        workspaceFilter = next.forMenu(filterMachines.map { it.id }.toSet(), selectedOrigin != null || selectedSshComputer != null)
-                }
+                    if (allWorkspaceComputers) filterMachines else emptyList(),
+                    workspaceFilterMenuOpen, { workspaceFilterMenuOpen = it }, onChange = { next ->
+                        if (store.taskSession() == browserLogin && accountTeams.state.value.scope == teamState.scope)
+                            workspaceFilter = next.forMenu(filterMachines.map { it.id }.toSet(), !allWorkspaceComputers)
+                    }, sortMode = workspaceSort.mode.takeIf { allWorkspaceComputers }, onSort = { mode ->
+                        workspaceSortStore.setMode(mode)
+                        if (mode == NativeWorkspaceSortMode.PRIORITY) showComputerOrder = true
+                    }, onOrder = { showComputerOrder = true })
                 NativeWorkspaceCreateMenu(
                     macs = pairedMacs.filter { selectedSshComputer == null && (selectedOrigin == null || it.origin == selectedOrigin) },
                     appearances = appearances, presence = scopedPresence,
@@ -3075,8 +3111,6 @@ internal fun NativeScreen(
             val filteredSources = workspaceSources.filter { source ->
                 effectiveWorkspaceFilter.matches(workspaceMacFilterId(source.mac.deviceId, source.mac.instanceTag), true)
             }
-            val entries = workspaceEntries(filteredSources, matches, search.isNotEmpty() || effectiveWorkspaceFilter.active,
-                unreadWorkspacesOnly, collapsedGroups)
             val sshSearch = remember(visibleSshRows, searchLocale) { NativeSearchIndex(visibleSshRows.map { row ->
                 row.key to row.searchFields()
             }, searchLocale) }
@@ -3085,13 +3119,17 @@ internal fun NativeScreen(
                 effectiveWorkspaceFilter.matches(workspaceSshFilterId(it.host.id), it.workspace.hasUnread) &&
                     (search.isBlank() || it.key in sshMatches)
             }
+            val displayRows = sortedWorkspaceRows(filteredSources, sshEntries, sortComputers, workspaceSort, allWorkspaceComputers,
+                matches, search.isNotEmpty() || effectiveWorkspaceFilter.active, unreadWorkspacesOnly, collapsedGroups, searchLocale)
+            val entries = displayRows.filterIsInstance<NativeWorkspaceDisplayRow.Mac>().map { it.entry }
             PullToRefreshBox(isRefreshing = feedRefreshing || sshFeed.values.any { it.loading }, onRefresh = {
                 selectedSshComputer?.let { it.session.workspaceFeed.open(it.host, explicit = true) }
                     ?: sshSession?.workspaceFeed?.refreshConnected()
                 if (selectedSshComputer == null) refreshFeed()
             }, modifier = Modifier.weight(1f)) {
             val reorderSource = workspaceSources.singleOrNull()
-            val canReorder = sshEntries.isEmpty() && reorderSource != null && reorderSource.canReorderWorkspaces() &&
+            val canReorder = !(allWorkspaceComputers && workspaceSort.mode == NativeWorkspaceSortMode.ACTIVITY) &&
+                sshEntries.isEmpty() && reorderSource != null && reorderSource.canReorderWorkspaces() &&
                 (reorderSource.groups.isNotEmpty() || reorderSource.workspaces.none { it.isPinned }) &&
                 reorderSource.mac.code == connectedCode && search.isBlank() && !effectiveWorkspaceFilter.active &&
                 (moveStatus[reorderSource.mac.origin]?.pending ?: 0) < 3
@@ -3122,8 +3160,7 @@ internal fun NativeScreen(
                         }
                     }
                 }
-            }, hasOtherRows = sshEntries.isNotEmpty(), after = {
-                items(sshEntries, key = { it.key }) { row ->
+            }, displayRows = displayRows, sshRow = { row ->
                     val status = sshTargets.singleOrNull { it.host.id == row.host.id }?.connection?.phase
                     val availability = when (status) {
                         SshConnectionPhase.CONNECTED -> NativeFeedAvailability.CONNECTED
@@ -3138,13 +3175,15 @@ internal fun NativeScreen(
                                     val first = row.openTarget()
                                     val remembered = first?.let { store.lastWorkspaceTab(browserLogin, sshWorkspaceTabKey(browserLogin, row.host, it)) }
                                     val target = first
-                                    if (target != null) { screenResume.cancel(); workspaceRoute = null; sshNavigation.open(browserLogin, row.host, target, remembered) }
+                                    if (target != null) {
+                                        workspaceSortStore.recordOpened(workspaceSshFilterId(row.host.id), System.currentTimeMillis())
+                                        screenResume.cancel(); workspaceRoute = null; sshNavigation.open(browserLogin, row.host, target, remembered)
+                                    }
                                     else error = "This workspace has no live terminal or browser. Open Computers to manage it."
                                 }
                             }, onAction = { action, _ -> if (action == "close" && store.taskSession() == browserLogin)
                                 sshSession?.workspaceFeed?.closeWorkspace(row) })
                     }
-                }
             }, empty = {
                 NativeWorkspaceEmptyRow(when {
                     search.isNotBlank() -> NativeWorkspaceEmptyGuidance.SEARCH

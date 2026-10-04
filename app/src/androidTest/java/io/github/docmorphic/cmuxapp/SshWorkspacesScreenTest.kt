@@ -31,7 +31,10 @@ class SshWorkspacesScreenTest {
     private lateinit var hostId: UUID
     private lateinit var cmux: SshCmuxHost
     private var metadata: String? = null
+    private var sortMetadata: String? = null
+    private lateinit var sortStore: NativeWorkspaceSortStore
     @Before fun setup() {
+        sortStore = NativeWorkspaceSortStore({ sortMetadata }, { sortMetadata = it })
         val args = InstrumentationRegistry.getArguments()
         assumeTrue(args.getString("cmux_ssh_nonce") == "cmux")
         root = File(compose.activity.noBackupFilesDir, "cmux-ui-${UUID.randomUUID()}")
@@ -111,13 +114,13 @@ class SshWorkspacesScreenTest {
         File(compose.activity.getExternalFilesDir(null), "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }
-    private fun withMainFeed(check: (NativeFixturePeer, StateRestorationTester) -> Unit) {
+    private fun withMainFeed(configure: (NativeFixturePeer) -> Unit = {}, check: (NativeFixturePeer, StateRestorationTester) -> Unit) {
         compose.runOnUiThread {
             compose.activity.window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
         check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk"))
         val store = NativeCredentialStore(compose.activity)
-        val peer = NativeFixturePeer()
+        val peer = NativeFixturePeer().also(configure)
         store.clear(); store.update {
             it.put("refresh_token", "emulator-ssh-feed-fixture")
             it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465")
@@ -125,7 +128,7 @@ class SshWorkspacesScreenTest {
         val restoration = StateRestorationTester(compose)
         try {
             restoration.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
-                NativeScreen(onUseHelper = {}, sshSessionOverride = session, connector = NativeConnector { _, _ ->
+                NativeScreen(onUseHelper = {}, sshSessionOverride = session, sortStoreOverride = sortStore, connector = NativeConnector { _, _ ->
                     MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
                 })
             } } }
@@ -184,6 +187,38 @@ class SshWorkspacesScreenTest {
         compose.onNodeWithContentDescription("Computer filter").performClick()
         compose.onNodeWithText("Add Computer").performClick()
         compose.onNodeWithTag("computers.pairing.help").assertIsDisplayed()
+    }
+
+    @Test fun mainFeedSortsMacAndSshTogetherPersistsOrderAndKeepsSingleComputerOrder() = withMainFeed(configure = { peer ->
+        peer.customWorkspaceListing = org.json.JSONObject("""{"groups":[],"workspaces":[
+            {"id":"workspace-1","title":"Claude Code task","last_activity_at":1,"terminals":[{"id":"terminal-1","title":"Shell"}]},
+            {"id":"workspace-2","title":"Recent workspace","last_activity_at":200,"terminals":[{"id":"terminal-2","title":"Shell"}]}]}""")
+    }) { peer, restoration ->
+        fun filter() = compose.onNodeWithContentDescription("Filter workspaces").performClick()
+        fun y(title: String) = compose.onNodeWithText(title).fetchSemanticsNode().boundsInRoot.top
+        filter(); compose.onNodeWithText("Custom Order").performClick()
+        val sshId = workspaceSshFilterId(hostId)
+        val action = compose.onNodeWithTag("workspace.sort.computer:$sshId").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Move up" }
+        compose.runOnUiThread { assertTrue(action.action()) }
+        compose.onNodeWithText("Done").performClick()
+        compose.waitUntil(5000) { y("Desktop cmux") < y("Claude Code task") }
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitUntil(5000) { y("Desktop cmux") < y("Claude Code task") }
+        assertEquals(sortStore.state.value, NativeWorkspaceSortStore({ sortMetadata }, {}).state.value)
+        capture("custom-computer-order")
+        filter(); compose.onNodeWithText("Recent Activity").performClick()
+        compose.waitUntil(5000) { y("Recent workspace") < y("Claude Code task") && y("Claude Code task") < y("Desktop cmux") }
+        capture("recent-workspace-order")
+        compose.onNodeWithContentDescription("Computer filter").performClick()
+        compose.onNodeWithText("Fixture Mac").performClick()
+        compose.waitUntil(5000) { y("Claude Code task") < y("Recent workspace") }
+        filter(); compose.onNodeWithText("Recent Activity").assertDoesNotExist()
+        androidx.test.espresso.Espresso.pressBack()
+        compose.onNodeWithContentDescription("Computer filter").performClick()
+        compose.onNode(hasText("All Computers") and hasAnyAncestor(isPopup())).performClick()
+        compose.waitUntil(5000) { y("Recent workspace") < y("Claude Code task") }
+        assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.move","workspace.create","workspace.close") })
     }
 
     @Test fun compoundMachineUnreadFilterSurvivesRestorationAndClearsWhenScopeMakesItHidden() = withMainFeed { peer, restoration ->

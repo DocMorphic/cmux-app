@@ -11,7 +11,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun NativeWorkspaceFilterMenu(filter: NativeWorkspaceFilter, machines: List<NativeWorkspaceFilterMachine>,
-    open: Boolean, onOpen: (Boolean) -> Unit, onChange: (NativeWorkspaceFilter) -> Unit) {
+    open: Boolean, onOpen: (Boolean) -> Unit, onChange: (NativeWorkspaceFilter) -> Unit,
+    sortMode: NativeWorkspaceSortMode? = null, onSort: (NativeWorkspaceSortMode) -> Unit = {}, onOrder: (() -> Unit)? = null) {
     Box {
         IconButton(onClick = { onOpen(true) }, modifier = Modifier.semantics {
             contentDescription = "Filter workspaces"
@@ -26,6 +27,16 @@ internal fun NativeWorkspaceFilterMenu(filter: NativeWorkspaceFilter, machines: 
                 modifier = Modifier.semantics { selected = !filter.unread }, onClick = { select(filter.copy(unread = false)) })
             DropdownMenuItem(text = { Text("Unread") }, leadingIcon = { Text(if (filter.unread) "✓" else " ") },
                 modifier = Modifier.semantics { selected = filter.unread }, onClick = { select(filter.copy(unread = true)) })
+            sortMode?.let { mode ->
+                HorizontalDivider()
+                NativeWorkspaceSortMode.entries.forEach { choice ->
+                    DropdownMenuItem(text = { Text(choice.title) }, leadingIcon = { Text(if (mode == choice) "✓" else " ") },
+                        modifier = Modifier.testTag("workspace.sort.${choice.raw}").semantics { selected = mode == choice },
+                        onClick = { onOpen(false); onSort(choice) })
+                }
+                if (mode == NativeWorkspaceSortMode.PRIORITY && onOrder != null)
+                    DropdownMenuItem(text = { Text("Edit Computer Order") }, onClick = { onOpen(false); onOrder() })
+            }
             if (machines.size > 1) {
                 HorizontalDivider()
                 DropdownMenuItem(text = { Text("All Machines") }, leadingIcon = { Text(if (filter.machines.isEmpty()) "✓" else " ") },

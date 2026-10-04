@@ -33,7 +33,9 @@ internal fun NativeWorkspaceDragList(
     onMove: (NativeFeedSource, String, NativeWorkspaceMove) -> Boolean,
     rowHandlesAccessibility: Boolean = true,
     before: LazyListScope.() -> Unit = {}, after: LazyListScope.() -> Unit = {},
-    hasOtherRows: Boolean = false, empty: @Composable () -> Unit,
+    hasOtherRows: Boolean = false,
+    displayRows: List<NativeWorkspaceDisplayRow>? = null,
+    sshRow: @Composable (SshFeedRow) -> Unit = {}, empty: @Composable () -> Unit,
     row: @Composable (WorkspaceListEntry) -> Unit
 ) {
     val list = rememberLazyListState()
@@ -120,7 +122,13 @@ internal fun NativeWorkspaceDragList(
             )
         }, state = list, userScrollEnabled = held == null, contentPadding = PaddingValues(bottom = 84.dp)) {
             before()
-            itemsIndexed(entries, key = { _, item -> item.key }) { index, entry ->
+            itemsIndexed(displayRows ?: entries.map(NativeWorkspaceDisplayRow::Mac), key = { _, item -> item.key }) { _, item ->
+                if (item is NativeWorkspaceDisplayRow.Ssh) {
+                    Column(Modifier.animateItem()) { sshRow(item.row) }
+                    return@itemsIndexed
+                }
+                val entry = (item as NativeWorkspaceDisplayRow.Mac).entry
+                val index = entries.indexOfFirst { it.key == entry.key }
                 val actions = remember(entries, reorderEnabled, index) { if (reorderEnabled) listOf("Move up" to false, "Move down" to true)
                     .mapNotNull { (label, down) ->
                         workspaceStepIntent(entry.source, entries, index, down)?.let { (id, intent) ->
@@ -141,7 +149,7 @@ internal fun NativeWorkspaceDragList(
                 }
             }
             after()
-            if (entries.isEmpty() && !hasOtherRows) item { empty() }
+            if ((displayRows?.isEmpty() ?: entries.isEmpty()) && !hasOtherRows) item { empty() }
         }
         val moving = dragged
         if (moving != null) {
