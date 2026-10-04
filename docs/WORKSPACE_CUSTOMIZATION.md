@@ -10,7 +10,9 @@ Android provides **Customize Workspace** in the workspace row menu and the
 shared native pane picker, including the local browser. The form contains name, pinned state, description,
 and an optional workspace color. RGB sliders and hex entry cover opaque colors;
 this uses Android controls in place of Apple's system ColorPicker. Workspace
-color is shown as its own 3dp rail, separate from the Mac avatar's color.
+color is shown as its own 3dp rail, independent of Mac appearance settings.
+See [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md) for the newer row layout without a Mac
+avatar in the row body.
 
 | Field | Mac action through `workspace.action` |
 | --- | --- |

@@ -8,7 +8,7 @@ internal data class NativeWorkspace(
     val windowId: String?, val isPinned: Boolean, val browsers: List<NativeBrowser>,
     val groupId: String?, val preview: String?, val color: String?, val description: String? = null,
     val unreadCount: Long? = null, val surfaces: List<NativeSurface> = emptyList(),
-    val simulators: List<NativeSimulator> = emptyList(), val descriptionTruncated: Boolean = false
+    val simulators: List<NativeSimulator> = emptyList(), val descriptionTruncated: Boolean = false, val previewAt: Double? = null
 ) {
     val unreadState get() = NativeWorkspaceUnread(hasUnread, unreadCount ?: if (hasUnread) null else 0L)
     // Simulator descriptors have their own host inventory, not an invented wire surface kind.
@@ -108,14 +108,15 @@ internal fun parseWorkspaces(value: JSONObject): List<NativeWorkspace> {
                 id, workspace.optString("title", "Workspace"), terminals,
                 workspace.optString("current_directory").takeIf { it.isNotBlank() && it != "null" },
                 workspace.optBoolean("has_unread"),
-                workspace.optDouble("last_activity_at").takeIf { it > 0 },
+                workspace.optDouble("last_activity_at").takeIf { it.isFinite() },
                 workspace.optString("window_id").takeIf { it.isNotBlank() && it != "null" },
                 workspace.optBoolean("is_pinned"), browsers,
                 workspace.optString("group_id").takeIf { it.isNotBlank() && it != "null" },
                 workspace.optString("preview").takeIf { it.isNotBlank() && it != "null" },
                 workspace.optString("custom_color").takeIf { it.startsWith('#') },
                 (workspace.opt("description") as? String)?.takeIf { it.isNotBlank() },
-                workspace.optString("unread_count").toLongOrNull()?.takeIf { it >= 0 }, inventory, simulators, workspace.optBoolean("description_truncated")
+                workspace.optString("unread_count").toLongOrNull()?.takeIf { it >= 0 }, inventory, simulators, workspace.optBoolean("description_truncated"),
+                workspace.optDouble("preview_at").takeIf { it.isFinite() }
             ))
         }
     }

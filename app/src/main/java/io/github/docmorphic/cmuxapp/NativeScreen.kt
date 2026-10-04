@@ -52,8 +52,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import java.text.DateFormat
-import java.util.Date
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
@@ -3035,9 +3033,7 @@ fun NativeScreen(
                     NativeWorkspaceRow(
                         workspace = workspace, groups = owner.groups, canCustomize = owner.canCustomizeWorkspace(),
                         displayPreferences = displayState,
-                        computer = appearances.name(owner.mac).takeIf { selectedOrigin == null && pairedMacs.size > 1 },
-                        appearance = appearances.get(owner.mac), machineId = owner.mac.colorIdentity.colorSeed,
-                        machineColorIndex = machineColorIndices[owner.mac.colorIdentity],
+                        availability = owner.availability,
                         canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
                         onOpen = { open() },
                         onAction = { action, title ->
@@ -3260,8 +3256,7 @@ internal fun NativeWorkspaceRow(
     canMove: Boolean,
     canCustomize: Boolean = false,
     displayPreferences: NativeDisplayPreferences = NativeDisplayPreferences(),
-    computer: String? = null,
-    appearance: NativeMacAppearance = NativeMacAppearance(), machineId: String? = null, machineColorIndex: Int? = null,
+    availability: NativeFeedAvailability = NativeFeedAvailability.CONNECTED,
     onOpen: () -> Unit,
     onAction: (String, String?) -> Unit
 ) {
@@ -3273,31 +3268,37 @@ internal fun NativeWorkspaceRow(
         .semantics {
             stateDescription = listOfNotNull("Pinned".takeIf { workspace.isPinned },
                 workspace.unreadState.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
-        }.padding(horizontal = 18.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+        }.padding(horizontal = 18.dp, vertical = 8.dp).testTag("workspace.row:${workspace.id}"), verticalAlignment = Alignment.CenterVertically) {
         NativeUnreadGutter(workspace.unreadState)
-        NativeMacAvatar(appearance, machineId ?: workspace.id, index = machineColorIndex, defaultSymbol = "terminal")
-        Spacer(Modifier.width(8.dp))
         val workspaceAccent = workspace.color?.takeIf { Regex("#[0-9a-fA-F]{6}").matches(it) }?.drop(1)?.toLongOrNull(16)
         Box(Modifier.width(3.dp).fillMaxHeight().padding(vertical = 5.dp)
             .background(workspaceAccent?.let { Color(0xFF000000L or it).copy(alpha = .95f) } ?: Color.Transparent, RoundedCornerShape(1.5.dp))
             .testTag("workspace.color:${workspace.id}"))
         Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            computer?.let { Text(it, color = nativeMuted, fontSize = 10.sp, maxLines = 1) }
-            Text(workspace.title.ifBlank { "Workspace" }, Modifier.testTag("workspace.title:${workspace.id}"),
-                fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-                maxLines = if (displayPreferences.wrapTitles) Int.MAX_VALUE else 1, overflow = TextOverflow.Ellipsis)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (workspace.isPinned) Icon(painterResource(R.drawable.ic_workspace_pin_fill), null, tint = nativeMuted,
+                    modifier = Modifier.size(11.dp).alignBy { it.measuredHeight }.testTag("workspace.pin:${workspace.id}"))
+                Text(workspace.title.ifBlank { "Workspace" }, Modifier.weight(1f).alignByBaseline().testTag("workspace.title:${workspace.id}"),
+                    fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold,
+                    maxLines = if (displayPreferences.wrapTitles) Int.MAX_VALUE else 1, overflow = TextOverflow.Ellipsis)
+                val locale = LocalConfiguration.current.locales[0]
+                val zone = java.util.TimeZone.getDefault()
+                val referenceMilliseconds = System.currentTimeMillis()
+                val referenceDay = java.time.Instant.ofEpochMilli(referenceMilliseconds).atZone(zone.toZoneId()).toLocalDate()
+                val trailing = remember(workspace.lastActivityAt, workspace.previewAt, availability, locale, zone.id, referenceDay) {
+                    workspaceActivityLabel(workspace, availability, referenceMilliseconds, locale, zone)
+                }
+                if (trailing.isNotEmpty()) Text(trailing, Modifier.alignByBaseline().testTag("workspace.status:${workspace.id}"),
+                    color = nativeMuted, fontSize = 15.sp, lineHeight = 20.sp, maxLines = 1)
+            }
             workspace.description?.trim()?.takeIf { it.isNotEmpty() }?.let {
-                Text(it, Modifier.testTag("workspace.description:${workspace.id}"), fontSize = 12.sp,
+                Text(it, Modifier.testTag("workspace.description:${workspace.id}"), fontSize = 15.sp, lineHeight = 20.sp,
                     minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             Text(workspace.preview?.takeIf { it.isNotEmpty() } ?: workspace.terminals.firstOrNull()?.title ?: workspace.title,
-                Modifier.testTag("workspace.preview:${workspace.id}"), color = nativeMuted, fontSize = 11.sp,
+                Modifier.testTag("workspace.preview:${workspace.id}"), color = nativeMuted, fontSize = 15.sp, lineHeight = 20.sp,
                 minLines = displayPreferences.previewLines, maxLines = displayPreferences.previewLines, overflow = TextOverflow.Ellipsis)
-        }
-        workspace.lastActivityAt?.let { seconds ->
-            Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date((seconds * 1000).toLong())),
-                color = nativeMuted, fontSize = 10.sp)
         }
         Spacer(Modifier.width(8.dp))
         Box {

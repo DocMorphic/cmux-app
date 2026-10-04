@@ -12,6 +12,28 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — workspace row layout and status (2026-10-04)
+
+[WORKSPACE_ROWS.md](WORKSPACE_ROWS.md) aligns the row structure with the scoped
+iOS source: unread gutter/color rail, visible pin, title-line activity/status,
+larger text with explicit line heights and tighter spacing. The large Mac avatar
+and Mac-name caption are removed from the row body. Connected rows use today's
+local time or an older month/day date, including the legacy `preview_at` fallback;
+connection problems show Reconnecting/Disconnected. No relative-time timer is added.
+
+**17 JVM tests and four Android cases pass** (56.636s); the two affected layout
+cases pass again after the final line-height adjustment (17.153s). Screenshots
+inspected, crash buffers empty, sole AVD stopped/reaped. Initial test-accessor and
+pixel-rounding failures are retained in the evidence receipt. No Pixel was
+connected; signed build 517 is unchanged.
+
+**Next:** whole-process workspace editor restoration (the existing
+`WorkspaceProcessRestorationTest` / `NativeProcessRestoreTestActivity` provides an
+isolated-process harness), current-source signed/cold-start gate, changes-summary
+row chip and gesture/action parity. Physical Pixel/Mac workflow, broader source
+parity, production account/network graph and push/feed provider configuration
+remain open. Overall goal remains active.
+
 ## Latest checkpoint — offline workspace editor and Activity restoration (2026-10-04)
 
 [WORKSPACE_CUSTOMIZATION.md](WORKSPACE_CUSTOMIZATION.md#offline-discovery-and-save-admission--2026-10-04)
