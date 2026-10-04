@@ -3,7 +3,63 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 517 (2026-10-04)
+## Current signed development APK — build 537 (2026-10-04)
+
+[Build 537](https://github.com/DocMorphic/cmux-app/actions/runs/37195165885)
+passed at `3921de252ce312693c653c4362c21b088e8d307e`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37195165885/artifacts/11301525638)
+and extract `app-release.apk` (repository access required). PR #1 remains a draft;
+this is an Actions development artifact, not a published GitHub release.
+
+This batch includes 517 plus the responsive license dialog, display/scrollback
+preferences, terminal arrow pad and alternate-screen controls, foreground terminal
+bell feedback, shared haptic settings, Legal/Support/About, independent Mac
+connection admission, workspace customization with offline/conflict recovery,
+browser-side customization, iOS-style workspace rows and account-owned draft
+restoration after Android process death.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **537**, version 0.2.0.
+- SHA-256: `659781bc564bb9a33f6328e191d8380f5f32ad7d4e0e50e87cee6154b8c20820`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **228,001,854 bytes**; compressed artifact **119,898,825 bytes**.
+- Min SDK 26, target SDK 36; local file `build/signed-run-37195165885/app-release.apk`.
+
+CI rebuilt the pinned Ghostty dependency, passed app/Ghostty JVM suites and
+assembled debug/test/release APKs; Gradle reported **9m 40s**. No JVM test count is
+inferred from the CI log. Android 17 / 16 KB ART accepted `NativeScreenKt` with
+1,339 methods. Independent downloaded-APK checks confirmed source/run/artifact
+association, CI's APK digest, stable signer, all 14 viewer hashes, all 19 native
+LOAD/RELRO checks, 16 KB ZIP alignment, disabled backup, non-debuggable manifest,
+the pinned notice engine and exclusion of all eight debug fixture activities.
+Local arm64 Android 17 ART also accepted the same release class.
+
+The existing API 37 / 16,384-byte arm64 emulator upgraded **517 → 537** with
+`install -r`, preserving first-install time `2026-09-30 01:57:49`. Explicit stop/start
+reported COLD, MainActivity and **2,777 ms**, reaching the visually reviewed sign-in
+screen without a compatibility warning or ANR dialog. `pageSizeCompat=0`; final
+crash buffer empty. This one launch is not a performance benchmark. The baseline
+was signed out, so authenticated migration and physical Pixel/Mac acceptance
+remain unverified.
+
+The repaired license dialog rendered and Done returned to sign-in. The observed
+23-frame interval had 22 janky frames and a 650 ms 99th-percentile bucket; the
+previous three-second opening stall was not observed, but emulator jank remains
+and no physical performance claim is made. Screen-timeout/stay-awake settings
+were unchanged. The sole existing AVD was stopped/reaped; no new local AVD was
+created. The rebuilt Ghostty binary differs from the previous locally tested
+binary despite unchanged pinned core/binding build inputs; byte reproducibility
+is not established. Native alignment passed; live signed terminal acceptance
+remains part of the physical workflow gate.
+
+Evidence: `captures/runtime/release-3921de2/` (ignored), including CI provenance,
+independent package receipt, inspected screenshots, class-load logs and
+`runtime-verification.json`. The Pixel was absent from ADB. Changes-summary chips,
+context/swipe/drag parity, production account/network recovery, configured push
+and Android notice feed, broader source/UI parity and live Pixel/Mac verification
+remain open. This milestone does not complete the goal; the global parity pin is
+unchanged.
+
+## Previous signed development APK — build 517 (2026-10-04)
 
 [Build 517](https://github.com/DocMorphic/cmux-app/actions/runs/37179259486)
 passed at `7b01538b49b6a58cd11bb7290b1fa5128582950f`. Download the
@@ -47,12 +103,12 @@ out: authenticated migration and physical Pixel/Mac acceptance remain unverified
 This single cold launch is not a benchmark. Font/rotation settings stayed 1.0/1/0.
 The one existing AVD was stopped and reaped; no new local AVD was created.
 
-**Known performance follow-up:** opening the monolithic license dialog produced a
+**Historical performance follow-up (fixed in build 537):** opening the monolithic license dialog produced a
 3,019 ms frame. The initial UI hierarchy was unavailable and its screenshot showed
 a dimmed frame; a subsequent capture rendered the license text, and Done returned
-to sign-in. There was no crash, but this UI stall needs fixing. The source currently
+to sign-in. There was no crash, and this prompted the subsequent fix. At build 517, the source
 concatenates all license assets, including the 288,864-byte GeckoView text, into one
-synchronously loaded Compose Text. This is the next implementation task.
+synchronously loaded Compose Text. Build 537 includes its asynchronous/lazy replacement.
 
 Evidence: `captures/runtime/release-checkpoint/` (ignored), including CI provenance,
 independent package receipts, inspected screenshots, frame logs and

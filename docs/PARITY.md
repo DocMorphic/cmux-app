@@ -12,7 +12,30 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — workspace draft process restoration (2026-10-04)
+## Latest checkpoint — signed build 537 and upgrade gate (2026-10-04)
+
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) now points to signed development build **537**,
+source `3921de252ce312693c653c4362c21b088e8d307e`. CI passed app/Ghostty JVM suites,
+APK assembly, packaging and Android 17 / 16 KB ART; Gradle took 9m40s. Independent
+local checks matched the CI APK hash, stable signer, 14 viewer assets, 19 aligned
+native libraries and eight excluded debug activities. Local arm64 ART accepted
+1,339 NativeScreenKt methods. No CI JVM count is inferred from logs.
+
+The existing emulator upgraded 517 → 537 without uninstall, preserving its
+first-install timestamp, and cold-launched to sign-in in 2,777ms without a
+compatibility warning or ANR dialog. License text rendered and Done dismissed it;
+its 650ms 99th-percentile frame bucket still reflects emulator jank, not a physical
+performance claim. Final crash buffer empty; sole AVD stopped/reaped; settings
+unchanged. This baseline was signed out, so authenticated migration is unverified.
+No physical Pixel was connected. Evidence is in `captures/runtime/release-3921de2/`.
+
+The accumulated source fixes through workspace draft owner isolation are now in
+the signed APK. The changes-summary row chip and gestures, live Pixel/Mac workflow,
+production account/network graph, broader source/UI parity and push/feed provider
+configuration remain open. PR #1 is still a draft; the goal remains active.
+Earlier sections naming build 517 describe historical checkpoints.
+
+## Earlier checkpoint — workspace draft process restoration (2026-10-04)
 
 The separate-process Android test exposed an owner-isolation bug: a saved workspace
 editor could reopen its unsent draft under a replacement login. Targets now retain

@@ -109,3 +109,11 @@ an arbitrarily old full-viewer snapshot would not implement this source policy.
 Verification must include batching/expiry/coalescing, owner retirement and late
 responses, multiple Macs sharing workspace IDs, binary/zero counts, chip-versus-row
 click behavior and accessible labels, before live Mac/Pixel acceptance.
+
+Android integration detail: `NativeFeedRefresh.run` reconciles workspaces and
+notifications every 30 seconds as well as on events. Its conflated `Unit` signal
+does not preserve which event caused a fetch. Do not schedule a changes-summary
+request on every call to `refreshWorkspaces`: notification-only events and idle
+reconciliation would turn that into extra Git polling. Keep separate summary
+demand for initial connection, real workspace events, explicit user refresh and
+workspace mutations, then prune it against each accepted workspace snapshot.

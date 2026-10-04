@@ -18,15 +18,36 @@ Read this first, then `PARITY.md`, `ANDROID_TESTING.md`, `RESEARCH.md`, and
 not a request to scaffold another prototype. The dated sections of the other
 documents are historical; newer verified entries supersede older pending claims.
 
-**Delivery update — 2026-10-04:** signed development build **517**, source
-`7b01538b49b6a58cd11bb7290b1fa5128582950f`, passed CI, independent packaging,
-Android 17 ART and an in-place signed-out 494 → 517 emulator upgrade/cold launch.
-See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the download, evidence and limitations.
-The license-dialog correction is now verified in debug (see the newer checkpoint
-below). The goal remains active; physical/authenticated acceptance, feed/push configuration and
-broader parity remain open. Older delivery sections below are historical.
+**Delivery update — 2026-10-04:** signed development build **537** is now verified.
+See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) and the latest checkpoint below for its
+source, download, packaging, ART and signed-out upgrade evidence. The goal remains
+active; physical/authenticated acceptance, feed/push configuration and broader
+parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — workspace draft process restoration (2026-10-04)
+## Latest checkpoint — signed build 537 and upgrade gate (2026-10-04)
+
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) now points to signed development build **537**,
+source `3921de252ce312693c653c4362c21b088e8d307e`. CI passed app/Ghostty JVM suites,
+APK assembly, packaging and Android 17 / 16 KB ART; Gradle took 9m40s. Independent
+local checks matched the CI APK hash, stable signer, 14 viewer assets, 19 aligned
+native libraries and eight excluded debug activities. Local arm64 ART accepted
+1,339 NativeScreenKt methods. No CI JVM count is inferred from logs.
+
+The existing emulator upgraded 517 → 537 without uninstall, preserving its
+first-install timestamp, and cold-launched to sign-in in 2,777ms without a
+compatibility warning or ANR dialog. License text rendered and Done dismissed it;
+its 650ms 99th-percentile frame bucket still reflects emulator jank, not a physical
+performance claim. Final crash buffer empty; sole AVD stopped/reaped; settings
+unchanged. This baseline was signed out, so authenticated migration is unverified.
+No physical Pixel was connected. Evidence is in `captures/runtime/release-3921de2/`.
+
+The accumulated source fixes through workspace draft owner isolation are now in
+the signed APK. The changes-summary row chip and gestures, live Pixel/Mac workflow,
+production account/network graph, broader source/UI parity and push/feed provider
+configuration remain open. PR #1 is still a draft; the goal remains active.
+Earlier sections naming build 517 describe historical checkpoints.
+
+## Earlier checkpoint — workspace draft process restoration (2026-10-04)
 
 The separate-process Android test exposed an owner-isolation bug: a saved workspace
 editor could reopen its unsent draft under a replacement login. Targets now retain

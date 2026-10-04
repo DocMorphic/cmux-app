@@ -45,3 +45,14 @@ was visible in ADB, so browser/Mac acceptance remains pending. No release APK wa
 built for this small change; signed development build 517 remains available and
 does not contain it. Full app parity, physical performance, notice feed and push
 configuration remain open.
+
+## Signed follow-up — build 537 (2026-10-04)
+
+The fix now ships in the signed development artifact described in
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md). After a signed-out 517 → 537 in-place upgrade,
+the actual release MainActivity opened the populated license dialog and Done
+returned to sign-in. The 23-frame interval contained 22 janky frames and a 650 ms
+99th-percentile bucket; no three-second frame was observed in this sample.
+This is an emulator smoke check, not a physical performance benchmark or proof
+that all jank is fixed. The final crash buffer was empty; the sole AVD stopped.
+Evidence: `captures/runtime/release-3921de2/license*` (ignored).
