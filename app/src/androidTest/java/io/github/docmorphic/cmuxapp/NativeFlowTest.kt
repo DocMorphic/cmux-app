@@ -2093,6 +2093,50 @@ class NativeFlowTest {
         compose.onNodeWithText("Settings").assertIsDisplayed()
     }
 
+    @Test fun groupPickerMovesFilteredBackgroundMacAndRemovesThroughRpc() {
+        val other = NativeFixturePeer().apply { deviceId = "second-mac"; displayName = "Second Mac" }
+        fun listing(name: String) = JSONObject("""{
+            "groups":[{"id":"destination","name":"$name destination","icon_symbol":"terminal"}],
+            "workspaces":[{"id":"workspace-1","window_id":"fixture-window","title":"$name task","terminals":[]}]}
+        """)
+        peer.customWorkspaceListing = listing("First")
+        other.customWorkspaceListing = listing("Second")
+        val store = NativeCredentialStore(context)
+        store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.2:58465", "second-mac", "Second Mac")
+        store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    val target = if (pairing.routes.first().host == "100.64.0.2") other else peer
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Second task").fetchSemanticsNodes().isNotEmpty() }
+            openSearch(); compose.onNode(hasSetTextAction()).performTextInput("Second task")
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("First task").fetchSemanticsNodes().isEmpty() }
+            compose.onNodeWithTag("workspace.row:workspace-1").performTouchInput { longClick() }
+            compose.onNodeWithText("Move to Group").performClick()
+            compose.onNodeWithText("First destination").assertDoesNotExist()
+            compose.onNode(hasText("Second destination") and hasAnyAncestor(isPopup())).performClick()
+            compose.waitUntil(10_000) { other.requests.any { it.optString("method") == "workspace.move" } }
+            val first = other.requests.single { it.optString("method") == "workspace.move" }.getJSONObject("params")
+            assertEquals("workspace-1", first.getString("workspace_id"))
+            assertEquals("destination", first.getString("group_id"))
+            assertEquals("fixture-window", first.getString("window_id"))
+            compose.onNodeWithTag("workspace.row:workspace-1").performTouchInput { longClick() }
+            compose.onNodeWithText("Move to Group").performClick()
+            compose.onNode(hasText("Second destination") and hasAnyAncestor(isPopup())).assertIsNotEnabled()
+            compose.onNodeWithText("Remove from Group").performClick()
+            compose.waitUntil(10_000) { other.requests.count { it.optString("method") == "workspace.move" } == 2 }
+            val removed = other.requests.last { it.optString("method") == "workspace.move" }.getJSONObject("params")
+            assertFalse(removed.has("group_id"))
+            assertEquals("workspace-1", removed.getString("workspace_id"))
+            assertTrue(peer.requests.none { it.optString("method") == "workspace.move" })
+            assertTrue((peer.requests + other.requests).none { it.optString("method") == "mobile.terminal.replay" })
+            screenshot("group-picker-filtered-background-mac")
+        } finally { other.close() }
+    }
+
     @Test fun workspaceHierarchyOpensAnchorPersistsCollapseAndDragsThroughRpc() {
         peer.notificationFeed = searchNotifications()
         peer.customWorkspaceListing = JSONObject("""{

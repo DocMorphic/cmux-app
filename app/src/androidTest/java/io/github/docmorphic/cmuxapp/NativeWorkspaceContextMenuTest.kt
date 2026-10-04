@@ -35,7 +35,7 @@ class NativeWorkspaceContextMenuTest {
         compose.setContent { CmuxTheme { Surface {
             NativeWorkspaceDragList(workspaceHierarchy(source), true, Modifier.width(360.dp).height(420.dp).testTag("list"),
                 onMove = { _, id, _ -> moves += id; true }, empty = {}) { entry ->
-                NativeWorkspaceRow((entry as WorkspaceListEntry.Workspace).workspace, emptyList(), true,
+                NativeWorkspaceRow((entry as WorkspaceListEntry.Workspace).workspace,
                     canWorkspaceActions = true, canReadState = true, canClose = true,
                     onOpen = { opens++ }, onAction = { action, _ -> actions += action })
             }
@@ -82,7 +82,7 @@ class NativeWorkspaceContextMenuTest {
             NativeWorkspaceDragList(workspaceHierarchy(source), false, Modifier.width(360.dp).height(420.dp),
                 onMove = { _, _, _ -> fail("Reordering disabled"); false }, empty = {}) { entry ->
                 val workspace = (entry as WorkspaceListEntry.Workspace).workspace
-                NativeWorkspaceRow(workspace, emptyList(), false, canWorkspaceActions = true,
+                NativeWorkspaceRow(workspace, canWorkspaceActions = true,
                     onOpen = { fail("Long press opened workspace") }, onAction = { action, _ -> actions += "${entry.source.mac.accountUserId ?: entry.source.mac.code}:$action" })
             }
         } } }
@@ -110,7 +110,7 @@ class NativeWorkspaceContextMenuTest {
         compose.setContent { CmuxTheme { Surface {
             NativeWorkspaceDragList(workspaceHierarchy(source), true, Modifier.width(360.dp).height(420.dp),
                 onMove = { _, id, _ -> moves += id; true }, empty = {}) { entry ->
-                NativeWorkspaceRow((entry as WorkspaceListEntry.Workspace).workspace, emptyList(), true,
+                NativeWorkspaceRow((entry as WorkspaceListEntry.Workspace).workspace,
                     canReadState = true, canClose = true, canWorkspaceActions = true,
                     onOpen = {}, onAction = { _, _ -> })
             }
@@ -128,6 +128,51 @@ class NativeWorkspaceContextMenuTest {
         compose.waitForIdle()
         compose.runOnUiThread { assertFalse(move.action()) }
         assertEquals(listOf("w0"), moves)
+    }
+
+    @Test fun groupPickerChecksCurrentGroupRoutesRemovalAndReturnsToParent() {
+        val base = source().copy(availability = NativeFeedAvailability.CONNECTED,
+            capabilities = setOf("workspace.move.v1"),
+            groups = listOf(NativeGroup("one", "Current destination", false, false),
+                NativeGroup("two", "Collapsed destination", true, false, iconSymbol = "terminal")))
+        var owner by mutableStateOf(base.copy(workspaces = base.workspaces.map { it.copy(windowId = "window", groupId = "one") }))
+        val actions = mutableListOf<String>()
+        compose.setContent { CmuxTheme { Surface {
+            NativeWorkspaceDragList(listOf(WorkspaceListEntry.Workspace(owner, owner.workspaces.first())), false,
+                Modifier.width(360.dp).height(420.dp), onMove = { _, _, _ -> false }, empty = {}) { entry ->
+                NativeWorkspaceRow((entry as WorkspaceListEntry.Workspace).workspace,
+                    groupMoveMenu = NativeWorkspaceGroupMoveMenu.forWorkspace(owner, "w0"), canWorkspaceActions = true,
+                    onOpen = { fail("Opened a workspace") }, onAction = { action, _ -> actions += action })
+            }
+        } } }
+        fun picker() {
+            compose.onNodeWithTag("workspace.row:w0").performTouchInput { longClick() }
+            compose.onNodeWithText("Move to Group").performClick()
+        }
+        picker()
+        compose.onNodeWithText("Current destination").assertIsNotEnabled().assert(
+            SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Current group"))
+        compose.onNodeWithText("Collapsed destination").assertIsEnabled()
+        screenshot("move-to-group")
+        compose.onNodeWithContentDescription("Back to workspace actions").performClick()
+        compose.onNodeWithText("Pin").assertIsDisplayed()
+        compose.onNodeWithText("Move to Group").performClick()
+        compose.onNodeWithText("Collapsed destination").performClick()
+        assertEquals(listOf("move:two"), actions)
+        picker()
+        compose.onNodeWithText("Remove from Group").performClick()
+        assertEquals(listOf("move:two", "move:"), actions)
+        picker()
+        compose.runOnIdle { owner = owner.copy(mac = owner.mac.copy(accountUserId = "replacement")) }
+        compose.onNodeWithText("Current destination").assertDoesNotExist()
+        compose.onNodeWithTag("workspace.row:w0").performTouchInput { longClick() }
+        compose.onNodeWithText("Pin").assertIsDisplayed()
+        compose.onNodeWithText("Move to Group").performClick()
+        compose.runOnIdle { owner = owner.copy(capabilities = emptySet()) }
+        compose.onNodeWithText("Move to Group").assertDoesNotExist()
+        compose.onNodeWithText("Collapsed destination").assertDoesNotExist()
+        compose.onNodeWithText("Pin").assertIsDisplayed()
+        assertEquals(listOf("move:two", "move:"), actions)
     }
 
     private fun screenshot(name: String) {

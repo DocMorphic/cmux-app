@@ -26,9 +26,9 @@ class NativeWorkspaceRowPresentationTest {
     @Test fun pinStatusAndReservedRailAlignWhileTheOwnerDisconnects() {
         var availability by mutableStateOf(NativeFeedAvailability.CONNECTED)
         compose.setContent { CmuxTheme { Surface { Column(Modifier.width(393.dp)) {
-            NativeWorkspaceRow(row, emptyList(), false, availability = availability, onOpen = {}, onAction = { _, _ -> })
+            NativeWorkspaceRow(row, availability = availability, onOpen = {}, onAction = { _, _ -> })
             NativeWorkspaceRow(row.copy(id = "read", title = "Read workspace", isPinned = false, hasUnread = false,
-                unreadCount = 0, color = null, description = null), emptyList(), false, onOpen = {}, onAction = { _, _ -> })
+                unreadCount = 0, color = null, description = null), onOpen = {}, onAction = { _, _ -> })
         } } } }
         compose.onNodeWithTag("workspace.pin:row", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("workspace.pin:read", useUnmergedTree = true).assertDoesNotExist()

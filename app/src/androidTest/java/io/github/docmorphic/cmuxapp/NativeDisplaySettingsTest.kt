@@ -35,7 +35,7 @@ class NativeDisplaySettingsTest {
                 current = rememberNativeDisplayPreferences(preferences)
                 Column(Modifier.width(360.dp)) {
                     NativeDisplaySettings(preferences, current)
-                    NativeWorkspaceRow(workspace, emptyList(), false, displayPreferences = current, onOpen = {}, onAction = { _, _ -> })
+                    NativeWorkspaceRow(workspace, displayPreferences = current, onOpen = {}, onAction = { _, _ -> })
                 }
             } } } }
             fun layout(tag: String): TextLayoutResult {

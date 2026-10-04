@@ -3045,13 +3045,14 @@ fun NativeScreen(
                     Column(Modifier.padding(start = if (entry.indented) 18.dp else 0.dp)
                         .semantics { contentDescription = "${workspace.title} on ${appearances.name(owner.mac)}" }) {
                     NativeWorkspaceRow(
-                        workspace = workspace, groups = owner.groups, canCustomize = owner.canCustomizeWorkspace(),
+                        workspace = workspace, canCustomize = owner.canCustomizeWorkspace(),
                         displayPreferences = displayState,
                         availability = owner.availability, changesChip = owner.changes[workspace.id],
                         canReadState = "workspace.read_state.v1" in owner.capabilities,
                         canClose = "workspace.close.v1" in owner.capabilities,
                         canWorkspaceActions = "workspace.actions.v1" in owner.capabilities,
-                        canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
+                        groupMoveMenu = NativeWorkspaceGroupMoveMenu.forWorkspace(owner, workspace.id,
+                            moveStatus[owner.mac.origin]?.pending ?: 0),
                         onOpen = { open() },
                         onAction = { action, title ->
                             if (action == "customize") customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, owner.mac, workspace.id)
@@ -3272,8 +3273,7 @@ private fun NativeGroupHeaderRow(
 @Composable
 internal fun NativeWorkspaceRow(
     workspace: NativeWorkspace,
-    groups: List<NativeGroup>,
-    canMove: Boolean,
+    groupMoveMenu: NativeWorkspaceGroupMoveMenu = NativeWorkspaceGroupMoveMenu(),
     canCustomize: Boolean = false,
     displayPreferences: NativeDisplayPreferences = NativeDisplayPreferences(),
     availability: NativeFeedAvailability = NativeFeedAvailability.CONNECTED,
@@ -3285,6 +3285,8 @@ internal fun NativeWorkspaceRow(
     onAction: (String, String?) -> Unit
 ) {
     val menu = rememberWorkspaceContextMenu(workspace.id)
+    var groupPicker by remember(menu, menu.expanded) { mutableStateOf(false) }
+    val showingGroups = groupPicker && !groupMoveMenu.isEmpty
     val moveActions = LocalWorkspaceMoveActions.current
     var rename by remember(menu) { mutableStateOf(false) }
     var confirmClose by remember(menu) { mutableStateOf(false) }
@@ -3343,38 +3345,39 @@ internal fun NativeWorkspaceRow(
             }
         }
     }
-            DropdownMenu(expanded = menu.expanded, onDismissRequest = { if (!menu.held) menu.expanded = false },
-                properties = PopupProperties(focusable = !menu.held)) {
-                DropdownMenuItem(text = { Text("View changes") }, onClick = {
-                    menu.expanded = false; onAction("changes", null)
-                })
-                DropdownMenuItem(text = { Text("New terminal") }, onClick = {
-                    menu.expanded = false; onAction("terminal.create", null)
-                })
-                DropdownMenuItem(text = { Text("New browser") }, onClick = {
-                    menu.expanded = false; onAction("browser.create", null)
-                })
-                if (canCustomize) DropdownMenuItem(text = { Text("Customize Workspace") }, onClick = { menu.expanded = false; onAction("customize", null) })
-                if (canWorkspaceActions) DropdownMenuItem(text = { Text("Rename") }, onClick = { menu.expanded = false; title = workspace.title; rename = true })
-                if (canWorkspaceActions) DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") }, onClick = {
-                    menu.expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null)
-                })
-                if (canReadState) DropdownMenuItem(text = { Text(readLabel) }, onClick = {
-                    menu.expanded = false; onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
-                })
-                if (canMove) {
-                    groups.filter { it.id != workspace.groupId }.forEach { group ->
-                        DropdownMenuItem(text = { Text("Move to ${group.name}") }, onClick = {
-                            menu.expanded = false; onAction("move:${group.id}", null)
-                        })
-                    }
-                    if (workspace.groupId != null) DropdownMenuItem(text = { Text("Remove from group") }, onClick = {
-                        menu.expanded = false; onAction("move:", null)
+            DropdownMenu(expanded = menu.expanded, onDismissRequest = {
+                if (!menu.held) { if (showingGroups) groupPicker = false else menu.expanded = false }
+            }, properties = PopupProperties(focusable = !menu.held)) {
+                if (showingGroups) {
+                    NativeWorkspaceGroupMoveItems(groupMoveMenu, onBack = { groupPicker = false }, onMove = { groupId ->
+                        menu.expanded = false; onAction("move:${groupId.orEmpty()}", null)
+                    })
+                } else {
+                    DropdownMenuItem(text = { Text("View changes") }, onClick = {
+                        menu.expanded = false; onAction("changes", null)
+                    })
+                    DropdownMenuItem(text = { Text("New terminal") }, onClick = {
+                        menu.expanded = false; onAction("terminal.create", null)
+                    })
+                    DropdownMenuItem(text = { Text("New browser") }, onClick = {
+                        menu.expanded = false; onAction("browser.create", null)
+                    })
+                    if (canCustomize) DropdownMenuItem(text = { Text("Customize Workspace") }, onClick = { menu.expanded = false; onAction("customize", null) })
+                    if (canWorkspaceActions) DropdownMenuItem(text = { Text("Rename") }, onClick = { menu.expanded = false; title = workspace.title; rename = true })
+                    if (canWorkspaceActions) DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") }, onClick = {
+                        menu.expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null)
+                    })
+                    if (canReadState) DropdownMenuItem(text = { Text(readLabel) }, onClick = {
+                        menu.expanded = false; onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
+                    })
+                    if (!groupMoveMenu.isEmpty) DropdownMenuItem(text = { Text("Move to Group") },
+                        leadingIcon = { Icon(painterResource(R.drawable.ic_workspace_folder), null, Modifier.size(20.dp)) },
+                        trailingIcon = { Icon(painterResource(R.drawable.ic_workspace_chevron_right), null, Modifier.size(16.dp)) },
+                        onClick = { groupPicker = true })
+                    if (canClose) DropdownMenuItem(text = { Text("Close workspace", color = Color(0xFFFF9999)) }, onClick = {
+                        menu.expanded = false; confirmClose = true
                     })
                 }
-                if (canClose) DropdownMenuItem(text = { Text("Close workspace", color = Color(0xFFFF9999)) }, onClick = {
-                    menu.expanded = false; confirmClose = true
-                })
             }
     }
     }

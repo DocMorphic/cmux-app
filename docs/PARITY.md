@@ -12,7 +12,33 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — long-press workspace menus (2026-10-04)
+## Latest checkpoint — Move to Group submenu (2026-10-04)
+
+Workspace menus now have the iOS-style **Move to Group** picker: ordered group
+names/icons, checked and disabled current membership, collapsed destinations,
+and a separate Remove from Group action. It uses the complete owning Mac snapshot
+and existing normalized move queue. Search and multi-Mac views no longer hide
+group moves just because dragging is unavailable. Owner replacement retires the
+picker, and capability/connection/window/queue constraints still gate admission.
+See [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md).
+
+**14 JVM tests and eight distinct Android checks passed across two runs.** The
+initial Android run passed 7/8 in 70.781s; the new multi-Mac test matched both its
+search editor and the identically named row. After narrowing that test selector,
+the filtered background-Mac move/removal RPC flow passed in 25.311s against the
+same production APK. Other checks covered held-pointer drag, virtualized reorder,
+current-group state, removal, owner replacement and rejected move recovery.
+Debug/test assembly passed in 1m38s; the test-only rebuild took 27s.
+
+Screenshots inspected; crash buffers empty; sole existing AVD stopped/reaped.
+Evidence and hashes: `captures/runtime/workspace-group-picker/verification.json`.
+No physical Pixel was visible to ADB. Signed build **537 is unchanged**.
+
+**Next:** exact parent workspace menu ordering/icons/shortcut placement and group
+header actions/presentation. Broader upstream parity, live Pixel/Mac account and
+network acceptance, and push/feed configuration remain open. Goal active.
+
+## Earlier checkpoint — long-press workspace menus (2026-10-04)
 
 The workspace ellipsis is removed. Holding a row opens its owning menu; continued
 vertical movement dismisses it and starts the existing reorder/autoscroll path.

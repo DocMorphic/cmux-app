@@ -29,7 +29,7 @@ class NativeWorkspaceSwipeTest {
         var opens = 0
         val actions = mutableListOf<String>()
         compose.setContent { CmuxTheme { Column(Modifier.width(360.dp)) {
-            NativeWorkspaceRow(row, emptyList(), false, canReadState = true, canClose = true,
+            NativeWorkspaceRow(row, canReadState = true, canClose = true,
                 onOpen = { opens++ }, onAction = { action, _ ->
                     actions += action
                     if (action == "mark_read") row = row.copy(hasUnread = false)
@@ -56,7 +56,7 @@ class NativeWorkspaceSwipeTest {
         var opens = 0
         val actions = mutableListOf<String>()
         compose.setContent { CmuxTheme { Column(Modifier.width(360.dp)) {
-            NativeWorkspaceRow(workspace, emptyList(), false, canReadState = true, canClose = true,
+            NativeWorkspaceRow(workspace, canReadState = true, canClose = true,
                 onOpen = { opens++ }, onAction = { action, _ -> actions += action })
         } } }
         val swipe = compose.onNodeWithTag("workspace.swipe:swipe")
@@ -79,7 +79,7 @@ class NativeWorkspaceSwipeTest {
         var enabled by mutableStateOf(false)
         val actions = mutableListOf<String>()
         compose.setContent { CmuxTheme { Column(Modifier.width(360.dp)) {
-            NativeWorkspaceRow(workspace, emptyList(), false, canReadState = enabled, canClose = enabled,
+            NativeWorkspaceRow(workspace, canReadState = enabled, canClose = enabled,
                 onOpen = {}, onAction = { action, _ -> actions += action })
         } } }
         val swipe = compose.onNodeWithTag("workspace.swipe:swipe")
@@ -111,7 +111,7 @@ class NativeWorkspaceSwipeTest {
                     for (owner in listOf("a", "b")) {
                         CompositionLocalProvider(LocalWorkspaceSwipeKey provides owner) {
                             Box(Modifier.testTag("owner:$owner")) {
-                                NativeWorkspaceRow(workspace, emptyList(), false, canReadState = true, canClose = true,
+                                NativeWorkspaceRow(workspace, canReadState = true, canClose = true,
                                     onOpen = {}, onAction = { action, _ -> actions += "$owner:$action" })
                             }
                         }
@@ -144,7 +144,7 @@ class NativeWorkspaceSwipeTest {
             NativeWorkspaceDragList(workspaceHierarchy(source), true, Modifier.width(360.dp).height(420.dp).testTag("list"),
                 onMove = { _, id, _ -> moves += id; true }, empty = {}) { entry ->
                 val row = (entry as WorkspaceListEntry.Workspace).workspace
-                NativeWorkspaceRow(row, emptyList(), true, canReadState = true, canClose = true,
+                NativeWorkspaceRow(row, canReadState = true, canClose = true,
                     onOpen = {}, onAction = { action, _ -> actions += action })
             }
         } }

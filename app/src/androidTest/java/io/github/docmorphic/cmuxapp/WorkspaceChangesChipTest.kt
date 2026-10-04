@@ -14,7 +14,7 @@ class WorkspaceChangesChipTest {
         var opened = 0; var changes = 0
         val workspace = NativeWorkspace("w", "Workspace", emptyList(), null, false, null, null, false, emptyList(), null, "Latest activity", null)
         compose.setContent { CmuxTheme { Surface {
-            NativeWorkspaceRow(workspace, emptyList(), false, changesChip = WorkspaceChangesChip(3, 42, 7),
+            NativeWorkspaceRow(workspace, changesChip = WorkspaceChangesChip(3, 42, 7),
                 onOpen = { opened++ }, onAction = { action, _ -> assertEquals("changes", action); changes++ })
         } } }
         compose.onNodeWithContentDescription("Changes: 3 files, +42, −7").assertHasClickAction().performClick()

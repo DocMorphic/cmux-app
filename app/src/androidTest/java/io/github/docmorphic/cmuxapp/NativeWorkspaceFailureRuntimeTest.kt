@@ -67,7 +67,7 @@ class NativeWorkspaceFailureRuntimeTest {
                     node(By.text("Completed group")).longClick(); node(By.text("Pin group")).click()
                 }
                 reject("workspace.move") {
-                    node(By.text("Claude Code task")).longClick(); node(By.text("Move to Completed group")).click()
+                    node(By.text("Claude Code task")).longClick(); node(By.text("Move to Group")).click(); node(By.text("Completed group")).click()
                 }
                 assertNull(peer.customWorkspaceListing)
                 device.takeScreenshot(File(folder, "after-rejections.png"))

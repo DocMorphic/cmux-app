@@ -276,3 +276,52 @@ Held-menu and actual app row screenshots without the ellipsis were inspected.
 Final crash buffer empty, sole AVD stopped/reaped. Receipt:
 `captures/runtime/workspace-context-menu/verification.json`. Physical Pixel/Mac
 and spoken TalkBack acceptance remain pending; signed build 537 is unchanged.
+
+
+## Move to Group submenu — 2026-10-04
+
+The scoped iOS reference is `MobileWorkspaceGroupMoveMenu.swift` plus
+`WorkspaceListTableCoordinator+Actions.swift` at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`. Android now opens an anchored
+**Move to Group** submenu with destinations in the owning Mac's group order,
+optional group icons, a checked/disabled current group, and a separate
+**Remove from Group** action. Collapsed and empty groups remain destinations;
+anchors and missing rows have no picker, and unknown group membership cannot
+expose removal. A single current group still has its disabled item and removal.
+The picker offers Back to workspace actions and retires with the owning row,
+including account replacement at the same origin/workspace ID.
+
+The model accepts one complete `NativeFeedSource`, so aggregated and searched
+rows never mix group IDs across Macs or compute order from a filtered list.
+Menu discovery is independent of drag discovery: search, unread filters and
+multiple visible Macs no longer suppress group moves. The existing connection,
+capability, unambiguous window and pending-queue constraints still apply. All
+selections go through `NativeWorkspaceMoves.enqueue`, which rechecks owner,
+base order and current admission before using the shared normalization policy.
+No direct RPC or automatic retry path was added.
+
+Exact parent menu ordering/icons, pane-creation/Changes shortcut placement,
+group header actions, physical Pixel/Mac and spoken accessibility acceptance
+remain separate work. This scoped submenu change does not update the global
+upstream parity pin or the signed delivery build.
+
+### Group-picker verification
+
+**14 JVM cases passed** (eight menu policies, six existing move queue tests).
+The first Android run passed 7/8 in 70.781s. Its remaining test selected both the
+search editor and the row with the same text; replacing that selector with the
+row tag resolved it. The filtered background-Mac flow then passed in 25.311s on
+the same production APK, verifying exact workspace/group/window parameters,
+removal without a group ID, zero moves to the other Mac with a colliding ID and
+zero terminal replay. Thus **eight distinct Android cases pass across runs**;
+this is not a single green eight-case invocation.
+
+The other cases exercise current checked/disabled state, collapsed destinations,
+back to parent, removal, account replacement and capability withdrawal; existing
+held-pointer, virtualized drag/accessibility and rejected RPC recovery checks
+also pass. The submenu and full-app filtered row screenshots were inspected.
+The component screenshot deliberately uses a partial-size Surface, not a full
+Activity layout. Crash buffers are empty; the existing AVD was stopped/reaped.
+Builds took 1m38s (JVM/main/test) and 27s (test selector correction only). Evidence:
+`captures/runtime/workspace-group-picker/verification.json`. No physical Pixel
+was visible. Signed build 537 remains unchanged.
