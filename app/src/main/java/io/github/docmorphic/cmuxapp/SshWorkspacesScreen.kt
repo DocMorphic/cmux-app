@@ -93,8 +93,9 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     var files by remember(session, hostId) { mutableStateOf(false) }
     var browser by remember(session, hostId) { mutableStateOf<SshBrowserPresentation?>(null) }
     var ending by remember(session, hostId) { mutableStateOf<SshWorkspaceEnd?>(null) }
-    fun select(target: SshWorkspaceTarget) { selection = "$hostId\n${target.encode()}"; failure = null }
-    fun leave() { selection = null; opened = null; browser = null; failure = null }
+    var navigationEpoch by remember(session, hostId) { mutableIntStateOf(0) }
+    fun select(target: SshWorkspaceTarget) { navigationEpoch++; selection = "$hostId\n${target.encode()}"; failure = null }
+    fun leave() { navigationEpoch++; selection = null; opened = null; browser = null; failure = null }
     fun presentBrowser(provider: SshCmuxProvider?, target: SshWorkspaceTarget, title: String, panel: String? = null, url: String? = null) {
         val tree = provider?.state?.value?.tree
         val row = when (target) {
@@ -363,6 +364,15 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
             TextButton(onClick = onBack) { Text("Back") }
             Text(hosts.host(hostId)?.name ?: "Workspaces", Modifier.weight(1f).padding(vertical = 12.dp), style = MaterialTheme.typography.titleMedium)
             TextButton(onClick = { tmux.refresh(); cmux.refresh() }, enabled = available) { Text("Refresh") }
+            SshWorkspaceCreateMenu(hosts.host(hostId), sshWorkspaceKinds(tmuxState, cmuxState), available,
+                isCurrent = { expected -> session.isOpen && session.hosts.state.value.host(expected.id)?.connectsLike(expected) == true },
+                onCreate = { expected, kind ->
+                    val entryEpoch = navigationEpoch
+                    act {
+                        val created = session.createWorkspace(expected, kind)
+                        if (session.isOpen && navigationEpoch == entryEpoch && selection == null) select(created)
+                    }
+                })
         }
         if (tmuxState.loading || cmuxState.loading || busy || reconnecting || cmuxState.operation != null) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (disconnected) TextButton(onClick = onReconnect, enabled = !reconnecting) { Text("Reconnect") }

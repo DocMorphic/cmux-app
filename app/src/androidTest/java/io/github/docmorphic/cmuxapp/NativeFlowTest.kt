@@ -2168,7 +2168,7 @@ class NativeFlowTest {
                 })
             } } }
             compose.waitUntil(15_000) { compose.onAllNodesWithText("Second task").fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithContentDescription("New workspace").performClick()
+            compose.onNodeWithContentDescription("New Workspace").performClick()
             compose.onNode(hasText("Fixture Mac") and hasAnyAncestor(isPopup())).assertIsDisplayed()
             compose.onNode(hasText("Second Mac") and hasAnyAncestor(isPopup())).assertIsDisplayed()
             screenshot("workspace-create-computer-chooser")

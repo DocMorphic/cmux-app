@@ -136,7 +136,11 @@ class WorkspaceDelayedPanesTest {
             updated.getJSONArray("workspaces").put(created); peer.customWorkspaceListing = updated
             JSONObject().put("created_workspace_id", "created-workspace").put("workspaces", JSONArray().put(created))
         }
-        launch(open = false); compose.onNodeWithText("+").performClick(); compose.onNodeWithText("New workspace").performClick()
+        launch(open = false); compose.waitUntil(10_000) {
+                compose.onAllNodes(hasContentDescription("New Workspace") and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithContentDescription("New Workspace").performClick()
+            compose.waitUntil(5_000) { peer.requests.any { it.optString("method") == "workspace.create" } }
         waitFor("Waiting for workspace panes…"); waitFor("Created workspace")
         val updated = JSONObject(peer.customWorkspaceListing.toString())
         updated.getJSONArray("workspaces").getJSONObject(1).put("terminals", JSONArray(shell)); peer.customWorkspaceListing = updated

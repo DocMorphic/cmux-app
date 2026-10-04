@@ -569,3 +569,59 @@ buffer empty; production/test source hashes matched the build snapshot.
 Evidence: `captures/runtime/workspace-create-targets/verification.json`. Debug
 and test APKs built; no new signed APK was requested. Signed 546 remains the
 current download. Sole existing AVD stopped/reaped; Pixel absent and untouched.
+
+
+## Creation gestures and SSH kinds — 2026-10-04
+
+With one Mac target, tapping the workspace toolbar plus now creates directly;
+holding it opens New Workspace / New Group options. Multiple Macs still open
+the target chooser. The plus uses button and long-click accessibility semantics,
+and disables while busy or without an admitted connected target. Its readiness
+reads the Compose-observed feed state so completion of a background handshake
+updates the control. The separate task-composer button remains available; New
+Task was removed from the workspace-creation menu to match the scoped iOS menu.
+
+The SSH workspace screen now has a plus menu in the same kind order and with
+the same labels as `SSHWorkspaceKindDisplay.swift`: New cmux-tui Workspace,
+New tmux Session, New Shell. Original vector icons identify each kind. Unprobed
+hosts offer all kinds; completed probes disable unsupported kinds with a reason.
+A supported platform without cmux-tui offers its existing pinned installer.
+An unknown or unsupported probed platform does not promise installation.
+
+`NativeSshSession.createWorkspace(expectedHost, kind)` validates the saved route
+and live login, opens through the shared connection manager and returns the
+exact created target. cmux-tui targets come from the phone-owned session and
+match the returned workspace key; tmux targets retain the provider's confirmed
+session/window/pane identity. Shells use the validated transport rather than
+redialing by mutable host ID. The menu includes host identity even when two hosts
+offer identical kinds, rechecks current availability/admission, and retires on
+route changes. Delayed creation cannot replace a newer SSH navigation selection.
+
+Scoped sources: `WorkspaceListNewWorkspaceMenu.swift`,
+`WorkspaceListNewWorkspaceMenuValue.swift`, `SSHWorkspaceKindDisplay.swift`,
+`MobileSSHHostProviders.swift` and `MobileSSHComputers.swift` at `0fc35d6`.
+
+**Remaining integration:** the main All Computers feed still contains native
+Mac rows, and its target chooser does not yet include SSH hosts. The SSH menu
+and creation operation are exercised on the existing SSH workspace screen;
+its older section creation controls remain during the unified-list work. Next,
+project `NativeSshRuntime.state` / session hosts and connection statuses into
+shared creation targets, pin the login and saved host, and route the returned
+`SshWorkspaceTarget` without replaying creation during rotation or restoration.
+The main computer selector and feed must also support SSH identities and rows.
+This is outstanding app work, not an Android platform exception.
+
+### Creation-kind verification
+
+Six JVM tests passed. Initial Android run: 11 tests, three failures. Two were
+direct-tap readiness failures; the button now reads the observed feed state and
+the fixtures wait for the enabled control and submitted request. The third
+assertion matched the menu and older section New Shell buttons simultaneously;
+it is now scoped to the popup. Final Android run: **11/11 in 98.577s**, including
+all three SSH kinds against private real cmux-tui/tmux and terminal input/output.
+The stale-route guard rejected a mismatched expected host without another shell.
+
+Menu screenshots inspected, source hashes unchanged during the final run and
+crash buffer empty. The emulator and private SSH fixture were stopped/reaped.
+Evidence: `captures/runtime/workspace-kind-menus/verification.json`. Physical
+Pixel/Mac acceptance remains pending; signed delivery remains build 546.

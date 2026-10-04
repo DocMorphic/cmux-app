@@ -158,7 +158,11 @@ class TerminalStartupTest {
             compose.onNodeWithTag("terminal-picker").performClick()
             compose.onNodeWithText("New Workspace").performScrollTo().performClick()
         } else {
-            compose.onNodeWithText("+").performClick(); compose.onNodeWithText("New workspace").performClick()
+            compose.waitUntil(10_000) {
+                compose.onAllNodes(hasContentDescription("New Workspace") and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithContentDescription("New Workspace").performClick()
+            compose.waitUntil(5_000) { peer.requests.any { it.optString("method") == "workspace.create" } }
         }
         waitFor("Starting terminal…"); compose.onNodeWithText("New shell ▾").assertExists()
         assertOnlyPreparation("new-terminal")

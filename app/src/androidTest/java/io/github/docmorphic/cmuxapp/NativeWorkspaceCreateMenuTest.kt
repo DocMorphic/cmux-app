@@ -31,10 +31,20 @@ class NativeWorkspaceCreateMenuTest {
                     if (it.origin in connected) NativeFeedAvailability.CONNECTED else NativeFeedAvailability.OFFLINE) },
                 open, { open = it }, owner, selection, busy, { it == owner && allowed },
                 { NativeComputerMenuPairing.isCurrent(it, rows) && it.origin in connected },
-                { created += it }, {}, null)
+                { created += it }, null)
         } } } }
     }
-    private fun openMenu() = compose.onNodeWithContentDescription("New workspace").performClick()
+    private fun openMenu() = compose.onNodeWithContentDescription("New Workspace").performClick()
+
+    @Test fun singleMacTapCreatesDirectlyAndHoldOnlyOpensOptions() {
+        rows = listOf(stable)
+        content(); openMenu()
+        compose.runOnIdle { assertEquals(listOf(stable), created); created.clear() }
+        compose.onNodeWithContentDescription("New Workspace").performTouchInput { longClick() }
+        compose.onNode(hasText("New Workspace") and hasAnyAncestor(isPopup())).assertIsDisplayed()
+        compose.onNodeWithText("New task").assertDoesNotExist()
+        compose.runOnIdle { assertTrue(created.isEmpty()) }
+    }
 
     @Test fun sameDeviceDifferentBuildUsesDisplayedTargetAndNextOpeningUpdatesItsName() {
         content(); openMenu()
@@ -63,10 +73,10 @@ class NativeWorkspaceCreateMenuTest {
         openMenu()
         compose.runOnIdle { selection = nightly.origin; rows = listOf(nightly) }
         compose.waitUntil { !open }
-        openMenu()
+        compose.onNodeWithContentDescription("New Workspace").performTouchInput { longClick() }
         compose.onNodeWithText("Stable Mac").assertDoesNotExist()
-        compose.onNode(hasText("New workspace") and hasAnyAncestor(isPopup())).performClick()
+        compose.onNode(hasText("New Workspace") and hasAnyAncestor(isPopup())).performClick()
         compose.runOnIdle { assertEquals(listOf(nightly), created); busy = true }
-        compose.onNodeWithContentDescription("New workspace").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("New Workspace").assertIsNotEnabled()
     }
 }

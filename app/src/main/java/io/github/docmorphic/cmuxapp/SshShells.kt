@@ -171,12 +171,12 @@ internal class SshShells(private val hosts: SshHostStore, private val connection
         }
         scope.launch { try { awaitCancellation() } finally { closeAll() } }
     }
-    suspend fun create(hostId: UUID): SshShell = withContext(Dispatchers.Main.immediate) {
+    suspend fun create(hostId: UUID, connected: SshTransport? = null): SshShell = withContext(Dispatchers.Main.immediate) {
         check(job.isActive && admitted()) { "Sign in to open an SSH shell" }
         check(hosts.state.value.host(hostId) != null) { "SSH computer was removed" }
         check(mutable.value.size < 16) { "Close an SSH shell before opening another" }
         SshShell(hostId, "Shell ${++counter}", scope, { job.isActive && admitted() }, drafts) {
-            connections.open(hostId)
+            connected?.also { check(it.isConnected) { "SSH connection changed" } } ?: connections.open(hostId)
         }.also { mutable.value += it }
     }
     /** An ended PTY cannot resume. Keep its screen until connecting succeeds,

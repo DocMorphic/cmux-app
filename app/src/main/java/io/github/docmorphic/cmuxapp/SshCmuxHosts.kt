@@ -138,6 +138,14 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
             } finally { mutable.value = mutable.value.copy(operation = null); if (!closed) refresh() }
         }
     }.await()
+    suspend fun createWorkspaceTarget(): SshWorkspaceTarget.Cmux {
+        val key = createWorkspace()
+        val provider = forSession("cmux-android")
+        val tree = checkNotNull(provider.state.value.tree) { "Created workspace inventory unavailable. Refresh before creating another." }
+        val workspace = checkNotNull(tree.workspaces.singleOrNull { it.key == key }) { "Created workspace is no longer listed. Refresh before creating another." }
+        val tab = checkNotNull(workspace.tabs.firstOrNull { it.isTerminal && !it.dead }) { "Created workspace has no ready terminal. Refresh before creating another." }
+        return SshWorkspaceTarget.Cmux(SshCmuxSelection.capture(provider.session, tree, workspace, tab))
+    }
     override fun close() {
         if (closed) return
         closed = true; job.cancel(); providers.values.toList().forEach { it.close() }; providers.clear()

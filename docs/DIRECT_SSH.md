@@ -2531,3 +2531,21 @@ remain unchanged by this experiment.
 [tui]: https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileSSHCmuxTUIProvider.swift
 [files]: https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/SSHFiles/SSHFileBrowserModel.swift
 [browser]: https://github.com/manaflow-ai/cmux/blob/204a11dfcc76280205e50406ab94270a1c152155/Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileSSHComputers+Browser.swift
+
+
+## Shared SSH creation and kind menu (2026-10-04)
+
+The existing workspace screen now has the scoped iOS plus menu for cmux-tui,
+tmux and shell creation, with kind icons and unavailable reasons. Creation
+returns an exact selectable target and opens its terminal. The operation lives
+in `SshWorkspaceCreation.kt` for reuse by the pending main All Computers chooser.
+It validates login/saved route, uses the shared transport and pins a plain
+shell to that validated connection. `SshCmuxHost.createWorkspaceTarget` resolves
+the returned key in the phone-owned session. The existing provider methods
+continue to control mutation lifetime and do not automatically replay requests.
+
+See [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md) for the complete scope, remaining
+unified-list work and verification. Six JVM and 11 final Android checks passed;
+the latter includes real private SSH/cmux-tui/tmux creation and terminal text for
+all three kinds. This does not establish physical Pixel/production host or
+process-death acceptance. No new signed APK was dispatched.

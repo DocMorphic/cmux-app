@@ -2983,11 +2983,10 @@ fun NativeScreen(
                     isOwnerCurrent = { owner -> signedIn && store.taskSession() == owner.login &&
                         accountTeams.state.value.scope == owner.team },
                     canCreate = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
-                        connection.allowsSaved(mac) && feedCoordinator.sources.value[mac.origin]?.let {
+                        connection.allowsSaved(mac) && feedSources[mac.origin]?.let {
                             it.mac == mac && it.availability == NativeFeedAvailability.CONNECTED
                         } == true },
                     onCreate = { createWorkspaceOnMac(it) },
-                    onTask = { finishSearch(); newTaskDraft() },
                     onGroup = if (canCreateOnCurrentMac && WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY in hostCapabilities &&
                         "workspace.group_create.v1" in hostCapabilities) ({ showCreateGroup = true }) else null)
 

@@ -110,6 +110,31 @@ class SshWorkspacesScreenTest {
         File(compose.activity.getExternalFilesDir(null), "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }
+    @Test fun creationMenuOpensEachKindOnItsOwningHostAndRejectsAnEditedRoute() {
+        show(); ready("ssh.cmux.create-owned")
+        fun create(kind: SshWorkspaceKind) {
+            compose.onNodeWithTag("ssh.workspace.create").performClick()
+            compose.onNodeWithText("New cmux-tui Workspace").assertIsDisplayed()
+            compose.onNodeWithText("New tmux Session").assertIsDisplayed()
+            compose.onNode(hasText("New Shell") and hasAnyAncestor(isPopup())).assertIsDisplayed()
+            capture("ssh-create-kinds")
+            compose.onNodeWithTag("ssh.workspace.create.${kind.name}").performClick()
+            ready(); send("Created ${kind.name} here")
+            waitText("Created ${kind.name} here")
+            compose.onNodeWithText("Back").performClick()
+            ready("ssh.cmux.create-owned")
+        }
+        create(SshWorkspaceKind.CMUX_TUI)
+        create(SshWorkspaceKind.TMUX)
+        create(SshWorkspaceKind.SHELL)
+        assertEquals(1, session.shells.state.value.count { it.hostId == hostId })
+        val expected = session.hosts.state.value.host(hostId)!!
+        val stale = expected.copy(endpoint = expected.endpoint.copy(port = if (expected.endpoint.port == 22) 23 else 22))
+        val failure = runBlocking { runCatching { session.createWorkspace(stale, SshWorkspaceKind.SHELL) }.exceptionOrNull() }
+        assertTrue(failure?.message?.contains("SSH computer changed") == true)
+        assertEquals(1, session.shells.state.value.count { it.hostId == hostId })
+    }
+
     @Test fun mixedWorkspacesStreamReopenCreateAndEndWithConfirmation() {
         show(); openCmux(); waitText("Remote cmux λ 中"); send("Phone cmux λ 中")
         capture("cmux-ssh-terminal")

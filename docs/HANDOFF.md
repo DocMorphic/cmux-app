@@ -24,7 +24,43 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — Mac creation target chooser (2026-10-04)
+## Latest checkpoint — primary creation and SSH kinds (2026-10-04)
+
+A single-Mac plus tap now creates directly; holding opens the creation/group
+menu. Multiple Macs still show the target chooser. New Task uses its existing
+separate entry point. The plus observes feed readiness through Compose so the
+verified feed becoming available updates the enabled state.
+
+The existing SSH workspace screen now offers the iOS kind order, labels and
+icons: cmux-tui, tmux, shell. Unsupported choices include a reason. A shared
+creation operation validates the captured saved route/login, uses the existing
+connection manager and returns the exact created terminal target. Shells are
+pinned to the validated transport. Host changes retire open menus even when the
+kinds are identical. This prepares the shared operation for the main chooser;
+**SSH hosts/rows are not yet integrated into All Computers**.
+
+Six focused JVM tests passed. The first 11-case Android run had three failures:
+two direct-tap readiness failures and an ambiguous New Shell test selector.
+After binding the button to the observed feed state, waiting for the enabled
+control/request in the startup tests, and scoping the SSH assertion to its
+popup, **all 11 final Android checks passed in 98.577s**. The live SSH case used
+a private loopback fixture with real cmux-tui/tmux, created all three kinds,
+sent and observed terminal text for each, and rejected a mismatched saved route.
+Menu screenshots inspected; final crash buffer empty; source hashes matched.
+Evidence: `captures/runtime/workspace-kind-menus/verification.json`.
+
+The existing emulator and private SSH fixture were stopped/reaped; no new AVD.
+The Pixel remained absent and untouched. Signed build **546** remains the
+current download; no signed milestone was dispatched for this feature commit.
+
+**Next:** integrate the verified SSH targets/creation path into the main chooser
+and unified feed with login/host-scoped navigation and no creation replay on
+restoration. See [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md) for source findings and
+integration points. Compound filters/sort, wide layout, broader upstream audit,
+legacy tickets, push/feed configuration and physical acceptance remain open.
+Goal active; PR draft; schedules still await merge to main.
+
+## Earlier checkpoint — Mac creation target chooser (2026-10-04)
 
 All Computers now offers the visible paired Macs as workspace-creation targets,
 with display/build labels and connection dots. A selected-computer view offers
