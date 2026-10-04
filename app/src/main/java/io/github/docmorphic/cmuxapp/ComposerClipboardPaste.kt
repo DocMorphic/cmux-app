@@ -30,10 +30,18 @@ internal class ComposerClipboardPaste(
             if (attachments.isEmpty()) return false
             require(enabled()) { "Attachments aren't available in this composer right now." }
             require(clip.itemCount <= 10) { "Paste up to 10 items at a time" }
-            val content = TerminalPasteContent(attachments.map { uri ->
-                TerminalPasteContent.Item.Attachment(uri,
-                    context.contentResolver.getType(uri)?.startsWith("image/") == true)
-            })
+            val readable = attachments.mapNotNull { uri ->
+                if (!current()) return true
+                try {
+                    TerminalPasteContent.Item.Attachment(uri,
+                        context.contentResolver.getType(uri)?.startsWith("image/") == true)
+                } catch (_: Exception) {
+                    if (current()) report("A copied attachment couldn't be opened. Try copying it again.")
+                    null
+                }
+            }
+            if (readable.isEmpty()) return true
+            val content = TerminalPasteContent(readable)
             var accepted = false
             try {
                 // iOS consumes an attachment paste as a whole; captions/URI fallback text

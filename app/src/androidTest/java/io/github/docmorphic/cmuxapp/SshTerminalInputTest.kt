@@ -26,6 +26,33 @@ class SshTerminalInputTest {
     private fun prepared(value: Int = 7) = AttachmentFiles.Prepared(
         ComposerAttachment(name = "image.png", size = 2, imageFormat = "png"), byteArrayOf(value.toByte(), 9))
 
+    @Test fun composerSkipsUnreadableMiddleImageAndUploadsReadableImagesInOrder() = runBlocking {
+        withContext(Dispatchers.Main) {
+            val pool = SshComposerPool(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+            val uploads = mutableListOf<Int>(); var releases = 0
+            val terminal = Terminal(pool) { bytes, _ -> uploads += bytes[0].toInt(); "/image-${bytes[0]}.png" }
+            val input = SshTerminalInput(terminal, terminal.composer, scope, { true }) { uri ->
+                val number = uri.lastPathSegment!!.toInt()
+                if (number == 2) throw IOException("Provider no longer permits reading")
+                prepared(number)
+            }
+            try {
+                terminal.composer.edit("Keep my prompt")
+                val content = TerminalPasteContent((1..3).map {
+                    TerminalPasteContent.Item.Attachment(Uri.parse("content://fixture/$it"), true)
+                }) { releases++ }
+                assertTrue(input.paste(content, direct = false)); input.queue.awaitIdle()
+                assertEquals(1, releases); assertEquals(2, terminal.composer.current.attachments.size)
+                assertEquals("Keep my prompt", terminal.composer.current.text)
+                assertEquals("Provider no longer permits reading", input.message.value)
+                assertTrue(uploads.isEmpty()); assertTrue(terminal.writes.isEmpty())
+                assertTrue(input.submit()); input.queue.awaitIdle()
+                assertEquals(listOf(1, 3), uploads)
+                assertEquals(listOf("'/image-1.png' ", "'/image-3.png' ", "Keep my prompt\r"), terminal.writes.map { it.decodeToString() })
+            } finally { input.close(); terminal.close(); pool.close(); scope.cancel() }
+        }
+    }
+
     @Test fun imageReservesPreparationAndUploadBeforeTextAndBinaryMouseThenReleasesGrant() = runBlocking {
         withContext(Dispatchers.Main) {
             val pool = SshComposerPool(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)

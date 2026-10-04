@@ -63,6 +63,60 @@ class NativeTaskAttachmentsTest {
 
     @Test fun keyboardImageStagesWithPromptAndUploadsWhenTaskIsCreated() = imageStagesAndUploads(false)
     @Test fun systemPasteImageStagesWithPromptAndUploadsWhenTaskIsCreated() = imageStagesAndUploads(true)
+    @Test fun systemPasteKeepsReadableFilesAroundBrokenProviders() = mixedProviderPaste(true)
+    @Test fun attachmentMenuKeepsReadableFilesAroundBrokenProviders() = mixedProviderPaste(false)
+
+    private fun mixedProviderPaste(systemPaste: Boolean) {
+        show()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Keep my prompt")
+        val directory = File(context.cacheDir, "task-previews").apply { mkdirs() }
+        val first = File(directory, "first-$id.txt").apply { writeText("First readable file") }
+        val last = File(directory, "last-$id.txt").apply { writeText("Last readable file") }
+        val missing = File(directory, "missing-$id.txt")
+        fun uri(file: File) = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file)
+        val badMetadata = Uri.parse("content://${context.packageName}.task-previews/unregistered-root/item.txt")
+        val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+        val previous = clipboard.primaryClip
+        try {
+            // ContentResolver normalizes this FileProvider metadata failure to null.
+            // Its unreadable URI must still not prevent later files from staging.
+            assertNull(context.contentResolver.getType(badMetadata))
+            assertEquals("text/plain", context.contentResolver.getType(uri(missing)))
+            val clip = android.content.ClipData("Files", arrayOf("text/uri-list"), android.content.ClipData.Item(uri(first)))
+            listOf(badMetadata, uri(missing), uri(last)).forEach { clip.addItem(android.content.ClipData.Item(it)) }
+            compose.runOnIdle { clipboard.setPrimaryClip(clip) }
+            if (systemPaste) {
+                compose.onNodeWithContentDescription("Task prompt").performTouchInput { longClick(center) }
+                clickSystemPaste { compose.waitForIdle() }
+            } else {
+                compose.onNodeWithContentDescription("Add task attachment").performClick()
+                compose.onNodeWithText("Paste attachment").performClick()
+            }
+            compose.waitUntil(15_000) { repository.drafts.state.value[id]?.attachments?.size == 2 }
+            val draft = repository.drafts.state.value.getValue(id)
+            assertEquals("Keep my prompt", draft.prompt)
+            compose.onNodeWithText("2 attachments couldn't be read. Try adding the missing files again.").assertExists()
+            assertEquals(listOf(first.name, last.name), draft.attachments.map { it.name })
+            draft.attachments.zip(listOf(first, last)).forEach { (attachment, file) ->
+                assertArrayEquals(file.readBytes(), runBlocking { repository.readAttachment(attachment) })
+            }
+            assertTrue(peer.requests.none { it.optString("method") == "mobile.task.attachment.upload" })
+            compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Create Task").fetchSemanticsNodes().any {
+                !it.config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)
+            } }
+            compose.onNodeWithContentDescription("Create Task").performClick()
+            compose.waitUntil(15_000) { completed }
+            val uploads = peer.requests.filter { it.optString("method") == "mobile.task.attachment.upload" }.map { it.getJSONObject("params") }
+            assertEquals(draft.attachments.map { it.id }, uploads.map { it.getString("upload_id") })
+            uploads.zip(listOf(first, last)).forEach { (upload, file) ->
+                assertArrayEquals(file.readBytes(), java.util.Base64.getDecoder().decode(upload.getString("data_b64")))
+            }
+        } finally {
+            compose.runOnIdle { previous?.let(clipboard::setPrimaryClip) ?: clipboard.clearPrimaryClip() }
+            first.delete(); last.delete()
+        }
+    }
+
     private fun imageStagesAndUploads(systemPaste: Boolean) {
         show()
         compose.onNodeWithContentDescription("Task prompt").performTextInput("Explain this image")

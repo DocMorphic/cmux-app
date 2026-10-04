@@ -12,6 +12,27 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — partial attachment providers (2026-10-04)
+
+[COMPOSER_PARTIAL_PROVIDERS.md](COMPOSER_PARTIAL_PROVIDERS.md) brings ordered
+partial attachment preparation to native terminal, SSH and New Task composers.
+An unreadable provider no longer drops later readable files. Ownership changes,
+cancellation and draft-write failures still stop the batch. New Task keeps a
+partial-failure notice after successful items are added; direct terminal delivery
+keeps its existing stop-on-error behavior.
+
+Five JVM tests and 15 distinct Android cases pass across targeted runs. Two initial
+test preconditions incorrectly expected a MIME lookup exception; Android returned
+null. Both corrected task paste/upload flows pass, including a final 35.903 s run
+checking the retained notice. Final debug/test assembly and engine packaging pass.
+The single existing emulator is stopped; no new AVD or signed build was created.
+
+**Next:** physical Pixel/Mac browser and provider acceptance, external grant
+lifetimes, drag/drop, whole-process recreation, HTTPS/native-account acceptance
+and the broader source audit. ADB still shows no physical Pixel; the reconnect
+question remains pending. Android feed and push configuration remain open. Build
+494 remains the last signed APK; the last unsigned-release/ART gate is `786264d`.
+
 ## Latest checkpoint — composer system Paste (2026-10-04)
 
 [COMPOSER_SYSTEM_PASTE.md](COMPOSER_SYSTEM_PASTE.md) closes the shared edit-menu and

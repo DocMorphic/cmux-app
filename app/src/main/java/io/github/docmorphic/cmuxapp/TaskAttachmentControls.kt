@@ -1,7 +1,5 @@
 package io.github.docmorphic.cmuxapp
 
-import android.content.ClipboardManager
-import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -48,25 +46,35 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
         onPreparing(true)
         scope.launch {
             try {
+                var unreadable = 0
                 for ((uri, images) in items) {
                     currentCoroutineContext().ensureActive(); check(current()) { "Task session changed" }
-                    val prepared = if (!images) files.prepare(uri, false, allowEmpty = true) else {
-                        try {
-                            files.prepare(uri, true, TaskAttachments.IMAGE_BYTES).let { prepared ->
-                                val stem = prepared.attachment.name.substringBeforeLast('.', prepared.attachment.name).trim().ifEmpty { "image" }
-                                prepared.copy(attachment = prepared.attachment.copy(name = "${stem.take(240)}.${prepared.attachment.imageFormat}"))
+                    val prepared = readComposerAttachment(
+                        guard = { check(current()) { "Task session changed" } }, failed = { unreadable++ }
+                    ) {
+                        if (!images) files.prepare(uri, false, allowEmpty = true) else {
+                            try {
+                                files.prepare(uri, true, TaskAttachments.IMAGE_BYTES).let { prepared ->
+                                    val stem = prepared.attachment.name.substringBeforeLast('.', prepared.attachment.name).trim().ifEmpty { "image" }
+                                    prepared.copy(attachment = prepared.attachment.copy(name = "${stem.take(240)}.${prepared.attachment.imageFormat}"))
+                                }
+                            } catch (failure: Exception) {
+                                if (failure is CancellationException) throw failure
+                                currentCoroutineContext().ensureActive(); check(current()) { "Task session changed" }
+                                // Match iOS: an image that cannot be prepared may still be a general file.
+                                files.prepare(uri, false, allowEmpty = true)
                             }
-                        } catch (failure: Exception) {
-                            if (failure is CancellationException) throw failure
-                            // Match iOS: an image that cannot be prepared may still be a general file.
-                            files.prepare(uri, false, allowEmpty = true)
                         }
-                    }
+                    } ?: continue
                     currentCoroutineContext().ensureActive(); check(current()) { "Task session changed" }
                     repository.attach(editor, prepared)
                     currentCoroutineContext().ensureActive()
                     if (current()) onChanged()
                 }
+                // Successful draft edits clear old errors; report partial failure after them.
+                if (unreadable > 0 && current()) onError(
+                    "$unreadable attachment${if (unreadable == 1) "" else "s"} couldn't be read. Try adding the missing files again."
+                )
             } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
                 if (current()) onError(failure.message ?: "That file couldn’t be read. Choose another file.")
@@ -109,13 +117,11 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
                 DropdownMenuItem(text = { Text("Files") }, onClick = { menu = false; pickerOwner = owner; pickerImages = false; picker.launch(arrayOf("*/*")) })
                 DropdownMenuItem(text = { Text("Paste attachment") }, onClick = {
                     menu = false
-                    try {
-                        val data = (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip
-                        val pasted = data?.let { TerminalPasteContent.fromClipboard(context, it) }
-                        val items = pasted?.items?.filterIsInstance<TerminalPasteContent.Item.Attachment>().orEmpty()
-                        if (items.isEmpty()) { pasted?.close(); onError("No copied photos or files. Paste text into the task prompt.") }
-                        else if (!stage(items) { pasted?.close() }) pasted?.close()
-                    } catch (failure: Exception) { onError(failure.message ?: "Could not read clipboard attachments") }
+                    val action = ComposerClipboardPaste(context, ::current, { enabled && canAdd },
+                        receive = { pasted ->
+                            stage(pasted.items.filterIsInstance<TerminalPasteContent.Item.Attachment>(), pasted::close)
+                        }, report = onError)
+                    if (!action.paste()) onError("No copied photos or files. Paste text into the task prompt.")
                 })
             }
         }

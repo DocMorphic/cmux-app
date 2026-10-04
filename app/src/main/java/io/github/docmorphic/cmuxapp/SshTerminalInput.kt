@@ -63,7 +63,8 @@ internal class SshTerminalInput(
                         is TerminalPasteContent.Item.Text -> if (direct) check(terminal.send(item.value, paste = true))
                             else composer.edit(composer.current.text + item.value)
                         is TerminalPasteContent.Item.Attachment -> {
-                            val prepared = prepare(item.uri)
+                            val prepared = if (direct) prepare(item.uri) else
+                                readComposerAttachment(::guard, { failure.value = it }) { prepare(item.uri) } ?: continue
                             try {
                                 guard()
                                 if (direct) insert(prepared.bytes, checkNotNull(prepared.attachment.imageFormat))

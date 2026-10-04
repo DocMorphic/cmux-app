@@ -1043,7 +1043,9 @@ fun NativeScreen(
                     when (item) {
                         is TerminalPasteContent.Item.Text -> drafts.edit(target, (drafts.state.value[target]?.text ?: "") + item.value)
                         is TerminalPasteContent.Item.Attachment -> {
-                            val prepared = attachmentFiles.prepare(item.uri, item.image)
+                            val prepared = readComposerAttachment(::checkTarget, { error = it }) {
+                                attachmentFiles.prepare(item.uri, item.image)
+                            } ?: continue
                             checkTarget()
                             draftRepository.attach(target, prepared, generation)
                         }
