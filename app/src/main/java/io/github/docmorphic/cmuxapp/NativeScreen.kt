@@ -3043,7 +3043,7 @@ fun NativeScreen(
                     NativeWorkspaceRow(
                         workspace = workspace, groups = owner.groups, canCustomize = owner.canCustomizeWorkspace(),
                         displayPreferences = displayState,
-                        availability = owner.availability,
+                        availability = owner.availability, changesChip = owner.changes[workspace.id],
                         canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
                         onOpen = { open() },
                         onAction = { action, title ->
@@ -3267,6 +3267,7 @@ internal fun NativeWorkspaceRow(
     canCustomize: Boolean = false,
     displayPreferences: NativeDisplayPreferences = NativeDisplayPreferences(),
     availability: NativeFeedAvailability = NativeFeedAvailability.CONNECTED,
+    changesChip: WorkspaceChangesChip? = null,
     onOpen: () -> Unit,
     onAction: (String, String?) -> Unit
 ) {
@@ -3306,9 +3307,14 @@ internal fun NativeWorkspaceRow(
                 Text(it, Modifier.testTag("workspace.description:${workspace.id}"), fontSize = 15.sp, lineHeight = 20.sp,
                     minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Text(workspace.preview?.takeIf { it.isNotEmpty() } ?: workspace.terminals.firstOrNull()?.title ?: workspace.title,
-                Modifier.testTag("workspace.preview:${workspace.id}"), color = nativeMuted, fontSize = 15.sp, lineHeight = 20.sp,
-                minLines = displayPreferences.previewLines, maxLines = displayPreferences.previewLines, overflow = TextOverflow.Ellipsis)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(workspace.preview?.takeIf { it.isNotEmpty() } ?: workspace.terminals.firstOrNull()?.title ?: workspace.title,
+                    Modifier.weight(1f).testTag("workspace.preview:${workspace.id}"), color = nativeMuted, fontSize = 15.sp, lineHeight = 20.sp,
+                    minLines = displayPreferences.previewLines, maxLines = displayPreferences.previewLines, overflow = TextOverflow.Ellipsis)
+                changesChip?.takeIf { it.files > 0 }?.let { chip ->
+                    NativeWorkspaceChangesChip(chip, workspace.id) { onAction("changes", null) }
+                }
+            }
         }
         Spacer(Modifier.width(8.dp))
         Box {

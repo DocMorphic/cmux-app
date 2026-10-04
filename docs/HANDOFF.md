@@ -24,7 +24,30 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — signed build 537 and upgrade gate (2026-10-04)
+## Latest checkpoint — workspace changes badges (2026-10-04)
+
+Workspace rows now show the owning Mac's additions/deletions, or a file count
+for binary-only changes. The independent accessible badge opens the Changes
+viewer without selecting a terminal. See [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md).
+A capability-gated per-connection cache batches 64 IDs, coalesces real activity,
+reuses successful results for 15 seconds and stops trailing refreshes when idle.
+Removed workspaces and retired connections cannot publish stale badges;
+authorization failures clear them and retire the owning monitor.
+
+**37 JVM tests and six Android checks passed** (34.506s). Four affected Android
+checks passed again after the final caption adjustment (32.112s). Final debug
+and test APK assembly succeeded in 47s. The real Activity fixture verified the
+summary RPC, owning-workspace Changes navigation and absence of terminal replay.
+Screenshots were inspected, both crash buffers were empty, and the sole AVD was
+stopped. Initial timing-test and authorization-retirement failures are retained
+with their fixes in `captures/runtime/workspace-changes-chip/verification.json`.
+
+No physical Pixel is visible to ADB, so live Mac/Pixel acceptance remains pending.
+Signed build **537 is unchanged**; these badges are for the next signed batch.
+Context/swipe/drag actions, broader source parity, production account/network
+checks and push/feed configuration remain open. The goal remains active.
+
+## Earlier checkpoint — signed build 537 and upgrade gate (2026-10-04)
 
 [PIXEL_INSTALL.md](PIXEL_INSTALL.md) now points to signed development build **537**,
 source `3921de252ce312693c653c4362c21b088e8d307e`. CI passed app/Ghostty JVM suites,

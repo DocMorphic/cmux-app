@@ -25,6 +25,8 @@ internal class NativeFeedCoordinator(
         var job: Job? = null
         val mutex = Mutex()
         val refresh = NativeFeedRefresh()
+        var changes: WorkspaceChangesSummarySession? = null
+        var changesListEvent = false
     }
     private val handles = mutableMapOf<String, Handle>()
     private val revisions = mutableMapOf<String, NativeFeedRevision>()
@@ -45,7 +47,7 @@ internal class NativeFeedCoordinator(
             val handle = Handle(mac, revisions.getOrPut(origin) { NativeFeedRevision() }, routeKey(mac))
             handles[origin] = handle
             publish(handle, (mutableSources.value[origin] ?: NativeFeedSource(mac))
-                .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null, keepAwake = null))
+                .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null, keepAwake = null, changes = emptyMap()))
             handle.job = scope.launch { monitor(handle) }
         }
     }
@@ -60,13 +62,13 @@ internal class NativeFeedCoordinator(
 
     fun pause() {
         handles.keys.toList().forEach(::remove)
-        mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE, keepAwake = null) }
+        mutableSources.value = mutableSources.value.mapValues { (_, source) -> source.copy(availability = NativeFeedAvailability.OFFLINE, keepAwake = null, changes = emptyMap()) }
     }
     override fun close() { pause(); mutableSources.value = emptyMap(); revisions.clear() }
     private fun remove(origin: String) {
         // The monitor's finally releases its client after bounded stream cleanup.
         // Closing here would prevent unsubscribe while another consumer keeps the wire alive.
-        handles.remove(origin)?.let { cancelBrowsers(it); it.job?.cancel(); it.refresh.close() }
+        handles.remove(origin)?.let { cancelBrowsers(it); it.changes?.close(); it.job?.cancel(); it.refresh.close() }
     }
     private fun cancelBrowsers(handle: Handle) {
         handle.browserOperations.toList().forEach { it.cancel(CancellationException("Browser computer connection changed")) }
@@ -152,6 +154,21 @@ internal class NativeFeedCoordinator(
                     .copy(capabilities = capabilities, keepAwake = null))
                 val client = active
                 coroutineScope {
+                    val summaryFailure = CompletableDeferred<Exception>()
+                    val summaryDisconnect = launch { throw summaryFailure.await() }
+                    if (WORKSPACE_CHANGES_CAPABILITY in capabilities) {
+                        handle.changes = WorkspaceChangesSummarySession(this,
+                            admitted = { current(handle, client) && handle.verified && !client.isClosed },
+                            fetch = client::workspaceChangesSummaries,
+                            publish = { chips -> mutableSources.value[handle.mac.origin]?.let { publish(handle, it.copy(changes = chips)) } },
+                            failed = { error ->
+                                if (error is MobileRpcException && error.code in setOf("unauthorized", "forbidden", "permission_denied", "team_access_revoked")) {
+                                    handle.verified = false
+                                    mutableSources.value[handle.mac.origin]?.let { publish(handle, it.copy(changes = emptyMap())) }
+                                    summaryFailure.complete(error)
+                                }
+                            })
+                    }
                     val build = handle.mac.instanceTag ?: (status.opt("mac_instance_tag") as? String)?.takeIf { it.isNotBlank() }
                     val power = if ("caffeine.control.v1" in capabilities && build != null)
                         launch { observePower(handle, client, build) } else null
@@ -160,7 +177,14 @@ internal class NativeFeedCoordinator(
                             if (event.topic == "notification.feed.changed") {
                                 val revision = event.payload.optLong("revision", -1)
                                 if (revision < 0 || handle.revision.observe(revision)) handle.refresh.request()
-                            } else if (event.topic in FEED_TOPICS) handle.refresh.request()
+                            } else if (event.topic in FEED_TOPICS) {
+                                handle.refresh.request()
+                                if (event.topic == "workspace.list.changed") handle.changesListEvent = true
+                                else {
+                                    val workspaceId = (event.payload.opt("workspace_id") as? String)?.takeIf(String::isNotEmpty)
+                                    handle.changes?.request(workspaceId?.let(::listOf))
+                                }
+                            }
                         }
                     }
                     val disconnect = launch(start = CoroutineStart.UNDISPATCHED) {
@@ -171,7 +195,7 @@ internal class NativeFeedCoordinator(
                         client.subscribe(FEED_TOPICS, stream)
                         handle.refresh.run { fetch(handle, client) }
                     } finally {
-                        power?.cancel(); events.cancel(); disconnect.cancel()
+                        power?.cancel(); events.cancel(); disconnect.cancel(); summaryDisconnect.cancel()
                         withContext(NonCancellable) {
                             if (!client.isClosed) withTimeoutOrNull(750) { runCatching { client.unsubscribe(stream) } }
                         }
@@ -184,8 +208,8 @@ internal class NativeFeedCoordinator(
                 if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
                 val source = mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac)
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
-                    error = failure.message ?: "Computer unavailable", keepAwake = null))
-            } finally { handle.verified = false; handle.capabilities = emptySet(); cancelBrowsers(handle); active?.close(); handle.client = null }
+                    error = failure.message ?: "Computer unavailable", keepAwake = null, changes = emptyMap()))
+            } finally { handle.changes?.close(); handle.changes = null; handle.verified = false; handle.capabilities = emptySet(); cancelBrowsers(handle); active?.close(); handle.client = null }
             handle.refresh.awaitRequest(10_000)
         }
     }
@@ -240,7 +264,12 @@ internal class NativeFeedCoordinator(
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val source = mutableSources.value[handle.mac.origin] ?: return
         if (!listing.accept()) throw NativeWorkspaceSnapshotSuperseded()
-        publish(handle, source.copy(workspaces = listing.workspaces, groups = parseGroups(listing.value), hasWorkspaceSnapshot = true))
+        val groups = parseGroups(listing.value)
+        val groupOnly = groups != source.groups && listing.workspaces == source.workspaces
+        publish(handle, source.copy(workspaces = listing.workspaces, groups = groups, hasWorkspaceSnapshot = true))
+        handle.changes?.retain(listing.workspaces.map { it.id })
+        if (handle.changesListEvent && !groupOnly) handle.changes?.request()
+        handle.changesListEvent = false
     }
 
     /** Never substitute the foreground Mac when a row's owning session is unavailable. */
@@ -307,13 +336,14 @@ internal class NativeFeedCoordinator(
                     val latest = workspace()
                     workspaceSnapshots.mutate(mac) { client.customizeWorkspace(latest, field, draft) }
                     requireOwner()
+                    handle.changes?.request(listOf(workspaceId))
                 })
             }
         }
 
     suspend fun groupAction(mac: NativeCredentialStore.PairedMac, groupId: String,
         action: String, title: String? = null): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
-        owningMutation(mac) { _, client ->
+        owningMutation(mac, refreshChanges = false) { _, client ->
             val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
             check("workspace.group_actions.v1" in source.capabilities) { "This Mac does not support group actions." }
             check(source.groups.any { it.id == groupId }) { "This group is no longer available." }
@@ -321,7 +351,7 @@ internal class NativeFeedCoordinator(
         }
     }
 
-    private suspend fun owningMutation(mac: NativeCredentialStore.PairedMac,
+    private suspend fun owningMutation(mac: NativeCredentialStore.PairedMac, refreshChanges: Boolean = true,
         operation: suspend (Handle, MobileRpcClient) -> JSONObject): JSONObject {
         val handle = handles[mac.origin] ?: error("Connect to ${mac.name} to change this workspace.")
         check(handle.mac == mac && isAllowed(mac)) { "Saved computer changed" }
@@ -332,6 +362,7 @@ internal class NativeFeedCoordinator(
             try {
                 val result = workspaceSnapshots.mutate(mac) { operation(handle, client) }
                 if (!current(handle, client)) throw CancellationException("Saved computer changed")
+                if (refreshChanges) handle.changes?.request()
                 result
             } finally {
                 // Rejections/no-ops must also reconcile the owner's list. Never hide the original RPC error.
@@ -365,6 +396,7 @@ internal class NativeFeedCoordinator(
             handle.mutex.withLock {
                 check(handle.verified && current(handle, client)) { "Computer connection changed." }
                 refreshWorkspaces(handle, client)
+                handle.changes?.request(force = true)
             }
         } }.awaitAll()
         Unit
@@ -374,7 +406,7 @@ internal class NativeFeedCoordinator(
         handles.values.toList().map { handle -> async {
             val client = handle.client
             if (client == null || !handle.verified) handle.refresh.request()
-            else try { if (!fetch(handle, client)) handle.refresh.request() } catch (failure: Exception) {
+            else try { if (!fetch(handle, client)) handle.refresh.request(); handle.changes?.request(force = true) } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
                 handle.refresh.request()
             }

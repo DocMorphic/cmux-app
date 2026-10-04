@@ -400,6 +400,12 @@ class MobileRpcClient internal constructor(
     suspend fun createBrowser(workspaceId: String): JSONObject = request(
         "mobile.browser.create", JSONObject().put("workspace_id", workspaceId)
     )
+    suspend fun workspaceChangesSummaries(workspaceIds: List<String>, force: Boolean = false): JSONObject {
+        val ids = workspaceIds.filter(String::isNotEmpty).distinct()
+        require(ids.size in 1..64) { "Changes summaries require 1 to 64 workspace IDs" }
+        return request("mobile.workspace.changes.summary", JSONObject().put("workspace_ids", org.json.JSONArray(ids))
+            .also { if (force) it.put("force", true) })
+    }
     suspend fun changedFiles(workspaceId: String): JSONObject = request(
         "mobile.workspace.changes.files", JSONObject().put("workspace_id", workspaceId)
     )

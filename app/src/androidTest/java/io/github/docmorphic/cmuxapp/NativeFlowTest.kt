@@ -2664,6 +2664,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var rejectedMethods: Set<String> = emptySet()
     @Volatile var groupActionsSupported = false
     @Volatile var workspaceMetadataSupported = false
+    @Volatile var workspaceChangesSupported = false
     @Volatile var workspaceActionResponse: ((JSONObject) -> JSONObject)? = null
     @Volatile var releaseNextInput: CountDownLatch? = null
     @Volatile var releaseNextPaste: CountDownLatch? = null
@@ -2863,6 +2864,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (groupActionsSupported) it.put("workspace.group_actions.v1")
                 if (workspaceMetadataSupported) it.put("workspace.actions.v1").put(WORKSPACE_METADATA_CAPABILITY)
+                if (workspaceChangesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)
                 if (browserCreationSupported) it.put("browser.stream.v1").put("browser.stream.create.v1")
                 if (todoSupported) it.put("todo.v1")
                 if (panelArtifactsSupported) it.put("panel.artifact.v1").put("surface.focus.v1")

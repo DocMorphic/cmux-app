@@ -11,6 +11,50 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun changesChipsBelongToEachVerifiedMacAndDisappearOnDisconnect() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            a.changesSupported = true; b.changesSupported = true
+            a.changedFiles = 2; b.changedFiles = 7
+            val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.changes.isNotEmpty() } == 2 }
+                assertEquals(2L, coordinator.sources.value.getValue(mac("a").origin).changes.getValue("w").files)
+                assertEquals(7L, coordinator.sources.value.getValue(mac("b").origin).changes.getValue("w").files)
+                a.changedFiles = 0; coordinator.refreshWorkspaceLists(listOf(mac("a")))
+                awaitState { coordinator.sources.value.getValue(mac("a").origin).changes.isEmpty() }
+                assertEquals(7L, coordinator.sources.value.getValue(mac("b").origin).changes.getValue("w").files)
+                assertEquals(1, b.requests.count { it.optString("method") == "mobile.workspace.changes.summary" })
+                b.disconnect()
+                awaitState { coordinator.sources.value.getValue(mac("b").origin).availability == NativeFeedAvailability.OFFLINE }
+                assertTrue(coordinator.sources.value.getValue(mac("b").origin).changes.isEmpty())
+            } finally { coordinator.close() }
+        } }
+    }
+    @Test fun summaryAuthorizationFailureRetiresTheFeedAndItsChips() = runBlocking {
+        FeedPeer("a").use { a ->
+            a.changesSupported = true
+            val coordinator = NativeFeedCoordinator(this, { a.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.changes?.isNotEmpty() == true }
+                a.summaryError = "team_access_revoked"; coordinator.refresh()
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.OFFLINE }
+                assertTrue(coordinator.sources.value.getValue(mac("a").origin).changes.isEmpty())
+            } finally { coordinator.close() }
+        }
+    }
+    @Test fun unsupportedMacDoesNotReceiveSummaryRequests() = runBlocking {
+        FeedPeer("a").use { a ->
+            val coordinator = NativeFeedCoordinator(this, { a.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value[mac("a").origin]?.availability == NativeFeedAvailability.CONNECTED }
+                coordinator.refresh(); delay(300)
+                assertTrue(a.requests.none { it.optString("method") == "mobile.workspace.changes.summary" })
+            } finally { coordinator.close() }
+        }
+    }
     @Test fun explicitWorkspaceRecoveryRefreshesOnlyCapturedMacWithoutNotificationMutation() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { true })
@@ -585,6 +629,9 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     @Volatile var overrideFeedRevision: Int? = null
     @Volatile var forceUnread = false
     @Volatile var powerSupported = false
+    @Volatile var changesSupported = false
+    @Volatile var changedFiles = 2
+    @Volatile var summaryError: String? = null
     @Volatile var hostBuild: Any = "default"
     @Volatile var powerValue: Any = false
     private val powerStreams = CopyOnWriteArrayList<Pair<Socket, String>>()
@@ -617,7 +664,10 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                     "mobile.host.status" -> JSONObject().put("mac_device_id", id).put("mac_instance_tag", hostBuild)
                         .put("capabilities", JSONArray().put("workspace.group_actions.v1").also {
                             if (powerSupported) it.put("caffeine.control.v1")
+                            if (changesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)
                         })
+                    "mobile.workspace.changes.summary" -> JSONObject().put("summaries", JSONArray().put(JSONObject()
+                        .put("workspace_id", "w").put("is_repo", true).put("files_changed", changedFiles).put("additions", 4).put("deletions", 1)))
                     "caffeine.status" -> JSONObject().put("enabled", powerValue)
                     "mobile.events.subscribe" -> JSONObject().also {
                         val params = request.getJSONObject("params")
@@ -646,9 +696,10 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                     }
                     else -> JSONObject()
                 }
-                val rejected = request.getString("method") == "workspace.action" && rejectWorkspaceAction
+                val summaryFailure = summaryError.takeIf { request.getString("method") == "mobile.workspace.changes.summary" }
+                val rejected = (request.getString("method") == "workspace.action" && rejectWorkspaceAction) || summaryFailure != null
                 val response = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
-                if (rejected) response.put("error", JSONObject().put("code", "fixture_rejected").put("message", "Rejected by fixture"))
+                if (rejected) response.put("error", JSONObject().put("code", summaryFailure ?: "fixture_rejected").put("message", "Rejected by fixture"))
                 else response.put("result", result)
                 send(socket, response)
             }
