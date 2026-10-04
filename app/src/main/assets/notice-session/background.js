@@ -11,7 +11,9 @@ port.onMessage.addListener(command => {
         const marker = "about:blank#cmux-notice-" + command.lease;
         const tabs = (await browser.tabs.query({})).filter(tab => tab.incognito && tab.url === marker);
         if (tabs.length !== 1) throw new Error("Owned tab unavailable");
-        done = await browser.noticeSession.acquire(tabs[0].id, command.lease);
+        const receipt = await browser.noticeSession.acquire(tabs[0].id, command.lease);
+        port.postMessage({ id: command.id, done: true, receipt });
+        return;
       } else if (command.op === "seed") {
         const result = await browser.noticeSession.seed(command.lease, command.url, command.cookies);
         if (!result.accepted) {
@@ -21,6 +23,9 @@ port.onMessage.addListener(command => {
           return;
         }
         done = true;
+      } else if (command.op === "retire") {
+        const tabs = await browser.tabs.query({});
+        done = await browser.noticeSession.retire(command.receipt, tabs.map(tab => tab.id));
       } else if (command.op === "clear") {
         done = await browser.noticeSession.clear(command.lease);
       } else throw new Error("Unknown operation");

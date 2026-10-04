@@ -27,6 +27,23 @@ active; physical Pixel acceptance, authenticated upgrade, configured push and
 broader source/visual parity remain open. The table below records the original
 September 28 handoff rather than the current APK.
 
+## Latest checkpoint — extension recovery (2026-10-04)
+
+[NOTICE_RECOVERY.md](NOTICE_RECOVERY.md) records recovery without an app restart.
+Native acquisition receipts survive a bundled-extension restart in memory. Old
+pages close; a new preparation clears their exact private contexts before creating
+a fresh session. Clearing the old native delegate fixed a real lost-reconnection
+failure. Final checks: 52 JVM, 11 Node and all five Android renderer/Compose cases
+passed (76.339 s), including old-context cleanup and rejection of a late exchange.
+The existing AVD is stopped. Debug packaging passes; the earlier unsigned release
+predates the last delegate fix, so final-source release/ART remains a batch gate.
+
+**Next:** actual browser partitioned-state cleanup, whole-runtime crash behavior,
+real HTTPS/native-account exchange and physical Pixel/Mac acceptance. Android feed,
+push configuration and broader parity are still pending. Build 494 remains the
+last signed milestone. Check ADB when needed; do not repeat the pending reconnect
+question merely because the Pixel is absent.
+
 ## Latest checkpoint — launch announcement integration (2026-10-04)
 
 [NOTICE_LAUNCH.md](NOTICE_LAUNCH.md) records concurrent launch preloading, retained
@@ -37,7 +54,7 @@ fresh exchange. The production debug and unsigned release build, 52 focused JVM
 checks, engine package checks and release ART gate pass. Consult the linked
 checkpoint for precise Compose runtime results and retained fixture failures.
 
-**Next:** browser partitioned-state runtime, transparent extension-loss recovery,
+**Follow-up:** extension recovery is recorded above. Browser partitioned-state runtime,
 real HTTPS/native-account exchange and physical Pixel/Mac acceptance. No Android
 notice feed or new signed milestone was configured. Build 494 is still the last
 verified signed APK. Push configuration and broader parity remain open. Do not

@@ -1,5 +1,8 @@
 # Launch announcement preloading — 2026-10-04
 
+> Follow-up: [extension recovery](NOTICE_RECOVERY.md) replaces the earlier
+> app-restart requirement with scoped cleanup and recovery on a new page attempt.
+
 Source contract inspected at upstream `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
 `Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/WorkspaceShellView.swift`
 (`preloadAndPresentWhatsNew` and actual sheet appearance), `MobileWhatsNewSheet.swift`

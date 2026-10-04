@@ -24,74 +24,143 @@ internal class NativeNoticeEngine private constructor(context: Context) {
     private var used = false
     private var port: WebExtension.Port? = null
     private var serial = 0
+    private var generation = 0L
     private var failed = false
+    private var needsRestart = false
+    private var initialized: Deferred<Unit>? = null
+    private var extension: WebExtension? = null
+    private var setupStage = "idle"
     var failureCode: String = ""
         private set
     private val pending = mutableMapOf<Int, CompletableDeferred<JSONObject>>()
     private val pages = mutableSetOf<NativeNoticeRenderer>()
-    private val initialized: Deferred<Unit> = scope.async {
-        val installed = runtime.webExtensionController.ensureBuiltIn(
-            "resource://android/assets/notice-session/", EXTENSION).awaitNotice()
-        val extension = runtime.webExtensionController.setAllowedInPrivateBrowsing(installed, true).awaitNotice()
-        extension.setMessageDelegate(object : WebExtension.MessageDelegate {
-            override fun onConnect(candidate: WebExtension.Port) {
-                val sender = candidate.sender
-                if (failed || (used && port != null) || sender.session != null ||
-                    sender.environmentType != WebExtension.MessageSender.ENV_TYPE_EXTENSION ||
-                    sender.webExtension.id != EXTENSION) { candidate.disconnect(); return }
-                val previous = port
-                port = candidate
-                ready.value = null
-                previous?.disconnect()
-                candidate.setDelegate(object : WebExtension.PortDelegate {
-                    override fun onPortMessage(message: Any, source: WebExtension.Port) {
-                        if (source !== port || failed || message !is JSONObject) return
-                        if (message.optBoolean("ready")) ready.value = source
-                        else pending.remove(message.optInt("id", -1))?.complete(message)
-                    }
-                    override fun onDisconnect(source: WebExtension.Port) {
-                        if (source === port) {
-                            ready.value = null
-                            if (used) invalidate() else port = null
-                        }
-                    }
-                })
-            }
-        }, "cmux_notice_session")
-        withTimeout(10_000) { ready.first { it != null } }
-        Unit
-    }
+    private class Receipt(val contextId: String, val attributes: JSONObject)
+    // Acquisition receipts survive extension restarts, but never leave native process memory.
+    private val receipts = mutableMapOf<String, Receipt>()
+    private val retiring = mutableSetOf<String>()
 
+    private fun initialization(): Deferred<Unit> {
+        initialized?.let { return it }
+        val ticket = ++generation
+        failed = false; used = false
+        return scope.async(start = CoroutineStart.LAZY) {
+            try {
+                withTimeout(10_000) {
+                    setupStage = "install"
+                    var extension = runtime.webExtensionController.ensureBuiltIn(
+                        "resource://android/assets/notice-session/", EXTENSION).awaitNotice()
+                    // Restart only this bundled extension. Never restart GeckoRuntime or clear
+                    // another profile. Old private tabs were closed by invalidate().
+                    if (needsRestart) {
+                        setupStage = "disable"
+                        extension = runtime.webExtensionController.setAllowedInPrivateBrowsing(extension, false).awaitNotice()
+                    }
+                    setupStage = "enable"
+                    extension = runtime.webExtensionController.setAllowedInPrivateBrowsing(extension, true).awaitNotice()
+                    this@NativeNoticeEngine.extension = extension
+                    setupStage = "port"
+                    extension.setMessageDelegate(object : WebExtension.MessageDelegate {
+                        override fun onConnect(candidate: WebExtension.Port) {
+                            val sender = candidate.sender
+                            if (failed || ticket != generation || (used && port != null) || sender.session != null ||
+                                sender.environmentType != WebExtension.MessageSender.ENV_TYPE_EXTENSION ||
+                                sender.webExtension.id != EXTENSION) { candidate.disconnect(); return }
+                            val previous = port
+                            port = candidate; ready.value = null
+                            previous?.disconnect()
+                            candidate.setDelegate(object : WebExtension.PortDelegate {
+                                override fun onPortMessage(message: Any, source: WebExtension.Port) {
+                                    if (source !== port || ticket != generation || failed || message !is JSONObject) return
+                                    if (message.optBoolean("ready")) ready.value = source
+                                    else pending.remove(message.optInt("id", -1))?.complete(message)
+                                }
+                                override fun onDisconnect(source: WebExtension.Port) {
+                                    if (source === port && ticket == generation) {
+                                        ready.value = null; port = null
+                                        if (used) invalidate()
+                                    }
+                                }
+                            })
+                        }
+                    }, "cmux_notice_session")
+                    ready.first { it != null }
+                    // A restarted extension has lost its lease map. Only receipts acquired
+                    // from exact owned blanks can authorize this narrowly scoped cleanup.
+                    setupStage = "cleanup"
+                    for (lease in retiring.toList()) {
+                        val receipt = receipts[lease] ?: continue
+                        send("retire", lease, receipt = receipt.attributes)
+                        runtime.storageController.clearDataForSessionContext(receipt.contextId)
+                        receipts.remove(lease); retiring.remove(lease)
+                    }
+                    check(ticket == generation && !failed)
+                    needsRestart = false; setupStage = "ready"
+                }
+            } catch (e: Exception) {
+                if (ticket == generation) {
+                    failureCode = "setup-$setupStage-" + if (e is TimeoutCancellationException) "timeout" else "failed"
+                    invalidate()
+                }
+                throw e
+            }
+        }.also { initialized = it; it.start() }
+    }
     private fun invalidate() {
         if (failed) return
-        failed = true
-        // Extension restart invalidates every lease. Never create/reuse another context in this engine.
+        failed = true; needsRestart = true; generation++
+        val previous = port
+        // With no delegate, Gecko queues a restarted background's connect event until
+        // the new generation installs its delegate. An old delegate would reject it.
+        extension?.setMessageDelegate(null, "cmux_notice_session")
+        port = null; ready.value = null
+        val oldInitialization = initialized; initialized = null
+        oldInitialization?.cancel()
         val failure = IllegalStateException("Private notice engine unavailable")
-        ready.value = null
         pending.values.toList().forEach { it.completeExceptionally(failure) }; pending.clear()
+        // Closing every old page prevents late exchanges or seed replies from reviving it.
         pages.toList().forEach { it.engineFailed() }
+        previous?.disconnect()
     }
     suspend fun prepare(page: NativeNoticeRenderer): GeckoRuntime {
         checkMain()
-        try { initialized.await() } catch (cancelled: CancellationException) { throw cancelled } catch (e: Exception) { invalidate(); throw e }
-        check(!failed) { "Private notice engine unavailable" }
-        currentCoroutineContext().ensureActive()
-        withTimeout(10_000) { ready.first { it != null } }
-        check(!failed)
-        used = true
-        pages += page
-        return runtime
+        val setup = initialization()
+        val ticket = generation
+        try {
+            setup.await()
+            currentCoroutineContext().ensureActive()
+            withTimeout(10_000) { ready.first { it != null } }
+            check(!failed && ticket == generation) { "Private notice engine unavailable" }
+            used = true; pages += page
+            return runtime
+        } catch (e: Exception) {
+            // A canceled presentation must not poison a healthy shared engine.
+            if (ticket == generation && (e !is CancellationException ||
+                    (e is TimeoutCancellationException && currentCoroutineContext().isActive))) invalidate()
+            throw e
+        }
+    }
+    suspend fun acquire(lease: String, contextId: String) {
+        val result = send("acquire", lease)
+        val attributes = result.getJSONObject("receipt")
+        check(attributes.getInt("privateBrowsingId") == 1 && attributes.getInt("userContextId") >= 0 &&
+            attributes.getString("geckoViewSessionContextId").length in 1..1024) { "Invalid private scope" }
+        receipts[lease] = Receipt(contextId, attributes)
     }
     suspend fun command(op: String, lease: String, url: String? = null, cookies: List<Cookie> = emptyList()) {
+        send(op, lease, url, cookies)
+    }
+    private suspend fun send(op: String, lease: String, url: String? = null,
+        cookies: List<Cookie> = emptyList(), receipt: JSONObject? = null): JSONObject {
         checkMain(); check(!failed)
-        initialized.await()
         val channel = checkNotNull(ready.value) { "Private notice connection unavailable" }
+        val ticket = generation
         val id = ++serial
         val reply = CompletableDeferred<JSONObject>()
         pending[id] = reply
         try {
             val data = JSONObject().put("id", id).put("op", op).put("lease", lease)
             if (url != null) data.put("url", url)
+            if (receipt != null) data.put("receipt", receipt)
             if (op == "seed") data.put("cookies", JSONArray().apply { cookies.forEach { c ->
                 put(JSONObject().put("domain", c.domain).put("path", c.path).put("name", c.name)
                     .put("value", c.value).put("secure", c.secure).put("httpOnly", c.httpOnly)
@@ -99,9 +168,11 @@ internal class NativeNoticeEngine private constructor(context: Context) {
             } })
             channel.postMessage(data)
             val result = withTimeout(5_000) { reply.await() }
+            check(ticket == generation && channel === port && !failed) { "Private notice connection changed" }
             val reported = result.optString("failureCode")
             reported.takeIf { it.matches(Regex("cookie-validation-[0-9]+|cookie-not-stored|cookie-api-threw|cookie-api-no-result|cookie-readback-failed|operation-failed")) }?.let { failureCode = it }
             check(result.optBoolean("done") && !result.optBoolean("failed")) { "Private notice operation failed" }
+            return result
         } finally { pending.remove(id) }
     }
     fun theme(dark: Boolean) {
@@ -110,10 +181,18 @@ internal class NativeNoticeEngine private constructor(context: Context) {
     }
     fun retire(page: NativeNoticeRenderer, contextId: String, lease: String, acquired: Boolean): Deferred<Boolean> {
         checkMain(); pages -= page
+        val ticket = generation
+        val canClear = !failed && ready.value != null
+        if (receipts.containsKey(lease)) retiring += lease
         // This scope outlives presentation cancellation. Session.close() happens before this call.
         return scope.async {
-            var cleared = true
-            if (acquired) try { command("clear", lease) } catch (_: Exception) { cleared = false; invalidate() }
+            var cleared = !acquired
+            if (acquired && canClear) try {
+                send("clear", lease)
+                receipts.remove(lease); retiring.remove(lease); cleared = true
+            } catch (_: Exception) {
+                if (ticket == generation) invalidate()
+            }
             runtime.storageController.clearDataForSessionContext(contextId)
             cleared
         }
@@ -205,7 +284,7 @@ internal class NativeNoticeRenderer(
         // Set before dispatch: canceled/late acquire replies still require scoped cleanup.
         acquired = true
         stage = "acquire"
-        e.command("acquire", lease)
+        e.acquire(lease, contextId)
         checkCurrent()
         stage = "exchange"
         val sessionCookies = cookies(url)

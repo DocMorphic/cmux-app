@@ -17,12 +17,14 @@ import java.util.concurrent.TimeUnit
 class NativeNoticeRendererTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val reports = LinkedBlockingQueue<JSONObject>()
+    private val reportedLabels = java.util.concurrent.ConcurrentLinkedQueue<String>()
     private fun <T> main(block: () -> T): T = runBlocking { withContext(Dispatchers.Main) { block() } }
     private fun server() = MockWebServer().apply {
         dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 if (request.path?.startsWith("/report") == true) {
-                    reports.add(JSONObject(request.body.readUtf8()))
+                    val report = JSONObject(request.body.readUtf8())
+                    reportedLabels.add(report.getString("label")); reports.add(report)
                     return MockResponse().setResponseCode(204)
                 }
                 val label = request.requestUrl?.queryParameter("label") ?: "blank"
@@ -128,4 +130,70 @@ class NativeNoticeRendererTest {
             assertNull(server.takeRequest(1, TimeUnit.SECONDS))
         } finally { finish.complete(Unit); main { page.close() }; scope.cancel(); server.shutdown() }
     }
+
+    @Test fun extensionLossRetiresOldPagesAndRetryClearsReceiptsBeforeFreshSession() {
+        val server = server(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        val activity = ActivityScenario.launch(NativeNoticeTestActivity::class.java)
+        val entered = CompletableDeferred<Unit>(); val finish = CompletableDeferred<Unit>()
+        var old: NativeNoticeRenderer? = null; var pending: NativeNoticeRenderer? = null
+        var fresh: NativeNoticeRenderer? = null; var reopened: GeckoSession? = null
+        try {
+            val origin = "http://127.0.0.1:${server.port}/"
+            old = main { NativeNoticeRenderer(instrumentation.targetContext, scope, WhatsNewWebPolicy(origin),
+                "${origin}page?label=old", false, 20_000, { true }) { cookie("old") } }
+            activity.onActivity { old.attach(it.pageView) }; assertLoaded(old)
+            val before = report("old"); assertEquals("stack-access=old", before.getString("cookie"))
+            val oldContext = field<String>(old, "contextId")
+            val engine = field<NativeNoticeEngine>(old, "engine")
+            val runtime = field<GeckoRuntime>(engine, "runtime")
+            pending = main { NativeNoticeRenderer(instrumentation.targetContext, scope, WhatsNewWebPolicy(origin),
+                "${origin}page?label=late", false, 20_000, { true }) {
+                entered.complete(Unit); withContext(NonCancellable) { finish.await() }; cookie("late")
+            } }
+            runBlocking { withTimeout(15_000) { entered.await() } }
+            // Real extension shutdown, rather than calling the native invalidation method.
+            val disabled = CompletableDeferred<Unit>()
+            main {
+                val extension = field<WebExtension.Port>(engine, "port").sender.webExtension
+                runtime.webExtensionController.setAllowedInPrivateBrowsing(extension, false).accept(
+                    { disabled.complete(Unit) }, { disabled.completeExceptionally(it ?: IllegalStateException("Disable failed")) })
+            }
+            runBlocking { withTimeout(15_000) {
+                disabled.await()
+                while (!main { old.isClosed.value && pending.isClosed.value }) delay(25)
+            } }
+            assertFalse(retired(old)) // Cookie cleanup is retained for the next successful connection.
+            assertTrue(main { field<Map<*, *>>(engine, "receipts").size >= 2 })
+            var exchanges = 0
+            fresh = main { NativeNoticeRenderer(instrumentation.targetContext, scope, WhatsNewWebPolicy(origin),
+                "${origin}page?label=fresh", false, 20_000, { true }) { exchanges++; cookie("fresh") } }
+            activity.onActivity { fresh.attach(it.pageView) }; assertLoaded(fresh)
+            val after = report("fresh"); assertEquals("stack-access=fresh", after.getString("cookie"))
+            assertTrue(after.isNull("previous")); assertEquals(1, main { exchanges })
+            assertSame(engine, field<NativeNoticeEngine>(fresh, "engine"))
+            assertNotEquals(oldContext, field<String>(fresh, "contextId"))
+            assertTrue(main { field<Set<*>>(engine, "retiring").isEmpty() })
+            assertEquals(1, main { field<Map<*, *>>(engine, "receipts").size })
+            finish.complete(Unit)
+            assertEquals(WhatsNewWebPhase.FAILED, outcome(pending))
+            reopened = main { GeckoSession(GeckoSessionSettings.Builder().usePrivateMode(true).contextId(oldContext).build()).also {
+                it.open(runtime); it.loadUri("${origin}page?label=retired-after-restart")
+            } }
+            val empty = report("retired-after-restart")
+            assertEquals("", empty.getString("cookie")); assertTrue(empty.isNull("previous"))
+            main { field<GeckoSession>(fresh, "session").loadUri("${origin}page?label=fresh-again") }
+            val intact = report("fresh-again")
+            assertEquals("stack-access=fresh", intact.getString("cookie")); assertEquals("fresh", intact.getString("previous"))
+            assertNull(reports.poll(1, TimeUnit.SECONDS))
+            assertFalse(reportedLabels.contains("late")) // No discarded report can hide a stale navigation.
+            val root = java.io.File(instrumentation.targetContext.getExternalFilesDir(null), "notice-recovery").apply { mkdirs() }
+            java.io.File(root, "report.json").writeText(JSONObject().put("old", before).put("fresh", after)
+                .put("retired_context", empty).put("fresh_preserved", intact).toString(2))
+        } finally {
+            finish.complete(Unit)
+            main { reopened?.close(); old?.close(); pending?.close(); fresh?.close() }
+            fresh?.let { retired(it) }; scope.cancel(); activity.close(); server.shutdown()
+        }
+    }
+
 }

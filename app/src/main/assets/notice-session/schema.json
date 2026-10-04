@@ -1,5 +1,6 @@
 [{"namespace":"noticeSession","functions":[
  {"name":"acquire","type":"function","async":true,"parameters":[{"name":"tabId","type":"integer"},{"name":"lease","type":"string"}]},
+ {"name":"retire","type":"function","async":true,"parameters":[{"name":"receipt","type":"object","additionalProperties":{"type":"any"}},{"name":"tabIds","type":"array","items":{"type":"integer"}}]},
  {"name":"seed","type":"function","async":true,"parameters":[{"name":"lease","type":"string"},{"name":"url","type":"string"},{"name":"cookies","type":"array","items":{"type":"object","additionalProperties":{"type":"any"}}}]},
  {"name":"clear","type":"function","async":true,"parameters":[{"name":"lease","type":"string"}]}
 ]}]

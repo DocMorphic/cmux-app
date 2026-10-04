@@ -12,6 +12,19 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Private extension recovery (2026-10-04 follow-up)
+
+A real extension shutdown now retires old pages, and a new page attempt recovers
+without restarting the app. Native scope receipts let the restarted extension
+clear retired private cookies before a fresh session is admitted. The actual old
+context reopened empty while the new context retained its state; a noncooperative
+late exchange could not navigate. All five renderer/Compose cases passed, plus
+52 JVM and 11 Node checks. See [NOTICE_RECOVERY.md](NOTICE_RECOVERY.md) for retained
+failure, the delegate fix and exact evidence. Whole-runtime crash recovery,
+partitioned-state runtime, real account/HTTPS and physical acceptance remain open.
+The final debug build is verified; final-source release/ART verification is pending
+and no signed milestone was created. Existing AVD stopped; global pin unchanged.
+
 ## Launch announcement integration (2026-10-04 follow-up)
 
 Concurrent ten-second web preloads now gate the launch sheet; it attaches the

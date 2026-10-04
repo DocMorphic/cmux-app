@@ -21,6 +21,28 @@ var noticeSession = class extends ExtensionCommon.ExtensionAPI {
         const attrs = JSON.parse(JSON.stringify(tab.browser.browsingContext.originAttributes));
         if (attrs.privateBrowsingId !== 1 || !attrs.geckoViewSessionContextId) throw new Error("Missing private context");
         leases.set(lease, { lease, tabId, attrs, seeded: false });
+        // Native retains this non-secret scope receipt across extension restarts.
+        return { privateBrowsingId: 1, userContextId: attrs.userContextId,
+          geckoViewSessionContextId: attrs.geckoViewSessionContextId };
+      },
+      async retire(receipt, tabIds) {
+        if (receipt.privateBrowsingId !== 1 || !Number.isSafeInteger(receipt.userContextId) ||
+            receipt.userContextId < 0 || typeof receipt.geckoViewSessionContextId !== "string" ||
+            !receipt.geckoViewSessionContextId || receipt.geckoViewSessionContextId.length > 1024)
+          throw new Error("Invalid retirement scope");
+        // The bundled background obtains this inventory itself, never from a native command.
+        // Refuse clearing any matching live context, even if tab IDs changed after restart.
+        for (const id of tabIds) {
+          const tab = context.extension.tabManager.get(id, null);
+          const attrs = tab?.browser?.browsingContext?.originAttributes;
+          if (attrs?.privateBrowsingId === 1 && attrs.userContextId === receipt.userContextId &&
+              attrs.geckoViewSessionContextId === receipt.geckoViewSessionContextId)
+            throw new Error("Retired context still open");
+        }
+        Services.cookies.removeCookiesWithOriginAttributes(JSON.stringify({
+          privateBrowsingId: 1, userContextId: receipt.userContextId,
+          geckoViewSessionContextId: receipt.geckoViewSessionContextId
+        }));
         return true;
       },
       async seed(lease, destination, cookies) {

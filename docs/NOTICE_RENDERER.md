@@ -1,5 +1,8 @@
 # Private notice renderer
 
+> Follow-up: [extension recovery](NOTICE_RECOVERY.md) replaces the earlier
+> app-restart requirement with scoped cleanup and recovery on a new page attempt.
+
 > Follow-up: [launch preloading and Compose acceptance](NOTICE_LAUNCH.md) records
 > the subsequent integration; remaining-work statements below describe this earlier checkpoint.
 

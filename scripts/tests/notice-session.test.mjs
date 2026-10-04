@@ -30,14 +30,15 @@ function fixture() {
     }}
   };
   vm.createContext(sandbox); vm.runInContext(source, sandbox);
-  const api = new sandbox.noticeSession().getAPI({extension: {tabManager: {get: id => tabs.get(id)}}}).noticeSession;
+  const restart = () => new sandbox.noticeSession().getAPI({extension: {tabManager: {get: id => tabs.get(id)}}}).noticeSession;
+  const api = restart();
   function tab(id, lease, context) {
     tabs.set(id, {incognito: true, browser: {currentURI: {spec: 'about:blank#cmux-notice-' + lease},
       browsingContext: {originAttributes: {privateBrowsingId: 1, userContextId: 0, geckoViewSessionContextId: context}}}});
   }
   const cookie = {domain: 'cmux.com', path: '/', name: 'stack-access', value: 'synthetic',
     secure: true, httpOnly: true, hostOnly: true, expires: 253402300799999};
-  return {api, tabs, cookies, tab, cookie};
+  return {api, tabs, cookies, tab, cookie, restart};
 }
 test('only exact owned private blanks can acquire or seed', async () => {
   const f = fixture(); f.tab(1, A, 'a');
@@ -92,4 +93,36 @@ test('expiry is milliseconds and a seconds-valued timestamp is rejected before w
   await f.api.seed(A, 'https://cmux.com/', [f.cookie]);
   assert.equal(f.cookies[0].args[7], f.cookie.expires);
   assert.ok(f.cookies[0].args[7] > Date.now());
+});
+
+test('retained acquisition receipt clears only its closed private context after API restart', async () => {
+  const f = fixture(); f.tab(1, A, 'a'); f.tab(2, B, 'b');
+  const receipt = await f.api.acquire(1, A); await f.api.acquire(2, B);
+  await f.api.seed(A, 'https://cmux.com/', [f.cookie]);
+  await f.api.seed(B, 'https://cmux.com/', [f.cookie]);
+  f.cookies.push({attrs: {...f.cookies[0].attrs, partitionKey: '(https,third.invalid)'}});
+  f.cookies.push({attrs: {...f.cookies[0].attrs, privateBrowsingId: 0}});
+  const recovered = f.restart();
+  await assert.rejects(recovered.seed(A, 'https://cmux.com/', [f.cookie]));
+  await assert.rejects(recovered.retire(receipt, [...f.tabs.keys()]));
+  assert.equal(f.cookies.length, 4);
+  // A new tab ID with the same context still prevents premature retirement.
+  f.tabs.delete(1); f.tab(3, A, 'a');
+  await assert.rejects(recovered.retire(receipt, [...f.tabs.keys()]));
+  f.tabs.delete(3); await recovered.retire(receipt, [...f.tabs.keys()]);
+  assert.equal(f.cookies.length, 2);
+  assert.equal(f.cookies[0].attrs.geckoViewSessionContextId, 'b');
+  assert.equal(f.cookies[1].attrs.privateBrowsingId, 0);
+  await recovered.retire(receipt, [...f.tabs.keys()]); // Idempotent after a lost reply.
+  assert.equal(f.cookies.length, 2);
+});
+test('retirement receipts cannot expand to normal or unspecified contexts', async () => {
+  const f = fixture(); f.tab(1, A, 'a');
+  const receipt = await f.api.acquire(1, A);
+  await f.api.seed(A, 'https://cmux.com/', [f.cookie]); f.tabs.delete(1);
+  for (const bad of [{}, {...receipt, privateBrowsingId: 0}, {...receipt, userContextId: -1},
+    {...receipt, userContextId: 1.1}, {...receipt, geckoViewSessionContextId: ''},
+    {...receipt, geckoViewSessionContextId: 'x'.repeat(1025)}]) {
+    await assert.rejects(f.restart().retire(bad, [])); assert.equal(f.cookies.length, 1);
+  }
 });
