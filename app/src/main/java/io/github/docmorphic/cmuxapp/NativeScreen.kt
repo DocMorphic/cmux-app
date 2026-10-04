@@ -2157,6 +2157,10 @@ fun NativeScreen(
             NativeWebSessionBroker(noticeCenter.webPolicy, NativeAccount.PROJECT_ID,
                 snapshot = { browserLogin?.let { account.webSessionSnapshot(it) } }, isCurrent = account::isWebSessionCurrent)
         }
+        SideEffect {
+            whatsNewModel?.configureWeb(browserLogin.takeIf { signedIn },
+                { login -> account.isSignedIn() && store.taskSession() == login }, noticeBroker::cookies)
+        }
         NativeWhatsNewHost(noticeCenter, noticePresentation,
             owner = browserLogin.takeIf { signedIn },
             eligible = signedIn && feedForeground &&

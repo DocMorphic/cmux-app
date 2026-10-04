@@ -12,6 +12,13 @@ import java.util.Locale
 internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val webArchive = NativeNoticeArchiveOwner(context.applicationContext, scope)
+    private var webOwner: String? = null
+    private var isWebOwnerCurrent: (String) -> Boolean = { false }
+    private var webCookies: suspend (String) -> List<okhttp3.Cookie> = { emptyList() }
+    fun configureWeb(owner: String?, isCurrent: (String) -> Boolean,
+        cookies: suspend (String) -> List<okhttp3.Cookie>) {
+        webOwner = owner; isWebOwnerCurrent = isCurrent; webCookies = cookies
+    }
     private val mutable = MutableStateFlow<NativeWhatsNewCenter?>(null)
     val center = mutable.asStateFlow()
     var presentation: NativeWhatsNewPresentation? = null
@@ -25,13 +32,17 @@ internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
                     NativeWhatsNewFileStore(File(application.noBackupFilesDir, "whats-new")),
                     languages = listOf(Locale.getDefault().toLanguageTag()))
             }
-            presentation = NativeWhatsNewPresentation(loaded)
+            presentation = NativeWhatsNewPresentation(loaded, scope) { page, login, dark ->
+                NativeNoticeRenderer(application, scope, loaded.webPolicy, (page.body as WhatsNewBody.Web).url,
+                    dark, NativeWhatsNewWebLoad.LAUNCH_DEADLINE_MS,
+                    currentOwner = { webOwner == login && isWebOwnerCurrent(login) }, cookies = webCookies)
+            }
             mutable.value = loaded
             // No Android notice feed is configured. Never query the iOS visibility endpoint.
             loaded.refresh()
         }
     }
-    override fun onCleared() { webArchive.close(); scope.cancel(); mutable.value?.close() }
+    override fun onCleared() { presentation?.close(); webArchive.close(); scope.cancel(); mutable.value?.close() }
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass == NativeWhatsNewViewModel::class.java)

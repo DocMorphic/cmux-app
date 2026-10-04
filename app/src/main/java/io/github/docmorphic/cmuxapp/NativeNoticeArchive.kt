@@ -53,6 +53,15 @@ internal fun NativeNoticeArchiveWeb(page: WhatsNewPage, owner: NativeNoticeArchi
         catch (_: IllegalStateException) { failed = true }
     }
     SideEffect { renderer?.theme(dark) }
+    NativeNoticeWebContent(renderer, failed, modifier) { attempt++ }
+}
+
+/** Displays the exact retained session; launch sheets never start another exchange. */
+@Composable
+internal fun NativeNoticeWebContent(renderer: NativeNoticeRenderer?, failed: Boolean, modifier: Modifier,
+    onRetry: (() -> Unit)? = null) {
+    val dark = MaterialTheme.colorScheme.surface.luminance() < .5f
+    SideEffect { renderer?.theme(dark) }
     val phase = renderer?.load?.phase?.collectAsState()?.value ?: WhatsNewWebPhase.LOADING
     val retired = renderer?.isClosed?.collectAsState()?.value == true
     Box(modifier.fillMaxSize().testTag("whatsnew.web"), contentAlignment = Alignment.Center) {
@@ -66,7 +75,7 @@ internal fun NativeNoticeArchiveWeb(page: WhatsNewPage, owner: NativeNoticeArchi
         if (failed || retired || phase == WhatsNewWebPhase.FAILED) Column(Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
             Text("This page needs an internet connection. Please try again.")
-            TextButton(onClick = { attempt++ }, modifier = Modifier.testTag("whatsnew.web.retry")) { Text("Try Again") }
+            if (onRetry != null) TextButton(onClick = onRetry, modifier = Modifier.testTag("whatsnew.web.retry")) { Text("Try Again") }
         } else if (phase == WhatsNewWebPhase.LOADING) CircularProgressIndicator()
     }
 }

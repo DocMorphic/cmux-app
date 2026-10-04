@@ -1,5 +1,8 @@
 # What's New web notices — transport and lifetime checkpoint
 
+> Follow-up: [launch preloading and Compose acceptance](NOTICE_LAUNCH.md) records
+> the subsequent integration; remaining-work statements below describe this earlier checkpoint.
+
 2026-10-04. Source contract: upstream `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`,
 `MobileWhatsNewWebPageLoad.swift`, `WebSession/MobileWebAppSessionBroker.swift`
 and `WebSession/MobileWebPagePolicy.swift`. The global parity pin is unchanged.

@@ -70,7 +70,8 @@ internal fun NativeWhatsNewArchive(pages: List<WhatsNewPage>, policy: NativeMacC
 
 @Composable
 internal fun NativeWhatsNewLaunchSheet(presentation: WhatsNewPresentation, policy: NativeMacCompatibilityPolicy,
-    error: String?, onAppeared: () -> Unit, onPage: (Int) -> Unit, onDismiss: () -> Unit) {
+    error: String?, onAppeared: () -> Unit, onPage: (Int) -> Unit, onDismiss: () -> Unit,
+    webPage: (WhatsNewPage) -> NativeNoticeRenderer? = { null }) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false,
         decorFitsSystemWindows = false)) {
         var laidOut by remember { mutableStateOf(false) }
@@ -105,7 +106,10 @@ internal fun NativeWhatsNewLaunchSheet(presentation: WhatsNewPresentation, polic
                     HorizontalPager(pager, Modifier.fillMaxWidth().weight(1f).testTag("whatsnew.pager"),
                         key = { presentation.pages[it].key }) { index ->
                         val page = presentation.pages[index]
-                        NativeWhatsNewPageBody(page, policy, Modifier.fillMaxSize()) { pageHeights[page.key] = it }
+                        if (page.body is WhatsNewBody.Web) {
+                            val renderer = webPage(page)
+                            NativeNoticeWebContent(renderer, renderer == null, Modifier.fillMaxSize())
+                        } else NativeWhatsNewPageBody(page, policy, Modifier.fillMaxSize()) { pageHeights[page.key] = it }
                     }
                     error?.let { Text(it, Modifier.onSizeChanged { size -> errorHeight = size.height }.padding(horizontal = 24.dp), color = MaterialTheme.colorScheme.error) }
                     val scope = rememberCoroutineScope()
@@ -167,7 +171,11 @@ internal fun NativeWhatsNewHost(center: NativeWhatsNewCenter, presentation: Nati
     policy: NativeMacCompatibilityPolicy, webArchive: NativeNoticeArchiveOwner? = null,
     isOwnerCurrent: (String) -> Boolean = { false },
     sessionCookies: suspend (String) -> List<okhttp3.Cookie> = { emptyList() }) {
-    SideEffect { webArchive?.configure(owner, center.webPolicy, isOwnerCurrent, sessionCookies) }
+    val dark = MaterialTheme.colorScheme.surface.luminance() < .5f
+    SideEffect {
+        webArchive?.configure(owner, center.webPolicy, isOwnerCurrent, sessionCookies)
+        presentation.theme(dark)
+    }
     LaunchedEffect(archive) { if (!archive) webArchive?.dismiss() }
     val state by center.state.collectAsState()
     val sheet by presentation.state.collectAsState()
@@ -187,7 +195,8 @@ internal fun NativeWhatsNewHost(center: NativeWhatsNewCenter, presentation: Nati
         key(active.token) {
             NativeWhatsNewLaunchSheet(active, policy, state.error,
                 { presentation.appeared(active.token, owner, allowed && !archive) },
-                { presentation.select(active.token, it) }, { presentation.dismiss(active.token) })
+                { presentation.select(active.token, it) }, { presentation.dismiss(active.token) },
+                webPage = { presentation.webPage(it) as? NativeNoticeRenderer })
         }
     }
 }

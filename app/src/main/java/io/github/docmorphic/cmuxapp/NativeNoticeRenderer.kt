@@ -134,7 +134,7 @@ internal class NativeNoticeRenderer(
     context: Context, parent: CoroutineScope, private val policy: WhatsNewWebPolicy, val url: String,
     dark: Boolean, deadlineMillis: Long, private val currentOwner: () -> Boolean,
     cookies: suspend (String) -> List<Cookie>
-) : AutoCloseable {
+) : NativeWhatsNewPreloadedPage {
     private val application = context.applicationContext
     private var engine: NativeNoticeEngine? = null
     private val lease = UUID.randomUUID().toString()
@@ -144,7 +144,7 @@ internal class NativeNoticeRenderer(
     private var view: GeckoView? = null
     private var closed = false
     private val mutableClosed = MutableStateFlow(false)
-    val isClosed = mutableClosed.asStateFlow()
+    override val isClosed = mutableClosed.asStateFlow()
     internal val diagnostic: String get() = "$stage/${engine?.failureCode.orEmpty()}"
     internal var stage: String = "starting"
         private set
@@ -154,7 +154,7 @@ internal class NativeNoticeRenderer(
     private var isDark = dark
     private var retired: Deferred<Boolean>? = null
     private val blankReady = CompletableDeferred<Unit>()
-    val load: NativeWhatsNewWebLoad = NativeWhatsNewWebLoad(parent, policy, url, deadlineMillis,
+    override val load: NativeWhatsNewWebLoad = NativeWhatsNewWebLoad(parent, policy, url, deadlineMillis,
         stopRenderer = { retire() }, closeRenderer = { retire() }) {
         checkCurrent()
         val e = NativeNoticeEngine.get(application).also { engine = it }
@@ -235,7 +235,7 @@ internal class NativeNoticeRenderer(
     }
     fun detach(target: GeckoView) { if (view === target) detach() }
     fun detach() { NativeNoticeEngine.checkMain(); view?.releaseSession(); view = null }
-    fun theme(dark: Boolean) { isDark = dark; if (!closed) engine?.theme(dark) }
+    override fun theme(dark: Boolean) { isDark = dark; if (!closed) engine?.theme(dark) }
     internal fun engineFailed() { load.failedInitialPage(); retire() }
     private fun retire() {
         NativeNoticeEngine.checkMain()

@@ -1,5 +1,8 @@
 # Private notice renderer
 
+> Follow-up: [launch preloading and Compose acceptance](NOTICE_LAUNCH.md) records
+> the subsequent integration; remaining-work statements below describe this earlier checkpoint.
+
 The Settings announcement detail now uses the production `NativeNoticeRenderer`
 instead of the development placeholder. `NativeNoticeArchiveOwner` belongs to
 the notice ViewModel: activity recreation and theme changes retain the same page;

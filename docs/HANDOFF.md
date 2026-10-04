@@ -27,6 +27,22 @@ active; physical Pixel acceptance, authenticated upgrade, configured push and
 broader source/visual parity remain open. The table below records the original
 September 28 handoff rather than the current APK.
 
+## Latest checkpoint — launch announcement integration (2026-10-04)
+
+[NOTICE_LAUNCH.md](NOTICE_LAUNCH.md) records concurrent launch preloading, retained
+renderers, current-account/content/visibility checks and acknowledgement only on
+actual sheet appearance. The launch sheet uses the loaded session directly;
+failed pages remain unseen without a retry loop. Archive Retry keeps its separate
+fresh exchange. The production debug and unsigned release build, 52 focused JVM
+checks, engine package checks and release ART gate pass. Consult the linked
+checkpoint for precise Compose runtime results and retained fixture failures.
+
+**Next:** browser partitioned-state runtime, transparent extension-loss recovery,
+real HTTPS/native-account exchange and physical Pixel/Mac acceptance. No Android
+notice feed or new signed milestone was configured. Build 494 is still the last
+verified signed APK. Push configuration and broader parity remain open. Do not
+repeat the pending Pixel reconnect question; check ADB when needed.
+
 ## Latest checkpoint — production private notice renderer (2026-10-04)
 
 [NOTICE_RENDERER.md](NOTICE_RENDERER.md) records the main GeckoView integration,
@@ -43,8 +59,7 @@ not seconds. Keep native validation and readback guards. The main APK now includ
 Gecko and grows to about 241 MB debug / 228 MB unsigned release. There is still no
 Android notice feed and no new signed milestone (494 remains current).
 
-**Next:** connect concurrent launch preloads and acknowledgement gating to the
-retained renderer; exercise the archive web/retry Compose flow. Continue actual
+**Follow-up:** launch preloads and archive Compose testing are recorded above. Continue actual
 partitioned-storage, extension-loss recovery and HTTPS/account acceptance. Current
 extension-loss behavior closes all owned pages and requires an app process restart;
 do not describe that recovery as complete. Physical Pixel/Mac browser acceptance,

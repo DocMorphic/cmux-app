@@ -12,6 +12,17 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Launch announcement integration (2026-10-04 follow-up)
+
+Concurrent ten-second web preloads now gate the launch sheet; it attaches the
+retained page and checks owner, content, visibility and load lifetime again before
+acknowledgement. Cancellation retires unpresented pages, failed pages remain unseen,
+and unchanged failures do not reopen automatically. See [NOTICE_LAUNCH.md](NOTICE_LAUNCH.md)
+for source contract, focused JVM/ART checks and actual Compose renderer acceptance.
+The Android feed, real account/HTTPS exchange, partitioned-storage runtime,
+transparent engine recovery and physical Pixel acceptance remain open. No signed
+milestone or global parity pin change is implied.
+
 ## Production private notice renderer (2026-10-04 follow-up)
 
 The Settings web-detail path now has a retained GeckoView renderer and native
@@ -23,7 +34,7 @@ See [NOTICE_RENDERER.md](NOTICE_RENDERER.md) for exact scopes and retained failu
 including the fixed seconds-versus-milliseconds cookie bug and one post-boot bind
 ANR. Debug / unsigned-release APKs are about 241 / 228 MB with the bundled engine.
 
-Launch preloading, archive Compose web/retry acceptance, runtime partitioned state,
+The later launch checkpoint above supersedes the preload/archive gaps. Runtime partitioned state,
 transparent extension-loss recovery, real HTTPS/account exchange and physical Pixel
 remain incomplete. No notice feed or new signed milestone was created; 494 remains
 the last verified signed APK. The existing AVD is stopped. Global pin unchanged.
