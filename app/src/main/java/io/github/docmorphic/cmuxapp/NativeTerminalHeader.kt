@@ -41,9 +41,9 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
     altScreenNotice: (@Composable () -> Unit)? = null) {
     val accent = Color(0xFF76B9FF)
     Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
+        NativeWorkspaceBackControl { TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
             Text("‹  $workspaceCount", color = accent)
-        }
+        } }
         CompositionLocalProvider(LocalDebugTerminalText provides debugText) {
         NativePanePicker(terminal.title.ifBlank { workspace?.title ?: "Terminal" }, workspace,
             NativeWorkspacePane(terminal = terminal), Modifier.weight(1f), onTerminal, onSurface, onBrowser,

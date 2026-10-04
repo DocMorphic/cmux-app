@@ -62,7 +62,7 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
     if (ready) SideEffect { supportedSimulator = simulatorReady }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
+            NativeWorkspaceBackControl { TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") } }
             NativePanePicker(surface.displayTitle, workspace, NativeWorkspacePane(surface = surface), Modifier.weight(1f),
                 onTerminal, onSurface, onBrowser, onNewWorkspace, onNewTerminal, onNewBrowser,
                 browserState = NativeBrowserPickerState.from(ready, capabilities))

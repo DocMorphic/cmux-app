@@ -41,7 +41,7 @@ internal fun NativeRemoteBrowserPane(client: MobileRpcClient?, browser: NativeBr
         else {
             BackHandler(onBack = onBack)
             Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(onClick = onBack) { Text("‹  Workspaces") }
+                NativeWorkspaceBackControl { TextButton(onClick = onBack) { Text("‹  Workspaces") } }
                 if (switch != null) BrowserModePicker(BrowserMode.STREAMED, access.onDeviceUnavailableReason) { switch("") }
                 val heading = browser.title.ifBlank { "Browser" }
                 if (panePicker != null) panePicker(heading) else Text(heading, style = MaterialTheme.typography.titleMedium)

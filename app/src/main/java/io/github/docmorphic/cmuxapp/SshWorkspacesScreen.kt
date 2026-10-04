@@ -64,7 +64,7 @@ internal fun SshWorkspacesRoute(session: NativeSshSession, hostId: UUID, initial
         SshWorkspacesScreen(session, hostId, currentTmux, currentCmux, recovery, connecting, failure, reconnect, onBack, initialTarget, rememberedTab, onDisplayed)
     else Column(Modifier.padding(20.dp)) {
         BackHandler(onBack = onBack)
-        TextButton(onClick = onBack) { Text("Back") }
+        NativeWorkspaceBackControl { TextButton(onClick = onBack) { Text("Back") } }
         if (connecting) CircularProgressIndicator()
         else { Text(failure ?: "SSH computer disconnected"); TextButton(onClick = reconnect) { Text("Reconnect") } }
     }
@@ -423,7 +423,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                 onReconnect = reconnect, reconnectingLabel = "Reconnecting to your SSH computer…")
         else Column(Modifier.fillMaxSize().padding(16.dp)) {
             BackHandler(onBack = ::leave)
-            TextButton(onClick = ::leave) { Text("Back") }
+            NativeWorkspaceBackControl { TextButton(onClick = ::leave) { Text("Back") } }
             if (restoring || reconnecting) CircularProgressIndicator()
             (reconnectError ?: failure)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (!restoring && !reconnecting) TextButton(onClick = reconnect) { Text("Try again") }

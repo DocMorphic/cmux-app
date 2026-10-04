@@ -70,7 +70,7 @@ internal fun NativeWorkspaceWaitingPane(title: String, onBack: () -> Unit,
     reconnectingLabel: String = "Reconnecting to your Mac…") {
     BackHandler(onBack = onBack)
     Column(Modifier.fillMaxSize().padding(18.dp).testTag("WorkspaceWaiting"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
+        NativeWorkspaceBackControl { TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") } }
         Text(title, style = MaterialTheme.typography.titleMedium)
         CircularProgressIndicator(Modifier.size(24.dp))
         Text(if (connected) "Waiting for workspace panes…" else reconnectingLabel)

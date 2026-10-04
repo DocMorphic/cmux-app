@@ -138,7 +138,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     if (shortcuts) TerminalToolbarSettings(toolbar) { shortcuts = false }
     Column(Modifier.fillMaxSize().testTag("ssh.shell")) {
         Row(Modifier.fillMaxWidth().testTag("ssh.shell.identity.${shell.id}"), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }) { Text("Back") }
+            NativeWorkspaceBackControl { TextButton(onClick = { rawKeyboard?.finishComposition(); keyboard?.hide(); onBack() }) { Text("Back") } }
             Box(Modifier.weight(1f)) {
                 CompositionLocalProvider(LocalDebugTerminalText provides { RenderGrid.plainText(display.visibleLines(scroll.toInt())) }) {
                 if (panePicker != null) panePicker(::showText)

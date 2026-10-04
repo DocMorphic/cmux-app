@@ -199,7 +199,7 @@ internal fun NativeBrowserView(client: BrowserStreamClient, panelId: String, tit
 
     Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))) {
         Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { policy = policy.hide(); focusManager.clearFocus(); keyboard?.hide(); onBack() }) { Text("‹  Workspaces") }
+            NativeWorkspaceBackControl { TextButton(onClick = { policy = policy.hide(); focusManager.clearFocus(); keyboard?.hide(); onBack() }) { Text("‹  Workspaces") } }
             val heading = page.title.ifBlank { title.ifBlank { "Browser" } }
             Box(Modifier.weight(1f)) {
                 if (panePicker != null) panePicker(heading) else Text(heading, maxLines = 1)

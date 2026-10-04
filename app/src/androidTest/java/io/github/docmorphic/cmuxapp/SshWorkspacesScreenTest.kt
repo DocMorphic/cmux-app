@@ -1,6 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
 import android.widget.TextView
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
@@ -77,7 +79,16 @@ class SshWorkspacesScreenTest {
     }
     private fun send(value: String) {
         ready(); compose.onNodeWithTag("ssh.shell.composer").performTextReplacement(value)
-        compose.onNodeWithTag("ssh.shell.send").performClick(); waitText(value)
+        // The editor is enabled before pending preparation/connection work has
+        // settled. Clicking a disabled Send has no effect and leaves the draft.
+        ready("ssh.shell.send")
+        compose.onNodeWithTag("ssh.shell.send").assertIsEnabled()
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { assertTrue(it()) }
+        compose.waitUntil(5000) {
+            compose.onNodeWithTag("ssh.shell.composer").fetchSemanticsNode().config
+                .getOrNull(SemanticsProperties.EditableText)?.text.orEmpty().isEmpty()
+        }
+        waitText(value)
     }
     private fun terminalIdentity(): String? = compose.onAllNodes(SemanticsMatcher("SSH terminal identity") {
         it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("ssh.shell.identity.") == true
@@ -114,7 +125,7 @@ class SshWorkspacesScreenTest {
         File(compose.activity.getExternalFilesDir(null), "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }
-    private fun withMainFeed(configure: (NativeFixturePeer) -> Unit = {}, check: (NativeFixturePeer, StateRestorationTester) -> Unit) {
+    private fun withMainFeed(configure: (NativeFixturePeer) -> Unit = {}, windowSize: (() -> Pair<Int, Int>)? = null, check: (NativeFixturePeer, StateRestorationTester) -> Unit) {
         compose.runOnUiThread {
             compose.activity.window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
@@ -128,10 +139,15 @@ class SshWorkspacesScreenTest {
         val restoration = StateRestorationTester(compose)
         try {
             restoration.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                val configuration = LocalConfiguration.current
+                val override = windowSize?.invoke()?.let { (width, height) -> android.content.res.Configuration(configuration).also {
+                    it.screenWidthDp = width; it.screenHeightDp = height
+                } } ?: configuration
+                CompositionLocalProvider(LocalConfiguration provides override) {
                 NativeScreen(onUseHelper = {}, sshSessionOverride = session, sortStoreOverride = sortStore, connector = NativeConnector { _, _ ->
                     MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
                 })
-            } } }
+            } } } }
             compose.waitUntil(15000) { compose.onAllNodesWithText("Desktop cmux").fetchSemanticsNodes().isNotEmpty() &&
                 compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
             check(peer, restoration)
@@ -187,6 +203,62 @@ class SshWorkspacesScreenTest {
         compose.onNodeWithContentDescription("Computer filter").performClick()
         compose.onNodeWithText("Add Computer").performClick()
         compose.onNodeWithTag("computers.pairing.help").assertIsDisplayed()
+    }
+
+    @Test fun wideSidebarKeepsLiveTerminalDuringTabsSearchReflowAndSwitchesMacSshDestinations() {
+        var size by mutableStateOf(1000 to 700)
+        withMainFeed(windowSize = { size }) { peer, restoration ->
+            compose.onNodeWithTag("workspace.shell.split").assertExists()
+            compose.onNodeWithTag("workspace.shell.placeholder").assertIsDisplayed()
+            compose.onNodeWithText("Desktop cmux").performClick(); ready(); send("Wide cmux live terminal")
+            val cmuxIdentity = terminalIdentity()
+            compose.onNodeWithContentDescription("Hide sidebar").performClick()
+            assertEquals(cmuxIdentity, terminalIdentity())
+            compose.onNodeWithContentDescription("Show sidebar").performClick()
+            compose.onNode(hasText("Notifications", substring = true) and hasClickAction() and
+                hasAnyAncestor(hasTestTag("workspace.shell.sidebar"))).performClick()
+            assertEquals(cmuxIdentity, terminalIdentity())
+            compose.onNode(hasText("Workspaces") and hasClickAction()).performClick()
+            compose.onNodeWithContentDescription("Search").performClick()
+            compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("workspace.shell.sidebar"))).performTextReplacement("no matching workspace")
+            assertEquals(cmuxIdentity, terminalIdentity())
+            compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+            compose.onNodeWithContentDescription("Cancel search").assertDoesNotExist()
+            assertEquals(cmuxIdentity, terminalIdentity())
+            compose.onNodeWithTag("ssh.shell.composer").performTextReplacement("Unsent through resizing")
+            compose.onNodeWithContentDescription("Search").performClick()
+            compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("workspace.shell.sidebar"))).performTextReplacement("desktop")
+            compose.runOnIdle { size = 412 to 850 }
+            compose.onNodeWithTag("workspace.shell.stack").assertExists()
+            compose.onNodeWithText("Unsent through resizing").assertExists()
+            assertEquals(cmuxIdentity, terminalIdentity())
+            compose.runOnIdle { size = 1000 to 420 }
+            compose.onNodeWithTag("workspace.shell.stack").assertExists()
+            compose.runOnIdle { size = 1000 to 700 }
+            compose.onNodeWithTag("workspace.shell.split").assertExists()
+            compose.onNodeWithContentDescription("Cancel search").assertDoesNotExist()
+            compose.onNodeWithText("Unsent through resizing").assertExists()
+            assertEquals(cmuxIdentity, terminalIdentity())
+            compose.onNodeWithTag("ssh.shell.send").performClick(); waitText("Unsent through resizing")
+            compose.onNodeWithContentDescription("Search").performClick()
+            compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("workspace.shell.sidebar"))).assertTextEquals("desktop")
+            compose.onNodeWithContentDescription("Cancel search").performClick()
+            capture("wide-cmux-sidebar")
+            compose.onNodeWithText("desktop-tmux").performClick(); ready(); send("Wide tmux live terminal")
+            assertNotEquals(cmuxIdentity, terminalIdentity())
+            compose.onNodeWithText("Claude Code task").performClick()
+            ready("native-terminal"); compose.onNodeWithTag("ssh.shell").assertDoesNotExist()
+            capture("wide-native-sidebar")
+            compose.onNodeWithText("Desktop cmux").performClick(); ready()
+            compose.onNodeWithTag("native-terminal").assertDoesNotExist()
+            waitText("Wide cmux live terminal")
+            compose.onNodeWithContentDescription("Hide sidebar").performClick()
+            restoration.emulateSavedInstanceStateRestore(); ready()
+            compose.onNodeWithTag("workspace.shell.sidebar").assertDoesNotExist()
+            compose.onNodeWithContentDescription("Show sidebar").performClick()
+            send("Wide saved-screen restoration")
+            assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.create", "workspace.close", "workspace.move") })
+        }
     }
 
     @Test fun mainFeedSortsMacAndSshTogetherPersistsOrderAndKeepsSingleComputerOrder() = withMainFeed(configure = { peer ->

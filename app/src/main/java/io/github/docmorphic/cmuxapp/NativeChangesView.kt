@@ -58,6 +58,7 @@ internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Un
     BackHandler { if (selected == null) onBack() else returnToList() }
     Column(Modifier.fillMaxSize().background(Color(0xFF0B0C0E))) {
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (LocalWorkspaceShellChrome.current.let { it.split && !it.sidebarVisible }) NativeWorkspaceSidebarToggle()
             if (selected == null) TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Close changes" }) { Text("×") }
             else TextButton(onClick = ::returnToList) { Text("‹ Changes") }
             Text("Changes", Modifier.weight(1f).semantics { contentDescription = "Changes in $title" }, fontWeight = FontWeight.SemiBold)

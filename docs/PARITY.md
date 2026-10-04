@@ -12,7 +12,30 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — All Computers sorting (2026-10-04)
+## Latest checkpoint — adaptive workspace sidebar (2026-10-04)
+
+The workspace shell now places the real Mac/SSH workspace or notification list
+beside the active detail in sufficiently wide, tall windows. The sidebar can be
+hidden, its visibility restores per account/team, and the existing renderer moves
+between layouts without being recreated. Sidebar search Back keeps the detail
+open; hiding/folding commits the query. Native/SSH destination switching retires
+the previous route, and same-host SSH workspace changes use the new target.
+
+**18 focused JVM and six Android checks passed** on the sole API37/16KB AVD
+(**51.848 s wide + 110.830 s compact**). Checks include renderer identity, unsent
+input, search/navigation, saved-screen restoration and the separate phone browser
+reopening flow. An initial unsent-command test failure and the strengthened Send
+assertions are documented in [WORKSPACE_SIDEBAR.md](WORKSPACE_SIDEBAR.md), alongside
+source references, build times, hashes, evidence and exact verification limits.
+The AVD and private fixtures are stopped/reaped. The Pixel was absent and untouched.
+
+Signed **554** is still the download; these changes await a batched signed build.
+PR #1 remains draft and the goal active. **Next:** extend the separate browser
+Activity's owned protocol for a global sidebar; complete selection/accessibility
+refinements, OS window/process recovery and physical Pixel/Mac acceptance. Push/
+notice configuration, legacy tickets and the wider upstream audit remain open.
+
+## Earlier checkpoint — All Computers sorting (2026-10-04)
 
 All Computers now offers **Last Opened**, **Custom Order**, and **Recent Activity**.
 Mac and SSH rows share one display projection. Last Opened ranks the foreground

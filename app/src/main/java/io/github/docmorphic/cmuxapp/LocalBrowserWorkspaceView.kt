@@ -37,8 +37,8 @@ internal fun LocalBrowserWorkspaceView(destination: LocalBrowserDestination, nav
     BackHandler { navigation.leave(close = false) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { navigation.leave(close = false) },
-                modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
+            NativeWorkspaceBackControl { TextButton(onClick = { navigation.leave(close = false) },
+                modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") } }
             val rows = nativePanePickerRows(workspace, browserState)
             val selected = rows.singleOrNull { it.kind == "browser" && it.id == destination.surface.linkedStreamPanelId }
             if (sshPicker != null) Box(Modifier.weight(1f)) {
