@@ -100,6 +100,8 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
             sortMode = ui.snapshot?.sortMode, onSort = { mode -> scope.launch {
                 if (controller.sort(RoutedSidebarSort.Mode(mode)) && mode == NativeWorkspaceSortMode.PRIORITY) showOrder = true
             } }, onOrder = { showOrder = true })
+        if (!ui.query.notifications) RoutedSidebarCreateMenu(ui.snapshot?.creation.orEmpty(), ui.query.computer,
+            ui.navigating || ui.mutationBusy || ui.saving, onOpen)
     }
     if (ui.loading || ui.navigating || ui.saving || ui.notificationBusy || ui.editorLoading || ui.snapshot?.loading == true) LinearProgressIndicator(Modifier.fillMaxWidth())
     (ui.actionError ?: ui.error)?.let { message -> Column(Modifier.padding(12.dp)) {
@@ -148,6 +150,8 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                     row.expanded, NativeWorkspaceUnread(row.unread, row.count),
                     onOpen = if (row.canOpen) ({ onOpen(row.key) }) else null,
                     canEdit = RoutedSidebarMutationKind.RENAME in mutations, handlesHold = true,
+                    canCreate = row.createKey != null, creationEnabled = !ui.navigating && !ui.mutationBusy,
+                    onCreate = { row.createKey?.let(onOpen) },
                     onToggle = { controller.query(ui.query.copy(groupExpansion = ui.query.groupExpansion + (row.key to !row.expanded))) }, onAction = ::mutate)
                 "footer" -> HorizontalDivider(Modifier.padding(horizontal = 18.dp, vertical = 5.dp))
                 "heading" -> Text(runCatching { LocalDate.parse(row.title).let { date -> when (date) {

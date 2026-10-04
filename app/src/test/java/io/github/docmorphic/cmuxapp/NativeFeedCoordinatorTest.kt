@@ -11,6 +11,20 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun callerWithdrawalPreventsPlainAndGroupCreationAtSendBoundary() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.groupCreationSupported = true
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                assertTrue(runCatching { coordinator.createWorkspace(mac("a")) { false } }.isFailure)
+                assertTrue(runCatching { coordinator.createWorkspaceInGroup(mac("a"), "g") { false } }.isFailure)
+                assertTrue(peer.requests.none { it.optString("method") == "workspace.create" })
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun plainCreateTargetsExactMacAndAcceptsLegacyWithoutAccountGroupCapability() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             b.accountMutationsSupported = false

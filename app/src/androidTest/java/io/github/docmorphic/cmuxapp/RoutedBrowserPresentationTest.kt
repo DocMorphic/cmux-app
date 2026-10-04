@@ -66,6 +66,11 @@ class RoutedBrowserPresentationTest {
     private var sidebarRows = listOf(RoutedSidebarRow("other", "workspace", "Other computer workspace", preview = "Remote preview"))
     private var sidebarAllows = true
     private var projectedSidebar: NativeRoutedSidebarHost? = null
+    private val openedCreation = CopyOnWriteArrayList<NativeSidebarTarget>()
+    private var creationSsh: NativeSshSession? = null
+    private var creationVault: File? = null
+    private var creationTargets = emptyList<NativeSshCreateTarget>()
+    private var creationBusy = false
     private var globalActions = RoutedSidebarActionKind.entries.toSet()
     private val openedActions = CopyOnWriteArrayList<RoutedSidebarActionKind>()
     private var noticeSources = emptyList<NativeFeedSource>()
@@ -172,6 +177,33 @@ class RoutedBrowserPresentationTest {
             }; start()
         }
         main {
+            if (scenarioName.startsWith("globalSidebarCreation")) {
+                noticeSources = listOf("A", "B").map { name -> NativeFeedSource(
+                    NativeCredentialStore.PairedMac("fixture-create-$name", name, "Mac $name"),
+                    workspaces = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"anchor","title":"Anchor $name","group_id":"g"}]}""")),
+                    groups = listOf(NativeGroup("g", "Group $name", false, false, anchorWorkspaceId = "anchor")),
+                    availability = NativeFeedAvailability.CONNECTED,
+                    capabilities = setOf(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY, "workspace.create_in_group.v1")) }
+                if (scenarioName == "globalSidebarCreationOffersSshKindsAndRejectsAChangedHost") {
+                    val hosts = SshHostStore({ null }, {})
+                    val host = SshHostRecord(name = "SSH fixture", endpoint = SshEndpoint("fixture.invalid", username = "test"))
+                    hosts.upsert(host)
+                    val directory = File(context.cacheDir, "sidebar-create-${UUID.randomUUID()}").apply { mkdirs() }
+                    creationVault = directory
+                    val session = NativeSshSession(hosts, SshKeyVault(directory, { true }, {}), owner, admitted = { true })
+                    creationSsh = session
+                    creationTargets = listOf(NativeSshCreateTarget(session, host, null, listOf(
+                        SshWorkspaceKindOption(SshWorkspaceKind.CMUX_TUI),
+                        SshWorkspaceKindOption(SshWorkspaceKind.TMUX, "tmux is not installed on this computer."),
+                        SshWorkspaceKindOption(SshWorkspaceKind.SHELL))))
+                }
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-creation", {
+                    NativeSidebarInput(noticeSources, emptyList(), noticeSources.map {
+                        NativeSortComputer(workspaceMacFilterId(it.mac.deviceId, null)!!, it.mac.name)
+                    } + creationTargets.map { NativeSortComputer(workspaceSshFilterId(it.host.id), it.name) },
+                        NativeWorkspaceSortState(), creation = NativeSidebarCreation(creationBusy, creationTargets))
+                }, { RoutedSidebarLease({}) {} }, { openedCreation += it })
+            }
             if (scenarioName.startsWith("globalSidebarCustomization")) {
                 noticeSources = listOf("A", "B").map { name -> NativeFeedSource(
                     NativeCredentialStore.PairedMac("fixture-custom-$name", name, "Mac $name"),
@@ -446,6 +478,72 @@ class RoutedBrowserPresentationTest {
         assertEquals(sortStore.state.value, NativeWorkspaceSortStore({ sortJson }, {}).state.value)
         assertEquals(false, sidebarActive.last())
     }
+    @Test fun globalSidebarCreationChoosesMacAndGroupThenUsesTheSingleMacPrimaryAction() = wideSidebar {
+        browser("Routed fixture ▾")
+        text("Keep draft").click(); until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        desc("New Workspace").click(); text("Mac A"); text("Mac B")
+        main { noticeSources = noticeSources.map { if (it.mac.deviceId == "B") it.copy(availability = NativeFeedAvailability.OFFLINE) else it } }
+        until { generateSequence(text("Mac B")) { it.parent }.firstOrNull { it.isClickable }?.isEnabled == false }
+        text("Mac B").click(); assertTrue(openedCreation.isEmpty())
+        device.pressBack()
+        assertEquals(loads, paths.count { it == "/start" }); assertTrue(desc("Choose terminal or pane").text!!.startsWith("Draft "))
+        main { noticeSources = noticeSources.map { it.copy(availability = NativeFeedAvailability.CONNECTED) } }
+        desc("New Workspace").click()
+        until { generateSequence(text("Mac B")) { it.parent }.firstOrNull { it.isClickable }?.isEnabled == true }
+        assertTrue(device.wait(Until.gone(By.text("Not connected")), 5_000))
+        capturePicker("browser-sidebar-create-computers"); text("Mac B").click()
+        compose.waitForIdle(); text("Reopen fixture"); until { sidebarReleases.get() == 1 }
+        assertEquals(NativeSidebarTarget.CreateWorkspace(main { noticeSources[1].mac }), openedCreation.single())
+        text("Reopen fixture").click(); browser("Routed fixture ▾")
+        text("Group B").longClick(); text("New Workspace in Group")
+        main { noticeSources = noticeSources.map { if (it.mac.deviceId == "B") it.copy(capabilities = emptySet()) else it } }
+        assertTrue(device.wait(Until.gone(By.text("New Workspace in Group")), 5_000))
+        assertEquals(1, openedCreation.size)
+        main { noticeSources = noticeSources.map { it.copy(capabilities = setOf(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY, "workspace.create_in_group.v1")) } }
+        // Selecting the scope waits for a fresh page after capability restoration.
+        text("All Computers").click(); text("Mac B").click()
+        text("Group B").longClick(); text("New Workspace in Group").click()
+        compose.waitForIdle(); text("Reopen fixture"); until { sidebarReleases.get() == 2 }
+        assertEquals(NativeSidebarTarget.CreateWorkspace(main { noticeSources[1].mac }, "g"), openedCreation.last())
+        main { noticeSources = noticeSources.take(1) }
+        text("Reopen fixture").click(); browser("Routed fixture ▾")
+        desc("New Workspace").click()
+        compose.waitForIdle(); text("Reopen fixture"); until { sidebarReleases.get() == 3 }
+        assertEquals(NativeSidebarTarget.CreateWorkspace(main { noticeSources[0].mac }), openedCreation.last())
+        assertEquals(3, openedCreation.size); assertEquals(0, holds.get())
+    }
+    @Test fun globalSidebarCreationOffersSshKindsAndRejectsAChangedHost() = wideSidebar {
+        browser("Routed fixture ▾")
+        desc("New Workspace").click(); text("SSH fixture").click()
+        text("New cmux-tui Workspace"); text("New Shell")
+        assertFalse(generateSequence(text("New tmux Session")) { it.parent }.first { it.isClickable }.isEnabled)
+        text("tmux is not installed on this computer.")
+        capturePicker("browser-sidebar-create-ssh")
+        main {
+            val target = creationTargets.single()
+            val changed = target.host.copy(endpoint = target.host.endpoint.copy(port = 2222))
+            target.session.hosts.upsert(changed)
+            creationTargets = listOf(target.copy(host = changed))
+        }
+        until { generateSequence(text("New Shell")) { it.parent }.first { it.isClickable }.isEnabled == false }
+        text("New Shell").click(); assertTrue(openedCreation.isEmpty())
+        device.pressBack()
+        main {
+            val target = creationTargets.single()
+            creationTargets = listOf(target.copy(host = target.session.hosts.state.value.host(target.host.id)!!))
+            noticeSources = emptyList()
+        }
+        // The empty workspace view proves the new snapshot arrived.
+        text("No workspaces yet.")
+        // One SSH computer still opens a kind menu, never guesses a default.
+        desc("New Workspace").click(); text("New Shell").click()
+        compose.waitForIdle(); text("Reopen fixture"); until { sidebarReleases.get() == 1 }
+        val opened = openedCreation.single() as NativeSidebarTarget.CreateSsh
+        assertEquals(SshWorkspaceKind.SHELL, opened.kind); assertEquals(2222, opened.target.host.endpoint.port)
+        assertEquals(0, holds.get())
+    }
+
     @Test fun globalSidebarOpensSharedSettingsComputersAndTaskFlows() = wideSidebar {
         val labels = listOf("cmux settings", "Manage computers", "New Task")
         val expected = listOf(RoutedSidebarActionKind.SETTINGS, RoutedSidebarActionKind.COMPUTERS, RoutedSidebarActionKind.NEW_TASK)
@@ -814,7 +912,9 @@ class RoutedBrowserPresentationTest {
     @After fun cleanup() {
         if (::network.isInitialized) main { network.close(); navigation.clear() }
         if (::network.isInitialized) runBlocking { delay(300) }
+        main { creationSsh?.close() }
         owner.cancel()
+        creationVault?.deleteRecursively()
         if (::server.isInitialized) server.shutdown()
     }
     @Test fun browserCopiesMainAndBrowserDiagnosticsThroughTheBoundService() {

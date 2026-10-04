@@ -6,6 +6,8 @@ import java.time.ZoneId
 import java.util.Locale
 
 internal sealed interface NativeSidebarTarget {
+    data class CreateWorkspace(val mac: NativeCredentialStore.PairedMac, val groupId: String? = null) : NativeSidebarTarget
+    data class CreateSsh(val target: NativeSshCreateTarget, val kind: SshWorkspaceKind) : NativeSidebarTarget
     data class Action(val kind: RoutedSidebarActionKind) : NativeSidebarTarget
     data class Workspace(val mac: NativeCredentialStore.PairedMac, val id: String) : NativeSidebarTarget
     data class Ssh(val row: SshFeedRow) : NativeSidebarTarget
@@ -15,7 +17,8 @@ internal data class NativeSidebarInput(val sources: List<NativeFeedSource>, val 
     val computers: List<NativeSortComputer>, val sort: NativeWorkspaceSortState,
     val sshAvailability: Map<java.util.UUID, NativeFeedAvailability> = emptyMap(),
     val appearances: NativeMacAppearances = NativeMacAppearances(), val locale: Locale = Locale.getDefault(),
-    val actions: Set<RoutedSidebarActionKind> = emptySet(), val pendingMoves: Map<String, Int> = emptyMap())
+    val actions: Set<RoutedSidebarActionKind> = emptySet(), val pendingMoves: Map<String, Int> = emptyMap(),
+    val creation: NativeSidebarCreation? = null)
 internal data class NativeSidebarPresentation(val computer: String? = null, val notifications: Boolean = false,
     val workspaceQuery: String = "", val notificationQuery: String = "", val workspaceUnread: Boolean = false,
     val notificationUnread: Boolean = false, val machines: Set<String> = emptySet(),
@@ -219,6 +222,51 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             input()?.sources?.any { it.mac == source.mac && it.canCustomizeWorkspace() && it.workspaces.any { row -> row.id == item.id } } == true
         }, save = { baseline, submitted, canSend -> save(target, baseline, submitted, canSend) })
     }
+    private fun createKey(mac: NativeCredentialStore.PairedMac, groupId: String? = null) =
+        id("create-workspace", mac.origin, mac.code, mac.deviceId, mac.instanceTag, mac.accountUserId,
+            mac.accountTeamId, mac.stableOrigin, mac.previousOrigins.sorted(), groupId)
+    private fun createKey(target: NativeSshCreateTarget, kind: SshWorkspaceKind) =
+        id("create-ssh", target.session.creationIdentity, target.host.id.toString(), target.host.endpoint.host,
+            target.host.endpoint.port, target.host.endpoint.username, target.host.keyId?.toString(), target.host.jumpHostId?.toString(), kind.name)
+    private fun canCreate(value: NativeSidebarInput, source: NativeFeedSource) = value.creation?.busy == false &&
+        source.availability == NativeFeedAvailability.CONNECTED
+    private fun creation(value: NativeSidebarInput, selected: String?): List<RoutedSidebarCreateComputer> {
+        val state = value.creation ?: return emptyList()
+        val macs = value.sources.filter { selected == null || workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag) == selected }
+            .map { source ->
+                val identity = workspaceMacFilterId(source.mac.deviceId, source.mac.instanceTag)
+                RoutedSidebarCreateComputer(computer(checkNotNull(identity)), value.appearances.name(source.mac),
+                    value.computers.singleOrNull { it.id == identity }?.buildLabel, source.availability,
+                    listOf(RoutedSidebarCreateOption(createKey(source.mac), unavailableReason = when {
+                        state.busy -> "Workspace creation is in progress"
+                        source.availability != NativeFeedAvailability.CONNECTED -> "Connect to this Mac to create a workspace"
+                        else -> null
+                    })))
+            }
+        val ssh = state.ssh.filter { it.session.isOpen && it.session.hosts.state.value.host(it.host.id)?.connectsLike(it.host) == true &&
+            (selected == null || workspaceSshFilterId(it.host.id) == selected) }.map { target ->
+            RoutedSidebarCreateComputer(computer(workspaceSshFilterId(target.host.id)), target.name, availability = when (target.connection?.phase) {
+                SshConnectionPhase.CONNECTED -> NativeFeedAvailability.CONNECTED
+                SshConnectionPhase.CONNECTING -> NativeFeedAvailability.CONNECTING
+                else -> NativeFeedAvailability.OFFLINE
+            }, options = target.options.map { option -> RoutedSidebarCreateOption(createKey(target, option.kind), option.kind,
+                if (state.busy) "Workspace creation is in progress" else option.unavailableReason) })
+        }
+        return macs + ssh
+    }
+    private fun creationTarget(value: NativeSidebarInput, key: String): NativeSidebarTarget? {
+        val state = value.creation?.takeUnless { it.busy } ?: return null
+        value.sources.filter { canCreate(value, it) }.forEach { source ->
+            if (createKey(source.mac) == key) return NativeSidebarTarget.CreateWorkspace(source.mac)
+            if (source.canCreateInGroup()) source.groups.singleOrNull { createKey(source.mac, it.id) == key }?.let {
+                return NativeSidebarTarget.CreateWorkspace(source.mac, it.id)
+            }
+        }
+        state.ssh.filter { it.session.isOpen && it.session.hosts.state.value.host(it.host.id)?.connectsLike(it.host) == true }.forEach { target -> target.options.singleOrNull { it.unavailableReason == null && createKey(target, it.kind) == key }?.let {
+            return NativeSidebarTarget.CreateSsh(target, it.kind)
+        } }
+        return null
+    }
     override fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot? {
         val value = input() ?: return null
         val ordered = orderWorkspaceComputers(value.computers, value.sort, value.locale)
@@ -250,7 +298,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                 .map { RoutedSidebarAction(action(it), it) },
             readAll = if (query.notifications && validScope && unread > 0 && readAllNotifications != null)
                 RoutedSidebarReadAll(readAllKey(value, query), ordered.singleOrNull { it.id == selected }?.name ?: "All Computers") else null,
-            canRefresh = query.notifications && refreshNotifications != null, expanded = expanded(projection))
+            canRefresh = query.notifications && refreshNotifications != null, expanded = expanded(projection),
+            creation = if (!query.notifications && validScope) creation(value, selected) else emptyList())
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
         query: RoutedSidebarQuery, all: Boolean, filtering: Boolean): List<RoutedSidebarRow> {
@@ -276,6 +325,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                     is WorkspaceListEntry.Header -> RoutedSidebarRow(group(entry.source, entry.group.id), "group", entry.group.name,
                         unread = entry.unread.isUnread, count = entry.unread.count, pinned = entry.group.isPinned,
                         mutations = if (mutateWorkspace != null) entry.source.sidebarGroupMutations(entry.group) else emptySet(),
+                        createKey = createKey(entry.source.mac, entry.group.id).takeIf { canCreate(value, entry.source) && entry.source.canCreateInGroup() },
                         iconSymbol = entry.group.iconSymbol, expanded = !entry.group.isCollapsed, canOpen = entry.group.liveAnchorWorkspaceId?.let { id -> entry.source.workspaces.any { it.id == id } } == true)
                     is WorkspaceListEntry.Footer -> RoutedSidebarRow(id("footer", entry.key), "footer", entry.group.name, canOpen = false)
                 }
@@ -325,6 +375,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     override fun resolve(key: String): (() -> Unit)? {
         fun target(): NativeSidebarTarget? {
             val value = input() ?: return null
+            creationTarget(value, key)?.let { return it }
             value.actions.singleOrNull { action(it) == key }?.let { return NativeSidebarTarget.Action(it) }
             value.sources.forEach { source ->
                 source.workspaces.firstOrNull { workspace(source.mac, it.id) == key }?.let { return NativeSidebarTarget.Workspace(source.mac, it.id) }
@@ -336,8 +387,15 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             aggregateNativeFeed(value.sources).firstOrNull { notification(it) == key }?.let { return NativeSidebarTarget.Notification(it) }
             return null
         }
-        target() ?: return null
+        val captured = target() ?: return null
         // The returned callback can outlive resolution while an Activity finishes.
-        return { target()?.let(navigate) ?: error("This sidebar destination is no longer available.") }
+        return {
+            val current = target() ?: error("This sidebar destination is no longer available.")
+            if (captured is NativeSidebarTarget.CreateWorkspace) check(current == captured) { "Saved computer changed" }
+            if (captured is NativeSidebarTarget.CreateSsh) check(current is NativeSidebarTarget.CreateSsh &&
+                current.target.session === captured.target.session && current.target.host.connectsLike(captured.target.host) &&
+                current.kind == captured.kind) { "SSH computer changed" }
+            navigate(current)
+        }
     }
 }

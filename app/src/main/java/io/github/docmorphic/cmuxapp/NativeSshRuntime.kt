@@ -26,6 +26,7 @@ internal class SshInstallTrustRequest(val question: SshTrustQuestion) {
 internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
     lifetime: CoroutineScope, private val cmuxInstaller: SshCmuxInstaller? = null, val admitted: () -> Boolean,
 ) : AutoCloseable {
+    val creationIdentity = java.util.UUID.randomUUID().toString()
     private val lock = Any()
     @Volatile private var closed = false
     val isOpen get() = synchronized(lock) { !closed && admitted() }

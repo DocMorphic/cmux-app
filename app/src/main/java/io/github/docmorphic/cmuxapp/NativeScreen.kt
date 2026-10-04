@@ -1335,8 +1335,8 @@ internal fun NativeScreen(
         scope.launch {
             try {
                 if (!stillCurrent()) return@launch
-                val response = if (groupId == null) feedCoordinator.createWorkspace(mac)
-                    else feedCoordinator.createWorkspaceInGroup(mac, groupId)
+                val response = if (groupId == null) feedCoordinator.createWorkspace(mac, ::stillCurrent)
+                    else feedCoordinator.createWorkspaceInGroup(mac, groupId, ::stillCurrent)
                 if (!stillCurrent()) return@launch
                 error = null
                 val returned = createdPlainWorkspace(response) ?: return@launch
@@ -3340,7 +3340,9 @@ internal fun NativeScreen(
                 availability, display, searchLocale, actions = buildSet {
                     add(RoutedSidebarActionKind.SETTINGS); add(RoutedSidebarActionKind.COMPUTERS)
                     if (taskDraftRepository != null) add(RoutedSidebarActionKind.NEW_TASK)
-                }, pendingMoves = workspaceMoves.status.value.mapValues { it.value.pending })
+                }, pendingMoves = workspaceMoves.status.value.mapValues { it.value.pending },
+                creation = NativeSidebarCreation(creatingWorkspace || creatingTerminal || sshCreationBusy,
+                    sshTargets.filter { it.session === ssh && it.session.isOpen && hosts.any { host -> host.connectsLike(it.host) } }))
         }
     })
     val sidebarInitial by rememberUpdatedState<() -> NativeSidebarPresentation>({
@@ -3368,6 +3370,15 @@ internal fun NativeScreen(
     val sidebarNavigate by rememberUpdatedState<(NativeSidebarTarget) -> Unit>({ target ->
         check(sidebarCurrent()) { "Sidebar account changed" }
         when (target) {
+            is NativeSidebarTarget.CreateWorkspace -> {
+                check(!creatingWorkspace && !creatingTerminal && !sshCreationBusy) { "Workspace creation is in progress" }
+                check(store.visiblePairedMacs().contains(target.mac) && connection.allowsSaved(target.mac)) { "Saved computer changed" }
+                finishSearch(); createWorkspaceOnMac(target.mac, target.groupId)
+            }
+            is NativeSidebarTarget.CreateSsh -> {
+                check(!creatingWorkspace && !creatingTerminal && !sshCreationBusy && canCreateSsh(target.target, target.kind)) { "SSH creation is no longer available" }
+                finishSearch(); createSshWorkspace(target.target, target.kind)
+            }
             is NativeSidebarTarget.Action -> {
                 finishSearch()
                 when (target.kind) {

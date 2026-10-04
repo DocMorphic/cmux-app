@@ -45,9 +45,10 @@ entry points return to the existing main-screen flows. Notification rows, read/u
 read now share the main feed. Mac workspace pin/rename/read/delete and group
 pin/rename/ungroup/delete use the owned mutation protocol described below. Mac
 Move to Group shares the main-screen move queue and anchored submenu, and
-Customize uses the shared workspace editor and save policy. Global/in-group
-creation, SSH mutations, drag ordering and selection styling still need
-browser parity work. Main-screen controls remain implemented separately; this does not establish
+Customize uses the shared workspace editor and save policy. Global Mac/SSH
+workspace creation and creation inside an existing Mac group use the shared
+parent flows. New group creation, SSH mutations, drag ordering and selection
+styling still need browser parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
 Physical Pixel/Mac acceptance, actual account/team replacement during live
@@ -55,7 +56,8 @@ browser use, real native/SSH feed integration with the new browser sidebar,
 large-text/accessibility review and authenticated process recovery remain open.
 The compact browser stays stacked. Signed build 563 includes the sidebar and
 notification actions; the expansion-restoration, workspace/group-mutation,
-Move to Group and workspace-customization changes below await the next signed batch.
+Move to Group, workspace-customization and workspace-creation changes below await
+the next signed batch.
 
 ## Verification
 
@@ -610,3 +612,90 @@ remain browser parity work.
 
 - App APK SHA-256: `9e6b1c4295e2770a281fbfc8415c26f3feab458ed1ba63d86a0992b66ccf58bc`.
 - Test APK SHA-256: `2476594ba4c1c40e379ba1abbca8fb9283dc96e3f9b85830b38f507db6b88a1d`.
+
+## Browser workspace creation — 2026-10-04
+
+Scoped iOS reference: `WorkspaceListNewWorkspaceMenu.swift` and
+`WorkspaceListView+Actions.swift` in `Packages/iOS/CmuxMobileShellUI` at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`. The browser now has the New Workspace
+button: one Mac creates directly, several computers open a destination menu,
+and SSH hosts expose the shared cmux-tui/tmux/shell kind rows with unavailable
+reasons. Existing group headers expose New Workspace in Group when the owning
+Mac advertises account-authorized group creation. Search/unread filtering does
+not change the computer receiving a create. A scoped computer selection limits
+the menu; a disappeared scope does not silently broaden it.
+
+Creation uses the existing one-use sidebar return ticket and the main screen's
+Mac/SSH creation flows. The browser closes its presentation and the parent starts
+the chosen flow, which handles connection/progress/errors and routes to the
+returned workspace. It does not run a second creation implementation in the
+browser process. A legacy Mac response without a created ID refreshes its list
+without guessing which workspace to select. Other browser mutations remain in
+place; creation intentionally navigates to the created destination.
+
+Only bounded display names, availability, kind/reason values and opaque keys cross
+IPC. Issuance is limited to enabled menu destinations and transmitted group rows.
+The key binds the Mac pairing/build/account or SSH session/endpoint/key/jump host.
+Resolution checks current availability, group existence/capabilities and busy
+state again. SSH creation destination keys hash explicit primitive endpoint fields so
+Android JSON behavior cannot erase a host/port/username change. The returned
+callback rechecks its captured owner; the Mac coordinator now also checks caller
+permission inside its mutation lock immediately before sending either create.
+
+Menus snapshot their labels/choices when opened and consult current eligibility
+before a tap. A changed SSH endpoint cannot silently replace the chosen target.
+Notifications have no creation menu. The wire enforces the existing 192 KiB budget
+on menu metadata even when the page has no workspace rows, with a visible error
+rather than an unreceivable message.
+
+New workspace **group** creation is still pending: the existing main-screen
+New group dialog needs its owner captured through confirmation before it can be
+safely shared with the browser. That remaining action is distinct from creating
+a workspace inside an existing group, implemented above. SSH close/actions,
+drag/order, changes previews and selection/display refinements remain open.
+
+### Verification
+
+- **85 JVM checks passed:** 39 coordinator, three plain-create response checks,
+  five new sidebar creation/wire/issuance checks, 34 sidebar checks and four SSH
+  kind-policy checks. Coverage includes empty Mac lists, scoped/filtered menus,
+  exact owner/group, offline/busy/revoked/replaced targets, one-use and
+  transmitted-row gates, disabled kinds and oversized metadata rejection.
+- The initial Android batch took **100.717s**: the existing Settings/Computers/
+  New Task navigation check passed; the new tests failed on harness timing and
+  accessibility scope. One queried the toolbar behind a modal popup; the other
+  reopened before the refreshed computer projection arrived. Corrections wait
+  for observable UI state and dismiss the popup before querying the toolbar.
+- Both new scenarios then passed in **63.581s** on the unchanged app APK.
+  Screenshot review found stale connection copy after a Mac recovered. The menu
+  now keeps captured destination choices while reading current connection status.
+  The strengthened final repeat passed **two tests in 67.261s**, including the
+  disappearance of stale Not connected copy. The existing navigation pass
+  predates that UI-only status correction; this is three distinct scenarios
+  across the batch, not a fully green initial run.
+- The Mac scenario verifies a disabled offline destination, reconnect and owning
+  Mac selection, group capability revocation/restoration, scoped group creation,
+  single-Mac primary action, unchanged browser draft/load before navigation, and
+  lease release. The SSH scenario uses an isolated actual host registry/session
+  with generated options: cmux/tmux/shell ordering, disabled tmux reason, changed
+  endpoint while its old menu remains open, and explicit Shell selection from
+  the replacement endpoint. It captures the parent destination without dialing
+  or creating a real SSH workspace. No credentials are loaded by that fixture.
+- Final frozen source and installed app/test hashes matched. Screenshots were
+  inspected, display settings restored, crash buffer empty, and the sole existing
+  API37/16KB emulator stopped/reaped. Pixel absent/untouched. No new AVD, signed
+  build dispatch, merge or release. Initial compilation failures were incorrect
+  new test constructor arguments; corrected app/test/JVM build passed in 25s,
+  test repair in 14s, and final status-display build in 15s.
+
+Evidence: ignored `captures/runtime/browser-sidebar-creation/`, including failed
+build/runtime logs, before-status receipts/screenshots, final source manifest,
+`verification.json`, `final.log` and `computers.png` / `ssh.png`.
+
+- Final app APK SHA-256: `cba373adb2de99f4baa64ddc69811bffb0c0ed040dfff2a569d797cf52f6c8ee`.
+- Final test APK SHA-256: `0c909345a5e385d62e317fe7c26cd42afabc0e1d22c512ce6d9bd64cb1f4b52c`.
+
+Live Mac/Pixel, authenticated MainScreen, real SSH/native create progress and
+failure recovery, parent recreation/process death and TalkBack acceptance remain
+unverified by this batch. Signed 563 predates this feature and preceding sidebar
+mutation batches; the full goal remains active.

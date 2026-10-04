@@ -12,7 +12,33 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — browser workspace customization (2026-10-04)
+## Latest checkpoint — browser workspace creation (2026-10-04)
+
+New Workspace in the browser now uses the existing parent creation flows:
+single-Mac direct creation, multi-computer selection, SSH cmux-tui/tmux/shell
+choices and creation inside an existing Mac group. Opaque one-use destinations
+bind the exact owner, and the main coordinator rechecks permission at send time.
+Open menu choices cannot switch to a replaced SSH endpoint; availability labels
+and status dots update when a Mac reconnects. See [BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md).
+
+**85 focused JVM checks passed.** The two new Android scenarios passed their final
+run in **67.261s** on the existing API37/16KB emulator. An existing Settings/
+Computers/New Task navigation scenario passed earlier in the batch. The new
+checks cover offline/reconnected Mac choices, single-Mac creation, owning-group
+routing and capability revocation, disabled SSH types, endpoint replacement and
+return/lease release. These are generated Mac/SSH inputs and captured parent
+creation destinations; framed-RPC coordinator tests are separate. They do not
+prove authenticated MainScreen, actual remote creation or physical Pixel/Mac use.
+
+Source/installed APK hashes matched; screenshots inspected, display restored,
+crash buffer empty and emulator stopped/reaped. Pixel absent/untouched; no new
+AVD or signed build. Build **563** remains the latest verified signed download.
+Next: capture the New group dialog's owner through confirmation and share that
+flow with the browser, then SSH actions, ordering/selection and the remaining
+physical/network, configured push/notice, legacy-ticket and upstream audit work.
+PR #1 remains draft and the full goal remains active.
+
+## Earlier checkpoint — browser workspace customization (2026-10-04)
 
 The browser sidebar now opens the shared Customize Workspace editor for the exact
 owning Mac/workspace. It preserves full editable metadata, offline discovery,
