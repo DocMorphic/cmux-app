@@ -94,6 +94,45 @@ class NativeNoticeFlowTest {
             compose.runOnIdle { assertNull(p.webPage(page)) }
         } finally { compose.runOnIdle { p.close(); scope.cancel(); center.close() }; server.shutdown() }
     }
+    @Test fun archiveContentCrashShowsRetryAndRendersFreshPageWithoutAcknowledging() {
+        val server = server(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val origin = "http://127.0.0.1:${server.port}"
+        val page = WhatsNewPage("web", "Web", WhatsNewBody.Web("$origin/page"))
+        val store = Store(); val center = NativeWhatsNewCenter(listOf(page), "0.2.0", WhatsNewChannel.DEV, store, origin)
+        runBlocking { center.refresh { """{"visibleEntryIds":["a","b","native","web"]}""" } }
+        val p = NativeWhatsNewPresentation(center); val exchanges = AtomicInteger(); val crashes = AtomicInteger()
+        val archive = NativeNoticeArchiveOwner(compose.activity.applicationContext, scope)
+        try {
+            compose.setContent { CmuxTheme {
+                NativeWhatsNewHost(center, p, "fixture", false, true, {}, NativeMacCompatibilityPolicy.baked,
+                    webArchive = archive, isOwnerCurrent = { it == "fixture" }, sessionCookies = {
+                        exchanges.incrementAndGet(); emptyList()
+                    })
+            } }
+            compose.onNodeWithTag("whatsnew.archive.entry:web").performClick()
+            captureRendered("before-content-crash")
+            val old = compose.runOnIdle { archive.page(page, false, false) }
+            compose.runOnIdle { NativeNoticeCrashFixture.crashContent(old) {
+                android.util.Log.i("NoticeCrashFixture", "Archive termination: $it")
+                crashes.incrementAndGet()
+            } }
+            compose.waitUntil(15_000) { crashes.get() == 1 }
+            compose.onNodeWithText("This page couldn't be loaded. Please try again.").assertIsDisplayed()
+            compose.onNodeWithTag("whatsnew.web.retry").assertIsDisplayed().performClick()
+            compose.waitUntil(15_000) { exchanges.get() == 2 }
+            captureRendered("after-content-crash-retry")
+            compose.onNodeWithTag("whatsnew.web.retry").assertDoesNotExist()
+            compose.runOnIdle {
+                assertTrue(old.isClosed.value)
+                assertNotSame(old, archive.page(page, false, false))
+                assertEquals(2, exchanges.get()); assertEquals(1, crashes.get())
+                assertNull(store.values[NativeWhatsNewCenter.MARKER])
+            }
+            compose.onNodeWithTag("whatsnew.archive.back").performClick()
+            compose.onNodeWithTag("whatsnew.archive.entry:web").assertIsDisplayed()
+        } finally { compose.runOnIdle { archive.close(); p.close(); scope.cancel(); center.close() }; server.shutdown() }
+    }
+
     @Test fun archiveFailureRetryCreatesFreshExchangeAndRendersWithoutAcknowledging() {
         val server = server(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         val origin = "http://127.0.0.1:${server.port}"

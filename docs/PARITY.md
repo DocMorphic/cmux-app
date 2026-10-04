@@ -12,6 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — content-process crash acceptance (2026-10-04)
+
+[NOTICE_CONTENT_CRASH.md](NOTICE_CONTENT_CRASH.md) verifies an actual native content
+crash through the production renderer and archive UI. The same Android app process
+survives; the old private context is cleared; Retry performs a new exchange and
+renders fresh content. The archive's error wording now covers rendering failures.
+Two final Android cases pass (52.278 s), plus the earlier extension-recovery case in
+the initial run. On the API 37 / 16 KB emulator the actual callback is `onKill`;
+`onCrash` itself is not runtime verified. Debug/test build and packaging checks pass.
+The existing AVD is stopped. No release or signed milestone was built this turn.
+
+**Next:** whole-process recreation, real HTTPS/native-account exchange, physical
+Pixel/Mac acceptance and broader parity. Android feed and push configuration remain
+open. Build 494 remains the last signed milestone; the last unsigned-release/ART
+check is `786264d`. Do not repeat the pending Pixel reconnect question.
+
 ## Partition cleanup and callback safety (2026-10-04)
 
 [NOTICE_PARTITIONS.md](NOTICE_PARTITIONS.md) records actual browser partition

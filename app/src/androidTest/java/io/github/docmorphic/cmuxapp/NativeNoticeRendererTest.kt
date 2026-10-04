@@ -115,6 +115,50 @@ class NativeNoticeRendererTest {
         }
     }
 
+    @Test fun contentCrashRetiresPrivateStateAndFreshAttemptUsesSameRuntime() {
+        val server = server(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        val activity = ActivityScenario.launch(NativeNoticeTestActivity::class.java)
+        val crashed = CompletableDeferred<String>()
+        val pid = android.os.Process.myPid()
+        var old: NativeNoticeRenderer? = null; var fresh: NativeNoticeRenderer? = null
+        var reopened: GeckoSession? = null
+        try {
+            val origin = "http://127.0.0.1:${server.port}/"
+            old = main { NativeNoticeRenderer(instrumentation.targetContext, scope, WhatsNewWebPolicy(origin),
+                "${origin}page?label=before-crash", false, 20_000, { true }) { cookie("old") } }
+            activity.onActivity { old.attach(it.pageView) }; assertLoaded(old)
+            val before = report("before-crash")
+            assertEquals("stack-access=old", before.getString("cookie")); assertTrue(before.isNull("previous"))
+            val context = field<String>(old, "contextId")
+            val engine = field<NativeNoticeEngine>(old, "engine")
+            val runtime = field<GeckoRuntime>(engine, "runtime")
+            main { NativeNoticeCrashFixture.crashContent(old) { crashed.complete(it) } }
+            val callback = runBlocking { withTimeout(15_000) { crashed.await() } }
+            assertTrue(main { old.isClosed.value }); assertTrue(retired(old))
+            assertEquals(pid, android.os.Process.myPid())
+            var exchanges = 0
+            fresh = main { NativeNoticeRenderer(instrumentation.targetContext, scope, WhatsNewWebPolicy(origin),
+                "${origin}page?label=after-crash", false, 20_000, { true }) { exchanges++; cookie("fresh") } }
+            activity.onActivity { fresh.attach(it.pageView) }; assertLoaded(fresh)
+            val after = report("after-crash")
+            assertEquals("stack-access=fresh", after.getString("cookie")); assertTrue(after.isNull("previous"))
+            assertEquals(1, main { exchanges }); assertSame(engine, field<NativeNoticeEngine>(fresh, "engine"))
+            assertNotEquals(context, field<String>(fresh, "contextId"))
+            reopened = main { GeckoSession(GeckoSessionSettings.Builder().usePrivateMode(true).contextId(context).build()).also {
+                it.open(runtime); it.loadUri("${origin}page?label=crashed-context")
+            } }
+            val empty = report("crashed-context")
+            assertEquals("", empty.getString("cookie")); assertTrue(empty.isNull("previous"))
+            val root = java.io.File(instrumentation.targetContext.getExternalFilesDir(null), "notice-content-crash").apply { mkdirs() }
+            java.io.File(root, "renderer.json").writeText(JSONObject().put("termination_callback", callback)
+                .put("same_host_process", true).put("same_engine", true).put("fresh_exchanges", exchanges)
+                .put("before", before).put("after", after).put("retired_context", empty).toString(2))
+        } finally {
+            main { reopened?.close(); old?.close(); fresh?.close() }
+            fresh?.let { retired(it) }; scope.cancel(); activity.close(); server.shutdown()
+        }
+    }
+
     @Test fun accountReplacementDuringNonCooperativeExchangeNeverNavigatesOrSeeds() {
         val server = server(); val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         val entered = CompletableDeferred<Unit>(); val finish = CompletableDeferred<Unit>()

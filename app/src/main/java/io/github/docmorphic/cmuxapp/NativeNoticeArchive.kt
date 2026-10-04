@@ -74,7 +74,7 @@ internal fun NativeNoticeWebContent(renderer: NativeNoticeRenderer?, failed: Boo
         }
         if (failed || retired || phase == WhatsNewWebPhase.FAILED) Column(Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("This page needs an internet connection. Please try again.")
+            Text("This page couldn't be loaded. Please try again.")
             if (onRetry != null) TextButton(onClick = onRetry, modifier = Modifier.testTag("whatsnew.web.retry")) { Text("Try Again") }
         } else if (phase == WhatsNewWebPhase.LOADING) CircularProgressIndicator()
     }
