@@ -2672,7 +2672,7 @@ fun NativeScreen(
                 background = runCatching { Color(android.graphics.Color.parseColor(currentGrid.background)) }.getOrDefault(nativePanel),
                 modifier = Modifier.align(Alignment.Center))
             }
-            TerminalToolbarView(toolbarStore.layout, inputModifiers,
+            TerminalToolbarView(toolbarStore.layout, inputModifiers, inputOwner = inputClient to inputTarget,
                 canInput = terminalAttached && selectedTerminal?.isReady == true && connectionReady && client != null && inputFailure == null && terminalDraft.operation == null,
                 filesEnabled = artifactsReady,
                 onModifier = { inputModifiers = inputModifiers.tap(it, android.os.SystemClock.uptimeMillis()) },

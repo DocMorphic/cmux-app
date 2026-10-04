@@ -60,9 +60,10 @@ internal fun rememberTerminalToolbar(preferences: SharedPreferences): TerminalTo
 internal fun TerminalToolbarView(layout: TerminalToolbarLayout, modifiers: TerminalInputModifiers,
     canInput: Boolean, filesEnabled: Boolean, onModifier: (TerminalInputModifiers.Key) -> Unit,
     onButton: (TerminalToolbarButton) -> Unit, onCustom: (TerminalToolbarAction) -> Unit,
-    onCustomize: () -> Unit, insert: (() -> Unit)? = null) {
+    onCustomize: () -> Unit, insert: (() -> Unit)? = null, inputOwner: Any?) {
     val accent = Color(0xFF76B9FF)
     Row(Modifier.fillMaxWidth().background(Color(0xFF191B1F)), verticalAlignment = Alignment.CenterVertically) {
+        TerminalArrowNub(inputOwner, canInput, onButton)
         Row(Modifier.weight(1f).testTag("terminal-toolbar-scroll").horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
             insert?.let { TextButton(onClick = it) { Text("Insert") } }
             layout.visible.forEach { id -> key(id) {

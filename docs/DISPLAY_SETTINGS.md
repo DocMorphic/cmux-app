@@ -374,3 +374,72 @@ and runtime logs, JVM XML and component screenshots. Debug APK SHA-256:
 `9920ee0cd8cefd61a089c584c8d84808ac9980de679ca452ba54edc3f9a6f8ac`.
 Test APK SHA-256:
 `965eea5387644fe1f0e6d6ab6a583582f981ba6c1073e2bf56e3d3f399da3376`.
+
+
+## Terminal arrow pad — 2026-10-04
+
+Scoped source reference `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
+`TerminalArrowNubView.swift`, `TerminalArrowNubDirection.swift`,
+`TerminalArrowRepeatService.swift`, and the docking/`handleNubArrow` portions of
+`TerminalInputTextView.swift`. The iOS control was missing from Android, rather
+than merely missing haptics.
+
+Both native and shared SSH terminal toolbars now pin a draggable arrow pad beside
+the scrolling shortcuts. It matches the 8-point radial dead zone, dominant-axis
+direction (vertical for ties), immediate emission followed by 80ms repeats, and
+light feedback per arrow through the global live haptic policy. The visible
+circle is 28dp, the dot is 12dp, displacement clamps to 6dp on each axis, and
+recentering animates over 150ms. Android keeps a 48dp touch area around the
+circle. The pad uses the existing toolbar action handler, preserving one-shot
+and sticky modifiers, application-cursor encoding, composition finalization and
+ordered input admission. It does not bypass the terminal's input queue.
+
+Release, cancellation, an extra pointer, entering the dead zone or changing
+direction cancels the previous repeat. Input disable, terminal/connection
+replacement, disposal and losing RESUMED also retire the gesture; returning to
+the foreground does not resume held input. The native owner includes connection
+and workspace/surface identity; SSH uses its terminal instance. Four accessible
+actions provide one arrow at a time without starting repeat. These are component
+semantics checks until physical TalkBack acceptance is performed.
+
+The first real-dispatch run exposed Android Back intercepting the pad's
+left-edge drag. System UI recorded the test's `(63, 2085)` touch inside its
+78px Back region, with no exclusion, and displayed the Back overlay while both
+haptics and input counts stayed zero. The fix uses Android's
+[gesture exclusion API](https://developer.android.com/develop/ui/views/touch-and-input/gestures/gesturenav)
+for only the enabled pad's 48dp rectangle. The runtime check also exercises Back
+elsewhere on the same screen edge.
+
+A diagnostic rerun was killed before any test started by an emulator startup
+ANR. The retained stack shows ART inflating/loading APK dex on the main thread,
+with about 27 seconds waiting to be scheduled and 1.27 seconds of CPU time;
+System UI and Google services were also busy. A subsequent run on the same
+booted emulator reached the test and reproduced the Back-interception failure
+with zero feedback and zero inputs. The startup ANR is retained separately and
+is not a passing result or evidence about the gesture handler. Physical and
+current-source signed cold-start acceptance remain required.
+
+Verification: **three JVM cases and four Android cases pass**, with the final
+Android run taking **38.058s** after the 24s debug/test build. Cases cover
+dead-zone/direction/repeat timing, preference changes during a drag, owner
+replacement, disable/background/resume, accessible single-step actions, SSH
+one-shot Alt then ordinary arrow encoding, and production NativeScreen/main
+dispatch/RPC input. The native fixture received three right arrows with three
+haptic requests, then five up arrows with haptics disabled. No new arrows were
+sent after release or background/resume. Back outside the pad returned to the
+workspace list. The endpoint and tactile actuator are fixtures.
+
+The pre-drag screenshot from the passing run was inspected and shows the pad
+inside the existing toolbar without clipped controls. The post-resume screenshot
+is dimmed during the Activity transition and is retained, not used as visual
+acceptance. Final crash buffer is empty; the earlier startup ANR remains recorded
+above. The only AVD was stopped/reaped, no Pixel was visible, and signed 517 is
+unchanged. Full physical tactile/TalkBack/Mac acceptance, complete toolbar/iOS
+visual parity and current-source signed-release acceptance remain pending.
+
+Evidence: ignored `captures/runtime/arrow-nub/verification.json`, scoped iOS
+sources, build/test logs, JVM XML, System UI diagnostics and screenshots.
+Debug APK SHA-256:
+`bd4796e5553a12d38c5868765e609f6fc3642ae03edd027e75fa28d4b10d3b7b`.
+Test APK SHA-256:
+`0b01a48bcdf27e58fd89c6927fabda88642ebff7833ce1e69352beb1d5a8f360`.

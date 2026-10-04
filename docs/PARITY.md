@@ -12,6 +12,26 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — terminal arrow pad (2026-10-04)
+
+[DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#terminal-arrow-pad--2026-10-04) adds
+the missing iOS draggable arrow pad to native and SSH toolbars: immediate and
+80ms repeats, shared modifier/input handling, live light haptics, accessible
+single steps, and cancellation on disable/session change/background/disposal.
+Real Android dispatch exposed Back intercepting the edge gesture; only the
+48dp pad area is now excluded, and Back outside it is verified.
+
+**Three JVM + four Android cases pass** (38.058s), including native RPC and SSH
+encoding. Final debug/test build passes; pre-drag screenshot inspected, final
+crash buffer empty, sole AVD stopped/reaped. A separate debug instrumentation
+startup ANR in ART dex loading is documented, not counted as a pass. Signed
+build 517 is unchanged; no physical Pixel appeared in ADB.
+
+**Next:** generic toast/native-selection haptic parity; production shared
+connection graph; Pixel/Mac browser/recovery and tactile/TalkBack acceptance;
+broader upstream source/UI audit. Push/feed provider configuration and the
+current-source signed-release/cold-start gate remain open. Goal remains active.
+
 ## Latest checkpoint — Legal, Support and About (2026-10-04)
 
 [DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#legal-support-and-about--2026-10-04)

@@ -195,7 +195,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             Text(error, Modifier.padding(horizontal = 12.dp).testTag("ssh.shell.input-error"), color = MaterialTheme.colorScheme.error)
             TextButton(onClick = { input.resume() }, enabled = available, modifier = Modifier.testTag("ssh.shell.resume-input")) { Text("Resume typing") }
         }
-        TerminalToolbarView(toolbar.layout, modifiers, canInput, filesEnabled = onFiles != null && !preparing,
+        TerminalToolbarView(toolbar.layout, modifiers, canInput, inputOwner = shell, filesEnabled = onFiles != null && !preparing,
             onModifier = { modifiers = modifiers.tap(it, android.os.SystemClock.uptimeMillis()) },
             onButton = { button ->
                 rawKeyboard?.finishComposition()

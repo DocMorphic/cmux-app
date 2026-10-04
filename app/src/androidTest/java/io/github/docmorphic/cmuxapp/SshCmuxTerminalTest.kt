@@ -100,6 +100,23 @@ class SshCmuxTerminalTest {
         compose.runOnIdle { assertEquals(1, feedback.size) }
     }
 
+    @Test fun arrowPadUsesSharedSshEncodingAndSingleUseModifiers() {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshShellScreen(terminal) {}
+        } } }
+        compose.onNodeWithTag("terminal-shortcut-builtin.ALT").performClick()
+        val actions = compose.onNodeWithTag("terminal-arrow-nub").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsActions.CustomActions]
+        compose.runOnIdle { assertTrue(actions.single { it.label == "Right Arrow" }.action()) }
+        compose.waitUntil(5000) { pipe.sent.count { it.optString("cmd") == "send" } >= 1 }
+        compose.runOnIdle { assertTrue(actions.single { it.label == "Right Arrow" }.action()) }
+        compose.waitUntil(5000) { pipe.sent.count { it.optString("cmd") == "send" } >= 2 }
+        compose.runOnIdle {
+            val payloads = pipe.sent.filter { it.optString("cmd") == "send" }
+            assertEquals(listOf("\u001bf", "\u001b[C"), payloads.map { Base64.getDecoder().decode(it.getString("bytes")).toString(Charsets.UTF_8) })
+        }
+    }
+
     @Test fun rawMouseBytesAreCopiedAndDeliveredWithoutUtf8Conversion() {
         val expected = byteArrayOf(27, 91, 77, 32, 183.toByte(), 35)
         compose.runOnIdle {
