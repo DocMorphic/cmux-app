@@ -62,9 +62,9 @@ No Pixel was connected; signed build 517 is unchanged.
 
 ## Remaining row parity
 
-The visible Android action button is still present. Matching iOS context/swipe
-menus requires coordinating them with the existing long-press drag-reorder
-surface and TalkBack actions. The changes-summary chip now has its own list cache
+The visible Android action button is still present. Swipe read/delete and
+TalkBack action discovery are implemented below. Matching iOS long-press context
+menus still requires coordinating them with the existing drag-reorder surface. The changes-summary chip now has its own list cache
 and opens the existing Changes viewer (see the checkpoint below). Selected/sidebar styling, wider-screen layouts, dynamic type/TalkBack,
 production multi-Mac behavior and physical Pixel comparison still need checks.
 These are remaining work, not unavoidable Android differences.
@@ -166,3 +166,54 @@ logs are retained. Final screenshots inspected, crash buffers empty, sole AVD
 stopped. The ignored `captures/runtime/workspace-changes-chip/verification.json`
 records source/APK hashes and copied JVM results. No physical Pixel was connected;
 live Mac acceptance remains pending. Signed build 537 is unchanged.
+
+## Swipe and action discovery — 2026-10-04
+
+Reference: `WorkspaceListTableCoordinator.swift` at the scoped iOS revision above,
+leading/trailing swipe configuration and context menu dispatch. The leading blue
+action toggles read/unread; the trailing red Delete action requests the shared
+Mac close confirmation. Both allow full swipes. Confirmation cancellation keeps
+the authoritative row, and no delete request is sent until confirmation. iOS
+gates these actions independently with `workspace.read_state.v1` and
+`workspace.close.v1`; rename/pin use `workspace.actions.v1`.
+
+Android now provides partial reveals with action buttons, full-swipe activation,
+logical leading/trailing handling in RTL, Back/tap dismissal, and one revealed
+row per list. Disclosure uses the owning Mac's stable capability snapshot; the
+feed coordinator rechecks its current verified handle before mutation. Read and
+Delete also appear as TalkBack custom actions, with a Show workspace actions
+entry for the complete menu. Horizontal touch-slop recognition leaves vertical
+scrolling and the parent's long-held reorder gesture in control of those motions.
+
+Android uses a 104dp reveal and a 65%-width full-swipe threshold (at least one
+action width); these are Android interaction measurements, not claims about
+UIKit's private thresholds. The row is never optimistically removed by a swipe.
+Long-press context presentation still needs coordination with the existing drag
+gesture; the visible action button is retained until that work is complete.
+
+The first nine-case Android pass exposed two implementation defects: a local
+function reference retained the old read-state action after a row update, and
+relative Compose offsets applied a second direction flip in RTL. The updated
+callback is a state-keyed lambda, and translated row position uses absolute
+offset after one logical-to-physical conversion. The initial test API compilation
+error and both runtime failures are retained in the evidence folder.
+
+### Swipe verification
+
+The final pass completed **nine Android tests in 72.636s**, covering full read/
+unread gestures, delete confirmation/cancel, partial reveal/button/dismissal,
+capability withdrawal, accessible actions, RTL and separate owner keys sharing
+a workspace ID. Real row swipes did not trigger reordering; held vertical drag
+and the existing virtualized auto-scroll/accessibility move tests still passed.
+The existing full-screen framed RPC tests verified read-state aggregate refresh
+and exact close workspace/window parameters. **30 coordinator JVM tests passed**,
+including independent owner capability admission. Final debug/test APK assembly
+passed in 1m11s. The initial Android run had two failures; both are described above.
+
+The partial reveal control and full-app delete confirmation were inspected. The
+isolated component fixture has no Surface-provided title color; its screenshot
+is evidence for the revealed control, not the whole app's typography. The actual
+app screenshot verifies its theme and confirmation. Final crash buffer empty,
+sole AVD stopped/reaped. Hashes, logs and copied JVM results are recorded in
+`captures/runtime/workspace-swipe/verification.json`. No physical Pixel was
+connected; signed build 537 is unchanged.

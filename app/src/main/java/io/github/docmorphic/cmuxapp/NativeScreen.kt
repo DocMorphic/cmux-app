@@ -40,6 +40,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -3044,6 +3046,9 @@ fun NativeScreen(
                         workspace = workspace, groups = owner.groups, canCustomize = owner.canCustomizeWorkspace(),
                         displayPreferences = displayState,
                         availability = owner.availability, changesChip = owner.changes[workspace.id],
+                        canReadState = "workspace.read_state.v1" in owner.capabilities,
+                        canClose = "workspace.close.v1" in owner.capabilities,
+                        canWorkspaceActions = "workspace.actions.v1" in owner.capabilities,
                         canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
                         onOpen = { open() },
                         onAction = { action, title ->
@@ -3268,6 +3273,9 @@ internal fun NativeWorkspaceRow(
     displayPreferences: NativeDisplayPreferences = NativeDisplayPreferences(),
     availability: NativeFeedAvailability = NativeFeedAvailability.CONNECTED,
     changesChip: WorkspaceChangesChip? = null,
+    canReadState: Boolean = false,
+    canClose: Boolean = false,
+    canWorkspaceActions: Boolean = false,
     onOpen: () -> Unit,
     onAction: (String, String?) -> Unit
 ) {
@@ -3275,8 +3283,17 @@ internal fun NativeWorkspaceRow(
     var rename by remember { mutableStateOf(false) }
     var confirmClose by remember { mutableStateOf(false) }
     var title by remember(workspace.id) { mutableStateOf(workspace.title) }
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).clickable(onClick = onOpen)
+    val readLabel = if (workspace.hasUnread) "Mark as Read" else "Mark as Unread"
+    val markRead = { onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null) }
+    NativeWorkspaceSwipeActions(workspace.id, workspace.hasUnread, canReadState, canClose,
+        onRead = markRead, onClose = { confirmClose = true }) { dismissSwipe ->
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).clickable { if (!dismissSwipe()) onOpen() }
         .semantics {
+            customActions = buildList {
+                add(CustomAccessibilityAction("Show workspace actions") { dismissSwipe(); expanded = true; true })
+                if (canReadState) add(CustomAccessibilityAction(readLabel) { dismissSwipe(); markRead(); true })
+                if (canClose) add(CustomAccessibilityAction("Delete workspace") { dismissSwipe(); confirmClose = true; true })
+            }
             stateDescription = listOfNotNull("Pinned".takeIf { workspace.isPinned },
                 workspace.unreadState.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
         }.padding(horizontal = 18.dp, vertical = 8.dp).testTag("workspace.row:${workspace.id}"), verticalAlignment = Alignment.CenterVertically) {
@@ -3318,7 +3335,7 @@ internal fun NativeWorkspaceRow(
         }
         Spacer(Modifier.width(8.dp))
         Box {
-            TextButton(onClick = { expanded = true }, modifier = Modifier.semantics {
+            TextButton(onClick = { dismissSwipe(); expanded = true }, modifier = Modifier.semantics {
                 contentDescription = "Actions for ${workspace.title.ifBlank { "Workspace" }}"
             }) { Text("⋯", color = nativeMuted, fontSize = 20.sp) }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -3332,11 +3349,11 @@ internal fun NativeWorkspaceRow(
                     expanded = false; onAction("browser.create", null)
                 })
                 if (canCustomize) DropdownMenuItem(text = { Text("Customize Workspace") }, onClick = { expanded = false; onAction("customize", null) })
-                DropdownMenuItem(text = { Text("Rename") }, onClick = { expanded = false; title = workspace.title; rename = true })
-                DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") }, onClick = {
+                if (canWorkspaceActions) DropdownMenuItem(text = { Text("Rename") }, onClick = { expanded = false; title = workspace.title; rename = true })
+                if (canWorkspaceActions) DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") }, onClick = {
                     expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null)
                 })
-                DropdownMenuItem(text = { Text(if (workspace.hasUnread) "Mark read" else "Mark unread") }, onClick = {
+                if (canReadState) DropdownMenuItem(text = { Text(readLabel) }, onClick = {
                     expanded = false; onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
                 })
                 if (canMove) {
@@ -3349,11 +3366,12 @@ internal fun NativeWorkspaceRow(
                         expanded = false; onAction("move:", null)
                     })
                 }
-                DropdownMenuItem(text = { Text("Close workspace", color = Color(0xFFFF9999)) }, onClick = {
+                if (canClose) DropdownMenuItem(text = { Text("Close workspace", color = Color(0xFFFF9999)) }, onClick = {
                     expanded = false; confirmClose = true
                 })
             }
         }
+    }
     }
     if (rename) AlertDialog(
         onDismissRequest = { rename = false },

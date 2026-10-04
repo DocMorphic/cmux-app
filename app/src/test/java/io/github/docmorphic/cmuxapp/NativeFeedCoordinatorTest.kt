@@ -11,6 +11,25 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun rowActionsRequireTheCurrentOwningMacCapability() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            a.rowActionsSupported = false
+            val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                for (action in listOf("rename", "pin", "unpin", "mark_read", "mark_unread", "close")) {
+                    assertTrue(runCatching { coordinator.workspaceAction(mac("a"), "w", action, "Name") }.isFailure)
+                }
+                assertTrue(a.requests.none { it.optString("method") in setOf("workspace.action", "workspace.close") })
+                coordinator.workspaceAction(mac("b"), "w", "mark_unread")
+                assertEquals("mark_unread", b.requests.single { it.optString("method") == "workspace.action" }
+                    .getJSONObject("params").getString("action"))
+                assertTrue(a.requests.none { it.optString("method") == "workspace.action" })
+            } finally { coordinator.close() }
+        } }
+    }
+
     @Test fun changesChipsBelongToEachVerifiedMacAndDisappearOnDisconnect() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             a.changesSupported = true; b.changesSupported = true
@@ -629,6 +648,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     @Volatile var overrideFeedRevision: Int? = null
     @Volatile var forceUnread = false
     @Volatile var powerSupported = false
+    @Volatile var rowActionsSupported = true
     @Volatile var changesSupported = false
     @Volatile var changedFiles = 2
     @Volatile var summaryError: String? = null
@@ -663,6 +683,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                 val result = when (request.getString("method")) {
                     "mobile.host.status" -> JSONObject().put("mac_device_id", id).put("mac_instance_tag", hostBuild)
                         .put("capabilities", JSONArray().put("workspace.group_actions.v1").also {
+                            if (rowActionsSupported) it.put("workspace.actions.v1").put("workspace.read_state.v1").put("workspace.close.v1")
                             if (powerSupported) it.put("caffeine.control.v1")
                             if (changesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)
                         })

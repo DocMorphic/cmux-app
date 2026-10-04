@@ -64,6 +64,8 @@ internal fun NativeWorkspaceDragList(
             if (speed != 0f) { list.scrollBy(speed * edge * 8 * dt); updateDestination() }
         }
     }
+    val swipeCoordinator = remember { WorkspaceSwipeCoordinator() }
+    CompositionLocalProvider(LocalWorkspaceSwipeCoordinator provides swipeCoordinator) {
     Box(modifier) {
         LazyColumn(Modifier.fillMaxSize().pointerInput(reorderEnabled) {
             if (reorderEnabled) detectDragGesturesAfterLongPress(
@@ -72,6 +74,7 @@ internal fun NativeWorkspaceDragList(
                     val entry = latestEntries.firstOrNull { it.key == item?.key }
                     if (entry != null && entry !is WorkspaceListEntry.Footer &&
                         (entry !is WorkspaceListEntry.Header || entry.group.liveAnchorWorkspaceId != null)) {
+                        swipeCoordinator.activeKey = null
                         snapshot = latestEntries; dragged = entry; pointerY = point.y
                         fingerOffset = point.y - (item?.offset ?: 0)
                         updateDestination()
@@ -100,7 +103,9 @@ internal fun NativeWorkspaceDragList(
                         }
                     } else emptyList() }
                 Column(Modifier.animateItem().graphicsLayer { alpha = if (dragged?.key == entry.key) 0.25f else 1f }
-                    .semantics { customActions = actions }) { row(entry) }
+                    .semantics { customActions = actions }) {
+                    CompositionLocalProvider(LocalWorkspaceSwipeKey provides entry.key) { row(entry) }
+                }
             }
             if (entries.isEmpty()) item { empty() }
         }
@@ -115,5 +120,6 @@ internal fun NativeWorkspaceDragList(
                 .graphicsLayer { shadowElevation = 16f; alpha = 0.96f }.background(Color(0xFF24272D))
                 .clearAndSetSemantics { }) { row(moving) }
         }
+    }
     }
 }

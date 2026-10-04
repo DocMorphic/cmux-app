@@ -275,7 +275,14 @@ internal class NativeFeedCoordinator(
     /** Never substitute the foreground Mac when a row's owning session is unavailable. */
     suspend fun workspaceAction(mac: NativeCredentialStore.PairedMac, workspaceId: String,
         action: String, title: String? = null): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
-        owningMutation(mac) { _, client ->
+        owningMutation(mac) { handle, client ->
+            val capability = when (action) {
+                "rename", "pin", "unpin" -> "workspace.actions.v1"
+                "mark_read", "mark_unread" -> "workspace.read_state.v1"
+                "close" -> "workspace.close.v1"
+                else -> null
+            }
+            check(capability == null || capability in handle.capabilities) { "This Mac does not support this workspace action." }
             // Resolve the latest window/group scope, not the possibly stale row captured by a menu.
             val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
             val workspace = source.workspaces.singleOrNull { it.id == workspaceId }

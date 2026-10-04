@@ -24,7 +24,32 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — workspace changes badges (2026-10-04)
+## Latest checkpoint — workspace swipe actions (2026-10-04)
+
+Workspace rows now reveal read/unread and Delete actions with horizontal swipes,
+including full swipes, partial action buttons, RTL handling, Back/tap dismissal
+and one open row per owning list. Delete still uses the shared Mac confirmation;
+no close request is sent by the gesture alone. TalkBack exposes read/delete and
+the complete action menu. Capability discovery follows the owning Mac, with fresh
+coordinator checks before rename/pin/read/delete mutations. See
+[WORKSPACE_ROWS.md](WORKSPACE_ROWS.md).
+
+**30 coordinator JVM tests and nine Android checks passed** (72.636s). The Android
+suite includes real row gestures alongside held drag/virtualized auto-scroll,
+colliding workspace IDs under separate owner keys, capability withdrawal and the
+existing framed RPC read/delete flows. It caught two defects before the final
+pass: stale read-state callbacks and a double RTL direction conversion. Both are
+fixed; original diagnostics and source/APK hashes are retained in
+`captures/runtime/workspace-swipe/verification.json`. Final APK assembly passed
+in 1m11s. Confirmation/reveal screenshots inspected, crash buffer empty, sole
+AVD stopped/reaped. Physical Pixel/Mac and spoken TalkBack acceptance remain open.
+
+Signed build **537 is unchanged**; this feature and changes badges join the next
+signed batch. Long-press context menus still need coordination with reordering;
+the visible action button remains. Broader parity, production network/account
+checks and push/feed configuration remain open. The goal remains active.
+
+## Earlier checkpoint — workspace changes badges (2026-10-04)
 
 Workspace rows now show the owning Mac's additions/deletions, or a file count
 for binary-only changes. The independent accessible badge opens the Changes
