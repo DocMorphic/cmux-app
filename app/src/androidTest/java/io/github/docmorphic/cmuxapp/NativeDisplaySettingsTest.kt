@@ -21,61 +21,6 @@ import java.util.UUID
 class NativeDisplaySettingsTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
-    @Test fun settingsSelectionReachesProductionTerminalReplayWithNormalAndroidDispatch() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk")) {
-            "Synthetic account tests require the disposable emulator"
-        }
-        val preferences = context.getSharedPreferences("cmux-display", Context.MODE_PRIVATE)
-        val keys = listOf(NativeDisplayPreferences.wrapKey, NativeDisplayPreferences.previewKey, NativeDisplayPreferences.scrollbackKey)
-        val peer = NativeFixturePeer()
-        try {
-            keys.forEach { preferences.edit().remove(it).commit() }
-            NativeCredentialStore(context).clear()
-            NativeCredentialStore(context).update {
-                it.put("refresh_token", "emulator-fixture-only")
-                it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465")
-            }
-            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
-                NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
-                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
-                })
-            } } }
-            compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithContentDescription("cmux settings").performClick()
-            compose.onNodeWithTag("settings.wrap-titles").performScrollTo().performClick()
-            compose.onNodeWithTag("settings.preview-lines").performScrollTo().performClick()
-            compose.onNodeWithText("1 Line").performClick()
-            compose.onNodeWithTag("settings.scrollback").performScrollTo().performClick()
-            compose.onNodeWithText(java.text.NumberFormat.getIntegerInstance().format(20_000) + " Rows").performClick()
-            compose.waitUntil { NativeDisplayPreferences.read(preferences) == NativeDisplayPreferences(true, 1, 20_000) }
-            compose.onNodeWithTag("settings.scrollback").assert(SemanticsMatcher.expectValue(
-                androidx.compose.ui.semantics.SemanticsProperties.StateDescription,
-                java.text.NumberFormat.getIntegerInstance().format(20_000) + " Rows"))
-            compose.waitForIdle()
-            val folder = File(context.getExternalFilesDir(null), "display-settings").apply { mkdirs() }
-            InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().let { bitmap ->
-                File(folder, "production-settings.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-                bitmap.recycle()
-            }
-            compose.onNodeWithText("‹  Back").performScrollTo().performClick()
-            compose.onNodeWithText("Claude Code task").performClick()
-            try {
-                compose.waitUntil(15_000) { compose.onAllNodesWithText("cmux Android terminal", substring = true).fetchSemanticsNodes().isNotEmpty() }
-            } catch (failure: Throwable) {
-                File(folder, "terminal-failure.txt").writeText("Methods: " + peer.requests.map { it.optString("method") } +
-                    "\nPeer failures: " + peer.failures + "\n" + MobileDebugLog.snapshot() + "\n" + compose.onRoot().printToString())
-                throw failure
-            }
-            assertEquals(20_000, peer.requests.first { it.optString("method") == "mobile.terminal.replay" }
-                .getJSONObject("params").getInt("max_scrollback_rows"))
-        } finally {
-            compose.activity.finish(); peer.close()
-            NativeCredentialStore(context).clear()
-            keys.forEach { preferences.edit().remove(it).commit() }
-        }
-    }
-
     @Test fun realRowsWrapAndReserveChosenPreviewHeightAndPreferencesSurviveRemount() {
         val name = "display-test-${UUID.randomUUID()}"
         val preferences = compose.activity.getSharedPreferences(name, Context.MODE_PRIVATE)

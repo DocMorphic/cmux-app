@@ -44,7 +44,8 @@ Settings/source/visual parity still require their own audit and implementation.
 - The real-row Android test passes: measured Text layouts verify wrapping,
   truncation and one/two preview lines; remount retains settings; corrupt stored
   types/ranges resolve safely. Its isolated component screenshot was inspected.
-- The final production-screen test passes in 21.98s using normal Android dispatch:
+- The earlier production-screen test passed in 21.98s under the Compose test
+  dispatcher (the original claim of normal Android dispatch was incorrect):
   actual Settings controls, persisted selection, back to the workspace, an actual
   framed RPC requesting 20,000 history rows, then rendered terminal text.
   `production-settings-final.png` shows the selected controls in the real screen.
@@ -68,12 +69,11 @@ and unobstructed screenshots were inspected. It was not a cmux crash.
 The original integration test in NativeFlowTest then stalled in Espresso's next-
 frame idling path with StandardTestDispatcher (captured SIGQUIT stack; main Looper
 idle). The live run was explicitly stopped after diagnosis, not counted as a pass.
-The new integration test uses normal Android dispatch and completes Settings
-navigation. Two later runs reached a blank terminal and timed out: the preserved
+That replacement test used the Compose rule's default unconfined test dispatcher
+and completed Settings navigation; it did not use normal Android dispatch. Two later runs reached a blank terminal and timed out: the preserved
 method list has event subscribe/unsubscribe traffic but no viewport/replay request.
 Adding failure diagnostics alone preceded the final passing run; production code
-was unchanged. **The cause of those intermittent cold-attach failures remains
-unproven and is the next investigation.** Do not infer reliable startup from one
+was unchanged. **See the investigation below for the corrected test setup and narrower diagnosis.** Do not infer reliable startup from one
 pass, or call this a physical-device acceptance result.
 
 Evidence under ignored `captures/runtime/display-settings/`: original/final build
@@ -85,3 +85,57 @@ again, so the next run can distinguish transport, cancellation and presentation.
 
 Physical Pixel/Mac acceptance remains open; this change is not in signed build
 517 and does not complete the full app goal. No physical device was visible in ADB.
+
+
+## Attach investigation — 2026-10-04
+
+The retained failure semantics contain “This terminal was disconnected. Reattach
+before continuing.” The missing viewport was a local traffic-admission rejection,
+not an unanswered subscription: all subscription RPCs completed successfully.
+Temporary stage logs confirmed nonzero geometry and completion of the terminal
+subscription. They also showed a UI effect continuing on an IO worker under the
+Compose test rule. Inspection of the cached ui-test 1.9.1 bytecode confirms its
+default `UnconfinedTestDispatcher`; supplying a regular dispatcher is not a way
+to replace the rule's test recomposer. The earlier “normal Android dispatch” label
+was wrong. Temporary production logging was removed after this diagnosis.
+
+`NativeDisplayRuntimeTest` replaces that integration case. It launches the existing
+debug-only `NativeLifecycleTestActivity` with ActivityScenario and UI Automator,
+without a Compose rule or test recomposer. The production NativeScreen therefore
+uses the Android main dispatcher and frame clock. The component-only row/layout
+checks stay in `NativeDisplaySettingsTest`.
+
+The first real-dispatch run rendered the terminal, requested 20,000 rows, and
+replayed again after Activity recreation. It failed afterward because the test
+incorrectly expected the workspace list; the retained pane had already restored
+the terminal. This failed run is preserved, not counted as a passing test.
+
+This narrows the earlier failures to invalidated local ownership in the test
+execution context; it does not prove the absence of a rare production race.
+Physical Pixel/Mac acceptance and full shared-connection-graph acceptance remain
+open. The fixture uses the real screen and socket RPC but injects a local
+connector, so it does not establish account, Iroh or push acceptance.
+
+Evidence: ignored `captures/runtime/terminal-attach/` contains the first repeated
+failure, temporary stage-log build/run/failure, cached-library dispatcher
+inspection, and real-dispatch runtime results/screenshots. Signed build 517 is
+unchanged. No physical Pixel appeared in ADB during this investigation.
+
+
+Final verification: `final-runtime.txt` reports **OK (2 tests), 43.388s**:
+real Activity Settings → 20,000-row replay/render → automatic reconnection after
+recreation → workspace reopen → actual `terminal.paste` command delivery, plus
+the component row/wrap/preview/remount check. The first and recreated terminal
+screenshots show rendered fixture output. The Settings screenshot caught menu
+dismissal before the selected label repainted; persisted-value assertions and
+actual replay parameters establish the choice, not that transitional screenshot.
+The crash buffer was empty. Debug/test assembly succeeded (68s; final test-only
+rebuild 19s). The final app APK is byte-identical to the prior checkpoint:
+`3271534b51a5ab8d5bed7efe757b4de8f637e6cbbe0985e1eb07d468bd0e6c2d`.
+The test APK SHA-256 is
+`fab672138ee572438e353f96e08b7351f5f95abdf9719a05ff1600fd092ddade`.
+An intermediate rebuild was interrupted to correct the test's input selector;
+a compiled-bytecode check then caught a stale RPC assertion before it ran. The
+final rebuild contains the actual `terminal.paste` assertion. These were test
+setup corrections, not app changes or passing runs. The sole AVD was stopped
+and reaped. No additional emulator, signed APK or release was created.

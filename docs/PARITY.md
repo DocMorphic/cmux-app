@@ -12,6 +12,27 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — real-dispatch terminal acceptance (2026-10-04)
+
+[DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#attach-investigation--2026-10-04)
+corrects the prior test's “normal Android dispatch” claim. The Compose rule used
+an unconfined test dispatcher, and temporary logs showed a UI effect resuming on
+an IO thread. The blank terminal had an explicit local disconnected/admission
+error, not a stalled subscription. No speculative production change was retained.
+
+The replacement test uses the existing real Activity, Android main dispatcher,
+frame clock and UI Automator. **Two Android checks pass in 43.388s**, covering
+Settings → 20,000-row replay/render, recreation/reconnect, workspace reopen,
+command delivery, and component wrap/preview/remount behavior. Retained failures
+and test setup corrections are documented. Debug app hash is identical to
+`e012649`; only tests/docs changed. The sole AVD is stopped. Signed 517 is unchanged.
+
+**Next:** physical Pixel/Mac browser and native connection recovery when ADB can
+see the phone; complete the production shared-connection-graph acceptance and
+remaining Settings/source parity. This fixture does not prove account/Iroh/push
+acceptance or rule out a rare production ownership race. No physical Pixel was
+visible. Push/feed configuration remains open. The goal remains active.
+
 ## Latest checkpoint — display and scrollback controls (2026-10-04)
 
 [DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md) adds the iOS title-wrap and one/two-line
