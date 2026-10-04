@@ -18,7 +18,17 @@ internal data class NativeSidebarInput(val sources: List<NativeFeedSource>, val 
     val actions: Set<RoutedSidebarActionKind> = emptySet())
 internal data class NativeSidebarPresentation(val computer: String? = null, val notifications: Boolean = false,
     val workspaceQuery: String = "", val notificationQuery: String = "", val workspaceUnread: Boolean = false,
-    val notificationUnread: Boolean = false, val machines: Set<String> = emptySet())
+    val notificationUnread: Boolean = false, val machines: Set<String> = emptySet(),
+    val projection: NativeFeedProjection = NativeFeedProjection(), val collapsedGroups: Map<String, Boolean> = emptyMap())
+
+/** Main-process history, retained with the feed session across parent recreation. */
+internal class NativeSidebarHistory {
+    private var owner: Any? = null
+    var projection = NativeFeedProjection()
+    var requested: Set<String>? = null
+    fun bind(value: Any) { if (owner != value) { clear(); owner = value } }
+    fun clear() { owner = null; projection = NativeFeedProjection(); requested = null }
+}
 
 /** Uses the same ordering, search, group and notification projection policies as the main screen. */
 internal class NativeRoutedSidebarHost(override val owner: Any, private val salt: String,
@@ -29,7 +39,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val saveSort: ((NativeWorkspaceSortMode?, List<String>?) -> Unit)? = null,
     private val readNotification: (suspend (NativeFeedEntry, Boolean, () -> Boolean) -> Unit)? = null,
     private val readAllNotifications: (suspend (List<NativeCredentialStore.PairedMac>, () -> Boolean) -> Unit)? = null,
-    private val refreshNotifications: (suspend () -> Unit)? = null) : RoutedSidebarHost {
+    private val refreshNotifications: (suspend () -> Unit)? = null,
+    private val history: NativeSidebarHistory = NativeSidebarHistory()) : RoutedSidebarHost {
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
@@ -42,8 +53,28 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         entry.notification.id, entry.notification.workspaceId, entry.notification.surfaceId)
     override fun retain() = retainFeed()
     override fun current() = input() != null
-    override fun initialQuery() = initial().let { RoutedSidebarQuery(it.notifications, it.workspaceQuery, it.notificationQuery,
-        it.computer?.let(::computer), it.workspaceUnread, it.notificationUnread, it.machines.map(::computer).toSet()) }
+    private fun updates(group: NativeFeedGroup) = id("updates", notification(group.entries.first { it.id == group.id }))
+    private fun expanded(projection: NativeFeedProjection) = projection.days.flatMap { it.groups }
+        .filter { it.id in projection.expanded }.map(::updates).toSet()
+    private fun validProjection(projection: NativeFeedProjection, value: NativeSidebarInput): NativeFeedProjection {
+        val days = projection.days.map { day -> day.copy(groups = day.groups.filter { group ->
+            group.entries.all { entry -> value.sources.any { it.mac == entry.source.mac } }
+        }) }.filter { it.groups.isNotEmpty() }
+        return projection.copy(days = days, expanded = projection.expanded.intersect(days.flatMap { it.groups }.map { it.id }.toSet()))
+    }
+    override fun initialQuery(): RoutedSidebarQuery {
+        val value = input() ?: return RoutedSidebarQuery()
+        val state = initial()
+        history.bind(owner)
+        history.projection = validProjection(state.projection, value)
+        history.requested = expanded(history.projection)
+        val groups = value.sources.flatMap { source -> source.groups.mapNotNull { item ->
+            state.collapsedGroups[WorkspaceListEntry.Header(source, item).key]?.let { group(source, item.id) to !it }
+        } }.toMap()
+        return RoutedSidebarQuery(state.notifications, state.workspaceQuery, state.notificationQuery,
+            state.computer?.let(::computer), state.workspaceUnread, state.notificationUnread, state.machines.map(::computer).toSet(),
+            checkNotNull(history.requested), groups)
+    }
     private fun machines(value: NativeSidebarInput) = (value.sources.filter { it.workspaces.isNotEmpty() }.mapNotNull {
         workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag)
     } + value.ssh.map { workspaceSshFilterId(it.host.id) }).toSet()
@@ -71,7 +102,11 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         adoptPresentation(NativeSidebarPresentation(selection, query.notifications,
             NativeSearchText.boundQuery(query.workspaceQuery), NativeSearchText.boundQuery(query.notificationQuery),
             query.workspaceUnread, query.notificationUnread,
-            value.computers.filter { computer(it.id) in selectedMachines }.map { it.id }.toSet()))
+            value.computers.filter { computer(it.id) in selectedMachines }.map { it.id }.toSet(),
+            project(aggregateNativeFeed(notificationSources(value, query), computerName = value.appearances::name), query, value),
+            value.sources.flatMap { source -> source.groups.mapNotNull { item ->
+                query.groupExpansion[group(source, item.id)]?.let { WorkspaceListEntry.Header(source, item).key to !it }
+            } }.toMap()))
     }
 
     private fun notificationSources(value: NativeSidebarInput, query: RoutedSidebarQuery): List<NativeFeedSource> {
@@ -115,7 +150,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         val entries = aggregateNativeFeed(sources, computerName = value.appearances::name)
         val unread = entries.count { !it.notification.isRead }
         val filter = filter(value, query)
-        val rows = if (query.notifications) notifications(entries, query, value.locale) else workspaces(value,
+        val projection = project(entries, query, value)
+        val rows = if (query.notifications) notifications(projection, value.locale) else workspaces(value,
             sources.filter { source -> filter.matches(workspaceMacFilterId(source.mac.deviceId, source.mac.instanceTag)?.let(::computer), true) },
             sshRows.filter { filter.matches(computer(workspaceSshFilterId(it.host.id)), it.workspace.hasUnread) },
             query, selected == null, filter.active)
@@ -134,7 +170,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                 .map { RoutedSidebarAction(action(it), it) },
             readAll = if (query.notifications && validScope && unread > 0 && readAllNotifications != null)
                 RoutedSidebarReadAll(readAllKey(value, query), ordered.singleOrNull { it.id == selected }?.name ?: "All Computers") else null,
-            canRefresh = query.notifications && refreshNotifications != null)
+            canRefresh = query.notifications && refreshNotifications != null, expanded = expanded(projection))
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
         query: RoutedSidebarQuery, all: Boolean, filtering: Boolean): List<RoutedSidebarRow> {
@@ -165,15 +201,25 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         workspace.hasUnread, workspace.unreadCount, workspace.isPinned, workspace.color, workspace.lastActivityAt,
         workspace.previewAt, availability, depth, canOpen = canOpen)
 
-    private fun notifications(entries: List<NativeFeedEntry>, query: RoutedSidebarQuery, locale: Locale): List<RoutedSidebarRow> {
-        val matches = NativeSearchIndex(entries.map { it.id to it.searchFields() }, locale, notification = true).matches(query.text)
-        val projection = NativeFeedProjection.build(entries, query.unread, matches, ZoneId.systemDefault(), 2000, NativeFeedProjection())
+    private fun project(entries: List<NativeFeedEntry>, query: RoutedSidebarQuery, value: NativeSidebarInput): NativeFeedProjection {
+        history.bind(owner)
+        var previous = validProjection(history.projection, value)
+        // Repeated polls may still carry the old anchor until the response is adopted.
+        // Apply changed user intent once; keep membership-based reconciliation between polls.
+        if (history.requested != query.expanded) previous = previous.copy(expanded = previous.days.flatMap { it.groups }
+            .filter { updates(it) in query.expanded }.map { it.id }.toSet())
+        history.requested = query.expanded
+        val matches = NativeSearchIndex(entries.map { it.id to it.searchFields() }, value.locale, notification = true).matches(query.notificationQuery)
+        return NativeFeedProjection.build(entries, query.notificationUnread, matches, ZoneId.systemDefault(), 2000, previous)
+            .also { history.projection = it }
+    }
+    private fun notifications(projection: NativeFeedProjection, locale: Locale): List<RoutedSidebarRow> {
         return buildList {
             projection.days.forEach { day ->
                 add(RoutedSidebarRow(id("day", day.date), "heading", day.date?.toString() ?: "Earlier", canOpen = false))
                 day.groups.forEach { group ->
-                    val key = id("updates", group.id)
-                    val expanded = key in query.expanded
+                    val key = updates(group)
+                    val expanded = group.id in projection.expanded
                     (if (expanded) group.entries else group.entries.take(1)).forEachIndexed { index, entry ->
                         val presentation = entry.presentation(locale)
                         val rowValue = entry.rowValue(locale)

@@ -23,7 +23,8 @@ class RoutedBrowserHostService : Service() {
                 when (kind) {
                     RoutedBrowserProtocol.OPEN -> {
                         result.putAll(entry.context())
-                        entry.sidebar?.initialQuery()?.let { result.putString("sidebar_query", RoutedSidebarWire.query(it)) }
+                        (entry.sidebarQuery ?: entry.sidebar?.initialQuery()?.also { entry.sidebarQuery = it })
+                            ?.let { result.putString("sidebar_query", RoutedSidebarWire.query(it)) }
                         result.putString("storage", entry.network.storageId)
                         result.putInt("port", RoutedBrowserSessions.prepare(entry, entry.initial))
                         result.putString("surface", entry.destination.surface.id)

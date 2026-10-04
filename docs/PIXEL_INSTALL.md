@@ -46,8 +46,9 @@ absent from ADB and untouched.
 
 Evidence: `captures/runtime/release-2b8aa38/` (ignored), including CI/provenance,
 package/runtime receipts, screenshots and native comparison. Next work is
-notification expansion stability and main/browser restoration, workspace/group
-actions, global workspace creation and selection refinements. Production push/
+workspace/group actions, global workspace creation and selection refinements.
+The branch now includes notification/group expansion restoration, verified in the
+debug build; that later change is not included in signed 563. Production push/
 notice configuration, legacy tickets, physical/network/process recovery and the
 broader upstream audit remain open. The goal remains active; scheduled upstream/
 preview workflows still await merge to main, and the global parity pin is unchanged.

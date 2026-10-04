@@ -127,7 +127,7 @@ internal object RoutedBrowserSessions {
         return if (offset == 0) {
             val query = RoutedSidebarWire.query(args.getString("query") ?: "{}")
             val snapshot = checkNotNull(host.read(query)) { "Sidebar account changed" }
-            entry.sidebarExchange.begin(snapshot).also { entry.sidebarQuery = query }
+            entry.sidebarExchange.begin(snapshot).also { entry.sidebarQuery = query.copy(expanded = snapshot.expanded) }
         } else entry.sidebarExchange.page(checkNotNull(args.getString("revision")), offset)
     }
     fun sidebarState(entry: Entry, query: RoutedSidebarQuery) {

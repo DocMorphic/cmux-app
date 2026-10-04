@@ -124,7 +124,7 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
                     require(rows.map { it.key }.distinct().size == rows.size)
                     currentCoroutineContext().ensureActive()
                     mutable.value = state.value.copy(snapshot = first.snapshot.copy(rows = rows), more = last.next != null,
-                        query = query.copy(machines = first.snapshot.selectedMachines), loading = false, error = null)
+                        query = query.copy(machines = first.snapshot.selectedMachines, expanded = first.snapshot.expanded), loading = false, error = null)
                 } catch (failure: Exception) {
                     currentCoroutineContext().ensureActive()
                     mutable.value = state.value.copy(error = failure.message ?: "Could not load sidebar", loading = false)

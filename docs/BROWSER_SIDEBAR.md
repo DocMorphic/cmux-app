@@ -25,8 +25,8 @@ for a transmitted destination that still resolves. On Activity return it checks
 the presentation owner and destination again. Pairing replacement, removed rows,
 SSH endpoint/key/generation replacement and changed account/team cannot redirect
 an old selection to a new authority. The main provider keeps the captured owner
-even when Compose updates its callbacks. Search/tab/computer/unread presentation
-is adopted back into the parent on an accepted return.
+even when Compose updates its callbacks. Search/tab/computer/unread presentation, notification expansion and workspace
+collapse overrides are adopted back into the parent on an accepted return.
 
 A retained feed lease keeps all authorized native computer feeds active only
 while the browser sidebar is visible. It is separate from the browser's own host
@@ -43,13 +43,14 @@ workspace/notification searches and unread filters, sort mode and computer-order
 editing are now shared with the main screen. Settings, Computers and New Task
 entry points return to the existing main-screen flows. Notification rows, read/unread gestures and menus, pull refresh and confirmed bulk
 read now share the main feed. Remote workspace/group mutations, global workspace
-creation, expansion-state hand-back and selection styling still need parity work. Main-screen controls remain implemented separately; this does not establish
+creation and selection styling still need parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
 Physical Pixel/Mac acceptance, actual account/team replacement during live
 browser use, real native/SSH feed integration with the new browser sidebar,
 large-text/accessibility review and authenticated process recovery remain open.
-The compact browser stays stacked. Signed build 554 predates these changes.
+The compact browser stays stacked. Signed build 563 includes the sidebar and
+notification actions; the expansion-restoration change below awaits the next signed batch.
 
 ## Verification
 
@@ -302,7 +303,7 @@ parent remain open, as do workspace/group actions and global workspace creation.
 The full goal remains active; PR #1 remains draft. Signed 554 stays the last
 verified download until the next batched signed build completes verification.
 
-### Expansion restoration audit (2026-10-04; implementation pending)
+### Earlier expansion restoration audit (2026-10-04; before implementation)
 
 At the same scoped iOS ref, `NotificationFeedProjection.swift:219–236` retains
 previous group identity and transfers expansion through surviving notification
@@ -326,3 +327,68 @@ pairing and changing computer/search scopes. Workspace collapse overrides need
 their own hand-back. Exercise changing history in the real Activity/service path,
 including return to the parent, while preserving the browser page and unsent
 input. These are identified gaps and acceptance checks, not completed features.
+
+
+## Notification history and workspace collapse restoration (2026-10-04)
+
+The browser now retains notification projection membership in the main-process
+`NativeSidebarHistory`, owned by the feed session and captured account/team.
+It applies changed expansion intent once and uses the shared feed reconciliation
+to retain expansion when an anchor disappears. Repeated in-flight queries cannot
+undo the newly selected anchor. Every snapshot carries the reconciled opaque
+expansion keys; both the controller and host session adopt them. Only display
+keys cross IPC. Previous groups must match current exact pairings, including when
+a credential changes while its stable origin stays the same.
+
+`NativeSidebarPresentation` now carries projection and local workspace-collapse
+state within the main process. Initial browser presentation maps those states to
+opaque keys. Accepted return revalidates current pairings and group IDs, restores
+the main feed projection, and merges valid collapse overrides into the existing
+persisted preferences. Main-process history survives host recreation with the feed
+session and clears with it. Browser OPEN reuses an existing entry query instead
+of reinitializing it on reattachment.
+
+**48 JVM checks passed:** five new history/hand-back/controller tests, 34 sidebar
+checks and nine shared feed-model tests. They cover surviving-anchor membership,
+explicit collapse, stale repeated polls, host recreation, main/browser/main
+projection return, collapse overrides, owner replacement, exact-pairing replacement
+with unchanged stable origin, scope/search pruning and authoritative wire state.
+The first build failed after **1m28s** because the new test fixture omitted required
+workspace constructor fields. After correcting the fixture, app/test assembly and
+the focused JVM set passed in **38s**. Subsequent test-only builds were **5s**,
+**13s** (including strengthened pairing tests), and **4s**; app sources were unchanged.
+
+The first three-scenario Android run took **157.666s**: filter/search return passed;
+restoration passed retention and return assertions but the harness stalled on
+reopening because its Compose clock was not being pumped. The notification-action
+scenario reached its final return with the search editor active, so Android Back
+hid the keyboard instead of leaving. Failure screenshots/logs are retained.
+The test now waits for the parent lifecycle when reopening and explicitly closes
+an active search editor before exit. Both repaired scenarios passed in **71.866s**
+on the same app APK. This establishes **three distinct passing scenarios across
+the two runs**, not a green first batch or five distinct tests.
+
+The new Activity/service scenario starts with expanded history and a collapsed
+workspace group, removes the oldest notification, verifies remaining history stays
+expanded, collapses/reopens it, changes the group override, returns, and reopens
+with both states restored. It also checks that sidebar actions preserve the web
+page's unsent draft and load count before leaving. The group fixture contains its
+anchor workspace only; this test checks disclosure state and the returned override,
+not additional group-child layout. The retained-history and reopened-group
+screenshots were visually inspected. Existing group-row layout tests are separate.
+
+Evidence: `captures/runtime/browser-sidebar-restoration/` (ignored), including
+first-run failures, final logs, source/APK verification and screenshots.
+App APK SHA-256: `3cfcb39618b15456a22870fe4fbfce1c97b752488b64dd4b70fbf68a51040f94`.
+Final test APK SHA-256: `a500473e679a75b6f6259bbc6e8c8447e95751d98a75d50cce20a770b816a67c`.
+Installed package hashes matched. Main app sources matched across both Android
+runs; all final source hashes matched. Display settings were restored and the
+crash buffer was empty. The sole API37/16KB emulator was stopped/reaped; no new
+AVD was created and the Pixel was absent/untouched.
+
+Runtime sources and mutation callbacks are generated fixtures. Actual signed-in
+MainScreen integration, physical Mac/Pixel behavior, parent recreation, process
+recovery and accessibility remain unproven. Build 563 is still the latest verified
+signed APK and predates this restoration change. Next: remaining browser workspace/
+group actions, global workspace creation and selection behavior, followed by live
+integration and the broader parity gates. The goal remains active.

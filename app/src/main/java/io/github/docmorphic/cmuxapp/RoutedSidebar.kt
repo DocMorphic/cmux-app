@@ -46,7 +46,7 @@ internal data class RoutedSidebarSnapshot(val computers: List<RoutedSidebarCompu
     val unread: Int = 0, val loading: Boolean = false, val status: String? = null,
     val filterMachines: List<RoutedSidebarComputer> = emptyList(), val selectedMachines: Set<String> = emptySet(),
     val sortMode: NativeWorkspaceSortMode? = null, val actions: List<RoutedSidebarAction> = emptyList(), val readAll: RoutedSidebarReadAll? = null,
-    val canRefresh: Boolean = false)
+    val canRefresh: Boolean = false, val expanded: Set<String> = emptySet())
 internal data class RoutedSidebarPage(val revision: String, val snapshot: RoutedSidebarSnapshot,
     val offset: Int, val next: Int?, val total: Int)
 
@@ -208,6 +208,7 @@ internal object RoutedSidebarWire {
         .put("unread", value.snapshot.unread).put("loading", value.snapshot.loading).put("status", value.snapshot.status?.bounded(2048))
         .put("read_all", value.snapshot.readAll?.let { JSONObject().put("key", token(it.key)).put("computer", it.computer.bounded(64)) })
         .put("can_refresh", value.snapshot.canRefresh)
+        .put("expanded", JSONArray(value.snapshot.expanded.sorted()))
         .put("actions", JSONArray().also { array -> value.snapshot.actions.forEach {
             array.put(JSONObject().put("key", token(it.key)).put("kind", it.kind.name))
         } })
@@ -257,6 +258,6 @@ internal object RoutedSidebarWire {
                 computerValues.filter { it.key in machineKeys }, selectedMachines,
                 if (json.isNull("sort_mode")) null else NativeWorkspaceSortMode.entries.single { it.raw == json.getString("sort_mode") }, actions,
                 json.optJSONObject("read_all")?.let { RoutedSidebarReadAll(token(it.getString("key")), it.getString("computer").bounded(64)) },
-                json.optBoolean("can_refresh")), offset, next, total)
+                json.optBoolean("can_refresh"), keys(json.optJSONArray("expanded") ?: JSONArray(), 2000).toSet()), offset, next, total)
     }
 }

@@ -180,7 +180,8 @@ class RoutedBrowserPresentationTest {
                         openedActions += (target as NativeSidebarTarget.Action).kind
                     })
             }
-            if (scenarioName == "globalSidebarNotificationsShareRowsMutateAndConfirmCapturedScopeWithoutReload") {
+            if (scenarioName == "globalSidebarNotificationsShareRowsMutateAndConfirmCapturedScopeWithoutReload" ||
+                scenarioName == "globalSidebarRestoresExpansionThroughRetentionAndReturnsGroupState") {
                 val now = System.currentTimeMillis() / 1000.0
                 noticeSources = listOf("A", "B").map { name ->
                     NativeFeedSource(NativeCredentialStore.PairedMac("generated-$name", name, "Mac $name"),
@@ -189,11 +190,23 @@ class RoutedBrowserPresentationTest {
                             NativeNotification("old", "w", null, "Agent", "Earlier $name", false, createdAt = now - 120)),
                         availability = if (name == "A") NativeFeedAvailability.CONNECTED else NativeFeedAvailability.OFFLINE)
                 }
+                if (scenarioName == "globalSidebarRestoresExpansionThroughRetentionAndReturnsGroupState") {
+                    noticeSources = noticeSources.take(1).map { source -> source.copy(
+                        items = source.items.take(1) + source.items.first().copy(id = "middle", body = "Middle A", createdAt = now - 90) + source.items.takeLast(1),
+                        workspaces = source.workspaces.map { it.copy(groupId = "g") },
+                        groups = listOf(NativeGroup("g", "Tasks group", false, false, "w", false))) }
+                    val entries = aggregateNativeFeed(noticeSources)
+                    val projection = NativeFeedProjection.build(entries, false, entries.map { it.id }.toSet(), java.time.ZoneId.systemDefault(), 100, NativeFeedProjection())
+                    adoptedPresentation = NativeSidebarPresentation(notifications = true,
+                        projection = projection.toggle(projection.days.single().groups.single().id),
+                        collapsedGroups = mapOf(WorkspaceListEntry.Header(noticeSources.first(), noticeSources.first().groups.first()).key to true))
+                }
                 projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-notifications",
                     { NativeSidebarInput(noticeSources, emptyList(), noticeSources.map {
                         NativeSortComputer(workspaceMacFilterId(it.mac.deviceId, null)!!, it.mac.name)
                     }, NativeWorkspaceSortState(), actions = RoutedSidebarActionKind.entries.toSet()) },
-                    { RoutedSidebarLease({}) {} }, {}, initial = { NativeSidebarPresentation(notifications = true) },
+                    { RoutedSidebarLease({}) {} }, {}, initial = { adoptedPresentation ?: NativeSidebarPresentation(notifications = true) },
+                    adoptPresentation = { adoptedPresentation = it },
                     readNotification = { entry, read, canSend ->
                         check(canSend()); noticeWrites += "${entry.source.mac.deviceId}:${entry.notification.id}:$read"
                         if (failNoticeWrite) { failNoticeWrite = false; error("Fixture notification update rejected") }
@@ -395,8 +408,42 @@ class RoutedBrowserPresentationTest {
         assertEquals(1, holds.get()); assertEquals(0, releases.get())
         assertTrue(picker.text?.startsWith("Draft ") == true)
         capturePicker("browser-sidebar-notification-after-actions")
+        // Leave the search editor explicitly; Android Back may otherwise only hide its IME.
+        device.findObject(By.desc("Cancel search"))?.click(); text("Workspaces")
         device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
         until { holds.get() == 0 }
+    }
+
+    @Test fun globalSidebarRestoresExpansionThroughRetentionAndReturnsGroupState() = wideSidebar {
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        val picker = desc("Choose terminal or pane")
+        until { picker.text == "Routed fixture ▾" }
+        text("Keep draft").click(); until { picker.text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        text("Middle A"); text("Earlier A"); desc("Hide earlier notifications")
+        main { noticeSources = noticeSources.map { it.copy(items = it.items.filter { item -> item.id != "old" }) } }
+        until { !device.hasObject(By.text("Earlier A")) }
+        text("Middle A"); desc("Hide earlier notifications")
+        capturePicker("browser-sidebar-retained-expansion")
+        desc("Hide earlier notifications").click()
+        until { !device.hasObject(By.text("Middle A")) }
+        desc("Show earlier notifications").click(); text("Middle A")
+        text("Workspaces").click(); desc("Expand Tasks group").click(); desc("Collapse Tasks group")
+        text("Notifications (2)").click(); text("Middle A"); desc("Hide earlier notifications")
+        assertEquals(loads, paths.count { it == "/start" })
+        assertTrue(picker.text?.startsWith("Draft ") == true)
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
+        val result = main { checkNotNull(adoptedPresentation) }
+        assertEquals(setOf("new", "middle"), result.projection.days.flatMap { it.groups }
+            .filter { it.id in result.projection.expanded }.flatMap { it.entries }.map { it.notification.id }.toSet())
+        assertEquals(listOf(false), result.collapsedGroups.values.toList())
+        text("Reopen fixture").click()
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        text("Middle A"); desc("Hide earlier notifications")
+        text("Workspaces").click(); desc("Collapse Tasks group")
+        capturePicker("browser-sidebar-restored-workspace-group")
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
     }
 
     @Test fun customizationSavesAndRetriesWithoutReloadingThePageOrReleasingItsHost() {

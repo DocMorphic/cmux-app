@@ -3348,7 +3348,7 @@ internal fun NativeScreen(
         val ssh = sshSession?.hosts?.state?.value?.hosts?.singleOrNull { "ssh:${it.id}" == selectedComputerOrigin }
         NativeSidebarPresentation(mac?.let { workspaceMacFilterId(it.deviceId, it.instanceTag) } ?: ssh?.let { workspaceSshFilterId(it.id) },
             notificationTab, searchState.text(NativeSearchScope.WORKSPACES), searchState.text(NativeSearchScope.NOTIFICATIONS),
-            unreadWorkspacesOnly, unreadNotificationsOnly, workspaceFilter.machines)
+            unreadWorkspacesOnly, unreadNotificationsOnly, workspaceFilter.machines, feedSession.projection, collapsedGroups)
     })
     val sidebarAdopt by rememberUpdatedState<(NativeSidebarPresentation) -> Unit>({ presentation ->
         if (sidebarCurrent()) {
@@ -3360,6 +3360,9 @@ internal fun NativeScreen(
             searchState = searchState.commit().copy(workspaceQuery = presentation.workspaceQuery, notificationQuery = presentation.notificationQuery)
             unreadNotificationsOnly = presentation.notificationUnread
             workspaceFilter = NativeWorkspaceFilter(presentation.workspaceUnread, presentation.machines)
+            feedSession.projection = presentation.projection
+            collapsedGroups = collapsedGroups + presentation.collapsedGroups
+            store.update { it.put("collapsed_groups", JSONObject(collapsedGroups)) }
         }
     })
     val sidebarNavigate by rememberUpdatedState<(NativeSidebarTarget) -> Unit>({ target ->
@@ -3424,7 +3427,7 @@ internal fun NativeScreen(
             }, refreshNotifications = {
                 check(currentOwner()) { "Sidebar account changed" }
                 feedCoordinator.refresh()
-            })
+            }, history = feedSession.sidebarHistory)
     } }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
         LocalWorkspaceCustomizationAction provides customizePane, LocalRoutedSidebarHost provides sidebarHost) {

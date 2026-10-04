@@ -24,7 +24,32 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — signed browser-sidebar batch 563 verified (2026-10-04)
+## Latest checkpoint — browser expansion and collapse restoration (2026-10-04)
+
+The browser now retains expanded notification history when old anchors disappear,
+shares expansion and workspace-collapse state with the main screen, and reuses
+its current query on reattachment. Exact pairings and captured account/team scope
+bound retained history and accepted hand-back. See
+[BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md) for the design, source reference and limits.
+
+**48 JVM checks passed.** Three distinct Android scenarios passed across two runs:
+filter/search return passed in the initial batch; restoration and notification
+actions passed a **71.866s** focused retry after repairing test lifecycle/keyboard
+handling. The initial **157.666s** batch had two harness failures, retained with
+screenshots and logs. The app APK was unchanged between runs. Installed app/test
+hashes and final sources matched; display settings were restored, crash buffer
+empty, and the single API37/16KB emulator stopped/reaped. No new AVD; Pixel absent.
+
+The runtime exercises production browser Activity/service code with generated
+sources and a parent harness. Signed-in MainScreen/physical Mac/Pixel integration,
+parent recreation, process death and accessibility remain unverified. Signed **563**
+remains the latest verified download and predates this change; no signed build was
+dispatched for this individual feature. Next: browser workspace/group actions,
+global workspace creation and selection behavior. Production push/notice setup,
+legacy tickets, live recovery and the wider upstream audit remain open. PR #1
+stays draft and the goal remains active.
+
+## Earlier checkpoint — signed browser-sidebar batch 563 verified (2026-10-04)
 
 Signed build **563** at `2b8aa38158b0ea17912eaa01810e8cec2a4cd54d` is the latest
 verified download. It includes the browser sidebar, filters/sorting/search,
