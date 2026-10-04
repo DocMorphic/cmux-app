@@ -479,3 +479,40 @@ Final crash buffers are empty, the sole existing AVD is stopped/reaped, and no
 physical Pixel was connected. Evidence:
 `captures/runtime/group-actions/verification.json`. The last verified signed
 build is still 537; the next signed milestone must verify this accumulated batch.
+
+## Next source audit — recorded during build 546 verification
+
+These findings are from scoped iOS reference `0fc35d6` compared with Android
+`2a2c928`; they are incomplete work, not platform exceptions. The broader parity
+pin remains unchanged. Raw findings are retained in
+`captures/runtime/release-2a2c928/next-source-audit.json`.
+
+1. `WorkspaceListNewWorkspaceMenuValue.swift` asks for a computer when All
+   Computers has more than one target. It distinguishes Macs from SSH computers,
+   includes the SSH host identity in the menu value, and carries available SSH
+   workspace kinds/reasons. Android's toolbar New workspace still directly uses
+   the foreground client. Read the toolbar/projection/dispatch source before
+   extending the new group creation ownership path to this chooser; also audit
+   New Group discovery and plain-create legacy responses.
+2. `MobileWorkspaceListFilter.swift` composes read state with a set of exact
+   pairing identities. Empty means all computers; bare device IDs match only
+   legacy untagged rows, and disappeared selections are pruned. Android currently
+   has All/Unread plus one selected computer, without the separate compound
+   machine filter. Preserve Stable/Nightly identity boundaries and search/filter
+   composition when porting this behavior.
+3. `MobileWorkspaceSortMode.swift` defines automatic, computerPriority and
+   recentActivity. Activity sorting keeps each group contiguous and ranks it by
+   its newest member; search/explicit filters flatten rows. Android has no sort
+   control/store/projection yet. Read the store and ordering tests before adding
+   this, preserving host sidebar order and drag admission.
+4. `WorkspaceNavigationStyle.swift`, `WorkspaceShellView.swift` and
+   `MobileWorkspaceShellLayoutPolicy.swift` define push versus sidebar navigation.
+   iOS uses the compact stack if either dimension has a compact size class.
+   Android currently has no sidebar branch. A wider phone in landscape must not
+   become a sidebar solely due to width; read split selection/visibility and
+   restoration contracts before implementing the tablet/window layout.
+
+Build 546 now delivers the preceding row/group implementation. CI and local
+signed-out upgrade verification are documented in `PIXEL_INSTALL.md`. The
+upstream watcher remains absent on main (GitHub contents/workflow queries
+returned 404), consistent with the activation requirements in `UPDATES.md`.

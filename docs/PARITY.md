@@ -12,7 +12,33 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — group actions and creation (2026-10-04)
+## Latest checkpoint — signed build 546 and upgrade verification (2026-10-04)
+
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) now links signed development build **546**
+from source `2a2c928b5626a23d08921827e34360ebb4e5517a`. It includes the accumulated
+changes badges, swipe/context/drag menus, group moves and group actions/creation,
+plus the browser recreation fix. CI passed its full test/build, packaging and
+Android 17 ART gates. Downloaded archive/APK digests and source/run metadata
+matched; independent verification confirmed the stable signer, 14 viewer assets,
+19 native alignments and eight excluded debug fixture activities. All native
+payloads match build 537. Local arm64 ART also accepted the release class.
+
+The existing 16 KB API 37 emulator upgraded 537 → 546 without uninstall,
+retaining its original first-install time. Cold start reached the inspected
+sign-in screen in 1,147ms, with no compatibility/ANR dialog and an empty crash
+buffer. This is a single signed-out launch, not a performance or authenticated
+migration claim. Device settings stayed unchanged; the sole AVD was stopped and
+reaped. Evidence: `captures/runtime/release-2a2c928/`. The Pixel was absent.
+
+**Next:** implement the All Computers new-workspace target chooser, then iOS view
+options with compound machine filters and sort modes. Exact source findings and
+regular-width layout constraints are recorded at the end of
+[WORKSPACE_ROWS.md](WORKSPACE_ROWS.md). Legacy tickets, broader source parity,
+configured push/notice feed and live Pixel/Mac acceptance remain open. The new
+update schedules are still dormant until the workflow changes reach main.
+Goal active; no release published and no PR merged.
+
+## Earlier checkpoint — group actions and creation (2026-10-04)
 
 Group headers now use the iOS context-menu order/icons without a visible
 ellipsis: Pin/Unpin Group, Rename Group, New Workspace in Group, Ungroup (Keep
