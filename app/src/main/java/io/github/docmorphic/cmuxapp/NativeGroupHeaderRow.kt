@@ -1,5 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -31,8 +34,9 @@ internal fun NativeGroupHeaderRow(
     onCreate: () -> Unit = {},
     onToggle: () -> Unit,
     onAction: (String, String?) -> Unit,
-    handlesHold: Boolean = false
+    handlesHold: Boolean = false, isSelected: Boolean = false
 ) {
+    val highlighted = isSelected && LocalWorkspaceShellChrome.current.split
     val menu = rememberWorkspaceContextMenu(group.id)
     val hasMenu = canEdit || canCreate
     val menuExpanded = menu.expanded && hasMenu
@@ -46,7 +50,9 @@ internal fun NativeGroupHeaderRow(
     }
     var name by remember(menu, group.id) { mutableStateOf(group.name) }
     Box {
-    Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp),
+    Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp)
+        .background(if (highlighted) LocalContentColor.current.copy(alpha = .08f) else Color.Transparent, RoundedCornerShape(6.dp))
+        .padding(horizontal = 4.dp, vertical = 2.dp).testTag("group.row:${group.id}"),
         verticalAlignment = Alignment.CenterVertically) {
         NativeUnreadGutter(unread, gap = 3.dp)
         IconButton(onClick = { if (!menuExpanded && !menu.held) onToggle() }, modifier = Modifier.size(32.dp).semantics {
@@ -58,6 +64,7 @@ internal fun NativeGroupHeaderRow(
             onLongClick = { if (hasMenu) menu.expanded = true })
             else if (onOpen != null) Modifier.clickable { if (!menuExpanded && !menu.held) onOpen() } else Modifier)
             .semantics(mergeDescendants = true) {
+                selected = highlighted
                 if (hasMenu) onLongClick("Show group actions") { menu.expanded = true; true }
                 customActions = moveActions + if (hasMenu) listOf(CustomAccessibilityAction("Show group actions") { menu.expanded = true; true }) else emptyList()
                 if (onOpen != null) contentDescription = "Open ${group.name}"

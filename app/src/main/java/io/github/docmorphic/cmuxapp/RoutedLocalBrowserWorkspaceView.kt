@@ -28,7 +28,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null,
     browserState: () -> NativeBrowserPickerState = { NativeBrowserPickerState() },
     menuSource: (() -> RoutedBrowserMenu?)? = null, customizeWorkspace: RoutedWorkspaceCustomizationSave? = null,
-    onSidebarExit: () -> Unit = {}) {
+    onSidebarExit: () -> Unit = {}, sidebarSelection: NativeSidebarSelection? = null) {
     val creationEnabled = onNewWorkspace != null && onNewTerminal != null && onNewBrowser != null
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -47,7 +47,8 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     val currentCreationEnabled by rememberUpdatedState(creationEnabled)
     val currentSshPicker by rememberUpdatedState(sshPicker)
     val currentCustomize by rememberUpdatedState(customizeWorkspace)
-    val sidebar = LocalRoutedSidebarHost.current
+    val sidebarHost = LocalRoutedSidebarHost.current
+    val sidebar = remember(sidebarHost, sidebarSelection) { sidebarHost?.withSelection(sidebarSelection) }
     val currentSidebar by rememberUpdatedState(sidebar)
     fun readMenu(): RoutedBrowserMenu? {
         val source = currentMenuSource

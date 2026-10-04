@@ -50,14 +50,15 @@ workspace creation and creation inside an existing Mac group use the shared
 parent flows. New Workspace Group now creates in place with the Mac default name.
 SSH Close now uses the shared feed with kind-specific confirmation.
 Title wrapping and preview-line preferences now share the main settings.
-Drag ordering and selection styling still need browser parity work. Main-screen controls remain implemented separately; this does not establish
+Selection styling now shares the main rows and captures the browser owner.
+Drag ordering and changes previews still need browser parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
 Physical Pixel/Mac acceptance, actual account/team replacement during live
 browser use, real native/SSH feed integration with the new browser sidebar,
 large-text/accessibility review and authenticated process recovery remain open.
 The compact browser stays stacked. Signed build 571 includes the changes through
-New Workspace Group; SSH Close and display preferences below await the next signed batch.
+New Workspace Group; SSH Close, display preferences and selection styling below await the next signed batch.
 
 ## Verification
 
@@ -884,3 +885,45 @@ owner, not merely the parent's mutable foreground computer. Mac and SSH browser
 workspace keys use different namespaces; do not create SSH networks to infer a
 highlight. Implement the shared selection visual/accessibility state with tests
 for colliding IDs, owner replacement, groups and compact-vs-sidebar layout next.
+
+## Selected workspace and group anchor (2026-10-05)
+
+Scoped iOS source: `WorkspaceRow.swift`, `WorkspaceListRowModel.swift` and
+`WorkspaceGroupHeaderRow.swift` at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`. Workspace selection uses accent title,
+14dp radius, 14% accent fill and 10dp inset; group anchor selection uses primary
+8% fill with 6dp radius. Both are restricted to sidebar navigation.
+
+`NativeSidebarSelection` matches the exact Mac record/workspace or SSH connection
+identity and workspace descriptor. Cmux matches stable key/resource when available,
+otherwise the captured generation plus workspace number; tmux uses its server /
+session / creation identity and Shell its owned ID. The group match additionally
+requires its anchor to exist in current inventory. `NativeRoutedSidebarHost` binds
+a projection to each browser presentation, keeping all authority in the parent;
+only `RoutedSidebarRow.selected` crosses IPC, defaulting false for older messages.
+Main-screen SSH selection follows `onDisplayed` without recreating its route.
+
+Verification:
+
+- 40 JVM checks: four new selection cases, 34 existing sidebar checks and two
+  display-preference cases. Covers colliding Mac/SSH IDs, replacement pairings,
+  endpoint/key/jump/registry changes, stable versus recycled workspace identities,
+  empty/missing anchors, search, independent browser bindings, legacy defaults and
+  wire privacy/round trip. No failures/errors/skips.
+- Two Android scenarios passed in **33.863s** on the existing API37/16KB arm64
+  emulator. Shared rows verify selected semantics, blue/gray pixels and compact
+  removal. The actual browser Activity/service receives a generated two-Mac feed:
+  a selected workspace becomes a selected group anchor, pairing replacement removes
+  selection, and hide/restore retains page count and draft and releases leases.
+- First runtime: row test passed; browser stopped on a stale UIAutomator node during
+  pairing replacement. Specific stale-node reacquisition fixed the test only;
+  final app APK remained unchanged. Final source/installed hashes match; screenshots
+  inspected, crash buffer empty, original display/settings restored, emulator reaped.
+- App APK: `b4740a16bf69142634ea8135fb45947422e1fd3ef3b2fc9734349c0ec46d57f9`.
+  Test APK: `2bfd18e584248d0cc52b3153310d06f4ba2b7c63b3fd53ba299b48328d43f8cb`.
+  Evidence: `captures/runtime/sidebar-selection/` (ignored).
+
+No physical/account/process-death acceptance is inferred. Native/SSH call sites
+compile and share tested identity policy, but this batch does not exercise their
+full authenticated navigation. Signed 571 predates this feature; no signed build
+or release dispatched. Drag ordering and changes previews remain next.

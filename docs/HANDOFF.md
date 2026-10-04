@@ -24,7 +24,41 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — browser workspace display preferences (2026-10-05)
+## Latest checkpoint — selected workspace and group anchor (2026-10-05)
+
+Main and browser sidebars now share the scoped iOS selection styles: blue title
+and 14dp / 14% accent background for workspaces, 6dp / 8% primary background for
+group anchors. The shared rows expose selected accessibility state only in sidebar
+layout; compact stacks stay unselected. NativeScreen follows the displayed native
+workspace or actual SSH workspace reported after navigation within the SSH screen.
+
+Each browser presentation captures its exact Mac pairing/workspace or SSH
+host/target. Main-process projection sends only a selected bit over IPC. A parent
+computer change cannot redirect that selection; replaced pairings, SSH endpoints,
+keys, jump hosts and recycled unkeyed cmux workspace IDs cannot inherit it. Live
+group anchors and searches use the same match. SSH browser capture includes both
+workspace and Computers-screen shell entry points.
+
+**40 focused JVM checks and two Android scenarios passed** (Android **33.863s**).
+The shared-row test checks selection semantics, actual blue/gray rendered pixels
+and compact-layout removal. The production browser Activity/service test uses a
+generated two-Mac feed with colliding IDs, changes a workspace into a group anchor,
+replaces its pairing, hides/restores the sidebar and verifies selection without
+page reload, draft loss or leaked leases. Its first run hit a stale accessibility
+node after the pairing replacement; the test now reacquires on that specific
+exception and the final run passed with the same app APK.
+
+Evidence: `captures/runtime/sidebar-selection/` (ignored). Screenshots inspected;
+source/installed hashes matched, crash buffer empty, display/settings restored,
+sole emulator stopped/reaped. Pixel absent and untouched. This is generated-feed
+browser integration and shared-row evidence, not live Mac/SSH/Pixel, authenticated
+MainScreen navigation, process-death or complete TalkBack acceptance. Signed **571**
+predates this, SSH Close and display preferences. Next: browser drag ordering and
+changes previews, plus physical/network/process recovery, push/notice setup,
+legacy tickets and the broader upstream audit. Goal active; PR #1 draft; global
+parity pin unchanged.
+
+## Earlier checkpoint — browser workspace display preferences (2026-10-05)
 
 The browser sidebar now uses the same Wrap Workspace Titles and Preview Lines
 settings as the main list. Its main-process input reads current preferences even

@@ -306,7 +306,11 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         } }
         return null
     }
-    override fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot? {
+    override fun withSelection(selection: NativeSidebarSelection?): RoutedSidebarHost = object : RoutedSidebarHost by this {
+        override fun read(query: RoutedSidebarQuery) = this@NativeRoutedSidebarHost.read(query, selection)
+    }
+    override fun read(query: RoutedSidebarQuery) = read(query, null)
+    private fun read(query: RoutedSidebarQuery, selection: NativeSidebarSelection?): RoutedSidebarSnapshot? {
         val value = input() ?: return null
         val ordered = orderWorkspaceComputers(value.computers, value.sort, value.locale)
         val selected = query.computer?.let { key -> ordered.singleOrNull { computer(it.id) == key }?.id }
@@ -321,7 +325,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         val rows = if (query.notifications) notifications(projection, value.locale) else workspaces(value,
             sources.filter { source -> filter.matches(workspaceMacFilterId(source.mac.deviceId, source.mac.instanceTag)?.let(::computer), true) },
             sshRows.filter { filter.matches(computer(workspaceSshFilterId(it.host.id)), it.workspace.hasUnread) },
-            query, selected == null, filter.active)
+            query, selected == null, filter.active, selection)
         val offline = sources.filter { it.availability == NativeFeedAvailability.OFFLINE }
         return RoutedSidebarSnapshot(ordered.map { RoutedSidebarComputer(computer(it.id), it.name, it.buildLabel) }, rows, unread,
             sources.any { it.availability == NativeFeedAvailability.CONNECTING },
@@ -343,7 +347,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             wrapTitles = value.display.wrapTitles, previewLines = value.display.previewLines)
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
-        query: RoutedSidebarQuery, all: Boolean, filtering: Boolean): List<RoutedSidebarRow> {
+        query: RoutedSidebarQuery, all: Boolean, filtering: Boolean, selection: NativeSidebarSelection?): List<RoutedSidebarRow> {
         val matches = NativeSearchIndex(workspaceSearchRows(sources, value.appearances::name), value.locale).matches(query.text)
         val sshMatches = NativeSearchIndex(sshRows.map { it.key to it.searchFields() }, value.locale).matches(query.text)
         val collapsed = sources.flatMap { source -> source.groups.map { item ->
@@ -356,17 +360,20 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             when (row) {
                 is NativeWorkspaceDisplayRow.Ssh -> displayWorkspace(ssh(row.row), row.row.workspace, row.row.host.name,
                     (value.sshAvailability[row.row.host.id] ?: NativeFeedAvailability.OFFLINE), 0, row.row.openTarget() != null).copy(
-                        sshKind = row.row.kind, mutations = if (closeSsh != null && canCloseSsh(row.row))
+                        selected = selection.matches(row.row), sshKind = row.row.kind, mutations = if (closeSsh != null && canCloseSsh(row.row))
                             setOf(RoutedSidebarMutationKind.CLOSE) else emptySet())
                 is NativeWorkspaceDisplayRow.Mac -> when (val entry = row.entry) {
                     is WorkspaceListEntry.Workspace -> displayWorkspace(workspace(entry.source.mac, entry.workspace.id), entry.workspace,
                         value.appearances.name(entry.source.mac), entry.source.availability, if (entry.indented) 1 else 0, true)
-                        .copy(canCustomize = customizeWorkspace != null && entry.source.canCustomizeWorkspace(), mutations = buildSet {
+                        .copy(selected = selection.matches(entry.source.mac, entry.workspace.id),
+                            canCustomize = customizeWorkspace != null && entry.source.canCustomizeWorkspace(), mutations = buildSet {
                             if (mutateWorkspace != null) addAll(entry.source.sidebarWorkspaceMutations(entry.workspace))
                             if (entry.workspace.id in movable[entry.source.mac.origin].orEmpty()) add(RoutedSidebarMutationKind.MOVE_TO_GROUP)
                         })
                     is WorkspaceListEntry.Header -> RoutedSidebarRow(group(entry.source, entry.group.id), "group", entry.group.name,
                         unread = entry.unread.isUnread, count = entry.unread.count, pinned = entry.group.isPinned,
+                        selected = selection.matches(entry.source.mac, entry.group.liveAnchorWorkspaceId) &&
+                            entry.source.workspaces.any { it.id == entry.group.liveAnchorWorkspaceId },
                         mutations = if (mutateWorkspace != null) entry.source.sidebarGroupMutations(entry.group) else emptySet(),
                         createKey = createKey(entry.source.mac, entry.group.id).takeIf { canCreate(value, entry.source) && entry.source.canCreateInGroup() },
                         iconSymbol = entry.group.iconSymbol, expanded = !entry.group.isCollapsed, canOpen = entry.group.liveAnchorWorkspaceId?.let { id -> entry.source.workspaces.any { it.id == id } } == true)

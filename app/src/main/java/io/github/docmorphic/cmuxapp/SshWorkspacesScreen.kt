@@ -115,7 +115,8 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         val seed = url?.takeIf { it.isNotBlank() } ?: (target as? SshWorkspaceTarget.Browser)?.let { ref ->
             tree?.let { ref.selection.resolve(checkNotNull(provider).session, it)?.second?.url }
         }
-        browser = SshBrowserPresentation(session.browsers.network(hostId), workspace, panel, seed, provider)
+        browser = SshBrowserPresentation(session.browsers.network(hostId), workspace, panel, seed, provider,
+            session.hosts.state.value.host(hostId)?.let { NativeSidebarSelection.Ssh(it, target) })
         browserMode = panel ?: "local"
     }
     val view = opened

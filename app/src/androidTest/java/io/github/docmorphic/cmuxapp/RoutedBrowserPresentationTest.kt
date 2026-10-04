@@ -66,6 +66,7 @@ class RoutedBrowserPresentationTest {
     private var sidebarRows = listOf(RoutedSidebarRow("other", "workspace", "Other computer workspace", preview = "Remote preview"))
     private var sidebarAllows = true
     private var projectedSidebar: NativeRoutedSidebarHost? = null
+    private var browserSidebarSelection: NativeSidebarSelection? = null
     private val openedCreation = CopyOnWriteArrayList<NativeSidebarTarget>()
     private var creationSsh: NativeSshSession? = null
     private var creationVault: File? = null
@@ -107,8 +108,12 @@ class RoutedBrowserPresentationTest {
     private var adoptedPresentation: NativeSidebarPresentation? = null
     private var sortJson: String? = null
     private val sortStore = NativeWorkspaceSortStore({ sortJson }, { sortJson = it })
-    private val sidebarHost = object : RoutedSidebarHost {
+    private val sidebarHost: RoutedSidebarHost = object : RoutedSidebarHost {
         override val owner: Any = "fixture-owner"
+        override fun withSelection(selection: NativeSidebarSelection?): RoutedSidebarHost = object : RoutedSidebarHost by this {
+            override fun read(query: RoutedSidebarQuery) = projectedSidebar?.withSelection(selection)?.read(query)
+                ?: this@RoutedBrowserPresentationTest.sidebarHost.read(query)
+        }
         override fun current() = projectedSidebar?.current() ?: true
         override fun initialQuery() = projectedSidebar?.initialQuery() ?: RoutedSidebarQuery()
         override fun read(query: RoutedSidebarQuery) = if (projectedSidebar != null) projectedSidebar!!.read(query) else RoutedSidebarSnapshot(listOf(RoutedSidebarComputer("other-mac", "Other Mac")),
@@ -194,6 +199,16 @@ class RoutedBrowserPresentationTest {
             }; start()
         }
         main {
+            if (scenarioName == "globalSidebarSelectionFollowsCapturedOwnerAndLiveAnchorWithoutReload") {
+                val a = NativeCredentialStore.PairedMac("selection-a", "A", "Mac A")
+                val b = NativeCredentialStore.PairedMac("selection-b", "B", "Mac B")
+                noticeSources = listOf(a, b).map { mac -> NativeFeedSource(mac,
+                    workspaces = listOf(workspace.copy(title = "Selected on ${mac.deviceId}")), availability = NativeFeedAvailability.CONNECTED) }
+                browserSidebarSelection = NativeSidebarSelection.Mac(a, workspace.id)
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-selection", {
+                    NativeSidebarInput(noticeSources, emptyList(), noticeSources.map { NativeSortComputer(it.mac.deviceId, it.mac.name) }, NativeWorkspaceSortState())
+                }, { RoutedSidebarLease({}) {} }, {})
+            }
             if (scenarioName == "globalSidebarDisplayPreferencesUpdateWhileParentPausedAndPreserveDraft") {
                 val preferences = context.getSharedPreferences(sidebarDisplayName, Context.MODE_PRIVATE)
                 preferences.edit().clear().commit()
@@ -455,7 +470,7 @@ class RoutedBrowserPresentationTest {
             else RoutedLocalBrowserWorkspaceView(destination, navigation, menuWorkspace, { network }, {
                 holds.incrementAndGet()
                 RoutedBrowserHostLease({ holds.decrementAndGet(); releases.incrementAndGet() }, { probes += it })
-            }, {}, { route = it }, browserModes = true,
+            }, {}, { route = it }, browserModes = true, sidebarSelection = browserSidebarSelection,
                 onNewWorkspace = { created("workspace") }, onNewTerminal = { created("terminal") }, onNewBrowser = { created("browser") },
                 menuSource = { RoutedBrowserMenu(menuWorkspace, menuCreationEnabled, browserState = browserState, customizationEnabled = menuCustomizationEnabled) },
                 customizeWorkspace = { baseline, submitted ->
@@ -557,6 +572,32 @@ class RoutedBrowserPresentationTest {
         assertEquals(sortStore.state.value, NativeWorkspaceSortStore({ sortJson }, {}).state.value)
         assertEquals(false, sidebarActive.last())
     }
+    @Test fun globalSidebarSelectionFollowsCapturedOwnerAndLiveAnchorWithoutReload() = wideSidebar {
+        fun waitSelection(label: String, expected: Boolean) = until {
+            try { selectedRow(label) == expected } catch (_: androidx.test.uiautomator.StaleObjectException) { false }
+        }
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        desc("Choose terminal or pane"); text("Keep draft").click()
+        until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+        waitSelection("Selected on A", true); waitSelection("Selected on B", false)
+        val loads = paths.count { it == "/start" }
+        capturePicker("browser-sidebar-selected-workspace")
+        main { noticeSources = noticeSources.map { source -> source.copy(workspaces = source.workspaces.map { it.copy(groupId = "group") }, groups = listOf(
+            NativeGroup("group", "Anchor on ${source.mac.deviceId}", true, false, anchorWorkspaceId = workspace.id))) } }
+        waitSelection("Anchor on A", true); waitSelection("Anchor on B", false)
+        capturePicker("browser-sidebar-selected-anchor")
+        val original = main { noticeSources }
+        main { noticeSources = noticeSources.map { it.copy(mac = it.mac.copy(code = "replacement-${it.mac.deviceId}")) } }
+        waitSelection("Anchor on A", false); waitSelection("Anchor on B", false)
+        desc("Hide sidebar").click(); desc("Show sidebar")
+        main { noticeSources = original }
+        desc("Show sidebar").click(); waitSelection("Anchor on A", true)
+        assertEquals(loads, paths.count { it == "/start" }); assertTrue(desc("Choose terminal or pane").text!!.startsWith("Draft "))
+        assertFalse(compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED))
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { sidebarReleases.get() == 1 }; assertEquals(0, holds.get())
+    }
+
     @Test fun globalSidebarDisplayPreferencesUpdateWhileParentPausedAndPreserveDraft() = wideSidebar {
         compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
         desc("Choose terminal or pane"); text("Keep draft").click()

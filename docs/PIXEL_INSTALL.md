@@ -44,17 +44,16 @@ The existing emulator was stopped/reaped; no new AVD was created. The Pixel was
 absent from ADB and untouched.
 
 Evidence: `captures/runtime/release-608000c/` (ignored), including CI/provenance,
-package/runtime receipts, screenshots and native comparison. Next: SSH sidebar
-close/actions, including the scoped iOS rule that phone-owned shells close directly
-while persistent tmux/cmux-tui workspaces ask for confirmation. Ordering/selection,
-changes previews/display preferences, physical/network/process recovery, production
-push/notice configuration, legacy tickets and the broader upstream audit remain
-open. The goal remains active; scheduled upstream/preview workflows still await
-merge to main, and the global parity pin is unchanged.
+package/runtime receipts, screenshots and native comparison. Next: browser drag
+ordering and changes previews, physical/network/process recovery, production
+push/notice configuration, legacy tickets and the broader upstream audit. The goal
+remains active; scheduled upstream/preview workflows still await merge to main,
+and the global parity pin is unchanged.
 
 The branch now also includes SSH sidebar Close, the iOS shell-confirmation
-correction and shared browser workspace display preferences, verified in the debug
-build. Those changes are not in signed 571.
+correction, shared browser workspace display preferences, and workspace/group
+selection highlighting. These have focused debug verification documented in
+`BROWSER_SIDEBAR.md`; they are not in signed 571.
 
 ## Previous signed development APK — build 563 (2026-10-04)
 

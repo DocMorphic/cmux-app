@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
@@ -345,6 +346,7 @@ internal fun NativeScreen(
     val sshNavigation = rememberSaveable(saver = NativeSshCreationNavigation.saver) { NativeSshCreationNavigation() }
     val sshRoute = sshNavigation.route?.takeIf { route -> route.login == browserLogin && sshSession?.isOpen == true &&
         sshTargets.any { it.host.connectsLike(route.host) } }
+    var displayedSshTarget by remember(sshRoute) { mutableStateOf(sshRoute?.target) }
     val sshCreationBusy = sshCreationState is SshWorkspaceCreationState.Running
 
     var showWhatsNew by rememberSaveable(signedIn, browserLogin) { mutableStateOf(false) }
@@ -2614,7 +2616,7 @@ internal fun NativeScreen(
             onRoute = { workspaceRoute = it }, browserModes = true,
             onNewWorkspace = { createFromBrowser(NativeWorkspaceCreation.WORKSPACE) },
             onNewTerminal = { createFromBrowser(NativeWorkspaceCreation.TERMINAL) },
-            onNewBrowser = { createFromBrowser(NativeWorkspaceCreation.BROWSER) }, menuSource = ::browserMenu,
+            onNewBrowser = { createFromBrowser(NativeWorkspaceCreation.BROWSER) }, menuSource = ::browserMenu, sidebarSelection = NativeSidebarSelection.Mac(browserMac, localBrowser.key.workspaceId),
             customizeWorkspace = { baseline, submitted ->
                 check(browserMenu()?.customizationEnabled == true && connection.allowsSaved(browserMac) &&
                     store.visiblePairedMacs().contains(browserMac) && ownsBrowserDestination(localBrowser, localBrowsers.state.value.local)) { "Browser workspace changed." }
@@ -3005,6 +3007,16 @@ internal fun NativeScreen(
             }
         }
     }
+    val sidebarSelection: NativeSidebarSelection? = when {
+        sshRoute != null -> displayedSshTarget?.let { NativeSidebarSelection.Ssh(sshRoute.host, it) }
+        showSettings || showTaskComposer || workspaceRoute != null || currentIncomingRoute != null -> null
+        localBrowser != null -> pairedMacs.singleOrNull {
+            localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key
+        }?.let { NativeSidebarSelection.Mac(it, localBrowser.key.workspaceId) }
+        else -> (selectedChangesWorkspace ?: selectedWorkspace)?.let { workspace ->
+            pairedMacs.singleOrNull { it.code == code }?.let { NativeSidebarSelection.Mac(it, workspace.id) }
+        }
+    }
     val workspaceListContent: @Composable ColumnScope.() -> Unit = {
         LaunchedEffect(sshSession, feedForeground) { if (feedForeground) sshSession?.workspaceFeed?.refreshConnected() }
         LaunchedEffect(sshSession, feedForeground, selectedSshComputer?.host, selectedSshComputer?.connection?.phase) {
@@ -3180,7 +3192,7 @@ internal fun NativeScreen(
                         else -> NativeFeedAvailability.OFFLINE
                     }
                     key(browserLogin, row.host.id, row.generation, row.registry) {
-                        NativeWorkspaceRow(row.workspace, displayPreferences = displayState, availability = availability,
+                        NativeWorkspaceRow(row.workspace, isSelected = sidebarSelection.matches(row), displayPreferences = displayState, availability = availability,
                             canClose = sshSession?.workspaceFeed?.canClose(row) == true, handlesHold = true,
                             closeConfirmation = row.confirmation, onOpen = {
                                 if (store.taskSession() == browserLogin && browserLogin != null && sshSession?.workspaceFeed?.isCurrent(row) == true) {
@@ -3223,7 +3235,8 @@ internal fun NativeScreen(
                     val owner = entry.source
                     if (entry is WorkspaceListEntry.Header) {
                         val group = entry.group
-                        NativeGroupHeaderRow(group,
+                        NativeGroupHeaderRow(group, isSelected = sidebarSelection.matches(owner.mac, group.liveAnchorWorkspaceId) &&
+                            owner.workspaces.any { it.id == group.liveAnchorWorkspaceId },
                             expanded = !group.isCollapsed,
                             unread = entry.unread,
                             onOpen = group.liveAnchorWorkspaceId?.takeIf { id -> owner.workspaces.any { it.id == id } }?.let { anchor ->
@@ -3252,7 +3265,7 @@ internal fun NativeScreen(
                     Column(Modifier.padding(start = if (entry.indented) 18.dp else 0.dp)
                         .semantics { contentDescription = "${workspace.title} on ${appearances.name(owner.mac)}" }) {
                     NativeWorkspaceRow(
-                        workspace = workspace, canCustomize = owner.canCustomizeWorkspace(),
+                        workspace = workspace, isSelected = sidebarSelection.matches(owner.mac, workspace.id), canCustomize = owner.canCustomizeWorkspace(),
                         displayPreferences = displayState,
                         availability = owner.availability, changesChip = owner.changes[workspace.id],
                         canReadState = "workspace.read_state.v1" in owner.capabilities,
@@ -3489,6 +3502,7 @@ internal fun NativeScreen(
                     onDisplayed = { target, localBrowser ->
                     if (store.taskSession() == sshRoute.login && sshSession.isOpen &&
                         sshSession.hosts.state.value.host(sshRoute.host.id)?.connectsLike(sshRoute.host) == true) {
+                        displayedSshTarget = target
                         (if (localBrowser) NativeWorkspaceTab.LocalBrowser else target.rememberedTab())?.let { tab ->
                             store.rememberWorkspaceTab(sshRoute.login, sshWorkspaceTabKey(sshRoute.login, sshRoute.host, target), tab)
                         }
@@ -3588,8 +3602,10 @@ internal fun NativeWorkspaceRow(
     handlesHold: Boolean = false, closeConfirmation: WorkspaceCloseConfirmation? = WorkspaceCloseConfirmation.mac,
     onOpen: () -> Unit,
     onAction: (String, String?) -> Unit,
-    remoteGroupMenu: (@Composable (onBack: () -> Unit, onDismiss: () -> Unit) -> Unit)? = null
+    remoteGroupMenu: (@Composable (onBack: () -> Unit, onDismiss: () -> Unit) -> Unit)? = null,
+    isSelected: Boolean = false
 ) {
+    val highlighted = isSelected && LocalWorkspaceShellChrome.current.split
     val menu = rememberWorkspaceContextMenu(workspace.id)
     var groupPicker by remember(menu, menu.expanded) { mutableStateOf(false) }
     val canMoveGroups = !groupMoveMenu.isEmpty || remoteGroupMenu != null
@@ -3615,6 +3631,7 @@ internal fun NativeWorkspaceRow(
         Modifier.combinedClickable(onClick = openRow, onLongClick = { if (hasMenu) { dismissSwipe(); menu.expanded = true } })
         else Modifier.clickable(onClick = openRow))
         .semantics {
+            selected = highlighted
             if (hasMenu) onLongClick("Show workspace actions") { dismissSwipe(); menu.expanded = true; true }
             customActions = buildList {
                 addAll(moveActions)
@@ -3624,7 +3641,9 @@ internal fun NativeWorkspaceRow(
             }
             stateDescription = listOfNotNull("Pinned".takeIf { workspace.isPinned },
                 workspace.unreadState.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
-        }.padding(horizontal = 18.dp, vertical = 8.dp).testTag("workspace.row:${workspace.id}"), verticalAlignment = Alignment.CenterVertically) {
+        }.padding(horizontal = 18.dp)
+        .background(if (highlighted) nativeAccent.copy(alpha = .14f) else Color.Transparent, RoundedCornerShape(14.dp))
+        .padding(horizontal = if (highlighted) 10.dp else 0.dp, vertical = 8.dp).testTag("workspace.row:${workspace.id}"), verticalAlignment = Alignment.CenterVertically) {
         NativeUnreadGutter(workspace.unreadState)
         val workspaceAccent = workspace.color?.takeIf { Regex("#[0-9a-fA-F]{6}").matches(it) }?.drop(1)?.toLongOrNull(16)
         Box(Modifier.width(3.dp).fillMaxHeight().padding(vertical = 5.dp)
@@ -3637,6 +3656,7 @@ internal fun NativeWorkspaceRow(
                     modifier = Modifier.size(11.dp).alignBy { it.measuredHeight }.testTag("workspace.pin:${workspace.id}"))
                 Text(workspace.title.ifBlank { "Workspace" }, Modifier.weight(1f).alignByBaseline().testTag("workspace.title:${workspace.id}"),
                     fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold,
+                    color = if (highlighted) nativeAccent else LocalContentColor.current,
                     maxLines = if (displayPreferences.wrapTitles) Int.MAX_VALUE else 1, overflow = TextOverflow.Ellipsis)
                 val locale = LocalConfiguration.current.locales[0]
                 val zone = java.util.TimeZone.getDefault()

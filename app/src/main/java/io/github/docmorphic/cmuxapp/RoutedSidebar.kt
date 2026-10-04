@@ -16,7 +16,7 @@ internal data class RoutedSidebarRow(
     val canRead: Boolean = false, val notificationContext: NativeFeedRowContext = NativeFeedRowContext(),
     val mutations: Set<RoutedSidebarMutationKind> = emptySet(),
     val canCustomize: Boolean = false, val createKey: String? = null,
-    val sshKind: SshWorkspaceKind? = null,
+    val sshKind: SshWorkspaceKind? = null, val selected: Boolean = false,
 ) {
     fun workspace() = NativeWorkspace(key, title, emptyList(), null, unread, activity, null, pinned,
         emptyList(), null, preview, color, subtitle, count, previewAt = previewAt)
@@ -63,6 +63,7 @@ internal interface RoutedSidebarHost {
     fun current(): Boolean
     fun initialQuery(): RoutedSidebarQuery = RoutedSidebarQuery()
     fun adopt(query: RoutedSidebarQuery) {}
+    fun withSelection(selection: NativeSidebarSelection?): RoutedSidebarHost = this
     fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot?
     fun resolve(key: String): (() -> Unit)?
     fun groupMenu(key: String, revision: String?, offset: Int): RoutedSidebarGroupPage { error("Group moves are unavailable") }
@@ -270,7 +271,7 @@ internal object RoutedSidebarWire {
                 .put("activity", value.activity?.takeIf(Double::isFinite)).put("previewAt", value.previewAt?.takeIf(Double::isFinite))
                 .put("mutations", JSONArray(value.mutations.map { it.name }.sorted()))
                 .put("customize", value.canCustomize).put("create", value.createKey?.let(::token))
-                .put("ssh_kind", value.sshKind?.name)
+                .put("ssh_kind", value.sshKind?.name).put("selected", value.selected)
                 .put("can_read", value.canRead).put("nested", value.notificationContext.nested)
                 .put("hide_headline", value.notificationContext.hideHeadline).put("hide_source", value.notificationContext.hideSource)
                 .put("hide_computer", value.notificationContext.hideComputer)
@@ -304,7 +305,7 @@ internal object RoutedSidebarWire {
                     NativeFeedAvailability.valueOf(item.getString("availability")), item.optInt("depth").coerceIn(0, 1),
                     item.optBoolean("expanded"), item.optBoolean("open"), item.optional("icon", 128), item.optBoolean("can_read"),
                     NativeFeedRowContext(item.optBoolean("nested"), item.optBoolean("hide_headline"), item.optBoolean("hide_source"), item.optBoolean("hide_computer")), mutations(item.optJSONArray("mutations") ?: JSONArray()), item.optBoolean("customize"), if (item.isNull("create")) null else token(item.getString("create")),
-                    if (item.isNull("ssh_kind")) null else SshWorkspaceKind.valueOf(item.getString("ssh_kind")))
+                    if (item.isNull("ssh_kind")) null else SshWorkspaceKind.valueOf(item.getString("ssh_kind")), item.optBoolean("selected"))
             } }, json.optInt("unread").coerceAtLeast(0), json.optBoolean("loading"), json.optional("status", 2048),
                 computerValues.filter { it.key in machineKeys }, selectedMachines,
                 if (json.isNull("sort_mode")) null else NativeWorkspaceSortMode.entries.single { it.raw == json.getString("sort_mode") }, actions,

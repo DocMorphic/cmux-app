@@ -116,7 +116,8 @@ internal fun SshComputersScreen(session: NativeSshSession, onBack: () -> Unit,
             fun openBrowser() {
                 if (!canCreate()) return
                 try {
-                    browser = SshBrowserPresentation(session.browsers.network(activeShell.hostId), sshBrowserWorkspace(target, activeShell.title))
+                    browser = SshBrowserPresentation(session.browsers.network(activeShell.hostId), sshBrowserWorkspace(target, activeShell.title),
+                        sidebarSelection = session.hosts.state.value.host(activeShell.hostId)?.let { NativeSidebarSelection.Ssh(it, target) })
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error
                     failure = error.message ?: "Could not open SSH browser"
