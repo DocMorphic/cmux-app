@@ -7,7 +7,7 @@ Scoped reference: cmux `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`,
 `MobileShellComposite+Helpers.swift`, and `MobileWorkspaceMetadataLimits.swift`.
 
 Android provides **Customize Workspace** in the workspace row menu and the
-shared native pane picker. The form contains name, pinned state, description,
+shared native pane picker, including the local browser. The form contains name, pinned state, description,
 and an optional workspace color. RGB sliders and hex entry cover opaque colors;
 this uses Android controls in place of Apple's system ColorPicker. Workspace
 color is shown as its own 3dp rail, separate from the Mac avatar's color.
@@ -76,11 +76,56 @@ stale test APK caused by editing during compilation. Those attempts are retained
 the synchronized rebuild and final four-case run pass. Editor saved-state testing
 does not establish full Activity/process restoration or live Mac acceptance.
 
+## Local browser process integration — 2026-10-04
+
+The routed browser now presents the same editor inside its existing Activity.
+Saving goes through its existing bound service to the main process's owning-Mac
+coordinator. Opening, cancelling or saving the editor does not finish the browser
+Activity, reload its WebView, discard page JavaScript state or release its host
+lease. The direct browser view also exposes the editor when its owner supports it.
+
+Only draft/result metadata crosses the process boundary. The service resolves
+the workspace from the registered browser session; the request cannot choose a
+Mac or workspace. The same-UID and attached-Messenger checks apply. The parent
+checks its current destination, account/pairing and capability snapshot again
+before invoking the coordinator. Live capability changes update the editor/menu
+while the parent Activity is stopped. SSH menus do not expose Mac metadata.
+
+One save per registered browser session is permitted. Browser-session exit
+cancels an in-flight save; removal of the editor sends cancellation through IPC.
+This stops future work but cannot undo a field the Mac has already accepted.
+Existing fresh-read/partial-failure reconciliation still applies on retry.
+A multi-field customization request has a 120-second outer IPC deadline; its
+individual Mac requests keep their existing deadlines. No save is auto-replayed.
+
+### Browser integration verification
+
+**14 JVM tests pass**: customization policy/RPC/coordinator (11) and routed
+return ownership (3). **Eight Android cases pass**: seven cases in 94.815s, plus
+the targeted IPC-cancellation case in 21.463s. These exercise the production
+browser Activity, bound service and proxy against a generated local HTTP page,
+with a fixture save callback in the main process. The coordinator's exact Mac RPC
+framing/conflict paths are covered separately; this is not live Mac acceptance.
+
+The tests verify failed-save retry, new metadata on reopening, capability
+revocation/restoration, page JavaScript state and request-count preservation,
+host-lease retention, cancellation across IPC, duplicate-save rejection,
+session-exit cancellation, metadata round trips and the three shared editor
+regressions. Form/page screenshots were inspected; both crash buffers were empty.
+The sole existing AVD was stopped and reaped after testing.
+
+Main debug APK SHA-256:
+`07be9ec71565b06364cbb5659c0107aa4f99cab0eba29344a3972028c65f63b6`.
+Local receipt: `captures/runtime/browser-workspace-customization/verification.json`.
+Signed build 517 is unchanged.
+
 ## Remaining acceptance
 
-The routed local-browser process has a separate pane command path and does not
-yet expose this editor. Offline entry-point parity still needs a source audit;
-the current menu is offered only for a connected owning Mac. Full
+Offline entry-point parity still needs the owning-Mac capability-lifetime audit.
+The scoped iOS `WorkspaceListRowModel` and `WorkspaceDetailContainer` use the two
+capabilities without an extra connection-status gate; its mutation path returns
+not-connected for an unavailable owner. Android currently requires a connected
+owning Mac at entry. Full
 Activity/process-restoration, physical Pixel/Mac
 metadata changes, broader row visuals and full source/UI parity remain separate
 acceptance work. This scoped feature does not establish completion of the app's

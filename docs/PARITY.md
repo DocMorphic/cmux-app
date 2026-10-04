@@ -12,6 +12,26 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — browser workspace customization (2026-10-04)
+
+[WORKSPACE_CUSTOMIZATION.md](WORKSPACE_CUSTOMIZATION.md#local-browser-process-integration--2026-10-04)
+adds the shared editor inside the routed browser Activity, with saves forwarded
+through its bound service to the owning-Mac coordinator. Page state and the
+browser host lease survive save/retry. The current destination/pairing/capabilities
+are rechecked; duplicate saves are rejected and editor/session retirement cancels
+in-flight work. The direct browser view also receives the customization action.
+
+**14 JVM + eight Android checks pass** (seven cases 94.815s, targeted IPC
+cancellation 21.463s). Real browser Activity/service/proxy with local HTTP and a
+fixture save callback verifies the process boundary; separate coordinator JVM
+checks cover Mac RPC behavior. Screenshots inspected, crash buffers empty, sole
+AVD stopped/reaped. No Pixel was available. Signed build 517 is unchanged.
+
+**Next:** owning-Mac capability lifetime/offline entry audit, full Activity/process
+restoration, physical Pixel/Mac metadata/browser/recovery and production connection
+graph acceptance; broader source/UI parity and the current-source signed gate.
+Provider-dependent push/feed configuration remains open. The overall goal is active.
+
 ## Latest checkpoint — workspace customization (2026-10-04)
 
 [WORKSPACE_CUSTOMIZATION.md](WORKSPACE_CUSTOMIZATION.md) adds the iOS name,

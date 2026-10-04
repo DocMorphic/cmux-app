@@ -27,7 +27,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null,
     sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null,
     browserState: () -> NativeBrowserPickerState = { NativeBrowserPickerState() },
-    menuSource: (() -> RoutedBrowserMenu?)? = null) {
+    menuSource: (() -> RoutedBrowserMenu?)? = null, customizeWorkspace: RoutedWorkspaceCustomizationSave? = null) {
     val creationEnabled = onNewWorkspace != null && onNewTerminal != null && onNewBrowser != null
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -40,6 +40,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     val currentMenuSource by rememberUpdatedState(menuSource)
     val currentCreationEnabled by rememberUpdatedState(creationEnabled)
     val currentSshPicker by rememberUpdatedState(sshPicker)
+    val currentCustomize by rememberUpdatedState(customizeWorkspace)
     fun readMenu(): RoutedBrowserMenu? {
         val source = currentMenuSource
         return (if (source == null) RoutedBrowserMenu(currentWorkspace, currentCreationEnabled, currentSshPicker, currentBrowserState())
@@ -115,7 +116,11 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             val held = lease
             val menu = checkNotNull(readMenu()) { "This workspace is no longer available" }
             val entry = RoutedBrowserSessions.register(context, owner, destination, menu.workspace, held::close, held::foreground,
-                browserModes, menu.creationEnabled, menu.sshPicker, menu.browserState)
+                browserModes, menu.creationEnabled, menu.sshPicker, menu.browserState, menu.customizationEnabled,
+                customize = { baseline, submitted ->
+                    check(ownsBrowserDestination(destination, navigation.state.value.local) && readMenu()?.customizationEnabled == true) { "Browser workspace changed." }
+                    checkNotNull(currentCustomize) { "Workspace customization is unavailable." }(baseline, submitted)
+                })
             registered = entry.id; requestId = entry.id
             launcher.launch(Intent(context, RoutedBrowserActivity::class.java).putExtra(RoutedBrowserProtocol.EXTRA, entry.id))
         } catch (error: Exception) {
@@ -137,7 +142,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     if (routed == false) visibleMenu?.let { menu ->
         LocalBrowserWorkspaceView(destination, navigation, menu.workspace, onClose, onRoute,
             onNewWorkspace.takeIf { menu.creationEnabled }, onNewTerminal.takeIf { menu.creationEnabled }, onNewBrowser.takeIf { menu.creationEnabled },
-            menu.sshPicker, onSshCommand, menu.browserState)
+            menu.sshPicker, onSshCommand, menu.browserState, customizeWorkspace.takeIf { menu.customizationEnabled })
     }
     else {
         fun back() {

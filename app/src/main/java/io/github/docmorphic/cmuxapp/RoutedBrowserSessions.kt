@@ -25,7 +25,9 @@ internal object RoutedBrowserSessions {
 
     internal class Entry(val id: String, val network: RoutedBrowserNetwork, val destination: LocalBrowserDestination,
         var workspace: NativeWorkspace, val release: () -> Unit, val probe: (Boolean) -> Unit, val modes: Boolean = false, var creationEnabled: Boolean = false,
-        var sshPicker: SshPickerPresentation? = null, var browserState: NativeBrowserPickerState = NativeBrowserPickerState()) {
+        var sshPicker: SshPickerPresentation? = null, var browserState: NativeBrowserPickerState = NativeBrowserPickerState(),
+        var customizationEnabled: Boolean = false, val customize: RoutedWorkspaceCustomizationSave? = null) {
+        val customizationMutex = Mutex()
         val exited = CompletableDeferred<Unit>()
         var surfaceWatch: Job? = null
         var menuRetired = false
@@ -38,7 +40,7 @@ internal object RoutedBrowserSessions {
 
     suspend fun register(context: Context, network: RoutedBrowserNetwork, destination: LocalBrowserDestination,
         workspace: NativeWorkspace, release: () -> Unit, probe: (Boolean) -> Unit, modes: Boolean = false, creationEnabled: Boolean = false,
-        sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState()): Entry = transitions.withLock {
+        sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState(), customizationEnabled: Boolean = false, customize: RoutedWorkspaceCustomizationSave? = null): Entry = transitions.withLock {
         val app = context.applicationContext
         stopBrowserProcess(app)
         active?.let(::finished)
@@ -53,7 +55,7 @@ internal object RoutedBrowserSessions {
         }
         cleanStorage(app)
         check(!network.retired.isCompleted) { "Browser account or computer changed" }
-        Entry(UUID.randomUUID().toString(), network, destination, workspace, release, probe, modes, creationEnabled, sshPicker, browserState).also { entry ->
+        Entry(UUID.randomUUID().toString(), network, destination, workspace, release, probe, modes, creationEnabled, sshPicker, browserState, customizationEnabled, customize).also { entry ->
             active = entry; probe(true)
             entry.surfaceWatch = scope.launch {
                 destination.surface.state.first { it.closed }
@@ -72,12 +74,12 @@ internal object RoutedBrowserSessions {
         entry.peer = peer; entry.death = death
         if (entry.menuRetired) entry.send(RoutedBrowserProtocol.RETIRE)
     }
-    fun refresh(id: String?, workspace: NativeWorkspace, creationEnabled: Boolean = false, sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState()) {
+    fun refresh(id: String?, workspace: NativeWorkspace, creationEnabled: Boolean = false, sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState(), customizationEnabled: Boolean = false) {
         val entry = live(id) ?: return
-        if (entry.workspace != workspace || entry.creationEnabled != creationEnabled || entry.sshPicker != sshPicker || entry.browserState != browserState) {
-            entry.workspace = workspace; entry.creationEnabled = creationEnabled; entry.sshPicker = sshPicker; entry.browserState = browserState
+        if (entry.workspace != workspace || entry.creationEnabled != creationEnabled || entry.sshPicker != sshPicker || entry.browserState != browserState || entry.customizationEnabled != customizationEnabled) {
+            entry.workspace = workspace; entry.creationEnabled = creationEnabled; entry.sshPicker = sshPicker; entry.browserState = browserState; entry.customizationEnabled = customizationEnabled
             entry.send(RoutedBrowserProtocol.CONTEXT, RoutedBrowserProtocol.context(workspace, entry.modes,
-                entry.destination.surface.linkedStreamPanelId, creationEnabled, sshPicker, browserState))
+                entry.destination.surface.linkedStreamPanelId, creationEnabled, sshPicker, browserState, customizationEnabled))
         }
     }
     fun refreshMenu(id: String?, menu: RoutedBrowserMenu?) {
@@ -87,7 +89,15 @@ internal object RoutedBrowserSessions {
             entry.send(RoutedBrowserProtocol.RETIRE)
             return
         }
-        refresh(id, menu.workspace, menu.creationEnabled, menu.sshPicker, menu.browserState)
+        refresh(id, menu.workspace, menu.creationEnabled, menu.sshPicker, menu.browserState, menu.customizationEnabled)
+    }
+    suspend fun customize(entry: Entry, baseline: WorkspaceCustomizationDraft, submitted: WorkspaceCustomizationDraft): WorkspaceCustomizationResult = coroutineScope {
+        check(live(entry.id) === entry && !entry.menuRetired && entry.customizationEnabled && entry.sshPicker == null) { "Workspace customization is no longer available." }
+        val action = checkNotNull(entry.customize) { "Workspace customization is unavailable." }
+        check(entry.customizationMutex.tryLock()) { "A workspace save is already in progress." }
+        val caller = currentCoroutineContext().job
+        val retirement = launch { entry.exited.await(); caller.cancel(CancellationException("Browser session ended")) }
+        try { action(baseline, submitted) } finally { retirement.cancel(); entry.customizationMutex.unlock() }
     }
     fun finished(entry: Entry) {
         if (entry.exited.isCompleted) return

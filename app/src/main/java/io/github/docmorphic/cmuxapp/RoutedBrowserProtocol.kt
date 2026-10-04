@@ -10,6 +10,8 @@ internal object RoutedBrowserProtocol {
     const val SNAPSHOT = 3
     const val FOREGROUND = 4
     const val DEBUG_LOGS = 5
+    const val CUSTOMIZE = 6
+    const val CANCEL_CUSTOMIZE = 7
     const val RETIRE = 100
     const val CONTEXT = 101
     const val EXTRA = "browser_request"
@@ -17,11 +19,13 @@ internal object RoutedBrowserProtocol {
     fun panes(workspace: NativeWorkspace, browserState: NativeBrowserPickerState = NativeBrowserPickerState()) = nativePanePickerRows(workspace, browserState)
     fun browserState(bundle: Bundle) = NativeBrowserPickerState(bundle.getBoolean("browser_support_known"), bundle.getBoolean("browser_streaming", true))
     fun context(workspace: NativeWorkspace, modes: Boolean = false, linkedPanel: String? = null, creationEnabled: Boolean = false,
-        sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState()) = Bundle().apply {
+        sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState(), customizationEnabled: Boolean = false) = Bundle().apply {
         putBoolean("browser_support_known", browserState.known); putBoolean("browser_streaming", browserState.streaming)
         putString("ssh_picker", sshPicker?.encode())
         putBoolean("creation_enabled", creationEnabled); putBoolean("modes", modes); putString("linked_panel", linkedPanel)
         putString("workspace", workspace.title)
+        putString("workspace_id", workspace.id)
+        putBundle("customization", if (customizationEnabled && sshPicker == null) RoutedWorkspaceCustomizationProtocol.draft(WorkspaceCustomizationDraft.from(workspace)) else null)
         putString("panes", JSONArray().also { rows -> panes(workspace, browserState).forEach {
             rows.put(JSONObject().put("kind", it.kind).put("id", it.id).put("title", it.title).put("simulator", it.simulator).put("fallback_browser", it.fallbackBrowser).put("surface_kind", it.surfaceKind))
         } }.toString())

@@ -25,8 +25,10 @@ internal fun LocalBrowserWorkspaceView(destination: LocalBrowserDestination, nav
     workspace: NativeWorkspace = destination.workspace, onClose: () -> Unit = {}, onRoute: (NativeWorkspaceRoute) -> Unit,
     onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null,
     sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null,
-    browserState: NativeBrowserPickerState = NativeBrowserPickerState()) {
+    browserState: NativeBrowserPickerState = NativeBrowserPickerState(), customizeWorkspace: RoutedWorkspaceCustomizationSave? = null) {
     val page by destination.surface.state.collectAsState()
+    var customize by androidx.compose.runtime.saveable.rememberSaveable(destination.surface.id) { mutableStateOf(false) }
+    if (customize && customizeWorkspace != null) NativeWorkspaceCustomizationSheet(workspace, { customize = false }, customizeWorkspace)
     fun open(terminal: String? = null, browser: String? = null, surface: String? = null) {
         navigation.leave(close = true)
         onRoute(NativeWorkspaceRoute(destination.key.computerId, workspace.id, terminalId = terminal,
@@ -46,7 +48,9 @@ internal fun LocalBrowserWorkspaceView(destination: LocalBrowserDestination, nav
             } else NativePanePicker(page.title ?: "Browser", rows, selected, Modifier.weight(1f), onSelect = { row ->
                 open(terminal = row.id.takeIf { row.kind == "terminal" }, browser = row.id.takeIf { row.kind == "browser" },
                     surface = row.id.takeIf { row.kind == "surface" })
-            }, onNewWorkspace, onNewTerminal, if (selected == null) ({}) else onNewBrowser, checksNewBrowser = selected == null, browserState = browserState)
+            }, onNewWorkspace, onNewTerminal, if (selected == null) ({}) else onNewBrowser, checksNewBrowser = selected == null, browserState = browserState, utilities = { close ->
+                if (customizeWorkspace != null) DropdownMenuItem(text = { Text("Customize Workspace") }, onClick = { close(); customize = true })
+            })
         }
         LocalBrowserPane(destination.surface) {
             onClose()

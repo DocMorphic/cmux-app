@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,7 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 internal data class RoutedBrowserUi(val surface: LocalBrowserSurface? = null,
     val panes: List<NativePanePickerRow> = emptyList(), val error: String? = null,
     val retired: Boolean = false, val restart: Boolean = false, val modes: Boolean = false, val linkedPanel: String? = null, val creationEnabled: Boolean = false,
-    val sshPicker: SshPickerPresentation? = null, val browserState: NativeBrowserPickerState = NativeBrowserPickerState())
+    val sshPicker: SshPickerPresentation? = null, val browserState: NativeBrowserPickerState = NativeBrowserPickerState(), val workspaceId: String? = null, val customization: WorkspaceCustomizationDraft? = null)
 
 internal class RoutedBrowserController(application: Application) : AndroidViewModel(application) {
     private val app = application.applicationContext
@@ -48,7 +49,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
                 latestContext = Bundle(message.data)
                 mutable.value = state.value.copy(panes = RoutedBrowserProtocol.panes(message.data),
                 modes = message.data.getBoolean("modes"), linkedPanel = message.data.getString("linked_panel"), creationEnabled = message.data.getBoolean("creation_enabled"),
-                sshPicker = SshPickerPresentation.decode(message.data.getString("ssh_picker")), browserState = RoutedBrowserProtocol.browserState(message.data))
+                sshPicker = SshPickerPresentation.decode(message.data.getString("ssh_picker")), browserState = RoutedBrowserProtocol.browserState(message.data), workspaceId = message.data.getString("workspace_id"),
+                customization = message.data.getBundle("customization")?.let(RoutedWorkspaceCustomizationProtocol::draft))
             }
             else -> replies.remove(message.arg1)?.complete(Bundle(message.data))
         }
@@ -68,7 +70,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
                     // Route setup suspends; a newer context can arrive before it finishes.
                     val metadata = latestContext ?: response
                     mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(metadata), retired = state.value.retired, modes = metadata.getBoolean("modes"), linkedPanel = metadata.getString("linked_panel"), creationEnabled = metadata.getBoolean("creation_enabled"),
-                        sshPicker = SshPickerPresentation.decode(metadata.getString("ssh_picker")), browserState = RoutedBrowserProtocol.browserState(metadata))
+                        sshPicker = SshPickerPresentation.decode(metadata.getString("ssh_picker")), browserState = RoutedBrowserProtocol.browserState(metadata), workspaceId = metadata.getString("workspace_id"),
+                        customization = metadata.getBundle("customization")?.let(RoutedWorkspaceCustomizationProtocol::draft))
                     publishForeground()
                     surface.state.collect { snapshot ->
                         request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(snapshot))
@@ -101,10 +104,24 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         args.putString(RoutedBrowserProtocol.EXTRA, requestId)
         try {
             peer.send(Message.obtain(null, kind).apply { arg1 = serial; data = args; replyTo = endpoint })
-            return withTimeout(20_000) { answer.await() }.also {
+            return withTimeout(if (kind == RoutedBrowserProtocol.CUSTOMIZE) 120_000 else 20_000) { answer.await() }.also {
                 it.getString("failure")?.let { message -> throw IllegalStateException(message) }
             }
-        } finally { replies.remove(serial) }
+        } finally {
+            replies.remove(serial)
+            if (kind == RoutedBrowserProtocol.CUSTOMIZE && !answer.isCompleted) runCatching {
+                peer.send(Message.obtain(null, RoutedBrowserProtocol.CANCEL_CUSTOMIZE).apply {
+                    arg1 = serial; data = Bundle().apply { putString(RoutedBrowserProtocol.EXTRA, requestId) }; replyTo = endpoint
+                })
+            }
+        }
+    }
+    suspend fun customize(baseline: WorkspaceCustomizationDraft, submitted: WorkspaceCustomizationDraft): WorkspaceCustomizationResult {
+        check(!state.value.retired && state.value.customization != null) { "Workspace customization is no longer available." }
+        return RoutedWorkspaceCustomizationProtocol.result(request(RoutedBrowserProtocol.CUSTOMIZE, Bundle().apply {
+            putBundle("baseline", RoutedWorkspaceCustomizationProtocol.draft(baseline))
+            putBundle("submitted", RoutedWorkspaceCustomizationProtocol.draft(submitted))
+        }))
     }
     suspend fun prepare(url: String?) {
         MobileDebugLog.trace(DebugOperation.BROWSER_PREPARE) { preparePage(url) }
@@ -164,6 +181,11 @@ class RoutedBrowserActivity : ComponentActivity() {
         controller.begin(id)
         setContent { CmuxTheme { CompositionLocalProvider(LocalDebugLogSource provides { controller.debugLogs() }) { NativeFeedbackHost(id) { Surface(Modifier.fillMaxSize()) {
             val ui by controller.state.collectAsState()
+            var customizing by rememberSaveable(id) { mutableStateOf(false) }
+            LaunchedEffect(ui.customization, ui.retired) { if (ui.customization == null || ui.retired) customizing = false }
+            if (customizing && !ui.retired) ui.customization?.let { draft ->
+                NativeWorkspaceCustomizationSheet(checkNotNull(ui.workspaceId), draft, { customizing = false }, controller::customize)
+            }
             BackHandler { leave("back") }
             LaunchedEffect(ui.retired, ui.restart) {
                 if (ui.retired) leave("retired") else if (ui.restart) leave("restart")
@@ -180,7 +202,9 @@ class RoutedBrowserActivity : ComponentActivity() {
                         onSelect = { leave("pane", it) },
                         onNewWorkspace = if (ui.creationEnabled) ({ leave("new_workspace") }) else null,
                         onNewTerminal = if (ui.creationEnabled) ({ leave("new_terminal") }) else null,
-                        onNewBrowser = if (selected == null) ({}) else if (ui.creationEnabled) ({ leave("new_browser") }) else null, checksNewBrowser = selected == null, browserState = ui.browserState)
+                        onNewBrowser = if (selected == null) ({}) else if (ui.creationEnabled) ({ leave("new_browser") }) else null, checksNewBrowser = selected == null, browserState = ui.browserState, utilities = { close ->
+                            if (ui.customization != null) DropdownMenuItem(text = { Text("Customize Workspace") }, onClick = { close(); customizing = true })
+                        })
                 }
                 if (ui.modes) {
                     val target = ui.panes.firstOrNull { it.kind == "browser" && it.id == ui.linkedPanel }

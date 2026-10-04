@@ -8,6 +8,7 @@ import kotlinx.coroutines.*
 /** Bound by the visible browser process, retaining the owning main process without a foreground service. */
 class RoutedBrowserHostService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val saves = mutableMapOf<Pair<String, Int>, Job>()
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         if (message.sendingUid != Process.myUid()) return@Handler true
         val peer = message.replyTo ?: return@Handler true
@@ -21,12 +22,23 @@ class RoutedBrowserHostService : Service() {
                 check(entry.peer?.binder == peer.binder) { "Browser session belongs to another presentation" }
                 when (kind) {
                     RoutedBrowserProtocol.OPEN -> {
-                        result.putAll(RoutedBrowserProtocol.context(entry.workspace, entry.modes, entry.destination.surface.linkedStreamPanelId, entry.creationEnabled, entry.sshPicker, entry.browserState))
+                        result.putAll(RoutedBrowserProtocol.context(entry.workspace, entry.modes, entry.destination.surface.linkedStreamPanelId, entry.creationEnabled, entry.sshPicker, entry.browserState, entry.customizationEnabled))
                         result.putString("storage", entry.network.storageId)
                         result.putInt("port", RoutedBrowserSessions.prepare(entry, entry.initial))
                         result.putString("surface", entry.destination.surface.id)
                         result.putString("url", entry.initial)
                     }
+                    RoutedBrowserProtocol.CUSTOMIZE -> {
+                        val key = entry.id to ticket
+                        check(key !in saves) { "Workspace save already submitted" }
+                        saves[key] = currentCoroutineContext().job
+                        try {
+                            result.putAll(RoutedWorkspaceCustomizationProtocol.result(RoutedBrowserSessions.customize(entry,
+                                RoutedWorkspaceCustomizationProtocol.draft(checkNotNull(args.getBundle("baseline"))),
+                                RoutedWorkspaceCustomizationProtocol.draft(checkNotNull(args.getBundle("submitted"))))))
+                        } finally { saves.remove(key) }
+                    }
+                    RoutedBrowserProtocol.CANCEL_CUSTOMIZE -> { saves[entry.id to ticket]?.cancel(); return@launch }
                     RoutedBrowserProtocol.PREPARE -> result.putInt("port", RoutedBrowserSessions.prepare(entry, args.getString("url")))
                     RoutedBrowserProtocol.SNAPSHOT -> entry.destination.surface.remote(entry.attachment, RoutedBrowserProtocol.snapshot(args))
                     RoutedBrowserProtocol.FOREGROUND -> entry.probe(args.getBoolean("active"))

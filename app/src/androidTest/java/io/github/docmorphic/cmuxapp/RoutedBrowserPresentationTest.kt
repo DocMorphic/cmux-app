@@ -52,6 +52,12 @@ class RoutedBrowserPresentationTest {
     private var browserState by mutableStateOf(NativeBrowserPickerState())
     private var menuWorkspace by mutableStateOf(workspace)
     private var menuCreationEnabled by mutableStateOf(true)
+    private var menuCustomizationEnabled by mutableStateOf(false)
+    private val customizationRequests = CopyOnWriteArrayList<WorkspaceCustomizationDraft>()
+    private var failCustomization = false
+    private var holdCustomization = false
+    private val customizationStarted = CompletableDeferred<Unit>()
+    private val customizationCancelled = CompletableDeferred<Unit>()
     private val creationRequests = CopyOnWriteArrayList<String>()
     private var frozenDestination by mutableStateOf<LocalBrowserDestination?>(null)
     private fun created(kind: String) { creationRequests += kind; navigation.leave(close = true) }
@@ -122,9 +128,88 @@ class RoutedBrowserPresentationTest {
                 RoutedBrowserHostLease({ holds.decrementAndGet(); releases.incrementAndGet() }, { probes += it })
             }, {}, { route = it }, browserModes = true,
                 onNewWorkspace = { created("workspace") }, onNewTerminal = { created("terminal") }, onNewBrowser = { created("browser") },
-                menuSource = { RoutedBrowserMenu(menuWorkspace, menuCreationEnabled, browserState = browserState) })
+                menuSource = { RoutedBrowserMenu(menuWorkspace, menuCreationEnabled, browserState = browserState, customizationEnabled = menuCustomizationEnabled) },
+                customizeWorkspace = { baseline, submitted ->
+                    customizationRequests += submitted
+                    if (holdCustomization) {
+                        customizationStarted.complete(Unit)
+                        try { awaitCancellation() } finally { customizationCancelled.complete(Unit) }
+                    }
+                    if (failCustomization) {
+                        failCustomization = false
+                        WorkspaceCustomizationResult(false, baseline, submitted, "Fixture save rejected")
+                    } else {
+                        menuWorkspace = menuWorkspace.copy(title = submitted.name, description = submitted.description,
+                            color = submitted.color, isPinned = submitted.pinned)
+                        WorkspaceCustomizationResult(true)
+                    }
+                })
         } } }
     }
+    @Test fun customizationSavesAndRetriesWithoutReloadingThePageOrReleasingItsHost() {
+        main { menuCustomizationEnabled = true; failCustomization = true }
+        browser("Routed fixture ▾")
+        text("Keep draft").click(); text("Draft portrait ▾")
+        val loads = paths.count { it == "/start" }
+        text("Draft portrait ▾").click(); text("Customize Workspace").click()
+        val name = checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText").text("Fixture workspace")), 5_000))
+        name.text = "Edited from browser"
+        text("Save").click()
+        text("Fixture save rejected"); text("OK").click()
+        text("Edited from browser")
+        capturePicker("browser-customization-retry")
+        text("Save").click()
+        assertTrue(device.wait(Until.gone(By.text("Customize Workspace")), 5_000))
+        text("Draft portrait ▾")
+        until { main { menuWorkspace.title == "Edited from browser" } }
+        assertEquals(listOf("Edited from browser", "Edited from browser"), customizationRequests.map { it.name })
+        assertEquals(loads, paths.count { it == "/start" })
+        assertEquals(1, holds.get()); assertEquals(0, releases.get())
+        capturePicker("browser-customization-page-preserved")
+        // The new authoritative values reach the paused parent/child context.
+        text("Draft portrait ▾").click(); text("Customize Workspace").click(); text("Edited from browser")
+        text("Cancel").click(); text("Draft portrait ▾")
+        assertEquals(2, customizationRequests.size)
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
+    }
+
+    @Test fun editorRemovalCancelsTheBoundServiceSaveWhileTheBrowserStaysOpen() {
+        main { menuCustomizationEnabled = true; holdCustomization = true }
+        browser("Routed fixture ▾")
+        text("Routed fixture ▾").click(); text("Customize Workspace").click()
+        checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText").text("Fixture workspace")), 5_000)).text = "Pending save"
+        text("Save").click()
+        until { customizationStarted.isCompleted }
+        text("Saving…")
+        main { menuCustomizationEnabled = false }
+        until { customizationCancelled.isCompleted }
+        assertTrue(device.wait(Until.gone(By.text("Customize Workspace")), 5_000))
+        text("Routed fixture ▾")
+        assertEquals(1, customizationRequests.size)
+        assertEquals("Fixture workspace", main { menuWorkspace.title })
+        assertEquals(1, holds.get()); assertEquals(0, releases.get())
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
+    }
+
+    @Test fun liveCapabilityRevocationClosesTheEditorWithoutSubmitting() {
+        main { menuCustomizationEnabled = true }
+        browser("Routed fixture ▾")
+        text("Routed fixture ▾").click(); text("Customize Workspace").click()
+        text("Use Workspace Color")
+        main { menuCustomizationEnabled = false }
+        assertTrue(device.wait(Until.gone(By.text("Customize Workspace")), 5_000))
+        text("Routed fixture ▾").click()
+        text("New Workspace")
+        assertFalse(device.hasObject(By.text("Customize Workspace")))
+        assertTrue(customizationRequests.isEmpty())
+        main { menuCustomizationEnabled = true }
+        text("Customize Workspace").click(); text("Cancel").click()
+        desc("Back to workspaces").click(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
+    }
+
     @Test fun pausedParentPublishesRenamedRemovedAndNewPanesWithoutReopeningBrowser() {
         browser("Routed fixture ▾")
         assertFalse(compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED))

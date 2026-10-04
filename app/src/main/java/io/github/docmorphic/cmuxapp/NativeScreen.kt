@@ -2443,7 +2443,8 @@ fun NativeScreen(
                 else feed?.let { NativeBrowserPickerState.from(it.availability == NativeFeedAvailability.CONNECTED, it.capabilities) }
                     ?: NativeBrowserPickerState(known = false, streaming = false)
             return RoutedBrowserMenu(currentWorkspace, !creatingWorkspace && !creatingTerminal &&
-                (primary || feed?.availability == NativeFeedAvailability.CONNECTED), browserState = support)
+                (primary || feed?.availability == NativeFeedAvailability.CONNECTED), browserState = support,
+                customizationEnabled = feed?.canCustomizeWorkspace() == true)
         }
         fun createFromBrowser(kind: NativeWorkspaceCreation) {
             val login = store.taskSession() ?: return
@@ -2470,7 +2471,12 @@ fun NativeScreen(
             onRoute = { workspaceRoute = it }, browserModes = true,
             onNewWorkspace = { createFromBrowser(NativeWorkspaceCreation.WORKSPACE) },
             onNewTerminal = { createFromBrowser(NativeWorkspaceCreation.TERMINAL) },
-            onNewBrowser = { createFromBrowser(NativeWorkspaceCreation.BROWSER) }, menuSource = ::browserMenu)
+            onNewBrowser = { createFromBrowser(NativeWorkspaceCreation.BROWSER) }, menuSource = ::browserMenu,
+            customizeWorkspace = { baseline, submitted ->
+                check(browserMenu()?.customizationEnabled == true && connection.allowsSaved(browserMac) &&
+                    store.visiblePairedMacs().contains(browserMac) && ownsBrowserDestination(localBrowser, localBrowsers.state.value.local)) { "Browser workspace changed." }
+                feedCoordinator.customizeWorkspace(browserMac, localBrowser.key.workspaceId, baseline, submitted)
+            })
     }
     val reconnectContent: @Composable ColumnScope.() -> Unit = {
         val reconnectOwner = NativeComputerMenuOwner(store.taskSession(), teamState.scope)

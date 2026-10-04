@@ -34,9 +34,15 @@ private val draftSaver = listSaver<WorkspaceCustomizationDraft, String>(
 @Composable
 internal fun NativeWorkspaceCustomizationSheet(workspace: NativeWorkspace, onDismiss: () -> Unit,
     save: suspend (WorkspaceCustomizationDraft, WorkspaceCustomizationDraft) -> WorkspaceCustomizationResult) {
-    var baseline by rememberSaveable(workspace.id, stateSaver = draftSaver) { mutableStateOf(WorkspaceCustomizationDraft.from(workspace)) }
-    var draft by rememberSaveable(workspace.id, stateSaver = draftSaver) { mutableStateOf(baseline) }
-    var selectedColor by rememberSaveable(workspace.id) { mutableStateOf(draft.color ?: "#007AFF") }
+    NativeWorkspaceCustomizationSheet(workspace.id, WorkspaceCustomizationDraft.from(workspace), onDismiss, save)
+}
+
+@Composable
+internal fun NativeWorkspaceCustomizationSheet(workspaceId: String, initial: WorkspaceCustomizationDraft, onDismiss: () -> Unit,
+    save: suspend (WorkspaceCustomizationDraft, WorkspaceCustomizationDraft) -> WorkspaceCustomizationResult) {
+    var baseline by rememberSaveable(workspaceId, stateSaver = draftSaver) { mutableStateOf(initial) }
+    var draft by rememberSaveable(workspaceId, stateSaver = draftSaver) { mutableStateOf(baseline) }
+    var selectedColor by rememberSaveable(workspaceId) { mutableStateOf(draft.color ?: "#007AFF") }
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
