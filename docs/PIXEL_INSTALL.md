@@ -3,7 +3,56 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 554 (2026-10-04)
+## Current signed development APK — build 563 (2026-10-04)
+
+[Build 563](https://github.com/DocMorphic/cmux-app/actions/runs/37227751835)
+passed at `2b8aa38158b0ea17912eaa01810e8cec2a4cd54d`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37227751835/artifacts/11313356187)
+and extract `app-release.apk` (repository access required). PR #1 remains a draft;
+this is an Actions development artifact, not a published GitHub release.
+
+This batch adds the browser's global workspace/notification sidebar, compound
+machine filters, sorting/order, both search scopes and unread filters, Settings,
+Computers and New Task navigation, and shared notification rows with history,
+swipe/menu read actions, confirmed bulk read and pull refresh. The main screen
+and browser share notification rendering and exact-pairing mutation guards.
+See [BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md) for focused feature evidence and gaps.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **563**, version 0.2.0.
+- SHA-256: `afab69c1702ca0b343c07fe8340a8ad36e3748c384949a23e7e1bb9cb5e6c007`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **228,269,847 bytes**; compressed artifact **120,174,941 bytes**.
+- Min SDK 26, target SDK 36; local file `build/signed-run-37227751835/app-release.apk`.
+
+CI passed app/Ghostty JVM tests, debug/test/release assembly, signed packaging
+and Android 17 / 16 KB ART verification; Gradle reported **8m 54s**. No total JVM
+test count is inferred from CI logs. Downloaded ZIP digest, artifact/run/source
+metadata and extracted APK digest matched GitHub/CI. Independent checks verified
+the stable signer, 14 viewer assets, 19 native LOAD/RELRO alignments, 16 KB ZIP
+alignment, disabled backup, non-debuggable manifest, notice-engine pin and the
+exclusion of eight debug fixture activities. All 19 native payloads match build
+554 byte-for-byte; this does not establish reproducible native rebuilds. CI x86_64
+and local arm64 API 37 ART accepted `NativeScreenKt` with 1,394 methods.
+
+The sole existing API 37 / 16,384-byte arm64 emulator upgraded **554 → 563** with
+`install -r`, retaining first-install time `2026-09-30 01:57:49`. Explicit stop/start
+reached MainActivity with **COLD / 1,694 ms**. Before/after sign-in screenshots were
+visually inspected: no compatibility warning or ANR dialog, `pageSizeCompat=0`,
+and an empty final crash buffer. This single launch is not a performance benchmark.
+The baseline was signed out; authenticated migration and physical Pixel/Mac
+acceptance remain unverified. Screen timeout/stay-awake settings were unchanged.
+The existing emulator was stopped/reaped; no new AVD was created. The Pixel was
+absent from ADB and untouched.
+
+Evidence: `captures/runtime/release-2b8aa38/` (ignored), including CI/provenance,
+package/runtime receipts, screenshots and native comparison. Next work is
+notification expansion stability and main/browser restoration, workspace/group
+actions, global workspace creation and selection refinements. Production push/
+notice configuration, legacy tickets, physical/network/process recovery and the
+broader upstream audit remain open. The goal remains active; scheduled upstream/
+preview workflows still await merge to main, and the global parity pin is unchanged.
+
+## Previous signed development APK — build 554 (2026-10-04)
 
 [Build 554](https://github.com/DocMorphic/cmux-app/actions/runs/37215611518)
 passed at `0da7bb50590b972f0d4d9dbae42851677e874fdc`. Download the

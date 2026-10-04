@@ -301,3 +301,28 @@ expansion stability across changing groups and expansion-state hand-back to the
 parent remain open, as do workspace/group actions and global workspace creation.
 The full goal remains active; PR #1 remains draft. Signed 554 stays the last
 verified download until the next batched signed build completes verification.
+
+### Expansion restoration audit (2026-10-04; implementation pending)
+
+At the same scoped iOS ref, `NotificationFeedProjection.swift:219–236` retains
+previous group identity and transfers expansion through surviving notification
+members when retention removes an anchor. Android's `NativeFeedProjection.build`
+already implements that rule for the main feed, but the routed host currently
+passes an empty previous projection on every read. Its query only retains opaque
+group anchors, so removal of the oldest event can collapse visible history.
+
+`NativeSidebarPresentation`, `NativeScreen.sidebarInitial` and `sidebarAdopt`
+also omit notification expansion and workspace collapse overrides. The browser
+controller only reconciles machine filters from the authoritative response;
+expansion reconciliation must likewise reach its query before subsequent polls
+and final hand-back. Browser sessions have one active entry, but the native host
+outlives an individual presentation. Any retained projection must have explicit
+presentation/account/team ownership and must reject replaced pairings.
+
+The next implementation needs evidence for anchor removal with surviving members,
+explicit collapse surviving refresh, no expansion resurrection after all members
+vanish, and main → browser → main restoration. It must also cover a replacement
+pairing and changing computer/search scopes. Workspace collapse overrides need
+their own hand-back. Exercise changing history in the real Activity/service path,
+including return to the parent, while preserving the browser page and unsent
+input. These are identified gaps and acceptance checks, not completed features.

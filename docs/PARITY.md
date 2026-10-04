@@ -12,7 +12,34 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — shared browser notification presentation and actions (2026-10-04)
+## Latest checkpoint — signed browser-sidebar batch 563 verified (2026-10-04)
+
+Signed build **563** at `2b8aa38158b0ea17912eaa01810e8cec2a4cd54d` is the latest
+verified download. It includes the browser sidebar, filters/sorting/search,
+Settings/Computers/New Task navigation and shared notification actions below.
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) records the artifact, hashes and exact scope.
+CI passed JVM/APK/packaging/Android 17 ART checks (Gradle **8m54s**). Independent
+checks confirmed artifact provenance, stable signer, 14 assets, 19 native alignment
+checks and exclusion of eight debug fixtures. CI and local arm64 ART accepted the
+release class with 1,394 methods.
+
+The existing API37/16KB emulator upgraded **554 → 563** without clearing data,
+retained first-install time and cold-launched MainActivity in **1,694 ms**. Sign-in
+screenshots were inspected, the crash buffer was empty and `pageSizeCompat=0`.
+This is signed-out emulator evidence, not authenticated migration, physical
+acceptance or a performance benchmark. Display settings were unchanged; the
+emulator was stopped/reaped and no new AVD created. The Pixel was absent/untouched.
+Local receipts: `captures/runtime/release-2b8aa38/` (ignored).
+
+The scoped expansion audit confirmed that iOS retains expansion through surviving
+notification members. The browser currently resets prior projection membership
+and omits expansion/collapse state from parent hand-back. The next implementation
+and acceptance checks are in [BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md). No expansion
+fix is claimed here. Workspace/group actions, global workspace creation, selection,
+live account/network acceptance, configured push/notice feed, legacy tickets and
+the broader upstream audit remain open. PR #1 stays draft; the goal remains active.
+
+## Earlier checkpoint — shared browser notification presentation and actions (2026-10-04)
 
 The browser now uses the main feed's display-only notification row renderer:
 relative time, nested metadata, history disclosure, read state, swipe, long-press
