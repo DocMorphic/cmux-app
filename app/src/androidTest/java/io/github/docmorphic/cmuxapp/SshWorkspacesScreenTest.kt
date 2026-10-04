@@ -110,6 +110,61 @@ class SshWorkspacesScreenTest {
         File(compose.activity.getExternalFilesDir(null), "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }
+    @Test fun mainChooserCreatesEverySshKindWithoutMutatingTheMacAndRestoresWithoutReplay() {
+        verifyMainChooser(withMac = true)
+    }
+
+    @Test fun mainChooserCreatesWithOnlyAnSshComputerAndNoMacPairing() {
+        verifyMainChooser(withMac = false)
+    }
+
+    private fun verifyMainChooser(withMac: Boolean) {
+        check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk"))
+        val store = NativeCredentialStore(compose.activity)
+        val peer = if (withMac) NativeFixturePeer() else null
+        store.clear()
+        store.update {
+            it.put("refresh_token", "emulator-ssh-main-fixture")
+            if (withMac) it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465")
+        }
+        val restoration = StateRestorationTester(compose)
+        try {
+            restoration.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, sshSessionOverride = session, connector = NativeConnector { _, _ ->
+                    checkNotNull(peer) { "No Mac pairing in this fixture" }
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            val kinds = if (withMac) SshWorkspaceKind.entries else listOf(SshWorkspaceKind.SHELL)
+            for (kind in kinds) {
+                compose.waitUntil(15000) { compose.onAllNodes(hasContentDescription("New Workspace") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithContentDescription("New Workspace").performClick()
+                if (withMac) compose.onNodeWithTag("workspace.create.ssh:$hostId").performClick()
+                capture(if (withMac) "main-ssh-kind-chooser" else "ssh-only-kind-chooser")
+                compose.onNodeWithTag("ssh.workspace.create.${kind.name}").performClick()
+                ready(); send("Main chooser ${kind.name}")
+                val before = terminalIdentity()
+                val shellCount = session.shells.state.value.size
+                restoration.emulateSavedInstanceStateRestore()
+                ready(); assertEquals(before, terminalIdentity())
+                assertEquals(shellCount, session.shells.state.value.size)
+                waitText("Main chooser ${kind.name}")
+                capture("main-ssh-created-${kind.name}")
+                compose.onNodeWithText("Back").performClick()
+            }
+            assertTrue(peer?.requests?.none { it.optString("method") == "workspace.create" } != false)
+            assertEquals(1, session.shells.state.value.count { it.hostId == hostId })
+            if (withMac) {
+                val owned = cmux.state.value.providers.single { it.session == "cmux-android" }
+                assertEquals(1, owned.state.value.tree!!.workspaces.size)
+                val tmux = runBlocking { session.tmux.open(hostId) }
+                assertEquals(2, tmux.state.value.workspaces.size) // original fixture + exactly one new session
+            }
+        } finally {
+            compose.activity.finish(); peer?.close(); store.clear()
+        }
+    }
+
     @Test fun creationMenuOpensEachKindOnItsOwningHostAndRejectsAnEditedRoute() {
         show(); ready("ssh.cmux.create-owned")
         fun create(kind: SshWorkspaceKind) {

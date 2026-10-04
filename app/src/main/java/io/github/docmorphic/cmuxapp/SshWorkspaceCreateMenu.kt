@@ -29,26 +29,34 @@ internal fun SshWorkspaceCreateMenu(host: SshHostRecord?, options: List<SshWorks
         TextButton(onClick = { open = true }, enabled = enabled && host != null,
             modifier = Modifier.semantics { contentDescription = "New Workspace" }.testTag("ssh.workspace.create")) { Text("+") }
         DropdownMenu(open && openingHost != null, onDismissRequest = { open = false }) {
-            openingOptions.forEach { option ->
-                val available = currentOptions.singleOrNull { it.kind == option.kind }?.unavailableReason == null &&
-                    currentOptions.any { it.kind == option.kind }
-                DropdownMenuItem(text = { Column {
-                    Text(option.kind.title)
-                    option.unavailableReason?.let { Text(it, style = MaterialTheme.typography.labelMedium) }
-                } }, enabled = option.unavailableReason == null && available && enabled,
-                    modifier = Modifier.testTag("ssh.workspace.create.${option.kind.name}"),
-                    leadingIcon = { Icon(painterResource(when (option.kind) {
-                        SshWorkspaceKind.CMUX_TUI -> R.drawable.ic_ssh_kind_cmux
-                        SshWorkspaceKind.TMUX -> R.drawable.ic_ssh_kind_tmux
-                        SshWorkspaceKind.SHELL -> R.drawable.ic_workspace_terminal
-                    }), null, Modifier.size(21.dp)) }, onClick = {
-                        open = false
-                        val target = openingHost
-                        if (target != null && currentEnabled && currentCheck(target) &&
-                            currentOptions.singleOrNull { it.kind == option.kind }?.let { it.unavailableReason == null } == true)
-                            onCreate(target, option.kind)
-                    })
-            }
+            SshWorkspaceKindMenuItems(openingOptions, enabled,
+                canCreate = { kind -> currentOptions.singleOrNull { it.kind == kind }?.unavailableReason == null && currentOptions.any { it.kind == kind } },
+                onCreate = { kind ->
+                    open = false
+                    val target = openingHost
+                    if (target != null && currentEnabled && currentCheck(target) &&
+                        currentOptions.singleOrNull { it.kind == kind }?.let { it.unavailableReason == null } == true)
+                        onCreate(target, kind)
+                })
         }
+    }
+}
+
+@Composable
+internal fun SshWorkspaceKindMenuItems(options: List<SshWorkspaceKindOption>, enabled: Boolean,
+    canCreate: (SshWorkspaceKind) -> Boolean, onCreate: (SshWorkspaceKind) -> Unit) {
+    options.forEach { option ->
+        DropdownMenuItem(text = { Column {
+            Text(option.kind.title)
+            option.unavailableReason?.let { Text(it, style = MaterialTheme.typography.labelMedium) }
+        } }, enabled = option.unavailableReason == null && canCreate(option.kind) && enabled,
+            modifier = Modifier.testTag("ssh.workspace.create.${option.kind.name}"),
+            leadingIcon = { Icon(painterResource(when (option.kind) {
+                SshWorkspaceKind.CMUX_TUI -> R.drawable.ic_ssh_kind_cmux
+                SshWorkspaceKind.TMUX -> R.drawable.ic_ssh_kind_tmux
+                SshWorkspaceKind.SHELL -> R.drawable.ic_workspace_terminal
+            }), null, Modifier.size(21.dp)) }, onClick = {
+                if (enabled && option.unavailableReason == null && canCreate(option.kind)) onCreate(option.kind)
+            })
     }
 }

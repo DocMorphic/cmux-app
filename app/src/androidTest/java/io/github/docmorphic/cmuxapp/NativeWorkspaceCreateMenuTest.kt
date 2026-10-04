@@ -10,6 +10,10 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
+import org.junit.After
+import kotlinx.coroutines.*
+import java.io.File
+import java.util.UUID
 
 class NativeWorkspaceCreateMenuTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
@@ -24,6 +28,28 @@ class NativeWorkspaceCreateMenuTest {
     private var allowed = true
     private val created = mutableListOf<NativeCredentialStore.PairedMac>()
 
+    private var sshTargets by mutableStateOf(emptyList<NativeSshCreateTarget>())
+    private val sshCreated = mutableListOf<Pair<UUID, SshWorkspaceKind>>()
+    private var sshAllowed = true
+    private var sshScope: CoroutineScope? = null
+    private var sshSession: NativeSshSession? = null
+    private var sshRoot: File? = null
+    private fun addSsh(count: Int) {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).also { sshScope = it }
+        var saved: String? = null
+        val hosts = SshHostStore({ saved }, { saved = it })
+        val root = File(compose.activity.noBackupFilesDir, "menu-test-${UUID.randomUUID()}").also { sshRoot = it }
+        val session = NativeSshSession(hosts, SshKeyVault(root, { true }, hosts::removeKeyReferences), scope) { scope.isActive }.also { sshSession = it }
+        sshTargets = (1..count).map {
+            val host = SshHostRecord(name = "SSH $it", endpoint = SshEndpoint("host$it.test", 22, "user"))
+            hosts.upsert(host)
+            NativeSshCreateTarget(session, host, null, sshWorkspaceKinds(null, null))
+        }
+    }
+    @After fun cleanupSsh() {
+        compose.runOnIdle { sshSession?.close(); sshScope?.cancel() }
+        sshRoot?.deleteRecursively()
+    }
     private fun content() {
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) { Column(Modifier.statusBarsPadding()) {
             NativeWorkspaceCreateMenu(rows, NativeMacAppearances(), NativeMacPresenceState(),
@@ -31,10 +57,34 @@ class NativeWorkspaceCreateMenuTest {
                     if (it.origin in connected) NativeFeedAvailability.CONNECTED else NativeFeedAvailability.OFFLINE) },
                 open, { open = it }, owner, selection, busy, { it == owner && allowed },
                 { NativeComputerMenuPairing.isCurrent(it, rows) && it.origin in connected },
-                { created += it }, null)
+                { created += it }, null, sshTargets = sshTargets,
+                canCreateSsh = { target, _ -> sshAllowed && sshTargets.any { it.session === target.session && it.host.connectsLike(target.host) } },
+                onCreateSsh = { target, kind -> sshCreated += target.host.id to kind })
         } } } }
     }
     private fun openMenu() = compose.onNodeWithContentDescription("New Workspace").performClick()
+
+    @Test fun mixedChooserKeepsIdenticalKindsBoundToTheirDisplayedSshHost() {
+        addSsh(2); rows = listOf(stable); content()
+        val first = sshTargets[0].host.id; val second = sshTargets[1].host.id
+        openMenu(); compose.onNodeWithTag("workspace.create.ssh:$first").performClick()
+        compose.onNodeWithTag("ssh.workspace.create.TMUX").performClick()
+        openMenu(); compose.onNodeWithTag("workspace.create.ssh:$second").performClick()
+        compose.onNodeWithTag("ssh.workspace.create.TMUX").performClick()
+        compose.runOnIdle { assertEquals(listOf(first to SshWorkspaceKind.TMUX, second to SshWorkspaceKind.TMUX), sshCreated); assertTrue(created.isEmpty()) }
+    }
+
+    @Test fun singleSshOpensKindsAndEditedRouteOrRevokedAuthorityCannotDispatch() {
+        addSsh(1); rows = emptyList(); content(); openMenu()
+        compose.onNodeWithTag("ssh.workspace.create.SHELL").assertIsDisplayed()
+        compose.runOnIdle { sshTargets = sshTargets.map { it.copy(host = it.host.copy(endpoint = it.host.endpoint.copy(port = 2222))) } }
+        compose.onNodeWithTag("ssh.workspace.create.SHELL").assertIsNotEnabled()
+        compose.runOnIdle { open = false }
+        openMenu()
+        compose.runOnIdle { sshAllowed = false }
+        compose.onNodeWithTag("ssh.workspace.create.SHELL").performClick()
+        compose.runOnIdle { assertTrue(sshCreated.isEmpty()) }
+    }
 
     @Test fun singleMacTapCreatesDirectlyAndHoldOnlyOpensOptions() {
         rows = listOf(stable)

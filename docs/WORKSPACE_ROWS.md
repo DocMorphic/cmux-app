@@ -1,5 +1,44 @@
 # Workspace row presentation
 
+## Latest checkpoint — SSH creation in All Computers (2026-10-04)
+
+The main plus chooser now includes saved SSH hosts beside native Macs. Mixed
+lists open a host's cmux-tui/tmux/shell submenu; a single SSH host opens its kinds
+directly. A selected Mac remains scoped to that Mac. Fresh login, host route,
+provider availability and session checks reject stale menu actions. SSH-only
+accounts can reach this chooser without a Mac pairing, and the existing shared
+trust/biometric prompt host handles connection admission.
+
+An account-owned coordinator retains one explicit creation through Activity
+recreation. Saved state contains a waiter ID and completed destination, never a
+create command. Restoring a pending operation into a new process reports its
+uncertain outcome without resending it. Leaving or changing the account/filter
+retires delayed navigation; completing a request opens the exact returned SSH
+terminal. Back returns to the main workspace list.
+
+**14 JVM tests and 12 Android tests passed** (149.274s for Android). The real
+private SSH/cmux-tui/tmux fixture created all three kinds from the main mixed
+chooser, accepted and echoed terminal input, preserved each terminal across
+saved-state recreation, created no duplicate sessions, and sent no workspace
+creation to the Mac peer. A separate SSH-only/no-Mac path passed. Existing Mac
+chooser routing, SSH screen creation, same-kind different-host selection and
+stale authority/route guards passed. The first build caught a malformed enum
+branch in empty-state text; it was fixed before runtime verification. Final
+build succeeded, screenshots inspected, source hashes matched, crash buffer
+empty. Evidence: `captures/runtime/main-ssh-creation/verification.json`.
+
+The existing AVD and private fixture were stopped/reaped, including their owned
+cmux/tmux processes. No new AVD, physical phone changes or signed milestone.
+Signed build **546** remains the latest download. The Pixel was absent from ADB;
+the physical browser/deadlock check remains pending.
+
+**Next:** unify existing SSH workspace rows and computer selection into the main
+feed. This checkpoint integrates creation/navigation only; existing SSH inventory
+is still opened from Computers. Compound filters/sort, wide layouts, broader
+upstream audit, legacy tickets, push/feed configuration and physical acceptance
+remain open. Goal active; PR draft; schedules await merge to main.
+
+
 Scoped iOS reference: `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`,
 `WorkspaceRow.swift`, `WorkspaceUnreadDot.swift`,
 `MobileWorkspacePreview+Display.swift`, `MobileMacConnectionStatus+Display.swift`

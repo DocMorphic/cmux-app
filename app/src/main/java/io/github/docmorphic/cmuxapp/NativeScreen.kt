@@ -88,10 +88,10 @@ private val nativeAccent = Color(0xFF76B9FF)
 private val nativeMuted = Color(0xFF9B9FA8)
 
 @Composable
-fun NativeScreen(
+internal fun NativeScreen(
     onUseHelper: () -> Unit, incomingCode: String? = null, incomingNotificationRoute: String? = null,
     onNotificationHandled: (String) -> Unit = {}, onPairingHandled: (String) -> Unit = {},
-    connector: NativeConnector? = null
+    connector: NativeConnector? = null, sshSessionOverride: NativeSshSession? = null
 ) {
     val context = LocalContext.current
     val runtimeOwner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
@@ -323,6 +323,16 @@ fun NativeScreen(
     val localBrowserState by localBrowsers.state.collectAsState()
     val localBrowser = localBrowserState.local
     val browserLogin = if (signedIn) store.taskSession() else null
+    val sshRuntimeState = sharedConnections?.ssh?.state?.collectAsState()?.value
+    val sshSession = if (connector != null) sshSessionOverride?.takeIf { browserLogin != null && it.isOpen }
+        else sshRuntimeState?.resource?.takeIf { sshRuntimeState.login == browserLogin && it.isOpen }
+    val sshCreationState = sshSession?.workspaceCreation?.state?.collectAsState()?.value
+    val sshTargets = nativeSshCreateTargets(sshSession)
+    val sshNavigation = rememberSaveable(saver = NativeSshCreationNavigation.saver) { NativeSshCreationNavigation() }
+    val sshRoute = sshNavigation.route?.takeIf { route -> route.login == browserLogin && sshSession?.isOpen == true &&
+        sshTargets.any { it.host.connectsLike(route.host) } }
+    val sshCreationBusy = sshCreationState is SshWorkspaceCreationState.Running
+
     var showWhatsNew by rememberSaveable(signedIn, browserLogin) { mutableStateOf(false) }
     var notificationRecovery by remember(currentIncomingRoute, browserLogin) { mutableStateOf(NativeNotificationRouteRecovery()) }
     fun inputOwner(mac: NativeCredentialStore.PairedMac, login: String?) = nativeTerminalInputOwner(mac, login)
@@ -352,7 +362,7 @@ fun NativeScreen(
     val terminalStartup = feedSession.terminalStartup
     val terminalStartupState by terminalStartup.state.collectAsState()
     val pendingWorkspaceTab by workspaceTabs.pending.collectAsState()
-    val displayedTab = if (showSettings || showTaskComposer || selectedChangesWorkspace != null || workspaceRoute != null || currentIncomingRoute != null) null
+    val displayedTab = if (sshRoute != null || showSettings || showTaskComposer || selectedChangesWorkspace != null || workspaceRoute != null || currentIncomingRoute != null) null
         else workspaceTabDisplay(browserLogin, teamState.scope, pairedMacs, code, selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, localBrowser)
     LaunchedEffect(browserLogin, pairedMacs) { workspaceSnapshots.retain(pairedMacs) }
     SideEffect {
@@ -363,7 +373,7 @@ fun NativeScreen(
             terminalStartup.observe(displayedTab?.first, selectedTerminal?.id)
         }
         if (workspaceRoute == null && !creatingTerminal && localBrowserState.creating == null) {
-            val destination = if (showSettings || showTaskComposer || currentIncomingRoute != null || pendingPairingCode != null) null else
+            val destination = if (sshRoute != null || showSettings || showTaskComposer || currentIncomingRoute != null || pendingPairingCode != null) null else
                 workspaceTabDisplay(browserLogin, teamState.scope, pairedMacs, code,
                     selectedChangesWorkspace ?: selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, localBrowser)
             screenResume.observe(destination?.let { (key, tab) ->
@@ -379,7 +389,7 @@ fun NativeScreen(
     NativeScreenResumeEffect(screenResume, browserLogin, teamState.scope, savedPairedMacs, pairedMacs,
         admissionReady = connector != null || teamState.scope != null,
         hasRetainedPane = selectedWorkspace != null || localBrowser != null || selectedChangesWorkspace != null,
-        newerNavigation = showSettings || showTaskComposer || currentIncomingRoute != null || incomingCode != null || pendingPairingCode != null ||
+        newerNavigation = sshRoute != null || showSettings || showTaskComposer || currentIncomingRoute != null || incomingCode != null || pendingPairingCode != null ||
             (workspaceRoute != null && workspaceRoute?.resume == null)) { route ->
         if (route != null || workspaceRoute?.resume != null) workspaceRoute = route
     }
@@ -393,7 +403,8 @@ fun NativeScreen(
     val navigationGeneration = remember { NativeNavigationGeneration() }
     fun browserNavigationContext() = listOf(signedIn, teamState.scope, code, workspaceRoute?.id,
         selectedWorkspace?.id, selectedTerminal?.id, selectedBrowser?.id, selectedSurface?.id,
-        selectedChangesWorkspace?.id, showSettings, showTaskComposer, notificationTab, currentIncomingRoute, localBrowser?.key)
+        selectedChangesWorkspace?.id, showSettings, showTaskComposer, notificationTab, currentIncomingRoute, localBrowser?.key,
+        showSshComputers, sshRoute)
     SideEffect {
         navigationGeneration.observe(browserNavigationContext())
         localBrowsers.retain(teamState.scope, signedIn, pairedMacs.map { it.origin }.toSet(), browserLogin)
@@ -483,6 +494,12 @@ fun NativeScreen(
     }
     val selectedComputer = pairedMacs.firstOrNull { it.ownsOrigin(selectedComputerOrigin) }
     val selectedOrigin = selectedComputer?.origin
+    SideEffect {
+        sshNavigation.reconcile(browserLogin, sshCreationState, browserNavigationContext() + selectedComputerOrigin,
+            hostCurrent = { host -> sshSession?.isOpen == true && sshSession.hosts.state.value.host(host.id)?.connectsLike(host) == true },
+            completed = { sshSession?.workspaceCreation?.clearCompleted(it) })?.let { error = it }
+    }
+
     var pendingPickerCode by remember(signedIn) { mutableStateOf<String?>(null) }
     var expectedReconnect by remember(signedIn) { mutableStateOf<NativeCredentialStore.PairedMac?>(null) }
     val pendingPickerComputer = pairedMacs.singleOrNull { it.code == pendingPickerCode }
@@ -1220,6 +1237,19 @@ fun NativeScreen(
                 recordWorkspaceActionFailure(failure)
             } finally { creatingWorkspace = false }
         }
+    }
+
+    fun canCreateSsh(target: NativeSshCreateTarget, kind: SshWorkspaceKind): Boolean =
+        signedIn && browserLogin != null && store.taskSession() == browserLogin && target.session === sshSession &&
+            target.session.isOpen && target.session.hosts.state.value.host(target.host.id)?.connectsLike(target.host) == true &&
+            sshTargets.singleOrNull { it.host.id == target.host.id && it.session === target.session }
+                ?.options?.singleOrNull { it.kind == kind }?.let { it.unavailableReason == null } == true
+    fun createSshWorkspace(target: NativeSshCreateTarget, kind: SshWorkspaceKind) {
+        if (creatingWorkspace || creatingTerminal || sshCreationBusy || !canCreateSsh(target, kind)) return
+        rawKeyboardView?.finishComposition(); directTyping = false
+        stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide(); workspaceTabs.cancel()
+        sshNavigation.begin(checkNotNull(browserLogin), target.session.workspaceCreation, target.host, kind,
+            browserNavigationContext() + selectedComputerOrigin)
     }
 
     fun createWorkspaceOnMac(mac: NativeCredentialStore.PairedMac, groupId: String? = null) {
@@ -2055,7 +2085,7 @@ fun NativeScreen(
         dismissButton = { TextButton(onClick = { showCreateGroup = false }) { Text("Cancel") } }
     )
 
-    if (signedIn) sharedConnections?.ssh?.let { NativeSshPromptHost(it) }
+    if (signedIn && sshSession != null) key(sshSession) { SshPromptHost(sshSession) }
 
     fun signOutCurrentAccount(owner: String? = null): Boolean = try {
         if (account.signOut(owner)) {
@@ -2114,7 +2144,7 @@ fun NativeScreen(
     val displayWarnings = cachedComputers?.warnings(displayPolicy) ?: compatibilityWarnings
         .filterKeys { it.owner == teamState.scope }.mapKeys { it.key.identity }
     val onboardingOwner = teamState.scope?.takeIf { accountTeams.isCurrent(it) }
-    val onboardingExplicitRoute = incomingCode != null || currentIncomingRoute != null || workspaceRoute != null
+    val onboardingExplicitRoute = sshRoute != null || incomingCode != null || currentIncomingRoute != null || workspaceRoute != null
     val onboardingEligible = nativeOnboardingEligible(onboardingProgress, signedIn, onboardingOwner != null,
         teamState.cached, onboardingExplicitRoute)
     val showOnboarding = (onboardingEligible && !showSettings && !showSshComputers) ||
@@ -2979,7 +3009,7 @@ fun NativeScreen(
                     appearances = appearances, presence = scopedPresence,
                     connections = computerConnections, open = createMenuOpen, onOpen = { createMenuOpen = it },
                     owner = NativeComputerMenuOwner(browserLogin, teamState.scope), selection = selectedOrigin,
-                    busy = creatingWorkspace || creatingTerminal,
+                    busy = creatingWorkspace || creatingTerminal || sshCreationBusy,
                     isOwnerCurrent = { owner -> signedIn && store.taskSession() == owner.login &&
                         accountTeams.state.value.scope == owner.team },
                     canCreate = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
@@ -2988,12 +3018,14 @@ fun NativeScreen(
                         } == true },
                     onCreate = { createWorkspaceOnMac(it) },
                     onGroup = if (canCreateOnCurrentMac && WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY in hostCapabilities &&
-                        "workspace.group_create.v1" in hostCapabilities) ({ showCreateGroup = true }) else null)
+                        "workspace.group_create.v1" in hostCapabilities) ({ showCreateGroup = true }) else null,
+                    sshTargets = if (selectedOrigin == null) sshTargets else emptyList(),
+                    canCreateSsh = ::canCreateSsh, onCreateSsh = ::createSshWorkspace)
 
             }
         }
-        if (busy && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot }) {
+        if ((busy || sshCreationBusy) && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()) {
             Column(Modifier.padding(horizontal = 18.dp)) {
                 Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
                 TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
@@ -3037,6 +3069,7 @@ fun NativeScreen(
                 NativeWorkspaceEmptyRow(when {
                     search.isNotBlank() -> NativeWorkspaceEmptyGuidance.SEARCH
                     unreadWorkspacesOnly -> NativeWorkspaceEmptyGuidance.UNREAD
+                    selectedOrigin == null && sshTargets.isNotEmpty() -> NativeWorkspaceEmptyGuidance.ALL_COMPUTERS
                     else -> NativeWorkspaceEmptyGuidance.MAC
                 }, emptyWorkspaceRecoveryState, onRetry = if (workspaceSources.isEmpty()) null else ({
                     val login = browserLogin
@@ -3150,6 +3183,9 @@ fun NativeScreen(
             showSettings && computersOwner != null -> computersContent()
             showSettings -> settingsContent()
             showTaskComposer -> taskComposerContent()
+            sshRoute != null && sshSession != null -> key(sshRoute.login, sshRoute.host.id) {
+                SshWorkspacesRoute(sshSession, sshRoute.host.id, sshRoute.target) { sshNavigation.leave() }
+            }
             screenResume.pending != null && selectedWorkspace == null && localBrowser == null -> {
                 NativeWorkspaceWaitingPane("Restoring workspace…",
                     onBack = { screenResume.cancel(); workspaceRoute = null },
@@ -3157,8 +3193,8 @@ fun NativeScreen(
                     onReconnect = { error = null; retryDelay = 2_000; retry++ })
             }
             localBrowser != null && pairedMacs.any { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key } -> localBrowserContent()
-            cachedComputers != null || code.isBlank() || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
-                (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot }))) -> reconnectContent()
+            (cachedComputers != null && sshTargets.isEmpty()) || (code.isBlank() && sshTargets.isEmpty()) || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
+                (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot } && sshTargets.isEmpty()))) -> reconnectContent()
             selectedWorkspace != null && selectedTerminal == null && selectedBrowser == null && selectedSurface == null && selectedChangesWorkspace == null -> {
                 val workspace = selectedWorkspace!!
                 val source = workspaceSourceForPane()
@@ -3207,7 +3243,7 @@ fun NativeScreen(
             selectedChangesWorkspace != null -> changesContent()
             else -> workspaceListContent()
         }
-        val visibleError = error ?: connectionError.takeIf { selectedTerminal != null || selectedBrowser != null || workspaceSources.isEmpty() }
+        val visibleError = error ?: connectionError.takeIf { sshRoute == null && (selectedTerminal != null || selectedBrowser != null || (workspaceSources.isEmpty() && sshTargets.isEmpty())) }
         if (signedIn && visibleError != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically) {
             Text(visibleError, Modifier.weight(1f).padding(vertical = 12.dp), color = Color(0xFFFFAAAA))

@@ -20,7 +20,7 @@ import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 
 @Composable
-internal fun SshWorkspacesRoute(session: NativeSshSession, hostId: UUID, onBack: () -> Unit) {
+internal fun SshWorkspacesRoute(session: NativeSshSession, hostId: UUID, initialTarget: SshWorkspaceTarget? = null, onBack: () -> Unit) {
     var tmux by remember(session, hostId) { mutableStateOf<SshTmuxHost?>(null) }
     var cmux by remember(session, hostId) { mutableStateOf<SshCmuxHost?>(null) }
     var connecting by remember(session, hostId) { mutableStateOf(false) }
@@ -60,7 +60,7 @@ internal fun SshWorkspacesRoute(session: NativeSshSession, hostId: UUID, onBack:
     val reconnect = { scope.launch { connect(true) }; Unit }
     val currentTmux = tmux; val currentCmux = cmux
     if (currentTmux != null && currentCmux != null)
-        SshWorkspacesScreen(session, hostId, currentTmux, currentCmux, recovery, connecting, failure, reconnect, onBack)
+        SshWorkspacesScreen(session, hostId, currentTmux, currentCmux, recovery, connecting, failure, reconnect, onBack, initialTarget)
     else Column(Modifier.padding(20.dp)) {
         BackHandler(onBack = onBack)
         TextButton(onClick = onBack) { Text("Back") }
@@ -75,7 +75,7 @@ private data class SshWorkspaceEnd(val name: String, val kind: PersistentSshWork
 
 @Composable
 internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: SshTmuxHost, cmux: SshCmuxHost,
-    recovery: Int, reconnecting: Boolean, reconnectError: String?, onReconnect: () -> Unit, onBack: () -> Unit) {
+    recovery: Int, reconnecting: Boolean, reconnectError: String?, onReconnect: () -> Unit, onBack: () -> Unit, initialTarget: SshWorkspaceTarget? = null) {
     val tmuxState by tmux.state.collectAsState()
     val cmuxState by cmux.state.collectAsState()
     val hosts by session.hosts.state.collectAsState()
@@ -84,7 +84,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     val connectionStatuses by session.connections.statuses.collectAsState()
     val providers = cmuxState.providers.map { provider -> key(provider) { provider to provider.state.collectAsState().value } }
     val scope = rememberCoroutineScope()
-    var selection by rememberSaveable(hostId.toString()) { mutableStateOf<String?>(null) }
+    var selection by rememberSaveable(hostId.toString(), initialTarget?.encode()) { mutableStateOf(initialTarget?.let { "$hostId\n${it.encode()}" }) }
     var opened by remember(session, hostId) { mutableStateOf<SshWorkspaceView?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
     var restoring by remember { mutableStateOf(false) }
@@ -95,7 +95,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     var ending by remember(session, hostId) { mutableStateOf<SshWorkspaceEnd?>(null) }
     var navigationEpoch by remember(session, hostId) { mutableIntStateOf(0) }
     fun select(target: SshWorkspaceTarget) { navigationEpoch++; selection = "$hostId\n${target.encode()}"; failure = null }
-    fun leave() { navigationEpoch++; selection = null; opened = null; browser = null; failure = null }
+    fun leave() { if (initialTarget != null) { onBack(); return }; navigationEpoch++; selection = null; opened = null; browser = null; failure = null }
     fun presentBrowser(provider: SshCmuxProvider?, target: SshWorkspaceTarget, title: String, panel: String? = null, url: String? = null) {
         val tree = provider?.state?.value?.tree
         val row = when (target) {

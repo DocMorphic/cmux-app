@@ -21,7 +21,7 @@ private data class WorkspaceCreateMenuRow(val mac: NativeCredentialStore.PairedM
     val buildLabel: String?, val connection: NativeComputerConnection)
 private data class WorkspaceCreateMenuOpening(val owner: NativeComputerMenuOwner, val selection: String?,
     val rows: List<WorkspaceCreateMenuRow>, val create: (NativeCredentialStore.PairedMac) -> Unit,
-    val group: (() -> Unit)?)
+    val group: (() -> Unit)?, val ssh: List<NativeSshCreateTarget>, val createSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Unit)
 
 /** Capture the displayed targets once; never let a later account/filter substitute a target under a tap. */
 @Composable
@@ -30,13 +30,18 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
     connections: Map<NativeMacIdentity, NativeComputerConnection>, open: Boolean, onOpen: (Boolean) -> Unit,
     owner: NativeComputerMenuOwner, selection: String?, busy: Boolean,
     isOwnerCurrent: (NativeComputerMenuOwner) -> Boolean, canCreate: (NativeCredentialStore.PairedMac) -> Boolean,
-    onCreate: (NativeCredentialStore.PairedMac) -> Unit, onGroup: (() -> Unit)?) {
+    onCreate: (NativeCredentialStore.PairedMac) -> Unit, onGroup: (() -> Unit)?,
+    sshTargets: List<NativeSshCreateTarget> = emptyList(),
+    canCreateSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Boolean = { _, _ -> false },
+    onCreateSsh: (NativeSshCreateTarget, SshWorkspaceKind) -> Unit = { _, _ -> }) {
     val opening = remember(open) {
         if (!open) null else WorkspaceCreateMenuOpening(owner, selection, macs.map { mac ->
             WorkspaceCreateMenuRow(mac, appearances.name(mac), presence.buildLabel(mac),
                 connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection())
-        }, onCreate, onGroup)
+        }, onCreate, onGroup, sshTargets, onCreateSsh)
     }
+    var selectedSsh by remember(open) { mutableStateOf<java.util.UUID?>(null) }
+    val currentSshCheck by rememberUpdatedState(canCreateSsh)
     val currentOwnerCheck by rememberUpdatedState(isOwnerCurrent)
     val currentCreateCheck by rememberUpdatedState(canCreate)
     val currentBusy by rememberUpdatedState(busy)
@@ -48,8 +53,8 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
             onOpen(false)
     }
     Box {
-        val single = macs.singleOrNull()
-        val enabled = !busy && isOwnerCurrent(owner) && macs.any(canCreate)
+        val single = macs.singleOrNull().takeIf { sshTargets.isEmpty() }
+        val enabled = !busy && isOwnerCurrent(owner) && (macs.any(canCreate) || sshTargets.any { target -> target.options.any { it.unavailableReason == null && canCreateSsh(target, it.kind) } })
         Box(Modifier.size(48.dp).clip(CircleShape).semantics { contentDescription = "New Workspace" }
             .combinedClickable(enabled = enabled, role = Role.Button,
                 onLongClickLabel = if (single != null) "Workspace creation options" else null,
@@ -66,7 +71,16 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
         DropdownMenu(open && opening?.owner == owner && opening.selection == selection,
             onDismissRequest = { onOpen(false) }) {
             opening?.let { menu ->
-                val multiple = menu.rows.size > 1
+                val multiple = menu.rows.size + menu.ssh.size > 1
+                val ssh = if (multiple) menu.ssh.singleOrNull { it.host.id == selectedSsh } else menu.ssh.singleOrNull()
+                if (ssh != null) {
+                    if (multiple) DropdownMenuItem(text = { Text("‹  ${ssh.name}") }, onClick = { selectedSsh = null })
+                    SshWorkspaceKindMenuItems(ssh.options, admitted(menu),
+                        canCreate = { currentSshCheck(ssh, it) }, onCreate = { kind ->
+                            onOpen(false)
+                            if (admitted(menu) && currentSshCheck(ssh, kind)) menu.createSsh(ssh, kind)
+                        })
+                } else {
                 if (multiple) DropdownMenuItem(text = { Text("New Workspace") }, enabled = false, onClick = {})
                 menu.rows.forEach { row ->
                     DropdownMenuItem(text = { Column {
@@ -81,8 +95,22 @@ internal fun NativeWorkspaceCreateMenu(macs: List<NativeCredentialStore.PairedMa
                             if (admitted(menu) && currentCreateCheck(row.mac)) menu.create(row.mac)
                         })
                 }
-                if (menu.group != null) HorizontalDivider()
-                if (menu.group != null && onGroup != null) DropdownMenuItem(text = { Text("New group") },
+                menu.ssh.forEach { target ->
+                    DropdownMenuItem(text = { Column {
+                        Text(target.name)
+                        if (target.connection?.phase != SshConnectionPhase.CONNECTED)
+                            Text(target.status, style = MaterialTheme.typography.labelMedium)
+                    } }, modifier = Modifier.testTag("workspace.create.ssh:${target.host.id}"),
+                        enabled = admitted(menu) && target.options.any { it.unavailableReason == null && currentSshCheck(target, it.kind) },
+                        trailingIcon = { NativeComputerStatusDot(NativeComputerConnection(when (target.connection?.phase) {
+                            SshConnectionPhase.CONNECTED -> NativeFeedAvailability.CONNECTED
+                            SshConnectionPhase.CONNECTING -> NativeFeedAvailability.CONNECTING
+                            else -> NativeFeedAvailability.OFFLINE
+                        }), NativeComputerPresence(), reconnect = false) }, onClick = { selectedSsh = target.host.id })
+                }
+                }
+                if (ssh == null && menu.group != null) HorizontalDivider()
+                if (ssh == null && menu.group != null && onGroup != null) DropdownMenuItem(text = { Text("New group") },
                     enabled = admitted(menu), onClick = {
                         onOpen(false)
                         if (admitted(menu) && currentGroupAvailable) menu.group()

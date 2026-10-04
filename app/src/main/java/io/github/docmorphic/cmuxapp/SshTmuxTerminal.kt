@@ -128,6 +128,7 @@ internal class SshTmuxHosts(private val connections: SshConnections<SshTransport
         check(job.isActive && admitted()) { "Sign in to open tmux workspaces" }
         connections.autoConnect(id)?.let { adopt(id, it) }
     }
+    internal fun peek(id: java.util.UUID): SshTmuxHost? = hosts[id]?.takeIf { it.connection.isConnected }
     internal fun adopt(id: java.util.UUID, connection: SshTransport): SshTmuxHost {
         check(job.isActive && admitted() && connection.isConnected)
         hosts[id]?.takeIf { it.connection === connection }?.let { return it }

@@ -167,6 +167,7 @@ internal class SshCmuxHosts(private val connections: SshConnections<SshTransport
     suspend fun autoOpen(id: UUID): SshCmuxHost? = withContext(Dispatchers.Main.immediate) {
         check(job.isActive && admitted()) { "Sign in to open workspaces" }; connections.autoConnect(id)?.let { adopt(id, it) }
     }
+    internal fun peek(id: UUID): SshCmuxHost? = hosts[id]?.takeIf { it.connection.isConnected }
     internal fun adopt(id: UUID, connection: SshTransport): SshCmuxHost {
         check(job.isActive && admitted() && connection.isConnected)
         hosts[id]?.takeIf { it.connection === connection }?.let { return it }
