@@ -36,6 +36,9 @@ internal class NativeSshCreationNavigation(saved: String? = null) {
         route = null; pendingLogin = login; pendingId = id; context = navigation.toList()
         return true
     }
+    fun open(login: String, host: SshHostRecord, target: SshWorkspaceTarget) {
+        leave(); route = SshCreatedWorkspaceRoute(login, host, target)
+    }
     fun leave() { route = null; pendingLogin = null; pendingId = null; context = null }
 
     /** Called from the UI owner after observing the retained coordinator's state. */

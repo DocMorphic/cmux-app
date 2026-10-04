@@ -110,6 +110,122 @@ class SshWorkspacesScreenTest {
         File(compose.activity.getExternalFilesDir(null), "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }
+    private fun withMainFeed(check: (NativeFixturePeer, StateRestorationTester) -> Unit) {
+        compose.runOnUiThread {
+            compose.activity.window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
+        check(android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.MODEL.contains("sdk"))
+        val store = NativeCredentialStore(compose.activity)
+        val peer = NativeFixturePeer()
+        store.clear(); store.update {
+            it.put("refresh_token", "emulator-ssh-feed-fixture")
+            it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465")
+        }
+        val restoration = StateRestorationTester(compose)
+        try {
+            restoration.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, sshSessionOverride = session, connector = NativeConnector { _, _ ->
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            compose.waitUntil(15000) { compose.onAllNodesWithText("Desktop cmux").fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+            check(peer, restoration)
+        } catch (failure: Throwable) {
+            runCatching { capture("ssh-feed-test-failure") }
+            throw failure
+        } finally { compose.activity.finish(); peer.close(); store.clear() }
+    }
+    private fun selectSshFeed() {
+        compose.onNodeWithContentDescription("Computer filter").performClick()
+        compose.onNodeWithTag("computer.select.ssh:$hostId").performClick()
+        compose.waitUntil { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isEmpty() }
+    }
+    private fun feedRow(kind: SshWorkspaceKind): SshFeedRow = session.workspaceFeed.state.value[hostId]!!.rows.first { it.kind == kind }
+    private fun openFeedClose(kind: SshWorkspaceKind) {
+        val row = feedRow(kind)
+        compose.onNodeWithTag("workspace.row:${row.key}").performScrollTo().performTouchInput { longClick() }
+        compose.onNodeWithText("Delete").performClick()
+        compose.onNodeWithText(row.confirmation.title).assertIsDisplayed()
+    }
+
+    @Test fun mainFeedListsFiltersSearchesAndOpensExistingSshInventoryWithoutMacRpc() = withMainFeed { peer, restoration ->
+        compose.onNodeWithText("desktop-tmux").assertIsDisplayed()
+        capture("main-unified-workspaces")
+        selectSshFeed()
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithText("Claude Code task").assertDoesNotExist()
+        compose.onNodeWithText("Desktop cmux").assertIsDisplayed()
+        compose.onNodeWithContentDescription("New Workspace").performClick()
+        compose.onNodeWithTag("ssh.workspace.create.TMUX").assertIsDisplayed()
+        androidx.test.espresso.Espresso.pressBack()
+        compose.onNodeWithContentDescription("Search").performClick()
+        compose.onNode(hasSetTextAction()).performTextReplacement("tmux")
+        compose.onNodeWithText("Desktop cmux").assertDoesNotExist()
+        capture("ssh-feed-search-results")
+        compose.waitUntil(5000) { compose.onAllNodesWithText("desktop-tmux").fetchSemanticsNodes().isNotEmpty() &&
+            compose.onNodeWithText("desktop-tmux").isDisplayed() }
+        compose.onNodeWithText("desktop-tmux").assertIsDisplayed()
+        capture("ssh-feed-search-keyboard")
+        compose.onNode(hasSetTextAction()).performTextReplacement("")
+        compose.onNode(hasSetTextAction()).performImeAction()
+        compose.onNodeWithText("Desktop cmux").performClick(); ready(); send("Opened from unified feed")
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("desktop-tmux").performClick(); ready(); send("Tmux from unified feed")
+        compose.onNodeWithText("Back").performClick()
+        assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.create", "workspace.close", "mobile.terminal.replay") })
+        capture("ssh-selected-workspaces")
+        compose.onNodeWithContentDescription("Computer filter").performClick()
+        compose.onNode(hasText("All Computers") and hasAnyAncestor(isPopup())).performClick()
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Computer filter").performClick()
+        compose.onNodeWithText("Add Computer").performClick()
+        compose.onNodeWithTag("computers.pairing.help").assertIsDisplayed()
+    }
+
+    @Test fun mainFeedClosePreservesConfirmationSnapshotAndTargetsOnlyTheSshWorkspace() = withMainFeed { peer, _ ->
+        selectSshFeed(); openFeedClose(SshWorkspaceKind.CMUX_TUI)
+        compose.onNodeWithText("Cancel").performClick()
+        assertEquals(1, provider().state.value.tree!!.workspaces.size)
+        openFeedClose(SshWorkspaceKind.CMUX_TUI)
+        val old = workspace()
+        runBlocking { provider().newScreen(old) }
+        compose.waitUntil { workspace().tabs.size == 2 }
+        compose.onNodeWithTag("workspace.close.confirm").performClick()
+        compose.waitUntil(10000) { session.workspaceFeed.state.value[hostId]?.error?.contains("contents changed") == true }
+        assertEquals(1, provider().state.value.tree!!.workspaces.size)
+        openFeedClose(SshWorkspaceKind.CMUX_TUI)
+        compose.onNodeWithTag("workspace.close.confirm").performClick()
+        compose.waitUntil(15000) { session.workspaceFeed.state.value[hostId]?.rows?.none { it.kind == SshWorkspaceKind.CMUX_TUI } == true }
+        compose.onNodeWithText("Desktop cmux").assertDoesNotExist()
+        compose.onNodeWithText("desktop-tmux").assertIsDisplayed()
+        openFeedClose(SshWorkspaceKind.TMUX)
+        compose.onNodeWithTag("workspace.close.confirm").performClick()
+        compose.waitUntil(10000) { session.workspaceFeed.state.value[hostId]?.rows?.isEmpty() == true }
+        compose.onNodeWithText("No workspaces yet").assertIsDisplayed()
+        assertTrue(peer.requests.none { it.optString("method") == "workspace.close" })
+    }
+
+    @Test fun mainFeedRetainsDisconnectedRowsHonorsPauseAndRetriesOnlyItsSshHost() = withMainFeed { peer, restoration ->
+        compose.runOnIdle { session.connections.disconnect(hostId) }
+        compose.waitUntil { session.hosts.state.value.host(hostId)?.autoConnectPaused == true }
+        selectSshFeed(); restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithTag("ssh.feed.retry:$hostId").assertIsEnabled()
+        compose.runOnIdle {
+            assertTrue(session.hosts.state.value.host(hostId)!!.autoConnectPaused)
+            assertEquals(SshConnectionPhase.IDLE, session.connections.statuses.value[hostId]?.phase)
+        }
+        compose.onNodeWithText("Desktop cmux").assertIsDisplayed()
+        capture("ssh-feed-disconnected")
+        compose.onNodeWithTag("ssh.feed.retry:$hostId").performClick()
+        compose.waitUntil(15000) { session.connections.statuses.value[hostId]?.phase == SshConnectionPhase.CONNECTED &&
+            session.workspaceFeed.state.value[hostId]?.rows?.size == 2 && session.workspaceFeed.state.value[hostId]?.loading == false }
+        assertFalse(session.hosts.state.value.host(hostId)!!.autoConnectPaused)
+        compose.waitUntil(10000) { compose.onAllNodesWithText("Desktop cmux").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Desktop cmux").performClick(); ready(); send("Reconnected from feed")
+        assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.create", "workspace.close", "mobile.terminal.replay") })
+    }
+
     @Test fun mainChooserCreatesEverySshKindWithoutMutatingTheMacAndRestoresWithoutReplay() {
         verifyMainChooser(withMac = true)
     }

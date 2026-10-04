@@ -81,6 +81,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
         }
     }
     val workspaceCreation = SshWorkspaceCreationCoordinator(lifetime, { isOpen }) { host, kind -> createWorkspace(host, kind) }
+    val workspaceFeed = NativeSshWorkspaceFeed(this, lifetime)
     val browsers = SshBrowserNetworks(hosts, connections, lifetime) { !closed && admitted() }
     fun answerBiometric(id: UUID, signature: java.security.Signature?) = synchronized(lock) {
         if (!closed && admitted()) requests.value.firstOrNull()?.takeIf { it.id == id }?.answer(signature)
@@ -90,7 +91,7 @@ internal class NativeSshSession(val hosts: SshHostStore, val vault: SshKeyVault,
             closed = true
             requests.value.forEach { it.cancel() }; requests.value = emptyList()
             installQuestions.value.forEach { it.cancel() }; installQuestions.value = emptyList()
-            workspaceCreation.close(); composerDrafts.close(); browsers.close(); shells.close(); tmux.close(); cmux.close(); connections.close()
+            workspaceCreation.close(); workspaceFeed.close(); composerDrafts.close(); browsers.close(); shells.close(); tmux.close(); cmux.close(); connections.close()
         }
     }
 }

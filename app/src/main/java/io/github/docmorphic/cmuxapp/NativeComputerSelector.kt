@@ -29,7 +29,8 @@ internal object NativeComputerMenuPairing {
 private data class ComputerMenuRow(val mac: NativeCredentialStore.PairedMac, val name: String,
     val selected: Boolean, val buildLabel: String?, val connection: NativeComputerConnection)
 private data class ComputerMenuOpening(val owner: NativeComputerMenuOwner, val allSelected: Boolean,
-    val rows: List<ComputerMenuRow>, val select: (NativeCredentialStore.PairedMac?) -> Unit, val pair: (() -> Unit)?)
+    val rows: List<ComputerMenuRow>, val select: (NativeCredentialStore.PairedMac?) -> Unit, val pair: (() -> Unit)?,
+    val ssh: List<NativeSshCreateTarget>, val selectedSsh: java.util.UUID?, val selectSsh: (NativeSshCreateTarget) -> Unit)
 
 @Composable
 internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>, selected: NativeCredentialStore.PairedMac?,
@@ -37,17 +38,20 @@ internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>,
     connections: Map<NativeMacIdentity, NativeComputerConnection>, open: Boolean, onOpen: (Boolean) -> Unit,
     onSelect: (NativeCredentialStore.PairedMac?) -> Unit, pending: NativeCredentialStore.PairedMac?, onPair: (() -> Unit)?,
     owner: NativeComputerMenuOwner, isOwnerCurrent: (NativeComputerMenuOwner) -> Boolean,
-    canSelect: (NativeCredentialStore.PairedMac) -> Boolean, presence: NativeMacPresenceState = NativeMacPresenceState()) {
+    canSelect: (NativeCredentialStore.PairedMac) -> Boolean, presence: NativeMacPresenceState = NativeMacPresenceState(),
+    sshTargets: List<NativeSshCreateTarget> = emptyList(), selectedSsh: NativeSshCreateTarget? = null,
+    canSelectSsh: (NativeSshCreateTarget) -> Boolean = { false }, onSelectSsh: (NativeSshCreateTarget) -> Unit = {}) {
     // Match iOS's deferred menu: capture presentation and callbacks once per opening.
     // Toolbar state remains live. Current authority is checked separately at every tap.
     val opening = remember(open) {
-        if (!open) null else ComputerMenuOpening(owner, selected == null && pending == null,
+        if (!open) null else ComputerMenuOpening(owner, selected == null && pending == null && selectedSsh == null,
             macs.map { mac -> ComputerMenuRow(mac, appearances.name(mac), (pending ?: selected)?.origin == mac.origin, presence.buildLabel(mac),
-                connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()) }, onSelect, onPair)
+                connections[NativeMacIdentity(mac.deviceId, mac.instanceTag)] ?: NativeComputerConnection()) }, onSelect, onPair, sshTargets, selectedSsh?.host?.id, onSelectSsh)
     }
     val currentOwner by rememberUpdatedState(owner)
     val currentOwnerCheck by rememberUpdatedState(isOwnerCurrent)
     val currentPairingCheck by rememberUpdatedState(canSelect)
+    val currentSshCheck by rememberUpdatedState(canSelectSsh)
     val dismiss by rememberUpdatedState(onOpen)
     fun admitted(menu: ComputerMenuOpening) = menu.owner == currentOwner && currentOwnerCheck(menu.owner)
     LaunchedEffect(open, owner) {
@@ -57,7 +61,7 @@ internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>,
         IconButton(onClick = { onOpen(true) }, modifier = Modifier.semantics {
             contentDescription = "Computer filter"
             stateDescription = pending?.let { "Connecting to ${appearances.name(it)}" }
-                ?: selected?.let(appearances::name) ?: "All Computers"
+                ?: selectedSsh?.name ?: selected?.let(appearances::name) ?: "All Computers"
         }) {
             if (pending != null) CircularProgressIndicator(Modifier.size(20.dp).testTag("computer.switch.progress"),
                 strokeWidth = 2.dp, color = Color(0xFF76B9FF))
@@ -82,6 +86,20 @@ internal fun NativeComputerSelector(macs: List<NativeCredentialStore.PairedMac>,
                     }, modifier = Modifier.semantics { this.selected = row.selected },
                         leadingIcon = { Text(if (row.selected) "✓" else " ") },
                         trailingIcon = { NativeMacAwakeIndicator(row.connection) })
+                }
+                menu.ssh.forEach { target ->
+                    DropdownMenuItem(text = { Text(target.name) },
+                        modifier = Modifier.testTag("computer.select.ssh:${target.host.id}").semantics { this.selected = menu.selectedSsh == target.host.id },
+                        leadingIcon = { Text(if (menu.selectedSsh == target.host.id) "✓" else " ") },
+                        enabled = admitted(menu) && currentSshCheck(target),
+                        trailingIcon = { NativeComputerStatusDot(NativeComputerConnection(when (target.connection?.phase) {
+                            SshConnectionPhase.CONNECTED -> NativeFeedAvailability.CONNECTED
+                            SshConnectionPhase.CONNECTING -> NativeFeedAvailability.CONNECTING
+                            else -> NativeFeedAvailability.OFFLINE
+                        }), NativeComputerPresence(), reconnect = false) }, onClick = {
+                            dismiss(false)
+                            if (admitted(menu) && currentSshCheck(target)) menu.selectSsh(target)
+                        })
                 }
                 menu.pair?.let { pair ->
                     HorizontalDivider()

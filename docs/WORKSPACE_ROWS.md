@@ -1,6 +1,57 @@
 # Workspace row presentation
 
-## Latest checkpoint — SSH creation in All Computers (2026-10-04)
+## Latest checkpoint — shared Mac/SSH feed (2026-10-04)
+
+Existing cmux-tui workspaces, tmux sessions and live phone shells now appear in
+All Computers with the same row presentation as Macs. SSH preview text names
+the workspace kind/session. The computer selector includes saved SSH hosts,
+retains a selected SSH host across saved-screen restoration, scopes creation
+and search to that host, and excludes unrelated Mac notifications. Add Computer
+still explicitly opens Mac pairing when SSH hosts are saved.
+
+The account-owned SSH inventory observes the existing providers and connections;
+it never routes SSH rows through Mac RPC or creates a second SSH connection
+manager. Connected hosts refresh when the list returns or the app foregrounds.
+A selected idle host auto-connects only when its existing pause/failure policy
+allows it. Retry and pull-to-refresh are explicit connection requests. Cached
+rows survive replacement-connection discovery until the new list is ready.
+Host removal/route edits retire observers and row actions. Close confirmations
+capture their displayed target/content; cmux-tui content changes reject a stale
+confirmation, and errors persist through background inventory refreshes.
+
+Scoped source: `MobileSSHComputers.swift`, `MobileSSHWorkspaceProviders.swift`,
+`MobileShellComposite+SSHComputers.swift`, `WorkspaceListView+MacSelection.swift`
+and `SSHWorkspaceListPanel.swift` at `0fc35d6`. The broad parity pin is unchanged.
+
+**23 JVM tests passed; 19 distinct Android checks passed across the verified
+runs.** The initial 19-case run had three failures: reconnect rows briefly
+vanished, a close rejection was overwritten by an inventory refresh, and search
+results moved offscreen when the test Activity's keyboard panned the window.
+The first two were fixed in the feed. The broader rerun passed 18 cases; the
+remaining search failure was traced with screenshots to the generic test
+Activity, which now uses the production manifest's `adjustResize` behavior.
+All three affected feed workflows then passed in **78.402s**, including search
+with the keyboard visible, real SSH terminal input/output, saved selection,
+paused reconnect/retry, stale-close rejection, correct cmux/tmux deletion and
+Add Computer. Mac peers received no SSH terminal/create/close RPC. Existing
+Mac selector/creation/deletion, SSH creation and drag checks passed in the
+broader run. Final source hashes matched and the crash buffer was empty.
+Evidence: `captures/runtime/main-ssh-feed/verification.json`; initial diagnostics
+and screenshots are retained. The last main/test build succeeded in 1m4s.
+
+The sole existing AVD and private SSH/cmux/tmux fixture were stopped/reaped.
+The Pixel remains absent from ADB and untouched. Signed build **546** is still
+the latest download; this feature has not dispatched another signed milestone.
+
+**Remaining:** preserve the last selected SSH pane when reopening a row, offer
+main-feed pane creation for an empty SSH workspace, and expand SSH search to
+pane metadata. Main-feed ordering currently places Mac sources before SSH
+hosts; the iOS compound machine/read filters and sort modes still need work.
+Wide layouts, broader source audit, legacy tickets, push/notice configuration
+and physical Pixel/Mac acceptance remain open. Goal active; PR draft; scheduled
+updates still await merge to main.
+
+## Earlier checkpoint — SSH creation in All Computers (2026-10-04)
 
 The main plus chooser now includes saved SSH hosts beside native Macs. Mixed
 lists open a host's cmux-tui/tmux/shell submenu; a single SSH host opens its kinds

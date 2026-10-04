@@ -32,7 +32,8 @@ internal fun NativeWorkspaceDragList(
     entries: List<WorkspaceListEntry>, reorderEnabled: Boolean, modifier: Modifier = Modifier,
     onMove: (NativeFeedSource, String, NativeWorkspaceMove) -> Boolean,
     rowHandlesAccessibility: Boolean = true,
-    before: LazyListScope.() -> Unit = {}, empty: @Composable () -> Unit,
+    before: LazyListScope.() -> Unit = {}, after: LazyListScope.() -> Unit = {},
+    hasOtherRows: Boolean = false, empty: @Composable () -> Unit,
     row: @Composable (WorkspaceListEntry) -> Unit
 ) {
     val list = rememberLazyListState()
@@ -139,7 +140,8 @@ internal fun NativeWorkspaceDragList(
                         LocalWorkspaceContextKey provides WorkspaceContextMenuKey(entry.key, entry.source.mac)) { row(entry) }
                 }
             }
-            if (entries.isEmpty()) item { empty() }
+            after()
+            if (entries.isEmpty() && !hasOtherRows) item { empty() }
         }
         val moving = dragged
         if (moving != null) {
