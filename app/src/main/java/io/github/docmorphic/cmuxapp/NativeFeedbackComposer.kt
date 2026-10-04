@@ -35,7 +35,16 @@ internal fun NativeFeedbackHost(owner: String?, email: String? = null,
     val modelOwner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
     val controller = remember(modelOwner) { ViewModelProvider(modelOwner)[NativeFeedbackViewModel::class.java].controller }
     val state by controller.state.collectAsState()
+    val haptics = rememberNativeHaptics()
     SideEffect { controller.bind(owner) }
+    // Distinct request ids survive StateFlow/frame conflation on immediate identical retries.
+    LaunchedEffect(owner, state.completion, state.completionId) {
+        when (controller.takeCompletion(owner)) {
+            NativeFeedbackCompletion.SUCCESS -> haptics.perform(NativeHaptic.SUCCESS)
+            NativeFeedbackCompletion.FAILURE -> haptics.perform(NativeHaptic.ERROR)
+            null -> Unit
+        }
+    }
     val snackbar = remember(owner) { SnackbarHostState() }
     val keyboard = LocalSoftwareKeyboardController.current
     CompositionLocalProvider(LocalNativeFeedback provides { keyboard?.hide(); controller.open(owner, email.orEmpty()) }) {

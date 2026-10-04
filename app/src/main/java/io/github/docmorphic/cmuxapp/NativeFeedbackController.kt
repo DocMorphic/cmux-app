@@ -6,8 +6,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 import java.util.UUID
 
+internal enum class NativeFeedbackCompletion { SUCCESS, FAILURE }
 internal data class NativeFeedbackState(val owner: String? = null, val id: String? = null, val email: String = "",
-    val message: String = "", val sending: Boolean = false, val error: String? = null, val receipt: String? = null)
+    val message: String = "", val sending: Boolean = false, val error: String? = null, val receipt: String? = null,
+    val completion: NativeFeedbackCompletion? = null, val completionId: Long = 0)
 
 /** Retains a live request across view recreation; saved state can restore a draft, never replay a POST. */
 internal class NativeFeedbackController(private val scope: CoroutineScope, restored: String? = null,
@@ -42,20 +44,29 @@ internal class NativeFeedbackController(private val scope: CoroutineScope, resto
     fun acknowledge(receipt: String) {
         if (state.value.receipt == receipt) update(state.value.copy(receipt = null))
     }
+    /** A live completion is consumed once across hosts/recreation; saved outcomes never buzz on restore. */
+    fun takeCompletion(owner: String?): NativeFeedbackCompletion? {
+        val value = state.value
+        if (value.owner != owner) return null
+        val result = value.completion ?: return null
+        mutable.value = value.copy(completion = null)
+        return result
+    }
     fun send(id: String, stamp: NativeFeedbackStamp, submit: suspend (String, String, NativeFeedbackStamp) -> Unit) {
         val draft = state.value
         if (draft.id != id || draft.sending || !NativeFeedbackClient.valid(draft.email, draft.message)) return
         val ticket = ++generation
         fun current() = generation == ticket && state.value.id == id && state.value.owner == draft.owner
-        update(draft.copy(sending = true, error = null))
+        update(draft.copy(sending = true, error = null, completion = null))
         request = scope.launch {
             try {
                 submit(draft.email, draft.message, stamp)
                 currentCoroutineContext().ensureActive()
-                if (current()) update(NativeFeedbackState(draft.owner, receipt = id))
+                if (current()) update(NativeFeedbackState(draft.owner, receipt = id, completion = NativeFeedbackCompletion.SUCCESS, completionId = ticket))
             } catch (error: Exception) {
                 if (current()) update(state.value.copy(sending = false,
-                    error = if (error is CancellationException) INTERRUPTED else error.message ?: "Could not send feedback."))
+                    error = if (error is CancellationException) INTERRUPTED else error.message ?: "Could not send feedback.",
+                    completion = if (error is CancellationException) null else NativeFeedbackCompletion.FAILURE, completionId = ticket))
                 if (error is CancellationException) throw error
             }
         }

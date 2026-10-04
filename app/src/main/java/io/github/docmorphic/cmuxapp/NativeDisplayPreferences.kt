@@ -27,6 +27,7 @@ internal data class NativeDisplayPreferences(
     val scrollbackRows: Int = TerminalScrollbackPreference.defaultRows,
     val showAltScreenNotice: Boolean = true,
     val useFullTerminalHeight: Boolean = false,
+    val hapticFeedbackEnabled: Boolean = true,
 ) {
     companion object {
         const val wrapKey = "wrap-workspace-titles"
@@ -34,6 +35,7 @@ internal data class NativeDisplayPreferences(
         const val scrollbackKey = "terminal-scrollback-rows"
         const val altScreenNoticeKey = "show-alt-screen-notice"
         const val fullTerminalHeightKey = "use-full-terminal-height"
+        const val hapticsKey = "haptic-feedback-enabled"
         fun read(preferences: SharedPreferences): NativeDisplayPreferences {
             val stored = preferences.all
             return NativeDisplayPreferences(
@@ -42,6 +44,7 @@ internal data class NativeDisplayPreferences(
                 TerminalScrollbackPreference.clamp(stored[scrollbackKey] as? Int ?: TerminalScrollbackPreference.defaultRows),
                 stored[altScreenNoticeKey] as? Boolean ?: true,
                 stored[fullTerminalHeightKey] as? Boolean ?: false,
+                stored[hapticsKey] as? Boolean ?: true,
             )
         }
     }

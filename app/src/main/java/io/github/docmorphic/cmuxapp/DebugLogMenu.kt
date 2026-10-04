@@ -32,6 +32,7 @@ internal suspend fun debugLogSnapshot(context: Context): String {
 internal fun DebugLogMenuItem(onDismiss: () -> Unit) {
     if (!BuildConfig.DEBUG) return
     val context = LocalContext.current
+    val haptics = rememberNativeHaptics()
     val text = LocalDebugTerminalText.current
     val source = LocalDebugLogSource.current
     val scope = rememberCoroutineScope()
@@ -51,6 +52,7 @@ internal fun DebugLogMenuItem(onDismiss: () -> Unit) {
                         clip.description.extras = PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
                         context.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
                         Toast.makeText(context, "Debug logs copied", Toast.LENGTH_SHORT).show()
+                        haptics.perform(NativeHaptic.SUCCESS)
                         onDismiss()
                     } catch (failure: Exception) {
                         if (failure is CancellationException) throw failure

@@ -56,4 +56,56 @@ class NativeFeedbackControllerTest {
         assertEquals(id, restored.state.value.receipt); assertEquals("", restored.state.value.message)
         restored.acknowledge(id); assertNull(restored.state.value.receipt)
     }
+    @Test fun liveCompletionIsOwnerScopedAndConsumedOnceButNotRestored() = runTest {
+        var saved: String? = null
+        val controller = NativeFeedbackController(this, save = { saved = it })
+        val id = draft(controller)
+        controller.send(id, stamp) { _, _, _ -> }; runCurrent()
+        assertNull(controller.takeCompletion("other"))
+        assertNull(NativeFeedbackController(this, saved).takeCompletion("login"))
+        assertEquals(NativeFeedbackCompletion.SUCCESS, controller.takeCompletion("login"))
+        assertNull(controller.takeCompletion("login"))
+        assertEquals(id, controller.state.value.receipt)
+    }
+    @Test fun eachExplicitFailedRetryHasOneCompletionAndAccountChangeRetiresIt() = runTest {
+        val controller = NativeFeedbackController(this)
+        val id = draft(controller)
+        repeat(2) {
+            controller.send(id, stamp) { _, _, _ -> throw java.io.IOException("offline") }; runCurrent()
+            assertEquals(NativeFeedbackCompletion.FAILURE, controller.takeCompletion("login"))
+            assertNull(controller.takeCompletion("login"))
+        }
+        controller.send(id, stamp) { _, _, _ -> }; runCurrent()
+        controller.bind("other")
+        assertNull(controller.takeCompletion("login"))
+        assertNull(controller.takeCompletion("other"))
+    }
+    @Test fun cancellationAndLateResultsNeverEmitCompletion() = runTest {
+        val controller = NativeFeedbackController(this)
+        val id = draft(controller)
+        controller.send(id, stamp) { _, _, _ -> throw CancellationException("cancelled") }; runCurrent()
+        assertNull(controller.takeCompletion("login"))
+        val release = CompletableDeferred<Unit>()
+        controller.send(id, stamp) { _, _, _ -> withContext(NonCancellable) { release.await() } }; runCurrent()
+        controller.dismiss(id)
+        draft(controller)
+        release.complete(Unit); runCurrent()
+        assertNull(controller.takeCompletion("login"))
+    }
+
+    @Test fun immediateIdenticalRetryHasADistinctUiEffectKey() = runTest {
+        val controller = NativeFeedbackController(this)
+        val id = draft(controller)
+        val fail: suspend (String, String, NativeFeedbackStamp) -> Unit = { _, _, _ -> throw java.io.IOException("offline") }
+        controller.send(id, stamp, fail); runCurrent()
+        val first = controller.state.value
+        controller.takeCompletion("login")
+        // A UI frame can skip the intermediate null completion and sending state.
+        controller.send(id, stamp, fail); runCurrent()
+        val second = controller.state.value
+        assertEquals(first.completion, second.completion)
+        assertNotEquals(first.completionId, second.completionId)
+        assertEquals(NativeFeedbackCompletion.FAILURE, controller.takeCompletion("login"))
+    }
+
 }

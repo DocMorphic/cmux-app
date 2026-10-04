@@ -198,3 +198,62 @@ Both crash-buffer captures are empty. The sole AVD was stopped and reaped.
 
 Debug APK SHA-256: `fdc3d930bbc17679138cda25c248c9a58f447a7dbae9354b06322824099bc899`.
 Test APK SHA-256: `79d8644eeb6a3e6838554dd6f6742c7f69894cf3426db0fa3fe80f784033b01a`.
+
+
+## Haptic Feedback preference — 2026-10-04
+
+Scoped reference: `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`, especially
+`MobileHapticFeedback.swift`, `MobileDisplaySettings.swift`, `MobileSettingsView.swift`,
+`WorkspaceDetailView.swift`, the checklist/fallback/text-sheet views, terminal
+arrow-nub and bell handlers, and toast presentation. The cache-only audit inspected
+806 of 1,433 iOS Swift source blobs; 627 were missing locally. Relevant toast files
+were subsequently read explicitly. This is a bounded audit, not an exhaustive
+upstream review, and does not advance the global parity pin.
+
+Android now has the iOS **Haptic Feedback** setting, default on, persisted in
+`cmux-display`. Reading its default does not write a preference; wrong-typed
+values fall back to on. The policy reads the current preference at emission time,
+so switching off also suppresses an action already in flight. All explicit app
+haptic calls route through this policy, as does Compose's `LocalHapticFeedback`.
+Android's system/device haptic policy remains in force; no vibration permission
+or ignore-system-setting flags were added. Keyboard and notification vibration
+are separate system settings.
+
+Covered event wiring: checklist add/state change (light), checklist failure
+(error), terminal Copy All and debug-log copy (success), fallback Open on Mac
+failure (error), feedback submission success/error. Feedback completions are
+owner-scoped and consumed once by the retained controller; saved receipts and
+errors do not replay a haptic after process restoration. No real feedback message
+is sent by the tests. The pinned iOS checklist and fallback sources still contain
+direct UIKit generator calls; Android applies the intended shared off switch to
+those events as well.
+
+Platform mappings: light → `CLOCK_TICK`; success → `CONFIRM` on API 30+, otherwise
+`VIRTUAL_KEY`; warning → `LONG_PRESS`; error → `REJECT` on API 30+, otherwise
+`LONG_PRESS`. Hardware determines the tactile result. Terminal-bell callbacks,
+arrow-nub tick parity, generic toast parity, native Android selection gestures,
+and physical Pixel tactile acceptance remain follow-ups; the new setting alone
+does not establish full haptic or app parity.
+
+
+Verification: debug and test APKs build successfully. **10 JVM cases and 10 Android
+cases pass** on the final source (Android runtime **126.526s**). The earlier
+Android run also passed all ten in 114.41s. Review then added a distinct request
+ID for identical immediate failures, so a conflated UI frame cannot lose the next
+completion; a focused regression covers that identity. The final build took 30s.
+The test harness was also corrected to respect status-bar insets in its screenshot.
+
+Runtime checks cover the persisted/default/corrupt-value preference, off/on/remount,
+actual terminal Copy All with the setting off, Compose haptic delegation,
+checklist action/failure routing, feedback success/failure/retry/cancellation,
+account switching, disabling during a pending request, and Activity recreation
+before and after completion. The inspected screenshot is a component harness,
+not whole-Settings or iOS visual acceptance. Both crash buffers are empty. The
+single existing AVD was stopped and reaped; no physical Pixel was visible in ADB.
+No new AVD or signed milestone was created. Signed build 517 is unchanged.
+
+Evidence: ignored `captures/runtime/haptics/verification.json`, build/runtime
+logs, source audit, JVM XML and screenshots. Debug APK SHA-256:
+`5d7842f3794e7f936575daf85e11d654d1eadc499159ed3f57d35adb6169a8f3`.
+Test APK SHA-256:
+`4809e6219d36b8e6d868cd66667f4d4486cf5475e253caac6ef793a5b37c17b9`.

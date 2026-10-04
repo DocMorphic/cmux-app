@@ -102,6 +102,7 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
 @Composable
 private fun NativeSurfaceCard(workspace: NativeWorkspace, surface: NativeSurface, enabled: Boolean, focus: suspend () -> Unit) {
     val scope = rememberCoroutineScope()
+    val haptics = rememberNativeHaptics()
     var pending by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center,
@@ -121,7 +122,7 @@ private fun NativeSurfaceCard(workspace: NativeWorkspace, surface: NativeSurface
             pending = true; failed = false
             scope.launch {
                 try { focus() }
-                catch (error: Exception) { if (error is CancellationException) throw error; failed = true }
+                catch (error: Exception) { if (error is CancellationException) throw error; failed = true; haptics.perform(NativeHaptic.ERROR) }
                 finally { pending = false }
             }
         }, enabled = enabled && !pending, modifier = Modifier.padding(top = 24.dp)) {

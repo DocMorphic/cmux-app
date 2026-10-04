@@ -14,11 +14,14 @@ import java.io.File
 
 class NativeFeedbackComposerTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    private val emitted = mutableListOf<NativeHaptic>()
+    private var hapticsEnabled = true
+    private val haptics = NativeHaptics({ hapticsEnabled }, emitted::add)
     private fun show(submit: suspend (String, String, NativeFeedbackStamp) -> Unit, owner: State<String> = mutableStateOf("first")) {
-        compose.setContent { CmuxTheme { NativeFeedbackHost(owner.value, "reply@example.test", submit) {
+        compose.setContent { CompositionLocalProvider(LocalNativeHaptics provides haptics) { CmuxTheme { NativeFeedbackHost(owner.value, "reply@example.test", submit) {
             val open = checkNotNull(LocalNativeFeedback.current)
             Button(onClick = open) { Text("Open feedback") }
-        } } }
+        } } } }
         compose.onNodeWithText("Open feedback").performClick()
     }
     @Test fun validatesAndSendsOnceWithTheReplyAddressAndBuildStamp() {
@@ -36,6 +39,7 @@ class NativeFeedbackComposerTest {
         compose.runOnIdle { assertEquals(listOf("reply@example.test" to "Keyboard issue 你好"), calls); completion.complete(Unit) }
         compose.waitUntil(5000) { compose.onAllNodesWithTag("feedback-message").fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithText("Feedback sent").assertExists()
+        compose.runOnIdle { assertEquals(listOf(NativeHaptic.SUCCESS), emitted) }
     }
     @Test fun failureKeepsTheDraftAndAnExplicitRetryCanSucceed() {
         var calls = 0
@@ -44,6 +48,7 @@ class NativeFeedbackComposerTest {
         compose.onNodeWithTag("feedback-send").performClick()
         compose.waitUntil(5000) { compose.onAllNodesWithTag("feedback-error").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("feedback-message").assertTextContains("Saved draft")
+        compose.runOnIdle { assertEquals(listOf(NativeHaptic.ERROR), emitted) }
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
         val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
@@ -51,7 +56,7 @@ class NativeFeedbackComposerTest {
         finally { bitmap.recycle() }
         compose.onNodeWithTag("feedback-send").performClick()
         compose.waitUntil(5000) { compose.onAllNodesWithTag("feedback-message").fetchSemanticsNodes().isEmpty() }
-        compose.runOnIdle { assertEquals(2, calls) }
+        compose.runOnIdle { assertEquals(2, calls); assertEquals(listOf(NativeHaptic.ERROR, NativeHaptic.SUCCESS), emitted) }
     }
     @Test fun cancellingPendingSendAllowsANewComposerWithoutLateDismissal() {
         val completion = CompletableDeferred<Unit>()
@@ -66,6 +71,7 @@ class NativeFeedbackComposerTest {
         compose.runOnIdle { completion.complete(Unit) }
         compose.onNodeWithTag("feedback-message").assertTextContains("Second")
         compose.onNodeWithTag("feedback-send").assertIsEnabled()
+        compose.runOnIdle { assertTrue(emitted.isEmpty()) }
     }
     @Test fun changingAccountClosesAndCancelsTheOldComposer() {
         val owner = mutableStateOf("first")
@@ -76,4 +82,17 @@ class NativeFeedbackComposerTest {
         compose.runOnIdle { owner.value = "second" }
         compose.waitUntil(5000) { cancelled && compose.onAllNodesWithTag("feedback-message").fetchSemanticsNodes().isEmpty() }
     }
+    @Test fun disablingWhileSubmissionIsPendingSuppressesItsCompletion() {
+        val completion = CompletableDeferred<Unit>()
+        show({ _, _, _ -> completion.await() })
+        compose.onNodeWithTag("feedback-message").performTextInput("Synthetic local feedback")
+        compose.onNodeWithTag("feedback-send").performClick()
+        compose.runOnIdle { hapticsEnabled = false; completion.complete(Unit) }
+        compose.waitUntil(5000) { compose.onAllNodesWithTag("feedback-message").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithText("Feedback sent").assertExists()
+        compose.runOnIdle { assertTrue(emitted.isEmpty()); hapticsEnabled = true }
+        compose.waitForIdle()
+        compose.runOnIdle { assertTrue(emitted.isEmpty()) }
+    }
+
 }

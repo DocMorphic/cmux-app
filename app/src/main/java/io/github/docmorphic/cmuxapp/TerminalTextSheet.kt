@@ -21,6 +21,7 @@ import androidx.compose.ui.window.DialogProperties
 @Composable
 fun TerminalTextSheet(snapshot: TerminalTextSnapshot, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val haptics = rememberNativeHaptics()
     var copied by remember(snapshot) { mutableStateOf(false) }
     var copyError by remember(snapshot) { mutableStateOf<String?>(null) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -34,6 +35,7 @@ fun TerminalTextSheet(snapshot: TerminalTextSnapshot, onDismiss: () -> Unit) {
                             context.getSystemService(ClipboardManager::class.java)
                                 .setPrimaryClip(ClipData.newPlainText("Terminal text", snapshot.text))
                             copied = true; copyError = null
+                            haptics.perform(NativeHaptic.SUCCESS)
                         } catch (_: RuntimeException) {
                             copyError = "Could not copy all text. Select a smaller section and copy it."
                         }

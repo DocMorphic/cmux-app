@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.input.ImeAction
@@ -43,11 +42,11 @@ internal fun NativeTodoView(authoritative: TodoSnapshot, enabled: Boolean,
     val currentEnabled by rememberUpdatedState(enabled)
     LaunchedEffect(authoritative) { model.reconcile(authoritative) }
     val scope = rememberCoroutineScope()
-    val view = LocalView.current
+    val haptics = rememberNativeHaptics()
     fun run(mutation: TodoMutation) {
         if (currentEnabled && !model.pending) {
             if (mutation is TodoMutation.Add || mutation is TodoMutation.SetState)
-                view.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                haptics.perform(NativeHaptic.LIGHT)
             scope.launch(start = CoroutineStart.UNDISPATCHED) { model.perform(mutation) { currentMutation(it) } }
         }
     }
@@ -93,8 +92,7 @@ internal fun NativeTodoView(authoritative: TodoSnapshot, enabled: Boolean,
     }
     LaunchedEffect(enabled) { if (!enabled) focus.clearFocus(force = true) }
     LaunchedEffect(model.failure) {
-        if (model.failure) view.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30)
-            android.view.HapticFeedbackConstants.REJECT else android.view.HapticFeedbackConstants.LONG_PRESS)
+        if (model.failure) haptics.perform(NativeHaptic.ERROR)
     }
     if (model.failure) AlertDialog(onDismissRequest = model::dismissFailure,
         title = { Text("Couldn’t Update Checklist") },

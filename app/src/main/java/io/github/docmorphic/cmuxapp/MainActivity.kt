@@ -84,11 +84,13 @@ open class MainActivity : ComponentActivity() {
 
 @Composable
 fun CmuxTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = darkColorScheme(
-        primary = Color(0xFF76B9FF),
-        background = Color(0xFF0B0C0E),
-        surface = Color(0xFF0B0C0E),
-        onBackground = Color(0xFFF4F5F7),
-        onSurface = Color(0xFFF4F5F7)
-    ), content = content)
+    NativeHapticsProvider {
+        MaterialTheme(colorScheme = darkColorScheme(
+            primary = Color(0xFF76B9FF),
+            background = Color(0xFF0B0C0E),
+            surface = Color(0xFF0B0C0E),
+            onBackground = Color(0xFFF4F5F7),
+            onSurface = Color(0xFFF4F5F7)
+        ), content = content)
+    }
 }

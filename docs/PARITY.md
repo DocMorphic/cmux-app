@@ -12,6 +12,25 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — Haptic Feedback preference (2026-10-04)
+
+[DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#haptic-feedback-preference--2026-10-04)
+adds the default-on iOS **Haptic Feedback** switch, persisted and read at emission
+time. App checklist, copy, fallback-focus failure, feedback submission and Compose
+haptics share its policy. Feedback results are consumed once across recreation,
+never replayed from saved errors/receipts, and uniquely identified for rapid retries.
+Android system haptic settings remain in force.
+
+Final debug/test build passes; **10 JVM + 10 Android cases pass** (runtime 126.526s).
+The component screenshot was inspected and crash buffers are empty. The sole AVD
+is stopped/reaped. No physical Pixel was visible in ADB; signed build 517 is
+unchanged and the current source still needs its final signed-release gate.
+
+**Next:** terminal-bell/arrow-nub/toast/native-selection haptic parity and physical
+feel; Settings legal/support; production shared connection graph and Pixel/Mac
+browser/recovery acceptance; broader source/UI audit. Push/feed provider config
+remains open. The scoped iOS audit is partial, and the overall goal remains active.
+
 ## Latest checkpoint — alternate-screen terminal controls (2026-10-04)
 
 [DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#alternate-screen-notice-and-full-height-preference--2026-10-04)
