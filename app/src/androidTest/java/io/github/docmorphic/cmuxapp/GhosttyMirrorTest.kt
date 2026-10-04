@@ -44,6 +44,29 @@ class GhosttyMirrorTest {
         .put("active_screen", screen).put("cursor", JSONObject().put("row", 0).put("column", value.length).put("visible", true))
         .put("row_spans", JSONArray().put(JSONObject().put("row", 0).put("column", 0).put("text", value).put("cell_width", value.length)))
 
+    @Test fun nativeBellsIgnoreHistoryOscTerminatorsAndAlreadyDeliveredOutput() {
+        var bells = 0
+        TerminalStreamMirror("s", TerminalTransport(TerminalOutputMode.BYTES, false), TerminalViewport(20, 4),
+            ::GhosttyVtTerminal, onBell = { bells++ }).use { mirror ->
+            mirror.replay(replay("history\u0007", 10))
+            assertEquals(0, bells)
+            mirror.bytes(bytes("\u0007", 10)); mirror.bytes(bytes("\u0007", 10))
+            assertEquals(1, bells)
+            val osc = "\u001b]0;title\u0007"
+            osc.forEachIndexed { index, c -> mirror.bytes(bytes(c.toString(), 11 + index)) }
+            assertEquals(1, bells)
+            mirror.beginReplay()
+            mirror.bytes(bytes("\u0007", 100))
+            mirror.replay(replay("history\u0007", 100))
+            assertEquals(2, bells)
+            mirror.beginReplay(); mirror.bytes(bytes("\u0007", 101))
+            mirror.replay(replay("already included\u0007", 102))
+            assertEquals(2, bells)
+            mirror.bytes(bytes("\u0007", 102).put("surface_id", "old surface"))
+            assertEquals(2, bells)
+        }
+    }
+
     @Test fun nativeMirrorRecoversByteGapsAndReseedsHybridPrimary() {
         TerminalStreamMirror("s", TerminalTransport(TerminalOutputMode.HYBRID, false), TerminalViewport(20, 4), ::GhosttyVtTerminal).use { mirror ->
             mirror.replay(JSONObject().put("render_grid", grid("prompt", 10, 1)))

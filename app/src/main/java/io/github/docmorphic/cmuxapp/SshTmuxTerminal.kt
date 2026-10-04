@@ -23,6 +23,7 @@ internal class SshTmuxTerminal(override val id: String, val workspace: SshTmuxWo
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
     private val mutable = MutableStateFlow(SshShellState())
     override val state = mutable.asStateFlow()
+    override val bells = TerminalBellSignal()
     override var display = GhosttyVtTerminal(pane.columns, pane.rows); private set
     private var grid = pane.columns to pane.rows
     private var metrics = 1 to 1
@@ -70,12 +71,12 @@ internal class SshTmuxTerminal(override val id: String, val workspace: SshTmuxWo
                 }
                 is TmuxPaneEvent.Snapshot -> {
                     val next = GhosttyVtTerminal(grid.first, grid.second)
-                    try { next.resize(grid.first, grid.second, metrics.first, metrics.second); next.append(event.bytes) }
+                    try { next.resize(grid.first, grid.second, metrics.first, metrics.second); next.append(event.bytes); next.takeBell() }
                     catch (failure: Exception) { next.close(); throw failure }
                     val old = display; display = next; old.close()
                     mutable.value = mutable.value.copy(phase = SshShellPhase.RUNNING)
                 }
-                is TmuxPaneEvent.Output -> display.append(event.bytes)
+                is TmuxPaneEvent.Output -> { display.append(event.bytes); if (display.takeBell()) bells.ring() }
                 TmuxPaneEvent.Ended -> end("tmux pane or connection ended")
             }
             mutable.value = mutable.value.copy(revision = mutable.value.revision + 1)

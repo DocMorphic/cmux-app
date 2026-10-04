@@ -19,9 +19,9 @@ class TerminalMirrorOwnershipTest {
 
     @Test fun replacementClosesPreviousOwnerAndCloseIsIdempotent() {
         val created = mutableListOf<Tracked>()
-        val mirror = TerminalStreamMirror("s", TerminalTransport(TerminalOutputMode.BYTES, false), TerminalViewport(20, 4)) { c, r ->
+        val mirror = TerminalStreamMirror("s", TerminalTransport(TerminalOutputMode.BYTES, false), TerminalViewport(20, 4), terminalFactory = { c, r ->
             Tracked(VtTerminal(c, r)).also(created::add)
-        }
+        })
         assertTrue(created.isEmpty())
         mirror.replay(replay("old", 1)); mirror.replay(replay("new", 2))
         assertEquals(listOf(1, 0), created.map { it.closes })
@@ -34,9 +34,9 @@ class TerminalMirrorOwnershipTest {
 
     @Test fun failedMaterializationClosesCandidateAndKeepsPreviousContent() {
         val created = mutableListOf<Tracked>()
-        val mirror = TerminalStreamMirror("s", TerminalTransport(TerminalOutputMode.BYTES, false), TerminalViewport(20, 4)) { c, r ->
+        val mirror = TerminalStreamMirror("s", TerminalTransport(TerminalOutputMode.BYTES, false), TerminalViewport(20, 4), terminalFactory = { c, r ->
             Tracked(VtTerminal(c, r), failSnapshot = created.isNotEmpty()).also(created::add)
-        }
+        })
         mirror.replay(replay("kept", 1))
         assertThrows(IllegalStateException::class.java) { mirror.replay(replay("failed", 2)) }
         assertEquals("kept", RenderGrid.plainText(mirror.display.visibleLines()))

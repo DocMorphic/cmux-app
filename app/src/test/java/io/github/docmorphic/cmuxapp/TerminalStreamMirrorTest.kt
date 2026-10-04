@@ -20,6 +20,31 @@ class TerminalStreamMirrorTest {
             .put("column", 0).put("text", text).put("cell_width", text.length)))
         .put("cursor", JSONObject().put("row", 0).put("column", text.length).put("visible", true))
 
+    @Test fun liveBellsRespectReplayBoundariesOverlapAndSurfaceOwnership() {
+        var rings = 0
+        TerminalStreamMirror("s", TerminalTransport(TerminalOutputMode.BYTES, false), viewport, onBell = { rings++ }).use { mirror ->
+            mirror.replay(replay("old\u0007", 100))
+            assertEquals(0, rings)
+            mirror.bytes(event(byteArrayOf(7), 100))
+            mirror.bytes(event(byteArrayOf(7), 100))
+            assertEquals(1, rings)
+            mirror.bytes(event(byteArrayOf(7), 101).put("surface_id", "other"))
+            assertEquals(1, rings)
+            mirror.lane(TerminalLaneProtocol.Output(false, 0u, 100u, 102u, byteArrayOf(7, 7)))
+            assertEquals(2, rings) // Trimmed overlap leaves only the newly delivered bell.
+            mirror.beginReplay()
+            mirror.bytes(event(byteArrayOf(7), 110))
+            mirror.replay(replay("new baseline\u0007", 110))
+            assertEquals(3, rings) // History was silent; buffered post-baseline output rang.
+            mirror.beginReplay(); mirror.bytes(event(byteArrayOf(7), 111))
+            mirror.replay(replay("includes that output\u0007", 112))
+            assertEquals(3, rings)
+            val osc = "\u001b]0;title\u0007".toByteArray()
+            osc.forEachIndexed { index, byte -> mirror.bytes(event(byteArrayOf(byte), 112L + index)) }
+            assertEquals(3, rings)
+        }
+    }
+
     @Test fun hostNegotiationMatchesIosPriorities() {
         val grid = "terminal.render_grid.v1"; val bytes = "terminal.bytes.v1"
         assertEquals(TerminalOutputMode.BYTES, TerminalTransport.resolve(emptySet()).mode)

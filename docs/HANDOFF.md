@@ -26,6 +26,28 @@ The license-dialog correction is now verified in debug (see the newer checkpoint
 below). The goal remains active; physical/authenticated acceptance, feed/push configuration and
 broader parity remain open. Older delivery sections below are historical.
 
+## Latest checkpoint — parser-backed terminal bells (2026-10-04)
+
+[DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#terminal-bell-feedback--2026-10-04)
+adds Ghostty bell events to native byte streams and SSH terminals. Replay is
+silent; duplicate/surface/output-lane checks remain authoritative. Only the shown,
+foreground terminal can request the warning haptic, using the live global setting.
+OSC-terminating BEL bytes do not ring. Bell bursts are coalesced per byte batch.
+The pinned grid protocol carries no bell field; transport selection is unchanged.
+
+Native-only CI **37186428500** passed and its verified checkpoint is installed
+locally. **20 JVM + 15 Android cases pass** (11 native in 0.675s, four app in
+30.859s), including production NativeScreen/Activity/RPC behavior and cmux-tui
+output. All 19 APK ELF libraries and 16 KB zip alignment pass. A stale-test install
+attempt is explicitly excluded from evidence. Crash buffer empty; AVD stopped.
+Signed build 517 is unchanged. Physical Pixel/Mac/tactile and live plain-SSH/tmux
+bell acceptance remain pending; no Pixel is visible to ADB.
+
+**Next:** remaining arrow-nub/toast/native-selection haptics and Settings
+legal/support; production shared connection graph and Pixel/Mac browser/recovery;
+broader upstream source/UI audit. Push/feed configuration and the final current-
+source signed-release gate remain open. The overall goal remains active.
+
 ## Latest checkpoint — Haptic Feedback preference (2026-10-04)
 
 [DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#haptic-feedback-preference--2026-10-04)

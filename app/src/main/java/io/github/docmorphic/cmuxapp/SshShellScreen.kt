@@ -40,6 +40,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     onReconnect: (() -> Unit)? = null, onFiles: (() -> Unit)? = null, onBrowser: (() -> Unit)? = null,
     panePicker: (@Composable (() -> Unit) -> Unit)? = null, onBack: () -> Unit) {
     val state by shell.state.collectAsState()
+    ObserveTerminalBells(shell.bells, state.phase == SshShellPhase.RUNNING && !reconnecting)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(shell, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {

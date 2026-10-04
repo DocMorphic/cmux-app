@@ -9,6 +9,7 @@ import com.termux.terminal.WcWidth
 
 /** Parser state survives byte boundaries; the Mac remains the sole owner of the PTY. */
 class VtTerminal(columns: Int, rows: Int) : ByteTerminal {
+    private var bell = false
     private val output = object : TerminalOutput() {
         // Device replies belong to the Mac's Ghostty instance. Mirroring them back
         // would duplicate replies and could turn output into unsolicited input.
@@ -16,7 +17,7 @@ class VtTerminal(columns: Int, rows: Int) : ByteTerminal {
         override fun titleChanged(oldTitle: String?, newTitle: String?) = Unit
         override fun onCopyTextToClipboard(text: String?) = Unit
         override fun onPasteTextFromClipboard() = Unit
-        override fun onBell() = Unit
+        override fun onBell() { bell = true }
         override fun onColorsChanged() = Unit
     }
     private val engine = TerminalEmulator(output, columns.coerceIn(2, 1000), rows.coerceIn(2, 1000),
@@ -28,7 +29,8 @@ class VtTerminal(columns: Int, rows: Int) : ByteTerminal {
     }
 
     override fun append(bytes: ByteArray) { engine.append(bytes, bytes.size) }
-    override fun close() = Unit
+    override fun takeBell(): Boolean = bell.also { bell = false }
+    override fun close() { bell = false }
     override val columns get() = engine.columns
     override val rows get() = engine.rows
     override val foreground get() = hex(engine.mColors.mCurrentColors[TextStyle.COLOR_INDEX_FOREGROUND])

@@ -9,6 +9,7 @@ internal interface SshTerminal : AutoCloseable {
     val id: String
     val title: String
     val state: StateFlow<SshShellState>
+    val bells: TerminalBellSignal? get() = null
     val display: GhosttyVtTerminal
     val composer: SshComposerPool.Draft? get() = null
     val imageUpload: SshImageUpload? get() = null

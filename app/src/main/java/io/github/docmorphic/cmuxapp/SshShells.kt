@@ -29,6 +29,7 @@ internal class SshShell(
     private val scope = CoroutineScope(lifetime.coroutineContext + job + Dispatchers.Main.immediate)
     private val mutable = MutableStateFlow(SshShellState())
     override val state = mutable.asStateFlow()
+    override val bells = TerminalBellSignal()
     override val display = GhosttyVtTerminal(80, 24) { bytes -> enqueue(Command.Write(bytes.copyOf())) }
     private var pty: SshPty? = null
     private var connection: SshTransport? = null
@@ -67,6 +68,7 @@ internal class SshShell(
                         val bytes = buffer.copyOf(count)
                         workingDirectory.consume(bytes)
                         display.append(bytes)
+                        if (display.takeBell()) bells.ring()
                         mutable.value = mutable.value.copy(revision = mutable.value.revision + 1)
                     }
                 }

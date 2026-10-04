@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import kotlinx.coroutines.*
@@ -80,6 +81,25 @@ class SshCmuxTerminalTest {
         if (::owner.isInitialized) compose.runOnIdle { if (::terminal.isInitialized) terminal.close(); if (::control.isInitialized) control.close(); owner.cancel() }
     }
     private fun text() = compose.runOnIdle { TerminalTextSnapshot.capture(terminal.display).text }
+    @Test fun visibleCmuxOutputRingsButReplayedAndDisabledBellsStaySilent() {
+        val feedback = java.util.concurrent.CopyOnWriteArrayList<NativeHaptic>()
+        var enabled = true
+        val haptics = NativeHaptics({ enabled }, feedback::add)
+        compose.setContent { CompositionLocalProvider(LocalNativeHaptics provides haptics) {
+            CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) { SshShellScreen(terminal) {} } }
+        } }
+        compose.runOnIdle { pipe.snapshot = "history\u0007"; pipe.feed(pipe.frame()) }
+        compose.waitUntil(5000) { text().contains("history") }
+        compose.runOnIdle { assertTrue(feedback.isEmpty()) }
+        fun output(value: String) = pipe.feed(JSONObject().put("event", "output").put("surface", 1)
+            .put("data", Base64.getEncoder().encodeToString(value.toByteArray())))
+        compose.runOnIdle { output("\u0007live") }
+        compose.waitUntil(5000) { feedback.size == 1 }
+        compose.runOnIdle { assertEquals(listOf(NativeHaptic.WARNING), feedback.toList()); enabled = false; output("\u0007silent") }
+        compose.waitUntil(5000) { text().contains("silent") }
+        compose.runOnIdle { assertEquals(1, feedback.size) }
+    }
+
     @Test fun rawMouseBytesAreCopiedAndDeliveredWithoutUtf8Conversion() {
         val expected = byteArrayOf(27, 91, 77, 32, 183.toByte(), 35)
         compose.runOnIdle {

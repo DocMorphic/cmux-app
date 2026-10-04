@@ -257,3 +257,72 @@ logs, source audit, JVM XML and screenshots. Debug APK SHA-256:
 `5d7842f3794e7f936575daf85e11d654d1eadc499159ed3f57d35adb6169a8f3`.
 Test APK SHA-256:
 `4809e6219d36b8e6d868cd66667f4d4486cf5475e253caac6ef793a5b37c17b9`.
+
+
+## Terminal-bell feedback — 2026-10-04
+
+At scoped iOS ref `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`,
+`GhosttySurfaceView+Artifacts.swift::handleBell` requests a warning haptic.
+Android now gets the bell from the pinned Ghostty VT parser's
+`GHOSTTY_TERMINAL_OPT_BELL` callback. It does not scan raw bytes: an OSC-terminating
+BEL byte must not ring. Native code only records a bounded pending flag under
+its registry lock; Kotlin drains it afterward. A byte batch containing repeated
+bells produces one tactile signal, avoiding an unbounded vibration queue.
+Clipboard, title and filesystem effects stay disabled, and Mac mirrors still
+never send protocol replies back to the host.
+
+The Mac byte-stream mirror drains and discards replay effects, then delivers
+bells only from new accepted output. Existing surface, sequence-overlap and
+output-lane checks govern delivery. Plain SSH, tmux and cmux-tui output drain the
+same parser effect; tmux/cmux-tui snapshots discard it. The UI observes transient
+signals only while showing that terminal, checks the RESUMED lifecycle and live
+Haptic Feedback preference, and queues nothing for navigation/resume. The legacy
+Termux parser adapter also exposes the same drain contract for mirror tests.
+
+The reviewed `MobileTerminalRenderGridFrame` model, coding implementation and
+`MobileTerminalRenderGridEvent` wrapper carry no bell field. The scoped iOS
+`TerminalOutputTransportSelection.swift` still selects screen-anchored grids
+when available. Android retains that selection: grid-only and hybrid alternate
+grid output cannot infer a bell from text cells. This checkpoint does not invent
+a bell event or claim a host protocol capability that was not observed.
+
+Native source commit `cf2b5e9d9c0496258aae43d98708264f5fc5ebea` was rebuilt by
+native-only Actions run **37186428500**, which passed module packaging and 16 KB
+alignment checks. Artifact **11297610335** contains the core/JNI checkpoint;
+**11296884618** contains its runtime test APK. The library hash is
+`05d68220bda298a6ba83c3edd62555aced61af462dae6d6f510002d689ec3c22`.
+The original core source remains `edefce7785c9f439966c68588db1edbd6b435203`.
+No signed app milestone was dispatched by this native-only run.
+
+
+Verification: C syntax checks passed with NDK r28c and `-Wall -Wextra -Werror`.
+Debug/test APKs built in 1m58s. **20 JVM cases passed** (mirror 11, ownership 3,
+output-lane 6). On the existing Android 17 / 16 KB AVD, **11 native-engine cases
+passed in 0.675s**, covering bell parsing/draining plus existing query replies,
+close/concurrency, bounds and rendering. **Four app cases passed in 30.859s**:
+real Ghostty mirror replay/OSC/overlap; lifecycle/owner suppression; cmux-tui wire
+output through the shared SSH UI; and the production NativeScreen with a real
+Activity/main dispatcher and emulator-local Mac RPC endpoint. The last verifies
+live output, duplicate suppression, OSC terminators, preference changes,
+background/resume and recreation with replay. Signals were recorded through an
+injected actuator; this does not prove tactile hardware behavior or real Mac/Iroh.
+
+An initial installation was rejected because an older emulator native-test
+package used a different CI debug signature. The shell continued to stale APKs:
+the old native ten-test pass and app class-not-found errors are retained as
+`stale-*-runtime.txt` and **excluded** from final evidence. Only the disposable
+emulator's `io.github.docmorphic.cmuxapp.ghostty.test` package was replaced; app
+installs preserved data. The rerun required successful installs before testing.
+
+All 19 APK ELF libraries pass alignment verification; 16 KB zip alignment passes.
+The crash buffer is empty. The single AVD was stopped/reaped, no physical Pixel
+was connected, and signed build 517 is unchanged. Live plain-SSH/tmux bell and
+Pixel/Mac/tactile acceptance remain open. A cache-only audit found the iOS bell
+notification declaration and emitter in 810 cached iOS sources; 623 sources were
+missing, so broader bell/notification UI semantics are not declared complete.
+Evidence is under ignored `captures/runtime/terminal-bell/`.
+
+Debug APK SHA-256:
+`6b55cd81e43fb1fc679f4a5c5ea4dc6e8b8ecdae9c65b29fed30a6ebf1f20395`.
+Test APK SHA-256:
+`ece4a8558c3b2f97df0956ccd15c4c6d91b7a90ca89df9bd2a6fdc7935dfaf08`.

@@ -44,6 +44,7 @@ internal class SshCmuxTerminal private constructor(override val id: String, val 
     private val scope = CoroutineScope(owner.coroutineContext + job)
     private val mutable = MutableStateFlow(SshShellState())
     override val state = mutable.asStateFlow()
+    override val bells = TerminalBellSignal()
     override var display = GhosttyVtTerminal(80, 24); private set
     private var attachment: SshCmuxAttachment? = null
     private var detaching: Job? = null
@@ -101,12 +102,12 @@ internal class SshCmuxTerminal private constructor(override val id: String, val 
             when (event) {
                 is SshCmuxEvent.Snapshot -> {
                     val next = GhosttyVtTerminal(event.columns, event.rows)
-                    try { next.resize(event.columns, event.rows, metrics.first, metrics.second); feed(next, event.bytes) }
+                    try { next.resize(event.columns, event.rows, metrics.first, metrics.second); feed(next, event.bytes); next.takeBell() }
                     catch (failure: Exception) { next.close(); throw failure }
                     val old = display; display = next; old.close()
                     mutable.value = mutable.value.copy(phase = SshShellPhase.RUNNING)
                 }
-                is SshCmuxEvent.Output -> feed(display, event.bytes)
+                is SshCmuxEvent.Output -> { feed(display, event.bytes); if (display.takeBell()) bells.ring() }
                 is SshCmuxEvent.Colors -> display.append(SshCmuxColors.replay(event.values))
                 is SshCmuxEvent.Ended -> end(if (event.disconnected) "Connection ended. Reconnect to resume the terminal." else "Terminal view ended")
             }

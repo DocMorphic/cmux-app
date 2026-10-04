@@ -569,6 +569,7 @@ fun NativeScreen(
         aggregateNativeFeed(visibleFeedSources, selectedOrigin, appearances::name)
     }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val terminalBells = remember(client, selectedWorkspace?.id, selectedTerminal?.id) { TerminalBellSignal() }
     val visibleNotificationMac = if (localBrowser != null)
         pairedMacs.singleOrNull { it.ownsOrigin(localBrowser.key.computerId) }
         else pairedMacs.singleOrNull { it.code == code }
@@ -1734,7 +1735,7 @@ fun NativeScreen(
         val generation = ++replayGeneration
         val viewportGeneration = ++viewportRequestGeneration
         val transport = terminalTransport
-        val mirror = TerminalStreamMirror(terminal.id, transport, requestedViewport, ghosttyTerminalFactory(terminalCells))
+        val mirror = TerminalStreamMirror(terminal.id, transport, requestedViewport, ghosttyTerminalFactory(terminalCells), onBell = terminalBells::ring)
         val replayRecovery = TerminalReplayRecovery()
         // Keep the last painted frame while this viewport gets a fresh replay.
         // The display state above resets for a different terminal or connection;
@@ -2488,6 +2489,7 @@ fun NativeScreen(
             onUseHelper = onUseHelper, onLicenses = { showLicenses = true }, onError = { error = it })
     }
     val terminalContent: @Composable ColumnScope.() -> Unit = {
+        ObserveTerminalBells(terminalBells, terminalAttached && connectionReady)
         NativeTerminalContent {
             RetireTerminalInputOnBackground(rawKeyboardView)
             val terminal = selectedTerminal!!

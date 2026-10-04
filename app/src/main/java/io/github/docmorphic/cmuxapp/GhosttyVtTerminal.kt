@@ -37,6 +37,8 @@ class GhosttyVtTerminal(columns: Int, rows: Int, private val onReply: ((ByteArra
         dirty = true; graphicsFrames.clear()
         if (replies.isNotEmpty()) onReply?.invoke(replies)
     }
+    override fun takeBell(): Boolean = engine.takeBell()
+
     fun setCellMetrics(cells: TerminalCellMetrics) {
         require(cells.widthPx.isFinite() && cells.heightPx.isFinite())
         val width = cells.widthPx.toInt().coerceIn(1, 4096)

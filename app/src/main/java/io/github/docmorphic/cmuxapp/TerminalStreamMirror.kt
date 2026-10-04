@@ -6,7 +6,8 @@ import java.util.Base64
 /** One surface and one connection generation. All calls are serialized on the UI dispatcher. */
 class TerminalStreamMirror(
     val surfaceId: String, val transport: TerminalTransport, private val viewport: TerminalViewport,
-    private val terminalFactory: (Int, Int) -> ByteTerminal = ::VtTerminal
+    private val terminalFactory: (Int, Int) -> ByteTerminal = ::VtTerminal,
+    private val onBell: () -> Unit = {}
 ) : AutoCloseable {
     enum class Result { APPLIED, IGNORED, REPLAY }
     private data class Chunk(val bytes: ByteArray, val sequence: ULong?) {
@@ -158,6 +159,7 @@ class TerminalStreamMirror(
             raw.append(chunk.bytes.copyOfRange((previous - seq).toInt(), chunk.bytes.size))
         } else raw.append(chunk.bytes)
         deliveredEnd = end // A sequence-less producer cannot establish an ordered byte baseline.
+        if (raw.takeBell()) onBell()
         return Result.APPLIED
     }
 
@@ -165,6 +167,7 @@ class TerminalStreamMirror(
         val next = terminalFactory(columns, rows)
         try {
             next.append(bytes)
+            next.takeBell() // A replay is history, not a new remote action.
             next.activeScreen // Materialize a lazy native snapshot before retiring the old owner.
         } catch (failure: Throwable) {
             next.close(); throw failure
