@@ -137,6 +137,8 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
             when (row.kind) {
                 "workspace" -> Column(Modifier.padding(start = if (row.depth == 1) 24.dp else 0.dp)) {
                     NativeWorkspaceRow(row.workspace(), availability = row.availability, handlesHold = true,
+                        displayPreferences = NativeDisplayPreferences(wrapTitles = ui.snapshot?.wrapTitles ?: false,
+                            previewLines = ui.snapshot?.previewLines ?: 2),
                         canCustomize = row.canCustomize && !ui.mutationBusy,
                         canWorkspaceActions = RoutedSidebarMutationKind.RENAME in mutations,
                         canClose = RoutedSidebarMutationKind.CLOSE in mutations,

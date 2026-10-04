@@ -49,6 +49,7 @@ Customize uses the shared workspace editor and save policy. Global Mac/SSH
 workspace creation and creation inside an existing Mac group use the shared
 parent flows. New Workspace Group now creates in place with the Mac default name.
 SSH Close now uses the shared feed with kind-specific confirmation.
+Title wrapping and preview-line preferences now share the main settings.
 Drag ordering and selection styling still need browser parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
@@ -56,7 +57,7 @@ Physical Pixel/Mac acceptance, actual account/team replacement during live
 browser use, real native/SSH feed integration with the new browser sidebar,
 large-text/accessibility review and authenticated process recovery remain open.
 The compact browser stays stacked. Signed build 571 includes the changes through
-New Workspace Group; the SSH Close feature below awaits the next signed batch.
+New Workspace Group; SSH Close and display preferences below await the next signed batch.
 
 ## Verification
 
@@ -841,3 +842,45 @@ cleanup receipt. Browser callbacks were generated; the real SSH integration ran
 separately through the main feed. Physical Mac/Pixel, real browser-to-SSH close,
 authenticated migration, process death and accessibility acceptance remain open.
 Signed 571 predates this feature; no signed build or release was dispatched.
+
+## Workspace display preferences — 2026-10-05
+
+Scoped iOS `WorkspaceRow.swift` at `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`
+uses `wrapWorkspaceTitles` and `previewLineLimit` for both ordinary and selected
+workspace rows, reserving the chosen preview height. Android's main list already
+uses `NativeDisplayPreferences`; the browser had been calling the shared row with
+defaults. `NativeSidebarInput` now reads the main process's current display store,
+including when the parent composition is paused. The projection carries only
+`wrap_titles` and `preview_lines`, and `NativeWorkspaceRow` renders those values.
+No browser-side SharedPreferences copy or unrelated terminal settings are sent.
+
+Paging keeps the settings from the captured snapshot; later reads obtain current
+values. Absent fields retain previous defaults (no wrapping, two preview lines).
+Line counts outside 1–2 are rejected. The existing metadata byte budget applies.
+
+Verification: **36 JVM checks** (2 new display/wire/paging cases, 34 sidebar
+regressions) and **2 Android checks in 52.6s**, with no failures/skips. The browser
+case uses isolated real SharedPreferences and the production Activity/service.
+It changes preferences while the parent remains paused, verifies title height
+increases and preview height decreases, hides the sidebar, changes back and checks
+the original dimensions after reopening. Page-load count and unsent draft remain
+unchanged; return releases leases. The main shared row/settings test checks actual
+Compose line counts, ellipsis, reserved height, remount persistence and malformed
+stored preferences. Both layout screenshots were visually inspected.
+
+Debug APK SHA-256: `0a2dc5ef44830329ceb0fe98899146d7eda37f7d8987df73e0d9dacf17454035`.
+Test APK SHA-256: `7d773384e3388bfbdd924e0e4b302ef97c94cdaa5ad9993e5af700cb0a49a2ff`.
+Sources and installed hashes matched, display/settings restored, crash buffer empty
+and the existing API37/16KB emulator stopped/reaped. No new AVD or signed batch;
+Pixel absent and untouched. Evidence: `captures/runtime/browser-sidebar-display/`
+(ignored). Generated feed; no physical/account/process-death acceptance.
+
+Selection remains pending. Scoped iOS `WorkspaceListRowModel.swift` selects only in
+sidebar navigation and compares the exact workspace ID (or group's live anchor).
+`WorkspaceRow.swift` uses an accent title and a 14pt rounded accent fill at 0.14
+opacity. Android's main/shared workspace row currently lacks selected input. The
+browser selection must bind its captured presentation workspace and exact Mac/SSH
+owner, not merely the parent's mutable foreground computer. Mac and SSH browser
+workspace keys use different namespaces; do not create SSH networks to infer a
+highlight. Implement the shared selection visual/accessibility state with tests
+for colliding IDs, owner replacement, groups and compact-vs-sidebar layout next.

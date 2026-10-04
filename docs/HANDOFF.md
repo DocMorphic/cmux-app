@@ -24,7 +24,34 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — SSH close from the browser sidebar (2026-10-05)
+## Latest checkpoint — browser workspace display preferences (2026-10-05)
+
+The browser sidebar now uses the same Wrap Workspace Titles and Preview Lines
+settings as the main list. Its main-process input reads current preferences even
+when the parent composition is paused. Only the two row options cross IPC; a paged
+snapshot retains a consistent pair and a fresh read picks up later changes. The
+shared row renderer applies the same wrapping and reserved preview height.
+
+**36 focused JVM checks and two Android scenarios passed** (Android **52.6s**).
+The browser scenario changes isolated real preferences while its parent is paused,
+measures title/preview bounds, hides the sidebar, changes settings again and checks
+the restored layout without reloading the page or losing its draft. The existing
+main row/settings scenario verifies layout, remount persistence and malformed
+stored values. Screenshots inspected, source/installed hashes matched, settings
+restored, crash buffer empty and sole emulator stopped/reaped. Pixel absent and
+untouched. Evidence: `captures/runtime/browser-sidebar-display/` (ignored).
+
+This uses a generated feed with production Activity/service/shared rendering; it
+does not establish authenticated MainScreen, physical Mac/Pixel or process-death
+acceptance. Signed **571** predates this and SSH Close; no new signed batch.
+Selection highlighting remains next: scoped iOS highlights only the exact selected
+workspace/group anchor in sidebar layout. Capture the workspace actually shown by
+the browser, including its Mac/SSH owner, rather than guessing from the foreground
+computer. Drag ordering, changes preview and the remaining physical/network,
+push/notice, legacy-ticket and upstream audit work remain open. PR #1 stays draft;
+full goal active and global parity pin unchanged.
+
+## Earlier checkpoint — SSH close from the browser sidebar (2026-10-05)
 
 Browser SSH workspace rows now expose Close through the shared row gestures/menu.
 The scoped iOS rule is applied in both main and browser lists: tmux/cmux-tui ask

@@ -18,7 +18,7 @@ internal data class NativeSidebarInput(val sources: List<NativeFeedSource>, val 
     val sshAvailability: Map<java.util.UUID, NativeFeedAvailability> = emptyMap(),
     val appearances: NativeMacAppearances = NativeMacAppearances(), val locale: Locale = Locale.getDefault(),
     val actions: Set<RoutedSidebarActionKind> = emptySet(), val pendingMoves: Map<String, Int> = emptyMap(),
-    val creation: NativeSidebarCreation? = null)
+    val creation: NativeSidebarCreation? = null, val display: NativeDisplayPreferences = NativeDisplayPreferences())
 internal data class NativeSidebarPresentation(val computer: String? = null, val notifications: Boolean = false,
     val workspaceQuery: String = "", val notificationQuery: String = "", val workspaceUnread: Boolean = false,
     val notificationUnread: Boolean = false, val machines: Set<String> = emptySet(),
@@ -339,7 +339,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                 RoutedSidebarReadAll(readAllKey(value, query), ordered.singleOrNull { it.id == selected }?.name ?: "All Computers") else null,
             canRefresh = query.notifications && refreshNotifications != null, expanded = expanded(projection),
             creation = if (!query.notifications && validScope) creation(value, selected) else emptyList(),
-            createGroup = if (!query.notifications && validScope) groupCreate(value, selected) else null)
+            createGroup = if (!query.notifications && validScope) groupCreate(value, selected) else null,
+            wrapTitles = value.display.wrapTitles, previewLines = value.display.previewLines)
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
         query: RoutedSidebarQuery, all: Boolean, filtering: Boolean): List<RoutedSidebarRow> {

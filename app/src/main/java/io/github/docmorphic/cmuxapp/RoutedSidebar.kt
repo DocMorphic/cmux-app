@@ -50,7 +50,10 @@ internal data class RoutedSidebarSnapshot(val computers: List<RoutedSidebarCompu
     val filterMachines: List<RoutedSidebarComputer> = emptyList(), val selectedMachines: Set<String> = emptySet(),
     val sortMode: NativeWorkspaceSortMode? = null, val actions: List<RoutedSidebarAction> = emptyList(), val readAll: RoutedSidebarReadAll? = null,
     val canRefresh: Boolean = false, val expanded: Set<String> = emptySet(), val editorTicket: String? = null,
-    val creation: List<RoutedSidebarCreateComputer> = emptyList(), val createGroup: String? = null)
+    val creation: List<RoutedSidebarCreateComputer> = emptyList(), val createGroup: String? = null,
+    val wrapTitles: Boolean = false, val previewLines: Int = 2) {
+    init { require(previewLines in 1..2) }
+}
 internal data class RoutedSidebarPage(val revision: String, val snapshot: RoutedSidebarSnapshot,
     val offset: Int, val next: Int?, val total: Int)
 
@@ -248,6 +251,7 @@ internal object RoutedSidebarWire {
         .put("unread", value.snapshot.unread).put("loading", value.snapshot.loading).put("status", value.snapshot.status?.bounded(2048))
         .put("read_all", value.snapshot.readAll?.let { JSONObject().put("key", token(it.key)).put("computer", it.computer.bounded(64)) })
         .put("can_refresh", value.snapshot.canRefresh)
+        .put("wrap_titles", value.snapshot.wrapTitles).put("preview_lines", value.snapshot.previewLines)
         .put("editor", value.snapshot.editorTicket)
         .put("creation", RoutedSidebarCreationWire.encode(value.snapshot.creation))
         .put("create_group", value.snapshot.createGroup?.let(::token))
@@ -308,6 +312,7 @@ internal object RoutedSidebarWire {
                 json.optBoolean("can_refresh"), keys(json.optJSONArray("expanded") ?: JSONArray(), 2000).toSet(),
                 if (json.isNull("editor")) null else token(json.getString("editor")),
                 RoutedSidebarCreationWire.decode(json.optJSONArray("creation") ?: JSONArray()),
-                if (json.isNull("create_group")) null else token(json.getString("create_group"))), offset, next, total)
+                if (json.isNull("create_group")) null else token(json.getString("create_group")),
+                json.optBoolean("wrap_titles"), if (json.has("preview_lines")) json.getInt("preview_lines") else 2), offset, next, total)
     }
 }

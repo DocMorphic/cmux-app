@@ -3340,7 +3340,8 @@ internal fun NativeScreen(
                 }, pendingMoves = workspaceMoves.status.value.mapValues { it.value.pending },
                 creation = NativeSidebarCreation(creatingWorkspace || creatingTerminal || sshCreationBusy || creatingGroup,
                     sshTargets.filter { it.session === ssh && it.session.isOpen && hosts.any { host -> host.connectsLike(it.host) } },
-                    foregroundMac = macs.singleOrNull { it.code == connectedCode }))
+                    foregroundMac = macs.singleOrNull { it.code == connectedCode }),
+                display = NativeDisplayPreferences.read(displayPreferences))
         }
     })
     val sidebarInitial by rememberUpdatedState<() -> NativeSidebarPresentation>({

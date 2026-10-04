@@ -77,6 +77,9 @@ class RoutedBrowserPresentationTest {
     private val sshCloseStarted = CompletableDeferred<Unit>()
     private val sshCloseContinue = CompletableDeferred<Unit>()
     private val sshCloseWrites = CopyOnWriteArrayList<String>()
+    private val sidebarDisplayName = "fixture-sidebar-display-${UUID.randomUUID()}"
+    private val sidebarDisplayTitle = "A long workspace title that must wrap across several lines inside the browser sidebar"
+    private val sidebarDisplayPreview = "First preview line\nSecond preview line"
     private var creationBusy = false
     private var groupForeground = "A"
     private val groupAttempts = CopyOnWriteArrayList<String>()
@@ -191,6 +194,19 @@ class RoutedBrowserPresentationTest {
             }; start()
         }
         main {
+            if (scenarioName == "globalSidebarDisplayPreferencesUpdateWhileParentPausedAndPreserveDraft") {
+                val preferences = context.getSharedPreferences(sidebarDisplayName, Context.MODE_PRIVATE)
+                preferences.edit().clear().commit()
+                val mac = NativeCredentialStore.PairedMac("fixture-display", "display", "Display Mac")
+                val source = NativeFeedSource(mac, workspaces = listOf(
+                    NativeWorkspace("display", sidebarDisplayTitle, emptyList(), null, false, null, null, false,
+                        emptyList(), null, sidebarDisplayPreview, null),
+                    NativeWorkspace("next", "Next workspace", emptyList(), null, false, null, null, false, emptyList(), null, "Next preview", null)))
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-display", {
+                    NativeSidebarInput(listOf(source), emptyList(), listOf(NativeSortComputer("display", "Display Mac")),
+                        NativeWorkspaceSortState(), display = NativeDisplayPreferences.read(preferences))
+                }, { RoutedSidebarLease({}) {} }, {})
+            }
             if (scenarioName.startsWith("globalSidebarSshClose")) {
                 val a = SshHostRecord(name = "SSH A", endpoint = SshEndpoint("a.invalid", 22, "user"))
                 val b = a.copy(id = UUID.randomUUID(), name = "SSH B", endpoint = a.endpoint.copy(host = "b.invalid"))
@@ -541,6 +557,30 @@ class RoutedBrowserPresentationTest {
         assertEquals(sortStore.state.value, NativeWorkspaceSortStore({ sortJson }, {}).state.value)
         assertEquals(false, sidebarActive.last())
     }
+    @Test fun globalSidebarDisplayPreferencesUpdateWhileParentPausedAndPreserveDraft() = wideSidebar {
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        desc("Choose terminal or pane"); text("Keep draft").click()
+        until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+        val preferences = context.getSharedPreferences(sidebarDisplayName, Context.MODE_PRIVATE)
+        try {
+            val loads = paths.count { it == "/start" }
+            val titleHeight = text(sidebarDisplayTitle).visibleBounds.height()
+            val twoLines = text(sidebarDisplayPreview).visibleBounds.height()
+            main { preferences.edit().putBoolean(NativeDisplayPreferences.wrapKey, true).putInt(NativeDisplayPreferences.previewKey, 1).commit() }
+            until { text(sidebarDisplayTitle).visibleBounds.height() > titleHeight && text(sidebarDisplayPreview).visibleBounds.height() < twoLines }
+            assertFalse(compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED))
+            capturePicker("browser-sidebar-display-wrapped")
+            desc("Hide sidebar").click(); desc("Show sidebar")
+            main { preferences.edit().putBoolean(NativeDisplayPreferences.wrapKey, false).putInt(NativeDisplayPreferences.previewKey, 2).commit() }
+            desc("Show sidebar").click()
+            until { text(sidebarDisplayTitle).visibleBounds.height() == titleHeight && text(sidebarDisplayPreview).visibleBounds.height() == twoLines }
+            assertEquals(loads, paths.count { it == "/start" }); assertTrue(desc("Choose terminal or pane").text!!.startsWith("Draft "))
+            capturePicker("browser-sidebar-display-restored")
+            device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+            until { sidebarReleases.get() == 1 }; assertEquals(0, holds.get())
+        } finally { preferences.edit().clear().commit() }
+    }
+
     @Test fun globalSidebarSshCloseConfirmsPersistentKindsAndClosesShellWithoutLosingDraft() = wideSidebar {
         compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
         desc("Choose terminal or pane"); text("Keep draft")
