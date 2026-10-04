@@ -789,12 +789,7 @@ internal fun NativeScreen(
         }
     }
     val workspaceSearch = remember(workspaceSources, searchLocale, appearances) {
-        NativeSearchIndex(workspaceSources.flatMap { source ->
-            val groupNames = source.groups.associate { it.id to it.name }
-            source.workspaces.map { workspace -> workspaceSearchId(source, workspace) to
-                (listOf(workspace.title, workspace.description, workspace.directory, workspace.preview,
-                    source.mac.name, appearances.name(source.mac), groupNames[workspace.groupId]) + workspace.terminals.map { it.title }) }
-        }, searchLocale)
+        NativeSearchIndex(workspaceSearchRows(workspaceSources, appearances::name), searchLocale)
     }
     val notificationSearch = remember(feedEntries, searchLocale) {
         NativeSearchIndex(feedEntries.map { it.id to it.searchFields() }, searchLocale, notification = true)
@@ -3314,8 +3309,98 @@ internal fun NativeScreen(
     val customizePane: ((NativeWorkspace) -> Unit)? = workspaceSourceForPane()?.takeIf { it.canCustomizeWorkspace() }?.let { source ->
         { workspace -> customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, source.mac, workspace.id) }
     }
+    val sidebarOwner = remember(browserLogin, teamState.scope) { browserLogin?.let { NativeComputerMenuOwner(it, teamState.scope) } }
+    fun sidebarCurrent() = sidebarOwner != null && account.isSignedIn() && store.taskSession() == sidebarOwner.login &&
+        accountTeams.state.value.scope == sidebarOwner.team
+    val sidebarInput by rememberUpdatedState<() -> NativeSidebarInput?>({
+        if (!sidebarCurrent()) null else {
+            val macs = store.visiblePairedMacs().filter(connection::allowsSaved)
+            val sources = macs.map { mac ->
+                val snapshot = workspaceMoves.sources.value[mac.origin]?.takeIf { it.mac == mac }
+                    ?: feedCoordinator.sources.value[mac.origin]?.takeIf { it.mac == mac }
+                if (snapshot?.hasWorkspaceSnapshot == true) snapshot
+                else if (client != null && connectedCode == mac.code) NativeFeedSource(mac, workspaces = workspaces,
+                    groups = groups, items = notifications, capabilities = hostCapabilities,
+                    availability = NativeFeedAvailability.CONNECTED, hasWorkspaceSnapshot = true)
+                else snapshot ?: NativeFeedSource(mac)
+            }
+            val ssh = sshSession?.takeIf { it.isOpen && (connector != null || sharedConnections?.ssh?.state?.value?.resource === it) }
+            val hosts = ssh?.hosts?.state?.value?.hosts.orEmpty()
+            val rows = ssh?.workspaceFeed?.state?.value.orEmpty().values.flatMap { it.rows }
+                .filter { row -> hosts.any { it.connectsLike(row.host) } && ssh?.workspaceFeed?.isCurrent(row) == true }
+            val availability = hosts.associate { host -> host.id to when (ssh?.connections?.statuses?.value?.get(host.id)?.phase) {
+                SshConnectionPhase.CONNECTED -> NativeFeedAvailability.CONNECTED
+                SshConnectionPhase.CONNECTING -> NativeFeedAvailability.CONNECTING
+                else -> NativeFeedAvailability.OFFLINE
+            } }
+            val display = cachedAppearanceState?.value ?: appearances
+            NativeSidebarInput(sources, rows, macs.mapNotNull { mac -> workspaceMacFilterId(mac.deviceId, mac.instanceTag)?.let {
+                NativeSortComputer(it, display.name(mac), connectedCode == mac.code && connectionReady, scopedPresence.buildLabel(mac))
+            } } + hosts.map { NativeSortComputer(workspaceSshFilterId(it.id), it.name) }, workspaceSortStore.state.value,
+                availability, display, searchLocale)
+        }
+    })
+    val sidebarInitial by rememberUpdatedState<() -> NativeSidebarPresentation>({
+        val mac = store.visiblePairedMacs().singleOrNull { it.ownsOrigin(selectedComputerOrigin) }
+        val ssh = sshSession?.hosts?.state?.value?.hosts?.singleOrNull { "ssh:${it.id}" == selectedComputerOrigin }
+        NativeSidebarPresentation(mac?.let { workspaceMacFilterId(it.deviceId, it.instanceTag) } ?: ssh?.let { workspaceSshFilterId(it.id) },
+            notificationTab, searchState.text(searchScope), if (notificationTab) unreadNotificationsOnly else unreadWorkspacesOnly)
+    })
+    val sidebarAdopt by rememberUpdatedState<(NativeSidebarPresentation) -> Unit>({ presentation ->
+        if (sidebarCurrent()) {
+            val mac = store.visiblePairedMacs().singleOrNull { workspaceMacFilterId(it.deviceId, it.instanceTag) == presentation.computer }
+            val ssh = sshSession?.hosts?.state?.value?.hosts?.singleOrNull { workspaceSshFilterId(it.id) == presentation.computer }
+            selectedComputerOrigin = mac?.origin ?: ssh?.let { "ssh:${it.id}" }.orEmpty()
+            store.update { it.put("computer_selection", selectedComputerOrigin) }
+            notificationTab = presentation.notifications
+            searchState = if (presentation.notifications) searchState.commit().copy(notificationQuery = presentation.text)
+                else searchState.commit().copy(workspaceQuery = presentation.text)
+            if (presentation.notifications) unreadNotificationsOnly = presentation.unread
+            else workspaceFilter = workspaceFilter.copy(unread = presentation.unread)
+        }
+    })
+    val sidebarNavigate by rememberUpdatedState<(NativeSidebarTarget) -> Unit>({ target ->
+        check(sidebarCurrent()) { "Sidebar account changed" }
+        when (target) {
+            is NativeSidebarTarget.Workspace -> {
+                check(store.visiblePairedMacs().contains(target.mac) && connection.allowsSaved(target.mac))
+                sshNavigation.leave(); screenResume.cancel(); inAppNotification = null
+                workspaceRoute = NativeWorkspaceRoute(target.mac.origin, target.id)
+            }
+            is NativeSidebarTarget.Ssh -> {
+                val row = target.row
+                check(sshSession?.workspaceFeed?.isCurrent(row) == true)
+                val first = checkNotNull(row.openTarget())
+                val login = checkNotNull(browserLogin)
+                val remembered = store.lastWorkspaceTab(login, sshWorkspaceTabKey(login, row.host, first))
+                workspaceSortStore.recordOpened(workspaceSshFilterId(row.host.id), System.currentTimeMillis())
+                screenResume.cancel(); workspaceRoute = null; inAppNotification = null
+                sshNavigation.open(login, row.host, first, remembered)
+            }
+            is NativeSidebarTarget.Notification -> {
+                val entry = target.entry
+                check(store.visiblePairedMacs().contains(entry.source.mac) && connection.allowsSaved(entry.source.mac))
+                sshNavigation.leave(); screenResume.cancel(); workspaceRoute = null
+                inAppNotification = NotificationDestination(java.util.UUID.randomUUID().toString(), entry.source.mac.origin,
+                    entry.notification.id, entry.notification.workspaceId, entry.notification.surfaceId, entry.notification.retargetsToLiveSurfaceOwner)
+            }
+        }
+    })
+    val sidebarHost = remember(sidebarOwner, feedSession, sshSession) { sidebarOwner?.let { owner ->
+        // Updated callbacks can be rebound after recomposition; retain this captured authority.
+        fun currentOwner() = account.isSignedIn() && store.taskSession() == owner.login && accountTeams.state.value.scope == owner.team
+        NativeRoutedSidebarHost(owner, feedSession.sidebarSalt, { if (currentOwner()) sidebarInput() else null }, retainFeed = {
+            val held = feedSession.holdSidebar { currentOwner() && sidebarInput() != null }
+            val connections = try { if (sharedConnections != null) NativeAppConnections.acquire(context.applicationContext) else null }
+                catch (failure: Exception) { held.close(); throw failure }
+            RoutedSidebarLease({ active -> held.active(active); connections?.connections?.setProbeActive(held, active) },
+                { held.close(); connections?.close() })
+        }, navigate = { check(currentOwner()); sidebarNavigate(it) },
+            initial = { if (currentOwner()) sidebarInitial() else NativeSidebarPresentation() },
+            adoptPresentation = { if (currentOwner()) sidebarAdopt(it) })
+    } }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
-        LocalWorkspaceCustomizationAction provides customizePane) {
+        LocalWorkspaceCustomizationAction provides customizePane, LocalRoutedSidebarHost provides sidebarHost) {
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
         if (signedIn && terminalStartupState.failure?.key?.let { it == displayedTab?.first } == true) {

@@ -46,12 +46,10 @@ already open SSH workspace.
 
 ## Scope still open
 
-The separate `RoutedBrowserActivity` in the `:browser` process still presents its
-own full-screen phone browser. It currently receives only the current workspace's
-menu over the owner-checked service protocol. Full sidebar parity there requires
-a bounded global feed/navigation snapshot plus validated actions through that
-protocol. Preserve process isolation and do not give the browser account
-credentials or start an independent account connection as a shortcut.
+The separate `RoutedBrowserActivity` now receives a bounded global display
+projection and owner-validated navigation tickets. It uses the same adaptive
+shell while preserving process isolation. See [BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md)
+for the protocol, verification and remaining browser-specific affordances.
 
 Physical Pixel/Mac acceptance, actual OS window recreation during a live session,
 large text/accessibility review, selection styling and wider UI refinement remain.

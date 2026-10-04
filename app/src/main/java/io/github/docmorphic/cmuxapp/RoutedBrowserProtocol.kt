@@ -12,6 +12,8 @@ internal object RoutedBrowserProtocol {
     const val DEBUG_LOGS = 5
     const val CUSTOMIZE = 6
     const val CANCEL_CUSTOMIZE = 7
+    const val SIDEBAR = 8
+    const val SIDEBAR_SELECT = 9
     const val RETIRE = 100
     const val CONTEXT = 101
     const val EXTRA = "browser_request"
@@ -19,7 +21,9 @@ internal object RoutedBrowserProtocol {
     fun panes(workspace: NativeWorkspace, browserState: NativeBrowserPickerState = NativeBrowserPickerState()) = nativePanePickerRows(workspace, browserState)
     fun browserState(bundle: Bundle) = NativeBrowserPickerState(bundle.getBoolean("browser_support_known"), bundle.getBoolean("browser_streaming", true))
     fun context(workspace: NativeWorkspace, modes: Boolean = false, linkedPanel: String? = null, creationEnabled: Boolean = false,
-        sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState(), customizationEnabled: Boolean = false) = Bundle().apply {
+        sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState(), customizationEnabled: Boolean = false,
+        sidebarAvailable: Boolean = false) = Bundle().apply {
+        putBoolean("sidebar_available", sidebarAvailable)
         putBoolean("browser_support_known", browserState.known); putBoolean("browser_streaming", browserState.streaming)
         putString("ssh_picker", sshPicker?.encode())
         putBoolean("creation_enabled", creationEnabled); putBoolean("modes", modes); putString("linked_panel", linkedPanel)

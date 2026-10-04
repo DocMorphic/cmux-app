@@ -22,7 +22,8 @@ class RoutedBrowserHostService : Service() {
                 check(entry.peer?.binder == peer.binder) { "Browser session belongs to another presentation" }
                 when (kind) {
                     RoutedBrowserProtocol.OPEN -> {
-                        result.putAll(RoutedBrowserProtocol.context(entry.workspace, entry.modes, entry.destination.surface.linkedStreamPanelId, entry.creationEnabled, entry.sshPicker, entry.browserState, entry.customizationEnabled))
+                        result.putAll(entry.context())
+                        entry.sidebar?.initialQuery()?.let { result.putString("sidebar_query", RoutedSidebarWire.query(it)) }
                         result.putString("storage", entry.network.storageId)
                         result.putInt("port", RoutedBrowserSessions.prepare(entry, entry.initial))
                         result.putString("surface", entry.destination.surface.id)
@@ -41,7 +42,9 @@ class RoutedBrowserHostService : Service() {
                     RoutedBrowserProtocol.CANCEL_CUSTOMIZE -> { saves[entry.id to ticket]?.cancel(); return@launch }
                     RoutedBrowserProtocol.PREPARE -> result.putInt("port", RoutedBrowserSessions.prepare(entry, args.getString("url")))
                     RoutedBrowserProtocol.SNAPSHOT -> entry.destination.surface.remote(entry.attachment, RoutedBrowserProtocol.snapshot(args))
-                    RoutedBrowserProtocol.FOREGROUND -> entry.probe(args.getBoolean("active"))
+                    RoutedBrowserProtocol.FOREGROUND -> RoutedBrowserSessions.foreground(entry, args.getBoolean("active"), args.getBoolean("sidebar_visible"))
+                    RoutedBrowserProtocol.SIDEBAR -> result.putString("sidebar", RoutedSidebarWire.page(RoutedBrowserSessions.sidebar(entry, args)))
+                    RoutedBrowserProtocol.SIDEBAR_SELECT -> result.putString("selection", RoutedBrowserSessions.selectSidebar(entry, checkNotNull(args.getString("key"))))
                     RoutedBrowserProtocol.DEBUG_LOGS -> {
                         check(BuildConfig.DEBUG) { "Debug logs unavailable" }
                         result.putString("debug_logs", debugLogSnapshot(this@RoutedBrowserHostService))

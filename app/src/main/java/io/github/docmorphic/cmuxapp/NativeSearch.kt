@@ -61,3 +61,12 @@ class NativeSearchIndex(rows: List<Pair<String, List<String?>>>, private val loc
         return fields.filterValues { needle.isEmpty() || it.any { field -> needle in field } }.keys
     }
 }
+
+/** Shared main/browser search fields, kept separate to prevent cross-field matches. */
+internal fun workspaceSearchRows(sources: List<NativeFeedSource>, name: (NativeCredentialStore.PairedMac) -> String): List<Pair<String, List<String?>>> =
+    sources.flatMap { source ->
+        val groups = source.groups.associate { it.id to it.name }
+        source.workspaces.map { workspace -> workspaceSearchId(source, workspace) to
+            (listOf(workspace.title, workspace.description, workspace.directory, workspace.preview,
+                source.mac.name, name(source.mac), groups[workspace.groupId]) + workspace.terminals.map { it.title }) }
+    }

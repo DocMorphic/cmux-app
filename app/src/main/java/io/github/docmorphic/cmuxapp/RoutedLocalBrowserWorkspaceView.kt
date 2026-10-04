@@ -27,7 +27,8 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null,
     sshPicker: SshPickerPresentation? = null, onSshCommand: ((SshPickerCommand) -> Unit)? = null,
     browserState: () -> NativeBrowserPickerState = { NativeBrowserPickerState() },
-    menuSource: (() -> RoutedBrowserMenu?)? = null, customizeWorkspace: RoutedWorkspaceCustomizationSave? = null) {
+    menuSource: (() -> RoutedBrowserMenu?)? = null, customizeWorkspace: RoutedWorkspaceCustomizationSave? = null,
+    onSidebarExit: () -> Unit = {}) {
     val creationEnabled = onNewWorkspace != null && onNewTerminal != null && onNewBrowser != null
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -46,6 +47,8 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     val currentCreationEnabled by rememberUpdatedState(creationEnabled)
     val currentSshPicker by rememberUpdatedState(sshPicker)
     val currentCustomize by rememberUpdatedState(customizeWorkspace)
+    val sidebar = LocalRoutedSidebarHost.current
+    val currentSidebar by rememberUpdatedState(sidebar)
     fun readMenu(): RoutedBrowserMenu? {
         val source = currentMenuSource
         return (if (source == null) RoutedBrowserMenu(currentWorkspace, currentCreationEnabled, currentSshPicker, currentBrowserState())
@@ -63,6 +66,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
             if (returnScope == RoutedBrowserReturnScope.LEAVE || (returnScope == RoutedBrowserReturnScope.APPLY && menu == null)) navigation.leave(close = false)
             else if (returnScope == RoutedBrowserReturnScope.APPLY && action == "restart") attempt++
             else if (returnScope == RoutedBrowserReturnScope.APPLY && menu != null) {
+                if (entry?.sidebar?.owner == currentSidebar?.owner) entry?.sidebarQuery?.let { currentSidebar?.adopt(it) }
                 val currentWorkspace = menu.workspace
                 val kind = result.data?.getStringExtra("kind")
                 val paneId = result.data?.getStringExtra("pane")
@@ -75,6 +79,13 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
                 }
                 val sshCommand = SshPickerCommand.decode(result.data?.getStringExtra("ssh_command"))
                 when {
+                    action == "sidebar" -> {
+                        val navigate = entry?.let { RoutedBrowserSessions.sidebarResult(it, result.data?.getStringExtra("selection"), currentSidebar) }
+                        if (navigate != null) {
+                            onSidebarExit(); navigation.leave(close = false)
+                            runCatching { navigate() }.onFailure { failure = it.message ?: "Sidebar destination changed" }
+                        } else navigation.leave(close = false)
+                    }
                     action == "ssh_command" && sshCommand != null && onSshCommand != null && menu.sshPicker?.permits(sshCommand) == true -> onSshCommand(sshCommand)
                     creation != null && menu.creationEnabled -> creation()
                     action == "stream" && browserModes && menu.browserState.streaming && panel?.kind == "browser" &&
@@ -100,6 +111,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
         }
     }
     SideEffect { RoutedBrowserSessions.refreshMenu(requestId, readMenu()) }
+    SideEffect { RoutedBrowserSessions.refreshSidebar(requestId, currentSidebar) }
     suspend fun watchMenu(id: String) = coroutineScope {
         val entry = RoutedBrowserSessions.live(id) ?: return@coroutineScope
         // The parent Activity stops drawing while :browser owns the screen.
@@ -128,7 +140,7 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
                 customize = { baseline, submitted ->
                     check(ownsBrowserDestination(destination, navigation.state.value.local) && readMenu()?.customizationEnabled == true) { "Browser workspace changed." }
                     checkNotNull(currentCustomize) { "Workspace customization is unavailable." }(baseline, submitted)
-                })
+                }, sidebar = currentSidebar)
             registered = entry.id; requestId = entry.id
             launcher.launch(Intent(context, RoutedBrowserActivity::class.java).putExtra(RoutedBrowserProtocol.EXTRA, entry.id))
         } catch (error: Exception) {

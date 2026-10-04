@@ -23,6 +23,8 @@ internal class NativeFeedSession(
     private var routeKeys = emptyMap<String, String>()
     private var localRouteKeys = emptyMap<NativeMacIdentity, String>()
     private val browserHolds = mutableMapOf<Any, String>()
+    private val sidebarHolds = mutableMapOf<Any, Boolean>()
+    val sidebarSalt = java.util.UUID.randomUUID().toString()
     private var viewModelCleared = false
     val terminalSizing = NativeTerminalSizingSession()
     val macColorSlots = NativeMacColorSlots()
@@ -64,7 +66,7 @@ internal class NativeFeedSession(
     fun leaveMainScreen() { foreground = false; reconcileFeed() }
     private fun reconcileFeed() {
         coordinator.retainMacs(feedMacs)
-        val wanted = if (foreground) feedMacs else feedMacs.filter { it.origin in browserHolds.values }
+        val wanted = if (foreground || sidebarHolds.values.any { it }) feedMacs else feedMacs.filter { it.origin in browserHolds.values }
         if (wanted.isEmpty()) coordinator.pause() else coordinator.updateMacs(wanted, routeKeys, localRouteKeys)
     }
     fun holdBrowser(mac: NativeCredentialStore.PairedMac): AutoCloseable {
@@ -72,7 +74,7 @@ internal class NativeFeedSession(
         val token = Any(); browserHolds[token] = mac.origin; reconcileFeed()
         return AutoCloseable {
             if (browserHolds.remove(token) != null) {
-                if (viewModelCleared && browserHolds.isEmpty()) dispose() else reconcileFeed()
+                if (viewModelCleared && browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed()
             }
         }
     }
@@ -83,10 +85,22 @@ internal class NativeFeedSession(
                 (mac.accountTeamId == null || mac.accountTeamId == owner.team) && connector.allowsSaved(mac)
         }
 
+    fun holdSidebar(isCurrent: () -> Boolean): RoutedSidebarLease {
+        check(isCurrent()) { "Sidebar account changed" }
+        val token = Any(); sidebarHolds[token] = false
+        return RoutedSidebarLease({ active ->
+            if (token in sidebarHolds) { sidebarHolds[token] = active && isCurrent(); reconcileFeed() }
+        }, {
+            if (sidebarHolds.remove(token) != null) {
+                if (viewModelCleared && browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed()
+            }
+        })
+    }
+
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { browserHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
-    override fun onCleared() { viewModelCleared = true; foreground = false; if (browserHolds.isEmpty()) dispose() else reconcileFeed() }
+    override fun onCleared() { viewModelCleared = true; foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,
         private val store: NativeCredentialStore) : ViewModelProvider.Factory {

@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 internal data class RoutedBrowserUi(val surface: LocalBrowserSurface? = null,
     val panes: List<NativePanePickerRow> = emptyList(), val error: String? = null,
     val retired: Boolean = false, val restart: Boolean = false, val modes: Boolean = false, val linkedPanel: String? = null, val creationEnabled: Boolean = false,
-    val sshPicker: SshPickerPresentation? = null, val browserState: NativeBrowserPickerState = NativeBrowserPickerState(), val workspaceId: String? = null, val customization: WorkspaceCustomizationDraft? = null)
+    val sshPicker: SshPickerPresentation? = null, val browserState: NativeBrowserPickerState = NativeBrowserPickerState(), val workspaceId: String? = null, val sidebarAvailable: Boolean = false, val customization: WorkspaceCustomizationDraft? = null)
 
 internal class RoutedBrowserController(application: Application) : AndroidViewModel(application) {
     private val app = application.applicationContext
@@ -42,15 +42,25 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
     private var foreground = false
     private var binding: RoutedBrowserBinding? = null
     private var latestContext: Bundle? = null
+    val sidebar = RoutedSidebarController(viewModelScope,
+        publishVisibility = { visible -> if (binding != null) request(RoutedBrowserProtocol.FOREGROUND, Bundle().apply {
+            putBoolean("active", foreground); putBoolean("sidebar_visible", visible)
+        }) },
+        read = { query, revision, offset -> RoutedSidebarWire.page(checkNotNull(request(RoutedBrowserProtocol.SIDEBAR, Bundle().apply {
+            putString("query", RoutedSidebarWire.query(query)); putString("revision", revision); putInt("offset", offset)
+        }).getString("sidebar"))) },
+        select = { key -> checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_SELECT, Bundle().apply { putString("key", key) }).getString("selection")) })
+    private fun configureSidebar() = sidebar.configure(binding != null && state.value.sidebarAvailable && !state.value.retired, foreground)
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         when (message.what) {
-            RoutedBrowserProtocol.RETIRE -> mutable.value = state.value.copy(retired = true)
+            RoutedBrowserProtocol.RETIRE -> { mutable.value = state.value.copy(retired = true); configureSidebar() }
             RoutedBrowserProtocol.CONTEXT -> {
                 latestContext = Bundle(message.data)
                 mutable.value = state.value.copy(panes = RoutedBrowserProtocol.panes(message.data),
                 modes = message.data.getBoolean("modes"), linkedPanel = message.data.getString("linked_panel"), creationEnabled = message.data.getBoolean("creation_enabled"),
                 sshPicker = SshPickerPresentation.decode(message.data.getString("ssh_picker")), browserState = RoutedBrowserProtocol.browserState(message.data), workspaceId = message.data.getString("workspace_id"),
-                customization = message.data.getBundle("customization")?.let(RoutedWorkspaceCustomizationProtocol::draft))
+                sidebarAvailable = message.data.getBoolean("sidebar_available"), customization = message.data.getBundle("customization")?.let(RoutedWorkspaceCustomizationProtocol::draft))
+                configureSidebar()
             }
             else -> replies.remove(message.arg1)?.complete(Bundle(message.data))
         }
@@ -71,8 +81,9 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
                     val metadata = latestContext ?: response
                     mutable.value = RoutedBrowserUi(surface, RoutedBrowserProtocol.panes(metadata), retired = state.value.retired, modes = metadata.getBoolean("modes"), linkedPanel = metadata.getString("linked_panel"), creationEnabled = metadata.getBoolean("creation_enabled"),
                         sshPicker = SshPickerPresentation.decode(metadata.getString("ssh_picker")), browserState = RoutedBrowserProtocol.browserState(metadata), workspaceId = metadata.getString("workspace_id"),
-                        customization = metadata.getBundle("customization")?.let(RoutedWorkspaceCustomizationProtocol::draft))
-                    publishForeground()
+                        sidebarAvailable = metadata.getBoolean("sidebar_available"), customization = metadata.getBundle("customization")?.let(RoutedWorkspaceCustomizationProtocol::draft))
+                    response.getString("sidebar_query")?.let { sidebar.initialize(RoutedSidebarWire.query(it)) }
+                    configureSidebar()
                     surface.state.collect { snapshot ->
                         request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(snapshot))
                     }
@@ -96,6 +107,7 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         service = null
         replies.values.forEach { it.completeExceptionally(IllegalStateException("Browser connection ended")) }; replies.clear()
         mutable.value = state.value.copy(retired = true)
+        configureSidebar()
     }
     private suspend fun request(kind: Int, args: Bundle = Bundle()): Bundle {
         val peer = checkNotNull(service) { "Browser connection ended" }
@@ -137,9 +149,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
     }
     fun foreground(active: Boolean) {
         foreground = active
-        if (binding != null) viewModelScope.launch { runCatching { publishForeground() } }
+        configureSidebar()
     }
-    private suspend fun publishForeground() = request(RoutedBrowserProtocol.FOREGROUND, Bundle().apply { putBoolean("active", foreground) })
     suspend fun flush() {
         state.value.surface?.let { request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(it.state.value)) }
         if (binding != null) CookieManager.getInstance().flush()
@@ -159,13 +170,13 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
 class RoutedBrowserActivity : ComponentActivity() {
     private lateinit var controller: RoutedBrowserController
     private var leaving = false
-    private fun leave(action: String, pane: NativePanePickerRow? = null, sshCommand: SshPickerCommand? = null) {
+    private fun leave(action: String, pane: NativePanePickerRow? = null, sshCommand: SshPickerCommand? = null, selection: String? = null) {
         if (leaving) return
         leaving = true
         lifecycleScope.launch {
             withTimeoutOrNull(2_000) { runCatching { controller.flush(); MobileDiagnostics.recorder?.flush() } }
             setResult(RESULT_OK, Intent().putExtra(RoutedBrowserProtocol.EXTRA, intent.getStringExtra(RoutedBrowserProtocol.EXTRA))
-                .putExtra("action", action).putExtra("kind", pane?.kind).putExtra("pane", pane?.id).putExtra("ssh_command", sshCommand?.encode()))
+                .putExtra("selection", selection).putExtra("action", action).putExtra("kind", pane?.kind).putExtra("pane", pane?.id).putExtra("ssh_command", sshCommand?.encode()))
             finish()
         }
     }
@@ -190,10 +201,21 @@ class RoutedBrowserActivity : ComponentActivity() {
             LaunchedEffect(ui.retired, ui.restart) {
                 if (ui.retired) leave("retired") else if (ui.restart) leave("restart")
             }
-            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            val sidebarUi by controller.sidebar.state.collectAsState()
+            val coroutineScope = rememberCoroutineScope()
+            val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+            val focus = androidx.compose.ui.platform.LocalFocusManager.current
+            fun finishSearch(cancel: Boolean = false) { controller.sidebar.finishSearch(cancel); focus.clearFocus(); keyboard?.hide() }
+            NativeWorkspaceShell(id, hasDetail = true, allowSplit = ui.sidebarAvailable,
+                modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding(),
+                onSearchBack = if (sidebarUi.search.active != null) ({ finishSearch(true) }) else null,
+                onSidebarHidden = if (sidebarUi.search.active != null) ({ finishSearch() }) else null,
+                sidebar = { RoutedBrowserSidebar(controller.sidebar, sidebarUi, onOpen = { key ->
+                    coroutineScope.launch { controller.sidebar.open(key)?.let { leave("sidebar", selection = it) } }
+                }, onFinishSearch = ::finishSearch) }, detail = {
                 val page = ui.surface?.state?.collectAsState()?.value
                 Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { leave("back") }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
+                    NativeWorkspaceBackControl { TextButton(onClick = { leave("back") }, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") } }
                     val selected = ui.panes.singleOrNull { it.kind == "browser" && it.id == ui.linkedPanel }
                     if (ui.sshPicker != null) Box(Modifier.weight(1f)) {
                         SshBrowserPanePicker(page?.title ?: "Browser", checkNotNull(ui.sshPicker), ui.linkedPanel,
@@ -226,7 +248,7 @@ class RoutedBrowserActivity : ComponentActivity() {
                     ui.surface == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                     else -> LocalBrowserPane(checkNotNull(ui.surface), beforeNavigation = controller::prepare) { leave("close") }
                 }
-            }
+            })
         } } } } }
     }
     override fun onStart() { super.onStart(); if (::controller.isInitialized) controller.foreground(true) }

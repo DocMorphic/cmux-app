@@ -26,7 +26,13 @@ internal object RoutedBrowserSessions {
     internal class Entry(val id: String, val network: RoutedBrowserNetwork, val destination: LocalBrowserDestination,
         var workspace: NativeWorkspace, val release: () -> Unit, val probe: (Boolean) -> Unit, val modes: Boolean = false, var creationEnabled: Boolean = false,
         var sshPicker: SshPickerPresentation? = null, var browserState: NativeBrowserPickerState = NativeBrowserPickerState(),
-        var customizationEnabled: Boolean = false, val customize: RoutedWorkspaceCustomizationSave? = null) {
+        var customizationEnabled: Boolean = false, val customize: RoutedWorkspaceCustomizationSave? = null,
+        var sidebar: RoutedSidebarHost? = null) {
+        var sidebarLease: RoutedSidebarLease? = null
+        val sidebarExchange = RoutedSidebarExchange()
+        var foreground = false
+        var sidebarVisible = false
+        var sidebarQuery: RoutedSidebarQuery? = null
         val customizationMutex = Mutex()
         val exited = CompletableDeferred<Unit>()
         var surfaceWatch: Job? = null
@@ -35,12 +41,15 @@ internal object RoutedBrowserSessions {
         var death: IBinder.DeathRecipient? = null
         val attachment = destination.surface.attach()
         val initial = destination.surface.takeWork().url ?: destination.surface.state.value.url
+        fun context() = RoutedBrowserProtocol.context(workspace, modes, destination.surface.linkedStreamPanelId,
+            creationEnabled, sshPicker, browserState, customizationEnabled, sidebar != null)
         fun send(kind: Int, data: Bundle = Bundle()) { runCatching { peer?.send(Message.obtain(null, kind).apply { this.data = data }) } }
     }
 
     suspend fun register(context: Context, network: RoutedBrowserNetwork, destination: LocalBrowserDestination,
         workspace: NativeWorkspace, release: () -> Unit, probe: (Boolean) -> Unit, modes: Boolean = false, creationEnabled: Boolean = false,
-        sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState(), customizationEnabled: Boolean = false, customize: RoutedWorkspaceCustomizationSave? = null): Entry = transitions.withLock {
+        sshPicker: SshPickerPresentation? = null, browserState: NativeBrowserPickerState = NativeBrowserPickerState(), customizationEnabled: Boolean = false,
+        customize: RoutedWorkspaceCustomizationSave? = null, sidebar: RoutedSidebarHost? = null): Entry = transitions.withLock {
         val app = context.applicationContext
         stopBrowserProcess(app)
         active?.let(::finished)
@@ -55,8 +64,11 @@ internal object RoutedBrowserSessions {
         }
         cleanStorage(app)
         check(!network.retired.isCompleted) { "Browser account or computer changed" }
-        Entry(UUID.randomUUID().toString(), network, destination, workspace, release, probe, modes, creationEnabled, sshPicker, browserState, customizationEnabled, customize).also { entry ->
-            active = entry; probe(true)
+        Entry(UUID.randomUUID().toString(), network, destination, workspace, release, probe, modes, creationEnabled, sshPicker, browserState, customizationEnabled, customize, sidebar).also { entry ->
+            active = entry
+            try { entry.sidebarLease = sidebar?.retain() }
+            catch (failure: Exception) { finished(entry); throw failure }
+            probe(true)
             entry.surfaceWatch = scope.launch {
                 destination.surface.state.first { it.closed }
                 abandon(app, entry.id)
@@ -78,8 +90,7 @@ internal object RoutedBrowserSessions {
         val entry = live(id) ?: return
         if (entry.workspace != workspace || entry.creationEnabled != creationEnabled || entry.sshPicker != sshPicker || entry.browserState != browserState || entry.customizationEnabled != customizationEnabled) {
             entry.workspace = workspace; entry.creationEnabled = creationEnabled; entry.sshPicker = sshPicker; entry.browserState = browserState; entry.customizationEnabled = customizationEnabled
-            entry.send(RoutedBrowserProtocol.CONTEXT, RoutedBrowserProtocol.context(workspace, entry.modes,
-                entry.destination.surface.linkedStreamPanelId, creationEnabled, sshPicker, browserState, customizationEnabled))
+            entry.send(RoutedBrowserProtocol.CONTEXT, entry.context())
         }
     }
     fun refreshMenu(id: String?, menu: RoutedBrowserMenu?) {
@@ -90,6 +101,42 @@ internal object RoutedBrowserSessions {
             return
         }
         refresh(id, menu.workspace, menu.creationEnabled, menu.sshPicker, menu.browserState, menu.customizationEnabled)
+    }
+    fun refreshSidebar(id: String?, host: RoutedSidebarHost?) {
+        val entry = live(id) ?: return
+        if (entry.sidebar === host) return
+        if (entry.sidebar?.owner != host?.owner) {
+            entry.menuRetired = true; entry.sidebarLease?.close(); entry.sidebarLease = null
+            entry.send(RoutedBrowserProtocol.RETIRE); return
+        }
+        val held = host?.retain()
+        held?.active(entry.foreground && entry.sidebarVisible)
+        entry.sidebarLease?.close(); entry.sidebarLease = held; entry.sidebar = host
+    }
+    fun foreground(entry: Entry, active: Boolean, sidebarVisible: Boolean) {
+        check(live(entry.id) === entry && !entry.menuRetired)
+        entry.foreground = active; entry.sidebarVisible = sidebarVisible
+        entry.probe(active); entry.sidebarLease?.active(active && sidebarVisible)
+    }
+    fun sidebar(entry: Entry, args: Bundle): RoutedSidebarPage {
+        check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible) { "Sidebar is not visible" }
+        val host = checkNotNull(entry.sidebar) { "Sidebar unavailable" }
+        check(host.current()) { "Sidebar account changed" }
+        val offset = args.getInt("offset")
+        return if (offset == 0) {
+            val query = RoutedSidebarWire.query(args.getString("query") ?: "{}")
+            val snapshot = checkNotNull(host.read(query)) { "Sidebar account changed" }
+            entry.sidebarExchange.begin(snapshot).also { entry.sidebarQuery = query }
+        } else entry.sidebarExchange.page(checkNotNull(args.getString("revision")), offset)
+    }
+    fun selectSidebar(entry: Entry, key: String): String {
+        check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible) { "Sidebar is not visible" }
+        return entry.sidebarExchange.prepare(key) { entry.sidebar?.resolve(it) != null }
+    }
+    fun sidebarResult(entry: Entry, ticket: String?, host: RoutedSidebarHost?): (() -> Unit)? {
+        val key = entry.sidebarExchange.consume(ticket) ?: return null
+        if (entry.menuRetired || entry.network.retired.isCompleted || host == null || entry.sidebar?.owner != host.owner) return null
+        return host.resolve(key)
     }
     suspend fun customize(entry: Entry, baseline: WorkspaceCustomizationDraft, submitted: WorkspaceCustomizationDraft): WorkspaceCustomizationResult = coroutineScope {
         check(live(entry.id) === entry && !entry.menuRetired && entry.customizationEnabled && entry.sshPicker == null) { "Workspace customization is no longer available." }
@@ -103,6 +150,7 @@ internal object RoutedBrowserSessions {
         if (entry.exited.isCompleted) return
         entry.death?.let { runCatching { entry.peer?.binder?.unlinkToDeath(it, 0) } }
         entry.surfaceWatch?.cancel(); entry.surfaceWatch = null
+        entry.sidebarLease?.close(); entry.sidebarLease = null
         entry.probe(false); entry.destination.surface.detach(entry.attachment); entry.release()
         entry.exited.complete(Unit)
         if (active === entry) { active = null; completed = entry }

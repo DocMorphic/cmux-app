@@ -1,0 +1,148 @@
+package io.github.docmorphic.cmuxapp
+
+import kotlinx.coroutines.*
+import kotlinx.coroutines.test.*
+import org.json.JSONObject
+import org.junit.Assert.*
+import org.junit.Test
+import java.util.Locale
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class RoutedSidebarTest {
+    private fun rows(count: Int) = List(count) { RoutedSidebarRow("row-$it", "workspace", "Workspace $it") }
+    private fun snapshot(count: Int) = RoutedSidebarSnapshot(listOf(RoutedSidebarComputer("mac", "Mac")), rows(count))
+    @Test fun allPagesStayWithinByteBudgetAndKeepOrderWithMultibyteContent() {
+        val value = snapshot(310).copy(rows = rows(310).map { it.copy(preview = "🧑".repeat(4096), subtitle = "ä".repeat(2048)) })
+        val exchange = RoutedSidebarExchange()
+        var page = exchange.begin(value)
+        val all = mutableListOf<String>()
+        do {
+            val wire = RoutedSidebarWire.page(page)
+            assertTrue(wire.toByteArray().size <= RoutedSidebarWire.MAX_BYTES)
+            assertEquals(page, RoutedSidebarWire.page(wire))
+            all += page.snapshot.rows.map { it.key }
+            val next = page.next ?: break
+            page = exchange.page(page.revision, next)
+        } while (true)
+        assertEquals(value.rows.map { it.key }, all)
+    }
+    @Test fun undisplayedRowsAndNonDestinationsCannotGetNavigationTickets() {
+        val exchange = RoutedSidebarExchange()
+        exchange.begin(snapshot(120).copy(rows = rows(120).mapIndexed { i, row -> if (i == 0) row.copy(canOpen = false) else row }))
+        assertThrows(IllegalStateException::class.java) { exchange.prepare("row-119") { true } }
+        assertThrows(IllegalStateException::class.java) { exchange.prepare("row-0") { true } }
+        assertThrows(IllegalStateException::class.java) { exchange.prepare("row-1") { false } }
+    }
+    @Test fun ticketsAreOneUseAndLatestSelectionWinsWithoutWrongTicketConsumingIt() {
+        val exchange = RoutedSidebarExchange(); exchange.begin(snapshot(2))
+        val first = exchange.prepare("row-0") { true }; val last = exchange.prepare("row-1") { true }
+        assertNull(exchange.consume(first)); assertNull(exchange.consume("wrong"))
+        assertEquals("row-1", exchange.consume(last)); assertNull(exchange.consume(last))
+    }
+    @Test fun refreshInvalidatesPagingAndOldIssuedRowsButPreservesPreparedNavigation() {
+        val exchange = RoutedSidebarExchange(); val old = exchange.begin(snapshot(120))
+        val ticket = exchange.prepare("row-0") { true }
+        exchange.begin(snapshot(1).copy(rows = listOf(RoutedSidebarRow("new", "workspace", "New"))))
+        assertThrows(IllegalStateException::class.java) { exchange.page(old.revision, 100) }
+        assertThrows(IllegalStateException::class.java) { exchange.prepare("row-0") { true } }
+        assertEquals("row-0", exchange.consume(ticket))
+    }
+    @Test fun queryRejectsMalformedComputerInsteadOfTruncatingAuthority() {
+        assertThrows(IllegalArgumentException::class.java) { RoutedSidebarWire.query("""{"computer":"${"a".repeat(129)}"}""") }
+        val query = RoutedSidebarQuery(true, "résumé", "mac", true, setOf("updates"), mapOf("group" to true))
+        assertEquals(query, RoutedSidebarWire.query(RoutedSidebarWire.query(query)))
+    }
+    @Test fun outgoingQueryCannotExceedTheIpcBudget() {
+        val query = RoutedSidebarQuery(expanded = (0..4000).map { it.toString().padStart(64, 'x') }.toSet())
+        assertThrows(IllegalArgumentException::class.java) { RoutedSidebarWire.query(query) }
+    }
+    @Test fun invalidPagingCannotClaimCompletionOrMoveBackward() {
+        val wire = RoutedSidebarWire.page(RoutedSidebarExchange().begin(snapshot(120)))
+        assertThrows(IllegalArgumentException::class.java) { RoutedSidebarWire.page(JSONObject(wire).put("next", JSONObject.NULL).toString()) }
+        assertThrows(IllegalArgumentException::class.java) { RoutedSidebarWire.page(JSONObject(wire).put("next", 0).toString()) }
+    }
+    @Test fun duplicateKeysCannotCreateAmbiguousDestinations() {
+        assertThrows(IllegalArgumentException::class.java) { RoutedSidebarExchange().begin(snapshot(2).copy(rows = rows(1) + rows(1))) }
+    }
+    @Test fun leaseDeactivatesAndReleasesExactlyOnce() {
+        val states = mutableListOf<Boolean>(); var releases = 0
+        val lease = RoutedSidebarLease(states::add) { releases++ }
+        lease.active(true); lease.close(); lease.close(); lease.active(true)
+        assertEquals(listOf(true, false), states); assertEquals(1, releases)
+    }
+    @Test fun controllerLoadsOnlyWhenVisibleAndForegroundAndPaginatesConsistently() = runTest {
+        var reads = 0; val visibility = mutableListOf<Boolean>(); val exchange = RoutedSidebarExchange()
+        val controller = RoutedSidebarController(backgroundScope, { visibility += it }, { _, revision, offset ->
+            reads++; if (offset == 0) exchange.begin(snapshot(220)) else exchange.page(revision!!, offset)
+        }, { "ticket" })
+        controller.initialize(RoutedSidebarQuery()); controller.configure(true, true); runCurrent(); assertEquals(0, reads)
+        controller.visible(true); runCurrent(); assertEquals(100, controller.state.value.snapshot!!.rows.size)
+        controller.more(); runCurrent(); assertEquals(200, controller.state.value.snapshot!!.rows.size)
+        controller.more(); runCurrent(); assertEquals(220, controller.state.value.snapshot!!.rows.size); assertFalse(controller.state.value.more)
+        controller.configure(true, false); runCurrent(); val stopped = reads
+        advanceTimeBy(10_000); runCurrent(); assertEquals(stopped, reads); assertEquals(false, visibility.last())
+    }
+    @Test fun staleNoncancellableResponseCannotOverwriteNewSearch() = runTest {
+        val release = CompletableDeferred<Unit>()
+        val controller = RoutedSidebarController(backgroundScope, {}, { query, _, _ ->
+            if (query.text == "old") withContext(NonCancellable) { release.await() }
+            RoutedSidebarExchange().begin(snapshot(1).copy(rows = listOf(RoutedSidebarRow("key", "workspace", query.text))))
+        }, { "ticket" })
+        controller.initialize(RoutedSidebarQuery(text = "old")); controller.configure(true, true); controller.visible(true); runCurrent()
+        controller.query(RoutedSidebarQuery(text = "new")); runCurrent()
+        assertEquals("new", controller.state.value.snapshot!!.rows.single().title)
+        release.complete(Unit); runCurrent(); assertEquals("new", controller.state.value.snapshot!!.rows.single().title)
+    }
+    @Test fun controllerKeepsIndependentSearchDraftsAndRejectsOldEditorEvents() = runTest {
+        val controller = RoutedSidebarController(backgroundScope, {}, { _, _, _ -> RoutedSidebarExchange().begin(snapshot(0)) }, { "ticket" })
+        controller.beginSearch(); val generation = controller.state.value.search.generation
+        controller.edit("workspace", generation); controller.tab(true)
+        controller.beginSearch(); controller.edit("stale", generation)
+        assertEquals("", controller.state.value.query.text)
+        controller.edit("notice", controller.state.value.search.generation); controller.tab(false)
+        assertEquals("workspace", controller.state.value.query.text)
+        controller.tab(true); assertEquals("notice", controller.state.value.query.text)
+    }
+    @Test fun mismatchedPageRevisionIsReportedWithoutPublishingMixedRows() = runTest {
+        val exchange = RoutedSidebarExchange()
+        val controller = RoutedSidebarController(backgroundScope, {}, { _, revision, offset ->
+            if (offset == 0) exchange.begin(snapshot(120)) else exchange.page(revision!!, offset).copy(revision = "wrong")
+        }, { "ticket" })
+        controller.configure(true, true); controller.visible(true); runCurrent(); controller.more(); runCurrent()
+        assertNotNull(controller.state.value.error); assertEquals(100, controller.state.value.snapshot!!.rows.size)
+    }
+    private fun source(code: String = "secret-code", title: String = "Workspace") = NativeFeedSource(
+        NativeCredentialStore.PairedMac(code = code, name = "Mac", deviceId = "device"), workspaces = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"workspace","title":"$title","current_directory":"/private/path"}]}""")))
+    private fun input(source: NativeFeedSource) = NativeSidebarInput(listOf(source), emptyList(),
+        listOf(NativeSortComputer(workspaceMacFilterId(source.mac.deviceId, null)!!, "Mac")), NativeWorkspaceSortState(), locale = Locale.US)
+    @Test fun displayProjectionDoesNotSerializePairingOrDirectoryAndSearchStillFindsDirectory() {
+        val source = source(); val host = NativeRoutedSidebarHost("owner", "salt", { input(source) }, { RoutedSidebarLease({}) {} }, {})
+        val snapshot = host.read(RoutedSidebarQuery(text = "/private/path"))!!
+        assertEquals(1, snapshot.rows.size)
+        val wire = RoutedSidebarWire.page(RoutedSidebarExchange().begin(snapshot))
+        assertFalse(wire.contains("secret-code")); assertFalse(wire.contains("/private/path")); assertFalse(wire.contains("device"))
+    }
+    @Test fun changedPairingAndRemovedWorkspaceRejectPreviouslyResolvedCallbacks() {
+        var current: NativeSidebarInput? = input(source()); var navigations = 0
+        val host = NativeRoutedSidebarHost("owner", "salt", { current }, { RoutedSidebarLease({}) {} }, { navigations++ })
+        val key = host.read(RoutedSidebarQuery())!!.rows.single().key
+        val navigate = host.resolve(key)!!
+        current = input(source("replacement"))
+        assertNull(host.resolve(key)); assertThrows(IllegalStateException::class.java) { navigate() }; assertEquals(0, navigations)
+        current = null; assertNull(host.read(RoutedSidebarQuery())); assertFalse(host.current())
+    }
+    @Test fun missingScopedComputerDoesNotExposeAllComputerRows() {
+        val host = NativeRoutedSidebarHost("owner", "salt", { input(source()) }, { RoutedSidebarLease({}) {} }, {})
+        val result = host.read(RoutedSidebarQuery(computer = "removed"))!!
+        assertTrue(result.rows.isEmpty()); assertNotNull(result.status)
+    }
+    @Test fun stableOwnerAndSaltSurviveHostRecreationAndAdoptScope() {
+        val value = input(source()); var adopted: NativeSidebarPresentation? = null
+        fun host() = NativeRoutedSidebarHost("owner", "salt", { value }, { RoutedSidebarLease({}) {} }, {},
+            { NativeSidebarPresentation(value.computers.single().id, true, "query", true) }, { adopted = it })
+        val a = host(); val b = host()
+        assertEquals(a.read(RoutedSidebarQuery()), b.read(RoutedSidebarQuery()))
+        b.adopt(a.initialQuery())
+        assertEquals(NativeSidebarPresentation(value.computers.single().id, true, "query", true), adopted)
+    }
+}

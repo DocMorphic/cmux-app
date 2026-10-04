@@ -12,7 +12,33 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — adaptive workspace sidebar (2026-10-04)
+## Latest checkpoint — global sidebar in the separate browser (2026-10-04)
+
+The on-device browser now has a global workspace/notification navigation sidebar
+in wide windows. It receives bounded display pages from the main process and uses
+one-use, owner-validated navigation tickets. The projection shares sorting,
+search and group policies; its feed lease is active only while the sidebar is
+visible and foreground. Hiding/showing retains the webpage and its unsent draft.
+
+**33 JVM and four Android checks passed** (runtime **73.398 s**, sole API37/16KB
+AVD). The runtime checks used the production browser Activity/service/proxy with a
+generated sidebar provider and private HTTP fixture. They verified live parent
+updates, stale selection rejection, workspace/notification returns, host release,
+rotation/history and unsent webpage state. Initial failures and their fixes,
+exact hashes, screenshots and verification limits are in
+[BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md). Display settings were restored and the
+emulator stopped/reaped; no Pixel was connected or modified.
+
+This adds global browser navigation, not every sidebar control. Remote row
+mutations, compound machine filters, sort/order editing, New Task/settings entry
+points, full notification presentation/actions, independent unread-filter state
+and full two-tab query hand-back, and selection styling remain. Next verify the
+provider against real main-screen/native/SSH feeds, parent Activity recreation
+and the physical Pixel/Mac workflow. The wider goal, push/notice configuration,
+legacy tickets and upstream audit remain open. PR #1 stays draft; signed **554**
+remains the latest download and excludes this work.
+
+## Earlier checkpoint — adaptive workspace sidebar (2026-10-04)
 
 The workspace shell now places the real Mac/SSH workspace or notification list
 beside the active detail in sufficiently wide, tall windows. The sidebar can be

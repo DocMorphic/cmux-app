@@ -29,10 +29,25 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Production Activity + bound service + proxy. Generated host only; never touches credentials. */
 class RoutedBrowserPresentationTest {
     private val beganAt = System.currentTimeMillis()
-    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule(order = 1) val compose = createAndroidComposeRule<ComponentActivity>()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
     private val device get() = UiDevice.getInstance(instrumentation)
+    // Set window dimensions before the bare Compose test host is launched. Unlike
+    // MainActivity, that host has no onCreate content restoration after a resize.
+    @get:Rule(order = 0) val display = object : org.junit.rules.TestWatcher() {
+        private var originalSize: String? = null
+        override fun starting(description: org.junit.runner.Description) {
+            if (description.methodName.startsWith("globalSidebar")) {
+                originalSize = device.executeShellCommand("wm size").lineSequence()
+                    .firstOrNull { it.startsWith("Override") }?.substringAfter(":")?.trim() ?: "reset"
+                device.executeShellCommand("wm size 2400x1600")
+            }
+        }
+        override fun finished(description: org.junit.runner.Description) {
+            originalSize?.let { device.executeShellCommand("wm size $it") }
+        }
+    }
     private val owner = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val paths = CopyOnWriteArrayList<String>()
     private val visits = CopyOnWriteArrayList<RecordedRequest>()
@@ -41,6 +56,23 @@ class RoutedBrowserPresentationTest {
     private val holds = AtomicInteger()
     private val releases = AtomicInteger()
     private val probes = CopyOnWriteArrayList<Boolean>()
+    private val sidebarActive = CopyOnWriteArrayList<Boolean>()
+    private val sidebarReleases = AtomicInteger()
+    private val sidebarDestinations = CopyOnWriteArrayList<String>()
+    private var sidebarAdopted: RoutedSidebarQuery? = null
+    private var sidebarRows = listOf(RoutedSidebarRow("other", "workspace", "Other computer workspace", preview = "Remote preview"))
+    private var sidebarAllows = true
+    private val sidebarHost = object : RoutedSidebarHost {
+        override val owner: Any = "fixture-owner"
+        override fun current() = true
+        override fun read(query: RoutedSidebarQuery) = RoutedSidebarSnapshot(listOf(RoutedSidebarComputer("other-mac", "Other Mac")),
+            if (query.notifications) listOf(RoutedSidebarRow("notice", "notification", "Remote notification", unread = true))
+            else sidebarRows.filter { query.text.isBlank() || it.title.contains(query.text, ignoreCase = true) })
+        override fun resolve(key: String): (() -> Unit)? = if (sidebarAllows && (key == "notice" || sidebarRows.any { it.key == key }))
+            ({ sidebarDestinations += key }) else null
+        override fun adopt(query: RoutedSidebarQuery) { sidebarAdopted = query }
+        override fun retain() = RoutedSidebarLease({ sidebarActive += it }, { sidebarReleases.incrementAndGet() })
+    }
     private val key = LocalBrowserKey("generated-account", "generated-team", "generated-mac", "workspace")
     private val workspace = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"workspace","title":"Fixture workspace","terminals":[{"id":"terminal","title":"Fixture shell"}]}]}""")).single().copy(browsers = listOf(NativeBrowser("first", "First"), NativeBrowser("second", "Second")),
         surfaces = listOf(NativeSurface("first", "browser", "First"), NativeSurface("second", "browser", "Second")))
@@ -119,7 +151,7 @@ class RoutedBrowserPresentationTest {
             navigation.restoreRemembered(key, workspace)
             surface = navigation.state.value.local!!.surface
         }
-        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+        compose.setContent { CompositionLocalProvider(LocalRoutedSidebarHost provides sidebarHost) { CmuxTheme { Surface(Modifier.fillMaxSize()) {
             val state by navigation.state.collectAsState()
             val destination = frozenDestination ?: state.local
             if (destination == null) Button(onClick = { navigation.restoreRemembered(key, workspace) }) { Text("Reopen fixture") }
@@ -144,7 +176,53 @@ class RoutedBrowserPresentationTest {
                         WorkspaceCustomizationResult(true)
                     }
                 })
-        } } }
+        } } } }
+    }
+    private fun wideSidebar(block: () -> Unit) {
+        check(device.displayWidth >= 2400)
+        try { block() } catch (failure: Throwable) {
+            capturePicker("routed-sidebar-failure"); throw failure
+        }
+    }
+    @Test fun globalSidebarKeepsBrowserDraftWhileHiddenAndNavigatesValidatedDestination() {
+        browser("Routed fixture ▾")
+        text("Keep draft").click()
+        assertTrue(device.wait(Until.hasObject(By.textStartsWith("Draft ")), 5_000))
+        val loads = paths.count { it == "/start" }
+        wideSidebar {
+            text("Other computer workspace")
+            until { sidebarActive.lastOrNull() == true }
+            capturePicker("routed-global-sidebar")
+            desc("Hide sidebar").click(); desc("Show sidebar")
+            until { sidebarActive.lastOrNull() == false }
+            desc("Show sidebar").click(); text("Other computer workspace")
+            assertTrue(device.wait(Until.hasObject(By.textStartsWith("Draft ")), 5_000))
+            assertEquals(loads, paths.count { it == "/start" })
+            assertEquals(1, holds.get()); assertEquals(0, releases.get())
+            text("Other computer workspace").click()
+            compose.waitForIdle(); text("Reopen fixture")
+            until { holds.get() == 0 && sidebarReleases.get() == 1 }
+            assertEquals(listOf("other"), sidebarDestinations.toList())
+            assertEquals(false, sidebarActive.last())
+        }
+    }
+    @Test fun globalSidebarReadsLivePausedParentAndRejectsStaleDestinationBeforeLeaving() {
+        browser("Routed fixture ▾")
+        wideSidebar {
+            text("Other computer workspace")
+            main { sidebarAllows = false }
+            text("Other computer workspace").click()
+            text("This destination changed. Refresh the sidebar.")
+            assertTrue(sidebarDestinations.isEmpty()); assertEquals(1, holds.get())
+            main { sidebarAllows = true; sidebarRows = listOf(RoutedSidebarRow("other", "workspace", "Renamed on Mac")) }
+            text("Renamed on Mac")
+            text("Notifications").click(); text("Remote notification")
+            text("Remote notification").click()
+            compose.waitForIdle(); text("Reopen fixture")
+            until { holds.get() == 0 }
+            assertEquals(listOf("notice"), sidebarDestinations.toList())
+            assertTrue(sidebarAdopted?.notifications == true)
+        }
     }
     @Test fun customizationSavesAndRetriesWithoutReloadingThePageOrReleasingItsHost() {
         main { menuCustomizationEnabled = true; failCustomization = true }

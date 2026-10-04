@@ -113,7 +113,7 @@ internal fun SshBrowserScreen(network: SshBrowserNetwork, workspace: NativeWorks
         { RoutedBrowserHostLease({}, {}) }, {}, { route ->
             routedAway = true
             if (onRoute != null) onRoute(route) else onDone()
-        }, browserModes = true, sshPicker = sshPicker, menuSource = menuSource,
+        }, browserModes = true, sshPicker = sshPicker, menuSource = menuSource, onSidebarExit = { routedAway = true },
         onSshCommand = onSshCommand?.let { callback -> { command ->
             if ((if (menuSource == null) sshPicker else menuSource()?.sshPicker)?.permits(command) == true && !network.retired.isCompleted) {
                 routedAway = true
