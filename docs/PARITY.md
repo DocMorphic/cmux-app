@@ -12,7 +12,36 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — New Workspace Group (2026-10-04)
+## Latest checkpoint — signed sidebar batch 571 verified (2026-10-05)
+
+Signed build **571** at `608000ccd598da44f8939cf8ed08ac95e7b0149e` is now the
+latest verified download. It contains all six sidebar feature checkpoints below,
+through immediate New Workspace Group creation. See [PIXEL_INSTALL.md](PIXEL_INSTALL.md)
+for the artifact, signer/hash and full scope. CI passed JVM tests, assembly,
+packaging and API37 ART; independent downloaded-artifact checks passed provenance,
+stable signing, 14 viewer assets, 19 native alignments and 16 KB ZIP alignment.
+CI x86_64 and local arm64 ART accepted `NativeScreenKt` (1,388 methods).
+
+The sole existing API37/16KB emulator upgraded **563 → 571** without clearing data,
+retained first-install time and cold-started MainActivity in **1,538 ms**. Both
+sign-in screenshots were inspected; no compatibility warning/ANR, empty crash
+buffer and `pageSizeCompat=0`. All 19 native payloads match 563. Settings unchanged;
+emulator stopped/reaped; Pixel absent and untouched. The baseline was signed out:
+this does not establish authenticated migration, live feature integration or
+physical Mac/Pixel acceptance. Evidence: `captures/runtime/release-608000c/`.
+
+Next: SSH sidebar close/actions. Scoped iOS source at
+`0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc` (`MobileWorkspaceCloseConfirmation.swift`)
+confirms persistent tmux/cmux-tui actions ask for confirmation while phone-owned
+shells close immediately. The main Android feed currently adds a shell question;
+the browser lacks SSH close. Shared close handling must preserve the captured host,
+provider generation and caller through the provider's operation queue. Implement
+and verify this next; it is not included in 571. Ordering/selection, changes preview,
+display preferences, physical/network/process recovery, push/notice configuration,
+legacy tickets and the broader audit remain open. PR #1 remains draft; no release
+or merge; full goal active and global parity pin unchanged.
+
+## Earlier checkpoint — New Workspace Group (2026-10-04)
 
 Scoped iOS source inspection corrected the preceding plan: New Workspace Group
 creates immediately with the Mac's default name. Android's extra naming dialog
