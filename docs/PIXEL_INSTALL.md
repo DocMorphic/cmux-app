@@ -3,7 +3,65 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 494 (2026-10-03)
+## Current signed development APK — build 517 (2026-10-04)
+
+[Build 517](https://github.com/DocMorphic/cmux-app/actions/runs/37179259486)
+passed at `7b01538b49b6a58cd11bb7290b1fa5128582950f`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37179259486/artifacts/11294177624)
+and extract `app-release.apk` (repository access required). PR #1 remains a draft;
+this is an Actions development artifact, not a published GitHub release.
+
+This batch includes build 494 plus the native What's New catalog/archive, private
+web-notice engine and recovery, system attachment paste in composers, partial
+provider handling, and iOS-aligned terminal paste/modifier behavior. The Android
+remote notice feed and push provider remain unconfigured. The APK bundles the
+private browser engine, which accounts for the large increase from build 494.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **517**, version 0.2.0.
+- SHA-256: `f4f8e293ae52085646081b2ef84f7e75539d678d280ef5b74e50b87443fc416d`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **227,902,462 bytes**; compressed artifact **119,796,645 bytes**.
+- Min SDK 26, target SDK 36; local file `build/signed-run-37179259486/app-release.apk`.
+
+CI rebuilt pinned native dependencies, passed the app/Ghostty JVM suites and
+assembled debug/test/release APKs; Gradle reported **10m 30s**. The Android 17 / 16 KB
+ART gate accepted `NativeScreenKt` with 1,320 methods. Independent downloaded-APK
+checks confirmed source/run/artifact metadata, CI's APK hash, the stable signer,
+all 14 viewer hashes, all 19 native LOAD/RELRO checks, 16 KB ZIP alignment, disabled
+backup, a non-debuggable manifest, the pinned notice engine and exclusion of all
+eight debug activities. The verifier now derives the fixture inventory from XML
+instead of requiring the outdated count of six; three new regressions cover it.
+
+Local release assembly passed in 2m 42s. Local JVM reports contain 1,544 app passes
+and four opt-in integration skips, plus seven Ghostty passes (Ghostty task reused
+up-to-date results). All 22 Python checks, 11 Node tests and 14 source viewer-asset
+checks passed. Local unsigned release packaging and arm64 Android 17 ART passed.
+No CI JVM count is inferred from its log.
+
+The existing API 37 / 16,384-byte arm64 emulator upgraded **494 → 517** with
+`install -r`, preserving first-install time `2026-09-30 01:57:49`. Explicit
+stop/start reported COLD, MainActivity and **1,605 ms**, reaching the visually
+reviewed sign-in screen without a compatibility warning or ANR dialog.
+`pageSizeCompat=0` and the final crash buffer was empty. The baseline was signed
+out: authenticated migration and physical Pixel/Mac acceptance remain unverified.
+This single cold launch is not a benchmark. Font/rotation settings stayed 1.0/1/0.
+The one existing AVD was stopped and reaped; no new local AVD was created.
+
+**Known performance follow-up:** opening the monolithic license dialog produced a
+3,019 ms frame. The initial UI hierarchy was unavailable and its screenshot showed
+a dimmed frame; a subsequent capture rendered the license text, and Done returned
+to sign-in. There was no crash, but this UI stall needs fixing. The source currently
+concatenates all license assets, including the 288,864-byte GeckoView text, into one
+synchronously loaded Compose Text. This is the next implementation task.
+
+Evidence: `captures/runtime/release-checkpoint/` (ignored), including CI provenance,
+independent package receipts, inspected screenshots, frame logs and
+`runtime-verification.json`. Mac USB inventory and ADB did not detect the Pixel.
+Configured push, Android feed/account acceptance, reliable notice cold-start timing,
+full connection-graph recovery and broader source parity remain open. This signed
+milestone does not complete the goal; the global parity pin is unchanged.
+
+## Previous signed development APK — build 494 (2026-10-03)
 
 [Build 494](https://github.com/DocMorphic/cmux-app/actions/runs/37154456102)
 passed at `6e4a449b8feb20a5097e51d787078a9326d7c7f5`. Download the

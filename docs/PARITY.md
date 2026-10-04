@@ -12,6 +12,28 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — signed development build 517 (2026-10-04)
+
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) records source `7b01538`, successful CI run
+37179259486 and signed artifact 11294177624. Independent package verification passes:
+stable signer, all 19 native/16 KB checks, all 14 viewer hashes and eight excluded
+debug activities. The verifier's obsolete fixture-count check was fixed and tested.
+The existing arm64 Android 17 / 16 KB emulator upgraded 494 → 517 without resetting
+app data, cold-launched to sign-in in 1,605 ms and had no crash or compatibility warning.
+The baseline was signed out; authenticated migration is not claimed. The AVD is stopped.
+
+Local app JVM reports show 1,544 passes/four opt-in skips; seven Ghostty results
+were reused up to date. All 22 Python and 11 Node checks pass. Local unsigned
+release and CI signed ART both accept 1,320 NativeScreenKt methods. The artifact
+is 227,902,462 bytes (119,796,645-byte ZIP), including the bundled browser engine.
+
+**Next:** fix the observed 3,019 ms opening stall in `OpenSourceLicensesDialog`
+(synchronous concatenation and one huge Text), then continue physical Pixel/Mac,
+notice cold-start/HTTPS/account acceptance and the full connection-graph audit.
+Pixel is absent from both ADB and matching Mac USB inventory; the existing reconnect
+question remains pending. Push/feed configuration and broader source parity remain
+open. Build 517 is the current signed development APK; this does not complete the goal.
+
 ## Latest checkpoint — notice engine process death (2026-10-04)
 
 [NOTICE_PROCESS_DEATH.md](NOTICE_PROCESS_DEATH.md) adds a real SIGKILL test of the

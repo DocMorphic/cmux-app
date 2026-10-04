@@ -18,14 +18,35 @@ Read this first, then `PARITY.md`, `ANDROID_TESTING.md`, `RESEARCH.md`, and
 not a request to scaffold another prototype. The dated sections of the other
 documents are historical; newer verified entries supersede older pending claims.
 
-**Delivery update — 2026-10-03:** signed development build **494**, source
-`6e4a449b8feb20a5097e51d787078a9326d7c7f5`, passed CI, independent packaging checks,
-the new Android 17 ART class gate and a signed-out 486 → 494 upgrade/cold launch
-on the existing API 37 / 16 KB arm64 emulator. See [PIXEL_INSTALL.md](PIXEL_INSTALL.md)
-for artifact/hashes and [PARITY.md](PARITY.md) for feature evidence. The goal remains
-active; physical Pixel acceptance, authenticated upgrade, configured push and
-broader source/visual parity remain open. The table below records the original
-September 28 handoff rather than the current APK.
+**Delivery update — 2026-10-04:** signed development build **517**, source
+`7b01538b49b6a58cd11bb7290b1fa5128582950f`, passed CI, independent packaging,
+Android 17 ART and an in-place signed-out 494 → 517 emulator upgrade/cold launch.
+See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the download, evidence and limitations.
+The observed license-dialog opening stall is the immediate next fix. The goal
+remains active; physical/authenticated acceptance, feed/push configuration and
+broader parity remain open. Older delivery sections below are historical.
+
+## Latest checkpoint — signed development build 517 (2026-10-04)
+
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) records source `7b01538`, successful CI run
+37179259486 and signed artifact 11294177624. Independent package verification passes:
+stable signer, all 19 native/16 KB checks, all 14 viewer hashes and eight excluded
+debug activities. The verifier's obsolete fixture-count check was fixed and tested.
+The existing arm64 Android 17 / 16 KB emulator upgraded 494 → 517 without resetting
+app data, cold-launched to sign-in in 1,605 ms and had no crash or compatibility warning.
+The baseline was signed out; authenticated migration is not claimed. The AVD is stopped.
+
+Local app JVM reports show 1,544 passes/four opt-in skips; seven Ghostty results
+were reused up to date. All 22 Python and 11 Node checks pass. Local unsigned
+release and CI signed ART both accept 1,320 NativeScreenKt methods. The artifact
+is 227,902,462 bytes (119,796,645-byte ZIP), including the bundled browser engine.
+
+**Next:** fix the observed 3,019 ms opening stall in `OpenSourceLicensesDialog`
+(synchronous concatenation and one huge Text), then continue physical Pixel/Mac,
+notice cold-start/HTTPS/account acceptance and the full connection-graph audit.
+Pixel is absent from both ADB and matching Mac USB inventory; the existing reconnect
+question remains pending. Push/feed configuration and broader source parity remain
+open. Build 517 is the current signed development APK; this does not complete the goal.
 
 ## Latest checkpoint — notice engine process death (2026-10-04)
 

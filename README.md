@@ -6,13 +6,13 @@ The app opens on the direct cmux connection path: same-account sign-in, selected
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 494 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37154456102/artifacts/11285640563)
-from `6e4a449` includes the five-stage introduction, Mac setup guide, offline
-Computers, compatibility checks, empty-workspace recovery, typed diagnostics and
-the release startup fix. Full CI, the Android 17 ART gate, independent packaging
-checks and a signed emulator upgrade/cold launch passed. Physical Pixel/Mac
-acceptance, authenticated release migration and configured push remain open.
-See the [install guide](docs/PIXEL_INSTALL.md) for hashes and verification scope.
+**Signed download:** [build 517 APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37179259486/artifacts/11294177624)
+from `7b01538` adds What's New, private notice rendering/recovery and composer
+attachment paste to build 494. Full CI, packaging/16 KB checks, Android 17 ART and
+a signed 494 → 517 emulator upgrade/cold launch passed. The APK is about 228 MB
+(120 MB compressed). The license dialog has a known opening stall being addressed;
+physical Pixel/Mac acceptance, authenticated migration and configured push remain
+open. See the [install guide](docs/PIXEL_INSTALL.md) for hashes and exact scope.
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
 Android now wires Iroh/V2 discovery and admitted RPC connections into the app and
