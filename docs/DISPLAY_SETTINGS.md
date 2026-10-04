@@ -453,10 +453,11 @@ The scoped `ToastCenter.swift` at
 notice when disabled; only a DEBUG gallery environment opt-in changes that
 default. The generic toast overlay and its presentation haptics therefore are
 not a missing shipped feature to enable on Android. The separate
-`WorkspaceActionToast.swift` remains active code: bottom placement, dismiss
-button and a six-second timer. Auditing that workspace-failure path is still
-required. Existing Android feedback receipts and debug-only copy messages are
-not declared visually equivalent by this limited audit.
+`WorkspaceActionToast.swift` defines bottom placement, a dismiss button and a
+six-second timer. A subsequent call-site audit below found that the current
+workspace-action handler does not populate it. Existing Android feedback
+receipts and debug-only copy messages are not declared visually equivalent by
+this limited audit.
 
 The Android haptic switch previously gated explicit events and Compose, but
 not framework TextView/WebView selection feedback. `NativeViewHaptics` now binds
@@ -498,3 +499,55 @@ Debug APK SHA-256:
 `f882d4e80d6871e67c580e6441f67c07b55cf1cefaf8c0b8e36a760706e20b74`.
 Test APK SHA-256:
 `6e4c06b0334941752ca280a954a264c4d27da515adfddbe427ad048fe6cfbe01`.
+
+## Workspace-action failure policy — 2026-10-04
+
+At scoped iOS revision `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`,
+`WorkspaceShellView+WorkspaceActionFailure.swift` handles failed ordinary
+workspace/group mutations by writing a private diagnostic and returning. The
+shell's `WorkspaceActionToast` overlay exists, but the only assignment to its
+content in the `WorkspaceShellView*.swift` files clears it. The component's
+six-second timer is therefore insufficient evidence of a visible shipped toast.
+`WorkspaceShellView+WorkspaceActions.swift` routes rename, pin/read state,
+close, move, group actions and simple creation through this diagnostic-only
+handler. Customization sheets instead return typed errors to their own save UI;
+task-composer creation also keeps a separate result path.
+
+Android now follows that ordinary-action policy: failed workspace/group menu
+operations and simple creation record a fixed diagnostic classification without
+replacing the shell's global error. Rejected moves still roll back their
+optimistic ordering and reconcile with the owner. Cancelling an owner still
+propagates cancellation. Successful menu actions also leave unrelated errors
+intact. Connection, task-composer, terminal-creation, browser-creation and terminal
+input recovery paths retain their existing presentation. No general toast layer
+is enabled. Diagnostic records exclude peer error text, workspace names and
+request parameters.
+
+### Verification
+
+Eight focused JVM cases pass: two diagnostic/cancellation cases and six
+optimistic move/reconciliation cases. A real Activity/Android-main test using a
+local framed RPC peer passes in **30.351s**: workspace pin, close, group pin and
+move are rejected, the list stays usable, rejected close retains the workspace,
+and rejected move restores the original placement. Opening its terminal still
+works. A terminal-input rejection displays the existing **Typing paused…**
+recovery message, and **Resume typing** re-enables input. Both screenshots were
+inspected; the crash buffer is empty. The sole existing AVD was stopped/reaped.
+
+The first runtime attempt passed the workspace checks but incorrectly expected
+raw peer error text in the terminal. Its failed result is retained; only the
+test assertion changed to the queue's existing generic recovery message. Main
+and test builds succeeded (83s, final test-only rebuild 17s). Evidence, original
+logs, XML and source hashes are in ignored
+`captures/runtime/workspace-action-failures/verification.json`.
+
+Main APK SHA-256:
+`c900c3ec3fc362498d771076f26cc43a79765cda1db1e00b44e8d487b119f3e8`.
+Final test APK SHA-256:
+`1453b1fc69a8ed20e03a96d3526686445d5a658314e9ecbb4530c64ef65e0049`.
+
+This verifies fixture-backed shell behavior, not live Mac mutations or the full
+production account/network graph. ADB showed no Pixel. Signed build 517 is
+unchanged. The audit also found upstream workspace customization controls that
+need a separate Android/source comparison; it does not establish complete
+workspace UI parity or complete the overall goal.

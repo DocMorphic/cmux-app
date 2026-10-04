@@ -26,6 +26,28 @@ The license-dialog correction is now verified in debug (see the newer checkpoint
 below). The goal remains active; physical/authenticated acceptance, feed/push configuration and
 broader parity remain open. Older delivery sections below are historical.
 
+## Latest checkpoint — workspace-action failure policy (2026-10-04)
+
+[DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#workspace-action-failure-policy--2026-10-04)
+completes the scoped toast call-site audit: iOS ordinary workspace/group action
+failures are diagnostic-only. The legacy six-second banner component has no
+producer in the shell action path. Android now records those failures without
+replacing the global error; move rollback, cancellation and specialized
+creation/input recovery remain intact.
+
+**Eight JVM + one Android case pass** (runtime 30.351s), using a real Activity and
+local RPC peer. Pin/close/group-pin/move rejection and subsequent terminal use
+are verified; terminal rejection/resume still works. Screenshots inspected,
+crash buffer empty, sole AVD stopped/reaped. The initial runtime attempt used an
+incorrect terminal error-text assertion; its failure is retained and the test
+was corrected without changing production code. Signed build 517 is unchanged.
+
+**Next:** upstream workspace customization controls and remaining workspace UI;
+physical Pixel/Mac browser/recovery and full production connection-graph
+acceptance; broader upstream source/UI audit. No Pixel appeared in ADB.
+Current-source signed/cold-start verification and push/feed provider
+configuration remain open. The overall goal remains active.
+
 ## Latest checkpoint — independent Mac connection admission (2026-10-04)
 
 [COMPUTER_CONNECTION.md](COMPUTER_CONNECTION.md#independent-mac-connection-admission--2026-10-04)

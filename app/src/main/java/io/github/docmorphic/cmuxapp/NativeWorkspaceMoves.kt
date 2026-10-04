@@ -125,7 +125,7 @@ internal class NativeWorkspaceMoves(private val scope: CoroutineScope, private v
                     chain.epoch++; chain.optimism = NativeWorkspaceOptimism(); chain.tail = null
                     if (failure !is CancellationException) chain.error = failure.message ?: "Could not move this workspace."
                 }
-                if (failure is CancellationException) throw failure
+                recordWorkspaceActionFailure(failure)
                 false
             } finally { chain.pending--; if (chains[source.mac.origin] === chain) publish() }
         }

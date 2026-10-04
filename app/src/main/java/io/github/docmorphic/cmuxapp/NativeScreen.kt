@@ -455,7 +455,6 @@ fun NativeScreen(
     val workspaceMoves = feedSession.workspaceMoves
     val moveSources by workspaceMoves.sources.collectAsState()
     val moveStatus by workspaceMoves.status.collectAsState()
-    LaunchedEffect(moveStatus) { moveStatus.values.mapNotNull { it.error }.firstOrNull()?.let { error = it } }
     var selectedComputerOrigin by rememberSaveable(signedIn) {
         mutableStateOf(store.load()?.optString("computer_selection").orEmpty())
     }
@@ -1193,8 +1192,7 @@ fun NativeScreen(
                     }
                 }
             } catch (failure: Exception) {
-                if (failure is CancellationException) throw failure
-                if (stillCurrent()) error = failure.message
+                recordWorkspaceActionFailure(failure)
             } finally { creatingWorkspace = false }
         }
     }
@@ -1989,11 +1987,10 @@ fun NativeScreen(
                     workspaceSnapshots.mutate(owner) { active.createGroup(newGroupName) }
                     val listing = workspaceSnapshots.read(owner, active)
                     if (client === active && code == requestedCode && signedIn) {
-                        applyListing(listing); refreshFeed(); newGroupName = ""; error = null
+                        applyListing(listing); refreshFeed(); newGroupName = ""
                     }
                 } catch (failure: Exception) {
-                    if (failure is CancellationException) throw failure
-                    if (client === active && code == requestedCode) error = failure.message
+                    recordWorkspaceActionFailure(failure)
                 }
             }
         }) { Text("Create") } },
@@ -2962,7 +2959,6 @@ fun NativeScreen(
                 (moveStatus[reorderSource.mac.origin]?.pending ?: 0) < 3
             fun move(source: NativeFeedSource, id: String, intent: NativeWorkspaceMove): Boolean {
                 val accepted = workspaceMoves.enqueue(source, id, intent)
-                if (accepted) error = null
                 return accepted
             }
             NativeWorkspaceDragList(entries, canReorder, Modifier.fillMaxSize(), onMove = ::move, before = {
@@ -3006,11 +3002,8 @@ fun NativeScreen(
                                 store.update { it.put("collapsed_groups", JSONObject(collapsedGroups)) }
                             },
                             onAction = { action, title -> scope.launch {
-                                try { feedCoordinator.groupAction(owner.mac, group.id, action, title); error = null }
-                                catch (failure: Exception) {
-                                    if (failure is CancellationException) throw failure
-                                    error = failure.message
-                                }
+                                try { feedCoordinator.groupAction(owner.mac, group.id, action, title) }
+                                catch (failure: Exception) { recordWorkspaceActionFailure(failure) }
                             } })
                     } else if (entry is WorkspaceListEntry.Footer) {
                         Spacer(Modifier.fillMaxWidth().height(16.dp).semantics { contentDescription = "End of ${entry.group.name}" })
@@ -3038,20 +3031,9 @@ fun NativeScreen(
                                 val target = action.removePrefix("move:").takeIf { it.isNotBlank() }
                                 move(owner, workspace.id, NativeWorkspaceMove(target, null))
                             } else {
-                                val entryContext = browserNavigationContext()
-                                val entryNavigation = navigationGeneration.observe(entryContext)
-                                val entryLogin = browserLogin
-                                val entryOwner = teamState.scope
-                                fun stillCurrent() = signedIn && store.taskSession() == entryLogin && teamState.scope == entryOwner &&
-                                    navigationGeneration.matches(entryNavigation, browserNavigationContext()) && store.visiblePairedMacs().contains(owner.mac) && connection.allowsSaved(owner.mac)
                                 scope.launch {
-                                    try {
-                                        feedCoordinator.workspaceAction(owner.mac, workspace.id, action, title)
-                                        if (stillCurrent()) error = null
-                                    } catch (failure: Exception) {
-                                        if (failure is CancellationException) throw failure
-                                        if (stillCurrent()) error = failure.message
-                                    }
+                                    try { feedCoordinator.workspaceAction(owner.mac, workspace.id, action, title) }
+                                    catch (failure: Exception) { recordWorkspaceActionFailure(failure) }
                                 }
                             }
                         }

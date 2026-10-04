@@ -2661,6 +2661,8 @@ internal class NativeFixturePeer : AutoCloseable {
     val lostReplies = CopyOnWriteArrayList<String>()
     val rejectNextPaste = AtomicBoolean(false)
     val rejectNextInput = AtomicBoolean(false)
+    @Volatile var rejectedMethods: Set<String> = emptySet()
+    @Volatile var groupActionsSupported = false
     @Volatile var releaseNextInput: CountDownLatch? = null
     @Volatile var releaseNextPaste: CountDownLatch? = null
     @Volatile var releaseNextFeed: CountDownLatch? = null
@@ -2794,7 +2796,8 @@ internal class NativeFixturePeer : AutoCloseable {
                         }
                         val taskError = if (request.optString("method") == "workspace.create") nextTaskCreateError.getAndSet(null) else null
                         val todoRejected = (request.optString("method").startsWith("mobile.todo.") || request.optString("method").startsWith("mobile.status.")) && rejectNextTodo.getAndSet(false)
-                        val result = if (taskError != null || todoRejected) JSONObject()
+                        val actionRejected = request.optString("method") in rejectedMethods
+                        val result = if (taskError != null || todoRejected || actionRejected) JSONObject()
                             else if (request.optString("method") == "mobile.workspace.list" && workspaceListingResponse != null)
                                 workspaceListingResponse!!.invoke(feedConnection)
                             else response(request.optString("method"), request.optJSONObject("params") ?: JSONObject())
@@ -2816,7 +2819,7 @@ internal class NativeFixturePeer : AutoCloseable {
                         val directoryError = directoryErrorCode.takeIf { request.optString("method").startsWith("mobile.directory.") }
                         val changesError = changesErrorCode.takeIf { request.optString("method").startsWith("mobile.workspace.changes.") }
                         val feedRejected = !feedConnection && request.optString("method") == "notification.feed.list" && rejectNextForegroundFeed.getAndSet(false)
-                        val rejected = feedRejected || todoRejected || taskError != null || modelError != null || directoryError != null || changesError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
+                        val rejected = actionRejected || feedRejected || todoRejected || taskError != null || modelError != null || directoryError != null || changesError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
                             (request.optString("method") == "terminal.input" && rejectNextInput.getAndSet(false))
                         val envelope = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
                         if (rejected) envelope.put("error", JSONObject().put("code", taskError ?: modelError ?: directoryError ?: changesError ?: "surface_unavailable")
@@ -2856,6 +2859,7 @@ internal class NativeFixturePeer : AutoCloseable {
             .put("mac_device_id", deviceId).put("mac_instance_tag", instanceTag).put("capabilities", JSONArray().put("task.attachments.v1").put("workspace.move.v1").put("workspace.task_create.v1").also {
                 if (identifiedInput) it.put(TerminalInputDelivery.CAPABILITY)
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
+                if (groupActionsSupported) it.put("workspace.group_actions.v1")
                 if (browserCreationSupported) it.put("browser.stream.v1").put("browser.stream.create.v1")
                 if (todoSupported) it.put("todo.v1")
                 if (panelArtifactsSupported) it.put("panel.artifact.v1").put("surface.focus.v1")
