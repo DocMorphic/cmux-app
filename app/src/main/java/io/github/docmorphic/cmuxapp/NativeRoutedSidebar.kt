@@ -40,7 +40,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val readNotification: (suspend (NativeFeedEntry, Boolean, () -> Boolean) -> Unit)? = null,
     private val readAllNotifications: (suspend (List<NativeCredentialStore.PairedMac>, () -> Boolean) -> Unit)? = null,
     private val refreshNotifications: (suspend () -> Unit)? = null,
-    private val history: NativeSidebarHistory = NativeSidebarHistory()) : RoutedSidebarHost {
+    private val history: NativeSidebarHistory = NativeSidebarHistory(),
+    private val mutateWorkspace: (suspend (NativeSidebarMutationTarget, RoutedSidebarMutation, () -> Boolean) -> Unit)? = null) : RoutedSidebarHost {
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
@@ -139,6 +140,27 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             RoutedSidebarNotification.Refresh -> checkNotNull(refreshNotifications).invoke()
         }
     }
+    private fun mutationTarget(value: NativeSidebarInput, command: RoutedSidebarMutation): NativeSidebarMutationTarget? {
+        if (mutateWorkspace == null) return null
+        value.sources.forEach { source ->
+            source.workspaces.singleOrNull { workspace(source.mac, it.id) == command.key }?.let { item ->
+                if (command.kind in source.sidebarWorkspaceMutations(item)) return NativeSidebarMutationTarget(source.mac, item.id, false)
+            }
+            source.groups.singleOrNull { group(source, it.id) == command.key }?.let { item ->
+                if (command.kind in source.sidebarGroupMutations(item)) return NativeSidebarMutationTarget(source.mac, item.id, true)
+            }
+        }
+        return null
+    }
+    override suspend fun mutate(command: RoutedSidebarMutation, canSend: () -> Boolean) {
+        command.validate()
+        check(canSend()) { "Workspace sidebar is no longer visible" }
+        val target = mutationTarget(checkNotNull(input()) { "Sidebar account changed" }, command)
+            ?: error("Workspace action changed. Refresh the sidebar.")
+        checkNotNull(mutateWorkspace).invoke(target, command) {
+            canSend() && input()?.let { mutationTarget(it, command) == target } == true
+        }
+    }
     override fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot? {
         val value = input() ?: return null
         val ordered = orderWorkspaceComputers(value.computers, value.sort, value.locale)
@@ -187,8 +209,10 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                 is NativeWorkspaceDisplayRow.Mac -> when (val entry = row.entry) {
                     is WorkspaceListEntry.Workspace -> displayWorkspace(workspace(entry.source.mac, entry.workspace.id), entry.workspace,
                         value.appearances.name(entry.source.mac), entry.source.availability, if (entry.indented) 1 else 0, true)
+                        .copy(mutations = if (mutateWorkspace != null) entry.source.sidebarWorkspaceMutations(entry.workspace) else emptySet())
                     is WorkspaceListEntry.Header -> RoutedSidebarRow(group(entry.source, entry.group.id), "group", entry.group.name,
                         unread = entry.unread.isUnread, count = entry.unread.count, pinned = entry.group.isPinned,
+                        mutations = if (mutateWorkspace != null) entry.source.sidebarGroupMutations(entry.group) else emptySet(),
                         iconSymbol = entry.group.iconSymbol, expanded = !entry.group.isCollapsed, canOpen = entry.group.liveAnchorWorkspaceId?.let { id -> entry.source.workspaces.any { it.id == id } } == true)
                     is WorkspaceListEntry.Footer -> RoutedSidebarRow(id("footer", entry.key), "footer", entry.group.name, canOpen = false)
                 }

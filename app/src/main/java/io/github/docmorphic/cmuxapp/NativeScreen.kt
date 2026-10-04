@@ -3427,7 +3427,12 @@ internal fun NativeScreen(
             }, refreshNotifications = {
                 check(currentOwner()) { "Sidebar account changed" }
                 feedCoordinator.refresh()
-            }, history = feedSession.sidebarHistory)
+            }, history = feedSession.sidebarHistory, mutateWorkspace = { target, command, canSend ->
+                check(currentOwner()) { "Sidebar account changed" }
+                val permitted = { currentOwner() && canSend() }
+                if (target.group) feedCoordinator.groupAction(target.mac, target.id, command.kind.verb, command.title, permitted)
+                else feedCoordinator.workspaceAction(target.mac, target.id, command.kind.verb, command.title, permitted)
+            })
     } }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
         LocalWorkspaceCustomizationAction provides customizePane, LocalRoutedSidebarHost provides sidebarHost) {

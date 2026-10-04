@@ -69,6 +69,8 @@ class RoutedBrowserPresentationTest {
     private var globalActions = RoutedSidebarActionKind.entries.toSet()
     private val openedActions = CopyOnWriteArrayList<RoutedSidebarActionKind>()
     private var noticeSources = emptyList<NativeFeedSource>()
+    private val workspaceWrites = CopyOnWriteArrayList<String>()
+    private var rejectWorkspaceRename = true
     private val noticeWrites = CopyOnWriteArrayList<String>()
     private val noticeBulk = CopyOnWriteArrayList<List<String>>()
     private var failNoticeWrite = true
@@ -86,6 +88,9 @@ class RoutedBrowserPresentationTest {
         override fun resolve(key: String): (() -> Unit)? = if (projectedSidebar != null) projectedSidebar!!.resolve(key) else if (sidebarAllows && (key == "notice" || sidebarRows.any { it.key == key }))
             ({ sidebarDestinations += key }) else null
         override fun adopt(query: RoutedSidebarQuery) { sidebarAdopted = query; projectedSidebar?.adopt(query) }
+        override suspend fun mutate(command: RoutedSidebarMutation, canSend: () -> Boolean) {
+            checkNotNull(projectedSidebar).mutate(command, canSend)
+        }
         override fun sort(command: RoutedSidebarSort) { checkNotNull(projectedSidebar).sort(command) }
         override suspend fun notifications(command: RoutedSidebarNotification, query: RoutedSidebarQuery, canSend: () -> Boolean) {
             checkNotNull(projectedSidebar).notifications(command, query, canSend)
@@ -179,6 +184,45 @@ class RoutedBrowserPresentationTest {
                     { RoutedSidebarLease({}) {} }, { target ->
                         openedActions += (target as NativeSidebarTarget.Action).kind
                     })
+            }
+            if (scenarioName == "globalSidebarWorkspaceAndGroupMutationsPreservePageAndRequireConfirmation") {
+                noticeSources = listOf(NativeFeedSource(NativeCredentialStore.PairedMac("fixture-pairing", "A", "Mac A"),
+                    workspaces = parseWorkspaces(JSONObject("""{"workspaces":[
+                        {"id":"w","title":"Action workspace","has_unread":true},
+                        {"id":"anchor","title":"Group anchor","group_id":"g"},
+                        {"id":"child","title":"Grouped child","group_id":"g"}]}""")),
+                    availability = NativeFeedAvailability.CONNECTED,
+                    groups = listOf(NativeGroup("g", "Action group", false, false, "anchor", false)),
+                    capabilities = setOf("workspace.actions.v1", "workspace.close.v1", "workspace.read_state.v1", "workspace.group_actions.v1", WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)))
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-mutations", {
+                    NativeSidebarInput(noticeSources, emptyList(), listOf(NativeSortComputer(workspaceMacFilterId("A", null)!!, "Mac A")), NativeWorkspaceSortState())
+                }, { RoutedSidebarLease({}) {} }, {}, mutateWorkspace = { target, command, canSend ->
+                    check(canSend()); workspaceWrites += "${target.id}:${command.kind.verb}:${command.title.orEmpty()}"
+                    if (command.kind == RoutedSidebarMutationKind.RENAME && !target.group && rejectWorkspaceRename) {
+                        rejectWorkspaceRename = false; error("Fixture workspace update rejected")
+                    }
+                    noticeSources = noticeSources.map { source -> if (source.mac != target.mac) source else if (target.group) {
+                        val remove = command.kind in setOf(RoutedSidebarMutationKind.UNGROUP, RoutedSidebarMutationKind.DELETE_GROUP)
+                        source.copy(groups = if (remove) source.groups.filter { it.id != target.id } else source.groups.map {
+                            if (it.id != target.id) it else when (command.kind) {
+                                RoutedSidebarMutationKind.RENAME -> it.copy(name = checkNotNull(command.title))
+                                RoutedSidebarMutationKind.PIN -> it.copy(isPinned = true)
+                                RoutedSidebarMutationKind.UNPIN -> it.copy(isPinned = false)
+                                else -> it
+                            }
+                        }, workspaces = if (command.kind == RoutedSidebarMutationKind.DELETE_GROUP) source.workspaces.filter { it.groupId != target.id }
+                            else if (command.kind == RoutedSidebarMutationKind.UNGROUP) source.workspaces.map { if (it.groupId == target.id) it.copy(groupId = null) else it }
+                            else source.workspaces)
+                    } else source.copy(workspaces = if (command.kind == RoutedSidebarMutationKind.CLOSE) source.workspaces.filter { it.id != target.id }
+                        else source.workspaces.map { if (it.id != target.id) it else when (command.kind) {
+                            RoutedSidebarMutationKind.RENAME -> it.copy(title = checkNotNull(command.title))
+                            RoutedSidebarMutationKind.PIN -> it.copy(isPinned = true)
+                            RoutedSidebarMutationKind.UNPIN -> it.copy(isPinned = false)
+                            RoutedSidebarMutationKind.MARK_READ -> it.copy(hasUnread = false, unreadCount = 0)
+                            RoutedSidebarMutationKind.MARK_UNREAD -> it.copy(hasUnread = true, unreadCount = 1)
+                            else -> it
+                        } }) }
+                })
             }
             if (scenarioName == "globalSidebarNotificationsShareRowsMutateAndConfirmCapturedScopeWithoutReload" ||
                 scenarioName == "globalSidebarRestoresExpansionThroughRetentionAndReturnsGroupState") {
@@ -444,6 +488,50 @@ class RoutedBrowserPresentationTest {
         text("Workspaces").click(); desc("Collapse Tasks group")
         capturePicker("browser-sidebar-restored-workspace-group")
         device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+    }
+
+    @Test fun globalSidebarWorkspaceAndGroupMutationsPreservePageAndRequireConfirmation() = wideSidebar {
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        val picker = desc("Choose terminal or pane"); until { picker.text == "Routed fixture ▾" }
+        text("Keep draft").click(); until { picker.text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        text("Action workspace").longClick(); text("Pin").click()
+        until { main { noticeSources.single().workspaces.first { it.id == "w" }.isPinned } }
+        text("Action workspace").longClick(); text("Unpin"); text("Rename").click()
+        checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000)).text = "Renamed workspace"
+        text("Save").click(); text("Fixture workspace update rejected"); text("Action workspace")
+        text("Action workspace").longClick(); text("Rename").click()
+        checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000)).text = "Renamed workspace"
+        text("Save").click(); text("Renamed workspace")
+        text("Renamed workspace").longClick(); text("Mark as Read").click()
+        until { main { !noticeSources.single().workspaces.first { it.id == "w" }.hasUnread } }
+        text("Renamed workspace").longClick(); text("Mark as Unread"); text("Delete").click()
+        text("Delete Workspace?"); text("Cancel").click()
+        assertTrue(workspaceWrites.none { it.startsWith("w:close:") })
+        text("Renamed workspace").longClick(); text("Delete").click(); text("Delete Workspace?"); text("Delete").click()
+        until { !device.hasObject(By.text("Renamed workspace")) }
+        text("Action group").longClick(); text("Pin Group").click()
+        until { main { noticeSources.single().groups.single().isPinned } }
+        text("Action group").longClick(); text("Unpin Group")
+        assertFalse(device.hasObject(By.text("Ungroup (Keep Workspaces)")))
+        text("Rename Group").click()
+        checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000)).text = "Renamed group"
+        text("Save").click(); text("Renamed group")
+        text("Renamed group").longClick(); text("Unpin Group").click()
+        until { main { !noticeSources.single().groups.single().isPinned } }
+        text("Renamed group").longClick(); text("Ungroup (Keep Workspaces)").click(); text("Ungroup Group?")
+        text("Cancel").click(); assertTrue(workspaceWrites.none { it.startsWith("g:ungroup:") })
+        text("Renamed group").longClick(); text("Delete Group (Close Workspaces)").click(); text("Delete Group?")
+        text("Cancel").click(); assertTrue(workspaceWrites.none { it.startsWith("g:delete:") })
+        text("Renamed group").longClick(); text("Ungroup (Keep Workspaces)").click(); text("Ungroup Group?"); text("Ungroup").click()
+        until { main { noticeSources.single().groups.isEmpty() } }
+        text("Group anchor"); text("Grouped child")
+        assertEquals(1, workspaceWrites.count { it.startsWith("w:close:") })
+        assertEquals(1, workspaceWrites.count { it.startsWith("g:ungroup:") })
+        assertEquals(loads, paths.count { it == "/start" }); assertTrue(picker.text?.startsWith("Draft ") == true)
+        capturePicker("browser-sidebar-workspace-actions")
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
     }
 
     @Test fun customizationSavesAndRetriesWithoutReloadingThePageOrReleasingItsHost() {

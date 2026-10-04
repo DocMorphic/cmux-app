@@ -52,7 +52,9 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         select = { key -> checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_SELECT, Bundle().apply { putString("key", key) }).getString("selection")) },
         saveSort = { command -> request(RoutedBrowserProtocol.SIDEBAR_SORT, Bundle().apply { putString("sort", RoutedSidebarWire.sort(command)) }); Unit },
         notificationAction = { command -> request(RoutedBrowserProtocol.SIDEBAR_NOTIFICATION,
-            Bundle().apply { putString("notification", RoutedSidebarWire.notification(command)) }); Unit })
+            Bundle().apply { putString("notification", RoutedSidebarWire.notification(command)) }); Unit },
+        workspaceAction = { command -> request(RoutedBrowserProtocol.SIDEBAR_MUTATION,
+            Bundle().apply { putString("mutation", RoutedSidebarWire.mutation(command)) }); Unit })
     private fun configureSidebar() = sidebar.configure(binding != null && state.value.sidebarAvailable && !state.value.retired, foreground)
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         when (message.what) {
@@ -124,8 +126,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
             }
         } finally {
             replies.remove(serial)
-            if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_NOTIFICATION) && !answer.isCompleted) runCatching {
-                peer.send(Message.obtain(null, if (kind == RoutedBrowserProtocol.CUSTOMIZE) RoutedBrowserProtocol.CANCEL_CUSTOMIZE else RoutedBrowserProtocol.CANCEL_NOTIFICATION).apply {
+            if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_NOTIFICATION, RoutedBrowserProtocol.SIDEBAR_MUTATION) && !answer.isCompleted) runCatching {
+                peer.send(Message.obtain(null, when (kind) { RoutedBrowserProtocol.CUSTOMIZE -> RoutedBrowserProtocol.CANCEL_CUSTOMIZE; RoutedBrowserProtocol.SIDEBAR_MUTATION -> RoutedBrowserProtocol.CANCEL_MUTATION; else -> RoutedBrowserProtocol.CANCEL_NOTIFICATION }).apply {
                     arg1 = serial; data = Bundle().apply { putString(RoutedBrowserProtocol.EXTRA, requestId) }; replyTo = endpoint
                 })
             }

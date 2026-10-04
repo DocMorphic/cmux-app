@@ -14,6 +14,7 @@ internal data class RoutedSidebarRow(
     val availability: NativeFeedAvailability = NativeFeedAvailability.CONNECTED,
     val depth: Int = 0, val expanded: Boolean = false, val canOpen: Boolean = true, val iconSymbol: String? = null,
     val canRead: Boolean = false, val notificationContext: NativeFeedRowContext = NativeFeedRowContext(),
+    val mutations: Set<RoutedSidebarMutationKind> = emptySet(),
 ) {
     fun workspace() = NativeWorkspace(key, title, emptyList(), null, unread, activity, null, pinned,
         emptyList(), null, preview, color, subtitle, count, previewAt = previewAt)
@@ -58,6 +59,7 @@ internal interface RoutedSidebarHost {
     fun adopt(query: RoutedSidebarQuery) {}
     fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot?
     fun resolve(key: String): (() -> Unit)?
+    suspend fun mutate(command: RoutedSidebarMutation, canSend: () -> Boolean) { error("Workspace actions are unavailable") }
     fun sort(command: RoutedSidebarSort) { error("Sidebar sorting is unavailable") }
     suspend fun notifications(command: RoutedSidebarNotification, query: RoutedSidebarQuery, canSend: () -> Boolean) {
         error("Notification actions are unavailable")
@@ -77,6 +79,7 @@ internal class RoutedSidebarExchange {
     private var snapshot: RoutedSidebarSnapshot? = null
     private var issued = emptySet<String>()
     private var readable = emptySet<String>()
+    private var mutableRows = emptySet<String>()
     private var selection: Pair<String, String>? = null
     fun begin(value: RoutedSidebarSnapshot): RoutedSidebarPage {
         require(value.rows.size <= RoutedSidebarWire.MAX_ROWS && value.computers.size <= 256)
@@ -86,7 +89,7 @@ internal class RoutedSidebarExchange {
         require(value.actions.map { it.kind }.distinct().size == value.actions.size)
         require((value.rows.map { it.key } + value.actions.map { it.key }).distinct().size == value.rows.size + value.actions.size)
         revision = UUID.randomUUID().toString(); snapshot = value
-        issued = emptySet(); readable = emptySet()
+        issued = emptySet(); readable = emptySet(); mutableRows = emptySet()
         return page(checkNotNull(revision), 0)
     }
     fun page(expectedRevision: String, offset: Int): RoutedSidebarPage {
@@ -102,11 +105,14 @@ internal class RoutedSidebarExchange {
             rows += row; bytes += size
         }
         check(rows.isNotEmpty() || offset == value.rows.size) { "Sidebar row is too large." }
+        mutableRows = mutableRows + rows.filter { it.mutations.isNotEmpty() }.map { it.key }
         readable = readable + rows.filter { it.kind == "notification" && it.canRead }.map { it.key }
         issued = issued + rows.filter { it.canOpen }.map { it.key } + value.actions.map { it.key }
         return RoutedSidebarPage(expectedRevision, value.copy(rows = rows), offset,
             (offset + rows.size).takeIf { it < value.rows.size }, value.rows.size)
     }
+    fun permitsMutation(command: RoutedSidebarMutation): Boolean = command.key in mutableRows &&
+        snapshot?.rows?.any { it.key == command.key && command.kind in it.mutations } == true
     fun permitsSort(command: RoutedSidebarSort): Boolean {
         val value = snapshot ?: return false
         if (value.sortMode == null) return false
@@ -136,7 +142,7 @@ internal class RoutedSidebarExchange {
         selection = null
         return pending.second
     }
-    fun clear() { revision = null; snapshot = null; issued = emptySet(); readable = emptySet(); selection = null }
+    fun clear() { revision = null; snapshot = null; issued = emptySet(); readable = emptySet(); mutableRows = emptySet(); selection = null }
 }
 
 internal object RoutedSidebarWire {
@@ -152,6 +158,19 @@ internal object RoutedSidebarWire {
     }
     private fun checked(value: String) = value.also {
         require(it.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Sidebar state is too large. Collapse some groups and retry." }
+    }
+    fun mutation(value: RoutedSidebarMutation): String {
+        value.validate()
+        return checked(JSONObject().put("key", value.key).put("kind", value.kind.name).put("title", value.title).toString())
+    }
+    fun mutation(value: String): RoutedSidebarMutation {
+        val json = JSONObject(checked(value))
+        return RoutedSidebarMutation(token(json.getString("key")), RoutedSidebarMutationKind.valueOf(json.getString("kind")),
+            if (json.isNull("title")) null else json.getString("title")).also { it.validate() }
+    }
+    private fun mutations(value: JSONArray): Set<RoutedSidebarMutationKind> {
+        require(value.length() <= RoutedSidebarMutationKind.entries.size)
+        return (0 until value.length()).map { RoutedSidebarMutationKind.valueOf(value.getString(it)) }.toSet()
     }
     fun notification(value: RoutedSidebarNotification): String = checked(when (value) {
         is RoutedSidebarNotification.Read -> JSONObject().put("kind", "read").put("key", token(value.key)).put("read", value.read)
@@ -221,6 +240,7 @@ internal object RoutedSidebarWire {
                 .put("subtitle", value.subtitle?.bounded(2048)).put("preview", value.preview?.bounded(4096)).put("computer", value.computer?.bounded(512))
                 .put("unread", value.unread).put("count", value.count).put("pinned", value.pinned).put("color", value.color?.bounded(32))
                 .put("activity", value.activity?.takeIf(Double::isFinite)).put("previewAt", value.previewAt?.takeIf(Double::isFinite))
+                .put("mutations", JSONArray(value.mutations.map { it.name }.sorted()))
                 .put("can_read", value.canRead).put("nested", value.notificationContext.nested)
                 .put("hide_headline", value.notificationContext.hideHeadline).put("hide_source", value.notificationContext.hideSource)
                 .put("hide_computer", value.notificationContext.hideComputer)
@@ -253,7 +273,7 @@ internal object RoutedSidebarWire {
                     item.optBoolean("pinned"), item.optional("color", 32), item.finite("activity"), item.finite("previewAt"),
                     NativeFeedAvailability.valueOf(item.getString("availability")), item.optInt("depth").coerceIn(0, 1),
                     item.optBoolean("expanded"), item.optBoolean("open"), item.optional("icon", 128), item.optBoolean("can_read"),
-                    NativeFeedRowContext(item.optBoolean("nested"), item.optBoolean("hide_headline"), item.optBoolean("hide_source"), item.optBoolean("hide_computer")))
+                    NativeFeedRowContext(item.optBoolean("nested"), item.optBoolean("hide_headline"), item.optBoolean("hide_source"), item.optBoolean("hide_computer")), mutations(item.optJSONArray("mutations") ?: JSONArray()))
             } }, json.optInt("unread").coerceAtLeast(0), json.optBoolean("loading"), json.optional("status", 2048),
                 computerValues.filter { it.key in machineKeys }, selectedMachines,
                 if (json.isNull("sort_mode")) null else NativeWorkspaceSortMode.entries.single { it.raw == json.getString("sort_mode") }, actions,

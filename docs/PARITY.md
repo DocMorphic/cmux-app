@@ -12,7 +12,33 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — browser expansion and collapse restoration (2026-10-04)
+## Latest checkpoint — browser Mac workspace/group actions (2026-10-04)
+
+The browser sidebar now exposes the shared Mac workspace pin/unpin, rename,
+read/unread and confirmed delete controls, plus group pin/unpin, rename, ungroup
+and delete. Issued opaque keys and explicit verbs cross IPC; the host resolves
+current exact pairings and capabilities. A caller guard is checked inside the
+coordinator mutation lock. Group account authority, pinned-ungroup restrictions,
+confirmation dialogs, duplicate prevention, cancellation and error retention are
+preserved. See [BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md) for scope and source refs.
+
+**82 JVM and three Android scenarios passed**; runtime **125.758s** on the sole
+API37/16KB emulator. The new scenario covers rename rejection/retry, read state,
+workspace delete confirmation/cancel, group pin/rename/unpin and ungroup while
+preserving the web page/draft. It cancels group Delete; positive group-delete
+dispatch has separate JVM/framed-RPC evidence. Source and installed APK hashes
+matched, the screenshot was inspected, display settings restored and crash buffer
+empty. Emulator stopped/reaped; no new AVD. Pixel absent/untouched.
+
+This is generated-host browser evidence and separate RPC-peer coverage, not live
+Mac/Pixel or authenticated MainScreen acceptance. Signed **563** remains the latest
+verified download; this feature awaits the next batched signed build. Next: browser
+Move to Group and workspace customization, global/in-group creation, SSH actions,
+drag/order and selection refinements. Physical/network/process recovery, configured
+push/notice feed, legacy tickets and the broader upstream audit remain open. PR #1
+stays draft and the goal remains active.
+
+## Earlier checkpoint — browser expansion and collapse restoration (2026-10-04)
 
 The browser now retains expanded notification history when old anchors disappear,
 shares expansion and workspace-collapse state with the main screen, and reuses

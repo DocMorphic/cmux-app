@@ -18,6 +18,8 @@ internal object RoutedBrowserProtocol {
     const val SIDEBAR_SORT = 11
     const val SIDEBAR_NOTIFICATION = 12
     const val CANCEL_NOTIFICATION = 13
+    const val SIDEBAR_MUTATION = 14
+    const val CANCEL_MUTATION = 15
     const val RETIRE = 100
     const val CONTEXT = 101
     const val EXTRA = "browser_request"

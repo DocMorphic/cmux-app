@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,7 +30,8 @@ internal fun NativeGroupHeaderRow(
     creationEnabled: Boolean = true,
     onCreate: () -> Unit = {},
     onToggle: () -> Unit,
-    onAction: (String, String?) -> Unit
+    onAction: (String, String?) -> Unit,
+    handlesHold: Boolean = false
 ) {
     val menu = rememberWorkspaceContextMenu(group.id)
     val hasMenu = canEdit || canCreate
@@ -51,7 +53,10 @@ internal fun NativeGroupHeaderRow(
             contentDescription = "${if (expanded) "Collapse" else "Expand"} ${group.name}"
         }) { Icon(painterResource(if (expanded) R.drawable.ic_workspace_chevron_down else R.drawable.ic_workspace_chevron_right),
             null, Modifier.size(16.dp), tint = nativeMuted) }
-        Row(Modifier.weight(1f).then(if (onOpen != null) Modifier.clickable { if (!menuExpanded && !menu.held) onOpen() } else Modifier)
+        Row(Modifier.weight(1f).then(if (handlesHold) Modifier.combinedClickable(
+            onClick = { if (!menuExpanded && !menu.held) onOpen?.invoke() },
+            onLongClick = { if (hasMenu) menu.expanded = true })
+            else if (onOpen != null) Modifier.clickable { if (!menuExpanded && !menu.held) onOpen() } else Modifier)
             .semantics(mergeDescendants = true) {
                 if (hasMenu) onLongClick("Show group actions") { menu.expanded = true; true }
                 customActions = moveActions + if (hasMenu) listOf(CustomAccessibilityAction("Show group actions") { menu.expanded = true; true }) else emptyList()

@@ -10,7 +10,7 @@ internal data class RoutedSidebarUi(val query: RoutedSidebarQuery = RoutedSideba
     val search: NativeSearchState = NativeSearchState(), val snapshot: RoutedSidebarSnapshot? = null,
     val loading: Boolean = false, val more: Boolean = false, val error: String? = null, val navigating: Boolean = false,
     val actionError: String? = null, val saving: Boolean = false, val orderGeneration: Int = 0,
-    val notificationBusy: Boolean = false)
+    val notificationBusy: Boolean = false, val mutationBusy: Boolean = false)
 
 /** The browser reads a bounded display projection; only the host resolves destinations. */
 internal class RoutedSidebarController(private val scope: CoroutineScope,
@@ -18,7 +18,8 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     private val read: suspend (RoutedSidebarQuery, String?, Int) -> RoutedSidebarPage,
     private val select: suspend (String) -> String,
     private val saveSort: suspend (RoutedSidebarSort) -> Unit = { error("Sidebar sorting is unavailable") },
-    private val notificationAction: suspend (RoutedSidebarNotification) -> Unit = { error("Notification actions are unavailable") }) {
+    private val notificationAction: suspend (RoutedSidebarNotification) -> Unit = { error("Notification actions are unavailable") },
+    private val workspaceAction: suspend (RoutedSidebarMutation) -> Unit = { error("Workspace actions are unavailable") }) {
     private val sortMutex = Mutex()
     private val mutable = MutableStateFlow(RoutedSidebarUi())
     val state = mutable.asStateFlow()
@@ -95,6 +96,22 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
             restart()
             return false
         } finally { mutable.value = state.value.copy(notificationBusy = false) }
+    }
+    suspend fun mutate(command: RoutedSidebarMutation): Boolean {
+        if (state.value.mutationBusy || !available || !foreground || !visible || state.value.query.notifications) return false
+        mutable.value = state.value.copy(mutationBusy = true, actionError = null)
+        try {
+            workspaceAction(command)
+            restart()
+            return true
+        } catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            mutable.value = state.value.copy(actionError = if (failure is TimeoutCancellationException)
+                "Workspace update wasn't confirmed. Refresh before trying again."
+                else failure.message ?: "Could not update workspace")
+            restart()
+            return false
+        } finally { mutable.value = state.value.copy(mutationBusy = false) }
     }
     private fun restart() {
         job?.cancel()

@@ -42,15 +42,18 @@ headers reuse existing components. Compound machine filtering, independent
 workspace/notification searches and unread filters, sort mode and computer-order
 editing are now shared with the main screen. Settings, Computers and New Task
 entry points return to the existing main-screen flows. Notification rows, read/unread gestures and menus, pull refresh and confirmed bulk
-read now share the main feed. Remote workspace/group mutations, global workspace
-creation and selection styling still need parity work. Main-screen controls remain implemented separately; this does not establish
+read now share the main feed. Mac workspace pin/rename/read/delete and group
+pin/rename/ungroup/delete use the owned mutation protocol described below. Move,
+Customize, creation, SSH mutations, drag ordering and selection styling still need
+browser parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
 Physical Pixel/Mac acceptance, actual account/team replacement during live
 browser use, real native/SSH feed integration with the new browser sidebar,
 large-text/accessibility review and authenticated process recovery remain open.
 The compact browser stays stacked. Signed build 563 includes the sidebar and
-notification actions; the expansion-restoration change below awaits the next signed batch.
+notification actions; the expansion-restoration and workspace/group-mutation
+changes below await the next signed batch.
 
 ## Verification
 
@@ -392,3 +395,72 @@ recovery and accessibility remain unproven. Build 563 is still the latest verifi
 signed APK and predates this restoration change. Next: remaining browser workspace/
 group actions, global workspace creation and selection behavior, followed by live
 integration and the broader parity gates. The goal remains active.
+
+
+## Mac workspace and group mutations in the browser (2026-10-04)
+
+Scoped references at `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
+`WorkspaceListTableCoordinator+Actions.swift`, `WorkspaceListView+Actions.swift`
+and `WorkspaceListView+Table.swift` in `Packages/iOS/CmuxMobileShellUI`. The browser
+now uses the existing workspace row menus/swipe controls and group context menus
+for pin/unpin, rename, read/unread, confirmed workspace deletion, and group
+pin/unpin/rename/ungroup/delete. Group rows support direct long-press presentation
+without the main list's drag coordinator. Existing main-list callers retain their
+original coordinated hold behavior. Ungroup remains unavailable for pinned groups.
+
+Rows advertise a bounded set of explicit operations. The browser sends only an
+issued opaque row key, an operation enum and a rename title when needed. Rename
+validation rejects empty names and names longer than 4,096 characters with useful
+messages. Commands cannot select an RPC method, Mac, native ID or filesystem scope.
+The service checks active presentation, owner, workspace tab, visibility, issued
+row and advertised operation; host resolution rechecks the current exact pairing,
+row, live capability and availability. The coordinator checks the caller's guard
+inside its owning mutation lock before sending. Group operations retain the account
+mutation capability requirement; they do not loop over workspace-close requests.
+
+Workspace and notification requests share the per-presentation mutation lock.
+Duplicate writes are rejected, retirement/cancellation cancels pending jobs, and
+timeouts report an unconfirmed result without automatic replay. Errors survive
+read polls. Success uses the existing authoritative owner refresh. The webpage
+stays mounted while changing other workspaces; deleting its own owning workspace
+can retire its existing browser session and still requires live acceptance.
+
+**82 focused JVM tests passed:** five mutation protocol/host/controller tests,
+34 sidebar checks, five restoration checks and 38 coordinator tests. New checks
+cover strict verbs/title bounds, issued versus untransmitted rows, capability
+withdrawal, colliding IDs on different Macs, credential replacement at an unchanged
+origin, offline state, group account authority, pinned ungroup rejection, duplicate/
+hidden/background/tab rejection, error persistence and caller withdrawal before RPC.
+The first app/test build passed in **57s**. After adding clear name-validation copy,
+the final build and the same focused checks passed in **10s**.
+
+**All three Android scenarios passed in 125.758s** on the sole API37/16KB AVD:
+workspace/group actions, notification read actions and expansion/return restoration.
+The new browser Activity/service scenario verifies pinning, rejected rename plus
+explicit retry, marking a workspace read, workspace-delete cancellation and
+confirmation, group pin/rename/unpin, hidden pinned Ungroup, cancellation of both
+group destructive dialogs, and confirmed ungroup preserving the anchor and child
+workspaces. It checks unchanged page load count and an unsent web draft while
+mutating a different workspace. Group-delete confirmation is cancelled in this
+runtime case; group-delete dispatch/authority has JVM coverage, including the
+existing framed-RPC coordinator checks. Browser swipe input itself is not added to
+this runtime case; the reused swipe component's earlier evidence is in
+[WORKSPACE_ROWS.md](WORKSPACE_ROWS.md).
+
+Evidence: `captures/runtime/browser-sidebar-mutations/` (ignored), including build,
+JVM/runtime receipts, source/installed-package verification and the visually
+inspected post-ungroup screenshot. App SHA-256:
+`de8d674aa433b39c366ce71b6335b7dfd13188c87cbd281b3f90d52033506178`.
+Test APK SHA-256:
+`008a1e4d978b78953b8b5b22f5e788bfc8ef1fdd50fa86ac5e7c53eede83c51f`.
+Installed app/test hashes and frozen source hashes matched, display settings were
+restored, the crash buffer was empty and the existing emulator stopped/reaped.
+No new AVD was created. The Pixel was absent and untouched.
+
+The runtime uses generated source/mutation callbacks; coordinator tests use
+separate generated RPC peers. No physical Mac mutation, authenticated MainScreen
+integration, parent process recovery or TalkBack delivery is established here.
+Move to Group, workspace customization, global/in-group creation, SSH actions,
+drag reordering, changes previews and selection/display refinements remain to be
+connected in the browser. Signed 563 predates this batch; no signed build was
+dispatched for this individual feature. The broad audit and full goal remain open.

@@ -274,8 +274,9 @@ internal class NativeFeedCoordinator(
 
     /** Never substitute the foreground Mac when a row's owning session is unavailable. */
     suspend fun workspaceAction(mac: NativeCredentialStore.PairedMac, workspaceId: String,
-        action: String, title: String? = null): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
+        action: String, title: String? = null, canSend: () -> Boolean = { true }): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
         owningMutation(mac) { handle, client ->
+            check(canSend()) { "Workspace action is no longer available" }
             val capability = when (action) {
                 "rename", "pin", "unpin" -> "workspace.actions.v1"
                 "mark_read", "mark_unread" -> "workspace.read_state.v1"
@@ -349,8 +350,9 @@ internal class NativeFeedCoordinator(
         }
 
     suspend fun groupAction(mac: NativeCredentialStore.PairedMac, groupId: String,
-        action: String, title: String? = null): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
+        action: String, title: String? = null, canSend: () -> Boolean = { true }): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
         owningMutation(mac, refreshChanges = false) { _, client ->
+            check(canSend()) { "Group action is no longer available" }
             val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
             check(source.canEditGroups()) { "Update cmux on this Mac to use account-authorized group actions." }
             val group = source.groups.singleOrNull { it.id == groupId } ?: error("This group is no longer available.")

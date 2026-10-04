@@ -124,15 +124,24 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
             }, Modifier.padding(20.dp))
         }
         items(rows, key = { it.key }, contentType = { it.kind }) { row ->
+            val mutations = row.mutations.takeUnless { ui.mutationBusy }.orEmpty()
+            fun mutate(verb: String, title: String?) {
+                val kind = RoutedSidebarMutationKind.fromVerb(verb) ?: return
+                if (kind in mutations) scope.launch { controller.mutate(RoutedSidebarMutation(row.key, kind, title)) }
+            }
             when (row.kind) {
                 "workspace" -> Column(Modifier.padding(start = if (row.depth == 1) 24.dp else 0.dp)) {
-                    NativeWorkspaceRow(row.workspace(), availability = row.availability,
-                        onOpen = { if (row.canOpen) onOpen(row.key) }, onAction = { _, _ -> })
+                    NativeWorkspaceRow(row.workspace(), availability = row.availability, handlesHold = true,
+                        canWorkspaceActions = RoutedSidebarMutationKind.RENAME in mutations,
+                        canClose = RoutedSidebarMutationKind.CLOSE in mutations,
+                        canReadState = RoutedSidebarMutationKind.MARK_READ in mutations || RoutedSidebarMutationKind.MARK_UNREAD in mutations,
+                        onOpen = { if (row.canOpen) onOpen(row.key) }, onAction = ::mutate)
                 }
                 "group" -> NativeGroupHeaderRow(NativeGroup(row.key, row.title, !row.expanded, row.pinned, iconSymbol = row.iconSymbol),
                     row.expanded, NativeWorkspaceUnread(row.unread, row.count),
-                    onOpen = if (row.canOpen) ({ onOpen(row.key) }) else null, canEdit = false,
-                    onToggle = { controller.query(ui.query.copy(groupExpansion = ui.query.groupExpansion + (row.key to !row.expanded))) }, onAction = { _, _ -> })
+                    onOpen = if (row.canOpen) ({ onOpen(row.key) }) else null,
+                    canEdit = RoutedSidebarMutationKind.RENAME in mutations, handlesHold = true,
+                    onToggle = { controller.query(ui.query.copy(groupExpansion = ui.query.groupExpansion + (row.key to !row.expanded))) }, onAction = ::mutate)
                 "footer" -> HorizontalDivider(Modifier.padding(horizontal = 18.dp, vertical = 5.dp))
                 "heading" -> Text(runCatching { LocalDate.parse(row.title).let { date -> when (date) {
                     LocalDate.now() -> "Today"

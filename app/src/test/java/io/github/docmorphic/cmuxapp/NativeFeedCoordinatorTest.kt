@@ -560,6 +560,19 @@ class NativeFeedCoordinatorTest {
         }
     }
 
+    @Test fun sidebarCallerCanWithdrawWorkspaceAndGroupWritesBeforeRpc() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                assertTrue(runCatching { coordinator.workspaceAction(mac("a"), "w", "rename", "Blocked") { false } }.isFailure)
+                assertTrue(runCatching { coordinator.groupAction(mac("a"), "g", "delete") { false } }.isFailure)
+                assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.action", "workspace.group.action") })
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun workspaceActionsRefreshOnlyTheirOwnerEvenWithCollidingIdsAndRejectedWrites() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             val coordinator = NativeFeedCoordinator(this, { m -> (if (m.deviceId == "a") a else b).connect() }, { true })
