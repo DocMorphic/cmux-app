@@ -3,3 +3,5 @@
 *.bat text eol=crlf
 # Preserve the upstream license files verbatim, including their whitespace.
 app/src/main/assets/licenses/JSch*.txt -whitespace
+# Preserve the hash-pinned extraction of GeckoView's bundled license page.
+app/src/main/assets/licenses/GeckoView.txt -whitespace

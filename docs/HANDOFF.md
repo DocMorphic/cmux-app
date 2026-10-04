@@ -27,6 +27,30 @@ active; physical Pixel acceptance, authenticated upgrade, configured push and
 broader source/visual parity remain open. The table below records the original
 September 28 handoff rather than the current APK.
 
+## Latest checkpoint — production private notice renderer (2026-10-04)
+
+[NOTICE_RENDERER.md](NOTICE_RENDERER.md) records the main GeckoView integration,
+private cookie leases and retained archive detail renderer. It is wired to the
+native account broker. Rotation/theme reuse the page; Retry creates a new exchange.
+The actual production renderer passed two Android fixtures (26.436 s), including
+cookie/script isolation, owner cancellation and scoped cleanup; six existing
+UI/restoration cases also passed (52.128 s). Final focused JVM tests: 45 passed;
+helper/extension tests: 9 passed. Release ART, 19-library alignment, package pin /
+licenses and signed-out cold launch pass. The existing AVD is stopped.
+
+A real integration bug was fixed: pinned Gecko 157 cookie expiry is milliseconds,
+not seconds. Keep native validation and readback guards. The main APK now includes
+Gecko and grows to about 241 MB debug / 228 MB unsigned release. There is still no
+Android notice feed and no new signed milestone (494 remains current).
+
+**Next:** connect concurrent launch preloads and acknowledgement gating to the
+retained renderer; exercise the archive web/retry Compose flow. Continue actual
+partitioned-storage, extension-loss recovery and HTTPS/account acceptance. Current
+extension-loss behavior closes all owned pages and requires an app process restart;
+do not describe that recovery as complete. Physical Pixel/Mac browser acceptance,
+push configuration and the full parity audit remain open. The Pixel was absent
+from ADB; do not repeat the already pending reconnect question.
+
 ## Latest checkpoint — main toolchain and release runtime (2026-10-04)
 
 [ANDROID_TOOLCHAIN.md](ANDROID_TOOLCHAIN.md) records the completed main migration
@@ -39,9 +63,9 @@ cases passed, native/ZIP alignment and pinned assets passed, signed-out cold
 launch passed. Archive rendering was visually checked after excluding a captured
 window transition. The existing AVD is stopped with settings restored.
 
-Next implement the production private notice renderer with the existing broker
-and load owner, including account/lease retirement and partitioned-state tests.
-The toolchain prerequisite is complete; GeckoView is not in the main app yet.
+The later checkpoint above adds the production renderer and main engine dependency.
+The toolchain migration remains its prerequisite; launch preload and broader
+lifecycle/partitioned acceptance are still open.
 Do not repeat the isolated engine experiments without a concrete failing case.
 Physical Pixel/Mac browser acceptance, authenticated signed upgrade and push
 configuration remain open. Build 494 remains the signed milestone; no new signed

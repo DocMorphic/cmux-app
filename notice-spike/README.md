@@ -1,3 +1,8 @@
+> The main app now has a production archive renderer using this pinned engine.
+> See [NOTICE_RENDERER.md](../docs/NOTICE_RENDERER.md). This standalone project's
+> probe/CA/DNS fixtures remain excluded from the main app. Engine expiry is in
+> milliseconds; production forwarding must preserve that unit.
+
 # Private web-notice engine experiment
 
 This standalone Android test project evaluates GeckoView for the iOS notice

@@ -1,8 +1,9 @@
 # Android build toolchain — 2026-10-04
 
 The main app now uses the toolchain required by the pinned GeckoView
-candidate. This is a prerequisite for renderer integration; GeckoView and its
-synthetic certificate fixtures are not dependencies of the main app yet.
+candidate. This migration preceded the production integration recorded in
+[NOTICE_RENDERER.md](NOTICE_RENDERER.md). GeckoView is now a main dependency;
+synthetic certificate fixtures remain excluded.
 
 ## Pins and source configuration
 

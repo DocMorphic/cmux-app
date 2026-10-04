@@ -12,6 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Production private notice renderer (2026-10-04 follow-up)
+
+The Settings web-detail path now has a retained GeckoView renderer and native
+session broker integration; the production adapter passed two Android tests for
+cookie isolation, script exclusion, rotation/theme retention, account cancellation
+and scoped retirement. Six existing UI/restoration cases also pass, together with
+45 focused JVM and nine Node checks. Release ART and all 19 native libraries pass.
+See [NOTICE_RENDERER.md](NOTICE_RENDERER.md) for exact scopes and retained failures,
+including the fixed seconds-versus-milliseconds cookie bug and one post-boot bind
+ANR. Debug / unsigned-release APKs are about 241 / 228 MB with the bundled engine.
+
+Launch preloading, archive Compose web/retry acceptance, runtime partitioned state,
+transparent extension-loss recovery, real HTTPS/account exchange and physical Pixel
+remain incomplete. No notice feed or new signed milestone was created; 494 remains
+the last verified signed APK. The existing AVD is stopped. Global pin unchanged.
+
 ## Main toolchain and ART verification (2026-10-04 follow-up)
 
 The root app now uses AGP 9.1.1 / Gradle 9.3.1 / Kotlin 2.4.20 / compile SDK 37;

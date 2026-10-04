@@ -38,9 +38,9 @@ the parent disposes the renderer once. Supply a main/UI coroutine scope when
 callbacks operate Android views. Launch uses 10 seconds; archive uses 20 seconds.
 Creating a new load is the Retry contract, including a fresh exchange.
 
-These components are not yet connected to a WebView or to the presentation owner.
-No real account exchange was made, and no Android notice feed is configured.
-The existing explicit web placeholder remains until the renderer is finished.
+The later [production renderer checkpoint](NOTICE_RENDERER.md) connects these
+components to private archive rendering. Launch preload/presentation integration
+remains open. No real account exchange was made and no Android feed is configured.
 
 ## Verified scope
 
@@ -260,3 +260,15 @@ or signed release was made. No engine, experiment CA or fixture key is in the
 main app yet. Continue actual renderer integration with the existing broker/load
 owner; implement partitioned cleanup and account/lease lifecycle checks alongside
 that owner, then complete package/licenses and physical acceptance.
+
+### Production archive renderer integrated
+
+[NOTICE_RENDERER.md](NOTICE_RENDERER.md) supersedes the prerequisite-only status
+above. The main app now bundles the pinned engine and connects archive detail to
+the existing broker/load lifetime with retained ownership, Retry and scoped
+retirement. Two actual renderer fixtures pass (26.436 s), six UI/restoration
+regressions pass (52.128 s), and final focused JVM/Node/package/ART checks pass.
+The cookie expiry contract is milliseconds in Gecko 157; the initial seconds bug
+and all failures remain documented. APK growth, the startup ANR and incomplete
+launch/partitioned/extension-recovery/physical acceptance are explicitly recorded.
+No signed milestone or Android feed was created. Continue launch integration.

@@ -410,3 +410,10 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android keeps visibility in its encrypted local account state, with exact stored
 origin/alias and owner/build matching, synchronous guarded persistence and
 foreground/feed/terminal/browser retirement checks.
+
+Private announcement pages use unmodified GeckoView 157.0.20260924084938 from
+Mozilla's official Maven repository. MPL-2.0 and bundled third-party notices
+are reproduced in GeckoView.txt and the original engine assets/omni.ja.
+Source revision: 8eb25af4acf031ab1e06abf1a912275083c820ed
+https://hg.mozilla.org/releases/mozilla-release/rev/8eb25af4acf031ab1e06abf1a912275083c820ed
+The bundled notice-session extension is cmux-app code, not a Mozilla modification.

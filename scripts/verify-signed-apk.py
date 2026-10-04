@@ -54,7 +54,8 @@ def main():
     digests = re.findall(r"^Signer #\d+ certificate SHA-256 digest: (\w+)$", signature, re.M)
     require(digests == [SIGNER], "Stable APK signing certificate changed")
     native = command("native-alignment.txt", [sys.executable, root / "scripts/verify-native-alignment.py", apk])
-    require(native.count(": PASS (") == 6, "Expected six verified native libraries")
+    require(native.count(": PASS (") == 19, "Expected nineteen verified native libraries")
+    command("notice-engine.txt", [sys.executable, root / "scripts/verify-notice-engine.py", apk])
     command("zipalign.txt", [sdk / ("zipalign" + suffix), "-c", "-P", "16", "-v", "4", apk])
     badging = command("badging.txt", [sdk / ("aapt" + suffix), "dump", "badging", apk])
     require(f"package: name='io.github.docmorphic.cmuxapp' versionCode='{args.version}' versionName='0.2.0'" in badging,
@@ -65,7 +66,7 @@ def main():
     require("io.github.docmorphic.cmuxapp.CmuxApplication" in manifest, "Diagnostics Application missing")
     require(not re.search(r"android:debuggable[^\n]*=\(type 0x12\)0xffffffff", manifest), "APK is debuggable")
     fixtures = re.findall(r'android:name="\.([^"]+)"', (root / "app/src/debug/AndroidManifest.xml").read_text())
-    require(len(fixtures) == 5 and all(name not in manifest for name in fixtures), "Debug fixture exclusion failed")
+    require(len(fixtures) == 6 and all(name not in manifest for name in fixtures), "Debug fixture exclusion failed")
     checked = 0
     with zipfile.ZipFile(apk) as archive:
         for directory in ("raw-code", "markdown-viewer"):
@@ -78,7 +79,7 @@ def main():
     require(checked == 14, "Expected fourteen pinned viewer assets")
     receipt = {"version": args.version, "sha256": hashlib.sha256(apk.read_bytes()).hexdigest(),
         "bytes": apk.stat().st_size, "signer": SIGNER, "viewer_assets": checked,
-        "native_libraries": 6, "debug_fixture_activities_excluded": len(fixtures)}
+        "native_libraries": 19, "debug_fixture_activities_excluded": len(fixtures)}
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(receipt, indent=2))
 

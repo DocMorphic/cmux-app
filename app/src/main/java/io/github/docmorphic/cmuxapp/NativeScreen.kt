@@ -2153,6 +2153,10 @@ fun NativeScreen(
     }
     val whatsNewPromptPending = nativeWhatsNewSshPromptPending(sharedConnections?.ssh)
     whatsNewCenter?.let { noticeCenter -> whatsNewModel?.presentation?.let { noticePresentation ->
+        val noticeBroker = remember(noticeCenter, browserLogin, account) {
+            NativeWebSessionBroker(noticeCenter.webPolicy, NativeAccount.PROJECT_ID,
+                snapshot = { browserLogin?.let { account.webSessionSnapshot(it) } }, isCurrent = account::isWebSessionCurrent)
+        }
         NativeWhatsNewHost(noticeCenter, noticePresentation,
             owner = browserLogin.takeIf { signedIn },
             eligible = signedIn && feedForeground &&
@@ -2164,7 +2168,10 @@ fun NativeScreen(
                 screenResume.pending == null && textSnapshot == null && !showTerminalFiles && terminalArtifactPath == null &&
                 !createMenuOpen && !computerMenuOpen && !workspaceFilterMenuOpen && !notificationFilterMenu,
             archive = showWhatsNew && showSettings && signedIn && !showOnboarding && !onboardingExplicitRoute,
-            onCloseArchive = { showWhatsNew = false }, policy = displayPolicy)
+            onCloseArchive = { showWhatsNew = false }, policy = displayPolicy,
+            webArchive = whatsNewModel?.webArchive,
+            isOwnerCurrent = { login -> account.isSignedIn() && store.taskSession() == login },
+            sessionCookies = noticeBroker::cookies)
     } }
     // Keep each route in its own composition lambda. Creating all route lambdas
     // inside the dispatcher forces it to capture the entire screen and can produce

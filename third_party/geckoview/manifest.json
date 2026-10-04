@@ -1,0 +1,22 @@
+{
+  "coordinate": "org.mozilla.geckoview:geckoview:157.0.20260924084938",
+  "source_revision": "8eb25af4acf031ab1e06abf1a912275083c820ed",
+  "aar_sha256": "25de06a6204382c08e405adc36da7373098bdc230d6d768f17a6fe971f0dece0",
+  "license_html_sha256": "6f8a3c4d875cef77365f726fcc73f186f64846530e80db1ff9226547d35685b3",
+  "text_sha256": "a73a5d644be293089c5350a3765caf4710ff63fe4291a62c37cd3283911cc7ad",
+  "arm64_libraries": [
+    "libclearkey.so",
+    "libcrashhelper.so",
+    "libcrashtools.so",
+    "libfreebl3.so",
+    "libgkcodecs.so",
+    "liblgpllibs.so",
+    "libmozavcodec.so",
+    "libmozavutil.so",
+    "libmozglue.so",
+    "libnss3.so",
+    "libplugin-container.so",
+    "libsoftokn3.so",
+    "libxul.so"
+  ]
+}

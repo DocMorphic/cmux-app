@@ -118,6 +118,7 @@ android {
 }
 
 dependencies {
+    implementation("org.mozilla.geckoview:geckoview:157.0.20260924084938")
     implementation(project(":legacy-biometric"))
     implementation(project(":iroh"))
     implementation(project(":ghostty"))

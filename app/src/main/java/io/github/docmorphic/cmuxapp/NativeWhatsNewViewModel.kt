@@ -11,6 +11,7 @@ import java.util.Locale
 
 internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    val webArchive = NativeNoticeArchiveOwner(context.applicationContext, scope)
     private val mutable = MutableStateFlow<NativeWhatsNewCenter?>(null)
     val center = mutable.asStateFlow()
     var presentation: NativeWhatsNewPresentation? = null
@@ -30,7 +31,7 @@ internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
             loaded.refresh()
         }
     }
-    override fun onCleared() { scope.cancel(); mutable.value?.close() }
+    override fun onCleared() { webArchive.close(); scope.cancel(); mutable.value?.close() }
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass == NativeWhatsNewViewModel::class.java)

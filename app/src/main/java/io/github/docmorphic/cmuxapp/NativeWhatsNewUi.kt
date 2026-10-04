@@ -35,7 +35,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
 internal fun NativeWhatsNewArchive(pages: List<WhatsNewPage>, policy: NativeMacCompatibilityPolicy,
-    onDismiss: () -> Unit) {
+    webArchive: NativeNoticeArchiveOwner? = null, onDismiss: () -> Unit) {
     var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = pages.singleOrNull { it.key == selectedKey }
     fun back() { if (selected != null) selectedKey = null else onDismiss() }
@@ -47,7 +47,8 @@ internal fun NativeWhatsNewArchive(pages: List<WhatsNewPage>, policy: NativeMacC
                     TextButton(onClick = ::back, modifier = Modifier.testTag("whatsnew.archive.back")) { Text("‹ Back") }
                     Text("What's New", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 }
-                if (selected != null) NativeWhatsNewPageBody(selected, policy, Modifier.weight(1f))
+                if (selected?.body is WhatsNewBody.Web) NativeNoticeArchiveWeb(selected, webArchive, Modifier.weight(1f))
+                else if (selected != null) NativeWhatsNewPageBody(selected, policy, Modifier.weight(1f))
                 else Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
                     if (pages.isEmpty()) Text("No announcements right now.", Modifier.padding(vertical = 24.dp))
                     pages.forEach { page ->
@@ -163,7 +164,11 @@ private fun NativeWhatsNewPageBody(page: WhatsNewPage, policy: NativeMacCompatib
 @Composable
 internal fun NativeWhatsNewHost(center: NativeWhatsNewCenter, presentation: NativeWhatsNewPresentation,
     owner: String?, eligible: Boolean, archive: Boolean, onCloseArchive: () -> Unit,
-    policy: NativeMacCompatibilityPolicy) {
+    policy: NativeMacCompatibilityPolicy, webArchive: NativeNoticeArchiveOwner? = null,
+    isOwnerCurrent: (String) -> Boolean = { false },
+    sessionCookies: suspend (String) -> List<okhttp3.Cookie> = { emptyList() }) {
+    SideEffect { webArchive?.configure(owner, center.webPolicy, isOwnerCurrent, sessionCookies) }
+    LaunchedEffect(archive) { if (!archive) webArchive?.dismiss() }
     val state by center.state.collectAsState()
     val sheet by presentation.state.collectAsState()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -177,7 +182,7 @@ internal fun NativeWhatsNewHost(center: NativeWhatsNewCenter, presentation: Nati
     LaunchedEffect(owner, allowed, archive, state.unseen, state.initialRefreshComplete) {
         presentation.reconcile(owner, allowed && !archive)
     }
-    if (archive && owner != null) NativeWhatsNewArchive(state.archive, policy, onCloseArchive)
+    if (archive && owner != null) NativeWhatsNewArchive(state.archive, policy, webArchive) { webArchive?.dismiss(); onCloseArchive() }
     else sheet?.takeIf { allowed && it.owner == owner }?.let { active ->
         key(active.token) {
             NativeWhatsNewLaunchSheet(active, policy, state.error,

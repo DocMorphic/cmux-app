@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "name": "cmux private notice session",
+  "version": "1.3",
+  "browser_specific_settings": { "gecko": { "id": "notice-session@cmux-app.invalid" } },
+  "permissions": ["tabs", "nativeMessaging", "geckoViewAddons"],
+  "background": { "scripts": ["background.js"] },
+  "experiment_apis": {
+    "noticeSession": {
+      "schema": "schema.json",
+      "parent": { "scopes": ["addon_parent"], "paths": [["noticeSession"]], "script": "session.js" }
+    }
+  }
+}
