@@ -28,6 +28,21 @@ class TerminalInputDeliveryRpcTest {
         }
         override fun close() { responses.close() }
     }
+    @Test fun replayHydrationUsesIosDefaultAndClampsAtTwentyThousandWithoutChangingLegacyShape() = runBlocking<Unit> {
+        val wire = Wire(); val client = MobileRpcClient(wire, { "fixture-token" })
+        try {
+            client.connect()
+            client.replay("workspace", "terminal", 80, 24, 1)
+            for (rows in listOf(-1, 1_000, 4_000, 10_000, 20_000, Int.MAX_VALUE))
+                client.replay("workspace", "terminal", 80, 24, 2, maxScrollbackRows = rows)
+            client.replay("workspace", "terminal", 80, 24, 3, screenAnchor = false, maxScrollbackRows = 20_000)
+            assertEquals(listOf(4_000, 0, 1_000, 4_000, 10_000, 20_000, 20_000),
+                wire.requests.dropLast(1).map { it.getJSONObject("params").getInt("max_scrollback_rows") })
+            assertFalse(wire.requests.last().getJSONObject("params").has("max_scrollback_rows"))
+            assertFalse(wire.requests.last().getJSONObject("params").has("anchor"))
+        } finally { client.close() }
+    }
+
     @Test fun everyTerminalWritingRpcCarriesTheSameExplicitIdentityFields() = runBlocking<Unit> {
         val wire = Wire(); val client = MobileRpcClient(wire, { "fixture-token" })
         val surface = UUID.randomUUID(); val stream = UUID.randomUUID()

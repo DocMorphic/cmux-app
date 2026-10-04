@@ -12,6 +12,26 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — display and scrollback controls (2026-10-04)
+
+[DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md) adds the iOS title-wrap and one/two-line
+preview preferences, workspace descriptions/activity fallback, and 1,000/4,000/
+10,000/20,000-row native terminal hydration (default 4,000). RPC and render-grid
+limits now permit the largest option. Settings are persisted and observed live.
+
+26 JVM cases pass. Three selected Android cases have passes across retained runs:
+rendered row/remount behavior, workspace actions, and the final actual Settings →
+terminal RPC/render flow (21.98s). Screenshots were inspected. Debug/test builds
+and engine packaging pass. The sole AVD is stopped. Signed build 517 is unchanged.
+
+**Next:** investigate the intermittent cold terminal attach exposed by this check.
+Two runs reached a blank terminal with event subscriptions but no viewport/replay;
+the final pass alone does not establish reliability. The test now captures RPC
+and peer diagnostics on failure. An earlier Espresso/StandardTestDispatcher stall
+and unrelated Digital Wellbeing ANR are documented separately. Pixel is absent
+from ADB; physical browser/connection checks, feed/push and broader parity remain
+open. The goal remains active.
+
 ## Latest checkpoint — responsive license dialog (2026-10-04)
 
 [LICENSE_DIALOG.md](LICENSE_DIALOG.md) replaces synchronous asset loading and one

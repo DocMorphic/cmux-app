@@ -108,7 +108,7 @@ class RenderGrid : TerminalDisplay {
                     frame.optLong("delta_base_history_rows") != historyRows)) return false
         }
         val styles = stylesFor(frame)
-        val scrollbackCount = frame.optInt("scrollback_rows").coerceIn(0, 10_000)
+        val scrollbackCount = frame.optInt("scrollback_rows").coerceIn(0, TerminalScrollbackPreference.maximumRows)
         val carriedLines = parseLines(frame.optJSONArray("scrollback_spans"), scrollbackCount, styles, nextColumns)
         val frameLines = parseLines(frame.optJSONArray("row_spans"), nextRows, styles, nextColumns)
         if (full || content.size != nextRows) {
@@ -119,7 +119,7 @@ class RenderGrid : TerminalDisplay {
             if (!preserveHistory) history.clear()
             content = MutableList(nextRows) { mutableListOf() }
         } else {
-            val scrolled = frame.optInt("scrolled_rows").coerceIn(0, 10_000)
+            val scrolled = frame.optInt("scrolled_rows").coerceIn(0, TerminalScrollbackPreference.maximumRows)
             if (activeScreen == "primary") {
                 val carried = frame.optInt("scrollback_rows").coerceIn(0, scrolled)
                 val hasCarriedSpans = frame.has("scrollback_spans")
@@ -195,7 +195,7 @@ class RenderGrid : TerminalDisplay {
     }
 
     private fun trimHistory() {
-        if (history.size > 10_000) history.subList(0, history.size - 10_000).clear()
+        if (history.size > TerminalScrollbackPreference.maximumRows) history.subList(0, history.size - TerminalScrollbackPreference.maximumRows).clear()
     }
 
     private fun stylesFor(frame: JSONObject): Map<Int, Style> {

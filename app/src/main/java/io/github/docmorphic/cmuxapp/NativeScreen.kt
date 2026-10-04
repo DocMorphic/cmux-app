@@ -741,6 +741,8 @@ fun NativeScreen(
     val terminalArtifactPath = filesState.path
     val artifactRpc = remember(client, hostCapabilities) { client?.let { ArtifactRpc(it, hostCapabilities) } }
     val artifactPreferences = remember(context) { context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE) }
+    val displayState = rememberNativeDisplayPreferences(artifactPreferences)
+    val currentScrollbackRows by rememberUpdatedState(displayState.scrollbackRows)
     var folderTapEnabled by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("terminal-folder-tap", true)) }
     var showMissingArtifacts by remember(artifactPreferences) { mutableStateOf(artifactPreferences.getBoolean("show-missing-files", false)) }
     DisposableEffect(artifactPreferences) {
@@ -1774,7 +1776,7 @@ fun NativeScreen(
                     val snapshot = replayRecovery.replay {
                         active.replay(workspace.id, terminal.id, requestedViewport.columns, requestedViewport.rows,
                             viewportGeneration = viewportGeneration, screenAnchor = transport.screenAnchor,
-                            maxScrollbackRows = if (mirror.historyLineCount == 0) 10_000 else 0)
+                            maxScrollbackRows = if (mirror.historyLineCount == 0) currentScrollbackRows else 0)
                     }
                     if (generation != replayGeneration || client !== active) return
                     terminalSizing.replay(active, terminal.id, snapshot)
@@ -2300,6 +2302,7 @@ fun NativeScreen(
         NativeDiagnosticsSettings()
         TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
         NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences)
+        NativeDisplaySettings(artifactPreferences, displayState)
         TextButton(onClick = { showShortcuts = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Terminal Shortcuts") }
         TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
         }, connections = {
@@ -3002,6 +3005,7 @@ fun NativeScreen(
                         .semantics { contentDescription = "${workspace.title} on ${appearances.name(owner.mac)}" }) {
                     NativeWorkspaceRow(
                         workspace = workspace, groups = owner.groups,
+                        displayPreferences = displayState,
                         computer = appearances.name(owner.mac).takeIf { selectedOrigin == null && pairedMacs.size > 1 },
                         appearance = appearances.get(owner.mac), machineId = owner.mac.colorIdentity.colorSeed,
                         machineColorIndex = machineColorIndices[owner.mac.colorIdentity],
@@ -3227,10 +3231,11 @@ private fun NativeGroupHeaderRow(
 }
 
 @Composable
-private fun NativeWorkspaceRow(
+internal fun NativeWorkspaceRow(
     workspace: NativeWorkspace,
     groups: List<NativeGroup>,
     canMove: Boolean,
+    displayPreferences: NativeDisplayPreferences = NativeDisplayPreferences(),
     computer: String? = null,
     appearance: NativeMacAppearance = NativeMacAppearance(), machineId: String? = null, machineColorIndex: Int? = null,
     onOpen: () -> Unit,
@@ -3250,9 +3255,16 @@ private fun NativeWorkspaceRow(
         Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
             computer?.let { Text(it, color = nativeMuted, fontSize = 10.sp, maxLines = 1) }
-            Text(workspace.title.ifBlank { "Workspace" }, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-            Text(workspace.preview ?: workspace.directory ?: workspace.terminals.firstOrNull()?.title.orEmpty(),
-                color = nativeMuted, fontSize = 11.sp, maxLines = 1)
+            Text(workspace.title.ifBlank { "Workspace" }, Modifier.testTag("workspace.title:${workspace.id}"),
+                fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = if (displayPreferences.wrapTitles) Int.MAX_VALUE else 1, overflow = TextOverflow.Ellipsis)
+            workspace.description?.trim()?.takeIf { it.isNotEmpty() }?.let {
+                Text(it, Modifier.testTag("workspace.description:${workspace.id}"), fontSize = 12.sp,
+                    minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Text(workspace.preview?.takeIf { it.isNotEmpty() } ?: workspace.terminals.firstOrNull()?.title ?: workspace.title,
+                Modifier.testTag("workspace.preview:${workspace.id}"), color = nativeMuted, fontSize = 11.sp,
+                minLines = displayPreferences.previewLines, maxLines = displayPreferences.previewLines, overflow = TextOverflow.Ellipsis)
         }
         workspace.lastActivityAt?.let { seconds ->
             Text(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date((seconds * 1000).toLong())),

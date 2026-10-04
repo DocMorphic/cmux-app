@@ -96,6 +96,19 @@ class RenderGridTest {
         assertTrue(grid.bracketedPaste)
     }
 
+    @Test fun twentyThousandHydratedRowsRemainScrollableAndNewOutputEvictsOnlyTheOldest() {
+        val spans = org.json.JSONArray()
+        repeat(20_000) { spans.put(JSONObject().put("row", it).put("column", 0).put("text", "H$it")) }
+        val grid = RenderGrid()
+        assertTrue(grid.apply(frame(1).put("scrollback_rows", 20_000).put("scrollback_spans", spans)))
+        assertEquals(20_000, grid.historyLineCount)
+        assertEquals("H0\nH1", RenderGrid.plainText(grid.visibleLines(20_000)))
+        assertEquals("H19999\nrow", RenderGrid.plainText(grid.visibleLines(1)))
+        assertTrue(grid.apply(frame(2, false).put("delta_base_render_revision", 1).put("scrolled_rows", 1)))
+        assertEquals(20_000, grid.historyLineCount)
+        assertEquals("H1\nH2", RenderGrid.plainText(grid.visibleLines(20_000)))
+    }
+
     private fun frame(revision: Int, full: Boolean = true): JSONObject = JSONObject()
         .put("format", "cmux.render-grid.v1").put("surface_id", "surface").put("render_epoch", "epoch")
         .put("render_revision", revision).put("columns", 8).put("rows", 2).put("full", full)
