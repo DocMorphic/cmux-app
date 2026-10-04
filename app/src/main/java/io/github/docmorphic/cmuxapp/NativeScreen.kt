@@ -3337,7 +3337,10 @@ internal fun NativeScreen(
             NativeSidebarInput(sources, rows, macs.mapNotNull { mac -> workspaceMacFilterId(mac.deviceId, mac.instanceTag)?.let {
                 NativeSortComputer(it, display.name(mac), connectedCode == mac.code && connectionReady, scopedPresence.buildLabel(mac))
             } } + hosts.map { NativeSortComputer(workspaceSshFilterId(it.id), it.name) }, workspaceSortStore.state.value,
-                availability, display, searchLocale)
+                availability, display, searchLocale, actions = buildSet {
+                    add(RoutedSidebarActionKind.SETTINGS); add(RoutedSidebarActionKind.COMPUTERS)
+                    if (taskDraftRepository != null) add(RoutedSidebarActionKind.NEW_TASK)
+                })
         }
     })
     val sidebarInitial by rememberUpdatedState<() -> NativeSidebarPresentation>({
@@ -3362,6 +3365,17 @@ internal fun NativeScreen(
     val sidebarNavigate by rememberUpdatedState<(NativeSidebarTarget) -> Unit>({ target ->
         check(sidebarCurrent()) { "Sidebar account changed" }
         when (target) {
+            is NativeSidebarTarget.Action -> {
+                finishSearch()
+                when (target.kind) {
+                    RoutedSidebarActionKind.SETTINGS -> { workspaceRoute = null; showSettings = true }
+                    RoutedSidebarActionKind.COMPUTERS -> presentComputers()
+                    RoutedSidebarActionKind.NEW_TASK -> {
+                        check(taskDraftRepository != null) { "Task composer is no longer available" }
+                        newTaskDraft()
+                    }
+                }
+            }
             is NativeSidebarTarget.Workspace -> {
                 check(store.visiblePairedMacs().contains(target.mac) && connection.allowsSaved(target.mac))
                 sshNavigation.leave(); screenResume.cancel(); inAppNotification = null

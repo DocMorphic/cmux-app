@@ -47,6 +47,52 @@ class RoutedSidebarTest {
         assertThrows(IllegalStateException::class.java) { exchange.prepare("row-0") { true } }
         assertEquals("row-0", exchange.consume(ticket))
     }
+    @Test fun globalActionsRoundTripAndUseOneUseIssuedTicketsWithoutWorkspaceRows() {
+        val actions = RoutedSidebarActionKind.entries.map { RoutedSidebarAction("action-${it.name}", it) }
+        val exchange = RoutedSidebarExchange()
+        val page = exchange.begin(snapshot(0).copy(actions = actions))
+        assertEquals(page, RoutedSidebarWire.page(RoutedSidebarWire.page(page)))
+        for (action in actions) {
+            val ticket = exchange.prepare(action.key) { true }
+            assertEquals(action.key, exchange.consume(ticket)); assertNull(exchange.consume(ticket))
+        }
+        exchange.begin(snapshot(0))
+        assertThrows(IllegalStateException::class.java) { exchange.prepare(actions.first().key) { true } }
+    }
+    @Test fun ambiguousOrUnknownGlobalActionsAreRejected() {
+        val action = RoutedSidebarAction("settings", RoutedSidebarActionKind.SETTINGS)
+        assertThrows(IllegalArgumentException::class.java) {
+            RoutedSidebarExchange().begin(snapshot(0).copy(actions = listOf(action, action.copy(key = "other"))))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            RoutedSidebarExchange().begin(snapshot(1).copy(actions = listOf(action.copy(key = "row-0"))))
+        }
+        val valid = RoutedSidebarExchange().begin(snapshot(0).copy(actions = listOf(action)))
+        val wire = JSONObject(RoutedSidebarWire.page(valid))
+        wire.getJSONArray("actions").getJSONObject(0).put("kind", "SIGN_OUT")
+        assertThrows(IllegalArgumentException::class.java) { RoutedSidebarWire.page(wire.toString()) }
+        wire.getJSONArray("actions").getJSONObject(0).put("kind", "SETTINGS")
+        wire.getJSONArray("actions").put(JSONObject().put("key", "other").put("kind", "SETTINGS"))
+        assertThrows(IllegalArgumentException::class.java) { RoutedSidebarWire.page(wire.toString()) }
+    }
+    @Test fun globalActionsRevalidateOwnerAndAvailabilityAtCallbackTime() {
+        var current: NativeSidebarInput? = input(source()).copy(actions = RoutedSidebarActionKind.entries.toSet())
+        val destinations = mutableListOf<NativeSidebarTarget>()
+        fun host(salt: String = "salt") = NativeRoutedSidebarHost("owner", salt, { current }, { RoutedSidebarLease({}) {} }, { destinations += it })
+        val host = host(); val snapshot = host.read(RoutedSidebarQuery())!!
+        val task = snapshot.actions.single { it.kind == RoutedSidebarActionKind.NEW_TASK }
+        val openTask = host.resolve(task.key)!!
+        assertNull(host("other-owner-salt").resolve(task.key))
+        assertEquals(setOf(RoutedSidebarActionKind.SETTINGS, RoutedSidebarActionKind.COMPUTERS),
+            host.read(RoutedSidebarQuery(notifications = true))!!.actions.map { it.kind }.toSet())
+        current = current!!.copy(actions = current!!.actions - RoutedSidebarActionKind.NEW_TASK)
+        assertNull(host.resolve(task.key)); assertThrows(IllegalStateException::class.java) { openTask() }
+        val settings = host.resolve(snapshot.actions.single { it.kind == RoutedSidebarActionKind.SETTINGS }.key)!!
+        settings(); assertEquals(listOf(NativeSidebarTarget.Action(RoutedSidebarActionKind.SETTINGS)), destinations)
+        current = null
+        assertNull(host.resolve(task.key)); assertThrows(IllegalStateException::class.java) { settings() }
+        assertEquals(1, destinations.size)
+    }
     @Test fun queryRejectsMalformedComputerInsteadOfTruncatingAuthority() {
         assertThrows(IllegalArgumentException::class.java) { RoutedSidebarWire.query("""{"computer":"${"a".repeat(129)}"}""") }
         val query = RoutedSidebarQuery(true, "workspace", "résumé", "mac", true, false, setOf("other"), setOf("updates"), mapOf("group" to true))

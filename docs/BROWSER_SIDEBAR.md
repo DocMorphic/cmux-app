@@ -40,9 +40,9 @@ cannot clear a newly selected destination.
 This is the browser's global **navigation** sidebar. Its workspace rows and group
 headers reuse existing components. Compound machine filtering, independent
 workspace/notification searches and unread filters, sort mode and computer-order
-editing are now shared with the main screen. Remote row mutations, New
-Task/settings entry points, full notification row presentation/actions and
-selection styling still need parity work. Main-screen controls remain implemented separately; this does not establish
+editing are now shared with the main screen. Settings, Computers and New Task
+entry points return to the existing main-screen flows. Remote row mutations, full
+notification row presentation/actions and selection styling still need parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
 Physical Pixel/Mac acceptance, actual account/team replacement during live
@@ -156,3 +156,59 @@ buffer was empty, and the sole emulator was stopped and reaped.
 No physical Pixel was connected or modified. Real NativeScreen account/native/SSH
 integration and parent recreation remain unverified by this fixture. Signed build
 554 is unchanged; PR #1 remains draft and the full parity goal remains active.
+
+## Shared Settings, Computers and task entry points — 2026-10-04
+
+Scoped iOS reference: `WorkspaceListView.swift` (`settingsMenu`, `devicesButton`,
+`presentComputers`), `WorkspaceListView+Toolbar.swift`, and
+`MobilePrimaryTabScaffold.swift` at `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`.
+Settings opens the full settings presentation, Computers uses the shared root
+entry point, and the primary task action belongs to Workspaces.
+
+The routed browser's wide sidebar now exposes the cmux-logo Settings button,
+Manage Computers, and New Task. NativeScreen supplies their availability and
+handles them with the same existing Settings, Computers and task-draft flows as
+the main sidebar. Task availability requires the current draft repository. New
+Task is absent on Notifications and while the search editor occupies the primary
+navigation controls. Opening it only presents the composer; no creation RPC is
+sent by this action.
+
+Only an opaque key and one of three whitelisted action kinds cross IPC. Actions
+must have been issued in the current display snapshot before a one-use selection
+ticket can be prepared. The main process re-resolves the key and account/team
+owner both when selected and when the returned callback executes. Removed action
+availability, changed account authority and foreign presentation keys invalidate
+old callbacks. Duplicate action kinds/keys and action/row key collisions are
+rejected. Empty computer/workspace lists still expose available global actions.
+Search/filter state uses the existing final hand-back before navigation.
+
+Verification evidence for this checkpoint is kept under the ignored
+`captures/runtime/browser-sidebar-actions/` directory; results follow below.
+
+The debug/test APK build passed in **1m43s**. **28 sidebar JVM tests** passed,
+including issued one-use action tickets, wire rejection, and callback-time
+owner/availability revalidation. **Three Android tests passed in 63.117 s** on the
+sole API37/16KB AVD. The new scenario traversed all three action return handlers,
+revoked/restored New Task while the browser was open, checked its absence on
+Notifications, reopened the browser between actions, and verified lease release
+and absence of workspace-creation requests. The existing browser draft-retention
+and live-parent/stale-destination cases also passed.
+
+The inspected `actions.png/xml` shows the logo Settings button, computer button,
+and bottom New Task control in the wide sidebar. These checks exercise production
+Activity/service/proxy/action projection with generated host callbacks. They do
+not enter the actual NativeScreen Settings, Computers or composer pages, and do
+not prove a live account/native/SSH workflow, parent recreation or process death.
+The Pixel was absent and untouched. Installed app/source hashes matched; display
+settings were restored, the crash buffer was empty and the sole emulator was
+stopped/reaped. No new AVD or signed build was created.
+
+- App APK SHA-256: `5e56b616c326fa64ba29bb53699b9d2feff474f141bb63f9bbe7013e32a01cf3`.
+- Test APK SHA-256: `02d90642355fb4eb542c19b38a35fde535fd258240f4efaee0d3cdfb24454c6c`.
+- Evidence: `verification.json`, `source-hashes.json`, `build.log`, `android.log`,
+  `actions.png/xml`, display-state receipts and crash logs in the batch directory.
+
+Next: complete remote workspace/group mutations and full notification actions/
+presentation inside the browser sidebar, then verify main-screen integration and
+physical Pixel/Mac acceptance. Signed 554, draft PR #1 and the active goal are
+unchanged; this checkpoint does not establish full iOS parity.

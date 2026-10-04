@@ -1,5 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
     var filters by remember { mutableStateOf(false) }
     var showOrder by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val actions = ui.snapshot?.actions.orEmpty().associateBy { it.kind }
     val filter = NativeWorkspaceFilter(ui.query.workspaceUnread, ui.query.machines)
     LaunchedEffect(ui.query.notifications, ui.query.computer) { filters = false; showOrder = false }
     if (showOrder) key(ui.orderGeneration) {
@@ -41,6 +43,16 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
         NativeWorkspaceSidebarToggle()
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        actions[RoutedSidebarActionKind.SETTINGS]?.let { action ->
+            IconButton(onClick = { onOpen(action.key) }, enabled = !ui.navigating) {
+                Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
+            }
+        }
+        actions[RoutedSidebarActionKind.COMPUTERS]?.let { action ->
+            IconButton(onClick = { onOpen(action.key) }, enabled = !ui.navigating) {
+                Icon(painterResource(R.drawable.ic_computer_desktop), "Manage computers", Modifier.size(22.dp))
+            }
+        }
         Box(Modifier.weight(1f)) {
             TextButton(onClick = { computers = true }) {
                 Text(ui.snapshot?.computers?.singleOrNull { it.key == ui.query.computer }?.name
@@ -123,5 +135,6 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
     }
     NativePrimaryNavigation(ui.query.notifications, ui.snapshot?.unread ?: 0, ui.search,
         onTab = { onFinishSearch(false); controller.tab(it) }, onBeginSearch = controller::beginSearch,
-        onEdit = controller::edit, onSubmit = { onFinishSearch(false) }, onCancel = { onFinishSearch(true) }, sidebar = true)
+        onEdit = controller::edit, onSubmit = { onFinishSearch(false) }, onCancel = { onFinishSearch(true) }, sidebar = true,
+        onNewTask = actions[RoutedSidebarActionKind.NEW_TASK]?.let { action -> { onOpen(action.key) } })
 }

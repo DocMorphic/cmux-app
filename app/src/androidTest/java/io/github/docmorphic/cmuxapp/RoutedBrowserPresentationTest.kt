@@ -66,6 +66,8 @@ class RoutedBrowserPresentationTest {
     private var sidebarRows = listOf(RoutedSidebarRow("other", "workspace", "Other computer workspace", preview = "Remote preview"))
     private var sidebarAllows = true
     private var projectedSidebar: NativeRoutedSidebarHost? = null
+    private var globalActions = RoutedSidebarActionKind.entries.toSet()
+    private val openedActions = CopyOnWriteArrayList<RoutedSidebarActionKind>()
     private var adoptedPresentation: NativeSidebarPresentation? = null
     private var sortJson: String? = null
     private val sortStore = NativeWorkspaceSortStore({ sortJson }, { sortJson = it })
@@ -73,10 +75,10 @@ class RoutedBrowserPresentationTest {
         override val owner: Any = "fixture-owner"
         override fun current() = projectedSidebar?.current() ?: true
         override fun initialQuery() = projectedSidebar?.initialQuery() ?: RoutedSidebarQuery()
-        override fun read(query: RoutedSidebarQuery) = projectedSidebar?.read(query) ?: RoutedSidebarSnapshot(listOf(RoutedSidebarComputer("other-mac", "Other Mac")),
+        override fun read(query: RoutedSidebarQuery) = if (projectedSidebar != null) projectedSidebar!!.read(query) else RoutedSidebarSnapshot(listOf(RoutedSidebarComputer("other-mac", "Other Mac")),
             if (query.notifications) listOf(RoutedSidebarRow("notice", "notification", "Remote notification", unread = true))
             else sidebarRows.filter { query.text.isBlank() || it.title.contains(query.text, ignoreCase = true) })
-        override fun resolve(key: String): (() -> Unit)? = projectedSidebar?.resolve(key) ?: if (sidebarAllows && (key == "notice" || sidebarRows.any { it.key == key }))
+        override fun resolve(key: String): (() -> Unit)? = if (projectedSidebar != null) projectedSidebar!!.resolve(key) else if (sidebarAllows && (key == "notice" || sidebarRows.any { it.key == key }))
             ({ sidebarDestinations += key }) else null
         override fun adopt(query: RoutedSidebarQuery) { sidebarAdopted = query; projectedSidebar?.adopt(query) }
         override fun sort(command: RoutedSidebarSort) { checkNotNull(projectedSidebar).sort(command) }
@@ -162,6 +164,13 @@ class RoutedBrowserPresentationTest {
                     initial = { NativeSidebarPresentation(workspaceQuery = "Alpha", notificationQuery = "notice", machines = setOf(computers.first().id)) },
                     adoptPresentation = { adoptedPresentation = it },
                     saveSort = { mode, order -> mode?.let(sortStore::setMode); order?.let(sortStore::setPriority) })
+            }
+            if (scenarioName == "globalSidebarOpensSharedSettingsComputersAndTaskFlows") {
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-actions",
+                    { NativeSidebarInput(emptyList(), emptyList(), emptyList(), NativeWorkspaceSortState(), actions = globalActions) },
+                    { RoutedSidebarLease({}) {} }, { target ->
+                        openedActions += (target as NativeSidebarTarget.Action).kind
+                    })
             }
             network = NativeMacBrowserNetwork(owner, object : MacBrowserAccess {
                 override suspend fun availability() = MacBrowserAvailability.AVAILABLE
@@ -284,6 +293,33 @@ class RoutedBrowserPresentationTest {
         assertEquals(sortStore.state.value, NativeWorkspaceSortStore({ sortJson }, {}).state.value)
         assertEquals(false, sidebarActive.last())
     }
+    @Test fun globalSidebarOpensSharedSettingsComputersAndTaskFlows() = wideSidebar {
+        val labels = listOf("cmux settings", "Manage computers", "New Task")
+        val expected = listOf(RoutedSidebarActionKind.SETTINGS, RoutedSidebarActionKind.COMPUTERS, RoutedSidebarActionKind.NEW_TASK)
+        labels.forEachIndexed { index, label ->
+            browser("Routed fixture ▾")
+            desc("cmux settings"); desc("Manage computers"); desc("New Task")
+            if (index == 0) {
+                text("Notifications").click(); desc("Notification filter")
+                assertFalse(device.hasObject(By.desc("New Task")))
+                desc("cmux settings"); desc("Manage computers")
+                text("Workspaces").click(); desc("New Task")
+                main { globalActions = globalActions - RoutedSidebarActionKind.NEW_TASK }
+                assertTrue(device.wait(Until.gone(By.desc("New Task")), 5_000))
+                main { globalActions = globalActions + RoutedSidebarActionKind.NEW_TASK }
+                desc("New Task")
+                capturePicker("browser-sidebar-global-actions")
+            }
+            desc(label).click()
+            compose.waitForIdle(); text("Reopen fixture")
+            until { sidebarReleases.get() == index + 1 }
+            assertEquals(expected.take(index + 1), openedActions.toList())
+            assertEquals(0, holds.get()); assertEquals(false, sidebarActive.last())
+            assertTrue(creationRequests.isEmpty()) // Opening the composer is not workspace creation.
+            if (index < labels.lastIndex) text("Reopen fixture").click()
+        }
+    }
+
     @Test fun customizationSavesAndRetriesWithoutReloadingThePageOrReleasingItsHost() {
         main { menuCustomizationEnabled = true; failCustomization = true }
         browser("Routed fixture ▾")

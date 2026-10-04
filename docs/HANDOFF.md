@@ -24,7 +24,33 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — browser filters, sorting and return state (2026-10-04)
+## Latest checkpoint — browser Settings, Computers and New Task (2026-10-04)
+
+The routed browser's wide sidebar now exposes cmux-logo Settings, Manage
+Computers and New Task. They return through issued, one-use navigation tickets to
+the same existing main-screen handlers. Action availability/account ownership is
+rechecked before selecting and before executing a returned callback. New Task
+requires the draft repository, appears on Workspaces and opens the composer
+without sending a workspace-creation request.
+
+**28 JVM and three Android checks passed** (runtime **63.117 s**, sole API37/16KB
+AVD; build **1m43s**). The new runtime check covers all three return handlers,
+availability revocation/restoration, notification-tab visibility and repeated
+exit/reopen lease release. Existing unsent-page draft and stale-navigation checks
+also passed. The wide controls screenshot was inspected. Exact source references,
+hashes and receipts are in [BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md).
+
+The runtime host uses generated callbacks; actual NativeScreen destination pages,
+real account/native/SSH feeds, parent recreation and physical Pixel/Mac acceptance
+remain unverified by this batch. The Pixel was absent and untouched. Display
+settings were restored and the emulator stopped/reaped; no new AVD was created.
+**Next:** browser remote row/group mutations and full notification actions/UI,
+then main-screen integration and device acceptance. Recovery, push/notice
+configuration, legacy tickets and the upstream audit remain open. Signed **554**
+is unchanged; these sidebar changes await a batched signed build. PR #1 stays
+draft and the full goal remains active.
+
+## Earlier checkpoint — browser filters, sorting and return state (2026-10-04)
 
 The separate browser sidebar now shares compound machine/unread filtering,
 independent workspace/notification searches and unread states, all three sort

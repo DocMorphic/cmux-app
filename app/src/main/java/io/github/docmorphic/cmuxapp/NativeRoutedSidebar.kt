@@ -6,6 +6,7 @@ import java.time.ZoneId
 import java.util.Locale
 
 internal sealed interface NativeSidebarTarget {
+    data class Action(val kind: RoutedSidebarActionKind) : NativeSidebarTarget
     data class Workspace(val mac: NativeCredentialStore.PairedMac, val id: String) : NativeSidebarTarget
     data class Ssh(val row: SshFeedRow) : NativeSidebarTarget
     data class Notification(val entry: NativeFeedEntry) : NativeSidebarTarget
@@ -13,7 +14,8 @@ internal sealed interface NativeSidebarTarget {
 internal data class NativeSidebarInput(val sources: List<NativeFeedSource>, val ssh: List<SshFeedRow>,
     val computers: List<NativeSortComputer>, val sort: NativeWorkspaceSortState,
     val sshAvailability: Map<java.util.UUID, NativeFeedAvailability> = emptyMap(),
-    val appearances: NativeMacAppearances = NativeMacAppearances(), val locale: Locale = Locale.getDefault())
+    val appearances: NativeMacAppearances = NativeMacAppearances(), val locale: Locale = Locale.getDefault(),
+    val actions: Set<RoutedSidebarActionKind> = emptySet())
 internal data class NativeSidebarPresentation(val computer: String? = null, val notifications: Boolean = false,
     val workspaceQuery: String = "", val notificationQuery: String = "", val workspaceUnread: Boolean = false,
     val notificationUnread: Boolean = false, val machines: Set<String> = emptySet())
@@ -27,6 +29,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val saveSort: ((NativeWorkspaceSortMode?, List<String>?) -> Unit)? = null) : RoutedSidebarHost {
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+    private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
     private fun computer(key: String) = id("computer", key)
     private fun workspace(mac: NativeCredentialStore.PairedMac, key: String) = id("workspace", mac.origin, mac.code, key)
     private fun group(source: NativeFeedSource, key: String) = id("group", source.mac.origin, source.mac.code, key)
@@ -93,7 +96,9 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             }, filterMachines = if (query.computer == null) ordered.filter { it.id in machines(value) }
                 .map { RoutedSidebarComputer(computer(it.id), it.name, it.buildLabel) } else emptyList(),
             selectedMachines = filter.machines,
-            sortMode = value.sort.mode.takeIf { saveSort != null && query.computer == null && !query.notifications })
+            sortMode = value.sort.mode.takeIf { saveSort != null && query.computer == null && !query.notifications },
+            actions = RoutedSidebarActionKind.entries.filter { it in value.actions && (!query.notifications || it != RoutedSidebarActionKind.NEW_TASK) }
+                .map { RoutedSidebarAction(action(it), it) })
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
         query: RoutedSidebarQuery, all: Boolean, filtering: Boolean): List<RoutedSidebarRow> {
@@ -148,6 +153,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     override fun resolve(key: String): (() -> Unit)? {
         fun target(): NativeSidebarTarget? {
             val value = input() ?: return null
+            value.actions.singleOrNull { action(it) == key }?.let { return NativeSidebarTarget.Action(it) }
             value.sources.forEach { source ->
                 source.workspaces.firstOrNull { workspace(source.mac, it.id) == key }?.let { return NativeSidebarTarget.Workspace(source.mac, it.id) }
                 source.groups.firstOrNull { group(source, it.id) == key }?.liveAnchorWorkspaceId?.let { id ->
