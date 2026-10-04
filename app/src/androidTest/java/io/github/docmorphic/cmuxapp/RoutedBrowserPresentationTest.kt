@@ -127,6 +127,9 @@ class RoutedBrowserPresentationTest {
         override suspend fun mutate(command: RoutedSidebarMutation, canSend: () -> Boolean) {
             checkNotNull(projectedSidebar).mutate(command, canSend)
         }
+        override suspend fun drop(command: RoutedSidebarDrop, query: RoutedSidebarQuery, canSend: () -> Boolean) {
+            checkNotNull(projectedSidebar).drop(command, query, canSend)
+        }
         override fun groupMenu(key: String, revision: String?, offset: Int) = checkNotNull(projectedSidebar).groupMenu(key, revision, offset)
         override fun customization(key: String) = checkNotNull(projectedSidebar).customization(key)
         override fun sort(command: RoutedSidebarSort) { checkNotNull(projectedSidebar).sort(command) }
@@ -377,7 +380,7 @@ class RoutedBrowserPresentationTest {
                         openedActions += (target as NativeSidebarTarget.Action).kind
                     })
             }
-            if (scenarioName == "globalSidebarGroupMovesStayAnchoredRejectStaleMenusAndPreserveDraft") {
+            if (scenarioName in setOf("globalSidebarGroupMovesStayAnchoredRejectStaleMenusAndPreserveDraft", "globalSidebarDragOrdersGroupsAndKeepsBrowserDraft")) {
                 noticeSources = listOf(NativeFeedSource(NativeCredentialStore.PairedMac("fixture-pairing", "A", "Mac A"),
                     workspaces = parseWorkspaces(JSONObject("""{"workspaces":[
                         {"id":"w","title":"Move workspace","window_id":"window"},
@@ -997,6 +1000,46 @@ class RoutedBrowserPresentationTest {
         capturePicker("browser-sidebar-workspace-actions")
         device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
         until { holds.get() == 0 }
+    }
+
+    @Test fun globalSidebarDragOrdersGroupsAndKeepsBrowserDraft() = wideSidebar {
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        desc("Choose terminal or pane"); text("Keep draft").click()
+        until { desc("Choose terminal or pane").text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        fun drag(from: String, target: String, before: Boolean = false) {
+            val start = text(from).visibleBounds; val end = text(target).visibleBounds
+            val x = start.centerX().toFloat(); val startY = start.centerY().toFloat()
+            val endY = (if (before) end.top else end.centerY()).toFloat()
+            val down = android.os.SystemClock.uptimeMillis()
+            fun inject(action: Int, y: Float) {
+                val event = android.view.MotionEvent.obtain(down, android.os.SystemClock.uptimeMillis(), action, x, y, 0)
+                event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+                try { assertTrue(InstrumentationRegistry.getInstrumentation().uiAutomation.injectInputEvent(event, true)) }
+                finally { event.recycle() }
+            }
+            inject(android.view.MotionEvent.ACTION_DOWN, startY)
+            try {
+                android.os.SystemClock.sleep(700)
+                for (step in 1..12) { inject(android.view.MotionEvent.ACTION_MOVE, startY + (endY - startY) * step / 12); android.os.SystemClock.sleep(20) }
+                android.os.SystemClock.sleep(100)
+            } finally { inject(android.view.MotionEvent.ACTION_UP, endY) }
+        }
+        drag("Move workspace", "Destination group")
+        text("Fixture group move rejected"); assertEquals(1, groupMoves.size)
+        assertNull(main { noticeSources.single().workspaces.first { it.id == "w" }.groupId })
+        drag("Move workspace", "Destination group")
+        until { main { noticeSources.single().workspaces.first { it.id == "w" }.groupId == "h" } }
+        // Wait for the authoritative projection before starting the next gesture.
+        until { text("Move workspace").visibleBounds.top > text("Destination group").visibleBounds.top }
+        drag("Destination group", "Original group", before = true)
+        until { main { noticeSources.single().workspaces.first().id == "target" } }
+        assertEquals(3, groupMoves.size); assertTrue(groupMoves.last().movesGroup)
+        assertEquals(loads, paths.count { it == "/start" })
+        assertTrue(desc("Choose terminal or pane").text?.startsWith("Draft ") == true)
+        capturePicker("browser-sidebar-drag")
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }; assertTrue(sidebarDestinations.isEmpty())
     }
 
     @Test fun globalSidebarGroupMovesStayAnchoredRejectStaleMenusAndPreserveDraft() = wideSidebar {

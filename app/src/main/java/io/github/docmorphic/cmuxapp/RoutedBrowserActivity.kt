@@ -62,7 +62,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         closeEditor = { ticket -> request(RoutedBrowserProtocol.SIDEBAR_EDITOR_CLOSE, Bundle().apply { putString("editor", ticket) }); Unit },
         customizeWorkspace = { command -> RoutedSidebarCustomizationWire.result(checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE,
             Bundle().apply { putString("customize", RoutedSidebarCustomizationWire.save(command)) }).getString("customized"))) },
-        readChanges = { key -> checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_CHANGES, Bundle().apply { putString("key", key) }).getString("changes")) })
+        readChanges = { key -> checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_CHANGES, Bundle().apply { putString("key", key) }).getString("changes")) },
+        dropWorkspace = { command -> request(RoutedBrowserProtocol.SIDEBAR_DROP, Bundle().apply { putString("drop", RoutedSidebarDropWire.encode(command)) }); Unit })
     private fun configureSidebar() = sidebar.configure(binding != null && state.value.sidebarAvailable && !state.value.retired, foreground)
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         when (message.what) {
@@ -134,8 +135,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
             }
         } finally {
             replies.remove(serial)
-            if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_NOTIFICATION, RoutedBrowserProtocol.SIDEBAR_MUTATION) && !answer.isCompleted) runCatching {
-                peer.send(Message.obtain(null, when (kind) { RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE -> RoutedBrowserProtocol.CANCEL_CUSTOMIZE; RoutedBrowserProtocol.SIDEBAR_MUTATION -> RoutedBrowserProtocol.CANCEL_MUTATION; else -> RoutedBrowserProtocol.CANCEL_NOTIFICATION }).apply {
+            if (kind in setOf(RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_NOTIFICATION, RoutedBrowserProtocol.SIDEBAR_MUTATION, RoutedBrowserProtocol.SIDEBAR_DROP) && !answer.isCompleted) runCatching {
+                peer.send(Message.obtain(null, when (kind) { RoutedBrowserProtocol.CUSTOMIZE, RoutedBrowserProtocol.SIDEBAR_CUSTOMIZE -> RoutedBrowserProtocol.CANCEL_CUSTOMIZE; RoutedBrowserProtocol.SIDEBAR_MUTATION, RoutedBrowserProtocol.SIDEBAR_DROP -> RoutedBrowserProtocol.CANCEL_MUTATION; else -> RoutedBrowserProtocol.CANCEL_NOTIFICATION }).apply {
                     arg1 = serial; data = Bundle().apply { putString(RoutedBrowserProtocol.EXTRA, requestId) }; replyTo = endpoint
                 })
             }

@@ -24,7 +24,44 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — changes sheet recreation and rotation (2026-10-05)
+## Latest checkpoint — browser sidebar drag ordering (2026-10-05)
+
+The browser sidebar now supports long-press dragging, before/after insertion,
+dropping a workspace into a group, moving a whole group via its anchor, and Move
+up/down accessibility actions. A shared gesture surface preserves context menus
+while held; crossing drag slop closes the menu, lifts the row and shows a drop
+indicator. Edge autoscroll can request the next page of rows.
+
+The browser sends only issued opaque row keys and a stable order revision. The
+main process resolves its current rendered hierarchy and normalizes the move with
+the existing workspace policy/queue. Reordering requires one eligible Mac/window,
+no active search/unread/machine filter, a connected move-capable host and fewer
+than three pending moves. All-Computers recency order, mixed SSH/native lists and
+ungrouped pinned lists are excluded. Account/pairing/order changes reject stale
+requests; valid unchanged drops send nothing. Pending moves retain the queue's
+optimistic prediction, predecessor-failure and cancellation behavior.
+
+**90 JVM checks and four Android scenarios passed** (Android **113.114s**) on the
+sole API37/16KB arm64 emulator. New coverage includes scoped colliding Mac IDs,
+collapsed groups, group anchors, filter/window/queue gates, opaque wire/paging,
+stale revisions, and accessibility actions using current state. Production browser
+Activity/service testing uses generated feed/mutation fixtures and real OS touch
+events: rejected drop/retry, join group, reorder whole group, unchanged page/draft.
+Existing group menus and workspace/group mutation/confirmation flows also pass.
+An initial JVM assertion incorrectly expected a one-computer machine filter to
+remain active; it now exercises a meaningful subset of a two-computer menu.
+
+Evidence: `captures/runtime/browser-sidebar-drag/` (ignored). Source/installed APK
+hashes matched, screenshots inspected, crash buffer empty, display/settings
+restored, sole emulator stopped/reaped. Pixel absent/untouched. Physical Mac/Pixel,
+large-list autoscroll/paging and slow-host pipelining through browser UI still need
+acceptance; unit queue checks do not prove those workflows. No full parity claim.
+Next: batched signed milestone, physical/network/process recovery, remaining modal
+state, production push/notice configuration, legacy tickets and upstream audit.
+Signed **571** predates this and the other recent sidebar changes. Goal active,
+PR #1 draft, global parity pin unchanged.
+
+## Earlier checkpoint — changes sheet recreation and rotation (2026-10-05)
 
 Both changes-sheet entry points now retain their presentation, selected file,
 loaded diff cache and diff scroll positions in their owning ViewModel. Main-list

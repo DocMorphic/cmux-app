@@ -77,6 +77,13 @@ class RoutedBrowserHostService : Service() {
                             RoutedSidebarWire.mutation(checkNotNull(args.getString("mutation")))) }
                         finally { saves.remove(key) }
                     }
+                    RoutedBrowserProtocol.SIDEBAR_DROP -> {
+                        val key = entry.id to ticket
+                        check(key !in saves) { "Workspace move already submitted" }
+                        saves[key] = currentCoroutineContext().job
+                        try { RoutedBrowserSessions.dropSidebar(entry, RoutedSidebarDropWire.decode(checkNotNull(args.getString("drop")))) }
+                        finally { saves.remove(key) }
+                    }
                     RoutedBrowserProtocol.SIDEBAR_SELECT -> result.putString("selection", RoutedBrowserSessions.selectSidebar(entry, checkNotNull(args.getString("key"))))
                     RoutedBrowserProtocol.DEBUG_LOGS -> {
                         check(BuildConfig.DEBUG) { "Debug logs unavailable" }

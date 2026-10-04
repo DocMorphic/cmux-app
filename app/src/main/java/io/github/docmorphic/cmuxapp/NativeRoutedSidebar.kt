@@ -307,6 +307,63 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         } }
         return null
     }
+    private data class DragContext(val source: NativeFeedSource, val entries: List<WorkspaceListEntry>, val keys: List<String>, val revision: String)
+    private fun dragKey(entry: WorkspaceListEntry): String = when (entry) {
+        is WorkspaceListEntry.Workspace -> workspace(entry.source.mac, entry.workspace.id)
+        is WorkspaceListEntry.Header -> group(entry.source, entry.group.id)
+        is WorkspaceListEntry.Footer -> id("footer", entry.key)
+    }
+    private fun dragContext(value: NativeSidebarInput, query: RoutedSidebarQuery, checkPending: Boolean = true): DragContext? {
+        if (moveWorkspace == null || query.notifications || query.workspaceQuery.isNotBlank() ||
+            filter(value, query).active || (query.computer == null && value.sort.mode == NativeWorkspaceSortMode.ACTIVITY)) return null
+        val selected = query.computer?.let { key -> value.computers.singleOrNull { computer(it.id) == key }?.id }
+        if (query.computer != null && selected == null) return null
+        if (value.ssh.any { selected == null || workspaceSshFilterId(it.host.id) == selected }) return null
+        val source = value.sources.filter { selected == null || workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag) == selected }.singleOrNull() ?: return null
+        if (!source.canReorderWorkspaces() || (source.groups.isEmpty() && source.workspaces.any { it.isPinned }) ||
+            (checkPending && (value.pendingMoves[source.mac.origin] ?: 0) >= 3)) return null
+        val collapsed = source.groups.associate { item -> WorkspaceListEntry.Header(source, item).key to
+            (query.groupExpansion[group(source, item.id)]?.not() ?: item.isCollapsed) }
+        val entries = sortedWorkspaceRows(listOf(source), emptyList(), value.computers, value.sort, selected == null,
+            source.workspaces.map { it.id }.toSet(), false, false, collapsed, value.locale)
+            .filterIsInstance<NativeWorkspaceDisplayRow.Mac>().map { it.entry }
+        val keys = entries.map(::dragKey)
+        val revision = id("drag", keys, source.mac.let { listOf(it.code, it.deviceId, it.name, it.instanceTag, it.accountUserId, it.accountTeamId, it.stableOrigin, it.previousOrigins.sorted()) }, source.workspaces.map { listOf(it.id, it.groupId, it.isPinned, it.windowId) },
+            source.groups.map { listOf(it.id, it.anchorWorkspaceId, it.isPinned, it.isEmpty, collapsed[WorkspaceListEntry.Header(source, it).key]) })
+        return DragContext(source, entries, keys, revision)
+    }
+    override suspend fun drop(command: RoutedSidebarDrop, query: RoutedSidebarQuery, canSend: () -> Boolean) {
+        command.validate()
+        check(canSend()) { "Workspace sidebar is no longer visible" }
+        val context = checkNotNull(input()?.let { dragContext(it, query) }) { "Workspace ordering is unavailable" }
+        check(command.revision == context.revision) { "Workspace order changed. Try the move again." }
+        val from = context.keys.indexOf(command.key)
+        check(from >= 0) { "Workspace changed" }
+        val source = context.source
+        check(context.entries[from] !is WorkspaceListEntry.Footer) { "This row cannot move" }
+        if (command.target != null) check(command.target in context.keys) { "Drop destination changed" }
+        val result = when (command.placement) {
+            RoutedSidebarDropPlacement.UP, RoutedSidebarDropPlacement.DOWN ->
+                workspaceStepIntent(source, context.entries, from, command.placement == RoutedSidebarDropPlacement.DOWN)
+            RoutedSidebarDropPlacement.INTO -> {
+                val moved = context.entries[from] as? WorkspaceListEntry.Workspace
+                val target = context.keys.indexOf(command.target).takeIf { it >= 0 }?.let { context.entries[it] } as? WorkspaceListEntry.Header
+                check(moved != null && target != null) { "This row cannot join a group" }
+                NativeWorkspaceMovePolicy(source.workspaces, source.groups)
+                    .normalized(NativeWorkspaceMove(target.group.id, null), moved.workspace.id)?.let { moved.workspace.id to it }
+            }
+            else -> {
+                val target = context.keys.indexOf(command.target)
+                if (target < 0) null else workspaceDropIntent(source, context.entries, from,
+                    target + if (command.placement == RoutedSidebarDropPlacement.AFTER) 1 else 0)
+            }
+        }
+        if (result == null) return // A valid but unchanged drop does not send a mutation.
+        checkNotNull(moveWorkspace).invoke(source, result.first, result.second) {
+            // Optimistic order changes after admission; the shared queue validates its captured base.
+            canSend() && input()?.let { dragContext(it, query, checkPending = false)?.source?.mac == source.mac } == true
+        }
+    }
     override fun withSelection(selection: NativeSidebarSelection?): RoutedSidebarHost = object : RoutedSidebarHost by this {
         override fun read(query: RoutedSidebarQuery) = this@NativeRoutedSidebarHost.read(query, selection)
     }
@@ -327,8 +384,17 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             sources.filter { source -> filter.matches(workspaceMacFilterId(source.mac.deviceId, source.mac.instanceTag)?.let(::computer), true) },
             sshRows.filter { filter.matches(computer(workspaceSshFilterId(it.host.id)), it.workspace.hasUnread) },
             query, selected == null, filter.active, selection)
+        val drag = dragContext(value, query)
+        val dragRows = if (drag == null) rows else rows.map { row ->
+            val index = drag.keys.indexOf(row.key)
+            val entry = drag.entries.getOrNull(index)
+            val movable = entry is WorkspaceListEntry.Workspace || (entry is WorkspaceListEntry.Header && entry.group.liveAnchorWorkspaceId != null)
+            if (!movable) row else row.copy(drag = RoutedSidebarDragRow(
+                workspaceStepIntent(drag.source, drag.entries, index, false) != null,
+                workspaceStepIntent(drag.source, drag.entries, index, true) != null))
+        }
         val offline = sources.filter { it.availability == NativeFeedAvailability.OFFLINE }
-        return RoutedSidebarSnapshot(ordered.map { RoutedSidebarComputer(computer(it.id), it.name, it.buildLabel) }, rows, unread,
+        return RoutedSidebarSnapshot(ordered.map { RoutedSidebarComputer(computer(it.id), it.name, it.buildLabel) }, dragRows, unread,
             sources.any { it.availability == NativeFeedAvailability.CONNECTING },
             when {
                 !validScope -> "This computer is no longer available. Choose another computer."
@@ -345,7 +411,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             canRefresh = query.notifications && refreshNotifications != null, expanded = expanded(projection),
             creation = if (!query.notifications && validScope) creation(value, selected) else emptyList(),
             createGroup = if (!query.notifications && validScope) groupCreate(value, selected) else null,
-            wrapTitles = value.display.wrapTitles, previewLines = value.display.previewLines)
+            wrapTitles = value.display.wrapTitles, previewLines = value.display.previewLines, dragRevision = drag?.revision)
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
         query: RoutedSidebarQuery, all: Boolean, filtering: Boolean, selection: NativeSidebarSelection?): List<RoutedSidebarRow> {

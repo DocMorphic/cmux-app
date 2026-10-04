@@ -25,7 +25,8 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     private val readEditor: suspend (String) -> RoutedSidebarCustomization = { error("Workspace customization is unavailable") },
     private val closeEditor: suspend (String) -> Unit = {},
     private val customizeWorkspace: suspend (RoutedSidebarCustomizationSave) -> WorkspaceCustomizationResult = { error("Workspace customization is unavailable") },
-    private val readChanges: suspend (String) -> String = { error("Changes are unavailable") }) {
+    private val readChanges: suspend (String) -> String = { error("Changes are unavailable") },
+    private val dropWorkspace: suspend (RoutedSidebarDrop) -> Unit = { error("Workspace ordering is unavailable") }) {
     private val sortMutex = Mutex()
     private val mutable = MutableStateFlow(RoutedSidebarUi())
     val state = mutable.asStateFlow()
@@ -178,6 +179,17 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
             restart()
             return false
         } finally { mutable.value = state.value.copy(mutationBusy = false) }
+    }
+    suspend fun drop(command: RoutedSidebarDrop): Boolean {
+        if (!available || !foreground || !visible || state.value.query.notifications || state.value.snapshot?.dragRevision != command.revision) return false
+        mutable.value = state.value.copy(actionError = null)
+        return try { dropWorkspace(command); restart(); true }
+        catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            mutable.value = state.value.copy(actionError = if (failure is TimeoutCancellationException)
+                "Workspace move wasn't confirmed. Refresh before trying again." else failure.message ?: "Could not move workspace")
+            restart(); false
+        }
     }
     private fun restart() {
         job?.cancel()

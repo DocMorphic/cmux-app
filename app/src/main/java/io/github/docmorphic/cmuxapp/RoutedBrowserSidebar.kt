@@ -115,8 +115,9 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
         if (ui.snapshot?.canRefresh == true) scope.launch { controller.notification(RoutedSidebarNotification.Refresh) }
         else controller.retry()
     }, modifier = Modifier.weight(1f)) {
-    LazyColumn(Modifier.fillMaxSize()) {
-        val rows = ui.snapshot?.rows.orEmpty()
+    val rows = ui.snapshot?.rows.orEmpty()
+    RoutedSidebarDragList(rows, ui.snapshot?.dragRevision, ui.more, controller::more,
+        onDrop = { command -> scope.launch { controller.drop(command) } }, before = {
         if (rows.isEmpty() && !ui.loading && ui.error == null) item {
             Text(when {
                 ui.query.text.isNotBlank() -> "No matches"
@@ -127,7 +128,9 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                 else -> "No workspaces yet."
             }, Modifier.padding(20.dp))
         }
-        items(rows, key = { it.key }, contentType = { it.kind }) { row ->
+        }, after = {
+            if (ui.more) item { TextButton(onClick = controller::more) { Text(if (ui.query.notifications) "Load more notifications" else "Load more") } }
+        }) { row ->
             val mutations = row.mutations.takeUnless { ui.mutationBusy }.orEmpty()
             fun mutate(verb: String, title: String?) {
                 if (verb == "customize") { scope.launch { controller.editWorkspace(row.key) }; return }
@@ -136,7 +139,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
             }
             when (row.kind) {
                 "workspace" -> Column(Modifier.padding(start = if (row.depth == 1) 24.dp else 0.dp)) {
-                    NativeWorkspaceRow(row.workspace(), changesChip = row.changes, isSelected = row.selected, availability = row.availability, handlesHold = true,
+                    NativeWorkspaceRow(row.workspace(), changesChip = row.changes, isSelected = row.selected, availability = row.availability, handlesHold = false,
                         displayPreferences = NativeDisplayPreferences(wrapTitles = ui.snapshot?.wrapTitles ?: false,
                             previewLines = ui.snapshot?.previewLines ?: 2),
                         canCustomize = row.canCustomize && !ui.mutationBusy,
@@ -161,7 +164,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                 "group" -> NativeGroupHeaderRow(NativeGroup(row.key, row.title, !row.expanded, row.pinned, iconSymbol = row.iconSymbol),
                     row.expanded, NativeWorkspaceUnread(row.unread, row.count),
                     onOpen = if (row.canOpen) ({ onOpen(row.key) }) else null,
-                    canEdit = RoutedSidebarMutationKind.RENAME in mutations, handlesHold = true, isSelected = row.selected,
+                    canEdit = RoutedSidebarMutationKind.RENAME in mutations, handlesHold = false, isSelected = row.selected,
                     canCreate = row.createKey != null, creationEnabled = !ui.navigating && !ui.mutationBusy,
                     onCreate = { row.createKey?.let(onOpen) },
                     onToggle = { controller.query(ui.query.copy(groupExpansion = ui.query.groupExpansion + (row.key to !row.expanded))) }, onAction = ::mutate)
@@ -194,8 +197,6 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                 }
             }
         }
-        if (ui.more) item { TextButton(onClick = controller::more) { Text(if (ui.query.notifications) "Load more notifications" else "Load more") } }
-    }
     }
     NativePrimaryNavigation(ui.query.notifications, ui.snapshot?.unread ?: 0, ui.search,
         onTab = { onFinishSearch(false); controller.tab(it) }, onBeginSearch = controller::beginSearch,

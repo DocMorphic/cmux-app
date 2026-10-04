@@ -1015,3 +1015,51 @@ Verification:
 No process-death recovery, browser-parent rotation, full binary/content-preview
 modal restoration, real Mac/Pixel or account/team acceptance is inferred. Signed
 571 predates this change. Browser drag ordering and the broader parity gates remain.
+
+
+## Browser drag ordering and shared long-press gestures (2026-10-05)
+
+Scoped iOS references at `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
+`WorkspaceListView+DragDrop.swift` and `WorkspaceListDropProposalPolicy.swift`.
+The Android browser now has a stable lazy-list gesture surface, held context
+menus, lifted row/drop indicator, before/after and group-center drops (8dp inset),
+edge autoscroll with further-page requests, and Move up/down accessibility actions.
+
+Snapshots advertise a stable drag revision and per-row accessibility availability.
+The separate revision hashes exact pairing identity, rendered keys, workspace
+order/group/pin/window state and group anchors/collapse state; preview updates do
+not invalidate a gesture. Only already-issued source/destination rows are admitted
+across the byte-bounded paging exchange. IPC contains opaque keys/placement only.
+The main process reconstructs the current list and applies the existing move
+normalizer; arbitrary IDs, cross-Mac destinations and stale orders cannot redirect
+it. Unchanged drops do not send a mutation. Filters, host capability/availability,
+known window, pin/recency and three-pending-move rules gate admission. The existing
+feed-owned move queue provides prediction, serialized sends, rollback and epoch
+validation. Drag requests do not take the sidebar's single ordinary-mutation slot;
+this allows the existing three-move queue to operate. Cancellation/retirement and
+query/owner changes are rechecked before sending.
+
+Verification:
+
+- **90 JVM checks passed**, including six new drag cases and 13 existing move-queue
+  cases. Coverage includes scoped colliding Mac IDs, collapsed-group membership,
+  whole-group moves, window/filter/recency/pin/offline/queue admission, revision
+  freshness versus preview updates, owner guards, wire privacy and issued paging.
+- **Four Android cases passed in 113.114s** on the existing API37/16KB arm64 AVD.
+  Shared UI semantics use the latest revision and reject a retained action after
+  its row permission is removed. Production browser/service testing uses generated
+  mutations with OS-level down/hold/move/up gestures: a rejected group drop leaves
+  membership unchanged, retry joins the group, dragging its header reorders the
+  whole group, and page load count/draft remain intact. Existing group-menu stale
+  revision/retry and workspace/group mutation/confirmation scenarios also pass.
+- Initial JVM run had one incorrect single-computer filter assumption; the revised
+  test selects a subset of two available computers. Original diagnostics retained.
+- App APK: `6a712984c99fb3362862ada4e6b5d11df5cf75d93aa46ba0358b17747f0e41e2`.
+  Test APK: `dd51517ffc33d9d5d4516c36a99cff2ea1e7f1c2a0ae19f68197af0526225c79`.
+  Source/installed hashes matched, screenshots inspected, crash log empty, display
+  settings restored, sole emulator stopped/reaped, Pixel absent and untouched.
+  Evidence: `captures/runtime/browser-sidebar-drag/` (ignored).
+
+Physical/authenticated Mac integration, large-list autoscroll/paging, slow-host
+pipelining in the browser and accessibility with actual TalkBack remain acceptance
+work. Signed 571 predates this batch; no release/merge is implied by these checks.

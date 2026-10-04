@@ -176,6 +176,16 @@ internal object RoutedBrowserSessions {
         try { host.mutate(command, ::current) }
         finally { retirement.cancel(); entry.sidebarMutationMutex.unlock() }
     }
+    suspend fun dropSidebar(entry: Entry, command: RoutedSidebarDrop) = coroutineScope {
+        val host = checkNotNull(entry.sidebar)
+        val query = checkNotNull(entry.sidebarQuery)
+        fun current() = live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
+            entry.sidebar?.owner == host.owner && host.current() && entry.sidebarQuery == query
+        check(current() && entry.sidebarExchange.permitsDrop(command)) { "Workspace order changed. Refresh the sidebar." }
+        val caller = currentCoroutineContext().job
+        val retirement = launch { entry.exited.await(); caller.cancel(CancellationException("Browser session ended")) }
+        try { host.drop(command, query, ::current) } finally { retirement.cancel() }
+    }
     fun groupMenu(entry: Entry, key: String, revision: String?, offset: Int): RoutedSidebarGroupPage {
         val host = checkNotNull(entry.sidebar)
         check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&

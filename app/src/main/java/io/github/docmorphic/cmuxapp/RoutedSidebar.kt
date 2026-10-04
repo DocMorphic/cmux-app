@@ -18,6 +18,7 @@ internal data class RoutedSidebarRow(
     val canCustomize: Boolean = false, val createKey: String? = null,
     val sshKind: SshWorkspaceKind? = null, val selected: Boolean = false,
     val changes: WorkspaceChangesChip? = null,
+    val drag: RoutedSidebarDragRow? = null,
 ) {
     fun workspace() = NativeWorkspace(key, title, emptyList(), null, unread, activity, null, pinned,
         emptyList(), null, preview, color, subtitle, count, previewAt = previewAt)
@@ -52,7 +53,7 @@ internal data class RoutedSidebarSnapshot(val computers: List<RoutedSidebarCompu
     val sortMode: NativeWorkspaceSortMode? = null, val actions: List<RoutedSidebarAction> = emptyList(), val readAll: RoutedSidebarReadAll? = null,
     val canRefresh: Boolean = false, val expanded: Set<String> = emptySet(), val editorTicket: String? = null,
     val creation: List<RoutedSidebarCreateComputer> = emptyList(), val createGroup: String? = null,
-    val wrapTitles: Boolean = false, val previewLines: Int = 2) {
+    val wrapTitles: Boolean = false, val previewLines: Int = 2, val dragRevision: String? = null) {
     init { require(previewLines in 1..2) }
 }
 internal data class RoutedSidebarPage(val revision: String, val snapshot: RoutedSidebarSnapshot,
@@ -68,6 +69,7 @@ internal interface RoutedSidebarHost {
     fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot?
     fun resolve(key: String): (() -> Unit)?
     fun groupMenu(key: String, revision: String?, offset: Int): RoutedSidebarGroupPage { error("Group moves are unavailable") }
+    suspend fun drop(command: RoutedSidebarDrop, query: RoutedSidebarQuery, canSend: () -> Boolean) { error("Workspace ordering is unavailable") }
     fun changes(key: String): WorkspaceChangesAccess { error("Changes are unavailable") }
     fun customization(key: String): RoutedSidebarCustomizationEditor { error("Workspace customization is unavailable") }
     suspend fun mutate(command: RoutedSidebarMutation, canSend: () -> Boolean) { error("Workspace actions are unavailable") }
@@ -93,6 +95,7 @@ internal class RoutedSidebarExchange {
     private var mutableRows = emptySet<String>()
     private var editable = emptySet<String>()
     private var changes = emptySet<String>()
+    private var displayed = emptySet<String>()
     private var selection: Pair<String, String>? = null
     fun begin(value: RoutedSidebarSnapshot): RoutedSidebarPage {
         require(value.rows.size <= RoutedSidebarWire.MAX_ROWS && value.computers.size <= 256)
@@ -106,7 +109,7 @@ internal class RoutedSidebarExchange {
         require(destinations.distinct().size == destinations.size)
         require(destinations.none { key -> value.rows.any { it.key == key } || value.actions.any { it.key == key } })
         revision = UUID.randomUUID().toString(); snapshot = value
-        issued = emptySet(); readable = emptySet(); mutableRows = emptySet(); editable = emptySet(); changes = emptySet()
+        issued = emptySet(); readable = emptySet(); mutableRows = emptySet(); editable = emptySet(); changes = emptySet(); displayed = emptySet()
         return page(checkNotNull(revision), 0)
     }
     fun page(expectedRevision: String, offset: Int): RoutedSidebarPage {
@@ -123,6 +126,7 @@ internal class RoutedSidebarExchange {
             rows += row; bytes += size
         }
         check(rows.isNotEmpty() || offset == value.rows.size) { "Sidebar row is too large." }
+        displayed = displayed + rows.map { it.key }
         mutableRows = mutableRows + rows.filter { it.mutations.isNotEmpty() }.map { it.key }
         editable = editable + rows.filter { it.canCustomize }.map { it.key }
         changes = changes + rows.filter { it.changes != null }.map { it.key }
@@ -138,6 +142,18 @@ internal class RoutedSidebarExchange {
     fun permitsGroupMenu(key: String) = key in mutableRows && snapshot?.rows?.any {
         it.key == key && RoutedSidebarMutationKind.MOVE_TO_GROUP in it.mutations
     } == true
+    fun permitsDrop(command: RoutedSidebarDrop): Boolean {
+        val value = snapshot ?: return false
+        if (value.dragRevision != command.revision || command.key !in displayed) return false
+        val row = value.rows.singleOrNull { it.key == command.key } ?: return false
+        val drag = row.drag ?: return false
+        return when (command.placement) {
+            RoutedSidebarDropPlacement.UP -> drag.up && command.target == null
+            RoutedSidebarDropPlacement.DOWN -> drag.down && command.target == null
+            else -> command.target in displayed && value.rows.any { it.key == command.target &&
+                (command.placement != RoutedSidebarDropPlacement.INTO || it.kind == "group") }
+        }
+    }
     fun permitsChanges(key: String) = key in changes
     fun permitsCustomization(key: String) = key in editable && snapshot?.rows?.any { it.key == key && it.canCustomize } == true
     fun permitsSort(command: RoutedSidebarSort): Boolean {
@@ -169,7 +185,7 @@ internal class RoutedSidebarExchange {
         selection = null
         return pending.second
     }
-    fun clear() { revision = null; snapshot = null; issued = emptySet(); readable = emptySet(); mutableRows = emptySet(); editable = emptySet(); changes = emptySet(); selection = null }
+    fun clear() { revision = null; snapshot = null; issued = emptySet(); readable = emptySet(); mutableRows = emptySet(); editable = emptySet(); changes = emptySet(); displayed = emptySet(); selection = null }
 }
 
 internal object RoutedSidebarWire {
@@ -257,6 +273,7 @@ internal object RoutedSidebarWire {
         .put("unread", value.snapshot.unread).put("loading", value.snapshot.loading).put("status", value.snapshot.status?.bounded(2048))
         .put("read_all", value.snapshot.readAll?.let { JSONObject().put("key", token(it.key)).put("computer", it.computer.bounded(64)) })
         .put("can_refresh", value.snapshot.canRefresh)
+        .put("drag_revision", value.snapshot.dragRevision?.let(::token))
         .put("wrap_titles", value.snapshot.wrapTitles).put("preview_lines", value.snapshot.previewLines)
         .put("editor", value.snapshot.editorTicket)
         .put("creation", RoutedSidebarCreationWire.encode(value.snapshot.creation))
@@ -276,6 +293,7 @@ internal object RoutedSidebarWire {
                 .put("activity", value.activity?.takeIf(Double::isFinite)).put("previewAt", value.previewAt?.takeIf(Double::isFinite))
                 .put("mutations", JSONArray(value.mutations.map { it.name }.sorted()))
                 .put("customize", value.canCustomize).put("create", value.createKey?.let(::token))
+                .put("drag", value.drag?.let { JSONObject().put("up", it.up).put("down", it.down) })
                 .put("ssh_kind", value.sshKind?.name).put("selected", value.selected).put("changes", value.changes?.let {
                     JSONObject().put("files", it.files).put("additions", it.additions).put("deletions", it.deletions) })
                 .put("can_read", value.canRead).put("nested", value.notificationContext.nested)
@@ -317,6 +335,9 @@ internal object RoutedSidebarWire {
                             return (raw as Number).toLong().also { require(it >= 0) }
                         }
                         WorkspaceChangesChip(count("files").also { require(it > 0 && kind == "workspace") }, count("additions"), count("deletions"))
+                    }, item.optJSONObject("drag")?.let { drag ->
+                        require(kind == "workspace" || kind == "group")
+                        RoutedSidebarDragRow(drag.getBoolean("up"), drag.getBoolean("down"))
                     })
             } }, json.optInt("unread").coerceAtLeast(0), json.optBoolean("loading"), json.optional("status", 2048),
                 computerValues.filter { it.key in machineKeys }, selectedMachines,
@@ -326,6 +347,7 @@ internal object RoutedSidebarWire {
                 if (json.isNull("editor")) null else token(json.getString("editor")),
                 RoutedSidebarCreationWire.decode(json.optJSONArray("creation") ?: JSONArray()),
                 if (json.isNull("create_group")) null else token(json.getString("create_group")),
-                json.optBoolean("wrap_titles"), if (json.has("preview_lines")) json.getInt("preview_lines") else 2), offset, next, total)
+                json.optBoolean("wrap_titles"), if (json.has("preview_lines")) json.getInt("preview_lines") else 2,
+                if (json.isNull("drag_revision")) null else token(json.getString("drag_revision"))), offset, next, total)
     }
 }
