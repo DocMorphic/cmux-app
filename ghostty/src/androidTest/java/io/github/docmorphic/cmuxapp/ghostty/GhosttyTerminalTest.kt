@@ -8,6 +8,23 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 class GhosttyTerminalTest {
+    @Test fun bellsAreParserEventsDrainedOnceWithoutOscTerminatorFalsePositives() {
+        GhosttyTerminal(20, 4).use { terminal ->
+            assertFalse(terminal.takeBell())
+            // The same BEL byte ends OSC; it must not ring, including split chunks.
+            "\u001b]0;title\u0007\u001b]10;#123456\u0007".toByteArray().forEach { terminal.append(byteArrayOf(it)) }
+            assertFalse(terminal.takeBell())
+            terminal.append("hello\u0007\u0007".toByteArray())
+            assertTrue(terminal.takeBell()); assertFalse(terminal.takeBell())
+            terminal.append("\u001b[?1049h\u0007".toByteArray())
+            assertTrue(terminal.takeBell())
+            terminal.snapshot(); terminal.resize(30, 5, 8, 16)
+            assertFalse(terminal.takeBell())
+        }
+        val closed = GhosttyTerminal(20, 4); closed.close()
+        assertThrows(IllegalStateException::class.java) { closed.takeBell() }
+    }
+
     @Test fun singleCellRemoteGridCanRenderResizeAndExpand() {
         GhosttyTerminal(1, 1).use { terminal ->
             terminal.append("Z".toByteArray())

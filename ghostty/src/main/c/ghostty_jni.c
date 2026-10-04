@@ -17,6 +17,7 @@ typedef struct Terminal {
     uint8_t *replies;
     size_t reply_size, reply_capacity;
     bool reply_overflow;
+    bool bell;
     GhosttySizeReportSize size;
     struct Terminal *next;
 } Terminal;
@@ -144,6 +145,14 @@ static void write_pty(GhosttyTerminal terminal, void *userdata, const uint8_t *d
     entry->reply_size += length;
 }
 
+// Parser-recognized effects only. Never invoke Java/UI while holding the registry lock.
+// Coalesce a byte batch into one tactile notification instead of queuing an unbounded burst.
+static void ring_bell(GhosttyTerminal terminal, void *userdata) {
+    (void)terminal;
+    Terminal *entry = userdata;
+    if (entry) entry->bell = true;
+}
+
 static bool terminal_size(GhosttyTerminal terminal, void *userdata, GhosttySizeReportSize *size) {
     (void)terminal;
     Terminal *entry = userdata;
@@ -195,10 +204,11 @@ JNIEXPORT jlong JNICALL JNI_METHOD(nativeCreate)(JNIEnv *env, jobject self, jint
         !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_TEMP_FILE, &disabled)) ||
         !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_MEDIUM_SHARED_MEM, &disabled))) goto done;
     entry->size = (GhosttySizeReportSize){.columns = cols, .rows = rows, .cell_width = 1, .cell_height = 1};
-    if (replies && (!ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_USERDATA, entry)) ||
-        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_WRITE_PTY, write_pty)) ||
+    if (!ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_USERDATA, entry)) ||
+        !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_BELL, ring_bell))) goto done;
+    if (replies && (!ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_WRITE_PTY, write_pty)) ||
         !ok(env, ghostty_terminal_set(entry->terminal, GHOSTTY_TERMINAL_OPT_SIZE, terminal_size)))) goto done;
-    // Clipboard, title, filesystem and other effect callbacks remain absent.
+    // Clipboard, title and filesystem effect callbacks remain absent.
     id = entry->id = next_id++;
     entry->next = terminals; terminals = entry; active_count++;
 done:
@@ -222,6 +232,16 @@ JNIEXPORT jint JNICALL JNI_METHOD(nativeActiveHandles)(JNIEnv *env, jobject self
     (void)env; (void)self;
     pthread_mutex_lock(&lock); int count = active_count; pthread_mutex_unlock(&lock);
     return count;
+}
+
+JNIEXPORT jboolean JNICALL JNI_METHOD(nativeTakeBell)(JNIEnv *env, jobject self, jlong id) {
+    (void)self;
+    pthread_mutex_lock(&lock);
+    Terminal *entry = lookup(env, id);
+    jboolean result = entry && entry->bell ? JNI_TRUE : JNI_FALSE;
+    if (entry) entry->bell = false;
+    pthread_mutex_unlock(&lock);
+    return result;
 }
 
 JNIEXPORT jbyteArray JNICALL JNI_METHOD(nativeAppend)(JNIEnv *env, jobject self, jlong id, jbyteArray bytes) {

@@ -15,11 +15,18 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
     }
 
     /** Returned protocol replies must go only to this terminal's owning PTY.
-     * Default mirror mode returns no replies. No clipboard/effect callbacks run. */
+     * Default mirror mode returns no replies. Bell effects are available via takeBell();
+     * no clipboard, title or filesystem callbacks run. */
     @Synchronized fun append(bytes: ByteArray): ByteArray {
         check(handle != 0L) { "Ghostty terminal is closed" }
         require(bytes.size <= 2 * 1024 * 1024) { "Terminal byte chunk is too large" }
         return nativeAppend(handle, bytes) ?: EMPTY
+    }
+
+    /** Drain one parser-recognized bell batch. Consumers discard replay effects explicitly. */
+    @Synchronized fun takeBell(): Boolean {
+        check(handle != 0L) { "Ghostty terminal is closed" }
+        return nativeTakeBell(handle)
     }
 
     @Synchronized fun resize(columns: Int, rows: Int, cellWidth: Int, cellHeight: Int): ByteArray {
@@ -68,6 +75,7 @@ class GhosttyTerminal(columns: Int, rows: Int, scrollbackBytes: Int = 16 * 1024 
 
     internal fun activeHandlesForTest(): Int = nativeActiveHandles()
     private external fun nativeCreate(columns: Int, rows: Int, scrollbackBytes: Int, replyToQueries: Boolean): Long
+    private external fun nativeTakeBell(handle: Long): Boolean
     private external fun nativeAppend(handle: Long, bytes: ByteArray): ByteArray?
     private external fun nativeResize(handle: Long, columns: Int, rows: Int, cellWidth: Int, cellHeight: Int): ByteArray?
     private external fun nativeInputModes(handle: Long): Int
