@@ -14,8 +14,33 @@ import re
 import subprocess
 import sys
 import zipfile
+import xml.etree.ElementTree as ET
 
 SIGNER = "1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4"
+
+
+def verify_debug_fixture_exclusion(source, apk_manifest):
+    application = ET.fromstring(source).find("application")
+    if application is None:
+        raise ValueError("Debug manifest has no application")
+    names = []
+    for component in application:
+        if component.tag not in ("activity", "activity-alias"):
+            continue
+        name = component.get("{http://schemas.android.com/apk/res/android}name")
+        if not name or name != name.strip() or "${" in name:
+            raise ValueError("Debug activity has an unresolved name")
+        if name.startswith("."):
+            name = "io.github.docmorphic.cmuxapp" + name
+        elif "." not in name:
+            name = "io.github.docmorphic.cmuxapp." + name
+        names.append(name)
+    if not names or len(set(names)) != len(names):
+        raise ValueError("Debug activity inventory is empty or duplicated")
+    leaked = [name for name in names if name in apk_manifest]
+    if leaked:
+        raise ValueError("Debug fixture exclusion failed: " + ", ".join(leaked))
+    return names
 
 
 def main():
@@ -65,8 +90,7 @@ def main():
     require(re.search(r"android:allowBackup[^\n]*=\(type 0x12\)0x0\b", manifest), "Backup must be disabled")
     require("io.github.docmorphic.cmuxapp.CmuxApplication" in manifest, "Diagnostics Application missing")
     require(not re.search(r"android:debuggable[^\n]*=\(type 0x12\)0xffffffff", manifest), "APK is debuggable")
-    fixtures = re.findall(r'android:name="\.([^"]+)"', (root / "app/src/debug/AndroidManifest.xml").read_text())
-    require(len(fixtures) == 6 and all(name not in manifest for name in fixtures), "Debug fixture exclusion failed")
+    fixtures = verify_debug_fixture_exclusion((root / "app/src/debug/AndroidManifest.xml").read_text(), manifest)
     checked = 0
     with zipfile.ZipFile(apk) as archive:
         for directory in ("raw-code", "markdown-viewer"):
