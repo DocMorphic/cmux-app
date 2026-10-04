@@ -32,6 +32,11 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var requestId by rememberSaveable(destination.surface.id) { mutableStateOf<String?>(null) }
+    // Activity recreation briefly retires the feed connection. Preserve a tab's
+    // already-selected local presentation instead of treating NOT_CONNECTED as
+    // a new proxy decision. A new surface (including after process death) has a
+    // new identity and must resolve its network normally.
+    var localPresentationSurfaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var routed by remember(destination.surface.id) { mutableStateOf<Boolean?>(null) }
     var failure by remember(destination.surface.id) { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
@@ -110,7 +115,10 @@ internal fun RoutedLocalBrowserWorkspaceView(destination: LocalBrowserDestinatio
         var registered: String? = null
         try {
             val owner = checkNotNull(network()) { "This computer is no longer available" }
-            if (!owner.requiresProxy()) { routed = false; return@LaunchedEffect }
+            if (localPresentationSurfaceId == destination.surface.id || !owner.requiresProxy()) {
+                localPresentationSurfaceId = destination.surface.id
+                routed = false; return@LaunchedEffect
+            }
             routed = true; failure = null
             lease = retainHost()
             val held = lease

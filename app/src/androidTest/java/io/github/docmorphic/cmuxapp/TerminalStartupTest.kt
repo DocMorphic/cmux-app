@@ -46,8 +46,10 @@ class TerminalStartupTest {
         compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
     }
     private fun create() {
-        compose.onNodeWithText("Startup workspace").performTouchInput { longClick() }
-        compose.onNodeWithText("New terminal").performClick()
+        compose.onNodeWithText("Startup workspace").performClick()
+        waitFor("Ready shell ▾")
+        compose.onNodeWithContentDescription("Choose terminal or pane").performClick()
+        compose.onNodeWithText("New Terminal").performClick()
     }
     private fun terminalCalls(id: String) = peer.requests.filter { it.optString("method").startsWith("mobile.terminal.") &&
         it.optJSONObject("params")?.optString("surface_id") == id }

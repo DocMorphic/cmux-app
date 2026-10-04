@@ -61,7 +61,7 @@ class NativeWorkspaceCustomizationRuntimeTest {
                 scenario.onActivity { feed = ViewModelProvider(it)[NativeFeedSession::class.java] }
                 online.set(false); peer.disconnectClients()
                 until { feed.coordinator.sources.value.values.singleOrNull()?.availability == NativeFeedAvailability.OFFLINE }
-                node(By.text("Original workspace")).longClick(); node(By.text("Customize Workspace")).click()
+                node(By.text("Original workspace")).longClick(); node(By.text("Customize")).click()
                 node(By.text("Original workspace").clazz("android.widget.EditText")).text = "Customized workspace"
                 node(By.text("Baseline").clazz("android.widget.EditText")).text = "Description from Android"
                 node(By.desc("Pinned")).click()

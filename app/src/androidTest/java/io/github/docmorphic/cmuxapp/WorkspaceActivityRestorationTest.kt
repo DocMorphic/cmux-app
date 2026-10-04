@@ -134,9 +134,14 @@ class WorkspaceActivityRestorationTest {
         assertTrue(calls("mobile.terminal.replay").isEmpty())
     }
     @Test fun changesSurvivesRecreationAndHostRefreshThenClosesToWorkspaceList() {
+        peer.workspaceChangesSupported = true
+        peer.changesResponse = { method, _ ->
+            if (method.endsWith(".summary")) JSONObject("""{"summaries":[{"workspace_id":"workspace-1","is_repo":true,"files_changed":2,"additions":42,"deletions":7}]}""")
+            else JSONObject()
+        }
         launch(open = false)
-        compose.onNodeWithText("Retained workspace").performTouchInput { longClick() }
-        compose.onNodeWithText("View changes").performClick()
+        compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("Changes: 2 files, +42, −7").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription("Changes: 2 files, +42, −7").performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("Changes in Retained workspace").fetchSemanticsNodes().isNotEmpty() }
         scenario!!.recreate()
         compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("Close changes").fetchSemanticsNodes().isNotEmpty() }

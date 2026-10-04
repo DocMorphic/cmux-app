@@ -53,6 +53,10 @@ class WorkspaceSnapshotOrderingTest {
         val foregroundReads = AtomicInteger()
         try {
             launch()
+            compose.onNodeWithText("Ordered workspace").performClick(); waitFor("Ready shell ▾")
+            compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+            val originalReplays = peer.requests.count { it.optString("method") == "mobile.terminal.replay" &&
+                it.optJSONObject("params")?.optString("surface_id") == "terminal-1" }
             peer.workspaceListingResponse = { feed ->
                 if (!feed) foregroundReads.incrementAndGet()
                 if (!feed && armed.compareAndSet(true, false)) {
@@ -66,14 +70,14 @@ class WorkspaceSnapshotOrderingTest {
                 peer.customWorkspaceListing = listing(created = true)
                 JSONObject(peer.customWorkspaceListing.toString()).put("created_terminal_id", "new-terminal")
             }
-            compose.onNodeWithText("Ordered workspace").performTouchInput { longClick() }
-            compose.onNodeWithText("New terminal").performClick(); waitFor("Starting terminal…")
+            compose.onNodeWithContentDescription("Choose terminal or pane").performClick()
+            compose.onNodeWithText("New Terminal").performClick(); waitFor("Starting terminal…")
             gate.countDown()
             compose.waitUntil(15_000) { foregroundReads.get() >= 2 }
             compose.waitForIdle()
             compose.onNodeWithText("New shell ▾").assertExists(); compose.onNodeWithTag("TerminalStarting").assertExists()
             assertEquals(1, peer.requests.count { it.optString("method") == "terminal.create" })
-            assertFalse(peer.requests.any { it.optString("method") == "mobile.terminal.replay" &&
+            assertEquals(originalReplays, peer.requests.count { it.optString("method") == "mobile.terminal.replay" &&
                 it.optJSONObject("params")?.optString("surface_id") == "terminal-1" })
         } finally { gate.countDown() }
     }

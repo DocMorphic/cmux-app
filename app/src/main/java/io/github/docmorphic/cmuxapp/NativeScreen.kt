@@ -3057,8 +3057,6 @@ fun NativeScreen(
                         onAction = { action, title ->
                             if (action == "customize") customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, owner.mac, workspace.id)
                             else if (action == "changes") open(changes = true)
-                            else if (action == "browser.create") openNewBrowser(owner, workspace)
-                            else if (action == "terminal.create") createTerminal(owner, workspace)
                             else if (action.startsWith("move:")) {
                                 val target = action.removePrefix("move:").takeIf { it.isNotBlank() }
                                 move(owner, workspace.id, NativeWorkspaceMove(target, null))
@@ -3287,6 +3285,9 @@ internal fun NativeWorkspaceRow(
     val menu = rememberWorkspaceContextMenu(workspace.id)
     var groupPicker by remember(menu, menu.expanded) { mutableStateOf(false) }
     val showingGroups = groupPicker && !groupMoveMenu.isEmpty
+    val hasMenu = canWorkspaceActions || canReadState || canClose || !groupMoveMenu.isEmpty
+    val menuExpanded = menu.expanded && hasMenu
+    LaunchedEffect(menu, hasMenu, menu.expanded) { if (!hasMenu) menu.expanded = false }
     val moveActions = LocalWorkspaceMoveActions.current
     var rename by remember(menu) { mutableStateOf(false) }
     var confirmClose by remember(menu) { mutableStateOf(false) }
@@ -3296,12 +3297,12 @@ internal fun NativeWorkspaceRow(
     NativeWorkspaceSwipeActions(workspace.id, workspace.hasUnread, canReadState, canClose,
         onRead = markRead, onClose = { confirmClose = true }) { dismissSwipe ->
     Box {
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).clickable { if (!menu.expanded && !menu.held && !dismissSwipe()) onOpen() }
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).clickable { if (!menuExpanded && !menu.held && !dismissSwipe()) onOpen() }
         .semantics {
-            onLongClick("Show workspace actions") { dismissSwipe(); menu.expanded = true; true }
+            if (hasMenu) onLongClick("Show workspace actions") { dismissSwipe(); menu.expanded = true; true }
             customActions = buildList {
                 addAll(moveActions)
-                add(CustomAccessibilityAction("Show workspace actions") { dismissSwipe(); menu.expanded = true; true })
+                if (hasMenu) add(CustomAccessibilityAction("Show workspace actions") { dismissSwipe(); menu.expanded = true; true })
                 if (canReadState) add(CustomAccessibilityAction(readLabel) { dismissSwipe(); markRead(); true })
                 if (canClose) add(CustomAccessibilityAction("Delete workspace") { dismissSwipe(); confirmClose = true; true })
             }
@@ -3345,7 +3346,7 @@ internal fun NativeWorkspaceRow(
             }
         }
     }
-            DropdownMenu(expanded = menu.expanded, onDismissRequest = {
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = {
                 if (!menu.held) { if (showingGroups) groupPicker = false else menu.expanded = false }
             }, properties = PopupProperties(focusable = !menu.held)) {
                 if (showingGroups) {
@@ -3353,28 +3354,26 @@ internal fun NativeWorkspaceRow(
                         menu.expanded = false; onAction("move:${groupId.orEmpty()}", null)
                     })
                 } else {
-                    DropdownMenuItem(text = { Text("View changes") }, onClick = {
-                        menu.expanded = false; onAction("changes", null)
-                    })
-                    DropdownMenuItem(text = { Text("New terminal") }, onClick = {
-                        menu.expanded = false; onAction("terminal.create", null)
-                    })
-                    DropdownMenuItem(text = { Text("New browser") }, onClick = {
-                        menu.expanded = false; onAction("browser.create", null)
-                    })
-                    if (canCustomize) DropdownMenuItem(text = { Text("Customize Workspace") }, onClick = { menu.expanded = false; onAction("customize", null) })
-                    if (canWorkspaceActions) DropdownMenuItem(text = { Text("Rename") }, onClick = { menu.expanded = false; title = workspace.title; rename = true })
-                    if (canWorkspaceActions) DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") }, onClick = {
-                        menu.expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null)
-                    })
-                    if (canReadState) DropdownMenuItem(text = { Text(readLabel) }, onClick = {
+                    if (canWorkspaceActions) DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") },
+                        leadingIcon = { WorkspaceActionIcon(if (workspace.isPinned) R.drawable.ic_workspace_unpin else R.drawable.ic_workspace_pin) },
+                        onClick = { menu.expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null) })
+                    if (canWorkspaceActions && canCustomize) DropdownMenuItem(text = { Text("Customize") },
+                        leadingIcon = { WorkspaceActionIcon(R.drawable.ic_task_options) },
+                        onClick = { menu.expanded = false; onAction("customize", null) })
+                    if (canWorkspaceActions) DropdownMenuItem(text = { Text("Rename") },
+                        leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_rename) },
+                        onClick = { menu.expanded = false; title = workspace.title; rename = true })
+                    if (canReadState) DropdownMenuItem(text = { Text(readLabel) },
+                        leadingIcon = { WorkspaceActionIcon(if (workspace.hasUnread) R.drawable.ic_feed_read_all else R.drawable.ic_workspace_mark_unread) }, onClick = {
                         menu.expanded = false; onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
                     })
                     if (!groupMoveMenu.isEmpty) DropdownMenuItem(text = { Text("Move to Group") },
                         leadingIcon = { Icon(painterResource(R.drawable.ic_workspace_folder), null, Modifier.size(20.dp)) },
                         trailingIcon = { Icon(painterResource(R.drawable.ic_workspace_chevron_right), null, Modifier.size(16.dp)) },
                         onClick = { groupPicker = true })
-                    if (canClose) DropdownMenuItem(text = { Text("Close workspace", color = Color(0xFFFF9999)) }, onClick = {
+                    if (canClose) DropdownMenuItem(text = { Text("Delete") },
+                        colors = MenuDefaults.itemColors(textColor = Color(0xFFFF9999), leadingIconColor = Color(0xFFFF9999)),
+                        leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_delete) }, onClick = {
                         menu.expanded = false; confirmClose = true
                     })
                 }

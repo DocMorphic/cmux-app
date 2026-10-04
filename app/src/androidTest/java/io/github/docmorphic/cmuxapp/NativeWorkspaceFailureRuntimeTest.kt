@@ -59,7 +59,7 @@ class NativeWorkspaceFailureRuntimeTest {
                 }
                 assertEquals("pin", peer.requests.last { it.optString("method") == "workspace.action" }.getJSONObject("params").getString("action"))
                 reject("workspace.close") {
-                    node(By.text("Claude Code task")).longClick(); node(By.text("Close workspace")).click()
+                    node(By.text("Claude Code task")).longClick(); node(By.text("Delete")).click()
                     node(By.text("Delete")).click()
                 }
                 assertNull(peer.hiddenWorkspaceId)

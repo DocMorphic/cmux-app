@@ -175,6 +175,52 @@ class NativeWorkspaceContextMenuTest {
         assertEquals(listOf("move:two", "move:"), actions)
     }
 
+    @Test fun workspaceMenuMatchesIosOrderAndDoesNotTrapUnsupportedRows() {
+        var owner by mutableStateOf(source().copy(capabilities = setOf("workspace.actions.v1")))
+        var supported by mutableStateOf(true)
+        var pinned by mutableStateOf(false)
+        var unread by mutableStateOf(true)
+        var opens = 0
+        val actions = mutableListOf<String>()
+        compose.setContent { CmuxTheme { Surface {
+            NativeWorkspaceDragList(listOf(WorkspaceListEntry.Workspace(owner, owner.workspaces.first())), false,
+                Modifier.width(393.dp).height(600.dp), onMove = { _, _, _ -> false }, empty = {}) { entry ->
+                NativeWorkspaceRow((entry as WorkspaceListEntry.Workspace).workspace.copy(isPinned = pinned, hasUnread = unread),
+                    canWorkspaceActions = supported, canCustomize = true, canReadState = supported, canClose = supported,
+                    groupMoveMenu = if (supported) NativeWorkspaceGroupMoveMenu(listOf(
+                        NativeWorkspaceGroupMoveMenu.Entry(NativeGroup("target", "Target", false, false), false, true)))
+                        else NativeWorkspaceGroupMoveMenu(),
+                    onOpen = { opens++ }, onAction = { action, _ -> actions += action })
+            }
+        } } }
+        fun openMenu() = compose.onNodeWithTag("workspace.row:w0").performTouchInput { longClick() }
+        openMenu()
+        val labels = listOf("Pin", "Customize", "Rename", "Mark as Read", "Move to Group", "Delete")
+        val tops = labels.map { compose.onNodeWithText(it).assertIsDisplayed().fetchSemanticsNode().boundsInRoot.top }
+        assertEquals(tops.sorted(), tops)
+        listOf("View changes", "New terminal", "New browser", "Close workspace", "Customize Workspace")
+            .forEach { compose.onNodeWithText(it).assertDoesNotExist() }
+        screenshot("workspace-menu-ios-order")
+        compose.onNodeWithText("Customize").performClick()
+        assertEquals(listOf("customize"), actions)
+        compose.runOnIdle { pinned = true; unread = false }
+        openMenu(); compose.onNodeWithText("Unpin").assertIsDisplayed()
+        compose.onNodeWithText("Mark as Unread").performClick()
+        assertEquals(listOf("customize", "mark_unread"), actions)
+        openMenu()
+        compose.runOnIdle { supported = false; owner = owner.copy(capabilities = emptySet()) }
+        compose.onNodeWithText("Unpin").assertDoesNotExist()
+        compose.onNodeWithTag("workspace.row:w0").performTouchInput { longClick() }
+        compose.onNodeWithText("Customize").assertDoesNotExist()
+        val available = compose.onNodeWithTag("workspace.row:w0").fetchSemanticsNode().config[SemanticsActions.CustomActions]
+        assertTrue(available.none { it.label == "Show workspace actions" })
+        compose.runOnIdle { supported = true; owner = owner.copy(capabilities = setOf("workspace.actions.v1")) }
+        compose.onNodeWithText("Unpin").assertDoesNotExist()
+        val before = opens
+        compose.onNodeWithTag("workspace.row:w0").performClick()
+        assertEquals(before + 1, opens)
+    }
+
     private fun screenshot(name: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val folder = File(instrumentation.targetContext.getExternalFilesDir(null), "workspace-context-menu").apply { mkdirs() }

@@ -9,11 +9,19 @@ import java.io.File
 class NativeProcessRestoreTestActivity : MainActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk")) { "Emulator-only fixture" }
+        // The instrumentation process may already own the default WebView directory.
+        // Configure this emulator-only process once, before MainActivity creates any WebView.
+        if (Build.VERSION.SDK_INT >= 28 && !webViewConfigured) {
+            android.webkit.WebView.setDataDirectorySuffix("restore_test")
+            webViewConfigured = true
+        }
         super.onCreate(savedInstanceState)
         val port = intent.getIntExtra("fixturePort", 0)
         check(port in 1024..65535)
         File(filesDir, "pane-process-status").writeText("${Process.myPid()}\n${savedInstanceState != null}\ncreated\n")
     }
+    private companion object { var webViewConfigured = false }
+
     private val fixture by lazy {
         val port = intent.getIntExtra("fixturePort", 0)
         check(port in 1024..65535)

@@ -55,9 +55,15 @@ class LocalBrowserRoutingTest {
         waitFor(hasText("Browser workspace"))
     }
     private fun waitFor(matcher: SemanticsMatcher) = compose.waitUntil(15000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
-    private fun newFromRow(title: String = "Browser workspace") {
-        compose.onNodeWithText("$title").performTouchInput { longClick() }
-        compose.onNodeWithText("New browser").performClick()
+    private fun newFromPane(title: String = "Browser workspace") {
+        compose.onNodeWithText(title).performClick()
+        waitFor(hasContentDescription("Choose terminal or pane") or hasTestTag("WorkspaceWaiting"))
+        if (compose.onAllNodesWithTag("WorkspaceWaiting").fetchSemanticsNodes().isNotEmpty()) {
+            compose.onNodeWithText("New browser").performClick()
+        } else {
+            compose.onNodeWithContentDescription("Choose terminal or pane").performClick()
+            compose.onNodeWithText("New Browser").performClick()
+        }
     }
     private fun browseFixture() {
         waitFor(hasTestTag("LocalBrowserAddress"))
@@ -94,7 +100,7 @@ class LocalBrowserRoutingTest {
 
     @Test fun malformedRemoteCreationFallsBackOnceAndSurfacePickerClosesLocalState() {
         peer.browserCreationSupported = true
-        show(); newFromRow(); browseFixture()
+        show(); newFromPane(); browseFixture()
         assertEquals(1, peer.requests.count { it.optString("method") == "mobile.browser.create" })
         compose.onNodeWithText("Local fixture page ▾").performClick(); compose.onNodeWithText("Shell").performClick()
         waitFor(hasText("Shell ▾")); compose.onNodeWithTag("LocalBrowserPane").assertDoesNotExist()
@@ -109,7 +115,7 @@ class LocalBrowserRoutingTest {
             peer.customWorkspaceListing = listing
             JSONObject(listing.toString()).put("created_terminal_id", "created-shell")
         }
-        show(); newFromRow(); browseFixture()
+        show(); newFromPane(); browseFixture()
         compose.onNodeWithTag("terminal-picker").performClick()
         compose.onNodeWithTag("terminal-picker-new-browser").assertIsSelected()
         compose.onNodeWithText("Terminals").assertExists()
@@ -121,7 +127,7 @@ class LocalBrowserRoutingTest {
 
     @Test fun localPickerCanCreateWorkspaceFromAnOtherwiseEmptyWorkspace() {
         peer.customWorkspaceListing!!.getJSONArray("workspaces").getJSONObject(0).put("terminals", JSONArray())
-        show(); newFromRow(); browseFixture()
+        show(); newFromPane(); browseFixture()
         compose.onNodeWithTag("terminal-picker").performClick()
         compose.onNodeWithText("New Workspace").performScrollTo().performClick()
         waitFor(hasText("Agent ▾"))
@@ -131,7 +137,7 @@ class LocalBrowserRoutingTest {
 
     @Test fun workspaceWithNoMacPanesCanReopenItsLocalBrowser() {
         peer.customWorkspaceListing!!.getJSONArray("workspaces").getJSONObject(0).put("terminals", JSONArray())
-        show(); newFromRow(); browseFixture()
+        show(); newFromPane(); browseFixture()
         compose.onNodeWithContentDescription("Back to workspaces").performClick(); waitFor(hasText("Browser workspace"))
         compose.onNodeWithText("Browser workspace").performClick(); waitFor(hasText("Local fixture page ▾"))
         compose.onNodeWithTag("LocalBrowserAddress").assertTextEquals(pages.url("/workspace").toString())
@@ -148,7 +154,7 @@ class LocalBrowserRoutingTest {
             JSONObject().put("panel_id", "created-panel").put("workspace_id", "workspace-2")
                 .put("url", "https://example.test").put("title", "Remote browser")
         }
-        show(); newFromRow("Other workspace")
+        show(); newFromPane("Other workspace")
         compose.waitUntil(15000) { peer.requests.any { it.optString("method") == "mobile.browser.stream.start" } }
         assertEquals(1, peer.requests.count { it.optString("method") == "mobile.browser.create" })
         assertEquals("created-panel", peer.requests.first { it.optString("method") == "mobile.browser.stream.start" }.getJSONObject("params").getString("panel_id"))
@@ -160,7 +166,7 @@ class LocalBrowserRoutingTest {
         val response = CountDownLatch(1)
         peer.browserResponse = { _, _ -> response.await(15, TimeUnit.SECONDS); JSONObject() }
         try {
-            show(); newFromRow(); waitFor(hasText("Opening browser…"))
+            show(); newFromPane(); waitFor(hasText("Opening browser…"))
             compose.waitUntil(5000) { peer.requests.any { it.optString("method") == "mobile.browser.create" } }
             peer.customWorkspaceListing = JSONObject().put("workspaces", JSONArray().put(
                 JSONObject().put("id", "workspace-2").put("title", "Other workspace")
@@ -171,6 +177,7 @@ class LocalBrowserRoutingTest {
                     compose.onAllNodesWithText("Browser workspace").fetchSemanticsNodes().isEmpty()
             }
             compose.onNodeWithTag("LocalBrowserPane").assertDoesNotExist()
+            waitFor(hasText("Other workspace"))
             compose.onNodeWithText("Other workspace").performClick(); waitFor(hasText("Other shell ▾"))
             assertTrue(peer.requests.none { it.optString("method") == "mobile.browser.stream.start" })
             assertEquals(1, peer.requests.count { it.optString("method") == "mobile.browser.create" })
@@ -182,9 +189,11 @@ class LocalBrowserRoutingTest {
         val response = CountDownLatch(1)
         peer.browserResponse = { _, _ -> response.await(15, TimeUnit.SECONDS); JSONObject().put("panel_id", "late-panel") }
         try {
-            show(); newFromRow(); waitFor(hasText("Opening browser…"))
+            show(); newFromPane(); waitFor(hasText("Opening browser…"))
             compose.waitUntil(5000) { peer.requests.any { it.optString("method") == "mobile.browser.create" } }
             compose.onNodeWithText("Cancel").performClick()
+            compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+            waitFor(hasText("Other workspace"))
             compose.onNodeWithText("Other workspace").performClick()
             response.countDown(); waitFor(hasText("Other shell ▾"))
             compose.onNodeWithTag("LocalBrowserPane").assertDoesNotExist()

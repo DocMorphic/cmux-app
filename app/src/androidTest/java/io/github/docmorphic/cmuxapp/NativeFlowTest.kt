@@ -104,7 +104,7 @@ class NativeFlowTest {
         showSearchFixture()
         fun openConfirmation() {
             compose.onNodeWithText("Claude Code task").performTouchInput { longClick() }
-            compose.onNodeWithText("Close workspace").performClick()
+            compose.onNodeWithText("Delete").performClick()
             compose.onNodeWithText("Delete Workspace?").assertIsDisplayed()
             compose.onNodeWithText("This will close the workspace on your Mac.").assertIsDisplayed()
             compose.onNodeWithTag("workspace.close.confirm").assertTextEquals("Delete")
@@ -2556,8 +2556,8 @@ class NativeFlowTest {
             compose.onNode(hasSetTextAction()).performTextInput("Second Mac")
             compose.waitUntil(10_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().size == 1 }
             // A mutation on a background Mac must not promote the foreground or touch its colliding ID.
-            compose.onNode(hasText("⋯") and hasAnyAncestor(hasContentDescription("Claude Code task on Second Mac")))
-                .performClick()
+            compose.onNode(hasText("Claude Code task") and hasAnyAncestor(hasContentDescription("Claude Code task on Second Mac")))
+                .performTouchInput { longClick() }
             compose.onNodeWithText("Rename").performClick()
             compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextReplacement("Second renamed task")
             compose.onNodeWithText("Save").performClick()

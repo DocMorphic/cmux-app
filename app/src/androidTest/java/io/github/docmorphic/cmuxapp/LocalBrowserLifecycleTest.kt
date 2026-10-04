@@ -2,6 +2,7 @@ package io.github.docmorphic.cmuxapp
 
 import android.content.ContentValues
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -52,9 +53,10 @@ class LocalBrowserLifecycleTest {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 requests += request
                 val title = if (request.path == "/upload") "Uploaded fixture" else "Lifecycle fixture"
+                val background = if (request.path == "/upload") "#0088ff" else "#00ff00"
                 return MockResponse().setHeader("Content-Type", "text/html; charset=utf-8").setBody("""
                     <!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>$title</title>
-                    <style>body{background:#00ff00;margin:0}input,button{display:block;width:100%;height:70px;font-size:20px}</style>
+                    <style>body{background:$background;margin:0}input,button{display:block;width:100%;height:70px;font-size:20px}</style>
                     <form method="post" action="/upload" enctype="multipart/form-data">
                     <input id="file" name="attachment" type="file" accept="text/plain"><button id="send">Upload selected file</button></form>
                 """.trimIndent())
@@ -71,8 +73,10 @@ class LocalBrowserLifecycleTest {
         }
         scenario = ActivityScenario.launch(NativeLifecycleTestActivity::class.java)
         waitFor(hasText("Claude Code task"))
-        compose.onNodeWithText("Claude Code task").performTouchInput { longClick() }
-        compose.onNodeWithText("New browser").performClick(); waitFor(hasTestTag("LocalBrowserAddress"))
+        compose.onNodeWithText("Claude Code task").performClick()
+        waitFor(hasContentDescription("Choose terminal or pane"))
+        compose.onNodeWithContentDescription("Choose terminal or pane").performClick()
+        compose.onNodeWithText("New Browser").performClick(); waitFor(hasTestTag("LocalBrowserAddress"))
         compose.onNodeWithTag("LocalBrowserAddress").performTextReplacement(pages.url("/page").toString())
         compose.onNodeWithTag("LocalBrowserAddress").performImeAction(); waitFor(hasText("Lifecycle fixture ▾"))
         compose.waitUntil(5000) {
@@ -87,7 +91,7 @@ class LocalBrowserLifecycleTest {
         if (::peer.isInitialized) peer.close()
         if (::store.isInitialized) { document?.let { context.contentResolver.delete(it, null, null) }; pages.shutdown(); store.clear() }
     }
-    private fun waitFor(matcher: SemanticsMatcher) = compose.waitUntil(15000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
+    private fun waitFor(matcher: SemanticsMatcher) = compose.waitUntil(15000) { compose.onAllNodes(matcher).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
     private fun js(expression: String): String {
         val ready = CountDownLatch(1); var value = ""
         scenario.onActivity { activity -> activity.window.decorView.findViewWithTag<WebView>("LocalBrowserWebView")
@@ -128,16 +132,43 @@ class LocalBrowserLifecycleTest {
         assertTrue(request.getHeader("Content-Type")!!.startsWith("multipart/form-data; boundary="))
         val body = request.body.clone().readUtf8()
         assertTrue(body.contains("filename=\"$filename\"")); assertTrue(body.contains(contents))
+        waitForDocument("/upload", "Uploaded fixture")
+    }
+    private fun waitForDocument(path: String, title: String) {
+        compose.waitUntil(5000) {
+            js("document.readyState === 'complete' && location.pathname === '$path' && document.title === '$title' && document.getElementById('send') !== null") == "true"
+        }
+    }
+    private fun renderedScreenshot(name: String, expectedColor: Int) {
+        // Titles arrive before the compositor paints. Check actual screen pixels
+        // below the form so a blank WebView or the previous page cannot pass.
+        val bounds = compose.onNodeWithTag("LocalBrowserPage").fetchSemanticsNode().boundsInWindow
+        var accepted: Bitmap? = null
+        compose.waitUntil(5000) {
+            val bitmap = instrumentation.uiAutomation.takeScreenshot()
+            val painted = listOf(0.25f, 0.5f, 0.75f).all { x ->
+                listOf(0.6f, 0.8f).all { y ->
+                    val pixel = bitmap.getPixel((bounds.left + bounds.width * x).toInt(), (bounds.top + bounds.height * y).toInt())
+                    kotlin.math.abs(Color.red(pixel) - Color.red(expectedColor)) < 20 &&
+                        kotlin.math.abs(Color.green(pixel) - Color.green(expectedColor)) < 20 &&
+                        kotlin.math.abs(Color.blue(pixel) - Color.blue(expectedColor)) < 20
+                }
+            }
+            if (painted) { accepted = bitmap; true } else { bitmap.recycle(); false }
+        }
+        saveScreenshot(name, checkNotNull(accepted))
     }
     private fun screenshot(name: String) {
-        val image = instrumentation.uiAutomation.takeScreenshot()
+        saveScreenshot(name, instrumentation.uiAutomation.takeScreenshot())
+    }
+    private fun saveScreenshot(name: String, image: Bitmap) {
         val directory = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
         File(directory, "$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }; image.recycle()
     }
 
     @Test fun systemPickerGrantsARealFileAndMultipartUploadSendsItsBytes() {
         touch("file"); val picker = awaitPicker(); screenshot("local-browser-system-picker")
-        chooseFile(picker); uploadAndVerify(); screenshot("local-browser-uploaded")
+        chooseFile(picker); uploadAndVerify(); renderedScreenshot("local-browser-uploaded", Color.rgb(0, 136, 255))
     }
 
     @Test fun activityRecreationRestoresTheLocalTabWithAFreshWebView() {
@@ -149,7 +180,8 @@ class LocalBrowserLifecycleTest {
         waitFor(hasText("Lifecycle fixture ▾"))
         scenario.onActivity { assertNotSame(old, it.window.decorView.findViewWithTag<WebView>("LocalBrowserWebView")) }
         compose.onNodeWithTag("LocalBrowserAddress").assertTextEquals(pages.url("/page").toString())
-        screenshot("local-browser-activity-restored")
+        waitForDocument("/page", "Lifecycle fixture")
+        renderedScreenshot("local-browser-activity-restored", Color.GREEN)
     }
 
     @Test fun pickerResultForADestroyedActivityIsDiscardedAndANewPickerStillWorks() {

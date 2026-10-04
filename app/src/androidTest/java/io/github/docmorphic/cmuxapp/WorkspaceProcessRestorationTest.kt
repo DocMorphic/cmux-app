@@ -108,7 +108,7 @@ class WorkspaceProcessRestorationTest {
         peer.customWorkspaceListing!!.getJSONArray("workspaces").getJSONObject(0)
             .put("description", "Original description").put("window_id", "fixture-window")
         launch(open = false)
-        text("Process workspace").longClick(); text("Customize Workspace").click()
+        text("Process workspace").longClick(); text("Customize").click()
         text("Process workspace").text = "Restored custom name"
         text("Original description").text = "Unsent description"
         description("Pinned").click(); description("Use Workspace Color").click()
@@ -163,7 +163,7 @@ class WorkspaceProcessRestorationTest {
         assertFalse("Previous login's editor must not be restored", device.hasObject(By.text("Customize Workspace")))
         assertFalse(device.hasObject(By.text("Unsent description")))
         assertTrue(calls("workspace.action").isEmpty())
-        text("Process workspace").longClick(); text("Customize Workspace").click()
+        text("Process workspace").longClick(); text("Customize").click()
         text("Original description")
         assertFalse("Opening a new editor must not consume the old saved draft", device.hasObject(By.text("Unsent description")))
         text("Cancel").click()
@@ -197,8 +197,17 @@ class WorkspaceProcessRestorationTest {
         assertEquals(setOf("browser"), calls("mobile.browser.stream.start").map { it.getJSONObject("params").getString("panel_id") }.toSet())
         assertTrue(calls("mobile.browser.create").isEmpty())
     }
+    private fun openChanges() {
+        peer.workspaceChangesSupported = true
+        val previous = peer.changesResponse
+        peer.changesResponse = { method, params ->
+            if (method.endsWith(".summary")) JSONObject("""{"summaries":[{"workspace_id":"workspace-1","is_repo":true,"files_changed":2,"additions":42,"deletions":7}]}""")
+            else previous?.invoke(method, params) ?: JSONObject()
+        }
+        launch(open = false); description("Changes: 2 files, +42, −7").click()
+    }
     @Test fun changesRestoresAndClosesToWorkspaceList() {
-        launch(open = false); text("Process workspace").longClick(); text("View changes").click()
+        openChanges()
         description("Close changes"); killAndRestore(); description("Close changes").click(); text("Process workspace")
         assertTrue(calls("mobile.terminal.replay").isEmpty())
     }
@@ -212,7 +221,7 @@ class WorkspaceProcessRestorationTest {
     }
     @Test fun changesDetailAndCollapsedFoldersRestoreFromRealTaskState() {
         changesFiles("README.md", "src/App.kt")
-        launch(open = false); text("Process workspace").longClick(); text("View changes").click()
+        openChanges()
         description("Collapse folder src").click(); description("Open diff README.md").click()
         text("Restored diff README.md")
         val before = calls("mobile.workspace.changes.file_diff").size
@@ -225,7 +234,7 @@ class WorkspaceProcessRestorationTest {
     }
     @Test fun vanishedChangedFileDoesNotRestoreANeighborOrFetchItsOldPath() {
         changesFiles("README.md", "src/App.kt")
-        launch(open = false); text("Process workspace").longClick(); text("View changes").click()
+        openChanges()
         description("Open diff README.md").click(); text("Restored diff README.md")
         val before = calls("mobile.workspace.changes.file_diff").count { it.getJSONObject("params").getString("path") == "README.md" }
         killAndRestore { changesFiles("src/App.kt") }
@@ -257,7 +266,7 @@ class WorkspaceProcessRestorationTest {
         text("‹ Back").click(); description("Open file /a.txt"); text("Done").click(); text("Focused shell ▾")
     }
     @Test fun localBrowserRestoresWithoutAttemptingRemoteCreation() {
-        launch(open = false); text("Process workspace").longClick(); text("New browser").click()
+        launch(); description("Choose terminal or pane").click(); text("New Browser").click()
         description("Close Browser"); killAndRestore(); description("Close Browser")
         assertTrue(calls("mobile.browser.create").isEmpty())
     }

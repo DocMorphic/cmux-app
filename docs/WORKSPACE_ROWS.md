@@ -325,3 +325,95 @@ Activity layout. Crash buffers are empty; the existing AVD was stopped/reaped.
 Builds took 1m38s (JVM/main/test) and 27s (test selector correction only). Evidence:
 `captures/runtime/workspace-group-picker/verification.json`. No physical Pixel
 was visible. Signed build 537 remains unchanged.
+
+
+## Workspace context-menu contents — 2026-10-04
+
+`WorkspaceListTableCoordinator+Actions.swift` at the scoped iOS revision now
+supplies the Android workspace menu order: **Pin/Unpin, Customize, Rename,
+Mark as Read/Unread, Move to Group, Delete**. Each action has its corresponding
+vector icon; Delete has the destructive tint and retains the shared Mac close
+confirmation. Customize requires both workspace actions and metadata support.
+The customization editor and pane picker's separate Customize Workspace labels
+are unchanged. Group moves retain the submenu described above.
+
+The old row-level New terminal/New browser/View changes shortcuts are removed
+from this menu. Pane creation remains in the pane picker and the empty workspace view’s
+creation buttons; Changes uses the list's independent summary badge. Regression
+fixtures now enter through those real UI paths. Read-only rows with no available
+context actions neither expose an empty menu nor allow its retained coordinator
+key to block normal row selection. The shared hold-to-drag recognizer is retained.
+
+### Group actions research for the next implementation
+
+The same iOS file uses a first group section containing Pin/Unpin Group, Rename
+Group and New Workspace in Group, followed by Ungroup (Keep Workspaces) for
+unpinned groups and Delete Group (Close Workspaces). Group creation discovery
+uses `workspace.create_in_group.v1`; it is independent of group-action support.
+`MobileShellComposite+WorkspaceActions.swift` confirms deletion is
+`workspace.group.action` with `group_id` and `action: delete`, followed by an
+owning-Mac authoritative refresh even after rejection. It must not be simulated
+by a sequence of workspace closes. Android's RPC whitelist currently excludes
+`delete`, and creation must be routed to the owning Mac, not the foreground one.
+Group confirmations use “Ungroup Group?” / “Delete Group?” and explain that
+ungrouping keeps workspaces while deletion closes them on the Mac.
+`MobileShellComposite+WorkspaceCreateRequest.swift` confirms `workspace.create`
+with `group_id`; it captures the creation connection before the request and
+checks it again before applying a response. Legacy no-spec creates can omit
+`created_workspace_id`, unlike task/spec creates. Android creation navigation
+must preserve those distinctions. The visible group ellipsis, labels and destructive actions are
+remaining parity work.
+
+
+The separate-process restoration fixture now gives its WebView a stable test-only
+data-directory suffix before MainActivity starts. A combined run exposed a real
+fixture crash when the instrumentation process had already initialized its own
+WebView. Android requires separate data directories for concurrent WebView
+processes; see the [WebView API contract](https://developer.android.com/reference/android/webkit/WebView#setDataDirectorySuffix(java.lang.String)).
+This change is confined to the emulator-only debug Activity, which is excluded
+from signed release APKs. Production routed-browser isolation is unchanged.
+
+
+The updated pane entry also exposed a production Activity-recreation bug in
+`RoutedLocalBrowserWorkspaceView`: a tab that had selected the legacy local
+presentation re-ran `requiresProxy()` during the feed connection's transient
+reset. `NOT_CONNECTED` correctly binds a new browser to its Mac, but applying
+that new-browser decision to an already-open local tab launched a different
+Activity, storage profile and network path. The isolated failure screenshot
+shows `RoutedBrowserActivity` with `ERR_SOCKS_CONNECTION_FAILED` for the fixture
+URL after recreation.
+
+The selected local presentation now retains its surface ID in saved UI state.
+Recreation of that same live surface keeps its presentation; a new surface
+(including after process death) has a fresh UUID and performs the usual network
+check. The owning network must still exist before either path is admitted, and
+existing workspace/account menu retirement remains in effect. This does not
+introduce a direct-network fallback for a proxy-bound browser.
+
+### Menu and lifecycle verification
+
+Twenty-seven distinct Android checks pass across the focused runs recorded in
+`captures/runtime/workspace-menu-parity/verification.json`. The initial 25-case
+run passed 19; four failures needed the new pane/Changes entry paths or a wait
+for asynchronous reconciliation, one exposed the separate-process WebView
+fixture collision, and one exposed the production browser recreation bug.
+The next 11-case run passed ten; isolated reproduction of the remaining browser
+failure confirmed the unintended routed Activity. After the production fix,
+all four browser lifecycle/process checks passed (68.813s).
+
+A final three-case lifecycle run passed (63.3s) with actual screen-pixel checks
+and DOM URL/title/form assertions. The restored page is visibly green; the
+multipart response is visibly blue, so neither a blank WebView nor the previous
+page can pass. The test saves the exact accepted frame. Earlier screenshots
+captured before painting are retained but are not evidence of rendered content.
+The system picker delivers the real fixture file's bytes, and a result for a
+destroyed Activity is discarded before a fresh chooser succeeds.
+
+The final main APK SHA-256 is
+`8a7ca6879dc8c95c224e406465b45cda823abd8e16a31d6b091c1857dd91fbc3`;
+the final test APK is
+`a8129cb6c2d54465ed190e2e21c31b968e2b7c40d3a62e51800ee90cc79128a3`.
+The installed emulator APK hash matched. Final crash buffers are empty, the
+existing AVD is stopped/reaped, no new AVD was created, and no physical Pixel
+was connected. Signed build 537 is unchanged. These emulator/framed-RPC checks
+do not replace live Pixel/Mac browser and account acceptance.

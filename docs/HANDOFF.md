@@ -24,7 +24,46 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — Move to Group submenu (2026-10-04)
+## Latest checkpoint — workspace menu and browser restoration (2026-10-04)
+
+Workspace context menus now follow the scoped iOS source order and icons:
+**Pin/Unpin, Customize, Rename, Mark as Read/Unread, Move to Group, Delete**.
+Pane creation uses the pane picker or empty-workspace buttons; Changes opens
+from its summary badge. Unsupported rows no longer retain an invisible menu
+that blocks their next tap. The existing drag and shared delete confirmation
+paths remain covered. See [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md).
+
+The updated lifecycle checks also found and fixed a production browser bug:
+Activity recreation could move an already-open local tab into the Mac proxy
+presentation during the feed's temporary reconnect. That same live tab now
+retains its chosen presentation. New surfaces still resolve their network, and
+owner validation remains required. A separate debug restoration process now
+uses its own WebView directory, as required by Android.
+
+**27 distinct Android checks passed across focused runs**, including menus,
+creation, Changes/customization restoration, local browser routing, actual
+process death and real system-picker multipart uploads. The initial 25-case
+run had six failures: four stale navigation/wait assumptions, the production
+browser restoration bug, and the debug WebView directory collision. The next
+11-case run left only the browser bug; isolating it identified the wrong
+Activity/network path. After its fix, all four browser lifecycle/process checks
+passed in 68.813s. A final three-case lifecycle run passed in 63.3s with stronger
+DOM and visible-pixel assertions: the restored page and upload response both
+rendered correctly. This is not a claim of a single green 27-case invocation.
+
+Debug/test builds succeeded; the final test-only build took 17s. Screenshots
+were inspected, final crash buffers were empty, and the sole existing AVD was
+stopped/reaped. Evidence and hashes:
+`captures/runtime/workspace-menu-parity/verification.json`.
+No physical Pixel was visible to ADB; phone data was not touched.
+Signed build **537 is unchanged**.
+
+**Next:** group-header action/presentation parity, including owning-Mac group
+creation, ungroup/delete confirmations and fresh capability checks. Live
+Pixel/Mac acceptance, broader upstream parity and push/feed configuration remain
+open. The goal remains active.
+
+## Earlier checkpoint — Move to Group submenu (2026-10-04)
 
 Workspace menus now have the iOS-style **Move to Group** picker: ordered group
 names/icons, checked and disabled current membership, collapsed destinations,
