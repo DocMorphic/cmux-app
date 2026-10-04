@@ -69,3 +69,43 @@ remain to be implemented in the list; the full changes viewer already has its
 own path. Selected/sidebar styling, wider-screen layouts, dynamic type/TalkBack,
 production multi-Mac behavior and physical Pixel comparison still need checks.
 These are remaining work, not unavoidable Android differences.
+
+## Changes-chip implementation reference — 2026-10-04
+
+The chip is still **unimplemented in the Android row**. At the scoped revision
+above, the source path is `MobileShellComposite+WorkspaceChanges.swift`, supported
+by `WorkspaceChangesSummaryFetchPolicy`, `WorkspaceChangesSummaryRefreshSchedulePolicy`,
+`WorkspaceChangesSummaryRefreshScope` and the pruning extension. The list requests
+`mobile.workspace.changes.summary` with `workspace_ids` (up to 64 unique IDs);
+`force: true` is sent only for a forced pass. Successful results are reused for
+15 seconds. Scheduling debounces real events/list changes by 250 ms, coalesces
+full snapshots or changed workspace IDs, ignores group-only changes, and permits
+one fetch at a time with an accumulated trailing pass. Trailing expiry waits at
+least five seconds and is armed only while real events are recent; it must not
+become continuous Git polling on idle Macs.
+
+Connection/capability admission precedes fetching. Foreground workspace membership
+prunes cached chips and pending requests; a connection reset cancels jobs and
+clears their state. Failed requests retain the last published chip. Successful
+summaries remove chips for non-repositories or zero changed files. The decoder
+requires typed workspace identity and `is_repo`, drops malformed entries separately,
+and tolerates missing or malformed count fields. The Android adaptation should
+also restrict response IDs to the requested owning-Mac batch and reject late
+responses after owner/client retirement.
+
+`WorkspaceRow.swift` puts the chip beside the preview with an eight-point minimum
+gap; it is visible only with a positive changed-file count. A tappable chip has a
+44-point minimum target and opens Changes without opening the terminal row.
+`WorkspaceChangesChipLabel.swift` uses caption2 semibold monospaced digits, a
+secondary capsule at 12% opacity, horizontal/vertical padding 6/3 and a three-point
+count gap. `WorkspaceChangesChipTextPolicy` uses green additions and red deletions;
+binary-only changes (both line counts zero) show singular/plural file count text.
+The accessibility label includes files, additions and deletions.
+
+Android currently has the full Changes viewer and owner-aware feed coordinator,
+but no list-summary fetch/cache. Integrate a separate per-owner summary state
+with the coordinator's workspace refresh/event and lifecycle boundaries. Reusing
+an arbitrarily old full-viewer snapshot would not implement this source policy.
+Verification must include batching/expiry/coalescing, owner retirement and late
+responses, multiple Macs sharing workspace IDs, binary/zero counts, chip-versus-row
+click behavior and accessible labels, before live Mac/Pixel acceptance.
