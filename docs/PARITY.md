@@ -12,6 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Main toolchain and ART verification (2026-10-04 follow-up)
+
+The root app now uses AGP 9.1.1 / Gradle 9.3.1 / Kotlin 2.4.20 / compile SDK 37;
+min 26 and target 36 stay unchanged. The original API 26–27 fingerprint path is
+isolated in an SDK 36 adapter. An assembled release exposed a root-route
+`VerifyError`; splitting nine existing composition slots fixes it and the release
+ART gate passes. See [ANDROID_TOOLCHAIN.md](ANDROID_TOOLCHAIN.md).
+
+Final verification: 1,539 JVM passes, four explicit external-fixture skips; six
+emulator runtime cases passed (terminal/browser process restoration and native
+notice UI). Native/ZIP alignment, assets and signed-out cold launch passed.
+Native whole-file hashes changed with stripping, while all allocated sections
+remain identical to build 494. No physical Pixel, live Mac browser acceptance,
+new signed build or notice web renderer integration is claimed. The existing AVD
+is stopped. Global parity pin unchanged.
+
 ## Private storage and native classifier correction (2026-10-04 follow-up)
 
 [NATIVE_ALIGNMENT.md](NATIVE_ALIGNMENT.md) corrects the old blanket RELRO-end
@@ -39,7 +55,7 @@ failed for those contexts; the failure is retained. This does not establish
 HTTPS/page-script exclusion, storage cleanup, rendered UI or physical acceptance.
 The initial ten-library RELRO failure report is superseded by the classifier
 correction above. No engine is added
-to cmux-app, and the standalone newer toolchain does not upgrade the root app.
+to cmux-app in this experiment. The later main migration is recorded above.
 The experiment packages were removed from the one existing AVD after capture;
 the AVD is stopped. Pixel and signed-build status remain unchanged.
 

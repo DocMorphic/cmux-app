@@ -26,7 +26,7 @@ class WorkspaceProcessRestorationTest {
     private val code = "cmux-ios://attach?v=2&r=100.64.0.1:58465"
     private val activity = NativeProcessRestoreTestActivity::class.java
     private fun marker(name: String) = File(context.filesDir, "pane-process-$name")
-    private fun task() = manager.appTasks.single { it.taskInfo.baseIntent.component?.className == activity.name }
+    private fun task() = manager.appTasks.single { it.taskInfo?.baseIntent?.component?.className == activity.name }
     private fun childPid() = manager.runningAppProcesses?.singleOrNull { it.processName == context.packageName + ":restore_test" }?.pid
     private fun waitUntil(test: () -> Boolean) {
         val deadline = SystemClock.elapsedRealtime() + 20_000
@@ -51,7 +51,7 @@ class WorkspaceProcessRestorationTest {
         if (::peer.isInitialized) { peer.close(); store.clear() }
     }
     private fun retireChild() {
-        manager.appTasks.filter { it.taskInfo.baseIntent.component?.className == activity.name }.forEach { it.finishAndRemoveTask() }
+        manager.appTasks.filter { it.taskInfo?.baseIntent?.component?.className == activity.name }.forEach { it.finishAndRemoveTask() }
         childPid()?.let { check(it != Process.myPid()); Process.killProcess(it); waitUntil { childPid() == null } }
     }
     private fun listing(terminals: String = """[{"id":"terminal-1","title":"First shell"},{"id":"terminal-2","title":"Focused shell","is_focused":true}]""", surfaces: String = "[]") {
@@ -71,6 +71,7 @@ class WorkspaceProcessRestorationTest {
         val parent = Process.myPid()
         val pid = checkNotNull(childPid()); assertNotEquals(parent, pid)
         val appTask = task()
+        val taskId = checkNotNull(appTask.taskInfo) { "Fixture task disappeared before capture" }.taskId
         device.pressHome()
         waitUntil { marker("stopped").takeIf(File::exists)?.readText() == pid.toString() &&
             marker("saved").takeIf(File::exists)?.readText() == pid.toString() }
@@ -81,7 +82,7 @@ class WorkspaceProcessRestorationTest {
         waitUntil {
             val dump = device.executeShellCommand("dumpsys activity activities")
             val header = recordHeader.findAll(dump).singleOrNull {
-                it.value.contains(activity.name) && it.value.contains(" t${appTask.taskInfo.taskId}")
+                it.value.contains(activity.name) && it.value.contains(" t$taskId")
             }
             val record = header?.let { dump.substring(it.range.last + 1).lineSequence()
                 .takeWhile { line -> !line.contains("* Hist") }.map(String::trim).toList() }.orEmpty()
@@ -94,10 +95,12 @@ class WorkspaceProcessRestorationTest {
         appTask.moveToFront()
         waitUntil { marker("status").takeIf(File::exists)?.readLines()?.let { it.size >= 2 && it[0] != pid.toString() && it[1] == "true" } == true }
         assertNotEquals(pid, childPid())
+        val restoredTaskId = checkNotNull(appTask.taskInfo) { "Restored fixture task disappeared" }.taskId
+        assertEquals(taskId, restoredTaskId)
         InstrumentationRegistry.getInstrumentation().sendStatus(0, android.os.Bundle().apply {
             putInt("parent_process", parent); putInt("killed_ui_process", pid)
             putInt("restored_ui_process", checkNotNull(childPid())); putBoolean("android_restored_bundle", true)
-            putInt("restored_task", appTask.taskInfo.taskId)
+            putInt("restored_task", restoredTaskId)
         })
     }
     @Test fun explicitTerminalRestoresFromAndroidTaskStateInANewProcess() {

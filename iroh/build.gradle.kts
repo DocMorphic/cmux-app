@@ -1,9 +1,18 @@
 import groovy.json.JsonSlurper
 import java.security.MessageDigest
 
+abstract class GenerateIrohNotices : DefaultTask() {
+    @get:InputFiles abstract val sourceFiles: ConfigurableFileCollection
+    @get:OutputDirectory abstract val outputDirectory: DirectoryProperty
+    @TaskAction fun generate() {
+        val destination = outputDirectory.get().asFile.resolve("licenses/iroh")
+        destination.mkdirs()
+        sourceFiles.files.forEach { it.copyTo(destination.resolve(it.name), overwrite = true) }
+    }
+}
+
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
 }
 
 // Built by scripts/build-iroh-android.py; no unpinned Maven native dependency.
@@ -33,15 +42,15 @@ val verifyNative by tasks.registering {
     }
 }
 
-val nativeNotices by tasks.registering(Sync::class) {
+val nativeNotices by tasks.registering(GenerateIrohNotices::class) {
     dependsOn(verifyNative)
-    from(nativeRoot) { include("LICENSE-MIT", "LICENSE-APACHE", "manifest.json") }
-    into(layout.buildDirectory.dir("generated/irohNotices/licenses/iroh"))
+    sourceFiles.from(listOf("LICENSE-MIT", "LICENSE-APACHE", "manifest.json").map { nativeRoot.file(it) })
+    outputDirectory.set(layout.buildDirectory.dir("generated/irohNotices"))
 }
 
 android {
     namespace = "io.github.docmorphic.cmuxapp.iroh"
-    compileSdk = 36
+    compileSdk = 37
     buildToolsVersion = "36.0.0"
     defaultConfig {
         minSdk = 26
@@ -52,13 +61,15 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
     sourceSets.getByName("main").apply {
-        java.srcDir(nativeRoot.dir("kotlin"))
-        jniLibs.srcDir(nativeRoot.dir("jniLibs"))
-        assets.srcDir(layout.buildDirectory.dir("generated/irohNotices"))
+        kotlin.directories.add(nativeRoot.dir("kotlin").asFile.path)
+        jniLibs.directories.add(nativeRoot.dir("jniLibs").asFile.path)
     }
-    sourceSets.getByName("androidTest").assets.srcDir("../app/src/test/resources/iroh-v2")
+    sourceSets.getByName("androidTest").assets.directories.add("../app/src/test/resources/iroh-v2")
+}
+
+androidComponents.onVariants { variant ->
+    variant.sources.assets?.addGeneratedSourceDirectory(nativeNotices, GenerateIrohNotices::outputDirectory)
 }
 
 tasks.named("preBuild").configure { dependsOn(nativeNotices) }

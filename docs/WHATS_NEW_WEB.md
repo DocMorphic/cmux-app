@@ -249,3 +249,14 @@ the corrected one uses the pinned engine's bundled resource reader. Logs/reports
 `captures/runtime/notice-https/` (ignored). Do not copy fixture trust operations or
 the public test key into production. Continue partitioned cleanup and account/lease
 lifecycle, then integrate rendering, theme, navigation and preload with the broker.
+
+### Main toolchain prerequisite completed
+
+The root build now uses AGP 9.1.1 / Gradle 9.3.1 / Kotlin 2.4.20 / compile SDK 37.
+[ANDROID_TOOLCHAIN.md](ANDROID_TOOLCHAIN.md) records compatibility fixes and
+verification, including a release ART failure repaired by separating route lambdas.
+The final JVM suite and six emulator runtime cases pass; no physical Pixel test
+or signed release was made. No engine, experiment CA or fixture key is in the
+main app yet. Continue actual renderer integration with the existing broker/load
+owner; implement partitioned cleanup and account/lease lifecycle checks alongside
+that owner, then complete package/licenses and physical acceptance.

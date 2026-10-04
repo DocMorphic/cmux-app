@@ -3,7 +3,6 @@ import java.security.MessageDigest
 
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
 }
 
 val nativeRoot = rootProject.layout.projectDirectory.dir("build/ghostty-vt-android")
@@ -37,7 +36,7 @@ tasks.named("preBuild").configure { dependsOn(verifyNative) }
 
 android {
     namespace = "io.github.docmorphic.cmuxapp.ghostty"
-    compileSdk = 36
+    compileSdk = 37
     buildToolsVersion = "36.0.0"
     defaultConfig {
         minSdk = 26
@@ -49,9 +48,8 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
-    sourceSets.getByName("main").jniLibs.srcDir(nativeRoot.dir("jniLibs"))
-    sourceSets.getByName("main").assets.srcDir(nativeRoot.dir("notices"))
+    sourceSets.getByName("main").jniLibs.directories.add(nativeRoot.dir("jniLibs").asFile.path)
+    sourceSets.getByName("main").assets.directories.add(nativeRoot.dir("notices").asFile.path)
 }
 
 dependencies {

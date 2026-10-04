@@ -16,7 +16,8 @@ acceptance remain open.
 - GeckoView `157.0.20260924084938` from Mozilla's official Maven repository.
 - AGP 9.1.1, Gradle 9.3.1 (distribution checksum pinned), JDK 17, compile SDK 37,
   build tools 36.0.0, target 36/min 26, arm64 only.
-- Independent wrapper: the delivered app keeps AGP 8.13.2 / Gradle 8.13 / SDK 36.
+- Independent wrapper. The main app now uses AGP 9.1.1 / Gradle 9.3.1 / SDK 37;
+  see [ANDROID_TOOLCHAIN.md](../docs/ANDROID_TOOLCHAIN.md).
 
 The first attempt using the root toolchain failed dependency metadata checks:
 GeckoView requires compile SDK 37 and its AndroidX Core dependency requires AGP

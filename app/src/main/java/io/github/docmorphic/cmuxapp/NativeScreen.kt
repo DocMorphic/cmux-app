@@ -2166,6 +2166,883 @@ fun NativeScreen(
             archive = showWhatsNew && showSettings && signedIn && !showOnboarding && !onboardingExplicitRoute,
             onCloseArchive = { showWhatsNew = false }, policy = displayPolicy)
     } }
+    // Keep each route in its own composition lambda. Creating all route lambdas
+    // inside the dispatcher forces it to capture the entire screen and can produce
+    // invalid release DEX. The dispatcher retains route selection and ColumnScope.
+    val computersContent: @Composable ColumnScope.() -> Unit = {
+        val owner = checkNotNull(computersOwner)
+        fun admitted() = account.isSignedIn() && store.taskSession() == owner.login && accountTeams.state.value.scope == owner.team
+        if (!admitted()) {
+            LaunchedEffect(owner) { computersOwner = null }
+        } else key(owner) {
+            var legacyDetails by remember { mutableStateOf<NativeCredentialStore.PairedMac?>(null) }
+            val rows = NativeComputerList.rows(displayedMacs, appearances, scopedPresence, lastSeenHistory,
+                computerPreferences, currentDirectory, tailscaleRouteLabels)
+            val legacy = legacyDetails?.let { mac -> rows.singleOrNull { it.mac.origin == mac.origin } }
+            fun current(mac: NativeCredentialStore.PairedMac) = admitted() &&
+                NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac)
+            fun pairMac() {
+                if (!admitted()) return
+                computersOwner = null; showSettings = false
+                code = ""; selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
+                selectedBrowser = null
+            }
+            if (legacy != null) NativeLegacyComputerDetails(legacy, { legacyDetails = null }) {
+                if (current(legacy.mac)) {
+                    computersOwner = null; showSettings = false
+                    val alreadyConnected = connectionReady && connectedCode == legacy.mac.code && client?.isClosed == false
+                    val sameAttempt = code == legacy.mac.code
+                    selectPickerComputer(legacy.mac)
+                    if (!alreadyConnected) {
+                        expectedReconnect = legacy.mac
+                        if (sameAttempt) retry++
+                    }
+                }
+            } else NativeComputersRoute(sharedConnections?.ssh, ::dismissComputers, ::pairMac) {
+                if (cachedComputers != null) NativeCachedComputersNotice()
+                NativeManagedComputerRows(rows, appearances, machineColorIndices, computerConnections, scopedPresence,
+                    onDetails = { mac -> if (current(mac)) {
+                        val target = owner.team?.let { NativeComputerTarget.from(mac, it) }
+                        if (target != null && sharedConnections != null) {
+                            if (computerState.account == owner.team)
+                                computerDetails = NativeComputerDetailsPresentation(checkNotNull(owner.team), target, machineColorIndices[mac.colorIdentity])
+                            else error = "Computer settings are still loading. Try again."
+                        } else legacyDetails = mac
+                    } }, onPair = ::pairMac, hiddenOrigins = hiddenOrigins, onVisibility = ::setComputerVisibility,
+                    readOnly = cachedComputers != null)
+            }
+        }
+    }
+    val settingsContent: @Composable ColumnScope.() -> Unit = {
+        NativeSettingsLayout(onBack = { showSettings = false }, account = {
+        NativeAccountTeamSection(teamState, onRefresh = {
+            scope.launch {
+                try { accountTeams.refresh() }
+                catch (failure: Exception) { if (failure is CancellationException) throw failure }
+            }
+        }, onSelect = { id ->
+            scope.launch {
+                try {
+                    accountTeams.select(id)
+                    client?.close(); client = null; code = ""
+                    selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
+                } catch (failure: Exception) { if (failure is CancellationException) throw failure }
+            }
+        }, onCreate = { name ->
+            try {
+                accountTeams.create(name)
+                client?.close(); client = null; code = ""
+                selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
+                true
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                accountTeams.state.value.createdTeam != null
+            }
+        })
+        TextButton(onClick = { signOutCurrentAccount() },
+            modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
+        NativeAccountDeletionButton(browserLogin, deletionReceipt, accountDeletion::begin)
+        }, computers = {
+        Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
+        TextButton(onClick = ::presentComputers, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.computers")) {
+            Text("Manage computers")
+        }
+        if (code.isNotBlank() && (PairingCodeParser.parse(code).getOrNull() !is PairingCode.Iroh ||
+            pairedMacs.none { it.code == code && computerState.account?.let { team -> NativeComputerTarget.from(it, team) } != null })) TextButton(onClick = {
+            runCatching {
+                val owner = teamState.scope
+                if (sharedConnections != null) {
+                    checkNotNull(owner) { "Refresh your account teams first" }
+                    store.forgetMac(code, owner) { accountTeams.isCurrent(owner) }
+                } else store.forgetMac(code)
+                savedPairedMacs = store.pairedMacs()
+                code = store.load()?.optString("pairing_code").orEmpty()
+                showSettings = false
+            }.onFailure { error = it.message }
+        }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Remove local pairing", color = Color(0xFFFF9999)) }
+        }, notifications = {
+        Text("NOTIFICATIONS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+            color = nativeMuted, fontSize = 11.sp)
+        Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Background notifications")
+                Text("Keep a connection to your Mac for agent alerts", color = nativeMuted, fontSize = 12.sp)
+            }
+            Switch(backgroundNotifications, onCheckedChange = { enabled ->
+                if (enabled) {
+                    enableNotifications(false)
+                } else runCatching { NativeNotificationService.setEnabled(context, false) }
+                    .onSuccess { backgroundNotifications = false; error = null }
+                    .onFailure { error = it.message }
+            }, enabled = signedIn && code.isNotBlank(),
+                modifier = Modifier.semantics { contentDescription = "Background notifications" })
+        }
+        NativeNotificationSettings()
+        }, preferences = {
+        if (whatsNewState?.archive?.isNotEmpty() == true) TextButton(onClick = { showWhatsNew = true },
+            modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.whatsnew")) { Text("What's New") }
+        TextButton(onClick = { replayOnboarding = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.introduction")) { Text("View Introduction Again") }
+        NativeFeedbackSettingsButton()
+        NativeDiagnosticsSettings()
+        TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
+        NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences)
+        TextButton(onClick = { showShortcuts = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Terminal Shortcuts") }
+        TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
+        }, connections = {
+        NativeNetworkingSettings(sharedConnections?.native, computerState)
+        NativeLegacyConnectionCheckSettings(client, pairedMacs, code, connectionReady)
+        Text("CONNECTION", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
+            color = nativeMuted, fontSize = 11.sp)
+        Text("${pairedMacs.firstOrNull { it.code == code }?.let(appearances::name) ?: hostName} · ${if (client != null) "Connected" else "Disconnected"}",
+            Modifier.padding(horizontal = 22.dp), color = nativeMuted, fontSize = 13.sp)
+        TextButton(onClick = onUseHelper, modifier = Modifier.padding(horizontal = 14.dp)) {
+            Text("Use existing helper connection", color = nativeMuted)
+        }
+        NativeLocalResetSection()
+        })
+    }
+    val taskComposerContent: @Composable ColumnScope.() -> Unit = {
+        val repository = taskDraftRepository
+        val restored = taskDraftEntries[taskDraftId]
+        val restoredMac = restored?.let { draft -> pairedMacs.firstOrNull { it.ownsOrigin(draft.origin) } }
+        LaunchedEffect(restored?.origin, pairedMacs) {
+            if (restoredMac != null && code != restoredMac.code) selectComputer(restoredMac)
+        }
+        val taskMac = pairedMacs.firstOrNull { it.code == code }
+        val taskOrigin = restored?.origin ?: taskMac?.origin ?: pairingOrigin(code)
+        val selectedTaskMac = pairedMacs.firstOrNull { it.ownsOrigin(taskOrigin) }
+        val taskCode = selectedTaskMac?.code
+        val taskConnected = connectionReady && taskCode != null && connectedCode == taskCode && code == taskCode
+        val active = client.takeIf { taskConnected }
+        val taskWorkspaces = if (taskMac?.ownsOrigin(taskOrigin) == true) workspaces else emptyList()
+        if (repository != null) key(taskDraftId, repository.session) {
+        NativeTaskComposerView(active,
+            directories = preferredTaskDirectories(taskWorkspaces, selectedWorkspace?.id),
+            createTask = { parameters ->
+                val target = checkNotNull(selectedTaskMac) { "This Mac is no longer paired" }
+                val taskClient = checkNotNull(active) { "That Mac is not connected" }
+                requireWorkspaceConnection(taskClient, target)
+                workspaceSnapshots.mutate(target) { taskClient.request("workspace.create", parameters, timeoutMillis = 30_000) }
+            },
+            origin = taskOrigin,
+            models = feedSession.taskModels,
+            onCreated = { response ->
+                val result = TaskCreationResult.parse(response)
+                val created = applyCreatedWorkspace(checkNotNull(selectedTaskMac), result)
+                // Like iOS, partial create responses cannot replace group metadata.
+                refreshFeed()
+                showTaskComposer = false
+                selectedSurface = null; selectedBrowser = null; selectedWorkspace = created
+                selectedBrowser = null
+                selectedTerminal = created.terminals.firstOrNull {
+                    it.id == response.optString("created_terminal_id")
+                } ?: created.preferredTerminal
+                selectedTerminal?.let { terminal -> selectedTaskMac?.let { mac ->
+                    workspaceTabKey(browserLogin, teamState.scope, mac, created.id)?.let { key ->
+                        workspaceTabs.cancel(); terminalStartup.begin(key, terminal)
+                    }
+                } }
+            }, onBack = { showTaskComposer = false },
+            isCurrent = { signedIn && taskDraftRepository === repository && showTaskComposer && store.taskSession() == browserLogin },
+            savedDrafts = repository.drafts, draftId = taskDraftId,
+            macName = selectedTaskMac?.let(appearances::name) ?: restored?.macName ?: "Choose a Mac",
+            appearances = appearances,
+            hasSelectedMac = selectedTaskMac != null,
+            resolvedMacOrigin = taskMac?.origin.takeIf { selectedTaskMac == null && taskOrigin == pairingOrigin(code) },
+            savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
+            attachmentRepository = repository, supportsAttachments = taskMac?.ownsOrigin(taskOrigin) == true && ComposerAttachment.FILE_CAPABILITY in hostCapabilities,
+            macs = pairedMacs, workspaceGroups = if (taskMac?.ownsOrigin(taskOrigin) == true) groups else emptyList(),
+            supportsGroups = if (taskConnected) "workspace.create_in_group.v1" in hostCapabilities else null,
+            groupsLoaded = taskConnected && taskGroupsLoaded,
+            groupIsCurrent = { group -> group == null || (connectionReady && connectedCode == taskCode && code == taskCode && "workspace.create_in_group.v1" in hostCapabilities &&
+                taskGroupsLoaded && groups.count { it.id == group } == 1) },
+            directoryWorkspaces = taskWorkspaces, selectedWorkspaceId = selectedWorkspace?.id,
+            selectMac = { editor, nextOrigin ->
+                val target = requireNotNull(pairedMacs.singleOrNull { it.ownsOrigin(nextOrigin) }) { "This Mac is no longer paired" }
+                val snapshot = workspaceSources.firstOrNull { it.mac.origin == nextOrigin && it.availability == NativeFeedAvailability.CONNECTED }
+                val currentDraft = checkNotNull(repository.drafts.state.value[editor.id])
+                val templates = repository.templates.state.value
+                val nextDirectory = templates.suggestedDirectory(templates.selected(currentDraft.templateId), nextOrigin,
+                    snapshot?.let { preferredTaskDirectories(it.workspaces, null).firstOrNull() })
+                repository.selectMac(editor, nextOrigin, target.name, nextDirectory)
+                check(signedIn && taskDraftRepository === repository && pairedMacs.any { it.ownsOrigin(nextOrigin) }) { "Task account or Mac changed" }
+                selectComputer(target)
+            },
+            persistDrafts = repository::persistNow, flushDrafts = repository::flush,
+            onResumeDraft = { draft ->
+                taskDraftId = draft.id
+                pairedMacs.firstOrNull { it.ownsOrigin(draft.origin) }?.let(::selectComputer)
+            }, onNewDraft = { newTaskDraft() },
+            supportsTaskCreation = if (taskConnected) "workspace.task_create.v1" in hostCapabilities else null,
+            refreshWorkspaces = {
+                val listing = workspaceSnapshots.read(checkNotNull(selectedTaskMac) { "This Mac is no longer paired" },
+                    checkNotNull(active) { "That Mac is not connected" })
+                check(signedIn && connectionReady && client === active && connectedCode == taskCode && code == taskCode) {
+                    "Connection changed while refreshing workspaces"
+                }
+                applyListing(listing)
+            })
+        } else Column(Modifier.fillMaxSize().padding(22.dp)) {
+            TextButton(onClick = { showTaskComposer = false }) { Text("‹  Workspaces") }
+            Text(taskDraftLoadError ?: "Loading saved drafts…")
+            if (taskDraftLoadError != null) TextButton(onClick = { taskDraftLoadAttempt++ }) { Text("Retry") }
+        }
+    }
+    val localBrowserContent: @Composable ColumnScope.() -> Unit = {
+        val localBrowser = checkNotNull(localBrowser)
+        val browserMac = pairedMacs.first { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key }
+        fun browserMenu(): RoutedBrowserMenu? {
+            if (!signedIn || localBrowserKey(browserLogin, teamState.scope, browserMac, localBrowser.key.workspaceId) != localBrowser.key) return null
+            val source = (moveSources[browserMac.origin] ?: feedSources[browserMac.origin])?.takeIf { it.mac == browserMac }
+            val primary = connectionReady && connectedCode == browserMac.code && client?.isClosed == false
+            val currentWorkspace = when {
+                source?.hasWorkspaceSnapshot == true -> source.workspaces.singleOrNull { it.id == localBrowser.key.workspaceId }
+                client != null && connectedCode == browserMac.code -> workspaces.singleOrNull { it.id == localBrowser.key.workspaceId }
+                else -> localBrowser.workspace
+            } ?: return null
+            val feed = feedSources[browserMac.origin]?.takeIf { it.mac == browserMac }
+            val support = if (primary) NativeBrowserPickerState.from(true, hostCapabilities)
+                else feed?.let { NativeBrowserPickerState.from(it.availability == NativeFeedAvailability.CONNECTED, it.capabilities) }
+                    ?: NativeBrowserPickerState(known = false, streaming = false)
+            return RoutedBrowserMenu(currentWorkspace, !creatingWorkspace && !creatingTerminal &&
+                (primary || feed?.availability == NativeFeedAvailability.CONNECTED), browserState = support)
+        }
+        fun createFromBrowser(kind: NativeWorkspaceCreation) {
+            val login = store.taskSession() ?: return
+            if (browserMenu()?.creationEnabled != true || localBrowsers.state.value.local?.surface !== localBrowser.surface ||
+                localBrowserKey(login, teamState.scope, browserMac, localBrowser.key.workspaceId) != localBrowser.key ||
+                !store.visiblePairedMacs().contains(browserMac) || !connection.allowsSaved(browserMac)) return
+            localBrowsers.leave(close = true)
+            workspaceRoute = NativeWorkspaceRoute(browserMac.origin, localBrowser.key.workspaceId,
+                creation = kind, creationLogin = login)
+        }
+        RoutedLocalBrowserWorkspaceView(localBrowser, localBrowsers,
+            workspaceSources.firstOrNull { it.mac.ownsOrigin(localBrowser.key.computerId) }?.workspaces
+                ?.firstOrNull { it.id == localBrowser.key.workspaceId } ?: localBrowser.workspace,
+            network = { feedSession.browserNetworks.network(browserMac) },
+            retainHost = {
+                val held = feedSession.holdBrowser(browserMac)
+                val connectionHandle = try {
+                    if (sharedConnections != null) NativeAppConnections.acquire(context.applicationContext) else null
+                } catch (failure: Exception) { held.close(); throw failure }
+                RoutedBrowserHostLease({ held.close(); connectionHandle?.close() },
+                    { active -> connectionHandle?.connections?.setProbeActive(held, active) })
+            },
+            onClose = { displayedTab?.first?.let { key -> browserLogin?.let { workspaceTabs.forget(it, key) } } },
+            onRoute = { workspaceRoute = it }, browserModes = true,
+            onNewWorkspace = { createFromBrowser(NativeWorkspaceCreation.WORKSPACE) },
+            onNewTerminal = { createFromBrowser(NativeWorkspaceCreation.TERMINAL) },
+            onNewBrowser = { createFromBrowser(NativeWorkspaceCreation.BROWSER) }, menuSource = ::browserMenu)
+    }
+    val reconnectContent: @Composable ColumnScope.() -> Unit = {
+        val reconnectOwner = NativeComputerMenuOwner(store.taskSession(), teamState.scope)
+        fun isReconnectOwnerCurrent() = account.isSignedIn() && store.taskSession() == reconnectOwner.login &&
+            accountTeams.state.value.scope == reconnectOwner.team
+        NativeComputerPicker(teamState, computerState.takeIf { it.account == teamState.scope }
+            ?: NativeComputersState(account = teamState.scope, loading = true), runtime = sharedConnections?.native,
+            onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
+            colorIndices = machineColorIndices, connections = computerConnections, presence = scopedPresence, saved = displayedVisible, hidden = displayedHidden, onVisibility = ::setComputerVisibility,
+            cachedDisplay = cachedComputers != null, displayAppearances = appearances, macPolicy = displayPolicy,
+            lastSeenHistory = lastSeenHistory, preferences = computerPreferences, tailscaleRoutes = tailscaleRouteLabels,
+            forgetCallbacks = forgetCallbacks, presentDetails = { computerDetails = it },
+            connectingCode = code.takeIf { busy && cachedComputers == null }, connectionFailure = error ?: connectionError,
+            onCancelConnect = { macSwitchRecovery.cancel(); pendingPickerCode = null; pairingSelectionCode = null; expectedReconnect = null
+                code = ""; connectionError = null; error = null; showReconnectList = false },
+            canSelectSaved = { mac -> isReconnectOwnerCurrent() &&
+                NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac) },
+            canSelectDiscovered = { mac -> isReconnectOwnerCurrent() &&
+                NativeReconnectComputers.currentDiscovery(mac, computerStates.value, reconnectOwner.team) &&
+                hiddenMacs.none { canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(mac.deviceId) && it.instanceTag == mac.buildTag } },
+            onSelectSaved = { mac ->
+                val sameAttempt = code == mac.code
+                showReconnectList = true; selectPickerComputer(mac); expectedReconnect = mac
+                if (sameAttempt) retry++
+            },
+            onSelect = { mac -> reconnectOwner.team?.let { owner ->
+                showReconnectList = true; selectPairingCode(PairingCodeParser.computer(mac, owner))
+            } },
+            onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
+            onComputers = ::presentComputers,
+            onRefresh = { scope.launch {
+                try { accountTeams.refresh(); sharedConnections?.native?.refresh() }
+                catch (failure: Exception) { if (failure is CancellationException) throw failure }
+            } }, onPairing = ::proposePairing, onNewTask = ::newTaskDraft,
+            onUseHelper = onUseHelper, onLicenses = { showLicenses = true }, onError = { error = it })
+    }
+    val terminalContent: @Composable ColumnScope.() -> Unit = {
+        NativeTerminalContent {
+            RetireTerminalInputOnBackground(rawKeyboardView)
+            val terminal = selectedTerminal!!
+            var showSizing by remember(client, terminal.id) { mutableStateOf(false) }
+            NativeTerminalHeader(terminal, selectedWorkspace, workspaces.size, hostCapabilities, connectionReady, directTyping,
+                onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
+                onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
+                onBack = { selectedTerminal = null; selectedWorkspace = null; selectedSurface = null },
+                onTerminal = { next ->
+                    rawKeyboardView?.finishComposition(); directTyping = false
+                    inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
+                    selectPane(NativeWorkspacePane(terminal = next))
+                },
+                onSurface = { surface ->
+                    rawKeyboardView?.finishComposition(); directTyping = false
+                    inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
+                    selectPane(NativeWorkspacePane(surface = surface))
+                }, debugText = { RenderGrid.plainText(grid.visibleLines(scrollOffset)) }, onText = ::openTerminalText, onFiles = {
+                    inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
+                }, onNewBrowser = {
+                    rawKeyboardView?.finishComposition(); directTyping = false; stopTerminalScrolling(); softwareKeyboard?.hide()
+                    selectedWorkspace?.let { workspace -> workspaceSourceForPane()?.let { openNewBrowser(it, workspace) } }
+                }, onKeyboard = {
+                    inputModifiers = TerminalInputModifiers()
+                    if (directTyping) { rawKeyboardView?.finishComposition(); directTyping = false }
+                    else openDirectKeyboard()
+                }, onSizing = if (terminalAttached && selectedSizing?.state != null) ({ showSizing = true }) else null,
+                onBrowser = { browser ->
+                    rawKeyboardView?.finishComposition(); directTyping = false
+                    inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
+                    selectPane(NativeWorkspacePane(browser = browser))
+                })
+            NativeTerminalTabs(selectedWorkspace?.terminals.orEmpty(), terminal) { selectPane(NativeWorkspacePane(terminal = it)) }
+            val currentGrid = grid
+            val gridPresentation = rememberTerminalGridPresentation(client, terminal.id, selectedSizing?.state,
+                currentGrid, terminalReportPixels, terminalCells, density.density, terminalViewportPixels.height,
+                gridRevision, scrollViewport, scrollInteractionEpoch)
+            val displayGeometry = gridPresentation.geometry
+            val visibleArtifactScroll by rememberUpdatedState(scrollViewport)
+            val localScroll = currentGrid.activeScreen == "primary" &&
+                (terminalTransport.screenAnchor || terminalTransport.mode != TerminalOutputMode.GRID)
+            val scrollOwner = client
+            val scrollAllowed = { client === scrollOwner && selectedTerminal?.id == terminal.id &&
+                scrollOwner?.terminalTrafficAllowed(terminal.id) == true && terminalScroll != null && !keyboardPresentation.frozen }
+            val scrollTerminal: (Double, TerminalGeometry.Cell) -> Boolean = { lines, cell ->
+                if (!scrollAllowed()) false else {
+                    val move = gridPresentation.scroll(lines, scrollPosition, currentGrid.historyLineCount, localScroll)
+                    val sent = if (move.rows != 0.0) terminalScroll?.invoke(move.rows, cell) ?: false else false
+                    sent || move.revealed
+                }
+            }
+            val accessibleScroll = TerminalAccessibilityScroll(localScroll, currentGrid.historyLineCount, scrollPosition,
+                gridPresentation.reveal, gridPresentation.maximumReveal, displayGeometry?.cellHeight ?: 0f, terminalViewportPixels.height)
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+            RenderGridView(currentGrid, terminalCells, gridRevision,
+                Modifier.fillMaxSize().testTag("native-terminal")
+                    .onGloballyPositioned { coordinates ->
+                        terminalMeasurement = TerminalViewportMeasurement(coordinates.size,
+                            (terminalImeInsets.getBottom(density) - terminalNavigationInsets.getBottom(density)).coerceAtLeast(0))
+                    }
+                    .focusRequester(terminalFocusRequester)
+                    .onPreviewKeyEvent { event -> directHardware(event.nativeKeyEvent) }
+                    .focusable()
+                    .nativeTerminalAccessibility(terminalZoom.size, accessibleScroll, scrollAllowed(), ::openDirectKeyboard, ::openTerminalText,
+                        latest = {
+                            if (!scrollAllowed() || terminalActiveScreen != "primary") false else {
+                                stopTerminalScrolling(); scrollPosition = 0.0; true
+                            }
+                        }) { rows ->
+                        terminalMotion.stop()
+                        val cell = displayGeometry?.cell(terminalViewportPixels.width / 2f, terminalViewportPixels.height / 2f)
+                        if (cell == null) false else scrollTerminal(rows, cell)
+                    }
+                    .then(if (keyboardPresentation.frozen) Modifier else Modifier.terminalPinchZoom(
+                        terminalZoom, gridPresentation.sharedLayout, gridPresentation.pinchOffset, gridPresentation.transform))
+                    .pointerInput(terminal.id, currentGrid, terminalCells, displayGeometry, artifactRpc, artifactsReady, artifactTapController) {
+                        detectTapGestures(onTap = { point ->
+                            if (keyboardPresentation.frozen) return@detectTapGestures
+                            artifactTapController.invalidate()
+                            var handlingArtifact = false
+                            displayGeometry?.let { geometry ->
+                                val cell = visibleArtifactScroll.cell(geometry, point.x, point.y)
+                                val path = if (artifactsReady && geometry.contains(point.x, point.y)) TerminalArtifactHitTest.path(
+                                    RenderGrid.plainText(visibleArtifactScroll.lines(currentGrid)), cell.column, cell.row, currentGrid.columns) else null
+                                if (path != null) {
+                                    handlingArtifact = true
+                                    val authorization = ArtifactAuthorization.Terminal(draftTarget!!.workspace, draftTarget.surface)
+                                    val columns = currentGrid.columns
+                                    val rows = currentGrid.rows
+                                    artifactTapController.tap(path, folderTapEnabled,
+                                        stat = { candidate ->
+                                            val metadata = artifactRpc!!.stat(authorization, candidate)
+                                            if (metadata.getBoolean("is_directory")) ArtifactKind.DIRECTORY else ArtifactKind.read(metadata.opt("kind"))
+                                        },
+                                        stillMatches = {
+                                            currentGrid.columns == columns && currentGrid.rows == rows &&
+                                                TerminalArtifactHitTest.path(RenderGrid.plainText(visibleArtifactScroll.lines(currentGrid)), cell.column, cell.row, columns) == path
+                                        },
+                                        open = {
+                                            stopTerminalScrolling(); directTyping = false; softwareKeyboard?.hide()
+                                            filesState.openPath(path)
+                                        },
+                                        focus = { sendClick ->
+                                            if (sendClick) terminalClick?.invoke(cell)
+                                            openDirectKeyboard()
+                                        })
+                                } else if (geometry.contains(point.x, point.y)) terminalClick?.invoke(cell)
+                            }
+                            if (!handlingArtifact) openDirectKeyboard()
+                        }, onLongPress = { artifactTapController.invalidate(); openTerminalText() })
+                    }
+                    .terminalScrollGestures(terminalMotion,
+                        displayGeometry,
+                        replayGeneration, currentGrid.activeScreen,
+                        linePath = !localScroll, enabled = scrollAllowed(), onScroll = scrollTerminal), scrollPosition = scrollPosition,
+                displayGeometry = displayGeometry, keyboardPresentation = keyboardPresentation.takeUnless { keepKeyboardGrid },
+                displayLines = gridPresentation.visibleLines)
+            if (scrollOffset > 0) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp)
+                .background(nativePanel, RoundedCornerShape(14.dp)).padding(start = 12.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("Scrollback · $scrollOffset rows", color = nativeMuted, fontSize = 12.sp)
+                TextButton(onClick = { stopTerminalScrolling(); scrollPosition = 0.0 }) { Text("Latest") }
+            }
+            artifactChipCount?.takeUnless { terminalZoom.overlayVisible }?.let { count ->
+                TerminalArtifactChip(count, Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = if (scrollOffset > 0) 62.dp else 10.dp)) {
+                    inputModifiers = TerminalInputModifiers()
+                    stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
+                }
+            }
+            val sheetClient = client
+            val sheetWorkspace = selectedWorkspace
+            val sheetCode = code
+            TerminalSizingSurfaceView(selectedSizing, terminal.id, currentGrid, terminalCells, displayGeometry,
+                terminalViewport, sizingViewportConfirmed, connectionReady && sheetClient != null,
+                terminalZoom.overlayVisible, sheetClient?.terminalParticipantId, showSizing,
+                onSheet = { showSizing = it }, onAction = { action ->
+                    val active = checkNotNull(sheetClient)
+                    val workspace = checkNotNull(sheetWorkspace)
+                    val viewport = terminalViewport
+                    val viewportGeneration = viewportRequestGeneration
+                    val selfId = selectedSizing?.selfId ?: active.terminalParticipantId
+                    if (action is TerminalSizingAction.Disconnect) require(action.ids.none { it == selfId })
+                    fun current() = client === active && selectedWorkspace?.id == workspace.id &&
+                        selectedTerminal?.id == terminal.id && code == sheetCode && signedIn && connectionReady &&
+                        TerminalSizingTraffic.CAPABILITY in hostCapabilities &&
+                        (action !is TerminalSizingAction.Counts ||
+                            (terminalViewport == viewport && viewportRequestGeneration == viewportGeneration))
+                    val response = active.changeTerminalSizing(workspace.id, terminal.id, action, viewport, viewportGeneration, ::current)
+                    terminalSizing.mutation(active, terminal.id, response)
+                }, onReattach = { viewer ->
+                    val active = checkNotNull(sheetClient)
+                    val workspace = checkNotNull(sheetWorkspace)
+                    val expected = checkNotNull(selectedSizing)
+                    check(client === active && selectedWorkspace?.id == workspace.id && selectedTerminal?.id == terminal.id) {
+                        "Terminal connection changed. Check its status before retrying."
+                    }
+                    val result = active.reattachTerminal(workspace.id, terminal.id, viewer, terminalViewport)
+                    check(terminalSizing.reattached(active, terminal.id, result, expected)) {
+                        "Terminal connection changed. Check its status before retrying."
+                    }
+                })
+            TerminalZoomOverlay(terminalZoom, displayPreferences,
+                foreground = runCatching { Color(android.graphics.Color.parseColor(currentGrid.foreground)) }.getOrDefault(Color.White),
+                background = runCatching { Color(android.graphics.Color.parseColor(currentGrid.background)) }.getOrDefault(nativePanel),
+                modifier = Modifier.align(Alignment.Center))
+            }
+            TerminalToolbarView(toolbarStore.layout, inputModifiers,
+                canInput = terminalAttached && selectedTerminal?.isReady == true && connectionReady && client != null && inputFailure == null && terminalDraft.operation == null,
+                filesEnabled = artifactsReady,
+                onModifier = { inputModifiers = inputModifiers.tap(it, android.os.SystemClock.uptimeMillis()) },
+                onButton = { button ->
+                    when (button) {
+                        TerminalToolbarButton.PASTE -> pasteClipboard()
+                        TerminalToolbarButton.FILES -> if (artifactsReady) {
+                            inputModifiers = TerminalInputModifiers()
+                            stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
+                        }
+                        TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT ->
+                            terminalZoom.step(if (button == TerminalToolbarButton.ZOOM_IN) 1 else -1)
+                        else -> button.key?.let { key ->
+                            rawKeyboardView?.finishComposition()
+                            val sequence = inputModifiers.special(key, currentGrid.applicationCursorKeys)
+                            inputModifiers = inputModifiers.consume()
+                            queueInput(sequence)
+                        }
+                    }
+                }, onCustom = { action ->
+                    rawKeyboardView?.finishComposition()
+                    inputModifiers = TerminalInputModifiers()
+                    queueInput(action.output)
+                }, onCustomize = {
+                    rawKeyboardView?.finishComposition(); inputModifiers = TerminalInputModifiers()
+                    softwareKeyboard?.hide(); showShortcuts = true
+                }, insert = if (terminalAttached && !directTyping && client != null && terminalDraft.operation == null && !preparingAttachments &&
+                    (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty())) ({ sendComposer(submit = false) }) else null)
+            inputFailure?.let { message ->
+                Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(message, Modifier.weight(1f), color = Color(0xFFFFAAAA), fontSize = 12.sp)
+                    TextButton(onClick = {
+                        val key = deliveryKey
+                        if (key != null && terminalInputs.requiresReconnect(key)) retry++
+                        else if (if (key != null && retainedInputQueue != null) terminalInputs.resume(key) else inputQueue.resume()) rawKeyboardView?.showKeyboard()
+                    }) { Text(if (deliveryKey?.let(terminalInputs::requiresReconnect) == true) "Reconnect" else "Resume typing") }
+                }
+            }
+            if (directTyping) {
+                key(draftTarget, client) {
+                    AndroidView(factory = { viewContext ->
+                        TerminalKeyboardView(viewContext).also { rawKeyboardView = it }
+                    }, update = { view ->
+                        val enabled = terminalAttached && client != null && inputFailure == null && terminalDraft.operation == null
+                        val resumed = enabled && !view.isEnabled
+                        view.isEnabled = enabled
+                        if (resumed) view.restartKeyboard()
+                        view.onText = ::directText
+                        view.onDelete = ::directDelete
+                        view.onKey = ::directHardware
+                        view.onPaste = { queueInput(it, paste = true) }
+                        view.onContent = ::acceptTerminalPaste
+                        view.onContentError = { error = it }
+                    }, onRelease = { view -> view.dispose(); if (rawKeyboardView === view) rawKeyboardView = null },
+                        modifier = Modifier.fillMaxWidth().height(48.dp).background(nativePanel))
+                }
+            } else {
+                if (terminalDraft.attachments.isNotEmpty() || preparingAttachments) {
+                    Row(Modifier.fillMaxWidth().background(nativePanel).horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        terminalDraft.attachments.forEach { attachment ->
+                            InputChip(selected = false, onClick = {},
+                                label = { Text(attachment.name, maxLines = 1, modifier = Modifier.widthIn(max = 180.dp)) },
+                                leadingIcon = { AttachmentThumbnail(attachment, draftRepository) },
+                                trailingIcon = {
+                                    TextButton(onClick = { draftTarget?.let { drafts.removeAttachment(it, attachment.id) } },
+                                        modifier = Modifier.semantics { contentDescription = "Remove ${attachment.name}" }) { Text("×") }
+                                }, modifier = Modifier.padding(end = 6.dp))
+                        }
+                        if (preparingAttachments) Text("Preparing…", color = nativeMuted)
+                    }
+                }
+                key(draftTarget) {
+                    Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box {
+                            IconButton(onClick = { attachmentMenu = true },
+                                enabled = !preparingAttachments && terminalDraft.operation == null,
+                                modifier = Modifier.semantics { contentDescription = "Add attachment" }) { Text("+", fontSize = 24.sp) }
+                            DropdownMenu(attachmentMenu, onDismissRequest = { attachmentMenu = false }) {
+                                fun pick(images: Boolean) {
+                                    attachmentMenu = false
+                                    pickerTarget = draftTarget; pickerGeneration = drafts.generation; pickerImages = images
+                                    attachmentPicker.launch(arrayOf(if (images) "image/*" else "*/*"))
+                                }
+                                DropdownMenuItem(text = { Text("Photos") }, onClick = { pick(true) })
+                                DropdownMenuItem(text = { Text("Files") }, onClick = { pick(false) },
+                                    enabled = ComposerAttachment.FILE_CAPABILITY in hostCapabilities)
+                            }
+                        }
+                        RichContentEditor(owner = draftTarget to client,
+                            enabled = terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments,
+                            onContent = ::acceptTerminalPaste, onError = { error = it }) {
+                            OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
+                                Modifier.weight(1f).onPreviewKeyEvent { event ->
+                                    val key = event.nativeKeyEvent
+                                    if (key.action == AndroidKeyEvent.ACTION_DOWN &&
+                                        key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {
+                                        sendComposer(submit = true); true
+                                    } else false
+                                }, minLines = 1, maxLines = 5,
+                                placeholder = { Text("Message or command") },
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
+                                keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
+                        }
+                        val canSend = terminalAttached && client != null && (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty()) &&
+                            terminalDraft.operation == null && !preparingAttachments
+                        TextButton(onClick = { sendComposer(submit = true) }, enabled = canSend) {
+                            Text(if (terminalDraft.operation == null) "Send" else "Sending…")
+                        }
+                    }
+                }
+            }
+            (terminalDraft.error ?: draftSaveError)?.let { message ->
+                Text(message, Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(12.dp),
+                    color = Color(0xFFFFAAAA), fontSize = 12.sp)
+            }
+        }
+    }
+    val remoteBrowserContent: @Composable ColumnScope.() -> Unit = {
+        val browser = selectedBrowser!!
+        val workspace = selectedWorkspace
+        val mac = pairedMacs.singleOrNull { it.code == code }
+        val browserKey = if (mac != null && workspace != null) localBrowserKey(browserLogin, teamState.scope, mac, workspace.id) else null
+        NativeRemoteBrowserPane(client, browser, busy, connectionError,
+            panePicker = { title ->
+                NativePanePicker(title, workspace, NativeWorkspacePane(browser = browser), Modifier.fillMaxWidth(),
+                    onTerminal = { focusManager.clearFocus(); softwareKeyboard?.hide(); selectPane(NativeWorkspacePane(terminal = it)) },
+                    onSurface = { focusManager.clearFocus(); softwareKeyboard?.hide(); selectPane(NativeWorkspacePane(surface = it)) },
+                    onBrowser = { focusManager.clearFocus(); softwareKeyboard?.hide(); selectPane(NativeWorkspacePane(browser = it)) },
+                    onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
+                    onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
+                    onNewBrowser = workspace?.let { current -> workspaceSourceForPane()?.let { source -> ({ openNewBrowser(source, current) }) } },
+                    browserState = NativeBrowserPickerState.from(connectionReady, hostCapabilities))
+            },
+            onBack = { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }, onReconnect = { retry++ },
+            modeRevision = listOf(connectionReady, hostCapabilities, mac, feedSources[mac?.origin]?.availability),
+            prefersOnDevice = browserKey?.let { localBrowsers.prefersOnDevice(it, browser.id) } == true,
+            availability = { mac?.let { feedSession.browserNetworks.network(it)?.availability() } ?: MacBrowserAvailability.NOT_CONNECTED },
+            onOnDevice = { url ->
+                if (browserKey != null && workspace != null && mac != null && signedIn && store.taskSession() == browserLogin &&
+                    selectedBrowser?.id == browser.id && selectedWorkspace?.browsers?.any { it.id == browser.id } == true &&
+                    selectedWorkspace?.id == workspace.id && code == mac.code &&
+                    browserKey == localBrowserKey(store.taskSession(), teamState.scope, mac, workspace.id) &&
+                    store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)) {
+                    focusManager.clearFocus(); softwareKeyboard?.hide(); workspaceTabs.cancel()
+                    localBrowsers.openOnDevice(browserKey, workspace, browser.id, url)
+                    selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null
+                    selectedChangesWorkspace = null; error = null
+                }
+            })
+    }
+    val changesContent: @Composable ColumnScope.() -> Unit = {
+        val active = client
+        val workspace = selectedChangesWorkspace!!
+        val ownerKey = pairedMacs.singleOrNull { it.code == code }?.let {
+            workspaceTabKey(browserLogin, teamState.scope, it, workspace.id)
+        }
+        if (active != null && connectionReady && connectedCode == code && browserLogin != null && ownerKey != null)
+            NativeChangesView(active, workspace.id, workspace.title,
+                onBack = { selectedChangesWorkspace = null; selectedWorkspace = null },
+                navigation = changesNavigation.bind(browserLogin, ownerKey))
+        else {
+            BackHandler { selectedChangesWorkspace = null; selectedWorkspace = null }
+            Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(onClick = { selectedChangesWorkspace = null; selectedWorkspace = null }) { Text("‹  Workspaces") }
+                Text("Changes in ${workspace.title}", style = MaterialTheme.typography.titleMedium)
+                Text(if (busy) "Reconnecting to your Mac…" else "Changes disconnected", color = nativeMuted)
+                connectionError?.let { Text(it, color = Color(0xFFFF9999)) }
+                TextButton(onClick = { retry++ }, enabled = !busy) { Text("Reconnect") }
+            }
+        }
+    }
+    val workspaceListContent: @Composable ColumnScope.() -> Unit = {
+        Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { workspaceRoute = null; finishSearch(); showSettings = true }) {
+                Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
+            }
+            IconButton(onClick = ::presentComputers) {
+                Icon(painterResource(R.drawable.ic_computer_desktop), "Manage computers", tint = nativeMuted,
+                    modifier = Modifier.size(22.dp))
+            }
+            NativeComputerSelector(pairedMacs, selectedComputer, appearances, machineColorIndices, computerConnections,
+                computerMenuOpen, { computerMenuOpen = it }, ::selectPickerComputer, pendingPickerComputer,
+                onPair = { computerMenuOpen = false; code = "" },
+                owner = NativeComputerMenuOwner(store.taskSession(), teamState.scope),
+                isOwnerCurrent = { owner -> account.isSignedIn() && store.taskSession() == owner.login &&
+                    accountTeams.state.value.scope == owner.team },
+                canSelect = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac) },
+                presence = scopedPresence)
+            Column(Modifier.weight(1f)) {
+                Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp)
+                Text(selectedComputer?.let(appearances::name) ?: "All Computers", color = nativeMuted,
+                    fontSize = 11.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+            if (notificationTab) {
+                if (feedEntries.any { !it.notification.isRead }) IconButton(
+                    onClick = {
+                        pendingReadAllOrigin = selectedOrigin
+                        pendingReadAllComputer = selectedComputer?.let(appearances::name) ?: "All Computers"
+                        confirmReadAll = true
+                    }, enabled = !readAllBusy) {
+                    Icon(painterResource(R.drawable.ic_feed_read_all), "Mark All Read",
+                        tint = if (readAllBusy) nativeMuted else nativeAccent, modifier = Modifier.size(23.dp))
+                }
+                Box {
+                    IconButton(onClick = { notificationFilterMenu = true }) {
+                        Icon(painterResource(if (unreadNotificationsOnly) R.drawable.ic_feed_filter_active else R.drawable.ic_feed_filter),
+                            "Notification filter", tint = if (unreadNotificationsOnly) nativeAccent else nativeMuted,
+                            modifier = Modifier.size(23.dp))
+                    }
+                    DropdownMenu(notificationFilterMenu, onDismissRequest = { notificationFilterMenu = false }) {
+                        DropdownMenuItem(text = { Text("All Notifications") }, onClick = {
+                            unreadNotificationsOnly = false; notificationFilterMenu = false
+                        }, leadingIcon = { Text(if (!unreadNotificationsOnly) "✓" else " ") })
+                        DropdownMenuItem(text = { Text("Unread") }, onClick = {
+                            unreadNotificationsOnly = true; notificationFilterMenu = false
+                        }, leadingIcon = { Text(if (unreadNotificationsOnly) "✓" else " ") })
+                    }
+                }
+            } else {
+                Box {
+                    TextButton(onClick = { workspaceFilterMenuOpen = true }) {
+                        Text(if (unreadWorkspacesOnly) "◉" else "☷", color = nativeMuted,
+                            fontSize = 21.sp)
+                    }
+                    DropdownMenu(workspaceFilterMenuOpen,
+                        onDismissRequest = { workspaceFilterMenuOpen = false }) {
+                        DropdownMenuItem(text = { Text("All workspaces") }, onClick = {
+                            unreadWorkspacesOnly = false; workspaceFilterMenuOpen = false
+                        }, leadingIcon = { Text(if (unreadWorkspacesOnly) " " else "✓") })
+                        DropdownMenuItem(text = { Text("Unread") }, onClick = {
+                            unreadWorkspacesOnly = true; workspaceFilterMenuOpen = false
+                        }, leadingIcon = { Text(if (unreadWorkspacesOnly) "✓" else " ") })
+                    }
+                }
+                Box {
+                    TextButton(onClick = { createMenuOpen = true }) {
+                        Text("+", color = nativeAccent, fontSize = 25.sp)
+                    }
+                    DropdownMenu(createMenuOpen, onDismissRequest = { createMenuOpen = false }) {
+                        DropdownMenuItem(text = { Text("New workspace") }, enabled = canCreateOnCurrentMac && !creatingWorkspace && !creatingTerminal, onClick = {
+                            createMenuOpen = false; createWorkspace()
+                        })
+                        DropdownMenuItem(text = { Text("New task") }, onClick = {
+                            createMenuOpen = false; finishSearch(); newTaskDraft()
+                        })
+                        if ("workspace.group_create.v1" in hostCapabilities) {
+                            DropdownMenuItem(text = { Text("New group") }, enabled = canCreateOnCurrentMac, onClick = {
+                                createMenuOpen = false; showCreateGroup = true
+                            })
+                        }
+                    }
+                }
+            }
+        }
+        if (busy && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot }) {
+            Column(Modifier.padding(horizontal = 18.dp)) {
+                Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
+                TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
+            }
+        }
+        if (notificationTab) {
+            NativeNotificationFeedView(feedProjection, scopedFeedSources, unreadNotificationsOnly,
+                notificationQuery.isNotBlank(), feedRefreshing, notificationNow, searchLocale, Modifier.weight(1f),
+                onOpen = { entry ->
+                    workspaceRoute = null
+                    inAppNotification = NotificationDestination(java.util.UUID.randomUUID().toString(),
+                        entry.source.mac.origin, entry.notification.id, entry.notification.workspaceId,
+                        entry.notification.surfaceId, entry.notification.retargetsToLiveSurfaceOwner)
+                }, onRead = ::setNotificationRead,
+                onToggle = { feedSession.projection = feedProjection.toggle(it) },
+                onMore = { feedRowWindow += 300 }, onRefresh = ::refreshFeed)
+        } else {
+            val matches = remember(workspaceSearch, search) { workspaceSearch.matches(search) }
+            val entries = workspaceEntries(workspaceSources, matches, search.isNotEmpty(), unreadWorkspacesOnly, collapsedGroups)
+            Box(Modifier.weight(1f)) {
+            val reorderSource = workspaceSources.singleOrNull()
+            val canReorder = reorderSource != null && reorderSource.canReorderWorkspaces() &&
+                (reorderSource.groups.isNotEmpty() || reorderSource.workspaces.none { it.isPinned }) &&
+                reorderSource.mac.code == connectedCode && search.isBlank() && !unreadWorkspacesOnly &&
+                (moveStatus[reorderSource.mac.origin]?.pending ?: 0) < 3
+            fun move(source: NativeFeedSource, id: String, intent: NativeWorkspaceMove): Boolean {
+                val accepted = workspaceMoves.enqueue(source, id, intent)
+                if (accepted) error = null
+                return accepted
+            }
+            NativeWorkspaceDragList(entries, canReorder, Modifier.fillMaxSize(), onMove = ::move, before = {
+                workspaceSources.filter { it.availability != NativeFeedAvailability.CONNECTED }.forEach { source ->
+                    item("status:" + source.mac.origin) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${appearances.name(source.mac)} · ${if (source.availability == NativeFeedAvailability.CONNECTING) "Connecting…" else "Unavailable"}",
+                                Modifier.weight(1f), color = nativeMuted, fontSize = 12.sp)
+                            TextButton(onClick = { refreshFeed() }) { Text("Retry") }
+                        }
+                    }
+                }
+            }, empty = {
+                NativeWorkspaceEmptyRow(when {
+                    search.isNotBlank() -> NativeWorkspaceEmptyGuidance.SEARCH
+                    unreadWorkspacesOnly -> NativeWorkspaceEmptyGuidance.UNREAD
+                    else -> NativeWorkspaceEmptyGuidance.MAC
+                }, emptyWorkspaceRecoveryState, onRetry = if (workspaceSources.isEmpty()) null else ({
+                    val login = browserLogin
+                    val owner = teamState.scope
+                    val targets = workspaceSources.map { it.mac }
+                    emptyWorkspaceRecovery.start {
+                        check(store.taskSession() == login && accountTeams.state.value.scope == owner &&
+                            targets.all { store.visiblePairedMacs().contains(it) && connection.allowsSaved(it) })
+                        feedCoordinator.refreshWorkspaceLists(targets)
+                    }
+                }))
+            }) { entry ->
+                    val owner = entry.source
+                    if (entry is WorkspaceListEntry.Header) {
+                        val group = entry.group
+                        NativeGroupHeaderRow(group,
+                            expanded = !group.isCollapsed,
+                            unread = entry.unread,
+                            onOpen = group.liveAnchorWorkspaceId?.takeIf { id -> owner.workspaces.any { it.id == id } }?.let { anchor ->
+                                { inAppNotification = null; workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, anchor) }
+                            },
+                            canEdit = "workspace.group_actions.v1" in owner.capabilities,
+                            onToggle = {
+                                collapsedGroups = collapsedGroups + (entry.key to !group.isCollapsed)
+                                store.update { it.put("collapsed_groups", JSONObject(collapsedGroups)) }
+                            },
+                            onAction = { action, title -> scope.launch {
+                                try { feedCoordinator.groupAction(owner.mac, group.id, action, title); error = null }
+                                catch (failure: Exception) {
+                                    if (failure is CancellationException) throw failure
+                                    error = failure.message
+                                }
+                            } })
+                    } else if (entry is WorkspaceListEntry.Footer) {
+                        Spacer(Modifier.fillMaxWidth().height(16.dp).semantics { contentDescription = "End of ${entry.group.name}" })
+                    } else {
+                    val workspace = (entry as WorkspaceListEntry.Workspace).workspace
+                    fun open(terminalId: String? = null, browserId: String? = null, changes: Boolean = false, surfaceId: String? = null) {
+                        inAppNotification = null
+                        workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, workspace.id, terminalId, browserId, changes, surfaceId = surfaceId)
+                    }
+                    Column(Modifier.padding(start = if (entry.indented) 18.dp else 0.dp)
+                        .semantics { contentDescription = "${workspace.title} on ${appearances.name(owner.mac)}" }) {
+                    NativeWorkspaceRow(
+                        workspace = workspace, groups = owner.groups,
+                        computer = appearances.name(owner.mac).takeIf { selectedOrigin == null && pairedMacs.size > 1 },
+                        appearance = appearances.get(owner.mac), machineId = owner.mac.colorIdentity.colorSeed,
+                        machineColorIndex = machineColorIndices[owner.mac.colorIdentity],
+                        canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
+                        onOpen = { open() },
+                        onAction = { action, title ->
+                            if (action == "changes") open(changes = true)
+                            else if (action == "browser.create") openNewBrowser(owner, workspace)
+                            else if (action == "terminal.create") createTerminal(owner, workspace)
+                            else if (action.startsWith("move:")) {
+                                val target = action.removePrefix("move:").takeIf { it.isNotBlank() }
+                                move(owner, workspace.id, NativeWorkspaceMove(target, null))
+                            } else {
+                                val entryContext = browserNavigationContext()
+                                val entryNavigation = navigationGeneration.observe(entryContext)
+                                val entryLogin = browserLogin
+                                val entryOwner = teamState.scope
+                                fun stillCurrent() = signedIn && store.taskSession() == entryLogin && teamState.scope == entryOwner &&
+                                    navigationGeneration.matches(entryNavigation, browserNavigationContext()) && store.visiblePairedMacs().contains(owner.mac) && connection.allowsSaved(owner.mac)
+                                scope.launch {
+                                    try {
+                                        feedCoordinator.workspaceAction(owner.mac, workspace.id, action, title)
+                                        if (stillCurrent()) error = null
+                                    } catch (failure: Exception) {
+                                        if (failure is CancellationException) throw failure
+                                        if (stillCurrent()) error = failure.message
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    workspace.macSurfaces.forEach { surface ->
+                        NativeSurfaceShortcut(surface, nativeAccent) { open(surfaceId = surface.id) }
+                    }
+                    workspace.browsers.forEach { browser ->
+                        Text("▣  ${browser.title.ifBlank { "Browser" }}",
+                            Modifier.fillMaxWidth().clickable { open(browserId = browser.id) }
+                                .padding(start = 80.dp, top = 4.dp, bottom = 12.dp),
+                            color = nativeAccent, fontSize = 12.sp)
+                    }
+                    }
+                    HorizontalDivider(color = Color(0xFF292C31))
+                    }
+            }
+            if (searchState.active == null) NativeTaskComposerButton(
+                Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 2.dp), enabled = true) {
+                finishSearch(); newTaskDraft()
+            }
+            }
+        }
+        NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
+            onTab = { workspaceRoute = null; finishSearch(); notificationTab = it },
+            onBeginSearch = { searchState = searchState.begin(searchScope) },
+            onEdit = { value, generation -> searchState = searchState.edit(value, searchScope, generation) },
+            onSubmit = { finishSearch() }, onCancel = { finishSearch(cancel = true) })
+    }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings) {
     NativeScreenLayout(Modifier.fillMaxSize().background(nativePage).statusBarsPadding().navigationBarsPadding().imePadding(), browserLogin, teamState.email) {
         LocalBrowserCreationProgress(localBrowserState.creating != null, localBrowsers::cancelRequest)
@@ -2180,313 +3057,18 @@ fun NativeScreen(
             showOnboarding -> onboardingContent()
             showSshComputers && sharedConnections != null -> NativeSshComputersRoute(sharedConnections.ssh) { showSshComputers = false }
             showSettings && showSshKeys -> NativeSshKeysRoute(store, browserLogin) { showSshKeys = false }
-            showSettings && computersOwner != null -> {
-                val owner = checkNotNull(computersOwner)
-                fun admitted() = account.isSignedIn() && store.taskSession() == owner.login && accountTeams.state.value.scope == owner.team
-                if (!admitted()) {
-                    LaunchedEffect(owner) { computersOwner = null }
-                } else key(owner) {
-                    var legacyDetails by remember { mutableStateOf<NativeCredentialStore.PairedMac?>(null) }
-                    val rows = NativeComputerList.rows(displayedMacs, appearances, scopedPresence, lastSeenHistory,
-                        computerPreferences, currentDirectory, tailscaleRouteLabels)
-                    val legacy = legacyDetails?.let { mac -> rows.singleOrNull { it.mac.origin == mac.origin } }
-                    fun current(mac: NativeCredentialStore.PairedMac) = admitted() &&
-                        NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac)
-                    fun pairMac() {
-                        if (!admitted()) return
-                        computersOwner = null; showSettings = false
-                        code = ""; selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
-                        selectedBrowser = null
-                    }
-                    if (legacy != null) NativeLegacyComputerDetails(legacy, { legacyDetails = null }) {
-                        if (current(legacy.mac)) {
-                            computersOwner = null; showSettings = false
-                            val alreadyConnected = connectionReady && connectedCode == legacy.mac.code && client?.isClosed == false
-                            val sameAttempt = code == legacy.mac.code
-                            selectPickerComputer(legacy.mac)
-                            if (!alreadyConnected) {
-                                expectedReconnect = legacy.mac
-                                if (sameAttempt) retry++
-                            }
-                        }
-                    } else NativeComputersRoute(sharedConnections?.ssh, ::dismissComputers, ::pairMac) {
-                        if (cachedComputers != null) NativeCachedComputersNotice()
-                        NativeManagedComputerRows(rows, appearances, machineColorIndices, computerConnections, scopedPresence,
-                            onDetails = { mac -> if (current(mac)) {
-                                val target = owner.team?.let { NativeComputerTarget.from(mac, it) }
-                                if (target != null && sharedConnections != null) {
-                                    if (computerState.account == owner.team)
-                                        computerDetails = NativeComputerDetailsPresentation(checkNotNull(owner.team), target, machineColorIndices[mac.colorIdentity])
-                                    else error = "Computer settings are still loading. Try again."
-                                } else legacyDetails = mac
-                            } }, onPair = ::pairMac, hiddenOrigins = hiddenOrigins, onVisibility = ::setComputerVisibility,
-                            readOnly = cachedComputers != null)
-                    }
-                }
-            }
-            showSettings -> {
-                NativeSettingsLayout(onBack = { showSettings = false }, account = {
-                NativeAccountTeamSection(teamState, onRefresh = {
-                    scope.launch {
-                        try { accountTeams.refresh() }
-                        catch (failure: Exception) { if (failure is CancellationException) throw failure }
-                    }
-                }, onSelect = { id ->
-                    scope.launch {
-                        try {
-                            accountTeams.select(id)
-                            client?.close(); client = null; code = ""
-                            selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
-                        } catch (failure: Exception) { if (failure is CancellationException) throw failure }
-                    }
-                }, onCreate = { name ->
-                    try {
-                        accountTeams.create(name)
-                        client?.close(); client = null; code = ""
-                        selectedTerminal = null; selectedWorkspace = null; selectedSurface = null
-                        true
-                    } catch (failure: Exception) {
-                        if (failure is CancellationException) throw failure
-                        accountTeams.state.value.createdTeam != null
-                    }
-                })
-                TextButton(onClick = { signOutCurrentAccount() },
-                    modifier = Modifier.padding(horizontal = 14.dp)) { Text("Sign out") }
-                NativeAccountDeletionButton(browserLogin, deletionReceipt, accountDeletion::begin)
-                }, computers = {
-                Text("COMPUTERS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
-                TextButton(onClick = ::presentComputers, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.computers")) {
-                    Text("Manage computers")
-                }
-                if (code.isNotBlank() && (PairingCodeParser.parse(code).getOrNull() !is PairingCode.Iroh ||
-                    pairedMacs.none { it.code == code && computerState.account?.let { team -> NativeComputerTarget.from(it, team) } != null })) TextButton(onClick = {
-                    runCatching {
-                        val owner = teamState.scope
-                        if (sharedConnections != null) {
-                            checkNotNull(owner) { "Refresh your account teams first" }
-                            store.forgetMac(code, owner) { accountTeams.isCurrent(owner) }
-                        } else store.forgetMac(code)
-                        savedPairedMacs = store.pairedMacs()
-                        code = store.load()?.optString("pairing_code").orEmpty()
-                        showSettings = false
-                    }.onFailure { error = it.message }
-                }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Remove local pairing", color = Color(0xFFFF9999)) }
-                }, notifications = {
-                Text("NOTIFICATIONS", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
-                    color = nativeMuted, fontSize = 11.sp)
-                Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Background notifications")
-                        Text("Keep a connection to your Mac for agent alerts", color = nativeMuted, fontSize = 12.sp)
-                    }
-                    Switch(backgroundNotifications, onCheckedChange = { enabled ->
-                        if (enabled) {
-                            enableNotifications(false)
-                        } else runCatching { NativeNotificationService.setEnabled(context, false) }
-                            .onSuccess { backgroundNotifications = false; error = null }
-                            .onFailure { error = it.message }
-                    }, enabled = signedIn && code.isNotBlank(),
-                        modifier = Modifier.semantics { contentDescription = "Background notifications" })
-                }
-                NativeNotificationSettings()
-                }, preferences = {
-                if (whatsNewState?.archive?.isNotEmpty() == true) TextButton(onClick = { showWhatsNew = true },
-                    modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.whatsnew")) { Text("What's New") }
-                TextButton(onClick = { replayOnboarding = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.introduction")) { Text("View Introduction Again") }
-                NativeFeedbackSettingsButton()
-                NativeDiagnosticsSettings()
-                TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
-                NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences)
-                TextButton(onClick = { showShortcuts = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Terminal Shortcuts") }
-                TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
-                }, connections = {
-                NativeNetworkingSettings(sharedConnections?.native, computerState)
-                NativeLegacyConnectionCheckSettings(client, pairedMacs, code, connectionReady)
-                Text("CONNECTION", Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
-                    color = nativeMuted, fontSize = 11.sp)
-                Text("${pairedMacs.firstOrNull { it.code == code }?.let(appearances::name) ?: hostName} · ${if (client != null) "Connected" else "Disconnected"}",
-                    Modifier.padding(horizontal = 22.dp), color = nativeMuted, fontSize = 13.sp)
-                TextButton(onClick = onUseHelper, modifier = Modifier.padding(horizontal = 14.dp)) {
-                    Text("Use existing helper connection", color = nativeMuted)
-                }
-                NativeLocalResetSection()
-                })
-            }
-            showTaskComposer -> {
-                val repository = taskDraftRepository
-                val restored = taskDraftEntries[taskDraftId]
-                val restoredMac = restored?.let { draft -> pairedMacs.firstOrNull { it.ownsOrigin(draft.origin) } }
-                LaunchedEffect(restored?.origin, pairedMacs) {
-                    if (restoredMac != null && code != restoredMac.code) selectComputer(restoredMac)
-                }
-                val taskMac = pairedMacs.firstOrNull { it.code == code }
-                val taskOrigin = restored?.origin ?: taskMac?.origin ?: pairingOrigin(code)
-                val selectedTaskMac = pairedMacs.firstOrNull { it.ownsOrigin(taskOrigin) }
-                val taskCode = selectedTaskMac?.code
-                val taskConnected = connectionReady && taskCode != null && connectedCode == taskCode && code == taskCode
-                val active = client.takeIf { taskConnected }
-                val taskWorkspaces = if (taskMac?.ownsOrigin(taskOrigin) == true) workspaces else emptyList()
-                if (repository != null) key(taskDraftId, repository.session) {
-                NativeTaskComposerView(active,
-                    directories = preferredTaskDirectories(taskWorkspaces, selectedWorkspace?.id),
-                    createTask = { parameters ->
-                        val target = checkNotNull(selectedTaskMac) { "This Mac is no longer paired" }
-                        val taskClient = checkNotNull(active) { "That Mac is not connected" }
-                        requireWorkspaceConnection(taskClient, target)
-                        workspaceSnapshots.mutate(target) { taskClient.request("workspace.create", parameters, timeoutMillis = 30_000) }
-                    },
-                    origin = taskOrigin,
-                    models = feedSession.taskModels,
-                    onCreated = { response ->
-                        val result = TaskCreationResult.parse(response)
-                        val created = applyCreatedWorkspace(checkNotNull(selectedTaskMac), result)
-                        // Like iOS, partial create responses cannot replace group metadata.
-                        refreshFeed()
-                        showTaskComposer = false
-                        selectedSurface = null; selectedBrowser = null; selectedWorkspace = created
-                        selectedBrowser = null
-                        selectedTerminal = created.terminals.firstOrNull {
-                            it.id == response.optString("created_terminal_id")
-                        } ?: created.preferredTerminal
-                        selectedTerminal?.let { terminal -> selectedTaskMac?.let { mac ->
-                            workspaceTabKey(browserLogin, teamState.scope, mac, created.id)?.let { key ->
-                                workspaceTabs.cancel(); terminalStartup.begin(key, terminal)
-                            }
-                        } }
-                    }, onBack = { showTaskComposer = false },
-                    isCurrent = { signedIn && taskDraftRepository === repository && showTaskComposer && store.taskSession() == browserLogin },
-                    savedDrafts = repository.drafts, draftId = taskDraftId,
-                    macName = selectedTaskMac?.let(appearances::name) ?: restored?.macName ?: "Choose a Mac",
-                    appearances = appearances,
-                    hasSelectedMac = selectedTaskMac != null,
-                    resolvedMacOrigin = taskMac?.origin.takeIf { selectedTaskMac == null && taskOrigin == pairingOrigin(code) },
-                    savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
-                    attachmentRepository = repository, supportsAttachments = taskMac?.ownsOrigin(taskOrigin) == true && ComposerAttachment.FILE_CAPABILITY in hostCapabilities,
-                    macs = pairedMacs, workspaceGroups = if (taskMac?.ownsOrigin(taskOrigin) == true) groups else emptyList(),
-                    supportsGroups = if (taskConnected) "workspace.create_in_group.v1" in hostCapabilities else null,
-                    groupsLoaded = taskConnected && taskGroupsLoaded,
-                    groupIsCurrent = { group -> group == null || (connectionReady && connectedCode == taskCode && code == taskCode && "workspace.create_in_group.v1" in hostCapabilities &&
-                        taskGroupsLoaded && groups.count { it.id == group } == 1) },
-                    directoryWorkspaces = taskWorkspaces, selectedWorkspaceId = selectedWorkspace?.id,
-                    selectMac = { editor, nextOrigin ->
-                        val target = requireNotNull(pairedMacs.singleOrNull { it.ownsOrigin(nextOrigin) }) { "This Mac is no longer paired" }
-                        val snapshot = workspaceSources.firstOrNull { it.mac.origin == nextOrigin && it.availability == NativeFeedAvailability.CONNECTED }
-                        val currentDraft = checkNotNull(repository.drafts.state.value[editor.id])
-                        val templates = repository.templates.state.value
-                        val nextDirectory = templates.suggestedDirectory(templates.selected(currentDraft.templateId), nextOrigin,
-                            snapshot?.let { preferredTaskDirectories(it.workspaces, null).firstOrNull() })
-                        repository.selectMac(editor, nextOrigin, target.name, nextDirectory)
-                        check(signedIn && taskDraftRepository === repository && pairedMacs.any { it.ownsOrigin(nextOrigin) }) { "Task account or Mac changed" }
-                        selectComputer(target)
-                    },
-                    persistDrafts = repository::persistNow, flushDrafts = repository::flush,
-                    onResumeDraft = { draft ->
-                        taskDraftId = draft.id
-                        pairedMacs.firstOrNull { it.ownsOrigin(draft.origin) }?.let(::selectComputer)
-                    }, onNewDraft = { newTaskDraft() },
-                    supportsTaskCreation = if (taskConnected) "workspace.task_create.v1" in hostCapabilities else null,
-                    refreshWorkspaces = {
-                        val listing = workspaceSnapshots.read(checkNotNull(selectedTaskMac) { "This Mac is no longer paired" },
-                            checkNotNull(active) { "That Mac is not connected" })
-                        check(signedIn && connectionReady && client === active && connectedCode == taskCode && code == taskCode) {
-                            "Connection changed while refreshing workspaces"
-                        }
-                        applyListing(listing)
-                    })
-                } else Column(Modifier.fillMaxSize().padding(22.dp)) {
-                    TextButton(onClick = { showTaskComposer = false }) { Text("‹  Workspaces") }
-                    Text(taskDraftLoadError ?: "Loading saved drafts…")
-                    if (taskDraftLoadError != null) TextButton(onClick = { taskDraftLoadAttempt++ }) { Text("Retry") }
-                }
-            }
+            showSettings && computersOwner != null -> computersContent()
+            showSettings -> settingsContent()
+            showTaskComposer -> taskComposerContent()
             screenResume.pending != null && selectedWorkspace == null && localBrowser == null -> {
                 NativeWorkspaceWaitingPane("Restoring workspace…",
                     onBack = { screenResume.cancel(); workspaceRoute = null },
                     connected = connectionReady && error == null, connectionError = error ?: connectionError,
                     onReconnect = { error = null; retryDelay = 2_000; retry++ })
             }
-            localBrowser != null && pairedMacs.any { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key } -> {
-                val browserMac = pairedMacs.first { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key }
-                fun browserMenu(): RoutedBrowserMenu? {
-                    if (!signedIn || localBrowserKey(browserLogin, teamState.scope, browserMac, localBrowser.key.workspaceId) != localBrowser.key) return null
-                    val source = (moveSources[browserMac.origin] ?: feedSources[browserMac.origin])?.takeIf { it.mac == browserMac }
-                    val primary = connectionReady && connectedCode == browserMac.code && client?.isClosed == false
-                    val currentWorkspace = when {
-                        source?.hasWorkspaceSnapshot == true -> source.workspaces.singleOrNull { it.id == localBrowser.key.workspaceId }
-                        client != null && connectedCode == browserMac.code -> workspaces.singleOrNull { it.id == localBrowser.key.workspaceId }
-                        else -> localBrowser.workspace
-                    } ?: return null
-                    val feed = feedSources[browserMac.origin]?.takeIf { it.mac == browserMac }
-                    val support = if (primary) NativeBrowserPickerState.from(true, hostCapabilities)
-                        else feed?.let { NativeBrowserPickerState.from(it.availability == NativeFeedAvailability.CONNECTED, it.capabilities) }
-                            ?: NativeBrowserPickerState(known = false, streaming = false)
-                    return RoutedBrowserMenu(currentWorkspace, !creatingWorkspace && !creatingTerminal &&
-                        (primary || feed?.availability == NativeFeedAvailability.CONNECTED), browserState = support)
-                }
-                fun createFromBrowser(kind: NativeWorkspaceCreation) {
-                    val login = store.taskSession() ?: return
-                    if (browserMenu()?.creationEnabled != true || localBrowsers.state.value.local?.surface !== localBrowser.surface ||
-                        localBrowserKey(login, teamState.scope, browserMac, localBrowser.key.workspaceId) != localBrowser.key ||
-                        !store.visiblePairedMacs().contains(browserMac) || !connection.allowsSaved(browserMac)) return
-                    localBrowsers.leave(close = true)
-                    workspaceRoute = NativeWorkspaceRoute(browserMac.origin, localBrowser.key.workspaceId,
-                        creation = kind, creationLogin = login)
-                }
-                RoutedLocalBrowserWorkspaceView(localBrowser, localBrowsers,
-                    workspaceSources.firstOrNull { it.mac.ownsOrigin(localBrowser.key.computerId) }?.workspaces
-                        ?.firstOrNull { it.id == localBrowser.key.workspaceId } ?: localBrowser.workspace,
-                    network = { feedSession.browserNetworks.network(browserMac) },
-                    retainHost = {
-                        val held = feedSession.holdBrowser(browserMac)
-                        val connectionHandle = try {
-                            if (sharedConnections != null) NativeAppConnections.acquire(context.applicationContext) else null
-                        } catch (failure: Exception) { held.close(); throw failure }
-                        RoutedBrowserHostLease({ held.close(); connectionHandle?.close() },
-                            { active -> connectionHandle?.connections?.setProbeActive(held, active) })
-                    },
-                    onClose = { displayedTab?.first?.let { key -> browserLogin?.let { workspaceTabs.forget(it, key) } } },
-                    onRoute = { workspaceRoute = it }, browserModes = true,
-                    onNewWorkspace = { createFromBrowser(NativeWorkspaceCreation.WORKSPACE) },
-                    onNewTerminal = { createFromBrowser(NativeWorkspaceCreation.TERMINAL) },
-                    onNewBrowser = { createFromBrowser(NativeWorkspaceCreation.BROWSER) }, menuSource = ::browserMenu)
-            }
+            localBrowser != null && pairedMacs.any { localBrowserKey(browserLogin, teamState.scope, it, localBrowser.key.workspaceId) == localBrowser.key } -> localBrowserContent()
             cachedComputers != null || code.isBlank() || (selectedWorkspace == null && workspaceRoute == null && !notificationTab &&
-                (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot }))) -> {
-                val reconnectOwner = NativeComputerMenuOwner(store.taskSession(), teamState.scope)
-                fun isReconnectOwnerCurrent() = account.isSignedIn() && store.taskSession() == reconnectOwner.login &&
-                    accountTeams.state.value.scope == reconnectOwner.team
-                NativeComputerPicker(teamState, computerState.takeIf { it.account == teamState.scope }
-                    ?: NativeComputersState(account = teamState.scope, loading = true), runtime = sharedConnections?.native,
-                    onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
-                    colorIndices = machineColorIndices, connections = computerConnections, presence = scopedPresence, saved = displayedVisible, hidden = displayedHidden, onVisibility = ::setComputerVisibility,
-                    cachedDisplay = cachedComputers != null, displayAppearances = appearances, macPolicy = displayPolicy,
-                    lastSeenHistory = lastSeenHistory, preferences = computerPreferences, tailscaleRoutes = tailscaleRouteLabels,
-                    forgetCallbacks = forgetCallbacks, presentDetails = { computerDetails = it },
-                    connectingCode = code.takeIf { busy && cachedComputers == null }, connectionFailure = error ?: connectionError,
-                    onCancelConnect = { macSwitchRecovery.cancel(); pendingPickerCode = null; pairingSelectionCode = null; expectedReconnect = null
-                        code = ""; connectionError = null; error = null; showReconnectList = false },
-                    canSelectSaved = { mac -> isReconnectOwnerCurrent() &&
-                        NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac) },
-                    canSelectDiscovered = { mac -> isReconnectOwnerCurrent() &&
-                        NativeReconnectComputers.currentDiscovery(mac, computerStates.value, reconnectOwner.team) &&
-                        hiddenMacs.none { canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(mac.deviceId) && it.instanceTag == mac.buildTag } },
-                    onSelectSaved = { mac ->
-                        val sameAttempt = code == mac.code
-                        showReconnectList = true; selectPickerComputer(mac); expectedReconnect = mac
-                        if (sameAttempt) retry++
-                    },
-                    onSelect = { mac -> reconnectOwner.team?.let { owner ->
-                        showReconnectList = true; selectPairingCode(PairingCodeParser.computer(mac, owner))
-                    } },
-                    onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
-                    onComputers = ::presentComputers,
-                    onRefresh = { scope.launch {
-                        try { accountTeams.refresh(); sharedConnections?.native?.refresh() }
-                        catch (failure: Exception) { if (failure is CancellationException) throw failure }
-                    } }, onPairing = ::proposePairing, onNewTask = ::newTaskDraft,
-                    onUseHelper = onUseHelper, onLicenses = { showLicenses = true }, onError = { error = it })
-            }
+                (showReconnectList || (client == null && connectionError != null && workspaceSources.none { it.hasWorkspaceSnapshot }))) -> reconnectContent()
             selectedWorkspace != null && selectedTerminal == null && selectedBrowser == null && selectedSurface == null && selectedChangesWorkspace == null -> {
                 val workspace = selectedWorkspace!!
                 val source = workspaceSourceForPane()
@@ -2530,577 +3112,10 @@ fun NativeScreen(
                     onBrowser = { selectPane(NativeWorkspacePane(browser = it)) },
                     onNewBrowser = { selectedWorkspace?.let { workspace -> workspaceSourceForPane()?.let { openNewBrowser(it, workspace) } } })
             }
-            selectedTerminal != null -> NativeTerminalContent {
-                RetireTerminalInputOnBackground(rawKeyboardView)
-                val terminal = selectedTerminal!!
-                var showSizing by remember(client, terminal.id) { mutableStateOf(false) }
-                NativeTerminalHeader(terminal, selectedWorkspace, workspaces.size, hostCapabilities, connectionReady, directTyping,
-                    onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
-                    onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
-                    onBack = { selectedTerminal = null; selectedWorkspace = null; selectedSurface = null },
-                    onTerminal = { next ->
-                        rawKeyboardView?.finishComposition(); directTyping = false
-                        inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
-                        selectPane(NativeWorkspacePane(terminal = next))
-                    },
-                    onSurface = { surface ->
-                        rawKeyboardView?.finishComposition(); directTyping = false
-                        inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
-                        selectPane(NativeWorkspacePane(surface = surface))
-                    }, debugText = { RenderGrid.plainText(grid.visibleLines(scrollOffset)) }, onText = ::openTerminalText, onFiles = {
-                        inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
-                    }, onNewBrowser = {
-                        rawKeyboardView?.finishComposition(); directTyping = false; stopTerminalScrolling(); softwareKeyboard?.hide()
-                        selectedWorkspace?.let { workspace -> workspaceSourceForPane()?.let { openNewBrowser(it, workspace) } }
-                    }, onKeyboard = {
-                        inputModifiers = TerminalInputModifiers()
-                        if (directTyping) { rawKeyboardView?.finishComposition(); directTyping = false }
-                        else openDirectKeyboard()
-                    }, onSizing = if (terminalAttached && selectedSizing?.state != null) ({ showSizing = true }) else null,
-                    onBrowser = { browser ->
-                        rawKeyboardView?.finishComposition(); directTyping = false
-                        inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
-                        selectPane(NativeWorkspacePane(browser = browser))
-                    })
-                NativeTerminalTabs(selectedWorkspace?.terminals.orEmpty(), terminal) { selectPane(NativeWorkspacePane(terminal = it)) }
-                val currentGrid = grid
-                val gridPresentation = rememberTerminalGridPresentation(client, terminal.id, selectedSizing?.state,
-                    currentGrid, terminalReportPixels, terminalCells, density.density, terminalViewportPixels.height,
-                    gridRevision, scrollViewport, scrollInteractionEpoch)
-                val displayGeometry = gridPresentation.geometry
-                val visibleArtifactScroll by rememberUpdatedState(scrollViewport)
-                val localScroll = currentGrid.activeScreen == "primary" &&
-                    (terminalTransport.screenAnchor || terminalTransport.mode != TerminalOutputMode.GRID)
-                val scrollOwner = client
-                val scrollAllowed = { client === scrollOwner && selectedTerminal?.id == terminal.id &&
-                    scrollOwner?.terminalTrafficAllowed(terminal.id) == true && terminalScroll != null && !keyboardPresentation.frozen }
-                val scrollTerminal: (Double, TerminalGeometry.Cell) -> Boolean = { lines, cell ->
-                    if (!scrollAllowed()) false else {
-                        val move = gridPresentation.scroll(lines, scrollPosition, currentGrid.historyLineCount, localScroll)
-                        val sent = if (move.rows != 0.0) terminalScroll?.invoke(move.rows, cell) ?: false else false
-                        sent || move.revealed
-                    }
-                }
-                val accessibleScroll = TerminalAccessibilityScroll(localScroll, currentGrid.historyLineCount, scrollPosition,
-                    gridPresentation.reveal, gridPresentation.maximumReveal, displayGeometry?.cellHeight ?: 0f, terminalViewportPixels.height)
-                Box(Modifier.fillMaxWidth().weight(1f)) {
-                RenderGridView(currentGrid, terminalCells, gridRevision,
-                    Modifier.fillMaxSize().testTag("native-terminal")
-                        .onGloballyPositioned { coordinates ->
-                            terminalMeasurement = TerminalViewportMeasurement(coordinates.size,
-                                (terminalImeInsets.getBottom(density) - terminalNavigationInsets.getBottom(density)).coerceAtLeast(0))
-                        }
-                        .focusRequester(terminalFocusRequester)
-                        .onPreviewKeyEvent { event -> directHardware(event.nativeKeyEvent) }
-                        .focusable()
-                        .nativeTerminalAccessibility(terminalZoom.size, accessibleScroll, scrollAllowed(), ::openDirectKeyboard, ::openTerminalText,
-                            latest = {
-                                if (!scrollAllowed() || terminalActiveScreen != "primary") false else {
-                                    stopTerminalScrolling(); scrollPosition = 0.0; true
-                                }
-                            }) { rows ->
-                            terminalMotion.stop()
-                            val cell = displayGeometry?.cell(terminalViewportPixels.width / 2f, terminalViewportPixels.height / 2f)
-                            if (cell == null) false else scrollTerminal(rows, cell)
-                        }
-                        .then(if (keyboardPresentation.frozen) Modifier else Modifier.terminalPinchZoom(
-                            terminalZoom, gridPresentation.sharedLayout, gridPresentation.pinchOffset, gridPresentation.transform))
-                        .pointerInput(terminal.id, currentGrid, terminalCells, displayGeometry, artifactRpc, artifactsReady, artifactTapController) {
-                            detectTapGestures(onTap = { point ->
-                                if (keyboardPresentation.frozen) return@detectTapGestures
-                                artifactTapController.invalidate()
-                                var handlingArtifact = false
-                                displayGeometry?.let { geometry ->
-                                    val cell = visibleArtifactScroll.cell(geometry, point.x, point.y)
-                                    val path = if (artifactsReady && geometry.contains(point.x, point.y)) TerminalArtifactHitTest.path(
-                                        RenderGrid.plainText(visibleArtifactScroll.lines(currentGrid)), cell.column, cell.row, currentGrid.columns) else null
-                                    if (path != null) {
-                                        handlingArtifact = true
-                                        val authorization = ArtifactAuthorization.Terminal(draftTarget!!.workspace, draftTarget.surface)
-                                        val columns = currentGrid.columns
-                                        val rows = currentGrid.rows
-                                        artifactTapController.tap(path, folderTapEnabled,
-                                            stat = { candidate ->
-                                                val metadata = artifactRpc!!.stat(authorization, candidate)
-                                                if (metadata.getBoolean("is_directory")) ArtifactKind.DIRECTORY else ArtifactKind.read(metadata.opt("kind"))
-                                            },
-                                            stillMatches = {
-                                                currentGrid.columns == columns && currentGrid.rows == rows &&
-                                                    TerminalArtifactHitTest.path(RenderGrid.plainText(visibleArtifactScroll.lines(currentGrid)), cell.column, cell.row, columns) == path
-                                            },
-                                            open = {
-                                                stopTerminalScrolling(); directTyping = false; softwareKeyboard?.hide()
-                                                filesState.openPath(path)
-                                            },
-                                            focus = { sendClick ->
-                                                if (sendClick) terminalClick?.invoke(cell)
-                                                openDirectKeyboard()
-                                            })
-                                    } else if (geometry.contains(point.x, point.y)) terminalClick?.invoke(cell)
-                                }
-                                if (!handlingArtifact) openDirectKeyboard()
-                            }, onLongPress = { artifactTapController.invalidate(); openTerminalText() })
-                        }
-                        .terminalScrollGestures(terminalMotion,
-                            displayGeometry,
-                            replayGeneration, currentGrid.activeScreen,
-                            linePath = !localScroll, enabled = scrollAllowed(), onScroll = scrollTerminal), scrollPosition = scrollPosition,
-                    displayGeometry = displayGeometry, keyboardPresentation = keyboardPresentation.takeUnless { keepKeyboardGrid },
-                    displayLines = gridPresentation.visibleLines)
-                if (scrollOffset > 0) Row(Modifier.align(Alignment.BottomEnd).padding(8.dp)
-                    .background(nativePanel, RoundedCornerShape(14.dp)).padding(start = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Text("Scrollback · $scrollOffset rows", color = nativeMuted, fontSize = 12.sp)
-                    TextButton(onClick = { stopTerminalScrolling(); scrollPosition = 0.0 }) { Text("Latest") }
-                }
-                artifactChipCount?.takeUnless { terminalZoom.overlayVisible }?.let { count ->
-                    TerminalArtifactChip(count, Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = if (scrollOffset > 0) 62.dp else 10.dp)) {
-                        inputModifiers = TerminalInputModifiers()
-                        stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
-                    }
-                }
-                val sheetClient = client
-                val sheetWorkspace = selectedWorkspace
-                val sheetCode = code
-                TerminalSizingSurfaceView(selectedSizing, terminal.id, currentGrid, terminalCells, displayGeometry,
-                    terminalViewport, sizingViewportConfirmed, connectionReady && sheetClient != null,
-                    terminalZoom.overlayVisible, sheetClient?.terminalParticipantId, showSizing,
-                    onSheet = { showSizing = it }, onAction = { action ->
-                        val active = checkNotNull(sheetClient)
-                        val workspace = checkNotNull(sheetWorkspace)
-                        val viewport = terminalViewport
-                        val viewportGeneration = viewportRequestGeneration
-                        val selfId = selectedSizing?.selfId ?: active.terminalParticipantId
-                        if (action is TerminalSizingAction.Disconnect) require(action.ids.none { it == selfId })
-                        fun current() = client === active && selectedWorkspace?.id == workspace.id &&
-                            selectedTerminal?.id == terminal.id && code == sheetCode && signedIn && connectionReady &&
-                            TerminalSizingTraffic.CAPABILITY in hostCapabilities &&
-                            (action !is TerminalSizingAction.Counts ||
-                                (terminalViewport == viewport && viewportRequestGeneration == viewportGeneration))
-                        val response = active.changeTerminalSizing(workspace.id, terminal.id, action, viewport, viewportGeneration, ::current)
-                        terminalSizing.mutation(active, terminal.id, response)
-                    }, onReattach = { viewer ->
-                        val active = checkNotNull(sheetClient)
-                        val workspace = checkNotNull(sheetWorkspace)
-                        val expected = checkNotNull(selectedSizing)
-                        check(client === active && selectedWorkspace?.id == workspace.id && selectedTerminal?.id == terminal.id) {
-                            "Terminal connection changed. Check its status before retrying."
-                        }
-                        val result = active.reattachTerminal(workspace.id, terminal.id, viewer, terminalViewport)
-                        check(terminalSizing.reattached(active, terminal.id, result, expected)) {
-                            "Terminal connection changed. Check its status before retrying."
-                        }
-                    })
-                TerminalZoomOverlay(terminalZoom, displayPreferences,
-                    foreground = runCatching { Color(android.graphics.Color.parseColor(currentGrid.foreground)) }.getOrDefault(Color.White),
-                    background = runCatching { Color(android.graphics.Color.parseColor(currentGrid.background)) }.getOrDefault(nativePanel),
-                    modifier = Modifier.align(Alignment.Center))
-                }
-                TerminalToolbarView(toolbarStore.layout, inputModifiers,
-                    canInput = terminalAttached && selectedTerminal?.isReady == true && connectionReady && client != null && inputFailure == null && terminalDraft.operation == null,
-                    filesEnabled = artifactsReady,
-                    onModifier = { inputModifiers = inputModifiers.tap(it, android.os.SystemClock.uptimeMillis()) },
-                    onButton = { button ->
-                        when (button) {
-                            TerminalToolbarButton.PASTE -> pasteClipboard()
-                            TerminalToolbarButton.FILES -> if (artifactsReady) {
-                                inputModifiers = TerminalInputModifiers()
-                                stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
-                            }
-                            TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT ->
-                                terminalZoom.step(if (button == TerminalToolbarButton.ZOOM_IN) 1 else -1)
-                            else -> button.key?.let { key ->
-                                rawKeyboardView?.finishComposition()
-                                val sequence = inputModifiers.special(key, currentGrid.applicationCursorKeys)
-                                inputModifiers = inputModifiers.consume()
-                                queueInput(sequence)
-                            }
-                        }
-                    }, onCustom = { action ->
-                        rawKeyboardView?.finishComposition()
-                        inputModifiers = TerminalInputModifiers()
-                        queueInput(action.output)
-                    }, onCustomize = {
-                        rawKeyboardView?.finishComposition(); inputModifiers = TerminalInputModifiers()
-                        softwareKeyboard?.hide(); showShortcuts = true
-                    }, insert = if (terminalAttached && !directTyping && client != null && terminalDraft.operation == null && !preparingAttachments &&
-                        (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty())) ({ sendComposer(submit = false) }) else null)
-                inputFailure?.let { message ->
-                    Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text(message, Modifier.weight(1f), color = Color(0xFFFFAAAA), fontSize = 12.sp)
-                        TextButton(onClick = {
-                            val key = deliveryKey
-                            if (key != null && terminalInputs.requiresReconnect(key)) retry++
-                            else if (if (key != null && retainedInputQueue != null) terminalInputs.resume(key) else inputQueue.resume()) rawKeyboardView?.showKeyboard()
-                        }) { Text(if (deliveryKey?.let(terminalInputs::requiresReconnect) == true) "Reconnect" else "Resume typing") }
-                    }
-                }
-                if (directTyping) {
-                    key(draftTarget, client) {
-                        AndroidView(factory = { viewContext ->
-                            TerminalKeyboardView(viewContext).also { rawKeyboardView = it }
-                        }, update = { view ->
-                            val enabled = terminalAttached && client != null && inputFailure == null && terminalDraft.operation == null
-                            val resumed = enabled && !view.isEnabled
-                            view.isEnabled = enabled
-                            if (resumed) view.restartKeyboard()
-                            view.onText = ::directText
-                            view.onDelete = ::directDelete
-                            view.onKey = ::directHardware
-                            view.onPaste = { queueInput(it, paste = true) }
-                            view.onContent = ::acceptTerminalPaste
-                            view.onContentError = { error = it }
-                        }, onRelease = { view -> view.dispose(); if (rawKeyboardView === view) rawKeyboardView = null },
-                            modifier = Modifier.fillMaxWidth().height(48.dp).background(nativePanel))
-                    }
-                } else {
-                    if (terminalDraft.attachments.isNotEmpty() || preparingAttachments) {
-                        Row(Modifier.fillMaxWidth().background(nativePanel).horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            terminalDraft.attachments.forEach { attachment ->
-                                InputChip(selected = false, onClick = {},
-                                    label = { Text(attachment.name, maxLines = 1, modifier = Modifier.widthIn(max = 180.dp)) },
-                                    leadingIcon = { AttachmentThumbnail(attachment, draftRepository) },
-                                    trailingIcon = {
-                                        TextButton(onClick = { draftTarget?.let { drafts.removeAttachment(it, attachment.id) } },
-                                            modifier = Modifier.semantics { contentDescription = "Remove ${attachment.name}" }) { Text("×") }
-                                    }, modifier = Modifier.padding(end = 6.dp))
-                            }
-                            if (preparingAttachments) Text("Preparing…", color = nativeMuted)
-                        }
-                    }
-                    key(draftTarget) {
-                        Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box {
-                                IconButton(onClick = { attachmentMenu = true },
-                                    enabled = !preparingAttachments && terminalDraft.operation == null,
-                                    modifier = Modifier.semantics { contentDescription = "Add attachment" }) { Text("+", fontSize = 24.sp) }
-                                DropdownMenu(attachmentMenu, onDismissRequest = { attachmentMenu = false }) {
-                                    fun pick(images: Boolean) {
-                                        attachmentMenu = false
-                                        pickerTarget = draftTarget; pickerGeneration = drafts.generation; pickerImages = images
-                                        attachmentPicker.launch(arrayOf(if (images) "image/*" else "*/*"))
-                                    }
-                                    DropdownMenuItem(text = { Text("Photos") }, onClick = { pick(true) })
-                                    DropdownMenuItem(text = { Text("Files") }, onClick = { pick(false) },
-                                        enabled = ComposerAttachment.FILE_CAPABILITY in hostCapabilities)
-                                }
-                            }
-                            RichContentEditor(owner = draftTarget to client,
-                                enabled = terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments,
-                                onContent = ::acceptTerminalPaste, onError = { error = it }) {
-                                OutlinedTextField(terminalDraft.text, { text -> draftTarget?.let { drafts.edit(it, text) } },
-                                    Modifier.weight(1f).onPreviewKeyEvent { event ->
-                                        val key = event.nativeKeyEvent
-                                        if (key.action == AndroidKeyEvent.ACTION_DOWN &&
-                                            key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {
-                                            sendComposer(submit = true); true
-                                        } else false
-                                    }, minLines = 1, maxLines = 5,
-                                    placeholder = { Text("Message or command") },
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default, autoCorrectEnabled = false),
-                                    keyboardActions = KeyboardActions(onSend = { sendComposer(submit = true) }))
-                            }
-                            val canSend = terminalAttached && client != null && (terminalDraft.text.isNotEmpty() || terminalDraft.attachments.isNotEmpty()) &&
-                                terminalDraft.operation == null && !preparingAttachments
-                            TextButton(onClick = { sendComposer(submit = true) }, enabled = canSend) {
-                                Text(if (terminalDraft.operation == null) "Send" else "Sending…")
-                            }
-                        }
-                    }
-                }
-                (terminalDraft.error ?: draftSaveError)?.let { message ->
-                    Text(message, Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(12.dp),
-                        color = Color(0xFFFFAAAA), fontSize = 12.sp)
-                }
-            }
-            selectedBrowser != null -> {
-                val browser = selectedBrowser!!
-                val workspace = selectedWorkspace
-                val mac = pairedMacs.singleOrNull { it.code == code }
-                val browserKey = if (mac != null && workspace != null) localBrowserKey(browserLogin, teamState.scope, mac, workspace.id) else null
-                NativeRemoteBrowserPane(client, browser, busy, connectionError,
-                    panePicker = { title ->
-                        NativePanePicker(title, workspace, NativeWorkspacePane(browser = browser), Modifier.fillMaxWidth(),
-                            onTerminal = { focusManager.clearFocus(); softwareKeyboard?.hide(); selectPane(NativeWorkspacePane(terminal = it)) },
-                            onSurface = { focusManager.clearFocus(); softwareKeyboard?.hide(); selectPane(NativeWorkspacePane(surface = it)) },
-                            onBrowser = { focusManager.clearFocus(); softwareKeyboard?.hide(); selectPane(NativeWorkspacePane(browser = it)) },
-                            onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
-                            onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
-                            onNewBrowser = workspace?.let { current -> workspaceSourceForPane()?.let { source -> ({ openNewBrowser(source, current) }) } },
-                            browserState = NativeBrowserPickerState.from(connectionReady, hostCapabilities))
-                    },
-                    onBack = { selectedBrowser = null; selectedWorkspace = null; selectedSurface = null }, onReconnect = { retry++ },
-                    modeRevision = listOf(connectionReady, hostCapabilities, mac, feedSources[mac?.origin]?.availability),
-                    prefersOnDevice = browserKey?.let { localBrowsers.prefersOnDevice(it, browser.id) } == true,
-                    availability = { mac?.let { feedSession.browserNetworks.network(it)?.availability() } ?: MacBrowserAvailability.NOT_CONNECTED },
-                    onOnDevice = { url ->
-                        if (browserKey != null && workspace != null && mac != null && signedIn && store.taskSession() == browserLogin &&
-                            selectedBrowser?.id == browser.id && selectedWorkspace?.browsers?.any { it.id == browser.id } == true &&
-                            selectedWorkspace?.id == workspace.id && code == mac.code &&
-                            browserKey == localBrowserKey(store.taskSession(), teamState.scope, mac, workspace.id) &&
-                            store.visiblePairedMacs().contains(mac) && connection.allowsSaved(mac)) {
-                            focusManager.clearFocus(); softwareKeyboard?.hide(); workspaceTabs.cancel()
-                            localBrowsers.openOnDevice(browserKey, workspace, browser.id, url)
-                            selectedTerminal = null; selectedWorkspace = null; selectedSurface = null; selectedBrowser = null
-                            selectedChangesWorkspace = null; error = null
-                        }
-                    })
-            }
-            selectedChangesWorkspace != null -> {
-                val active = client
-                val workspace = selectedChangesWorkspace!!
-                val ownerKey = pairedMacs.singleOrNull { it.code == code }?.let {
-                    workspaceTabKey(browserLogin, teamState.scope, it, workspace.id)
-                }
-                if (active != null && connectionReady && connectedCode == code && browserLogin != null && ownerKey != null)
-                    NativeChangesView(active, workspace.id, workspace.title,
-                        onBack = { selectedChangesWorkspace = null; selectedWorkspace = null },
-                        navigation = changesNavigation.bind(browserLogin, ownerKey))
-                else {
-                    BackHandler { selectedChangesWorkspace = null; selectedWorkspace = null }
-                    Column(Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(onClick = { selectedChangesWorkspace = null; selectedWorkspace = null }) { Text("‹  Workspaces") }
-                        Text("Changes in ${workspace.title}", style = MaterialTheme.typography.titleMedium)
-                        Text(if (busy) "Reconnecting to your Mac…" else "Changes disconnected", color = nativeMuted)
-                        connectionError?.let { Text(it, color = Color(0xFFFF9999)) }
-                        TextButton(onClick = { retry++ }, enabled = !busy) { Text("Reconnect") }
-                    }
-                }
-            }
-            else -> {
-                Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { workspaceRoute = null; finishSearch(); showSettings = true }) {
-                        Image(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp))
-                    }
-                    IconButton(onClick = ::presentComputers) {
-                        Icon(painterResource(R.drawable.ic_computer_desktop), "Manage computers", tint = nativeMuted,
-                            modifier = Modifier.size(22.dp))
-                    }
-                    NativeComputerSelector(pairedMacs, selectedComputer, appearances, machineColorIndices, computerConnections,
-                        computerMenuOpen, { computerMenuOpen = it }, ::selectPickerComputer, pendingPickerComputer,
-                        onPair = { computerMenuOpen = false; code = "" },
-                        owner = NativeComputerMenuOwner(store.taskSession(), teamState.scope),
-                        isOwnerCurrent = { owner -> account.isSignedIn() && store.taskSession() == owner.login &&
-                            accountTeams.state.value.scope == owner.team },
-                        canSelect = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac) },
-                        presence = scopedPresence)
-                    Column(Modifier.weight(1f)) {
-                        Text(if (notificationTab) "Notifications" else "Workspaces", fontWeight = FontWeight.SemiBold,
-                            fontSize = 17.sp)
-                        Text(selectedComputer?.let(appearances::name) ?: "All Computers", color = nativeMuted,
-                            fontSize = 11.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    }
-                    if (notificationTab) {
-                        if (feedEntries.any { !it.notification.isRead }) IconButton(
-                            onClick = {
-                                pendingReadAllOrigin = selectedOrigin
-                                pendingReadAllComputer = selectedComputer?.let(appearances::name) ?: "All Computers"
-                                confirmReadAll = true
-                            }, enabled = !readAllBusy) {
-                            Icon(painterResource(R.drawable.ic_feed_read_all), "Mark All Read",
-                                tint = if (readAllBusy) nativeMuted else nativeAccent, modifier = Modifier.size(23.dp))
-                        }
-                        Box {
-                            IconButton(onClick = { notificationFilterMenu = true }) {
-                                Icon(painterResource(if (unreadNotificationsOnly) R.drawable.ic_feed_filter_active else R.drawable.ic_feed_filter),
-                                    "Notification filter", tint = if (unreadNotificationsOnly) nativeAccent else nativeMuted,
-                                    modifier = Modifier.size(23.dp))
-                            }
-                            DropdownMenu(notificationFilterMenu, onDismissRequest = { notificationFilterMenu = false }) {
-                                DropdownMenuItem(text = { Text("All Notifications") }, onClick = {
-                                    unreadNotificationsOnly = false; notificationFilterMenu = false
-                                }, leadingIcon = { Text(if (!unreadNotificationsOnly) "✓" else " ") })
-                                DropdownMenuItem(text = { Text("Unread") }, onClick = {
-                                    unreadNotificationsOnly = true; notificationFilterMenu = false
-                                }, leadingIcon = { Text(if (unreadNotificationsOnly) "✓" else " ") })
-                            }
-                        }
-                    } else {
-                        Box {
-                            TextButton(onClick = { workspaceFilterMenuOpen = true }) {
-                                Text(if (unreadWorkspacesOnly) "◉" else "☷", color = nativeMuted,
-                                    fontSize = 21.sp)
-                            }
-                            DropdownMenu(workspaceFilterMenuOpen,
-                                onDismissRequest = { workspaceFilterMenuOpen = false }) {
-                                DropdownMenuItem(text = { Text("All workspaces") }, onClick = {
-                                    unreadWorkspacesOnly = false; workspaceFilterMenuOpen = false
-                                }, leadingIcon = { Text(if (unreadWorkspacesOnly) " " else "✓") })
-                                DropdownMenuItem(text = { Text("Unread") }, onClick = {
-                                    unreadWorkspacesOnly = true; workspaceFilterMenuOpen = false
-                                }, leadingIcon = { Text(if (unreadWorkspacesOnly) "✓" else " ") })
-                            }
-                        }
-                        Box {
-                            TextButton(onClick = { createMenuOpen = true }) {
-                                Text("+", color = nativeAccent, fontSize = 25.sp)
-                            }
-                            DropdownMenu(createMenuOpen, onDismissRequest = { createMenuOpen = false }) {
-                                DropdownMenuItem(text = { Text("New workspace") }, enabled = canCreateOnCurrentMac && !creatingWorkspace && !creatingTerminal, onClick = {
-                                    createMenuOpen = false; createWorkspace()
-                                })
-                                DropdownMenuItem(text = { Text("New task") }, onClick = {
-                                    createMenuOpen = false; finishSearch(); newTaskDraft()
-                                })
-                                if ("workspace.group_create.v1" in hostCapabilities) {
-                                    DropdownMenuItem(text = { Text("New group") }, enabled = canCreateOnCurrentMac, onClick = {
-                                        createMenuOpen = false; showCreateGroup = true
-                                    })
-                                }
-                            }
-                        }
-                    }
-                }
-                if (busy && !notificationTab) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (client == null && !busy && !notificationTab && workspaceSources.none { it.hasWorkspaceSnapshot }) {
-                    Column(Modifier.padding(horizontal = 18.dp)) {
-                        Button(onClick = { retryDelay = 2_000; retry++ }) { Text("Retry connection") }
-                        TextButton(onClick = { store.update { it.put("pairing_code", "") }; code = "" }) { Text("Pair a different Mac") }
-                    }
-                }
-                if (notificationTab) {
-                    NativeNotificationFeedView(feedProjection, scopedFeedSources, unreadNotificationsOnly,
-                        notificationQuery.isNotBlank(), feedRefreshing, notificationNow, searchLocale, Modifier.weight(1f),
-                        onOpen = { entry ->
-                            workspaceRoute = null
-                            inAppNotification = NotificationDestination(java.util.UUID.randomUUID().toString(),
-                                entry.source.mac.origin, entry.notification.id, entry.notification.workspaceId,
-                                entry.notification.surfaceId, entry.notification.retargetsToLiveSurfaceOwner)
-                        }, onRead = ::setNotificationRead,
-                        onToggle = { feedSession.projection = feedProjection.toggle(it) },
-                        onMore = { feedRowWindow += 300 }, onRefresh = ::refreshFeed)
-                } else {
-                    val matches = remember(workspaceSearch, search) { workspaceSearch.matches(search) }
-                    val entries = workspaceEntries(workspaceSources, matches, search.isNotEmpty(), unreadWorkspacesOnly, collapsedGroups)
-                    Box(Modifier.weight(1f)) {
-                    val reorderSource = workspaceSources.singleOrNull()
-                    val canReorder = reorderSource != null && reorderSource.canReorderWorkspaces() &&
-                        (reorderSource.groups.isNotEmpty() || reorderSource.workspaces.none { it.isPinned }) &&
-                        reorderSource.mac.code == connectedCode && search.isBlank() && !unreadWorkspacesOnly &&
-                        (moveStatus[reorderSource.mac.origin]?.pending ?: 0) < 3
-                    fun move(source: NativeFeedSource, id: String, intent: NativeWorkspaceMove): Boolean {
-                        val accepted = workspaceMoves.enqueue(source, id, intent)
-                        if (accepted) error = null
-                        return accepted
-                    }
-                    NativeWorkspaceDragList(entries, canReorder, Modifier.fillMaxSize(), onMove = ::move, before = {
-                        workspaceSources.filter { it.availability != NativeFeedAvailability.CONNECTED }.forEach { source ->
-                            item("status:" + source.mac.origin) {
-                                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text("${appearances.name(source.mac)} · ${if (source.availability == NativeFeedAvailability.CONNECTING) "Connecting…" else "Unavailable"}",
-                                        Modifier.weight(1f), color = nativeMuted, fontSize = 12.sp)
-                                    TextButton(onClick = { refreshFeed() }) { Text("Retry") }
-                                }
-                            }
-                        }
-                    }, empty = {
-                        NativeWorkspaceEmptyRow(when {
-                            search.isNotBlank() -> NativeWorkspaceEmptyGuidance.SEARCH
-                            unreadWorkspacesOnly -> NativeWorkspaceEmptyGuidance.UNREAD
-                            else -> NativeWorkspaceEmptyGuidance.MAC
-                        }, emptyWorkspaceRecoveryState, onRetry = if (workspaceSources.isEmpty()) null else ({
-                            val login = browserLogin
-                            val owner = teamState.scope
-                            val targets = workspaceSources.map { it.mac }
-                            emptyWorkspaceRecovery.start {
-                                check(store.taskSession() == login && accountTeams.state.value.scope == owner &&
-                                    targets.all { store.visiblePairedMacs().contains(it) && connection.allowsSaved(it) })
-                                feedCoordinator.refreshWorkspaceLists(targets)
-                            }
-                        }))
-                    }) { entry ->
-                            val owner = entry.source
-                            if (entry is WorkspaceListEntry.Header) {
-                                val group = entry.group
-                                NativeGroupHeaderRow(group,
-                                    expanded = !group.isCollapsed,
-                                    unread = entry.unread,
-                                    onOpen = group.liveAnchorWorkspaceId?.takeIf { id -> owner.workspaces.any { it.id == id } }?.let { anchor ->
-                                        { inAppNotification = null; workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, anchor) }
-                                    },
-                                    canEdit = "workspace.group_actions.v1" in owner.capabilities,
-                                    onToggle = {
-                                        collapsedGroups = collapsedGroups + (entry.key to !group.isCollapsed)
-                                        store.update { it.put("collapsed_groups", JSONObject(collapsedGroups)) }
-                                    },
-                                    onAction = { action, title -> scope.launch {
-                                        try { feedCoordinator.groupAction(owner.mac, group.id, action, title); error = null }
-                                        catch (failure: Exception) {
-                                            if (failure is CancellationException) throw failure
-                                            error = failure.message
-                                        }
-                                    } })
-                            } else if (entry is WorkspaceListEntry.Footer) {
-                                Spacer(Modifier.fillMaxWidth().height(16.dp).semantics { contentDescription = "End of ${entry.group.name}" })
-                            } else {
-                            val workspace = (entry as WorkspaceListEntry.Workspace).workspace
-                            fun open(terminalId: String? = null, browserId: String? = null, changes: Boolean = false, surfaceId: String? = null) {
-                                inAppNotification = null
-                                workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, workspace.id, terminalId, browserId, changes, surfaceId = surfaceId)
-                            }
-                            Column(Modifier.padding(start = if (entry.indented) 18.dp else 0.dp)
-                                .semantics { contentDescription = "${workspace.title} on ${appearances.name(owner.mac)}" }) {
-                            NativeWorkspaceRow(
-                                workspace = workspace, groups = owner.groups,
-                                computer = appearances.name(owner.mac).takeIf { selectedOrigin == null && pairedMacs.size > 1 },
-                                appearance = appearances.get(owner.mac), machineId = owner.mac.colorIdentity.colorSeed,
-                                machineColorIndex = machineColorIndices[owner.mac.colorIdentity],
-                                canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
-                                onOpen = { open() },
-                                onAction = { action, title ->
-                                    if (action == "changes") open(changes = true)
-                                    else if (action == "browser.create") openNewBrowser(owner, workspace)
-                                    else if (action == "terminal.create") createTerminal(owner, workspace)
-                                    else if (action.startsWith("move:")) {
-                                        val target = action.removePrefix("move:").takeIf { it.isNotBlank() }
-                                        move(owner, workspace.id, NativeWorkspaceMove(target, null))
-                                    } else {
-                                        val entryContext = browserNavigationContext()
-                                        val entryNavigation = navigationGeneration.observe(entryContext)
-                                        val entryLogin = browserLogin
-                                        val entryOwner = teamState.scope
-                                        fun stillCurrent() = signedIn && store.taskSession() == entryLogin && teamState.scope == entryOwner &&
-                                            navigationGeneration.matches(entryNavigation, browserNavigationContext()) && store.visiblePairedMacs().contains(owner.mac) && connection.allowsSaved(owner.mac)
-                                        scope.launch {
-                                            try {
-                                                feedCoordinator.workspaceAction(owner.mac, workspace.id, action, title)
-                                                if (stillCurrent()) error = null
-                                            } catch (failure: Exception) {
-                                                if (failure is CancellationException) throw failure
-                                                if (stillCurrent()) error = failure.message
-                                            }
-                                        }
-                                    }
-                                }
-                            )
-                            workspace.macSurfaces.forEach { surface ->
-                                NativeSurfaceShortcut(surface, nativeAccent) { open(surfaceId = surface.id) }
-                            }
-                            workspace.browsers.forEach { browser ->
-                                Text("▣  ${browser.title.ifBlank { "Browser" }}",
-                                    Modifier.fillMaxWidth().clickable { open(browserId = browser.id) }
-                                        .padding(start = 80.dp, top = 4.dp, bottom = 12.dp),
-                                    color = nativeAccent, fontSize = 12.sp)
-                            }
-                            }
-                            HorizontalDivider(color = Color(0xFF292C31))
-                            }
-                    }
-                    if (searchState.active == null) NativeTaskComposerButton(
-                        Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 2.dp), enabled = true) {
-                        finishSearch(); newTaskDraft()
-                    }
-                    }
-                }
-                NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
-                    onTab = { workspaceRoute = null; finishSearch(); notificationTab = it },
-                    onBeginSearch = { searchState = searchState.begin(searchScope) },
-                    onEdit = { value, generation -> searchState = searchState.edit(value, searchScope, generation) },
-                    onSubmit = { finishSearch() }, onCancel = { finishSearch(cancel = true) })
-            }
+            selectedTerminal != null -> terminalContent()
+            selectedBrowser != null -> remoteBrowserContent()
+            selectedChangesWorkspace != null -> changesContent()
+            else -> workspaceListContent()
         }
         val visibleError = error ?: connectionError.takeIf { selectedTerminal != null || selectedBrowser != null || workspaceSources.isEmpty() }
         if (signedIn && visibleError != null) Row(Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(horizontal = 12.dp),

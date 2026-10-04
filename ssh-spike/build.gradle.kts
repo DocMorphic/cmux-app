@@ -1,11 +1,10 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 
 android {
     namespace = "io.github.docmorphic.cmuxapp.sshspike"
-    compileSdk = 36
+    compileSdk = 37
     buildToolsVersion = "36.0.0"
     defaultConfig {
         applicationId = "io.github.docmorphic.cmuxapp.sshspike"
@@ -17,8 +16,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
-    sourceSets.getByName("androidTest").assets.srcDir(layout.buildDirectory.dir("fixture-assets"))
+    sourceSets.getByName("androidTest").assets.directories.add(layout.buildDirectory.dir("fixture-assets").get().asFile.path)
 }
 
 dependencies {

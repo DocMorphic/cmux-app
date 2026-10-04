@@ -27,6 +27,26 @@ active; physical Pixel acceptance, authenticated upgrade, configured push and
 broader source/visual parity remain open. The table below records the original
 September 28 handoff rather than the current APK.
 
+## Latest checkpoint — main toolchain and release runtime (2026-10-04)
+
+[ANDROID_TOOLCHAIN.md](ANDROID_TOOLCHAIN.md) records the completed main migration
+to AGP 9.1.1, Gradle 9.3.1, Kotlin/Compose 2.4.20 and compile SDK 37. Min 26 /
+target 36 remain unchanged. A small SDK 36 library retains the API 26–27 fingerprint
+fallback. Nine route lambdas were separated after the first assembled release
+failed ART verification; the revised unsigned release passes the existing gate.
+Final checks: 1,539 JVM passes / 4 explicit fixture skips, six Android runtime
+cases passed, native/ZIP alignment and pinned assets passed, signed-out cold
+launch passed. Archive rendering was visually checked after excluding a captured
+window transition. The existing AVD is stopped with settings restored.
+
+Next implement the production private notice renderer with the existing broker
+and load owner, including account/lease retirement and partitioned-state tests.
+The toolchain prerequisite is complete; GeckoView is not in the main app yet.
+Do not repeat the isolated engine experiments without a concrete failing case.
+Physical Pixel/Mac browser acceptance, authenticated signed upgrade and push
+configuration remain open. Build 494 remains the signed milestone; no new signed
+CI build was dispatched. Scoped research does not advance the global parity pin.
+
 ## Immediate continuation — What's New
 
 Build 494 / run **37154456102** completed successfully; no build is in progress.
@@ -74,12 +94,10 @@ clearing explicit private-cookie attributes, and use the public web-storage clea
 The public-only failure remains reproducible. The native checker
 was overly broad: NATIVE_ALIGNMENT.md records the Bionic whole-LOAD exemption,
 19 passing Python checks and actual old-JNA negative control. All 13 Gecko libraries
-pass the corrected gate. No main-toolchain update or extra AVD was made. Next
-finish partitioned cleanup/account lifecycle, physical acceptance and package/license cost
-before integrating
-the renderer/cookie
-seeding, theme, navigation policy and the existing10sec/20sec lifetimes in launch
-and archive UI. Current native catalog has no web pages or configured feed; the
+pass the corrected gate. The main-toolchain prerequisite is now complete as
+recorded above, without an extra AVD. Continue production renderer/cookie seeding,
+theme, navigation and the existing 10 sec / 20 sec lifetimes in launch/archive UI,
+including partitioned cleanup, account lifecycle, package/licenses and acceptance. Current native catalog has no web pages or configured feed; the
 explicit archive placeholder is temporary, not acceptable as finished parity.
 
 Two-host private cleanup now passes (1 test, 13.292 s): A's cookie and all three
@@ -414,9 +432,11 @@ not large-file performance. Do not silently expand assertions into broader claim
 
 ## Build/test operations on the new laptop
 
-Requirements: JDK **17**, SDK platform **36**, build-tools **36.0.0**, platform-tools,
-Node **22** for helper tests, Python 3 for source generators. Wrapper: Gradle 8.13;
-AGP 8.13.2; Kotlin/Compose plugin 2.2.21. Android min 26, target/compile 36. Android
+Requirements: JDK **17**, SDK platforms **37.0 and 36**, build-tools **36.0.0**, platform-tools,
+Node **22** for helper tests, Python 3 for source generators. Wrapper: Gradle 9.3.1;
+AGP 9.1.1; built-in Kotlin/Compose compiler 2.4.20. Android min 26, target 36,
+compile 37 except the API 26–27 fingerprint adapter (compile 36). See
+[ANDROID_TOOLCHAIN.md](ANDROID_TOOLCHAIN.md). Android
 17/API 37 was used for emulator acceptance; choose an image for the new CPU.
 Set JAVA_HOME and ANDROID_HOME for that machine; do not copy old absolute paths.
 

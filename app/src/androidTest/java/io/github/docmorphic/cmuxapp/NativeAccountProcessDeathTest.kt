@@ -58,7 +58,7 @@ class NativeAccountProcessDeathTest {
         assertNull(pid()); server.start()
     }
     @After fun cleanup() {
-        manager.appTasks.filter { it.taskInfo.baseIntent.component?.className == activity.name }.forEach { it.finishAndRemoveTask() }
+        manager.appTasks.filter { it.taskInfo?.baseIntent?.component?.className == activity.name }.forEach { it.finishAndRemoveTask() }
         if (pid() != null) kill()
         server.close()
         context.deleteSharedPreferences("account-process-$id")

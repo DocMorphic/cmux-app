@@ -3,7 +3,6 @@ import java.security.MessageDigest
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -59,7 +58,7 @@ configurations.configureEach { exclude(group = "androidx.graphics", module = "gr
 
 android {
     namespace = "io.github.docmorphic.cmuxapp"
-    compileSdk = 36
+    compileSdk = 37
     buildToolsVersion = "36.0.0"
     val releaseKeystorePath = System.getenv("CMUX_APP_RELEASE_KEYSTORE")
     val releasePassword = System.getenv("CMUX_APP_RELEASE_PASSWORD")
@@ -106,14 +105,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-    sourceSets.getByName("main").java.srcDir("../third_party/termux/terminal-emulator/src/main/java")
-    sourceSets.getByName("main").jniLibs.srcDir(simulatorNativeRoot.dir("jniLibs"))
-    sourceSets.getByName("main").assets.srcDir(simulatorNativeRoot.dir("notices"))
-    sourceSets.getByName("androidTest").assets.srcDir("src/test/resources/terminal")
-    sourceSets.getByName("androidTest").assets.srcDir("src/test/resources/browser")
+    sourceSets.getByName("main").java.directories.add("../third_party/termux/terminal-emulator/src/main/java")
+    sourceSets.getByName("main").jniLibs.directories.add(simulatorNativeRoot.dir("jniLibs").asFile.path)
+    sourceSets.getByName("main").assets.directories.add(simulatorNativeRoot.dir("notices").asFile.path)
+    sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/terminal")
+    sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/browser")
 
     buildFeatures {
         buildConfig = true
@@ -122,6 +118,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":legacy-biometric"))
     implementation(project(":iroh"))
     implementation(project(":ghostty"))
     val composeBom = platform("androidx.compose:compose-bom:2025.09.00")

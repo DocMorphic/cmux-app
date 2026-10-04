@@ -1,7 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import android.hardware.biometrics.BiometricPrompt
-import android.hardware.fingerprint.FingerprintManager
+import io.github.docmorphic.cmuxapp.legacybiometric.LegacyFingerprint
 import android.os.Build
 import android.os.CancellationSignal
 import android.os.Handler
@@ -98,15 +98,10 @@ private fun SshBiometricPrompt(request: SshBiometricRequest, answer: (java.secur
                         override fun onAuthenticationError(code: Int, text: CharSequence) { finish(null) }
                     })
             } else {
-                val manager = context.getSystemService(FingerprintManager::class.java)
-                if (manager == null || !manager.isHardwareDetected || !manager.hasEnrolledFingerprints()) finish(null)
-                else manager.authenticate(FingerprintManager.CryptoObject(request.operation.signature), signal, 0,
-                    object : FingerprintManager.AuthenticationCallback() {
-                        override fun onAuthenticationSucceeded(result: FingerprintManager.AuthenticationResult) { finish(result.cryptoObject?.signature) }
-                        override fun onAuthenticationError(code: Int, text: CharSequence) { finish(null) }
-                        override fun onAuthenticationHelp(code: Int, text: CharSequence) { message = text.toString() }
-                        override fun onAuthenticationFailed() { message = "Fingerprint not recognized. Try again." }
-                    }, Handler(Looper.getMainLooper()))
+                LegacyFingerprint.authenticate(context, request.operation.signature, signal,
+                    onSuccess = ::finish, onError = { finish(null) },
+                    onHelp = { message = it },
+                    onFailed = { message = "Fingerprint not recognized. Try again." })
             }
         } catch (_: Exception) { finish(null) }
         onDispose {

@@ -7,7 +7,7 @@ the continuation scope. Windows support here means development and testing.
 
 ## Build from PowerShell
 
-Install JDK 17, Android SDK platform 36, build-tools 36.0.0 and platform-tools.
+Install JDK 17, Android SDK platforms 37.0 and 36, build-tools 36.0.0 and platform-tools.
 Set the paths for the current machine; do not copy the handoff Mac paths:
 
 The commands below fetch all four current native dependencies. The Ghostty
@@ -31,14 +31,16 @@ node --test bridge/*.test.mjs
 python scripts/verify-viewer-assets.py
 ```
 
-`gradlew.bat` is the standard Gradle v8.13.0 launcher and uses the same committed
-wrapper JAR/properties as `./gradlew` on macOS. The build explicitly selects
+`gradlew.bat` uses the same committed
+wrapper JAR/properties as `./gradlew` on macOS. The main build uses AGP 9.1.1,
+Gradle 9.3.1 and Kotlin/Compose compiler 2.4.20; SDK 36 preserves only the
+Android 8 fingerprint adapter. See [ANDROID_TOOLCHAIN.md](ANDROID_TOOLCHAIN.md). The build explicitly selects
 build-tools 36.0.0, matching the SDK installed by CI. `.gitattributes` keeps source
 and vendored assets LF on both hosts (the Windows launcher uses CRLF), preserving
 the pinned upstream hashes even with Git's Windows `core.autocrlf=true` default.
 No release signing configuration
 changes are needed. Use the existing GitHub workflow/secrets for signed milestones;
-local versionCode 2 is not an upgrade over published build 157.
+local versionCode 2 is not an upgrade over published build 494.
 
 The app requires pinned Iroh, rebuilt graphics-path, Ghostty and simulator-video dependencies. Move old
 checkpoint directories aside before downloading the replacements above. Gradle

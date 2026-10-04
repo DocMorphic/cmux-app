@@ -32,7 +32,9 @@ The [official iOS companion](https://cmux.com/ios) pairs with a Mac running cmux
 
 ## Open the Android project
 
-Install Android Studio with Android SDK 36 and JDK 17. The app now includes its
+Install Android Studio with Android SDK platforms 37.0 and 36, build-tools 36.0.0 and JDK 17.
+The wrapper pins Gradle 9.3.1; the build uses AGP 9.1.1 and Kotlin/Compose compiler 2.4.20.
+SDK 36 is used only by the Android 8 fingerprint adapter; see [toolchain notes](docs/ANDROID_TOOLCHAIN.md). The app now includes its
 native Iroh, rebuilt graphics-path, Ghostty VT and simulator-video dependencies.
 Obtain the four reviewed checkpoints below (requires GitHub CLI access), or
 reproduce them from pinned source as described in [IROH_V2.md](docs/IROH_V2.md#android-native-module):
