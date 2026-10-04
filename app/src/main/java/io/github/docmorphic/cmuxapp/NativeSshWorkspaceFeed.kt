@@ -16,11 +16,21 @@ internal data class SshFeedRow(
         SshWorkspaceKind.TMUX -> "tmux"
         SshWorkspaceKind.SHELL -> "Shell"
     }
+    private fun targetTitle(target: SshWorkspaceTarget): String = when (target) {
+        is SshWorkspaceTarget.Cmux -> cmuxWorkspace?.tabs?.singleOrNull {
+            !it.dead && it.isTerminal && it.surface == target.selection.surface
+        }?.let { it.name?.takeIf(String::isNotBlank) ?: it.title.ifBlank { "Terminal" } } ?: title
+        is SshWorkspaceTarget.Tmux -> tmuxWorkspace?.panes?.singleOrNull {
+            it.id == target.pane && it.window == target.window
+        }?.title ?: title
+        else -> title
+    }
     val workspace get() = NativeWorkspace(key, title, targets.mapNotNull {
-        if (it is SshWorkspaceTarget.Browser) null else NativeTerminal(it.encode(), title)
+        if (it is SshWorkspaceTarget.Browser) null else NativeTerminal(it.encode(), targetTitle(it))
     }, null, false, null, null, false, targets.filterIsInstance<SshWorkspaceTarget.Browser>().map {
         NativeBrowser(it.encode(), "Browser")
     }, null, preview, null)
+    fun searchFields(): List<String?> = listOf(title, preview, host.name) + workspace.terminals.map { it.title }
     val confirmation get() = when (kind) {
         SshWorkspaceKind.CMUX_TUI -> WorkspaceCloseConfirmation.ssh(PersistentSshWorkspaceKind.CMUX_TUI, title, host.name)
         SshWorkspaceKind.TMUX -> WorkspaceCloseConfirmation.ssh(PersistentSshWorkspaceKind.TMUX, title, host.name)

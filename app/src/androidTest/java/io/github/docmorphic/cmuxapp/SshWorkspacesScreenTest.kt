@@ -161,7 +161,9 @@ class SshWorkspacesScreenTest {
         compose.onNodeWithTag("ssh.workspace.create.TMUX").assertIsDisplayed()
         androidx.test.espresso.Espresso.pressBack()
         compose.onNodeWithContentDescription("Search").performClick()
-        compose.onNode(hasSetTextAction()).performTextReplacement("tmux")
+        val paneQuery = feedRow(SshWorkspaceKind.TMUX).workspace.terminals.first().title
+        assertFalse("Search must exercise pane metadata", "desktop-tmux SSH fixture".contains(paneQuery, ignoreCase = true))
+        compose.onNode(hasSetTextAction()).performTextReplacement(paneQuery)
         compose.onNodeWithText("Desktop cmux").assertDoesNotExist()
         capture("ssh-feed-search-results")
         compose.waitUntil(5000) { compose.onAllNodesWithText("desktop-tmux").fetchSemanticsNodes().isNotEmpty() &&
@@ -182,6 +184,41 @@ class SshWorkspacesScreenTest {
         compose.onNodeWithContentDescription("Computer filter").performClick()
         compose.onNodeWithText("Add Computer").performClick()
         compose.onNodeWithTag("computers.pairing.help").assertIsDisplayed()
+    }
+
+    @Test fun compoundMachineUnreadFilterSurvivesRestorationAndClearsWhenScopeMakesItHidden() = withMainFeed { peer, restoration ->
+        fun filter() = compose.onNodeWithContentDescription("Filter workspaces").performClick()
+        val sshTag = "workspace.filter.machine:${workspaceSshFilterId(hostId)}"
+        filter(); compose.onNodeWithTag(sshTag).performClick()
+        compose.onNodeWithText("Claude Code task").assertDoesNotExist()
+        compose.onNodeWithText("Desktop cmux").assertIsDisplayed()
+        filter(); compose.onNodeWithText("Unread").performClick()
+        compose.onNodeWithText("No unread workspaces on the selected machines").assertIsDisplayed()
+        compose.onNodeWithText("Desktop cmux").assertDoesNotExist()
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithText("No unread workspaces on the selected machines").assertIsDisplayed()
+        compose.onNodeWithTag("workspace.filter.showAll").performClick()
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        compose.onNodeWithText("Desktop cmux").assertIsDisplayed()
+        filter(); compose.onNodeWithTag(sshTag).performClick()
+        filter(); compose.onNodeWithText("Unread").performClick()
+        filter(); compose.onNodeWithTag(sshTag).assertIsSelected()
+        compose.onNodeWithText("All workspaces").performClick()
+        compose.onNodeWithText("Claude Code task").assertDoesNotExist()
+        compose.onNodeWithText("Desktop cmux").assertIsDisplayed()
+        filter(); compose.onNodeWithText("All Machines").performClick()
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        filter(); compose.onNodeWithTag(sshTag).performClick()
+        selectSshFeed()
+        filter(); compose.onNodeWithTag(sshTag).assertDoesNotExist()
+        androidx.test.espresso.Espresso.pressBack()
+        compose.onNodeWithContentDescription("Computer filter").performClick()
+        compose.onNode(hasText("All Computers") and hasAnyAncestor(isPopup())).performClick()
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        filter(); compose.onNodeWithText("All Machines").assertIsSelected()
+        capture("compound-workspace-filter")
+        androidx.test.espresso.Espresso.pressBack()
+        assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.create", "workspace.move", "workspace.close") })
     }
 
     @Test fun mainFeedReopensLastSelectedCmuxAndTmuxPanesAfterSavedRestoration() = withMainFeed { peer, restoration ->

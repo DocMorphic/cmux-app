@@ -62,10 +62,36 @@ class NativeSshWorkspaceFeedTest {
     }
     @Test fun searchFindsHostKindAndUnicodeTitleWithoutCrossingFields() {
         val rows = sshCmuxFeedRows(host, "desktop", tree())
-        val index = NativeSearchIndex(rows.map { it.key to listOf(it.title, it.preview, it.host.name) }, Locale.US)
+        val index = NativeSearchIndex(rows.map { it.key to it.searchFields() }, Locale.US)
         assertEquals(setOf(rows.first().key), index.matches("λ 中"))
         assertEquals(rows.map { it.key }.toSet(), index.matches("remote box"))
         assertEquals(rows.map { it.key }.toSet(), index.matches("cmux-tui"))
         assertTrue(index.matches("中 cmux").isEmpty())
     }
+    @Test fun livePaneSearchUsesDisplayedNamesAndRefreshRetiresRenamedAndDeadMetadata() {
+        val initial = tree()
+        val row = sshCmuxFeedRows(host, "desktop", initial).first()
+        fun index(rows: List<SshFeedRow>) = NativeSearchIndex(rows.map { it.key to it.searchFields() }, Locale.US)
+        assertEquals(setOf(row.key), index(listOf(row)).matches("SHELL"))
+        assertTrue(index(listOf(row)).matches("Ended").isEmpty())
+        val workspace = initial.workspaces.first()
+        val screen = workspace.screens.first(); val pane = screen.panes.first()
+        val renamed = initial.copy(workspaces = listOf(workspace.copy(screens = listOf(screen.copy(panes = listOf(
+            pane.copy(tabs = pane.tabs.map { if (it.isTerminal && !it.dead) it.copy(name = "Build λ") else it })
+        ))))))
+        val fresh = sshCmuxFeedRows(host, "desktop", renamed)
+        assertEquals("Build λ", fresh.first().workspace.terminals.single().title)
+        assertEquals(setOf(row.key), index(fresh).matches("build λ"))
+        assertTrue(index(fresh).matches("shell").isEmpty())
+        assertTrue(index(fresh).matches("λ Remote").isEmpty())
+    }
+    @Test fun tmuxWindowNamesAreSearchableWithoutLeakingAnotherHostInventory() {
+        val pane = SshTmuxPaneRow(7, 3, 0, "Build logs", 0, 80, 24, 1)
+        val rows = sshTmuxFeedRows(host, listOf(SshTmuxWorkspace(42, 2, 100L, "Project", listOf(pane))))
+        val index = NativeSearchIndex(rows.map { it.key to it.searchFields() }, Locale.US)
+        assertEquals(setOf(rows.single().key), index.matches("build logs"))
+        assertEquals("0:Build logs", rows.single().workspace.terminals.single().title)
+        assertTrue(index.matches("Project 0:Build").isEmpty())
+    }
+
 }

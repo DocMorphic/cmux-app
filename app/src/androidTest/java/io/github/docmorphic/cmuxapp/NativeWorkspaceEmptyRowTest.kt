@@ -58,9 +58,9 @@ class NativeWorkspaceEmptyRowTest {
             recovery = remember { NativeWorkspaceEmptyRecovery(scope, 1000) }
             DisposableEffect(recovery) { onDispose { recovery.close() } }
             val state by recovery.state.collectAsState()
-            if (show) NativeWorkspaceEmptyRow(NativeWorkspaceEmptyGuidance.MAC, state) {
+            if (show) NativeWorkspaceEmptyRow(NativeWorkspaceEmptyGuidance.MAC, state, onRetry = {
                 recovery.start { calls++; awaitCancellation() }
-            }
+            })
         } } } }
         compose.onNodeWithTag("workspaces.empty.retry").performClick()
         compose.onNodeWithTag("workspaces.empty.retry").assertIsNotEnabled()

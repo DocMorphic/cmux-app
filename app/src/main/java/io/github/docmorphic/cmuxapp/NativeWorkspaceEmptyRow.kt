@@ -14,14 +14,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-internal enum class NativeWorkspaceEmptyGuidance { MAC, SSH_HOST, ALL_COMPUTERS, SEARCH, UNREAD }
+internal enum class NativeWorkspaceEmptyGuidance { MAC, SSH_HOST, ALL_COMPUTERS, SEARCH, UNREAD, MACHINES, UNREAD_MACHINES }
 
 @Composable
 internal fun NativeWorkspaceEmptyRow(guidance: NativeWorkspaceEmptyGuidance,
-    recovery: NativeWorkspaceEmptyRecoveryState = NativeWorkspaceEmptyRecoveryState(), onRetry: (() -> Unit)? = null) {
+    recovery: NativeWorkspaceEmptyRecoveryState = NativeWorkspaceEmptyRecoveryState(), onRetry: (() -> Unit)? = null,
+    onClearFilter: (() -> Unit)? = null) {
     val uri = LocalUriHandler.current
     var docsError by remember { mutableStateOf(false) }
-    val filtered = guidance == NativeWorkspaceEmptyGuidance.SEARCH || guidance == NativeWorkspaceEmptyGuidance.UNREAD
+    val filtered = guidance in setOf(NativeWorkspaceEmptyGuidance.SEARCH, NativeWorkspaceEmptyGuidance.UNREAD,
+        NativeWorkspaceEmptyGuidance.MACHINES, NativeWorkspaceEmptyGuidance.UNREAD_MACHINES)
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
     Column(Modifier.widthIn(max = 420.dp).fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp).testTag("workspaces.empty"),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -29,6 +31,8 @@ internal fun NativeWorkspaceEmptyRow(guidance: NativeWorkspaceEmptyGuidance,
         Text(when (guidance) {
             NativeWorkspaceEmptyGuidance.SEARCH -> "No workspaces match your search"
             NativeWorkspaceEmptyGuidance.UNREAD -> "No unread workspaces"
+            NativeWorkspaceEmptyGuidance.MACHINES -> "No workspaces on the selected machines"
+            NativeWorkspaceEmptyGuidance.UNREAD_MACHINES -> "No unread workspaces on the selected machines"
             NativeWorkspaceEmptyGuidance.ALL_COMPUTERS -> "No workspaces yet"
             else -> "No workspaces yet"
         }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
@@ -39,7 +43,11 @@ internal fun NativeWorkspaceEmptyRow(guidance: NativeWorkspaceEmptyGuidance,
             NativeWorkspaceEmptyGuidance.ALL_COMPUTERS -> "Use + to create a workspace on a computer."
             NativeWorkspaceEmptyGuidance.SEARCH -> "Try another search or clear the search field."
             NativeWorkspaceEmptyGuidance.UNREAD -> "Choose All workspaces from the filter to see your other workspaces."
+            NativeWorkspaceEmptyGuidance.MACHINES, NativeWorkspaceEmptyGuidance.UNREAD_MACHINES -> "Change the workspace filter to see your other workspaces."
         }, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (filtered && guidance != NativeWorkspaceEmptyGuidance.SEARCH) onClearFilter?.let { clear ->
+            TextButton(onClick = clear, modifier = Modifier.testTag("workspace.filter.showAll")) { Text("Show All") }
+        }
         if (guidance == NativeWorkspaceEmptyGuidance.MAC) {
             recovery.message?.let { Text(it, textAlign = TextAlign.Center, modifier = Modifier.testTag("workspaces.empty.message")) }
             onRetry?.let { retry -> Button(onClick = retry, enabled = !recovery.busy, modifier = Modifier.testTag("workspaces.empty.retry")) {

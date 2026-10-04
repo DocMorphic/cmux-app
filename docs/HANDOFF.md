@@ -24,7 +24,50 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — signed build 554 and upgrade verification (2026-10-04)
+## Latest checkpoint — compound workspace filters and SSH pane search (2026-10-04)
+
+The workspace filter now combines unread state with multiple exact computer
+identities, across native Macs and SSH hosts. Stable/nightly siblings remain
+independent, and UUID case normalization does not change opaque device IDs.
+Filter state is scoped to login/team and saved-screen restoration. Machine
+selections are pruned when unavailable, when fewer than two computers remain,
+or when the title picker scopes to one computer; unread state is retained.
+Search uses the same filter, explicit filters flatten group presentation, and
+filtered lists disable drag reordering. The menu uses the existing filter icons
+and reports selected state for accessibility. Filter-empty messages distinguish
+machine, unread and combined scope; **Show All** clears the filters and returns
+to All Computers. Source snapshots remain intact for row actions.
+
+SSH search now indexes displayed live terminal names from cmux-tui and tmux,
+including custom pane names and window titles. It preserves field boundaries,
+excludes ended tabs, and updates when inventory names change. Projected SSH
+terminal metadata uses those same names instead of repeating the workspace title.
+Scoped reference: `WorkspaceListView.swift`, `MobileWorkspaceListFilter.swift`,
+`WorkspaceListFilterControls.swift`, and `WorkspaceListFilterEmptyRow.swift` at
+`0fc35d6`; global parity pin unchanged.
+
+**12 JVM tests and five Android checks passed.** The Android run took **85.06s**
+on the sole existing API37/16KB AVD with the private real SSH/cmux-tui/tmux fixture.
+Checks cover independent sibling selections, combined filters, saved-screen
+restoration, Show All, hidden-filter cleanup, existing retry recovery, pane-only
+search (`0:cat`) with the keyboard visible, and opening/input through both SSH
+workspace kinds without Mac creation/close/move RPC. Source hashes and installed
+APK digest matched. Menu/search screenshots were inspected; crash buffer empty.
+One fixture channel logged BrokenPipeError after closing; all five cases passed.
+Evidence: `captures/runtime/workspace-filters/verification.json`.
+
+Initial JVM/main/test build: 1m49s; adding Show All required a 1m10s build; final
+explicit test callback/pane-query assertions required a 19s test-APK update.
+The emulator and private fixture were stopped/reaped; no new AVD. The Pixel was
+absent from ADB and untouched. Signed **554** remains the current download; no
+new signed milestone was dispatched. PR #1 remains draft and the goal is active.
+
+**Next:** implement Last Opened / Custom Order / Recent Activity ordering and
+regular-width sidebar policy. Full process/network recovery, broader upstream
+audit, physical Pixel/Mac acceptance, push/notice configuration and legacy tickets
+remain open. Saved-screen checks do not prove full process-death restoration.
+
+## Earlier checkpoint — signed build 554 and upgrade verification (2026-10-04)
 
 [PIXEL_INSTALL.md](PIXEL_INSTALL.md) links signed development build **554**, source
 `0da7bb50590b972f0d4d9dbae42851677e874fdc`, Actions run `37215611518`.
