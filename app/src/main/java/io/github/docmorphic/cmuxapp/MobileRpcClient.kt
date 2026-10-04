@@ -379,7 +379,7 @@ class MobileRpcClient internal constructor(
         return request("workspace.group.create", params)
     }
     suspend fun groupAction(groupId: String, action: String, title: String? = null): JSONObject {
-        require(action in setOf("rename", "pin", "unpin", "ungroup"))
+        require(action in setOf("rename", "pin", "unpin", "ungroup", "delete"))
         val params = JSONObject().put("group_id", groupId).put("action", action)
         if (action == "rename") params.put("title", title?.trim()?.takeIf { it.isNotEmpty() }
             ?: error("Enter a group title"))

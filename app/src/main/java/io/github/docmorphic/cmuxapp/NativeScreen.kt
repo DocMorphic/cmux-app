@@ -1220,6 +1220,35 @@ fun NativeScreen(
         }
     }
 
+    fun createWorkspaceInGroup(source: NativeFeedSource, group: NativeGroup) {
+        if (creatingWorkspace || creatingTerminal) return
+        val entryNavigation = navigationGeneration.observe(browserNavigationContext())
+        val entryLogin = browserLogin
+        val entryOwner = teamState.scope
+        fun stillCurrent() = signedIn && store.taskSession() == entryLogin && teamState.scope == entryOwner &&
+            navigationGeneration.matches(entryNavigation, browserNavigationContext()) &&
+            store.visiblePairedMacs().contains(source.mac) && connection.allowsSaved(source.mac)
+        creatingWorkspace = true
+        workspaceTabs.cancel()
+        scope.launch {
+            try {
+                if (!stillCurrent()) return@launch
+                val response = feedCoordinator.createWorkspaceInGroup(source.mac, group.id)
+                if (!stillCurrent()) return@launch
+                val returned = createdGroupWorkspace(response) ?: return@launch
+                val created = workspaceSnapshots.createdWorkspace(source.mac, returned)
+                val terminal = created.terminals.singleOrNull { it.id == response.optString("created_terminal_id") }
+                    ?: created.preferredTerminal
+                inAppNotification = null; error = null
+                workspaceRoute = NativeWorkspaceRoute(source.mac.origin, created.id, terminalId = terminal?.id,
+                    createdWorkspace = created, createdAtMillis = android.os.SystemClock.elapsedRealtime())
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                if (stillCurrent()) recordWorkspaceActionFailure(failure)
+            } finally { creatingWorkspace = false }
+        }
+    }
+
     fun createTerminalInPane() {
         if (!canCreateInCurrentPane) return
         val workspace = selectedWorkspace ?: return
@@ -3025,7 +3054,10 @@ fun NativeScreen(
                             onOpen = group.liveAnchorWorkspaceId?.takeIf { id -> owner.workspaces.any { it.id == id } }?.let { anchor ->
                                 { inAppNotification = null; workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, anchor) }
                             },
-                            canEdit = "workspace.group_actions.v1" in owner.capabilities,
+                            canEdit = owner.canEditGroups(),
+                            canCreate = owner.canCreateInGroup(),
+                            creationEnabled = !creatingWorkspace && !creatingTerminal,
+                            onCreate = { createWorkspaceInGroup(owner, group) },
                             onToggle = {
                                 collapsedGroups = collapsedGroups + (entry.key to !group.isCollapsed)
                                 store.update { it.put("collapsed_groups", JSONObject(collapsedGroups)) }
@@ -3191,82 +3223,6 @@ private fun NativeHeader(title: String) {
 }
 
 
-
-@Composable
-private fun NativeGroupHeaderRow(
-    group: NativeGroup,
-    expanded: Boolean,
-    unread: NativeWorkspaceUnread,
-    onOpen: (() -> Unit)?,
-    canEdit: Boolean,
-    onToggle: () -> Unit,
-    onAction: (String, String?) -> Unit
-) {
-    val menu = rememberWorkspaceContextMenu(group.id)
-    val moveActions = LocalWorkspaceMoveActions.current
-    var renaming by remember(menu, group.id) { mutableStateOf(false) }
-    var confirmingUngroup by remember(menu, group.id) { mutableStateOf(false) }
-    var name by remember(menu, group.id) { mutableStateOf(group.name) }
-    Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        NativeUnreadGutter(unread, gap = 3.dp)
-        IconButton(onClick = { if (!menu.expanded && !menu.held) onToggle() }, modifier = Modifier.size(32.dp).semantics {
-            contentDescription = "${if (expanded) "Collapse" else "Expand"} ${group.name}"
-        }) { Icon(painterResource(if (expanded) R.drawable.ic_workspace_chevron_down else R.drawable.ic_workspace_chevron_right),
-            null, Modifier.size(16.dp), tint = nativeMuted) }
-        Row(Modifier.weight(1f).then(if (onOpen != null) Modifier.clickable { if (!menu.expanded && !menu.held) onOpen() } else Modifier)
-            .semantics(mergeDescendants = true) {
-                if (canEdit) onLongClick("Show group actions") { menu.expanded = true; true }
-                customActions = moveActions + if (canEdit) listOf(CustomAccessibilityAction("Show group actions") { menu.expanded = true; true }) else emptyList()
-                if (onOpen != null) contentDescription = "Open ${group.name}"
-                stateDescription = listOfNotNull("Pinned".takeIf { group.isPinned },
-                    unread.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
-            }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(painterResource(nativeWorkspaceGroupIcon(group.iconSymbol)), null, Modifier.size(15.dp), tint = nativeMuted)
-            Text(group.name, Modifier.weight(1f, fill = false), color = Color.White,
-                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (group.isPinned) Icon(painterResource(R.drawable.ic_workspace_pin_fill), null,
-                Modifier.size(12.dp), tint = nativeMuted)
-        }
-        if (canEdit) Box {
-            TextButton(onClick = { menu.expanded = true }, modifier = Modifier.semantics {
-                contentDescription = "Actions for ${group.name}"
-            }) { Text("⋯", color = nativeMuted) }
-            DropdownMenu(menu.expanded, onDismissRequest = { if (!menu.held) menu.expanded = false }, properties = PopupProperties(focusable = !menu.held)) {
-                DropdownMenuItem(text = { Text("Rename group") }, onClick = {
-                    menu.expanded = false; name = group.name; renaming = true
-                })
-                DropdownMenuItem(text = { Text(if (group.isPinned) "Unpin group" else "Pin group") },
-                    onClick = {
-                        menu.expanded = false
-                        onAction(if (group.isPinned) "unpin" else "pin", null)
-                    })
-                DropdownMenuItem(text = { Text("Ungroup workspaces") }, onClick = {
-                    menu.expanded = false; confirmingUngroup = true
-                })
-            }
-        }
-    }
-    if (renaming) AlertDialog(
-        onDismissRequest = { renaming = false },
-        title = { Text("Rename group") },
-        text = { OutlinedTextField(name, { name = it }, singleLine = true) },
-        confirmButton = { TextButton(onClick = {
-            renaming = false; onAction("rename", name)
-        }, enabled = name.isNotBlank()) { Text("Save") } },
-        dismissButton = { TextButton(onClick = { renaming = false }) { Text("Cancel") } }
-    )
-    if (confirmingUngroup) AlertDialog(
-        onDismissRequest = { confirmingUngroup = false },
-        title = { Text("Ungroup ${group.name}?") },
-        text = { Text("The workspaces will stay open.") },
-        confirmButton = { TextButton(onClick = {
-            confirmingUngroup = false; onAction("ungroup", null)
-        }) { Text("Ungroup") } },
-        dismissButton = { TextButton(onClick = { confirmingUngroup = false }) { Text("Cancel") } }
-    )
-}
 
 @Composable
 internal fun NativeWorkspaceRow(

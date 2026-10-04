@@ -91,7 +91,7 @@ class NativeFlowTest {
         showSearchFixture()
         val group = compose.onNodeWithContentDescription("Open Completed group")
         group.performTouchInput { longClick() }
-        compose.onNodeWithText("Pin group").assertDoesNotExist()
+        compose.onNodeWithText("Pin Group").assertDoesNotExist()
         compose.onNodeWithText("Claude Code task").assertIsDisplayed()
         group.performClick()
         compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
@@ -2093,6 +2093,95 @@ class NativeFlowTest {
         compose.onNodeWithText("Settings").assertIsDisplayed()
     }
 
+    private fun showGroupCreationFixture(legacy: Boolean, gate: CountDownLatch? = null) {
+        peer.taskGroupsSupported = true
+        peer.notificationFeed = searchNotifications()
+        peer.workspaceCreationResponse = {
+            check(gate?.await(15, TimeUnit.SECONDS) != false)
+            val listing = JSONObject("""{"groups":[{"id":"complete","name":"Completed group","anchor_workspace_id":"workspace-2"}],"workspaces":[
+                {"id":"workspace-1","title":"Claude Code task","terminals":[{"id":"terminal-1"}]},
+                {"id":"workspace-2","title":"Read project","group_id":"complete","terminals":[{"id":"terminal-2"}]},
+                {"id":"group-created","title":"Created in group","group_id":"complete","terminals":[{"id":"group-terminal","title":"New shell"}]}]}""")
+            peer.customWorkspaceListing = listing
+            if (!legacy) listing.put("created_workspace_id", "group-created").put("created_terminal_id", "group-terminal")
+            listing
+        }
+        showSearchFixture()
+        compose.onNodeWithText("Completed group").performTouchInput { longClick() }
+        compose.onNodeWithText("New Workspace in Group").performClick()
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "workspace.create" } }
+    }
+
+    @Test fun groupLegacyCreationRefreshesListWithoutGuessingWhichWorkspaceToOpen() {
+        showGroupCreationFixture(legacy = true)
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Created in group").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Claude Code task").assertIsDisplayed()
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.replay" })
+        val sent = peer.requests.single { it.optString("method") == "workspace.create" }.getJSONObject("params")
+        assertEquals("complete", sent.getString("group_id"))
+    }
+
+    @Test fun delayedGroupCreationDoesNotNavigateAfterLeavingTheList() {
+        val gate = CountDownLatch(1)
+        try {
+            showGroupCreationFixture(legacy = false, gate = gate)
+            compose.onNodeWithContentDescription("cmux settings").performClick()
+            compose.onNodeWithText("Settings").assertIsDisplayed()
+            gate.countDown()
+            compose.waitUntil(10_000) { peer.customWorkspaceListing?.getJSONArray("workspaces")?.length() == 3 }
+            // Returning to the list observes the authoritative refresh and settles the response.
+            compose.onNodeWithText("‹  Back").performScrollTo().performClick()
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("Created in group").fetchSemanticsNodes().isNotEmpty() }
+            assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.replay" })
+            assertEquals(1, peer.requests.count { it.optString("method") == "workspace.create" })
+        } finally { gate.countDown() }
+    }
+
+    @Test fun groupCreationAndDeleteTargetBackgroundMacWithCollidingGroupIds() {
+        val other = NativeFixturePeer().apply {
+            deviceId = "second-mac"; displayName = "Second Mac"
+            groupActionsSupported = true; taskGroupsSupported = true
+        }
+        fun listing(name: String) = JSONObject("""{
+            "groups":[{"id":"g","name":"$name group"}],
+            "workspaces":[{"id":"workspace-1","window_id":"fixture-window","title":"$name task","terminals":[]}]}
+        """)
+        peer.customWorkspaceListing = listing("First")
+        other.customWorkspaceListing = listing("Second")
+        val store = NativeCredentialStore(context)
+        store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.2:58465", "second-mac", "Second Mac")
+        store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
+        try {
+            compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+                NativeScreen(onUseHelper = {}, connector = NativeConnector { pairing, _ ->
+                    val target = if (pairing.routes.first().host == "100.64.0.2") other else peer
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", target.port), { "fixture-token" }).also { it.connect() }
+                })
+            } } }
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Second group").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("Second group").performTouchInput { longClick() }
+            compose.onNodeWithText("Delete Group (Close Workspaces)").performClick()
+            compose.onNodeWithText("Cancel").performClick()
+            assertTrue(other.requests.none { it.optString("method") == "workspace.group.action" })
+            compose.onNodeWithText("Second group").performTouchInput { longClick() }
+            compose.onNodeWithText("Delete Group (Close Workspaces)").performClick()
+            compose.onNodeWithText("Delete Group").performClick()
+            compose.waitUntil(10_000) { other.requests.any { it.optString("method") == "workspace.group.action" } }
+            val deleted = other.requests.single { it.optString("method") == "workspace.group.action" }.getJSONObject("params")
+            assertEquals("g", deleted.getString("group_id")); assertEquals("delete", deleted.getString("action"))
+            // The fixture deliberately retains the group after the delete response, modeling a no-op.
+            compose.onNodeWithText("Second group").performTouchInput { longClick() }
+            compose.onNodeWithText("New Workspace in Group").performClick()
+            compose.waitUntil(15_000) { other.requests.any { it.optString("method") == "mobile.terminal.replay" &&
+                it.getJSONObject("params").optString("surface_id") == "task-terminal" } }
+            val sent = other.requests.single { it.optString("method") == "workspace.create" }.getJSONObject("params")
+            assertEquals("g", sent.getString("group_id")); assertEquals(1, sent.length())
+            assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.create", "workspace.group.action", "mobile.terminal.replay") })
+            assertTrue((peer.requests + other.requests).none { it.optString("method") == "workspace.close" })
+            screenshot("group-created-background-mac")
+        } finally { other.close() }
+    }
+
     @Test fun groupPickerMovesFilteredBackgroundMacAndRemovesThroughRpc() {
         val other = NativeFixturePeer().apply { deviceId = "second-mac"; displayName = "Second Mac" }
         fun listing(name: String) = JSONObject("""{
@@ -2920,6 +3009,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 if (identifiedInput) it.put(TerminalInputDelivery.CAPABILITY)
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (groupActionsSupported) it.put("workspace.group_actions.v1")
+                if (groupActionsSupported || taskGroupsSupported) it.put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)
                 it.put("workspace.actions.v1").put("workspace.read_state.v1").put("workspace.close.v1")
                 if (workspaceMetadataSupported) it.put(WORKSPACE_METADATA_CAPABILITY)
                 if (workspaceChangesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)

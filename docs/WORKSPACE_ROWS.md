@@ -417,3 +417,65 @@ The installed emulator APK hash matched. Final crash buffers are empty, the
 existing AVD is stopped/reaped, no new AVD was created, and no physical Pixel
 was connected. Signed build 537 is unchanged. These emulator/framed-RPC checks
 do not replace live Pixel/Mac browser and account acceptance.
+
+## Group header actions — 2026-10-04
+
+The group header now opens its coordinated context menu by holding the row,
+without a visible ellipsis. Actions follow the iOS table coordinator's order:
+Pin/Unpin Group, Rename Group, New Workspace in Group, then a separated destructive
+section containing Ungroup (Keep Workspaces) and Delete Group (Close Workspaces).
+The header preserves its anchor navigation, disclosure, unread/pinned indicators
+and shared hold-to-drag/accessibility handling. Selected/sidebar/wide-layout
+presentation remains part of the broader UI audit.
+
+Ungroup is unavailable for pinned groups. Both destructive actions present the
+iOS confirmation title and Mac-specific explanation; cancellation sends nothing.
+An owner replacement dismisses the old owner's menu/dialog, capability withdrawal
+retires pending actions, and pinning a group retires its pending ungroup dialog.
+The coordinator independently resolves the current group and rejects pinned
+ungroup attempts. Delete uses `workspace.group.action` with `action: delete`;
+it never loops over workspace-close requests. Successes and rejections reconcile
+the owning Mac's authoritative list.
+
+New Workspace in Group has independent `workspace.create_in_group.v1` discovery.
+It sends `workspace.create` with only `group_id` through the captured owner's
+verified connection, even from the multi-Mac list. Navigation additionally checks
+the login, team, saved Mac and navigation generation after the response. A known
+created workspace is opened through the existing route/startup path; a legacy
+list-only success refreshes the list without guessing a workspace ID. Task/spec
+creation still requires an exact created ID. In-flight creation disables another
+creation action, and the transport does not replay the mutation automatically.
+
+### Account authority
+
+The scoped upstream `MobileShellComposite+WorkspaceMutationCapabilities.swift`
+and `MobileShellWorkspaceMutationTicketPolicy.swift` require Mac-wide authority.
+The Android `NativeConnector` currently supplies Stack account authentication
+without an attach ticket. Group discovery and execution therefore require
+`workspace.mutations.account_auth.v1` in addition to the individual operation's
+capability. Legacy ticket-only hosts cannot use these controls through the
+current Android connector. Legacy attach-ticket support remains a parity item,
+not an unavoidable Android platform difference. No token or transport policy
+was weakened, and no credential was logged or changed for these tests.
+
+### Group action verification
+
+The focused JVM run passed 37 tests (34 coordinator, three legacy/exact response
+parsing cases). Nine Android checks passed in 98.704s: all four new group-menu
+cases, multi-Mac delete/create with colliding group IDs, unsupported-header tap,
+hierarchy/anchor/collapse/drag, rejected mutations with preserved terminal-error
+recovery, and an OS-held pointer continuing from menu into reorder.
+
+A follow-up confirmed actual painted dialog pixels and added legacy-response and
+delayed-navigation cases. Its two creation fixtures initially removed the old
+anchor, making the new workspace appear through the group header by design;
+the tests incorrectly expected a separate row. With the old anchor retained,
+both cases passed in 22.837s using the same production APK. Eleven distinct
+Android checks therefore pass across runs. Original failures and the pre-paint
+screenshot are retained in the evidence folder; only the painted confirmation
+is visual proof. Menu and created-terminal screenshots were also inspected.
+
+Final crash buffers are empty, the sole existing AVD is stopped/reaped, and no
+physical Pixel was connected. Evidence:
+`captures/runtime/group-actions/verification.json`. The last verified signed
+build is still 537; the next signed milestone must verify this accumulated batch.

@@ -24,7 +24,43 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — workspace menu and browser restoration (2026-10-04)
+## Latest checkpoint — group actions and creation (2026-10-04)
+
+Group headers now use the iOS context-menu order/icons without a visible
+ellipsis: Pin/Unpin Group, Rename Group, New Workspace in Group, Ungroup (Keep
+Workspaces), Delete Group (Close Workspaces). Destructive actions have explicit
+Mac confirmations. Pinned groups cannot be ungrouped; owner/capability changes
+retire pending actions. Creation and deletion target the owning Mac even from
+the multi-Mac list. See [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md).
+
+The current Android connector uses account authentication without attach
+tickets. Group discovery and execution now require the host's
+`workspace.mutations.account_auth.v1` plus the operation capability, matching
+the scoped iOS authority policy for an account-only connection. Legacy attach-
+ticket support remains a parity item. Plain group creates accept a valid legacy
+list-only success without guessing a created ID; task/spec parsing stays strict.
+A delayed create cannot take over navigation after the user leaves the list.
+
+**37 JVM tests and 11 distinct Android checks passed across focused runs.** The
+initial nine Android checks passed in 98.704s. A follow-up added visible-pixel
+confirmation capture and two creation cases; those two fixtures initially
+removed the existing group anchor and incorrectly expected the new anchor as a
+separate row. Retaining the existing anchor corrected the fixture; both cases
+passed in 22.837s against the same production APK. The confirmation pixel check
+passed in the preceding run. This is not a single green 11-case invocation.
+
+Menu, painted confirmation and created-terminal screenshots inspected; crash
+buffers empty; sole existing AVD stopped/reaped. Evidence and source/APK hashes:
+`captures/runtime/group-actions/verification.json`. No physical Pixel was visible
+to ADB. Signed build **537 remains the last verified delivery**.
+
+**Next:** build and verify one signed milestone for the accumulated workspace/
+group batch, including R8/API37 ART and packaging checks; then resume physical
+Pixel/Mac acceptance when the device is available. Selected/sidebar/wide UI,
+broader upstream changes, legacy tickets, live account/network flows and push/
+feed configuration remain open. Goal active.
+
+## Earlier checkpoint — workspace menu and browser restoration (2026-10-04)
 
 Workspace context menus now follow the scoped iOS source order and icons:
 **Pin/Unpin, Customize, Rename, Mark as Read/Unread, Move to Group, Delete**.

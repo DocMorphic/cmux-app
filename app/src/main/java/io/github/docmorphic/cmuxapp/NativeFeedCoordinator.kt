@@ -352,11 +352,24 @@ internal class NativeFeedCoordinator(
         action: String, title: String? = null): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {
         owningMutation(mac, refreshChanges = false) { _, client ->
             val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
-            check("workspace.group_actions.v1" in source.capabilities) { "This Mac does not support group actions." }
-            check(source.groups.any { it.id == groupId }) { "This group is no longer available." }
+            check(source.canEditGroups()) { "Update cmux on this Mac to use account-authorized group actions." }
+            val group = source.groups.singleOrNull { it.id == groupId } ?: error("This group is no longer available.")
+            check(action != "ungroup" || !group.isPinned) { "Unpin this group before ungrouping it." }
             client.groupAction(groupId, action, title)
         }
     }
+
+    suspend fun createWorkspaceInGroup(mac: NativeCredentialStore.PairedMac, groupId: String): JSONObject =
+        withContext(scope.coroutineContext.minusKey(Job)) {
+            owningMutation(mac) { _, client ->
+                val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
+                check(source.canCreateInGroup()) { "Update cmux on this Mac to create workspaces in groups with account authentication." }
+                check(source.groups.any { it.id == groupId }) { "This group is no longer available." }
+                client.request("workspace.create", JSONObject().put("group_id", groupId)).also {
+                    createdGroupWorkspace(it) // Validate legacy list-only success without inventing a selected workspace.
+                }
+            }
+        }
 
     private suspend fun owningMutation(mac: NativeCredentialStore.PairedMac, refreshChanges: Boolean = true,
         operation: suspend (Handle, MobileRpcClient) -> JSONObject): JSONObject {

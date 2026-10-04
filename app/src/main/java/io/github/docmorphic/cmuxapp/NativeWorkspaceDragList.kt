@@ -87,7 +87,8 @@ internal fun NativeWorkspaceDragList(
                     if (entry != null && entry !is WorkspaceListEntry.Footer) {
                         swipeCoordinator.activeKey = null
                         val contextKey = WorkspaceContextMenuKey(entry.key, entry.source.mac)
-                        contextMenus.activeKey = contextKey.takeIf { entry !is WorkspaceListEntry.Header || "workspace.group_actions.v1" in entry.source.capabilities }
+                        contextMenus.activeKey = contextKey.takeIf { entry !is WorkspaceListEntry.Header ||
+                            entry.source.canEditGroups() || entry.source.canCreateInGroup() }
                         contextMenus.heldKey = contextKey
                         snapshot = latestEntries; held = entry; pointerY = point.y; holdY = point.y
                         fingerOffset = point.y - (item?.offset ?: 0)

@@ -64,7 +64,7 @@ class NativeWorkspaceFailureRuntimeTest {
                 }
                 assertNull(peer.hiddenWorkspaceId)
                 reject("workspace.group.action") {
-                    node(By.text("Completed group")).longClick(); node(By.text("Pin group")).click()
+                    node(By.text("Completed group")).longClick(); node(By.text("Pin Group")).click()
                 }
                 reject("workspace.move") {
                     node(By.text("Claude Code task")).longClick(); node(By.text("Move to Group")).click(); node(By.text("Completed group")).click()
