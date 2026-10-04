@@ -56,6 +56,17 @@ val verifySimulatorNative by tasks.registering {
 tasks.named("preBuild").configure { dependsOn(verifySimulatorNative) }
 configurations.configureEach { exclude(group = "androidx.graphics", module = "graphics-path") }
 
+// About/support identifies development reloads without creating installation identifiers.
+val supportSourceRevision = providers.environmentVariable("GITHUB_SHA").orNull
+    ?.takeIf { it.matches(Regex("[0-9a-fA-F]{7,40}")) }?.take(12)
+    ?: runCatching {
+        val sha = providers.exec { commandLine("git", "rev-parse", "--short=12", "HEAD"); workingDir(rootDir) }
+            .standardOutput.asText.get().trim()
+        val dirty = providers.exec { commandLine("git", "status", "--porcelain", "--untracked-files=normal"); workingDir(rootDir) }
+            .standardOutput.asText.get().isNotBlank()
+        if (sha.matches(Regex("[0-9a-fA-F]{7,40}"))) sha + if (dirty) "+" else "" else ""
+    }.getOrDefault("")
+
 android {
     namespace = "io.github.docmorphic.cmuxapp"
     compileSdk = 37
@@ -70,6 +81,7 @@ android {
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 2
         versionName = "0.2.0"
         buildConfigField("String", "NOTICE_VERSION", "\"0.2.0\"")
+        buildConfigField("String", "SOURCE_REVISION", "\"$supportSourceRevision\"")
         // Native milestone targets the Pixel 6a; never install a partial JNA-only ABI.
         ndk { abiFilters += "arm64-v8a" }
 

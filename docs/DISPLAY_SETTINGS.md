@@ -326,3 +326,51 @@ Debug APK SHA-256:
 `6b55cd81e43fb1fc679f4a5c5ea4dc6e8b8ecdae9c65b29fed30a6ebf1f20395`.
 Test APK SHA-256:
 `ece4a8558c3b2f97df0956ccd15c4c6d91b7a90ca89df9bd2a6fdc7935dfaf08`.
+
+
+## Legal, support and About — 2026-10-04
+
+Scoped reference: `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`,
+`MobileSettingsLegalSupportSection.swift`, the About/copy sections of
+`MobileSettingsView.swift`, `MobileDebugInformation.swift`, and `AppVersionInfo.swift`.
+The broader upstream parity pin remains unchanged.
+
+Settings now opens [Privacy Policy](https://cmux.com/privacy-policy) and
+[Terms of Service](https://cmux.com/terms-of-service) through Android's browser
+handler. Both destinations resolved during this audit. Support opens an email
+composer addressed to `feedback@manaflow.com` with subject `cmux Android support`,
+following the scoped iOS implementation; it neither sends mail nor attaches a
+report. Missing handlers show a selectable destination. Decorative arrows are
+excluded from accessibility semantics. The UI identifies these as cmux service
+links and identifies the Android app as an unofficial companion.
+
+About displays the installed package version and build number. Debug builds also
+show a short source revision, with `+` for tracked or untracked local changes;
+source archives without Git omit it. CI uses its validated `GITHUB_SHA`. Copy
+Support Information reads the current account/team/connection at click time,
+then copies a typed report with build, Android version/model, coarse transport
+and UTC time. No email, credentials, terminal content, host addresses or logs
+enter the report. There is no equivalent installation analytics ID or iOS vendor
+ID in this implementation, so those fields remain `<unavailable>`; this does not
+create identifiers. Values are bounded and stripped of control characters.
+The clip is marked sensitive to suppress Android's content preview. The copied
+label lasts two seconds, resets on repeated copy, and reports clipboard failure
+with a retry. This action does not add a haptic absent from the scoped iOS action.
+
+Debug/test APKs build successfully (initial 1m25s, final 28s). **Two JVM cases
+and two Android cases pass**; the final Android run took **17.223s** after
+accessibility and source-marker refinements (initial runtime 17.287s). The
+inspected screenshot at double font scale is readable without clipped labels.
+Tests cover intent destinations, absent handlers, current-session copying,
+sensitive clipboard metadata, disconnected transport, retry and copied-label
+expiry. Both crash buffers are empty. The sole existing AVD was stopped/reaped;
+ADB showed no physical Pixel. Tests use injected intent and clipboard sinks:
+no support email is sent, and email deliverability is not claimed. Component checks do not establish
+whole-Settings/iOS visual parity or physical Pixel/Mac acceptance. Signed build
+517 is unchanged; current-source signed release verification remains pending.
+
+Evidence: ignored `captures/runtime/support-settings/verification.json`, build
+and runtime logs, JVM XML and component screenshots. Debug APK SHA-256:
+`9920ee0cd8cefd61a089c584c8d84808ac9980de679ca452ba54edc3f9a6f8ac`.
+Test APK SHA-256:
+`965eea5387644fe1f0e6d6ab6a583582f981ba6c1073e2bf56e3d3f399da3376`.

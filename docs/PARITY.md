@@ -12,6 +12,26 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — Legal, Support and About (2026-10-04)
+
+[DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#legal-support-and-about--2026-10-04)
+adds the scoped iOS policy/support destinations, actual installed version and
+build, and a current-session Copy Support Information report. Support opens an
+email draft; reports exclude credentials, terminal text and host addresses.
+Unavailable installation/vendor identifiers remain explicitly unavailable.
+Debug source revisions distinguish development builds.
+
+**Two JVM + two Android cases pass** (final runtime 17.223s). Final debug/test
+build passes; the double-font-scale component screenshot was inspected, crash
+buffers are empty, and the sole AVD is stopped/reaped. No email was sent and no
+physical Pixel appeared in ADB. Signed build 517 is unchanged. This verifies
+the components, not full Settings/iOS visual or physical account acceptance.
+
+**Next:** remaining arrow-nub/toast/native-selection haptics; production shared
+connection graph; Pixel/Mac browser/recovery and tactile acceptance; broader
+upstream source/UI audit. Push/feed provider configuration and the final current-
+source signed-release gate remain open. The overall goal remains active.
+
 ## Latest checkpoint — parser-backed terminal bells (2026-10-04)
 
 [DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#terminal-bell-feedback--2026-10-04)

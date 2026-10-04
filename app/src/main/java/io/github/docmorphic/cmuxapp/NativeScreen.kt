@@ -2317,7 +2317,18 @@ fun NativeScreen(
         TextButton(onClick = onUseHelper, modifier = Modifier.padding(horizontal = 14.dp)) {
             Text("Use existing helper connection", color = nativeMuted)
         }
+        NativeLegalSupportSettings()
         NativeLocalResetSection()
+        NativeAboutSettings(session = {
+            val current = accountTeams.state.value
+            val connected = connectionReady && connectedCode == code && client?.isClosed == false
+            val route = if (connected) when (PairingCodeParser.parse(code).getOrNull()) {
+                is PairingCode.Iroh -> "iroh"
+                is PairingCode.Tailscale -> "tailscale"
+                null -> null
+            } else null
+            NativeSupportSession(current.userId, current.selectedTeamId, connected, route)
+        })
         })
     }
     val taskComposerContent: @Composable ColumnScope.() -> Unit = {
