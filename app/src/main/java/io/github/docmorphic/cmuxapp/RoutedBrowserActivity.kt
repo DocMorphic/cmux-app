@@ -54,7 +54,9 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         notificationAction = { command -> request(RoutedBrowserProtocol.SIDEBAR_NOTIFICATION,
             Bundle().apply { putString("notification", RoutedSidebarWire.notification(command)) }); Unit },
         workspaceAction = { command -> request(RoutedBrowserProtocol.SIDEBAR_MUTATION,
-            Bundle().apply { putString("mutation", RoutedSidebarWire.mutation(command)) }); Unit })
+            Bundle().apply { putString("mutation", RoutedSidebarWire.mutation(command)) }); Unit },
+        readGroupMenu = { key, revision, offset -> RoutedSidebarGroupWire.decode(checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_GROUP_MENU,
+            Bundle().apply { putString("key", key); putString("revision", revision); putInt("offset", offset) }).getString("groups"))) })
     private fun configureSidebar() = sidebar.configure(binding != null && state.value.sidebarAvailable && !state.value.retired, foreground)
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         when (message.what) {

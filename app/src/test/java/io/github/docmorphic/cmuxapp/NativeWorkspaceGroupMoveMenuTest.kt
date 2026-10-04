@@ -54,4 +54,16 @@ class NativeWorkspaceGroupMoveMenuTest {
         assertTrue(menu("root", source.copy(workspaces = source.workspaces + workspace("foreign").copy(windowId = "other"))).isEmpty)
         assertTrue(menu("root", source.copy(workspaces = source.workspaces + workspace("missing").copy(windowId = null))).isEmpty)
     }
+    @Test fun bulkEligibilityMatchesCompleteMenuAcrossMembershipAndAvailabilityChanges() {
+        val sources = listOf(source, source.copy(groups = emptyList()), source.copy(groups = source.groups.take(1)),
+            source.copy(workspaces = source.workspaces + workspace("orphan", "unknown")),
+            source.copy(groups = source.groups.map { it.copy(isPinned = true) }),
+            source.copy(groups = source.groups.map { it.copy(isEmpty = true) }),
+            source.copy(availability = NativeFeedAvailability.OFFLINE), source.copy(capabilities = emptySet()),
+            source.copy(workspaces = source.workspaces + workspace("foreign").copy(windowId = "other")))
+        for (owner in sources) for (pending in listOf(0, 2, 3)) {
+            assertEquals(owner.workspaces.filter { !menu(it.id, owner, pending).isEmpty }.map { it.id }.toSet(),
+                NativeWorkspaceGroupMoveMenu.availableWorkspaceIds(owner, pending))
+        }
+    }
 }

@@ -126,6 +126,137 @@ class NativeWorkspaceMovesTest {
         }
     }
 
+    @Test fun submittedMoveWaitsForMacAcknowledgementAndRefresh() = runBlocking {
+        withMoves { peer, coordinator, moves ->
+            val gate = CountDownLatch(1); peer.gate = gate
+            val submitted = async { moves.submit(moves.sources.value.getValue(peer.mac.origin),
+                "c", NativeWorkspaceMove(null, "a")) { true } }
+            awaitState { peer.moves.size == 1 }
+            assertFalse(submitted.isCompleted)
+            assertEquals(listOf("c", "a", "b", "d"), ids(moves.sources.value.getValue(peer.mac.origin)))
+            assertEquals(listOf("a", "b", "c", "d"), ids(coordinator.sources.value.getValue(peer.mac.origin)))
+            gate.countDown()
+            submitted.await()
+            assertEquals(listOf("c", "a", "b", "d"), ids(coordinator.sources.value.getValue(peer.mac.origin)))
+            assertEquals(0, moves.status.value.getValue(peer.mac.origin).pending)
+        }
+    }
+
+    @Test fun submittedMoveReportsItsOwnRejectionAndAllowsExplicitRetry() = runBlocking {
+        withMoves { peer, _, moves ->
+            peer.rejectNext = true
+            fun source() = moves.sources.value.getValue(peer.mac.origin)
+            val failure = runCatching { moves.submit(source(), "c", NativeWorkspaceMove(null, "a")) { true } }.exceptionOrNull()
+            assertTrue(failure?.message.orEmpty().contains("Move rejected by fixture"))
+            assertEquals(listOf("a", "b", "c", "d"), ids(source()))
+            assertEquals(1, peer.moves.size)
+            moves.submit(source(), "c", NativeWorkspaceMove(null, "a")) { true }
+            assertEquals(2, peer.moves.size)
+            assertEquals(listOf("c", "a", "b", "d"), ids(source()))
+        }
+    }
+
+    @Test fun submittedMoveRechecksPresentationAfterWaitingForEarlierMove() = runBlocking {
+        withMoves { peer, _, moves ->
+            val gate = CountDownLatch(1); peer.gate = gate
+            fun source() = moves.sources.value.getValue(peer.mac.origin)
+            assertTrue(moves.enqueue(source(), "c", NativeWorkspaceMove(null, "a")))
+            awaitState { peer.moves.size == 1 }
+            var visible = true
+            val submitted = async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { moves.submit(source(), "b", NativeWorkspaceMove(null, "c")) { visible } }
+            }
+            assertEquals(2, moves.status.value.getValue(peer.mac.origin).pending)
+            visible = false
+            gate.countDown()
+            assertTrue(submitted.await().isFailure)
+            awaitState { moves.status.value.getValue(peer.mac.origin).pending == 0 }
+            assertEquals(1, peer.moves.size)
+            assertEquals(listOf("c", "a", "b", "d"), ids(source()))
+        }
+    }
+
+    @Test fun cancellingSubmittedMoveImmediatelyReleasesSlotAndPreventsQueuedWrite() = runBlocking {
+        withMoves { peer, _, moves ->
+            val gate = CountDownLatch(1); peer.gate = gate
+            fun source() = moves.sources.value.getValue(peer.mac.origin)
+            assertTrue(moves.enqueue(source(), "c", NativeWorkspaceMove(null, "a")))
+            awaitState { peer.moves.size == 1 }
+            val submitted = launch(start = CoroutineStart.UNDISPATCHED) {
+                moves.submit(source(), "b", NativeWorkspaceMove(null, "c")) { true }
+            }
+            assertEquals(2, moves.status.value.getValue(peer.mac.origin).pending)
+            // No yield between admission and cancellation: cleanup must not depend on dispatch.
+            submitted.cancelAndJoin()
+            awaitState { moves.status.value.getValue(peer.mac.origin).pending == 1 }
+            gate.countDown()
+            awaitState { moves.status.value.getValue(peer.mac.origin).pending == 0 }
+            assertEquals(1, peer.moves.size)
+            assertEquals(listOf("c", "a", "b", "d"), ids(source()))
+            assertNull(moves.status.value.getValue(peer.mac.origin).error)
+            moves.submit(source(), "d", NativeWorkspaceMove(null, "c")) { true }
+            assertEquals(2, peer.moves.size)
+        }
+    }
+
+    @Test fun submittedMovePropagatesPredecessorFailureWithoutWritingOrRetrying() = runBlocking {
+        withMoves { peer, _, moves ->
+            val gate = CountDownLatch(1); peer.gate = gate; peer.rejectNext = true
+            fun source() = moves.sources.value.getValue(peer.mac.origin)
+            assertTrue(moves.enqueue(source(), "c", NativeWorkspaceMove(null, "a")))
+            awaitState { peer.moves.size == 1 }
+            val submitted = async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { moves.submit(source(), "b", NativeWorkspaceMove(null, "c")) { true } }
+            }
+            gate.countDown()
+            assertTrue(submitted.await().exceptionOrNull()?.message.orEmpty().contains("Move rejected by fixture"))
+            assertEquals(1, peer.moves.size)
+            assertEquals(listOf("a", "b", "c", "d"), ids(source()))
+            assertEquals(0, moves.status.value.getValue(peer.mac.origin).pending)
+        }
+    }
+
+    @Test fun submittedMoveRejectsInvalidPresentationOrFullQueueBeforeAdmission() = runBlocking {
+        withMoves { peer, _, moves ->
+            fun source() = moves.sources.value.getValue(peer.mac.origin)
+            assertTrue(runCatching { moves.submit(source(), "c", NativeWorkspaceMove(null, "a")) { false } }.isFailure)
+            assertTrue(peer.moves.isEmpty())
+            assertTrue(moves.status.value.isEmpty())
+            val gate = CountDownLatch(1); peer.gate = gate
+            assertTrue(moves.enqueue(source(), "c", NativeWorkspaceMove(null, "a")))
+            awaitState { peer.moves.size == 1 }
+            assertTrue(moves.enqueue(source(), "b", NativeWorkspaceMove(null, "c")))
+            assertTrue(moves.enqueue(source(), "d", NativeWorkspaceMove(null, "a")))
+            val failure = runCatching { moves.submit(source(), "a", NativeWorkspaceMove(null, "b")) { true } }.exceptionOrNull()
+            assertTrue(failure?.message.orEmpty().contains("queue is full"))
+            assertEquals(3, moves.status.value.getValue(peer.mac.origin).pending)
+            gate.countDown()
+            awaitState { moves.status.value.getValue(peer.mac.origin).pending == 0 }
+            assertEquals(3, peer.moves.size)
+        }
+    }
+
+    @Test fun groupAnchorChangeWhileQueuedRejectsMoveEvenWhenMembershipAndOrderStillMatch() = runBlocking {
+        withMoves { peer, coordinator, moves ->
+            peer.grouped = true
+            coordinator.refresh()
+            fun source() = moves.sources.value.getValue(peer.mac.origin)
+            awaitState { source().groups.singleOrNull()?.liveAnchorWorkspaceId == "a" }
+            val gate = CountDownLatch(1); peer.gate = gate; peer.replaceAnchorOnNextMove = true
+            assertTrue(moves.enqueue(source(), "d", NativeWorkspaceMove(null, "c")))
+            awaitState { peer.moves.size == 1 }
+            val submitted = async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { moves.submit(source(), "c", NativeWorkspaceMove(null, "d")) { true } }
+            }
+            gate.countDown()
+            assertTrue(submitted.await().exceptionOrNull()?.message.orEmpty().contains("group anchors changed"))
+            assertEquals(1, peer.moves.size)
+            assertEquals(listOf("a", "b", "d", "c"), ids(source()))
+            assertEquals("b", source().groups.single().liveAnchorWorkspaceId)
+            assertEquals(0, moves.status.value.getValue(peer.mac.origin).pending)
+        }
+    }
+
     @Test fun predictionPreservesLiveContentAndReconcilesCreatedDeletedRowsAndIntermediateBases() {
         fun rows(vararg ids: String) = parseWorkspaces(JSONObject().put("workspaces", JSONArray(ids.map { JSONObject().put("id", it).put("title", it) })))
         val original = rows("a", "b", "c")
@@ -160,6 +291,9 @@ private class MovePeer : AutoCloseable {
     @Volatile var rejectNext = false
     @Volatile var pinOnNextMove = false
     @Volatile var mixedWindows = false
+    @Volatile var grouped = false
+    @Volatile var replaceAnchorOnNextMove = false
+    @Volatile private var anchor = "a"
     @Volatile private var pinned = false
     @Volatile private var closed = false
     init { Thread {
@@ -181,14 +315,18 @@ private class MovePeer : AutoCloseable {
                 var reject = false
                 val result = when (method) {
                     "mobile.host.status" -> JSONObject().put("mac_device_id", mac.deviceId).put("capabilities", JSONArray().put("workspace.move.v1"))
-                    "mobile.workspace.list" -> JSONObject().put("workspaces", JSONArray(order.map { id ->
+                    "mobile.workspace.list" -> JSONObject().put("groups", JSONArray().also {
+                        if (grouped) it.put(JSONObject().put("id", "g").put("name", "Group").put("anchor_workspace_id", anchor))
+                    }).put("workspaces", JSONArray(order.map { id ->
                         JSONObject().put("id", id).put("title", id).put("is_pinned", pinned && id == "a")
+                            .put("group_id", "g".takeIf { grouped && id in listOf("a", "b") })
                             .put("window_id", if (mixedWindows && id == order.last()) "another-window" else "window")
                     }))
                     "notification.feed.list" -> JSONObject().put("revision", 1).put("notifications", JSONArray())
                     "workspace.move" -> {
                         val params = request.getJSONObject("params"); moves += params
                         gate?.await(10, TimeUnit.SECONDS)
+                        if (replaceAnchorOnNextMove) { anchor = "b"; replaceAnchorOnNextMove = false }
                         reject = rejectNext; rejectNext = false
                         if (pinOnNextMove) { pinned = true; pinOnNextMove = false }
                         else if (!reject) {

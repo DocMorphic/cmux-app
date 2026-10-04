@@ -8,10 +8,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal data class NativeWorkspaceOrder(
-    val entries: List<NativeWorkspaceOrderEntry>, val groupPins: Map<String, Boolean>
+    val entries: List<NativeWorkspaceOrderEntry>, val groupPins: Map<String, Boolean>,
+    val groupAnchors: Map<String, String?>? = null
 ) {
     constructor(workspaces: List<NativeWorkspace>, groups: List<NativeGroup>) : this(
-        workspaces.map { NativeWorkspaceOrderEntry(it.id, it.groupId, it.isPinned) }, groups.associate { it.id to it.isPinned })
+        workspaces.map { NativeWorkspaceOrderEntry(it.id, it.groupId, it.isPinned) }, groups.associate { it.id to it.isPinned },
+        groups.associate { it.id to it.liveAnchorWorkspaceId })
 
     fun materialize(authoritative: List<NativeWorkspace>): List<NativeWorkspace> {
         val byId = authoritative.associateBy { it.id }
@@ -62,7 +64,7 @@ internal class NativeWorkspaceMoves(private val scope: CoroutineScope, private v
         var epoch = 0L
         var pending = 0
         var optimism = NativeWorkspaceOptimism()
-        var tail: Deferred<Boolean>? = null
+        var tail: Deferred<Result<Unit>>? = null
         var error: String? = null
     }
     private val chains = mutableMapOf<String, Chain>()
@@ -99,14 +101,30 @@ internal class NativeWorkspaceMoves(private val scope: CoroutineScope, private v
         chains.values.forEach { it.epoch++; it.tail?.cancel() }; chains.clear()
         authoritative = emptyMap(); publish()
     }
-    fun enqueue(source: NativeFeedSource, movedId: String, proposed: NativeWorkspaceMove): Boolean {
-        val current = mutableSources.value[source.mac.origin] ?: return false
+    fun enqueue(source: NativeFeedSource, movedId: String, proposed: NativeWorkspaceMove): Boolean =
+        enqueueTask(source, movedId, proposed) { true } != null
+
+    /** Browser callers need a host acknowledgement, not merely admission to the optimistic queue. */
+    suspend fun submit(source: NativeFeedSource, movedId: String, proposed: NativeWorkspaceMove, canSend: () -> Boolean) {
+        val caller = currentCoroutineContext()
+        caller.ensureActive()
+        val task = checkNotNull(enqueueTask(source, movedId, proposed) { caller.isActive && canSend() }) {
+            "Workspace move changed or the move queue is full. Refresh the sidebar."
+        }
+        try { task.await().getOrThrow() }
+        finally { if (!caller.isActive) task.cancel() }
+    }
+
+    private fun enqueueTask(source: NativeFeedSource, movedId: String, proposed: NativeWorkspaceMove,
+        canSend: () -> Boolean): Deferred<Result<Unit>>? {
+        if (!scope.isActive || !canSend()) return null
+        val current = mutableSources.value[source.mac.origin] ?: return null
         if (current.mac != source.mac || !current.canReorderWorkspaces() ||
-            !NativeWorkspaceOrder(source.workspaces, source.groups).matches(current.workspaces, current.groups)) return false
+            !NativeWorkspaceOrder(source.workspaces, source.groups).matches(current.workspaces, current.groups)) return null
         val chain = chains.getOrPut(source.mac.origin) { Chain(source.mac) }
-        if (chain.pending >= 3) return false
+        if (chain.pending >= 3) return null
         val policy = NativeWorkspaceMovePolicy(current.workspaces, current.groups)
-        val intent = policy.normalized(proposed, movedId) ?: return false
+        val intent = policy.normalized(proposed, movedId) ?: return null
         val base = NativeWorkspaceOrder(current.workspaces, current.groups)
         val predicted = NativeWorkspaceOrder(policy.applying(intent, movedId), current.groups)
         chain.optimism = NativeWorkspaceOptimism(predicted, chain.optimism.bases + base)
@@ -114,24 +132,25 @@ internal class NativeWorkspaceMoves(private val scope: CoroutineScope, private v
         val previous = chain.tail
         val epoch = chain.epoch
         fun currentChain() = chains[source.mac.origin] === chain && chain.epoch == epoch
-        val task = scope.async(start = CoroutineStart.LAZY) {
+        publish()
+        // Enter the try/finally immediately: cancellation before dispatch must also release
+        // the pending slot and discard its prediction. This task still belongs to the UI scope.
+        val task = scope.async(start = CoroutineStart.UNDISPATCHED) {
             try {
-                if (previous != null && !previous.await()) return@async false
-                if (!currentChain()) return@async false
-                coordinator.moveWorkspace(source.mac, movedId, intent, base, ::currentChain)
-                true
+                previous?.await()?.getOrThrow()
+                check(currentChain()) { "Workspace order changed. Refresh the sidebar." }
+                coordinator.moveWorkspace(source.mac, movedId, intent, base) { currentChain() && canSend() }
+                Result.success(Unit)
             } catch (failure: Exception) {
                 if (currentChain()) {
                     chain.epoch++; chain.optimism = NativeWorkspaceOptimism(); chain.tail = null
                     if (failure !is CancellationException) chain.error = failure.message ?: "Could not move this workspace."
                 }
                 recordWorkspaceActionFailure(failure)
-                false
+                Result.failure<Unit>(failure)
             } finally { chain.pending--; if (chains[source.mac.origin] === chain) publish() }
         }
-        chain.tail = task
-        publish()
-        task.start()
-        return true
+        if (currentChain()) chain.tail = task
+        return task
     }
 }

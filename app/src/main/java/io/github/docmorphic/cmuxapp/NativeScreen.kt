@@ -3340,7 +3340,7 @@ internal fun NativeScreen(
                 availability, display, searchLocale, actions = buildSet {
                     add(RoutedSidebarActionKind.SETTINGS); add(RoutedSidebarActionKind.COMPUTERS)
                     if (taskDraftRepository != null) add(RoutedSidebarActionKind.NEW_TASK)
-                })
+                }, pendingMoves = workspaceMoves.status.value.mapValues { it.value.pending })
         }
     })
     val sidebarInitial by rememberUpdatedState<() -> NativeSidebarPresentation>({
@@ -3432,6 +3432,9 @@ internal fun NativeScreen(
                 val permitted = { currentOwner() && canSend() }
                 if (target.group) feedCoordinator.groupAction(target.mac, target.id, command.kind.verb, command.title, permitted)
                 else feedCoordinator.workspaceAction(target.mac, target.id, command.kind.verb, command.title, permitted)
+            }, moveWorkspace = { source, workspace, intent, canSend ->
+                check(currentOwner()) { "Sidebar account changed" }
+                workspaceMoves.submit(source, workspace, intent) { currentOwner() && canSend() }
             })
     } }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
@@ -3564,12 +3567,14 @@ internal fun NativeWorkspaceRow(
     canWorkspaceActions: Boolean = false,
     handlesHold: Boolean = false, closeConfirmation: WorkspaceCloseConfirmation = WorkspaceCloseConfirmation.mac,
     onOpen: () -> Unit,
-    onAction: (String, String?) -> Unit
+    onAction: (String, String?) -> Unit,
+    remoteGroupMenu: (@Composable (onBack: () -> Unit, onDismiss: () -> Unit) -> Unit)? = null
 ) {
     val menu = rememberWorkspaceContextMenu(workspace.id)
     var groupPicker by remember(menu, menu.expanded) { mutableStateOf(false) }
-    val showingGroups = groupPicker && !groupMoveMenu.isEmpty
-    val hasMenu = canWorkspaceActions || canReadState || canClose || !groupMoveMenu.isEmpty
+    val canMoveGroups = !groupMoveMenu.isEmpty || remoteGroupMenu != null
+    val showingGroups = groupPicker && canMoveGroups
+    val hasMenu = canWorkspaceActions || canReadState || canClose || canMoveGroups
     val menuExpanded = menu.expanded && hasMenu
     LaunchedEffect(menu, hasMenu, menu.expanded) { if (!hasMenu) menu.expanded = false }
     val moveActions = LocalWorkspaceMoveActions.current
@@ -3638,7 +3643,8 @@ internal fun NativeWorkspaceRow(
                 if (!menu.held) { if (showingGroups) groupPicker = false else menu.expanded = false }
             }, properties = PopupProperties(focusable = !menu.held)) {
                 if (showingGroups) {
-                    NativeWorkspaceGroupMoveItems(groupMoveMenu, onBack = { groupPicker = false }, onMove = { groupId ->
+                    if (remoteGroupMenu != null) remoteGroupMenu({ groupPicker = false }, { menu.expanded = false })
+                    else NativeWorkspaceGroupMoveItems(groupMoveMenu, onBack = { groupPicker = false }, onMove = { groupId ->
                         menu.expanded = false; onAction("move:${groupId.orEmpty()}", null)
                     })
                 } else {
@@ -3655,7 +3661,7 @@ internal fun NativeWorkspaceRow(
                         leadingIcon = { WorkspaceActionIcon(if (workspace.hasUnread) R.drawable.ic_feed_read_all else R.drawable.ic_workspace_mark_unread) }, onClick = {
                         menu.expanded = false; onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
                     })
-                    if (!groupMoveMenu.isEmpty) DropdownMenuItem(text = { Text("Move to Group") },
+                    if (canMoveGroups) DropdownMenuItem(text = { Text("Move to Group") },
                         leadingIcon = { Icon(painterResource(R.drawable.ic_workspace_folder), null, Modifier.size(20.dp)) },
                         trailingIcon = { Icon(painterResource(R.drawable.ic_workspace_chevron_right), null, Modifier.size(16.dp)) },
                         onClick = { groupPicker = true })

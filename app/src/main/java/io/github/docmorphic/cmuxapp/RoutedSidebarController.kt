@@ -19,7 +19,8 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     private val select: suspend (String) -> String,
     private val saveSort: suspend (RoutedSidebarSort) -> Unit = { error("Sidebar sorting is unavailable") },
     private val notificationAction: suspend (RoutedSidebarNotification) -> Unit = { error("Notification actions are unavailable") },
-    private val workspaceAction: suspend (RoutedSidebarMutation) -> Unit = { error("Workspace actions are unavailable") }) {
+    private val workspaceAction: suspend (RoutedSidebarMutation) -> Unit = { error("Workspace actions are unavailable") },
+    private val readGroupMenu: suspend (String, String?, Int) -> RoutedSidebarGroupPage = { _, _, _ -> error("Group moves are unavailable") }) {
     private val sortMutex = Mutex()
     private val mutable = MutableStateFlow(RoutedSidebarUi())
     val state = mutable.asStateFlow()
@@ -65,6 +66,25 @@ internal class RoutedSidebarController(private val scope: CoroutineScope,
     }
     fun more() { window = (window + 100).coerceAtMost(RoutedSidebarWire.MAX_ROWS); restart() }
     fun retry() { mutable.value = state.value.copy(actionError = null); restart() }
+    suspend fun groupMenu(key: String): RoutedSidebarGroupPage {
+        fun current() = available && foreground && visible && !state.value.query.notifications && !state.value.mutationBusy &&
+            state.value.snapshot?.rows?.any { it.key == key && RoutedSidebarMutationKind.MOVE_TO_GROUP in it.mutations } == true
+        check(current()) { "Group menu is no longer available." }
+        val first = readGroupMenu(key, null, 0)
+        check(first.offset == 0)
+        var page = first
+        val choices = first.choices.toMutableList()
+        while (page.next != null) {
+            currentCoroutineContext().ensureActive()
+            check(current()) { "Group menu is no longer available." }
+            val next = readGroupMenu(key, first.revision, checkNotNull(page.next))
+            check(next.revision == first.revision && next.offset == page.next && next.total == first.total && next.canRemove == first.canRemove)
+            choices += next.choices
+            page = next
+        }
+        check(current() && choices.size == first.total && choices.map { it.key }.distinct().size == choices.size)
+        return first.copy(next = null, choices = choices)
+    }
     suspend fun sort(command: RoutedSidebarSort): Boolean = sortMutex.withLock {
         if (!available || !foreground || !visible || state.value.query.notifications || state.value.query.computer != null) return@withLock false
         mutable.value = state.value.copy(saving = true, actionError = null)

@@ -12,7 +12,33 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — browser Mac workspace/group actions (2026-10-04)
+## Latest checkpoint — browser Move to Group (2026-10-04)
+
+The browser now uses the shared anchored Move to Group submenu, including current
+membership, icons and Remove from Group. Choices load through bounded IPC pages
+and bind the exact pairing, workspace order and group metadata. The browser waits
+for the shared move queue's Mac acknowledgement; stale menus, cancelled callers,
+full queues and changed group anchors cannot dispatch dependent moves. See
+[BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md) for source references and the Android/JVM
+serialization bug caught and fixed during runtime verification.
+
+**108 JVM checks passed. Three distinct Android scenarios passed on the corrected
+app:** existing workspace/group actions and restoration in the 123.919s batch,
+then the new group-move scenario in a **34.053s** focused retry. Test-only repairs
+handled Compose's disabled parent semantics and a stale accessibility handle;
+the production app APK was unchanged between those batches. Source/installed
+hashes matched, the menu screenshot was inspected, display settings restored and
+crash buffer empty. The existing API37/16KB emulator was stopped/reaped; no new
+AVD. Pixel absent/untouched. This uses generated browser hosts and separate RPC
+peers, not live Mac/Pixel or authenticated MainScreen acceptance.
+
+Signed **563** is still the latest verified download; this feature awaits the
+next signed batch. Next: browser workspace customization, global/in-group creation,
+SSH actions, drag/order and selection refinements. Physical/network/process
+recovery, configured push/notice feed, legacy tickets and the broader upstream
+audit remain open. PR #1 remains a draft and the full goal remains active.
+
+## Earlier checkpoint — browser Mac workspace/group actions (2026-10-04)
 
 The browser sidebar now exposes the shared Mac workspace pin/unpin, rename,
 read/unread and confirmed delete controls, plus group pin/unpin, rename, ungroup

@@ -43,8 +43,9 @@ workspace/notification searches and unread filters, sort mode and computer-order
 editing are now shared with the main screen. Settings, Computers and New Task
 entry points return to the existing main-screen flows. Notification rows, read/unread gestures and menus, pull refresh and confirmed bulk
 read now share the main feed. Mac workspace pin/rename/read/delete and group
-pin/rename/ungroup/delete use the owned mutation protocol described below. Move,
-Customize, creation, SSH mutations, drag ordering and selection styling still need
+pin/rename/ungroup/delete use the owned mutation protocol described below. Mac
+Move to Group shares the main-screen move queue and anchored submenu. Customize,
+creation, SSH mutations, drag ordering and selection styling still need
 browser parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
@@ -52,8 +53,8 @@ Physical Pixel/Mac acceptance, actual account/team replacement during live
 browser use, real native/SSH feed integration with the new browser sidebar,
 large-text/accessibility review and authenticated process recovery remain open.
 The compact browser stays stacked. Signed build 563 includes the sidebar and
-notification actions; the expansion-restoration and workspace/group-mutation
-changes below await the next signed batch.
+notification actions; the expansion-restoration, workspace/group-mutation and
+Move to Group changes below await the next signed batch.
 
 ## Verification
 
@@ -464,3 +465,79 @@ Move to Group, workspace customization, global/in-group creation, SSH actions,
 drag reordering, changes previews and selection/display refinements remain to be
 connected in the browser. Signed 563 predates this batch; no signed build was
 dispatched for this individual feature. The broad audit and full goal remain open.
+
+## Browser Move to Group — 2026-10-04
+
+The workspace popup now opens the shared anchored group submenu: owning-Mac
+choices in host order, group icons, a checked/disabled current group, Back and
+Remove from Group. It follows `groupMoveSubmenu` in
+`Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/WorkspaceListTableCoordinator+Actions.swift`
+at scoped reference `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`; the global
+upstream pin remains unchanged.
+
+Menus load on demand in pages of at most 100 choices and 192 KiB UTF-8. The
+browser assembles every page before showing the choices; it does not truncate
+the group list. Sidebar refreshes compute eligible workspace IDs once per Mac,
+without computing a full move policy for every row. Anchor rows, unsupported or
+offline Macs, ambiguous window inventories and saturated queues do not offer moves.
+
+Only display names/icons, checked/enabled flags and opaque keys cross IPC. The
+menu revision binds the exact pairing, complete workspace order/membership/pins,
+windows and group metadata. The presentation records which enabled destinations
+were actually sent. A selection must still match both records and the current
+owning-Mac snapshot. The revision hashes explicit primitive fields: Android's
+`JSONObject.wrap` does not serialize arbitrary Kotlin records like the JVM JSON
+library does.
+
+The main process sends the proposal through `NativeWorkspaceMoves.submit`, sharing
+normalization, optimistic order, the three-operation queue and rollback with the
+main screen. The browser awaits the Mac acknowledgement; queue admission alone
+is not success. Cancellation cancels its queued task, earlier failures propagate
+without dependent writes, and presentation permission is checked at the send
+boundary. The coordinator compares captured group anchors inside its mutation
+lock in addition to its existing owner, order, pin, destination and window checks.
+It does not normalize an already-normalized move a second time at that boundary:
+the pinned Swift fixtures show that this is not an idempotent operation for every
+host topology. Failed actions stay visible and are not automatically resubmitted.
+
+### Verification and repairs
+
+- **108 JVM checks passed:** 38 coordinator, 13 queued-move, nine group-menu,
+  four pinned Swift parity, five browser group-menu/protocol, five browser
+  mutation and 34 sidebar checks. Coverage includes acknowledgement/rejection,
+  cancellation before queued dispatch, caller withdrawal, predecessor failure,
+  queue capacity, anchor replacement with otherwise matching order/membership,
+  colliding IDs across Macs, stale pairing/order/anchor/menu revisions, disabled
+  or unissued choices, UTF-8 page budgets, and all-page collection.
+- **Three distinct Android scenarios passed on the corrected production APK.**
+  Existing workspace/group actions and expansion restoration passed in the
+  123.919s batch; the new group-move scenario passed its final **34.053s** retry.
+  It covers host rejection/explicit retry, a group pin changing while the menu is
+  open, moving into that pinned group, disabled current membership, Back and
+  Remove from Group, unchanged page-load count/draft, and route lease release.
+- The first 132.666s runtime batch caught the real Android JSON revision bug
+  (two old scenarios passed; the new stale-menu assertion failed). The corrected
+  batch then exposed a test querying the enabled text child instead of the
+  disabled Compose menu-item parent. A 33.907s focused retry passed the move and
+  removal assertions but hit a stale cached toolbar accessibility node. The
+  final test reacquires that toolbar node. Both repairs changed only the test;
+  app APK hashes were identical across the corrected batch and focused retries.
+- Build logs also retain the initial duplicate header/footer test-selector
+  failure and the rejected attempt to re-normalize moves at the send gate. The
+  latter failed an existing noncontiguous pinned Swift fixture. The final send
+  gate compares captured anchors, preserving the original move intent.
+- Sources were frozen during each build/runtime run. The final source and
+  installed app/test hashes matched, screenshot `menu-final.png` was inspected,
+  display settings restored, crash buffer empty, and the sole existing API37 /
+  16KB emulator stopped/reaped. No new AVD, physical-device changes or signed
+  build dispatch.
+
+This is production browser Activity/service/proxy code with generated workspace
+mutation callbacks. The move queue/coordinator use generated framed RPC peers.
+Physical Mac/Pixel, authenticated MainScreen integration, process death and
+TalkBack event delivery remain separate acceptance work. Evidence is under
+ignored `captures/runtime/browser-sidebar-moves/`, including all failed runs,
+source manifests, `second-apks.json`, final screenshot/XML and `verification.json`.
+
+- Final app APK SHA-256: `42dac2be66e8950c47538133c21227ebe18daa02f0ae07ba5bca8aeb96f60ef2`.
+- Final test APK SHA-256: `c9f25be96367687991dfaa29f98d79d572a078f17d0ee745d79c5044d2d309bf`.

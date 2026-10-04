@@ -30,6 +30,7 @@ internal object RoutedBrowserSessions {
         var sidebar: RoutedSidebarHost? = null) {
         var sidebarLease: RoutedSidebarLease? = null
         val sidebarExchange = RoutedSidebarExchange()
+        val sidebarGroupExchange = RoutedSidebarGroupExchange()
         var foreground = false
         var sidebarVisible = false
         var sidebarQuery: RoutedSidebarQuery? = null
@@ -160,11 +161,22 @@ internal object RoutedBrowserSessions {
         fun current() = live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
             entry.sidebar?.owner == host.owner && host.current() && entry.sidebarQuery?.notifications == false
         check(current() && entry.sidebarExchange.permitsMutation(command)) { "Workspace actions changed. Refresh the sidebar." }
+        command.validate()
+        if (command.kind == RoutedSidebarMutationKind.MOVE_TO_GROUP)
+            check(entry.sidebarGroupExchange.permits(command)) { "Group menu changed. Reopen Move to Group." }
         check(entry.sidebarMutationMutex.tryLock()) { "A sidebar update is already in progress" }
         val caller = currentCoroutineContext().job
         val retirement = launch { entry.exited.await(); caller.cancel(CancellationException("Browser session ended")) }
         try { host.mutate(command, ::current) }
         finally { retirement.cancel(); entry.sidebarMutationMutex.unlock() }
+    }
+    fun groupMenu(entry: Entry, key: String, revision: String?, offset: Int): RoutedSidebarGroupPage {
+        val host = checkNotNull(entry.sidebar)
+        check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
+            host.current() && entry.sidebarQuery?.notifications == false && entry.sidebarExchange.permitsGroupMenu(key)) {
+            "Group menu is no longer available. Refresh the sidebar."
+        }
+        return host.groupMenu(key, revision, offset).also { entry.sidebarGroupExchange.issue(key, it) }
     }
     fun selectSidebar(entry: Entry, key: String): String {
         check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible) { "Sidebar is not visible" }

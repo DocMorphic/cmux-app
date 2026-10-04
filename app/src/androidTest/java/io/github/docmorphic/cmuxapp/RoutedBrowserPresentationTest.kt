@@ -71,6 +71,8 @@ class RoutedBrowserPresentationTest {
     private var noticeSources = emptyList<NativeFeedSource>()
     private val workspaceWrites = CopyOnWriteArrayList<String>()
     private var rejectWorkspaceRename = true
+    private var rejectWorkspaceMove = true
+    private val groupMoves = CopyOnWriteArrayList<NativeWorkspaceMove>()
     private val noticeWrites = CopyOnWriteArrayList<String>()
     private val noticeBulk = CopyOnWriteArrayList<List<String>>()
     private var failNoticeWrite = true
@@ -91,6 +93,7 @@ class RoutedBrowserPresentationTest {
         override suspend fun mutate(command: RoutedSidebarMutation, canSend: () -> Boolean) {
             checkNotNull(projectedSidebar).mutate(command, canSend)
         }
+        override fun groupMenu(key: String, revision: String?, offset: Int) = checkNotNull(projectedSidebar).groupMenu(key, revision, offset)
         override fun sort(command: RoutedSidebarSort) { checkNotNull(projectedSidebar).sort(command) }
         override suspend fun notifications(command: RoutedSidebarNotification, query: RoutedSidebarQuery, canSend: () -> Boolean) {
             checkNotNull(projectedSidebar).notifications(command, query, canSend)
@@ -184,6 +187,26 @@ class RoutedBrowserPresentationTest {
                     { RoutedSidebarLease({}) {} }, { target ->
                         openedActions += (target as NativeSidebarTarget.Action).kind
                     })
+            }
+            if (scenarioName == "globalSidebarGroupMovesStayAnchoredRejectStaleMenusAndPreserveDraft") {
+                noticeSources = listOf(NativeFeedSource(NativeCredentialStore.PairedMac("fixture-pairing", "A", "Mac A"),
+                    workspaces = parseWorkspaces(JSONObject("""{"workspaces":[
+                        {"id":"w","title":"Move workspace","window_id":"window"},
+                        {"id":"anchor","title":"Group anchor","group_id":"g","window_id":"window"},
+                        {"id":"child","title":"Grouped child","group_id":"g","window_id":"window"},
+                        {"id":"target","title":"Target anchor","group_id":"h","window_id":"window"}]}""")),
+                    availability = NativeFeedAvailability.CONNECTED,
+                    groups = listOf(NativeGroup("g", "Original group", false, false, "anchor", false, "folder"),
+                        NativeGroup("h", "Destination group", false, false, "target", false, "folder")),
+                    capabilities = setOf("workspace.move.v1")))
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-group-moves", {
+                    NativeSidebarInput(noticeSources, emptyList(), listOf(NativeSortComputer(workspaceMacFilterId("A", null)!!, "Mac A")), NativeWorkspaceSortState())
+                }, { RoutedSidebarLease({}) {} }, {}, moveWorkspace = { captured, id, intent, canSend ->
+                    check(canSend()); groupMoves += intent
+                    if (rejectWorkspaceMove) { rejectWorkspaceMove = false; error("Fixture group move rejected") }
+                    noticeSources = noticeSources.map { source -> if (source.mac != captured.mac) source else source.copy(
+                        workspaces = NativeWorkspaceMovePolicy(source.workspaces, source.groups).applying(intent, id)) }
+                })
             }
             if (scenarioName == "globalSidebarWorkspaceAndGroupMutationsPreservePageAndRequireConfirmation") {
                 noticeSources = listOf(NativeFeedSource(NativeCredentialStore.PairedMac("fixture-pairing", "A", "Mac A"),
@@ -530,6 +553,40 @@ class RoutedBrowserPresentationTest {
         assertEquals(1, workspaceWrites.count { it.startsWith("g:ungroup:") })
         assertEquals(loads, paths.count { it == "/start" }); assertTrue(picker.text?.startsWith("Draft ") == true)
         capturePicker("browser-sidebar-workspace-actions")
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
+    }
+
+    @Test fun globalSidebarGroupMovesStayAnchoredRejectStaleMenusAndPreserveDraft() = wideSidebar {
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        val picker = desc("Choose terminal or pane"); until { picker.text == "Routed fixture ▾" }
+        text("Keep draft").click(); until { picker.text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        fun menu() { text("Move workspace").longClick(); text("Move to Group").click(); desc("Back to workspace actions") }
+        menu(); text("Destination group").click()
+        text("Fixture group move rejected")
+        assertNull(main { noticeSources.single().workspaces.first { it.id == "w" }.groupId })
+        assertEquals(1, groupMoves.size)
+        menu(); text("Destination group")
+        main { noticeSources = noticeSources.map { source -> source.copy(groups = source.groups.map {
+            if (it.id == "h") it.copy(isPinned = true) else it
+        }) } }
+        text("Destination group").click(); text("Group menu changed. Reopen Move to Group.")
+        assertEquals(1, groupMoves.size)
+        menu(); text("Destination group").click()
+        until { main { noticeSources.single().workspaces.first { it.id == "w" }.groupId == "h" } }
+        menu(); text("Remove from Group")
+        capturePicker("browser-sidebar-group-move-menu")
+        // Compose marks the menu item's parent disabled; its text child stays enabled.
+        assertTrue(device.findObjects(By.text("Destination group")).any { label ->
+            generateSequence(label) { it.parent }.any { !it.isEnabled }
+        })
+        desc("Back to workspace actions").click(); text("Move to Group").click(); text("Remove from Group").click()
+        until { main { noticeSources.single().workspaces.first { it.id == "w" }.groupId == null } }
+        assertEquals(3, groupMoves.size)
+        assertEquals(listOf("h", "h", null), groupMoves.map { it.groupId })
+        assertEquals(loads, paths.count { it == "/start" })
+        assertTrue(desc("Choose terminal or pane").text?.startsWith("Draft ") == true)
         device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
         until { holds.get() == 0 }
     }

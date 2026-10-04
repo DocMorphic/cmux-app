@@ -10,6 +10,12 @@ internal data class NativeWorkspaceGroupMoveMenu(
     val isEmpty get() = entries.isEmpty() && !canRemoveFromGroup
 
     companion object {
+        /** Eligibility only, for bulk sidebar projection; destination policy is evaluated on opening. */
+        fun availableWorkspaceIds(source: NativeFeedSource, pending: Int = 0): Set<String> {
+            if (source.groups.isEmpty() || !source.canReorderWorkspaces() || pending >= 3) return emptySet()
+            val anchors = source.groups.mapNotNull { it.liveAnchorWorkspaceId }.toSet()
+            return source.workspaces.map { it.id }.filterNot { it in anchors }.toSet()
+        }
         /** One complete owning-Mac snapshot, never a filtered or aggregated list. */
         fun forWorkspace(source: NativeFeedSource, movedId: String, pending: Int = 0): NativeWorkspaceGroupMoveMenu {
             if (!source.canReorderWorkspaces() || pending >= 3) return NativeWorkspaceGroupMoveMenu()

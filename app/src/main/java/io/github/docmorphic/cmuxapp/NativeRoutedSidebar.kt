@@ -15,7 +15,7 @@ internal data class NativeSidebarInput(val sources: List<NativeFeedSource>, val 
     val computers: List<NativeSortComputer>, val sort: NativeWorkspaceSortState,
     val sshAvailability: Map<java.util.UUID, NativeFeedAvailability> = emptyMap(),
     val appearances: NativeMacAppearances = NativeMacAppearances(), val locale: Locale = Locale.getDefault(),
-    val actions: Set<RoutedSidebarActionKind> = emptySet())
+    val actions: Set<RoutedSidebarActionKind> = emptySet(), val pendingMoves: Map<String, Int> = emptyMap())
 internal data class NativeSidebarPresentation(val computer: String? = null, val notifications: Boolean = false,
     val workspaceQuery: String = "", val notificationQuery: String = "", val workspaceUnread: Boolean = false,
     val notificationUnread: Boolean = false, val machines: Set<String> = emptySet(),
@@ -41,7 +41,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val readAllNotifications: (suspend (List<NativeCredentialStore.PairedMac>, () -> Boolean) -> Unit)? = null,
     private val refreshNotifications: (suspend () -> Unit)? = null,
     private val history: NativeSidebarHistory = NativeSidebarHistory(),
-    private val mutateWorkspace: (suspend (NativeSidebarMutationTarget, RoutedSidebarMutation, () -> Boolean) -> Unit)? = null) : RoutedSidebarHost {
+    private val mutateWorkspace: (suspend (NativeSidebarMutationTarget, RoutedSidebarMutation, () -> Boolean) -> Unit)? = null,
+    private val moveWorkspace: (suspend (NativeFeedSource, String, NativeWorkspaceMove, () -> Boolean) -> Unit)? = null) : RoutedSidebarHost {
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
@@ -155,11 +156,56 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     override suspend fun mutate(command: RoutedSidebarMutation, canSend: () -> Boolean) {
         command.validate()
         check(canSend()) { "Workspace sidebar is no longer visible" }
+        if (command.kind == RoutedSidebarMutationKind.MOVE_TO_GROUP) {
+            val context = groupContext(command.key)
+            check(command.menuRevision == context.revision) { "Group menu changed. Reopen Move to Group." }
+            val destination = command.destination?.let { key ->
+                context.menu.entries.singleOrNull { it.isEnabled && group(context.source, it.group.id) == key }?.group?.id
+                    ?: error("This group is no longer a move destination.")
+            }
+            check(destination != null || context.menu.canRemoveFromGroup) { "This workspace is no longer grouped." }
+            val source = context.source
+            // The shared queue normalizes this proposal once against the captured source.
+            val intent = NativeWorkspaceMove(destination, null)
+            checkNotNull(moveWorkspace).invoke(source, context.workspace, intent) {
+                // The shared move queue checks the captured order inside the coordinator lock.
+                // Its own optimistic prediction must not revoke this presentation's authority.
+                canSend() && input()?.sources?.any { it.mac == source.mac && it.canReorderWorkspaces() &&
+                    it.workspaces.any { row -> row.id == context.workspace } } == true
+            }
+            return
+        }
         val target = mutationTarget(checkNotNull(input()) { "Sidebar account changed" }, command)
             ?: error("Workspace action changed. Refresh the sidebar.")
         checkNotNull(mutateWorkspace).invoke(target, command) {
             canSend() && input()?.let { mutationTarget(it, command) == target } == true
         }
+    }
+    private data class GroupContext(val source: NativeFeedSource, val workspace: String,
+        val menu: NativeWorkspaceGroupMoveMenu, val revision: String)
+    private fun groupContext(key: String): GroupContext {
+        checkNotNull(moveWorkspace) { "Group moves are unavailable" }
+        val value = checkNotNull(input()) { "Sidebar account changed" }
+        val candidates = value.sources.flatMap { source -> source.workspaces.filter { workspace(source.mac, it.id) == key }.map { source to it } }
+        val (source, item) = candidates.singleOrNull() ?: error("Workspace changed. Refresh the sidebar.")
+        val menu = NativeWorkspaceGroupMoveMenu.forWorkspace(source, item.id, value.pendingMoves[source.mac.origin] ?: 0)
+        check(!menu.isEmpty) { "Group moves are unavailable. Refresh the sidebar." }
+        // Android JSONObject.wrap does not serialize arbitrary Kotlin objects like the
+        // JVM test implementation. Hash explicit primitive fields on both runtimes.
+        return GroupContext(source, item.id, menu, id("group-menu", key,
+            source.mac.let { listOf(it.code, it.deviceId, it.name, it.instanceTag, it.accountUserId, it.accountTeamId,
+                it.stableOrigin, it.previousOrigins.sorted()) },
+            source.workspaces.map { listOf(it.id, it.groupId, it.isPinned, it.windowId) },
+            source.groups.map { listOf(it.id, it.name, it.isPinned, it.isCollapsed, it.anchorWorkspaceId, it.isEmpty, it.iconSymbol) }))
+    }
+    override fun groupMenu(key: String, revision: String?, offset: Int): RoutedSidebarGroupPage {
+        require(key.length in 1..128 && key.none(Char::isISOControl) && offset >= 0)
+        require(revision == null || revision.length in 1..128 && revision.none(Char::isISOControl))
+        val context = groupContext(key)
+        check((offset == 0 && revision == null) || revision == context.revision) { "Group menu changed. Reopen Move to Group." }
+        return RoutedSidebarGroupWire.page(context.revision, context.menu.entries.map {
+            RoutedSidebarGroupChoice(group(context.source, it.group.id), it.group.name, it.group.iconSymbol, it.isCurrent, it.isEnabled)
+        }, context.menu.canRemoveFromGroup, offset)
     }
     override fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot? {
         val value = input() ?: return null
@@ -201,6 +247,8 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         val collapsed = sources.flatMap { source -> source.groups.map { item ->
             WorkspaceListEntry.Header(source, item).key to (query.groupExpansion[group(source, item.id)]?.not() ?: item.isCollapsed)
         } }.toMap()
+        val movable = if (moveWorkspace == null) emptyMap() else sources.associate { source -> source.mac.origin to
+            NativeWorkspaceGroupMoveMenu.availableWorkspaceIds(source, value.pendingMoves[source.mac.origin] ?: 0) }
         return sortedWorkspaceRows(sources, sshRows.filter { it.key in sshMatches && (!query.unread || it.workspace.hasUnread) },
             value.computers, value.sort, all, matches, query.text.isNotBlank() || filtering, query.unread, collapsed, value.locale).map { row ->
             when (row) {
@@ -209,7 +257,10 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                 is NativeWorkspaceDisplayRow.Mac -> when (val entry = row.entry) {
                     is WorkspaceListEntry.Workspace -> displayWorkspace(workspace(entry.source.mac, entry.workspace.id), entry.workspace,
                         value.appearances.name(entry.source.mac), entry.source.availability, if (entry.indented) 1 else 0, true)
-                        .copy(mutations = if (mutateWorkspace != null) entry.source.sidebarWorkspaceMutations(entry.workspace) else emptySet())
+                        .copy(mutations = buildSet {
+                            if (mutateWorkspace != null) addAll(entry.source.sidebarWorkspaceMutations(entry.workspace))
+                            if (entry.workspace.id in movable[entry.source.mac.origin].orEmpty()) add(RoutedSidebarMutationKind.MOVE_TO_GROUP)
+                        })
                     is WorkspaceListEntry.Header -> RoutedSidebarRow(group(entry.source, entry.group.id), "group", entry.group.name,
                         unread = entry.unread.isUnread, count = entry.unread.count, pinned = entry.group.isPinned,
                         mutations = if (mutateWorkspace != null) entry.source.sidebarGroupMutations(entry.group) else emptySet(),

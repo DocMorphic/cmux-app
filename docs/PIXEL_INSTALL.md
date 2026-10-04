@@ -48,7 +48,7 @@ Evidence: `captures/runtime/release-2b8aa38/` (ignored), including CI/provenance
 package/runtime receipts, screenshots and native comparison. Next work is
 workspace/group actions, global workspace creation and selection refinements.
 The branch now includes notification/group expansion restoration and Mac workspace/
-group mutations in the browser, verified in the debug build; those later changes
+group mutations and Move to Group in the browser, verified in the debug build; those later changes
 are not included in signed 563. Production push/
 notice configuration, legacy tickets, physical/network/process recovery and the
 broader upstream audit remain open. The goal remains active; scheduled upstream/

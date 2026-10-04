@@ -135,7 +135,12 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                         canWorkspaceActions = RoutedSidebarMutationKind.RENAME in mutations,
                         canClose = RoutedSidebarMutationKind.CLOSE in mutations,
                         canReadState = RoutedSidebarMutationKind.MARK_READ in mutations || RoutedSidebarMutationKind.MARK_UNREAD in mutations,
-                        onOpen = { if (row.canOpen) onOpen(row.key) }, onAction = ::mutate)
+                        onOpen = { if (row.canOpen) onOpen(row.key) }, onAction = ::mutate,
+                        remoteGroupMenu = if (RoutedSidebarMutationKind.MOVE_TO_GROUP in mutations) ({ back, dismiss ->
+                            RoutedSidebarGroupMoveItems(controller, row.key, back) { command ->
+                                dismiss(); scope.launch { controller.mutate(command) }
+                            }
+                        }) else null)
                 }
                 "group" -> NativeGroupHeaderRow(NativeGroup(row.key, row.title, !row.expanded, row.pinned, iconSymbol = row.iconSymbol),
                     row.expanded, NativeWorkspaceUnread(row.unread, row.count),

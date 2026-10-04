@@ -318,6 +318,9 @@ internal class NativeFeedCoordinator(
                 }
                 check(intent.groupId == null || source.groups.any { it.id == intent.groupId }) { "This group is no longer available." }
                 check(!intent.movesGroup || source.groups.any { it.liveAnchorWorkspaceId == workspaceId }) { "This group anchor changed." }
+                check(base.groupAnchors == null || base.groupAnchors == source.groups.associate { it.id to it.liveAnchorWorkspaceId }) {
+                    "Workspace group anchors changed. Try moving it again."
+                }
                 client.moveWorkspace(workspaceId, workspace.windowId, intent.groupId, intent.beforeWorkspaceId, intent.movesGroup)
             }
         }

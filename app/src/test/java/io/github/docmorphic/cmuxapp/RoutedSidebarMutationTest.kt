@@ -19,7 +19,8 @@ class RoutedSidebarMutationTest {
 
     @Test fun wireAdmitsOnlyExplicitOperationsAndBoundedRenameTitles() {
         for (kind in RoutedSidebarMutationKind.entries) {
-            val command = RoutedSidebarMutation("opaque", kind, "New name".takeIf { kind == RoutedSidebarMutationKind.RENAME })
+            val command = RoutedSidebarMutation("opaque", kind, "New name".takeIf { kind == RoutedSidebarMutationKind.RENAME },
+                menuRevision = "menu".takeIf { kind == RoutedSidebarMutationKind.MOVE_TO_GROUP })
             assertEquals(command, RoutedSidebarWire.mutation(RoutedSidebarWire.mutation(command)))
         }
         for (bad in listOf("""{"key":"opaque","kind":"RUN_SHELL"}""", """{"key":"opaque","kind":"CLOSE","title":"injected"}""",

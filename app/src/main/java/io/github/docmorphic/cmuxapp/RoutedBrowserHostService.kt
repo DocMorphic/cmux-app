@@ -45,6 +45,8 @@ class RoutedBrowserHostService : Service() {
                     RoutedBrowserProtocol.SNAPSHOT -> entry.destination.surface.remote(entry.attachment, RoutedBrowserProtocol.snapshot(args))
                     RoutedBrowserProtocol.FOREGROUND -> RoutedBrowserSessions.foreground(entry, args.getBoolean("active"), args.getBoolean("sidebar_visible"))
                     RoutedBrowserProtocol.SIDEBAR -> result.putString("sidebar", RoutedSidebarWire.page(RoutedBrowserSessions.sidebar(entry, args)))
+                    RoutedBrowserProtocol.SIDEBAR_GROUP_MENU -> result.putString("groups", RoutedSidebarGroupWire.encode(
+                        RoutedBrowserSessions.groupMenu(entry, checkNotNull(args.getString("key")), args.getString("revision"), args.getInt("offset"))))
                     RoutedBrowserProtocol.SIDEBAR_STATE -> RoutedBrowserSessions.sidebarState(entry, RoutedSidebarWire.query(checkNotNull(args.getString("query"))))
                     RoutedBrowserProtocol.SIDEBAR_SORT -> RoutedBrowserSessions.sortSidebar(entry, RoutedSidebarWire.sort(checkNotNull(args.getString("sort"))))
                     RoutedBrowserProtocol.SIDEBAR_NOTIFICATION -> {

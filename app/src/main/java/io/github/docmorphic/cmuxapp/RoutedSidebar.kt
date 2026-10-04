@@ -59,6 +59,7 @@ internal interface RoutedSidebarHost {
     fun adopt(query: RoutedSidebarQuery) {}
     fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot?
     fun resolve(key: String): (() -> Unit)?
+    fun groupMenu(key: String, revision: String?, offset: Int): RoutedSidebarGroupPage { error("Group moves are unavailable") }
     suspend fun mutate(command: RoutedSidebarMutation, canSend: () -> Boolean) { error("Workspace actions are unavailable") }
     fun sort(command: RoutedSidebarSort) { error("Sidebar sorting is unavailable") }
     suspend fun notifications(command: RoutedSidebarNotification, query: RoutedSidebarQuery, canSend: () -> Boolean) {
@@ -113,6 +114,9 @@ internal class RoutedSidebarExchange {
     }
     fun permitsMutation(command: RoutedSidebarMutation): Boolean = command.key in mutableRows &&
         snapshot?.rows?.any { it.key == command.key && command.kind in it.mutations } == true
+    fun permitsGroupMenu(key: String) = key in mutableRows && snapshot?.rows?.any {
+        it.key == key && RoutedSidebarMutationKind.MOVE_TO_GROUP in it.mutations
+    } == true
     fun permitsSort(command: RoutedSidebarSort): Boolean {
         val value = snapshot ?: return false
         if (value.sortMode == null) return false
@@ -161,12 +165,15 @@ internal object RoutedSidebarWire {
     }
     fun mutation(value: RoutedSidebarMutation): String {
         value.validate()
-        return checked(JSONObject().put("key", value.key).put("kind", value.kind.name).put("title", value.title).toString())
+        return checked(JSONObject().put("key", value.key).put("kind", value.kind.name).put("title", value.title)
+            .put("menu", value.menuRevision).put("destination", value.destination).toString())
     }
     fun mutation(value: String): RoutedSidebarMutation {
         val json = JSONObject(checked(value))
         return RoutedSidebarMutation(token(json.getString("key")), RoutedSidebarMutationKind.valueOf(json.getString("kind")),
-            if (json.isNull("title")) null else json.getString("title")).also { it.validate() }
+            if (json.isNull("title")) null else json.getString("title"),
+            if (json.isNull("menu")) null else token(json.getString("menu")),
+            if (json.isNull("destination")) null else token(json.getString("destination"))).also { it.validate() }
     }
     private fun mutations(value: JSONArray): Set<RoutedSidebarMutationKind> {
         require(value.length() <= RoutedSidebarMutationKind.entries.size)
