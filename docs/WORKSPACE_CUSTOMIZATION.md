@@ -156,9 +156,49 @@ separate acceptance work. The main/test APK build passed in 42s; the local recei
 `captures/runtime/workspace-offline-restoration/verification.json` records hashes.
 Signed build 517 is unchanged.
 
+## Android process restoration and owner isolation — 2026-10-04
+
+The existing separate-process harness exposed a real ownership bug: Compose's
+`rememberSaveable` inputs reset values when inputs change in a running composition,
+but do not validate the inputs that originally owned a restored Bundle. The old
+origin/workspace-only target therefore reopened a previous login's unsent form
+after process death and replacement login. The pre-fix run passed normal draft
+restoration but failed replacement-login isolation, with the old draft visible.
+
+Saved targets now include the login incarnation and stable account/team/computer/
+workspace identity, along with the owning route. These are identifiers, not
+credentials or RPC requests. Rendering and Save check current ownership; an
+invalid target is discarded. The editor's Compose key includes its owning target,
+so a later editor cannot consume an old owner's unclaimed child saved state.
+Legacy unscoped target Bundles are discarded. Account refresh generations and Mac
+renames do not discard valid drafts. Changes to login, account, team, Mac or build
+identity reject restoration. The coordinator still verifies the live owner for
+each read and mutation.
+
+The existing harness kills only the dedicated emulator UI process after Android
+has retained its stopped task's saved state, then brings that same task forward.
+It asserts a new UI PID, surviving test/peer PID and restored Android Bundle.
+This is stronger than Activity recreation, but still uses a local framed RPC peer
+and fixture credentials rather than a production Stack/Iroh account.
+
+**16 focused JVM tests and four Android checks pass** (125.861s). The three
+process-death cases cover same-owner draft restoration with no automatic writes,
+replacement-login rejection (including reopening a fresh form), and detecting
+Mac-side changes made while the UI process was dead. The fourth rechecks offline
+Activity recreation/reconnect and exact save/clear RPCs. Android confirmed new UI
+PIDs, the same retained tasks and restored Bundles. The crash buffer was empty;
+the restored offline form was inspected, and the sole AVD was stopped/reaped.
+
+Initial launch attempts were blocked by an emulator Pixel Launcher ANR. After
+its system dialog was dismissed, the unchanged pre-fix APK reproduced the real
+replacement-login bug while passing normal draft restoration. Both diagnostics
+are retained. The fixed build passed in 1m7s. Evidence receipt:
+`captures/runtime/workspace-customization-process/verification.json`.
+No physical Pixel was connected; signed build 517 is unchanged.
+
 ## Remaining acceptance
 
-Whole-process restoration and production account/team transitions, physical Pixel/Mac
-metadata changes, broader row visuals and full source/UI parity remain separate
+Production account/team transitions, physical Pixel/Mac metadata changes, broader
+row visuals and full source/UI parity remain separate
 acceptance work. This scoped feature does not establish completion of the app's
 production account/network graph or overall goal. Signed build 517 is unchanged.

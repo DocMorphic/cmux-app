@@ -26,7 +26,28 @@ The license-dialog correction is now verified in debug (see the newer checkpoint
 below). The goal remains active; physical/authenticated acceptance, feed/push configuration and
 broader parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — workspace row layout and status (2026-10-04)
+## Latest checkpoint — workspace draft process restoration (2026-10-04)
+
+The separate-process Android test exposed an owner-isolation bug: a saved workspace
+editor could reopen its unsent draft under a replacement login. Targets now retain
+login/account/team/Mac/workspace identity and validate it before rendering or Save.
+Owner-keyed editor state prevents a newly opened form from consuming the previous
+owner's saved draft. Legacy unscoped targets are discarded. See
+[WORKSPACE_CUSTOMIZATION.md](WORKSPACE_CUSTOMIZATION.md).
+
+**16 JVM tests and four Android cases pass** (125.861s): three whole-process
+restoration/owner/conflict checks plus the existing offline Activity/reconnect
+flow. The pre-fix APK reproduced the changed-login defect; an earlier emulator
+Launcher ANR was diagnosed separately. The final crash buffer was empty, the
+restored offline form was inspected, and the sole AVD was stopped/reaped.
+No Pixel was connected; signed build 517 is unchanged.
+
+**Next:** current-source signed/cold-start gate, changes-summary row chip and
+context/swipe/drag parity. Physical Pixel/Mac workflow, production account/team
+and Iroh graph, broader source parity, and push/feed provider configuration remain
+open. The goal is active.
+
+## Earlier checkpoint — workspace row layout and status (2026-10-04)
 
 [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md) aligns the row structure with the scoped
 iOS source: unread gutter/color rail, visible pin, title-line activity/status,

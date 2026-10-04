@@ -446,14 +446,24 @@ fun NativeScreen(
         }
     }
     val feedSources by feedCoordinator.sources.collectAsState()
-    var customizationTarget by rememberSaveable(browserLogin, teamState.scope, stateSaver = workspaceCustomizationTargetSaver) {
+    var customizationTarget by rememberSaveable(stateSaver = workspaceCustomizationTargetSaver) {
         mutableStateOf<WorkspaceCustomizationTarget?>(null)
     }
-    val customizationMac = pairedMacs.singleOrNull { it.origin == customizationTarget?.origin && connection.allowsSaved(it) }
+    val activeCustomization = customizationTarget
+    val customizationMac = pairedMacs.singleOrNull { mac ->
+        activeCustomization?.matches(browserLogin, teamState.scope, mac) == true && connection.allowsSaved(mac)
+    }
+    SideEffect { if (activeCustomization != null && customizationMac == null) customizationTarget = null }
     val customizationWorkspace = customizationMac?.let { feedSources[it.origin]?.workspaces?.singleOrNull { row -> row.id == customizationTarget?.workspaceId } }
-    if (signedIn && customizationMac != null && customizationWorkspace != null) {
-        NativeWorkspaceCustomizationSheet(customizationWorkspace, onDismiss = { customizationTarget = null }) { baseline, draft ->
-            feedCoordinator.customizeWorkspace(customizationMac, customizationWorkspace.id, baseline, draft)
+    if (signedIn && activeCustomization != null && customizationMac != null && customizationWorkspace != null) {
+        // An unconsumed restored child draft must never attach to a later editor owned by another login/team.
+        key(activeCustomization) {
+            NativeWorkspaceCustomizationSheet(customizationWorkspace, onDismiss = { customizationTarget = null }) { baseline, draft ->
+                check(activeCustomization.matches(store.taskSession(), accountTeams.state.value.scope, customizationMac)) {
+                    "Workspace account changed. Reopen the editor."
+                }
+                feedCoordinator.customizeWorkspace(customizationMac, customizationWorkspace.id, baseline, draft)
+            }
         }
     }
 
@@ -3037,7 +3047,7 @@ fun NativeScreen(
                         canMove = canReorder && (owner.groups.none { it.liveAnchorWorkspaceId == workspace.id }),
                         onOpen = { open() },
                         onAction = { action, title ->
-                            if (action == "customize") customizationTarget = WorkspaceCustomizationTarget(owner.mac.origin, workspace.id)
+                            if (action == "customize") customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, owner.mac, workspace.id)
                             else if (action == "changes") open(changes = true)
                             else if (action == "browser.create") openNewBrowser(owner, workspace)
                             else if (action == "terminal.create") createTerminal(owner, workspace)
@@ -3078,7 +3088,7 @@ fun NativeScreen(
             onSubmit = { finishSearch() }, onCancel = { finishSearch(cancel = true) })
     }
     val customizePane: ((NativeWorkspace) -> Unit)? = workspaceSourceForPane()?.takeIf { it.canCustomizeWorkspace() }?.let { source ->
-        { workspace -> customizationTarget = WorkspaceCustomizationTarget(source.mac.origin, workspace.id) }
+        { workspace -> customizationTarget = WorkspaceCustomizationTarget.capture(browserLogin, teamState.scope, source.mac, workspace.id) }
     }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
         LocalWorkspaceCustomizationAction provides customizePane) {

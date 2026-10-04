@@ -25,10 +25,6 @@ internal val LocalWorkspaceCustomizationAction = staticCompositionLocalOf<((Nati
 // Discovery is stable; the coordinator requires a live verified owner for every write.
 internal fun NativeFeedSource.canCustomizeWorkspace() =
     WORKSPACE_METADATA_CAPABILITY in capabilities && "workspace.actions.v1" in capabilities
-internal data class WorkspaceCustomizationTarget(val origin: String, val workspaceId: String)
-internal val workspaceCustomizationTargetSaver = listSaver<WorkspaceCustomizationTarget?, String>(
-    save = { it?.let { target -> listOf(target.origin, target.workspaceId) }.orEmpty() },
-    restore = { if (it.size == 2) WorkspaceCustomizationTarget(it[0], it[1]) else null })
 private val draftSaver = listSaver<WorkspaceCustomizationDraft, String>(
     save = { listOf(it.name, it.description.orEmpty(), it.color.orEmpty(), it.pinned.toString(), it.descriptionTruncated.toString()) },
     restore = { WorkspaceCustomizationDraft(it[0], it[1].ifEmpty { null }, it[2].ifEmpty { null }, it[3].toBoolean(), it[4].toBoolean()) })

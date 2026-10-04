@@ -103,6 +103,69 @@ class WorkspaceProcessRestorationTest {
             putInt("restored_task", restoredTaskId)
         })
     }
+    private fun openCustomizationDraft() {
+        peer.workspaceMetadataSupported = true
+        peer.customWorkspaceListing!!.getJSONArray("workspaces").getJSONObject(0)
+            .put("description", "Original description").put("window_id", "fixture-window")
+        launch(open = false)
+        description("Actions for Process workspace").click(); text("Customize Workspace").click()
+        text("Process workspace").text = "Restored custom name"
+        text("Original description").text = "Unsent description"
+        description("Pinned").click(); description("Use Workspace Color").click()
+        text("#007AFF").text = "#12ABEF"
+        device.waitForIdle()
+    }
+    @Test fun customizationDraftRestoresInANewProcessWithoutAutomaticWrites() {
+        peer.workspaceActionResponse = { params ->
+            val listing = JSONObject(peer.customWorkspaceListing.toString())
+            val row = listing.getJSONArray("workspaces").getJSONObject(0)
+            assertEquals("workspace-1", params.getString("workspace_id"))
+            when (params.getString("action")) {
+                "rename" -> row.put("title", params.getString("title"))
+                "set_description" -> row.put("description", params.getString("description"))
+                "set_color" -> row.put("custom_color", params.getString("color"))
+                "pin" -> row.put("is_pinned", true)
+                else -> error("Unexpected action")
+            }
+            peer.customWorkspaceListing = listing; JSONObject()
+        }
+        openCustomizationDraft()
+        killAndRestore()
+        text("Restored custom name"); text("Unsent description"); text("#12ABEF")
+        assertTrue("Restoration must not submit unfinished edits", calls("workspace.action").isEmpty())
+        text("Save").click(); description("Actions for Restored custom name")
+        assertEquals(listOf("rename", "set_description", "set_color", "pin"),
+            calls("workspace.action").map { it.getJSONObject("params").getString("action") })
+    }
+    @Test fun restoredCustomizationDetectsChangesMadeOnMacWhileProcessWasDead() {
+        openCustomizationDraft()
+        killAndRestore {
+            val listing = JSONObject(peer.customWorkspaceListing.toString())
+            listing.getJSONArray("workspaces").getJSONObject(0).put("title", "Mac renamed")
+            peer.customWorkspaceListing = listing
+        }
+        text("Restored custom name"); text("Unsent description")
+        assertTrue(calls("workspace.action").isEmpty())
+        text("Save").click(); text("Couldn't save workspace")
+        text("This workspace changed on your Mac. Review the latest values and save again.")
+        assertTrue("Saved baseline must prevent overwriting the Mac's newer name", calls("workspace.action").isEmpty())
+        text("OK").click(); text("Mac renamed"); text("Original description"); text("Cancel").click()
+    }
+    @Test fun replacementLoginDiscardsRestoredCustomizationDraft() {
+        openCustomizationDraft()
+        killAndRestore {
+            store.clear(); store.update { it.put("refresh_token", "replacement-process-login").put("pairing_code", code) }
+            store.rememberMac(code, "fixture-mac", "Fixture Mac"); store.taskSession()
+        }
+        description("Actions for Process workspace")
+        assertFalse("Previous login's editor must not be restored", device.hasObject(By.text("Customize Workspace")))
+        assertFalse(device.hasObject(By.text("Unsent description")))
+        assertTrue(calls("workspace.action").isEmpty())
+        description("Actions for Process workspace").click(); text("Customize Workspace").click()
+        text("Original description")
+        assertFalse("Opening a new editor must not consume the old saved draft", device.hasObject(By.text("Unsent description")))
+        text("Cancel").click()
+    }
     @Test fun explicitTerminalRestoresFromAndroidTaskStateInANewProcess() {
         launch(); text("Focused shell ▾"); text("First shell").click(); text("First shell ▾")
         val before = calls("mobile.terminal.replay").size
