@@ -128,14 +128,29 @@ async def main():
         await tmux_run("kill-server", allow_failure=True)
         await tmux_run("new-session", "-d", "-s", "desktop-tmux", "-x", "100", "-y", "30")
         await tmux_run("send-keys", "-t", "=desktop-tmux:", "Remote tmux", "Enter")
-    children = set(); listener = None
+    children = set(); listener = None; page_server = None; page_port = 0
+    async def page(reader, writer):
+        try:
+            request = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5)
+            path = request.split(b" ")[1]
+            title = "SSH workspace next" if path == b"/next" else "SSH workspace page"
+            body = (f"<!doctype html><meta name='viewport' content='width=device-width'><title>{title}</title>"
+                    f"<body style='background:#142d22;color:white;font:24px sans-serif'><h1>{title}</h1>"
+                    "<a style='color:white' href='/next'>Next workspace page</a></body>").encode()
+            writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + str(len(body)).encode() + b"\r\nConnection: close\r\n\r\n" + body)
+            await writer.drain()
+        except (asyncio.TimeoutError, asyncio.IncompleteReadError, ConnectionError): pass
+        finally:
+            writer.close()
+            try: await writer.wait_closed()
+            except ConnectionError: pass
     owned_sessions = {session}
     phone_ensures = 0
     key = asyncssh.generate_private_key("ssh-ed25519")
     user = "cmux-fixture-" + secrets.token_hex(12)
     class Server(asyncssh.SSHServer):
         def connection_requested(self, dest_host, dest_port, orig_host, orig_port):
-            return bool(browser and dest_host in ("127.0.0.1", "localhost") and dest_port == browser.port)
+            return dest_host in ("127.0.0.1", "localhost") and dest_port in ({page_port, browser.port} if browser else {page_port})
         def begin_auth(self, username): return True
         def public_key_auth_supported(self): return True
         def validate_public_key(self, username, public_key): return username == user
@@ -159,6 +174,13 @@ async def main():
         child = None
         try:
             tokens = shlex.split(proc.command or "")
+            if tokens == ["fixture-empty-workspace"]:
+                control = await wire()
+                try:
+                    empty_key = str(uuid.uuid4())
+                    await control.request("create-workspace", {"key": empty_key, "name": "Empty cmux"})
+                    proc.stdout.write(empty_key); proc.exit(0); return
+                finally: await control.close()
             if tokens == ["fixture-browser-status"] and browser:
                 proc.stdout.write(json.dumps({"events": browser.events, "registered": browser.provider is not None,
                     "registrations": browser.registrations, "target": browser.target,
@@ -305,6 +327,8 @@ async def main():
                 if child.returncode is None: child.terminate(); await child.wait()
                 children.discard(child)
     try:
+        page_server = await asyncio.start_server(page, "127.0.0.1", 0)
+        page_port = page_server.sockets[0].getsockname()[1]
         await cli("server", "ensure", "--session", session, "--json")
         socket = root / "run" / f"cmux-tui-{os.getuid()}" / f"{session}.sock"
         assert socket.is_socket(), socket
@@ -317,11 +341,12 @@ async def main():
         listener = await asyncssh.create_server(Server, "127.0.0.1", 0, server_host_keys=[key], process_factory=handle, sftp_factory=install.sftp if args.install else None, encoding="utf-8")
         args.output.write_text(json.dumps({"port": listener.get_port(), "username": user, "hostKey": key.export_public_key().decode().strip(),
                                            "nonce": "cmux-install" if args.install else "cmux-browser" if browser else "cmux", "silentPort": 0,
-                                           **({"browserPort": browser.port} if browser else {})}) + "\n")
+                                           "browserPort": browser.port if browser else page_port}) + "\n")
         print(json.dumps({"ready": True, "port": listener.get_port(), "root": str(root)}), flush=True)
         await stop.wait()
     finally:
         if listener: listener.close(); await listener.wait_closed()
+        if page_server: page_server.close(); await page_server.wait_closed()
         for child in list(children):
             if child.returncode is None: child.terminate(); await child.wait()
         if browser: await browser.close()

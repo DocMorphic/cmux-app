@@ -5,11 +5,15 @@ import org.json.JSONObject
 /** Saved navigation data only. Account-login and host scope are supplied by
  * the enclosing saved-state key; no credentials or terminal bytes are saved. */
 internal sealed interface SshWorkspaceTarget {
+    data class CmuxWorkspace(val selection: SshCmuxWorkspaceSelection) : SshWorkspaceTarget
     data class Browser(val selection: SshCmuxBrowserSelection) : SshWorkspaceTarget
     data class Cmux(val selection: SshCmuxSelection) : SshWorkspaceTarget
     data class Tmux(val workspace: String, val window: Int, val pane: Int) : SshWorkspaceTarget
     data class Shell(val id: String) : SshWorkspaceTarget
     fun encode(): String = JSONObject().also { value -> when (this) {
+        is CmuxWorkspace -> selection.let { ref -> value.put("kind", "cmux-workspace").put("session", ref.session)
+            .put("registry", ref.registry).put("generation", ref.generation).put("workspace", ref.workspace)
+            .put("workspaceKey", ref.key).put("workspaceResource", ref.resource) }
         is Browser -> selection.let { ref -> value.put("kind", "cmux-browser").put("session", ref.session).put("registry", ref.registry)
             .put("generation", ref.generation).put("workspace", ref.workspace).put("workspaceKey", ref.workspaceKey)
             .put("workspaceResource", ref.workspaceResource).put("surface", ref.surface).put("tabResource", ref.tabResource)
@@ -32,6 +36,8 @@ internal sealed interface SshWorkspaceTarget {
                 return (raw as Number).toLong().also { require(it in 0..Int.MAX_VALUE.toLong()) }.toInt()
             }
             when (string("kind")) {
+                "cmux-workspace" -> CmuxWorkspace(SshCmuxWorkspaceSelection(string("session"), optional("registry"),
+                    optional("generation"), id("workspace"), optional("workspaceKey"), optional("workspaceResource")))
                 "cmux-browser" -> Browser(SshCmuxBrowserSelection(string("session"), optional("registry"), optional("generation"),
                     id("workspace"), optional("workspaceKey"), optional("workspaceResource"), id("surface"),
                     optional("tabResource"), optional("contentResource")))

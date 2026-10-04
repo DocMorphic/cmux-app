@@ -1,6 +1,47 @@
 # Workspace row presentation
 
-## Latest checkpoint — SSH pane memory and connection races (2026-10-04)
+## Latest checkpoint — empty SSH workspaces and phone-browser restoration (2026-10-04)
+
+A cmux-tui workspace now has a durable destination independent of its panes.
+Empty rows open the shared waiting view with New terminal and New browser actions.
+Restoration creates no pane; explicit terminal creation targets the captured
+workspace and opens the returned terminal. New panes arriving in an otherwise
+idle waiting view are selected without sending a creation command. Workspace
+session/registry/resource checks reject replaced owners.
+
+Remembered SSH targets are now resolved after successful provider discovery,
+rather than falling back against the main feed's potentially incomplete cache.
+A failed discovery retains the pending preference. Independent on-device browser
+selection uses the same encrypted local-tab preference as native workspaces.
+Back returns to the list while keeping the page; reopening restores it. Selecting
+a terminal from the browser replaces that preference. Saved navigation retains
+only destination/preference data, with no mutation replay. A remembered local tab
+can reconstruct a fresh browser when no in-memory surface exists; this is not a
+claim that URL/history/cookies survive a complete app process death.
+
+**26 JVM tests passed; five distinct Android workflows passed across the two
+runs.** The initial five-case run passed four cases (168.902s); its browser case
+waited in UI Automator before Compose had advanced the Activity transition.
+The test now uses the lifecycle synchronization already used by other browser
+checks and also verifies switching back to a terminal. That case passed in
+**50.794s**. Only that test file changed after the broader run; production source
+hashes and the installed main APK hash matched. Initial main/test build: 1m36s;
+test update: 20s. Final crash buffer empty. Screenshots inspected for the empty
+workspace and the restored real page served through the private SSH connection.
+Evidence: `captures/runtime/ssh-workspace-restore/verification.json`.
+
+The sole AVD and private SSH/cmux/tmux/HTTP fixture were stopped/reaped. The Pixel
+is absent from ADB and untouched. Signed **546** remains the latest verified
+download; the next delivery step is one signed milestone for the accumulated
+workspace changes. PR #1 remains a draft and the goal remains active.
+
+**Remaining:** SSH pane metadata search; compound machine/read filters and sort;
+regular-width sidebar policy; broader upstream source audit; full process/network
+recovery and physical Pixel/Mac acceptance. Linked-browser mode and page state
+across cold starts need broader verification. Push/notice configuration and
+legacy tickets remain tracked separately. The global parity pin is unchanged.
+
+## Earlier checkpoint — SSH pane memory and connection races (2026-10-04)
 
 Reopening a main-feed SSH row now restores its last successfully displayed
 terminal or streamed-browser target. It uses the existing encrypted, bounded

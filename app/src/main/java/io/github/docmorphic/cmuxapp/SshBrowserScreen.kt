@@ -11,6 +11,8 @@ import org.json.JSONObject
 
 internal fun sshBrowserWorkspace(target: SshWorkspaceTarget, title: String): NativeWorkspace {
     val id = when (target) {
+        is SshWorkspaceTarget.CmuxWorkspace -> target.selection.let { ref -> JSONArray(listOf("cmux", ref.session, ref.registry,
+            ref.key ?: ref.resource ?: "${ref.generation}:${ref.workspace}")) }
         is SshWorkspaceTarget.Shell -> JSONArray(listOf("shell", target.id))
         is SshWorkspaceTarget.Tmux -> JSONArray(listOf("tmux", target.workspace))
         is SshWorkspaceTarget.Browser -> target.selection.let { ref -> JSONArray(listOf("cmux", ref.session, ref.registry,
@@ -19,7 +21,7 @@ internal fun sshBrowserWorkspace(target: SshWorkspaceTarget, title: String): Nat
             ref.workspaceKey ?: ref.workspaceResource ?: "${ref.generation}:${ref.workspace}")) }
     }.toString()
     return NativeWorkspace(id, title,
-        if (target is SshWorkspaceTarget.Browser) emptyList() else listOf(NativeTerminal(target.encode(), title)),
+        if (target is SshWorkspaceTarget.Browser || target is SshWorkspaceTarget.CmuxWorkspace) emptyList() else listOf(NativeTerminal(target.encode(), title)),
         null, false, null, null, false,
         if (target is SshWorkspaceTarget.Browser) listOf(NativeBrowser(target.selection.panelId, title)) else emptyList(), null, null, null)
 }

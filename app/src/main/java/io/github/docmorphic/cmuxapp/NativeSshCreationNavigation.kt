@@ -5,7 +5,8 @@ import androidx.compose.runtime.saveable.Saver
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal data class SshCreatedWorkspaceRoute(val login: String, val host: SshHostRecord, val target: SshWorkspaceTarget)
+internal data class SshCreatedWorkspaceRoute(val login: String, val host: SshHostRecord, val target: SshWorkspaceTarget,
+    val rememberedTab: NativeWorkspaceTab? = null)
 
 /** Saves destinations and a waiter ID only. It never stores or restores a create command. */
 internal class NativeSshCreationNavigation(saved: String? = null) {
@@ -26,7 +27,9 @@ internal class NativeSshCreationNavigation(saved: String? = null) {
                 require(host.length() == 10)
                 val record = checkNotNull(SshHostEditSaver.restore((0 until 10).map(host::getString)))
                 route = SshCreatedWorkspaceRoute(r.getString("login").also { require(it.isNotBlank()) }, record,
-                    checkNotNull(SshWorkspaceTarget.decode(r.getString("target"))))
+                    checkNotNull(SshWorkspaceTarget.decode(r.getString("target"))),
+                    r.optJSONObject("remembered")?.let { tab -> NativeWorkspaceTabKind.entries.firstOrNull { it.wire == tab.optString("kind") }
+                        ?.let { NativeWorkspaceTab(it, tab.getString("id")) } })
             }
         }.onFailure { route = null; pendingLogin = null; pendingId = null }
     }
@@ -36,8 +39,8 @@ internal class NativeSshCreationNavigation(saved: String? = null) {
         route = null; pendingLogin = login; pendingId = id; context = navigation.toList()
         return true
     }
-    fun open(login: String, host: SshHostRecord, target: SshWorkspaceTarget) {
-        leave(); route = SshCreatedWorkspaceRoute(login, host, target)
+    fun open(login: String, host: SshHostRecord, target: SshWorkspaceTarget, rememberedTab: NativeWorkspaceTab? = null) {
+        leave(); route = SshCreatedWorkspaceRoute(login, host, target, rememberedTab)
     }
     fun leave() { route = null; pendingLogin = null; pendingId = null; context = null }
 
@@ -72,6 +75,7 @@ internal class NativeSshCreationNavigation(saved: String? = null) {
     fun save(): String = JSONObject().put("version", 1)
         .put("pendingLogin", pendingLogin ?: JSONObject.NULL).put("pendingId", pendingId ?: JSONObject.NULL)
         .put("route", route?.let { r -> JSONObject().put("login", r.login).put("target", r.target.encode())
+            .put("remembered", r.rememberedTab?.let { JSONObject().put("kind", it.kind.wire).put("id", it.id) } ?: JSONObject.NULL)
             .put("host", JSONArray(listOf(r.host.id.toString(), r.host.name, r.host.endpoint.host,
                 r.host.endpoint.port.toString(), r.host.endpoint.username, r.host.keyId?.toString().orEmpty(),
                 r.host.jumpHostId?.toString().orEmpty(), r.host.idleClose.name, r.host.createdAtMillis.toString(),

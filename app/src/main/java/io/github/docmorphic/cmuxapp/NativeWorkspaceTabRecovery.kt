@@ -66,13 +66,14 @@ internal fun NativeWorkspaceTabRecovery(navigation: NativeWorkspaceTabNavigation
 @Composable
 internal fun NativeWorkspaceWaitingPane(title: String, onBack: () -> Unit,
     onNewTerminal: (() -> Unit)? = null, onNewBrowser: (() -> Unit)? = null,
-    connected: Boolean = true, connectionError: String? = null, onReconnect: (() -> Unit)? = null) {
+    connected: Boolean = true, connectionError: String? = null, onReconnect: (() -> Unit)? = null,
+    reconnectingLabel: String = "Reconnecting to your Mac…") {
     BackHandler(onBack = onBack)
     Column(Modifier.fillMaxSize().padding(18.dp).testTag("WorkspaceWaiting"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) { Text("‹  Workspaces") }
         Text(title, style = MaterialTheme.typography.titleMedium)
         CircularProgressIndicator(Modifier.size(24.dp))
-        Text(if (connected) "Waiting for workspace panes…" else "Reconnecting to your Mac…")
+        Text(if (connected) "Waiting for workspace panes…" else reconnectingLabel)
         connectionError?.let { Text(it) }
         if (!connected && onReconnect != null) TextButton(onClick = onReconnect) { Text("Reconnect") }
         if (onNewTerminal != null || onNewBrowser != null) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

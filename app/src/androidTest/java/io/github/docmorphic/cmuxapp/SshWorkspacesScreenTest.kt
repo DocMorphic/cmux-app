@@ -13,6 +13,7 @@ import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.matcher.ViewMatchers.withTagValue
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.*
 import kotlinx.coroutines.*
 import org.hamcrest.Matchers.`is`
 import org.junit.*
@@ -235,6 +236,72 @@ class SshWorkspacesScreenTest {
         compose.waitUntil(10000) { session.workspaceFeed.state.value[hostId]?.rows?.isEmpty() == true }
         compose.onNodeWithText("No workspaces yet").assertIsDisplayed()
         assertTrue(peer.requests.none { it.optString("method") == "workspace.close" })
+    }
+
+    @Test fun emptyCmuxWorkspaceRestoresWithoutCreatingThenOpensItsExplicitNewTerminal() = withMainFeed { peer, restoration ->
+        selectSshFeed()
+        val result = runBlocking { cmux.connection.exec("fixture-empty-workspace") }
+        assertEquals(0, result.exitStatus)
+        val key = result.stdout.toString(Charsets.UTF_8).trim()
+        compose.runOnIdle { provider().refresh() }
+        compose.waitUntil(10000) { compose.onAllNodesWithText("Empty cmux").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Empty cmux").performClick()
+        ready("WorkspaceWaiting")
+        assertTrue(provider().state.value.tree!!.workspaces.single { it.key == key }.tabs.isEmpty())
+        restoration.emulateSavedInstanceStateRestore(); ready("WorkspaceWaiting")
+        compose.onNodeWithText("New terminal").assertIsEnabled()
+        compose.onNodeWithText("New browser").assertIsEnabled()
+        assertTrue(provider().state.value.tree!!.workspaces.single { it.key == key }.tabs.isEmpty())
+        capture("ssh-empty-workspace")
+        compose.onNodeWithText("New terminal").performClick(); ready(); send("Created inside empty workspace")
+        val created = provider().state.value.tree!!.workspaces.single { it.key == key }
+        assertEquals(1, created.tabs.size)
+        val identity = terminalIdentity()
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("Empty cmux").performClick(); ready()
+        assertEquals(identity, terminalIdentity()); waitText("Created inside empty workspace")
+        assertEquals(1, provider().state.value.tree!!.workspaces.single { it.key == key }.tabs.size)
+        assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.create", "terminal.create") })
+    }
+
+    @Test fun independentPhoneBrowserReconstructsFromPreferenceAndReopensAfterReturningToFeed() = withMainFeed { peer, restoration ->
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        fun text(value: String) = checkNotNull(device.wait(Until.findObject(By.text(value)), 15000)) { "Missing $value" }
+        fun back() = checkNotNull(device.wait(Until.findObject(By.desc("Back to workspaces")), 10000)).click()
+        selectSshFeed()
+        val row = feedRow(SshWorkspaceKind.CMUX_TUI)
+        val store = NativeCredentialStore(compose.activity)
+        val login = checkNotNull(store.taskSession())
+        val key = sshWorkspaceTabKey(login, row.host, checkNotNull(row.openTarget()))
+        // A stored local-tab choice with no in-memory page models a cold browser reconstruction.
+        assertTrue(store.rememberWorkspaceTab(login, key, NativeWorkspaceTab.LocalBrowser))
+        compose.onNodeWithText("Desktop cmux").performClick()
+        compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        val selector = By.clazz("android.widget.EditText").hasDescendant(By.desc("Browser address"))
+        val address = checkNotNull(device.wait(Until.findObject(By.copy(selector).text("https://duckduckgo.com/")), 15000))
+        address.click()
+        assertTrue(device.wait(Until.hasObject(By.copy(selector).focused(true)), 5000))
+        val url = "http://localhost:${InstrumentationRegistry.getArguments().getString("cmux_ssh_browserport")}/"
+        address.text = url
+        assertTrue(device.wait(Until.hasObject(By.copy(selector).text(url)), 5000)); device.pressEnter()
+        text("SSH workspace page ▾"); text("Next workspace page").click(); text("SSH workspace next ▾")
+        back()
+        compose.waitUntil(10000) { compose.onAllNodesWithText("Desktop cmux").fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(NativeWorkspaceTab.LocalBrowser, store.lastWorkspaceTab(login, key))
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithText("Desktop cmux").performClick()
+        compose.waitUntil(15000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        text("SSH workspace next ▾")
+        assertTrue(device.takeScreenshot(File(compose.activity.getExternalFilesDir(null), "ssh-restored-local-browser.png")))
+        val terminalTitle = sshCmuxPicker(provider().session, provider().state.value.tree!!, workspace()).sections.first().rows.first().title
+        text("SSH workspace next ▾").click(); text(terminalTitle).click()
+        ready(); send("Selected terminal after phone browser")
+        assertEquals(NativeWorkspaceTabKind.TERMINAL, store.lastWorkspaceTab(login, key)?.kind)
+        compose.onNodeWithText("Back").performClick()
+        compose.waitUntil(10000) { compose.onAllNodesWithText("Desktop cmux").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Desktop cmux").performClick(); ready(); waitText("Selected terminal after phone browser")
+        assertEquals(1, workspace().tabs.size)
+        assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.create", "terminal.create", "browser.create") })
     }
 
     @Test fun mainFeedRetainsDisconnectedRowsHonorsPauseAndRetriesOnlyItsSshHost() = withMainFeed { peer, restoration ->

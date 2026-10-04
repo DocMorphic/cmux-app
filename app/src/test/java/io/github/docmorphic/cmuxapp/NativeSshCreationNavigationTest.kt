@@ -11,6 +11,18 @@ class NativeSshCreationNavigationTest {
     private val destination = SshWorkspaceTarget.Tmux("created-session", 2, 3)
     private val context = listOf<Any?>("All Computers", null)
 
+    @Test fun savedReopenIntentRetainsLocalOrRemoteTabWithoutBecomingACreation() {
+        val workspace = SshWorkspaceTarget.CmuxWorkspace(SshCmuxWorkspaceSelection("session", "registry", "generation", 1, "key", "resource"))
+        for (tab in listOf(NativeWorkspaceTab.LocalBrowser, destination.rememberedTab()!!)) {
+            val nav = NativeSshCreationNavigation()
+            nav.open("login", host, workspace, tab)
+            val restored = NativeSshCreationNavigation(nav.save())
+            assertEquals(nav.route, restored.route)
+            assertNull(restored.reconcile("login", SshWorkspaceCreationState.Idle, context, { true }))
+            assertEquals(tab, restored.route?.rememberedTab)
+        }
+    }
+
     @Test fun rotationWaitsForOneOperationAndRestoresTheExactDestination() = runTest {
         val result = CompletableDeferred<SshWorkspaceTarget>(); var sent = 0
         val coordinator = SshWorkspaceCreationCoordinator(backgroundScope, { true }) { h, kind ->

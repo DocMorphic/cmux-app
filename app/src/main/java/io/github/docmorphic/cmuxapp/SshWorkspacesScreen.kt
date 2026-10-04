@@ -21,7 +21,7 @@ import java.util.UUID
 
 @Composable
 internal fun SshWorkspacesRoute(session: NativeSshSession, hostId: UUID, initialTarget: SshWorkspaceTarget? = null,
-    onDisplayed: (SshWorkspaceTarget) -> Unit = {}, onBack: () -> Unit) {
+    rememberedTab: NativeWorkspaceTab? = null, onDisplayed: (SshWorkspaceTarget, Boolean) -> Unit = { _, _ -> }, onBack: () -> Unit) {
     var tmux by remember(session, hostId) { mutableStateOf<SshTmuxHost?>(null) }
     var cmux by remember(session, hostId) { mutableStateOf<SshCmuxHost?>(null) }
     var connecting by remember(session, hostId) { mutableStateOf(false) }
@@ -61,7 +61,7 @@ internal fun SshWorkspacesRoute(session: NativeSshSession, hostId: UUID, initial
     val reconnect = { scope.launch { connect(true) }; Unit }
     val currentTmux = tmux; val currentCmux = cmux
     if (currentTmux != null && currentCmux != null)
-        SshWorkspacesScreen(session, hostId, currentTmux, currentCmux, recovery, connecting, failure, reconnect, onBack, initialTarget, onDisplayed)
+        SshWorkspacesScreen(session, hostId, currentTmux, currentCmux, recovery, connecting, failure, reconnect, onBack, initialTarget, rememberedTab, onDisplayed)
     else Column(Modifier.padding(20.dp)) {
         BackHandler(onBack = onBack)
         TextButton(onClick = onBack) { Text("Back") }
@@ -71,13 +71,13 @@ internal fun SshWorkspacesRoute(session: NativeSshSession, hostId: UUID, initial
 }
 
 private data class SshWorkspaceView(val reference: String, val terminal: SshTerminal? = null, val owner: SshCmuxProvider? = null,
-    val browser: SshCmuxBrowserStream? = null, val title: String = "Browser")
+    val browser: SshCmuxBrowserStream? = null, val title: String = "Browser", val workspaceOnly: Boolean = false)
 private data class SshWorkspaceEnd(val name: String, val kind: PersistentSshWorkspaceKind, val action: suspend () -> Unit)
 
 @Composable
 internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: SshTmuxHost, cmux: SshCmuxHost,
     recovery: Int, reconnecting: Boolean, reconnectError: String?, onReconnect: () -> Unit, onBack: () -> Unit, initialTarget: SshWorkspaceTarget? = null,
-    onDisplayed: (SshWorkspaceTarget) -> Unit = {}) {
+    rememberedTab: NativeWorkspaceTab? = null, onDisplayed: (SshWorkspaceTarget, Boolean) -> Unit = { _, _ -> }) {
     val tmuxState by tmux.state.collectAsState()
     val cmuxState by cmux.state.collectAsState()
     val hosts by session.hosts.state.collectAsState()
@@ -88,6 +88,10 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     val scope = rememberCoroutineScope()
     val reportDisplayed by rememberUpdatedState(onDisplayed)
     var selection by rememberSaveable(hostId.toString(), initialTarget?.encode()) { mutableStateOf(initialTarget?.let { "$hostId\n${it.encode()}" }) }
+    var restoreRemembered by rememberSaveable(hostId.toString(), initialTarget?.encode()) { mutableStateOf(rememberedTab != null) }
+    var browserMode by rememberSaveable(hostId.toString(), initialTarget?.encode()) {
+        mutableStateOf(if (rememberedTab == NativeWorkspaceTab.LocalBrowser) "local" else null)
+    }
     var opened by remember(session, hostId) { mutableStateOf<SshWorkspaceView?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
     var restoring by remember { mutableStateOf(false) }
@@ -97,15 +101,14 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     var browser by remember(session, hostId) { mutableStateOf<SshBrowserPresentation?>(null) }
     var ending by remember(session, hostId) { mutableStateOf<SshWorkspaceEnd?>(null) }
     var navigationEpoch by remember(session, hostId) { mutableIntStateOf(0) }
-    fun select(target: SshWorkspaceTarget) { navigationEpoch++; selection = "$hostId\n${target.encode()}"; failure = null }
+    fun select(target: SshWorkspaceTarget) {
+        navigationEpoch++; restoreRemembered = false; browserMode = null; browser = null
+        selection = "$hostId\n${target.encode()}"; failure = null
+    }
     fun leave() { if (initialTarget != null) { onBack(); return }; navigationEpoch++; selection = null; opened = null; browser = null; failure = null }
     fun presentBrowser(provider: SshCmuxProvider?, target: SshWorkspaceTarget, title: String, panel: String? = null, url: String? = null) {
         val tree = provider?.state?.value?.tree
-        val row = when (target) {
-            is SshWorkspaceTarget.Cmux -> tree?.let { target.selection.resolve(checkNotNull(provider).session, it)?.first }
-            is SshWorkspaceTarget.Browser -> tree?.let { target.selection.resolve(checkNotNull(provider).session, it)?.first }
-            else -> null
-        }
+        val row = tree?.let { target.cmuxWorkspace()?.resolve(checkNotNull(provider).session, it) }
         if (provider != null) check(tree != null && row != null) { "Workspace inventory changed. Refresh before opening the browser." }
         val workspace = if (tree != null && row != null) sshCmuxBrowserWorkspace(checkNotNull(provider).session, tree, row)
             else sshBrowserWorkspace(target, title)
@@ -113,6 +116,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
             tree?.let { ref.selection.resolve(checkNotNull(provider).session, it)?.second?.url }
         }
         browser = SshBrowserPresentation(session.browsers.network(hostId), workspace, panel, seed, provider)
+        browserMode = panel ?: "local"
     }
     val view = opened
     DisposableEffect(view) { onDispose {
@@ -134,13 +138,47 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
     LaunchedEffect(tmux, cmux, recovery, selection, retry, cmuxState.providers) {
         val expected = selection ?: return@LaunchedEffect
         val current = opened
-        if (current?.reference == expected && ((current.terminal != null && current.terminal.state.value.phase != SshShellPhase.ENDED) || current.browser?.closed == false) &&
+        if (current?.reference == expected && (current.workspaceOnly || (current.terminal != null && current.terminal.state.value.phase != SshShellPhase.ENDED) || current.browser?.closed == false) &&
             (current.owner == null || current.owner in cmuxState.providers)) return@LaunchedEffect
         restoring = true; failure = null
         try {
             check(expected.startsWith("$hostId\n")) { "This saved terminal belongs to another computer" }
             val target = checkNotNull(SshWorkspaceTarget.decode(expected.substringAfter('\n'))) { "Could not restore this saved terminal" }
+            if (restoreRemembered) {
+                val host = checkNotNull(hosts.host(hostId)) { "SSH computer was removed" }
+                val workspaceRef = target.cmuxWorkspace()
+                val row = when {
+                    workspaceRef != null -> {
+                        cmux.state.first { !it.loading }
+                        val provider = cmux.forSelection(workspaceRef)
+                        val state = provider.state.first { !it.loading }
+                        check(!state.ended && state.error == null) { state.error ?: "cmux-tui session disconnected" }
+                        val tree = checkNotNull(state.tree)
+                        val workspace = checkNotNull(workspaceRef.resolve(provider.session, tree)) { "This workspace ended or was replaced" }
+                        sshCmuxFeedRows(host, provider.session, tree).single { it.cmuxWorkspace == workspace }
+                    }
+                    target is SshWorkspaceTarget.Tmux -> {
+                        val state = tmux.state.first { !it.loading }
+                        check(state.error == null) { state.error.orEmpty() }
+                        sshTmuxFeedRows(host, state.workspaces).singleOrNull { it.tmuxWorkspace?.id == target.workspace }
+                    }
+                    else -> null
+                }
+                // Consume only after successful discovery. A failed/reconnecting listing
+                // cannot replace the saved choice with an earlier cached first pane.
+                val restored = row?.reopenTarget(rememberedTab) ?: target
+                restoreRemembered = false
+                if (restored != target) { selection = "$hostId\n${restored.encode()}"; return@LaunchedEffect }
+            }
             val next = when (target) {
+                is SshWorkspaceTarget.CmuxWorkspace -> {
+                    cmux.state.first { !it.loading }
+                    val provider = cmux.forSelection(target.selection)
+                    val state = provider.state.first { !it.loading }
+                    check(!state.ended && state.error == null) { state.error ?: "cmux-tui session disconnected" }
+                    val workspace = checkNotNull(state.tree?.let { target.selection.resolve(provider.session, it) }) { "This workspace ended or was replaced" }
+                    SshWorkspaceView(expected, owner = provider, title = workspace.name, workspaceOnly = true)
+                }
                 is SshWorkspaceTarget.Browser -> {
                     cmux.state.first { !it.loading }
                     val provider = cmux.forSelection(target.selection)
@@ -193,11 +231,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         val target = SshWorkspaceTarget.decode(checkNotNull(selection).substringAfter('\n'))
         val provider = opened?.takeIf { it.reference == selection }?.owner
         val tree = provider?.state?.value?.tree
-        val cmuxWorkspace = when (target) {
-            is SshWorkspaceTarget.Cmux -> tree?.let { target.selection.resolve(checkNotNull(provider).session, it)?.first }
-            is SshWorkspaceTarget.Browser -> tree?.let { target.selection.resolve(checkNotNull(provider).session, it)?.first }
-            else -> null
-        }
+        val cmuxWorkspace = tree?.let { target?.cmuxWorkspace()?.resolve(checkNotNull(provider).session, it) }
         val tmuxWorkspace = (target as? SshWorkspaceTarget.Tmux)?.let { ref -> tmuxState.workspaces.singleOrNull { it.id == ref.workspace } }
         val layout = when {
             cmuxWorkspace != null -> sshCmuxPicker(checkNotNull(provider).session, checkNotNull(tree), cmuxWorkspace)
@@ -206,6 +240,9 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
             else -> SshPickerLayout(emptyList())
         }
         val checkedTarget = when (target) {
+            is SshWorkspaceTarget.CmuxWorkspace -> tree?.let { current -> target.selection.resolve(checkNotNull(provider).session, current)?.let {
+                SshWorkspaceTarget.CmuxWorkspace(SshCmuxWorkspaceSelection.capture(provider.session, current, it))
+            } }
             is SshWorkspaceTarget.Cmux -> tree?.let { current -> target.selection.resolve(checkNotNull(provider).session, current)?.let {
                 SshWorkspaceTarget.Cmux(SshCmuxSelection.capture(provider.session, current, it.first, it.second))
             } }
@@ -219,9 +256,26 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
             tmuxWorkspace != null -> !tmuxState.loading && tmuxState.error == null
             else -> terminal?.state?.value?.phase == SshShellPhase.RUNNING
         }
-        LaunchedEffect(checkedTarget, opened?.reference, pickerEnabled, failure) {
-            if (checkedTarget != null && opened?.reference == selection && pickerEnabled && failure == null && session.admitted())
-                reportDisplayed(checkedTarget)
+        LaunchedEffect(checkedTarget, opened?.reference, pickerEnabled, failure, browser, browserMode, restoreRemembered) {
+            if (checkedTarget != null && opened?.reference == selection && pickerEnabled && failure == null && session.isOpen &&
+                !restoreRemembered && (browserMode == null || browser != null))
+                reportDisplayed(checkedTarget, browser != null && browser?.linkedPanel == null)
+        }
+        LaunchedEffect(opened?.reference, pickerEnabled, browserMode) {
+            if (target != null && opened?.reference == selection && pickerEnabled && browser == null && browserMode != null) {
+                if (browserMode == "local") presentBrowser(provider, target, terminal?.title ?: opened?.title.orEmpty())
+                else if (target is SshWorkspaceTarget.Browser && target.selection.panelId == browserMode)
+                    presentBrowser(provider, target, opened?.title.orEmpty(), target.selection.panelId)
+                else browserMode = null
+            }
+        }
+        LaunchedEffect(checkedTarget, cmuxWorkspace?.tabs, pickerEnabled, browserMode) {
+            if (target is SshWorkspaceTarget.CmuxWorkspace && cmuxWorkspace != null && tree != null &&
+                pickerEnabled && browserMode == null && !restoreRemembered) {
+                val row = sshCmuxFeedRows(checkNotNull(hosts.host(hostId)), checkNotNull(provider).session, tree)
+                    .single { it.cmuxWorkspace == cmuxWorkspace }
+                row.targets.firstOrNull()?.let(::select)
+            }
         }
         val observedProvider = provider?.state?.collectAsState()
         val observedTerminal = terminal?.state?.collectAsState()
@@ -317,7 +371,7 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
         }
         if (files && terminal != null) SshFilesSheet(session, hostId, terminal) { files = false }
         browser?.let { presentation -> SshBrowserSheet(presentation, sshPicker = browserPicker, sshPickerSource = ::liveBrowserPicker,
-            onSshCommand = { command -> browser = null; pickerCommand(command) }, onRoute = { route ->
+            onSshCommand = { command -> browserMode = null; browser = null; pickerCommand(command) }, onRoute = { route ->
             val target = if (route.browserId != null) {
                 val provider = presentation.provider
                 val tree = provider?.state?.value?.tree
@@ -340,7 +394,12 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                         act { presentBrowser(owner, target, row.name ?: row.title, target.selection.panelId, row.url) }
                 }
             } else leave()
-        }) { if (presentation.linkedPanel != null) leave() else browser = null } }
+        }) {
+            // Back keeps the local tab and returns to the workspace list. Explicit
+            // Close removes it and reveals the underlying pane or empty workspace.
+            if (presentation.linkedPanel != null || presentation.network.navigation.hasLocal(sshLocalBrowserKey(presentation.network, presentation.workspace))) leave()
+            else { browserMode = null; browser = null }
+        } }
         val streamed = opened?.takeIf { it.reference == selection }?.browser
         if (streamed != null) {
             if (browser == null) NativeBrowserView(streamed, streamed.panelId, opened?.title.orEmpty(), ::leave,
@@ -356,6 +415,12 @@ internal fun SshWorkspacesScreen(session: NativeSshSession, hostId: UUID, tmux: 
                 val target = checkNotNull(SshWorkspaceTarget.decode(checkNotNull(selection).substringAfter('\n')))
                 presentBrowser(opened?.owner, target, terminal.title)
             } }, onBack = ::leave)
+        else if (target is SshWorkspaceTarget.CmuxWorkspace && cmuxWorkspace != null && !restoring)
+            NativeWorkspaceWaitingPane(cmuxWorkspace.name, ::leave,
+                onNewTerminal = if (pickerEnabled) ({ pickerCommand(SshPickerCommand(SshPickerOperation.TERMINAL)) }) else null,
+                onNewBrowser = if (pickerEnabled) ::openBrowser else null,
+                connected = !disconnected && !reconnecting, connectionError = reconnectError ?: failure,
+                onReconnect = reconnect, reconnectingLabel = "Reconnecting to your SSH computer…")
         else Column(Modifier.fillMaxSize().padding(16.dp)) {
             BackHandler(onBack = ::leave)
             TextButton(onClick = ::leave) { Text("Back") }

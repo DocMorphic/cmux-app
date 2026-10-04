@@ -10,9 +10,15 @@ internal fun sshWorkspaceTabKey(login: String, host: SshHostRecord, target: SshW
         sshBrowserWorkspace(target, "").id)
 
 internal fun SshWorkspaceTarget.rememberedTab(): NativeWorkspaceTab? = runCatching {
+    if (this is SshWorkspaceTarget.CmuxWorkspace) return null
     NativeWorkspaceTab(if (this is SshWorkspaceTarget.Browser) NativeWorkspaceTabKind.BROWSER_STREAM
         else NativeWorkspaceTabKind.TERMINAL, encode())
 }.getOrNull()
+
+internal fun SshFeedRow.openTarget(): SshWorkspaceTarget? = targets.firstOrNull() ?: cmuxWorkspace?.let { workspace ->
+    cmuxSession?.let { session -> SshWorkspaceTarget.CmuxWorkspace(SshCmuxWorkspaceSelection(session, registry,
+        generation, workspace.id, workspace.key, workspace.resource)) }
+}
 
 /** Resolve against this row's inventory, never against a title or a recycled numeric ID.
  * Return a fresh capture so later navigation uses the current generation and pane numbers.
@@ -32,7 +38,7 @@ internal fun SshFeedRow.reopenTarget(remembered: NativeWorkspaceTab?): SshWorksp
                 SshWorkspaceTarget.Browser(SshCmuxBrowserSelection.capture(cmuxSession, tree, workspace, tab))
             } else null
         is SshWorkspaceTarget.Tmux, is SshWorkspaceTarget.Shell -> targets.singleOrNull { it == saved }
-        null -> null
+        is SshWorkspaceTarget.CmuxWorkspace, null -> null
     }
-    return resolved ?: targets.firstOrNull()
+    return resolved ?: openTarget()
 }

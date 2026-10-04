@@ -87,6 +87,7 @@ internal class SshCmuxHost(val hostId: UUID, val connection: SshTransport, lifet
      * owner's session. It neither installs software nor creates new terminals. */
     suspend fun forSelection(selection: SshCmuxSelection): SshCmuxProvider = forSession(selection.session)
     suspend fun forSelection(selection: SshCmuxBrowserSelection): SshCmuxProvider = forSession(selection.session)
+    suspend fun forSelection(selection: SshCmuxWorkspaceSelection): SshCmuxProvider = forSession(selection.session)
     private suspend fun forSession(session: String): SshCmuxProvider = withContext(Dispatchers.Main.immediate) {
         operations.withLock {
             guard(); require(SshCmuxDiscovery.validSession(session)) { "Invalid cmux-tui session" }
