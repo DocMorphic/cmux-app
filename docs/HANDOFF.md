@@ -24,7 +24,34 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — browser Settings, Computers and New Task (2026-10-04)
+## Latest checkpoint — shared browser notification presentation and actions (2026-10-04)
+
+The browser now uses the main feed's display-only notification row renderer:
+relative time, nested metadata, history disclosure, read state, swipe, long-press
+Open/read menus and the custom accessibility read action. It adds pull refresh
+and confirmed Mark All Read, including search-hidden notifications. Mutations
+resolve issued keys to exact live pairings; bulk confirmation binds the computer
+scope. The shared coordinator validates pairing and caller permission inside its
+mutation lock. Failed updates remain visible without automatic resubmission.
+
+**82 JVM and three Android checks passed on the final app** (runtime **99.891 s**,
+sole API37/16KB AVD). The final screenshot confirms disclosure/divider placement.
+Earlier test gesture/accessibility-cache failures, repairs, build times, scoped
+iOS references, hashes and verification limits are recorded in
+[BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md). App/test/source hashes matched, display
+settings were restored and the emulator stopped/reaped. The Pixel was absent and
+untouched; no new AVD was created.
+
+The runtime uses generated host mutation callbacks; coordinator tests use generated
+RPC peers. Physical Mac/Pixel read acknowledgements, authenticated integration,
+parent recreation/process recovery and TalkBack event delivery remain unproven.
+**Next:** verify the batched signed milestone, then notification group expansion
+stability/parent hand-back, workspace/group actions, global workspace creation and
+selection refinements. Production push/notice configuration, legacy tickets and
+the broad upstream audit remain open. Signed **554** is still the last verified
+download until a new batch passes. PR #1 stays draft and the full goal is active.
+
+## Earlier checkpoint — browser Settings, Computers and New Task (2026-10-04)
 
 The routed browser's wide sidebar now exposes cmux-logo Settings, Manage
 Computers and New Task. They return through issued, one-use navigation tickets to

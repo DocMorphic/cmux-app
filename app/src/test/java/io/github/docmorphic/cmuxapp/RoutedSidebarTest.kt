@@ -157,6 +157,94 @@ class RoutedSidebarTest {
         controller.configure(true, true); controller.visible(true); runCurrent(); controller.more(); runCurrent()
         assertNotNull(controller.state.value.error); assertEquals(100, controller.state.value.snapshot!!.rows.size)
     }
+    private fun notificationSource(name: String, connected: Boolean = true): NativeFeedSource = source(title = "Tasks $name").copy(
+        mac = source().mac.copy(deviceId = name, name = "Mac $name", code = "secret-$name"),
+        availability = if (connected) NativeFeedAvailability.CONNECTED else NativeFeedAvailability.OFFLINE,
+        items = listOf(NativeNotification("same-id", "workspace", null, "Agent", "Latest $name", false, createdAt = 1700000100.0),
+            NativeNotification("older", "workspace", null, "Agent", "Earlier $name", false, createdAt = 1700000000.0)))
+    private fun notificationInput(sources: List<NativeFeedSource>) = NativeSidebarInput(sources, emptyList(),
+        sources.map { NativeSortComputer(workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag)!!, it.mac.name) }, NativeWorkspaceSortState())
+    @Test fun notificationWireIncludesNestedPresentationAndRejectsUnknownActions() {
+        val row = RoutedSidebarRow("notice", "notification", "Task", canRead = true,
+            notificationContext = NativeFeedRowContext(true, true, true, true))
+        val page = RoutedSidebarExchange().begin(snapshot(0).copy(rows = listOf(row), readAll = RoutedSidebarReadAll("all", "Mac"), canRefresh = true))
+        assertEquals(page, RoutedSidebarWire.page(RoutedSidebarWire.page(page)))
+        for (command in listOf(RoutedSidebarNotification.Read("notice", true), RoutedSidebarNotification.Read("notice", false),
+            RoutedSidebarNotification.ReadAll("all"), RoutedSidebarNotification.Refresh))
+            assertEquals(command, RoutedSidebarWire.notification(RoutedSidebarWire.notification(command)))
+        assertThrows(IllegalStateException::class.java) { RoutedSidebarWire.notification("""{"kind":"delete"}""") }
+    }
+    @Test fun notificationMutationRequiresIssuedReadableRowsOrCurrentBulkScope() {
+        val exchange = RoutedSidebarExchange()
+        val page = exchange.begin(snapshot(0).copy(rows = List(120) { RoutedSidebarRow("n$it", "notification", "Notice",
+            canOpen = false, canRead = it != 1) }, readAll = RoutedSidebarReadAll("scope", "Mac"), canRefresh = true))
+        assertTrue(exchange.permitsNotification(RoutedSidebarNotification.Read("n0", true)))
+        assertFalse(exchange.permitsNotification(RoutedSidebarNotification.Read("n1", true)))
+        assertFalse(exchange.permitsNotification(RoutedSidebarNotification.Read("n119", true)))
+        exchange.page(page.revision, page.next!!)
+        assertTrue(exchange.permitsNotification(RoutedSidebarNotification.Read("n119", true)))
+        assertTrue(exchange.permitsNotification(RoutedSidebarNotification.ReadAll("scope")))
+        assertFalse(exchange.permitsNotification(RoutedSidebarNotification.ReadAll("other")))
+        exchange.clear(); assertFalse(exchange.permitsNotification(RoutedSidebarNotification.Refresh))
+    }
+    @Test fun notificationCommandsResolveExactMacAndScopeDespiteSearchAndUnreadFilters() = runTest {
+        var value = notificationInput(listOf(notificationSource("A"), notificationSource("B")))
+        val reads = mutableListOf<Pair<String, Boolean>>(); var bulk = emptyList<String>(); var refreshes = 0
+        val host = NativeRoutedSidebarHost("owner", "salt", { value }, { RoutedSidebarLease({}) {} }, {},
+            readNotification = { entry, read, gate -> check(gate()); reads += entry.source.mac.deviceId!! to read },
+            readAllNotifications = { macs, gate -> check(gate()); bulk = macs.map { it.deviceId!! } }, refreshNotifications = { refreshes++ })
+        val initial = host.read(RoutedSidebarQuery(notifications = true))!!
+        val query = RoutedSidebarQuery(notifications = true, computer = initial.computers.single { it.name == "Mac B" }.key)
+        val scope = host.read(query)!!
+        host.notifications(RoutedSidebarNotification.Read(scope.rows.single { it.kind == "notification" }.key, true), query) { true }
+        assertEquals(listOf("B" to true), reads)
+        val hidden = host.read(query.copy(notificationQuery = "no matches", notificationUnread = true))!!
+        assertTrue(hidden.rows.isEmpty()); assertEquals(scope.readAll, hidden.readAll)
+        host.notifications(RoutedSidebarNotification.ReadAll(hidden.readAll!!.key), query) { true }
+        assertEquals(listOf("B"), bulk)
+        host.notifications(RoutedSidebarNotification.Refresh, query) { true }; assertEquals(1, refreshes)
+        value = value.copy(sources = value.sources.map { if (it.mac.deviceId == "B") it.copy(mac = it.mac.copy(code = "replacement")) else it })
+        assertTrue(runCatching { host.notifications(RoutedSidebarNotification.ReadAll(hidden.readAll!!.key), query) { true } }.isFailure)
+        assertTrue(runCatching { host.notifications(RoutedSidebarNotification.Read(scope.rows.single { it.kind == "notification" }.key, true), query) { true } }.isFailure)
+        assertEquals(1, reads.size)
+    }
+    @Test fun notificationPermissionsAndCapturedSendGuardWithdrawWhenOwnerOrSourceChanges() = runTest {
+        var value: NativeSidebarInput? = notificationInput(listOf(notificationSource("A")))
+        var allowed = true; var sendGate: (() -> Boolean)? = null
+        val host = NativeRoutedSidebarHost("owner", "salt", { value }, { RoutedSidebarLease({}) {} }, {},
+            readNotification = { _, _, gate -> sendGate = gate })
+        val query = RoutedSidebarQuery(notifications = true)
+        val initial = host.read(query)!!; val key = initial.rows.single { it.kind == "notification" }.key
+        host.notifications(RoutedSidebarNotification.Read(key, true), query) { allowed }
+        assertTrue(sendGate!!.invoke()); allowed = false; assertFalse(sendGate!!.invoke()); allowed = true
+        value = value!!.copy(sources = value!!.sources.map { it.copy(availability = NativeFeedAvailability.OFFLINE) })
+        assertFalse(host.read(query)!!.rows.single { it.kind == "notification" }.canRead)
+        assertFalse(sendGate!!.invoke())
+        assertTrue(runCatching { host.notifications(RoutedSidebarNotification.Read(key, true), query) { true } }.isFailure)
+        value = null; assertFalse(sendGate!!.invoke())
+    }
+    @Test fun nestedNotificationsKeepDisclosureBeforeChildrenAndSuppressOnlyRedundantMetadata() {
+        val value = notificationInput(listOf(notificationSource("A")))
+        val host = NativeRoutedSidebarHost("owner", "salt", { value }, { RoutedSidebarLease({}) {} }, {})
+        val query = RoutedSidebarQuery(notifications = true)
+        val collapsed = host.read(query)!!; val disclosure = collapsed.rows.single { it.kind == "updates" }
+        val expanded = host.read(query.copy(expanded = setOf(disclosure.key)))!!
+        assertEquals(listOf("heading", "notification", "updates", "notification"), expanded.rows.map { it.kind })
+        assertEquals(2L, expanded.rows[1].count); assertNull(expanded.rows.last().count)
+        assertEquals(NativeFeedRowContext(true, true, true, true), expanded.rows.last().notificationContext)
+    }
+    @Test fun notificationControllerRejectsDuplicateHiddenAndBackgroundSendsWithoutRetryingFailure() = runTest {
+        val gate = CompletableDeferred<Unit>(); var calls = 0
+        val controller = RoutedSidebarController(backgroundScope, {}, { _, _, _ -> RoutedSidebarExchange().begin(snapshot(0)) }, { "ticket" },
+            notificationAction = { calls++; gate.await(); error("Not acknowledged") })
+        controller.initialize(RoutedSidebarQuery(notifications = true)); controller.configure(true, true); controller.visible(true); runCurrent()
+        val command = RoutedSidebarNotification.Read("notice", true)
+        val first = backgroundScope.async { controller.notification(command) }; runCurrent()
+        assertFalse(controller.notification(command)); gate.complete(Unit); runCurrent(); assertFalse(first.await())
+        advanceTimeBy(3001); runCurrent(); assertEquals(1, calls); assertEquals("Not acknowledged", controller.state.value.actionError)
+        controller.configure(true, false); runCurrent(); assertFalse(controller.notification(command))
+        controller.configure(true, true); controller.visible(false); runCurrent(); assertFalse(controller.notification(command))
+    }
     private fun source(code: String = "secret-code", title: String = "Workspace") = NativeFeedSource(
         NativeCredentialStore.PairedMac(code = code, name = "Mac", deviceId = "device"), workspaces = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"workspace","title":"$title","current_directory":"/private/path"}]}""")))
     private fun input(source: NativeFeedSource) = NativeSidebarInput(listOf(source), emptyList(),

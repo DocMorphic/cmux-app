@@ -34,6 +34,7 @@ internal object RoutedBrowserSessions {
         var sidebarVisible = false
         var sidebarQuery: RoutedSidebarQuery? = null
         val customizationMutex = Mutex()
+        val notificationMutex = Mutex()
         val exited = CompletableDeferred<Unit>()
         var surfaceWatch: Job? = null
         var menuRetired = false
@@ -140,6 +141,19 @@ internal object RoutedBrowserSessions {
             "Sidebar sort options changed. Refresh the list."
         }
         checkNotNull(entry.sidebar).sort(command)
+    }
+    suspend fun notifications(entry: Entry, command: RoutedSidebarNotification) = coroutineScope {
+        val host = checkNotNull(entry.sidebar)
+        fun current() = live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible &&
+            entry.sidebar?.owner == host.owner && host.current()
+        check(current()) { "Notification sidebar is no longer visible" }
+        val query = checkNotNull(entry.sidebarQuery)
+        check(query.notifications && entry.sidebarExchange.permitsNotification(command)) { "Notification actions changed. Refresh the sidebar." }
+        check(entry.notificationMutex.tryLock()) { "A notification update is already in progress" }
+        val caller = currentCoroutineContext().job
+        val retirement = launch { entry.exited.await(); caller.cancel(CancellationException("Browser session ended")) }
+        try { host.notifications(command, query, ::current) }
+        finally { retirement.cancel(); entry.notificationMutex.unlock() }
     }
     fun selectSidebar(entry: Entry, key: String): String {
         check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible) { "Sidebar is not visible" }

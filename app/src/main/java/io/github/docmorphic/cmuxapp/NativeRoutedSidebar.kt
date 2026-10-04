@@ -26,7 +26,10 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
     private val navigate: (NativeSidebarTarget) -> Unit,
     private val initial: () -> NativeSidebarPresentation = { NativeSidebarPresentation() },
     private val adoptPresentation: (NativeSidebarPresentation) -> Unit = {},
-    private val saveSort: ((NativeWorkspaceSortMode?, List<String>?) -> Unit)? = null) : RoutedSidebarHost {
+    private val saveSort: ((NativeWorkspaceSortMode?, List<String>?) -> Unit)? = null,
+    private val readNotification: (suspend (NativeFeedEntry, Boolean, () -> Boolean) -> Unit)? = null,
+    private val readAllNotifications: (suspend (List<NativeCredentialStore.PairedMac>, () -> Boolean) -> Unit)? = null,
+    private val refreshNotifications: (suspend () -> Unit)? = null) : RoutedSidebarHost {
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun action(kind: RoutedSidebarActionKind) = id("action", kind.name)
@@ -71,6 +74,36 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             value.computers.filter { computer(it.id) in selectedMachines }.map { it.id }.toSet()))
     }
 
+    private fun notificationSources(value: NativeSidebarInput, query: RoutedSidebarQuery): List<NativeFeedSource> {
+        val selection = query.computer?.let { key -> value.computers.singleOrNull { computer(it.id) == key }?.id
+            ?: error("This computer is no longer available") }
+        return value.sources.filter { selection == null || workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag) == selection }
+    }
+    private fun readAllKey(value: NativeSidebarInput, query: RoutedSidebarQuery): String = id("notification-read-all", query.computer,
+        notificationSources(value, query).map { listOf(it.mac.origin, it.mac.code) }.sortedBy { it.first() })
+    override suspend fun notifications(command: RoutedSidebarNotification, query: RoutedSidebarQuery, canSend: () -> Boolean) {
+        check(query.notifications && canSend()) { "Notifications are no longer visible" }
+        val value = checkNotNull(input()) { "Sidebar account changed" }
+        when (command) {
+            is RoutedSidebarNotification.Read -> {
+                val entry = aggregateNativeFeed(notificationSources(value, query)).singleOrNull { notification(it) == command.key }
+                    ?: error("This notification changed. Refresh the sidebar.")
+                check(entry.source.availability == NativeFeedAvailability.CONNECTED) { "This computer is offline" }
+                checkNotNull(readNotification)(entry, command.read) {
+                    canSend() && input()?.let { current -> aggregateNativeFeed(current.sources).any {
+                        notification(it) == command.key && it.source.mac == entry.source.mac && it.source.availability == NativeFeedAvailability.CONNECTED
+                    } } == true
+                }
+            }
+            is RoutedSidebarNotification.ReadAll -> {
+                check(command.key == readAllKey(value, query)) { "Computers changed. Confirm Mark All Read again." }
+                checkNotNull(readAllNotifications)(notificationSources(value, query).map { it.mac }) {
+                    canSend() && input()?.let { runCatching { readAllKey(it, query) == command.key }.getOrDefault(false) } == true
+                }
+            }
+            RoutedSidebarNotification.Refresh -> checkNotNull(refreshNotifications).invoke()
+        }
+    }
     override fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot? {
         val value = input() ?: return null
         val ordered = orderWorkspaceComputers(value.computers, value.sort, value.locale)
@@ -98,7 +131,10 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
             selectedMachines = filter.machines,
             sortMode = value.sort.mode.takeIf { saveSort != null && query.computer == null && !query.notifications },
             actions = RoutedSidebarActionKind.entries.filter { it in value.actions && (!query.notifications || it != RoutedSidebarActionKind.NEW_TASK) }
-                .map { RoutedSidebarAction(action(it), it) })
+                .map { RoutedSidebarAction(action(it), it) },
+            readAll = if (query.notifications && validScope && unread > 0 && readAllNotifications != null)
+                RoutedSidebarReadAll(readAllKey(value, query), ordered.singleOrNull { it.id == selected }?.name ?: "All Computers") else null,
+            canRefresh = query.notifications && refreshNotifications != null)
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
         query: RoutedSidebarQuery, all: Boolean, filtering: Boolean): List<RoutedSidebarRow> {
@@ -140,12 +176,15 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                     val expanded = key in query.expanded
                     (if (expanded) group.entries else group.entries.take(1)).forEachIndexed { index, entry ->
                         val presentation = entry.presentation(locale)
+                        val rowValue = entry.rowValue(locale)
                         add(RoutedSidebarRow(notification(entry), "notification", presentation.headline, presentation.source,
-                            presentation.preview, entry.computer, !entry.notification.isRead, activity = entry.notification.createdAt,
-                            availability = entry.source.availability, depth = if (index == 0) 0 else 1))
+                            presentation.preview, entry.computer, !entry.notification.isRead, count = group.entries.size.toLong().takeIf { index == 0 && it > 1 }, activity = entry.notification.createdAt,
+                            availability = entry.source.availability, depth = if (index == 0) 0 else 1,
+                            canRead = readNotification != null && entry.source.availability == NativeFeedAvailability.CONNECTED,
+                            notificationContext = rowValue.nestedUnder(if (index > 0) group.entries.first().rowValue(locale) else null, locale)))
+                        if (index == 0 && group.entries.size > 1) add(RoutedSidebarRow(key, "updates", "${group.entries.size} updates",
+                            count = group.entries.size.toLong(), expanded = expanded, canOpen = false))
                     }
-                    if (group.entries.size > 1) add(RoutedSidebarRow(key, "updates", "${group.entries.size} updates",
-                        count = group.entries.size.toLong(), expanded = expanded, canOpen = false))
                 }
             }
         }

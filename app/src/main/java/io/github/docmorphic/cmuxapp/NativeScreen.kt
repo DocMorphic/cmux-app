@@ -3415,6 +3415,15 @@ internal fun NativeScreen(
             saveSort = { mode, order ->
                 check(currentOwner()) { "Sidebar account changed" }
                 mode?.let(workspaceSortStore::setMode); order?.let(workspaceSortStore::setPriority)
+            }, readNotification = { entry, read, canSend ->
+                check(currentOwner()) { "Sidebar account changed" }
+                feedCoordinator.setRead(entry, read) { currentOwner() && canSend() }
+            }, readAllNotifications = { macs, canSend ->
+                check(currentOwner()) { "Sidebar account changed" }
+                feedCoordinator.markNotificationsRead(macs) { currentOwner() && canSend() }
+            }, refreshNotifications = {
+                check(currentOwner()) { "Sidebar account changed" }
+                feedCoordinator.refresh()
             })
     } }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,

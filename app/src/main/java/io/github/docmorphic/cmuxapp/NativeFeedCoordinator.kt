@@ -442,30 +442,43 @@ internal class NativeFeedCoordinator(
         Unit
     }
 
-    suspend fun setRead(entry: NativeFeedEntry, read: Boolean) = withContext(scope.coroutineContext.minusKey(Job)) {
+    suspend fun setRead(entry: NativeFeedEntry, read: Boolean, canSend: () -> Boolean = { true }) = withContext(scope.coroutineContext.minusKey(Job)) {
         val handle = handles[entry.source.mac.origin] ?: error("Connect to ${entry.computer} to change this notification.")
-        mutate(handle, listOf(entry.notification.id), read, all = false)
+        check(handle.mac == entry.source.mac) { "Saved computer changed" }
+        mutate(handle, listOf(entry.notification.id), read, all = false, canSend)
     }
     suspend fun markAllRead(selectedOrigin: String? = null) = withContext(scope.coroutineContext.minusKey(Job)) {
-        val targets = mutableSources.value.values.filter {
-            (selectedOrigin == null || it.mac.origin == selectedOrigin) && it.items.any { item -> !item.isRead }
-        }
-        val failures = targets.map { source -> async {
+        markNotificationsRead(mutableSources.value.values.filter {
+            selectedOrigin == null || it.mac.origin == selectedOrigin
+        }.map { it.mac })
+    }
+    /** Captures exact pairings, including when the caller confirms a filtered browser view. */
+    suspend fun markNotificationsRead(macs: List<NativeCredentialStore.PairedMac>, canSend: () -> Boolean = { true }) =
+        withContext(scope.coroutineContext.minusKey(Job)) {
+        check(macs.map { it.origin }.distinct().size == macs.size)
+        val failures = macs.map { mac -> async {
             try {
-                val handle = handles[source.mac.origin] ?: error("Computer unavailable")
-                mutate(handle, source.items.map { it.id }, read = true, all = true)
+                check(canSend()) { "Notification action is no longer current" }
+                val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
+                check(source.mac == mac) { "Saved computer changed" }
+                if (source.items.any { !it.isRead }) {
+                    val handle = handles[mac.origin] ?: error("Computer unavailable")
+                    check(handle.mac == mac) { "Saved computer changed" }
+                    mutate(handle, source.items.map { it.id }, read = true, all = true, canSend)
+                }
                 null
             } catch (failure: Exception) {
                 if (failure is CancellationException) throw failure
-                source.mac.name
+                mac.name
             }
         } }.awaitAll().filterNotNull()
         check(failures.isEmpty()) { "Could not mark notifications read on: ${failures.joinToString()}. Reconnect and retry." }
     }
-    private suspend fun mutate(handle: Handle, ids: List<String>, read: Boolean, all: Boolean) = handle.mutex.withLock {
+    private suspend fun mutate(handle: Handle, ids: List<String>, read: Boolean, all: Boolean, canSend: () -> Boolean) = handle.mutex.withLock {
         val client = handle.client ?: error("${handle.mac.name} is offline.")
-        check(current(handle, client)) { "Saved computer changed" }
+        check(current(handle, client) && canSend()) { "Saved computer or notification action changed" }
         check(handle.verified) { "Computer identity is still being verified." }
+        check(all || mutableSources.value[handle.mac.origin]?.items?.any { it.id == ids.single() } == true) { "This notification is no longer available" }
         val response = if (all) client.markAllNotificationsRead() else client.setNotificationRead(ids.single(), read)
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val source = mutableSources.value[handle.mac.origin] ?: return@withLock

@@ -68,6 +68,11 @@ class RoutedBrowserPresentationTest {
     private var projectedSidebar: NativeRoutedSidebarHost? = null
     private var globalActions = RoutedSidebarActionKind.entries.toSet()
     private val openedActions = CopyOnWriteArrayList<RoutedSidebarActionKind>()
+    private var noticeSources = emptyList<NativeFeedSource>()
+    private val noticeWrites = CopyOnWriteArrayList<String>()
+    private val noticeBulk = CopyOnWriteArrayList<List<String>>()
+    private var failNoticeWrite = true
+    private val noticeRefreshes = AtomicInteger()
     private var adoptedPresentation: NativeSidebarPresentation? = null
     private var sortJson: String? = null
     private val sortStore = NativeWorkspaceSortStore({ sortJson }, { sortJson = it })
@@ -82,6 +87,9 @@ class RoutedBrowserPresentationTest {
             ({ sidebarDestinations += key }) else null
         override fun adopt(query: RoutedSidebarQuery) { sidebarAdopted = query; projectedSidebar?.adopt(query) }
         override fun sort(command: RoutedSidebarSort) { checkNotNull(projectedSidebar).sort(command) }
+        override suspend fun notifications(command: RoutedSidebarNotification, query: RoutedSidebarQuery, canSend: () -> Boolean) {
+            checkNotNull(projectedSidebar).notifications(command, query, canSend)
+        }
         override fun retain() = RoutedSidebarLease({ sidebarActive += it }, { sidebarReleases.incrementAndGet() })
     }
     private val key = LocalBrowserKey("generated-account", "generated-team", "generated-mac", "workspace")
@@ -171,6 +179,31 @@ class RoutedBrowserPresentationTest {
                     { RoutedSidebarLease({}) {} }, { target ->
                         openedActions += (target as NativeSidebarTarget.Action).kind
                     })
+            }
+            if (scenarioName == "globalSidebarNotificationsShareRowsMutateAndConfirmCapturedScopeWithoutReload") {
+                val now = System.currentTimeMillis() / 1000.0
+                noticeSources = listOf("A", "B").map { name ->
+                    NativeFeedSource(NativeCredentialStore.PairedMac("generated-$name", name, "Mac $name"),
+                        workspaces = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"w","title":"Tasks $name"}]}""")),
+                        items = listOf(NativeNotification("new", "w", null, "Agent", "Latest $name", false, createdAt = now - 60),
+                            NativeNotification("old", "w", null, "Agent", "Earlier $name", false, createdAt = now - 120)),
+                        availability = if (name == "A") NativeFeedAvailability.CONNECTED else NativeFeedAvailability.OFFLINE)
+                }
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-notifications",
+                    { NativeSidebarInput(noticeSources, emptyList(), noticeSources.map {
+                        NativeSortComputer(workspaceMacFilterId(it.mac.deviceId, null)!!, it.mac.name)
+                    }, NativeWorkspaceSortState(), actions = RoutedSidebarActionKind.entries.toSet()) },
+                    { RoutedSidebarLease({}) {} }, {}, initial = { NativeSidebarPresentation(notifications = true) },
+                    readNotification = { entry, read, canSend ->
+                        check(canSend()); noticeWrites += "${entry.source.mac.deviceId}:${entry.notification.id}:$read"
+                        if (failNoticeWrite) { failNoticeWrite = false; error("Fixture notification update rejected") }
+                        noticeSources = noticeSources.map { source -> if (source.mac == entry.source.mac) source.copy(items = source.items.map {
+                            if (it.id == entry.notification.id) it.copy(isRead = read) else it
+                        }) else source }
+                    }, readAllNotifications = { macs, canSend ->
+                        check(canSend()); noticeBulk += macs.map { it.deviceId!! }
+                        noticeSources = noticeSources.map { source -> if (source.mac in macs) source.copy(items = source.items.map { it.copy(isRead = true) }) else source }
+                    }, refreshNotifications = { noticeRefreshes.incrementAndGet(); Unit })
             }
             network = NativeMacBrowserNetwork(owner, object : MacBrowserAccess {
                 override suspend fun availability() = MacBrowserAvailability.AVAILABLE
@@ -318,6 +351,52 @@ class RoutedBrowserPresentationTest {
             assertTrue(creationRequests.isEmpty()) // Opening the composer is not workspace creation.
             if (index < labels.lastIndex) text("Reopen fixture").click()
         }
+    }
+
+    @Test fun globalSidebarNotificationsShareRowsMutateAndConfirmCapturedScopeWithoutReload() = wideSidebar {
+        compose.waitUntil(15_000) { !compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) }
+        val picker = desc("Choose terminal or pane")
+        // UiObject2.text refreshes its node from the provider. A cold Android 17
+        // accessibility cache can retain the initial Browser title after paint.
+        until { picker.text == "Routed fixture ▾" }
+        text("Keep draft").click()
+        until { picker.text?.startsWith("Draft ") == true }
+        val loads = paths.count { it == "/start" }
+        text("All Computers").click(); text("Mac A").click()
+        text("Latest A"); desc("Show earlier notifications").click(); text("Earlier A")
+        capturePicker("browser-sidebar-notification-history")
+        text("Latest A").longClick(); text("Mark as Read").click()
+        text("Fixture notification update rejected")
+        assertEquals(listOf("A:new:true"), noticeWrites.toList())
+        text("Latest A").longClick(); text("Mark as Read").click()
+        until { main { noticeSources.first().items.first().isRead } }
+        // Wait for the authoritative read state to reach the rendered menu.
+        text("Latest A").longClick(); text("Mark as Unread"); device.pressBack()
+        val preview = text("Latest A")
+        val row = generateSequence(preview) { it.parent }.first { it.isClickable }.visibleBounds
+        // Begin inside the row: the screen edge belongs to Android's Back gesture.
+        device.swipe(row.left + row.width() / 5, row.centerY(), row.right - 20, row.centerY(), 25)
+        until { noticeWrites.lastOrNull() == "A:new:false" }
+        desc("Search").click()
+        checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5_000)).text = "not found"
+        device.pressEnter(); text("No matches")
+        desc("Mark All Read").click(); text("Mark all notifications as read?")
+        assertTrue(device.hasObject(By.textContains("for Mac A as read")))
+        text("Cancel").click(); assertTrue(noticeBulk.isEmpty())
+        desc("Mark All Read").click(); text("Mark All Read").click()
+        until { noticeBulk.size == 1 }
+        assertEquals(listOf(listOf("A")), noticeBulk.toList())
+        assertTrue(main { noticeSources.first().items.all { it.isRead } })
+        assertTrue(main { noticeSources.last().items.none { it.isRead } })
+        val empty = text("No matches").visibleBounds
+        device.swipe(empty.centerX(), empty.bottom + 20, empty.centerX(), empty.bottom + 500, 35)
+        until { noticeRefreshes.get() > 0 }
+        assertEquals(loads, paths.count { it == "/start" })
+        assertEquals(1, holds.get()); assertEquals(0, releases.get())
+        assertTrue(picker.text?.startsWith("Draft ") == true)
+        capturePicker("browser-sidebar-notification-after-actions")
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { holds.get() == 0 }
     }
 
     @Test fun customizationSavesAndRetriesWithoutReloadingThePageOrReleasingItsHost() {

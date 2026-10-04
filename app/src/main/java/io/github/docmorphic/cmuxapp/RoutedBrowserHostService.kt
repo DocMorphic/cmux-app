@@ -39,13 +39,21 @@ class RoutedBrowserHostService : Service() {
                                 RoutedWorkspaceCustomizationProtocol.draft(checkNotNull(args.getBundle("submitted"))))))
                         } finally { saves.remove(key) }
                     }
-                    RoutedBrowserProtocol.CANCEL_CUSTOMIZE -> { saves[entry.id to ticket]?.cancel(); return@launch }
+                    RoutedBrowserProtocol.CANCEL_CUSTOMIZE, RoutedBrowserProtocol.CANCEL_NOTIFICATION -> { saves[entry.id to ticket]?.cancel(); return@launch }
                     RoutedBrowserProtocol.PREPARE -> result.putInt("port", RoutedBrowserSessions.prepare(entry, args.getString("url")))
                     RoutedBrowserProtocol.SNAPSHOT -> entry.destination.surface.remote(entry.attachment, RoutedBrowserProtocol.snapshot(args))
                     RoutedBrowserProtocol.FOREGROUND -> RoutedBrowserSessions.foreground(entry, args.getBoolean("active"), args.getBoolean("sidebar_visible"))
                     RoutedBrowserProtocol.SIDEBAR -> result.putString("sidebar", RoutedSidebarWire.page(RoutedBrowserSessions.sidebar(entry, args)))
                     RoutedBrowserProtocol.SIDEBAR_STATE -> RoutedBrowserSessions.sidebarState(entry, RoutedSidebarWire.query(checkNotNull(args.getString("query"))))
                     RoutedBrowserProtocol.SIDEBAR_SORT -> RoutedBrowserSessions.sortSidebar(entry, RoutedSidebarWire.sort(checkNotNull(args.getString("sort"))))
+                    RoutedBrowserProtocol.SIDEBAR_NOTIFICATION -> {
+                        val key = entry.id to ticket
+                        check(key !in saves) { "Notification update already submitted" }
+                        saves[key] = currentCoroutineContext().job
+                        try { RoutedBrowserSessions.notifications(entry,
+                            RoutedSidebarWire.notification(checkNotNull(args.getString("notification")))) }
+                        finally { saves.remove(key) }
+                    }
                     RoutedBrowserProtocol.SIDEBAR_SELECT -> result.putString("selection", RoutedBrowserSessions.selectSidebar(entry, checkNotNull(args.getString("key"))))
                     RoutedBrowserProtocol.DEBUG_LOGS -> {
                         check(BuildConfig.DEBUG) { "Debug logs unavailable" }

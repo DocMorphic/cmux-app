@@ -41,8 +41,9 @@ This is the browser's global **navigation** sidebar. Its workspace rows and grou
 headers reuse existing components. Compound machine filtering, independent
 workspace/notification searches and unread filters, sort mode and computer-order
 editing are now shared with the main screen. Settings, Computers and New Task
-entry points return to the existing main-screen flows. Remote row mutations, full
-notification row presentation/actions and selection styling still need parity work. Main-screen controls remain implemented separately; this does not establish
+entry points return to the existing main-screen flows. Notification rows, read/unread gestures and menus, pull refresh and confirmed bulk
+read now share the main feed. Remote workspace/group mutations, global workspace
+creation, expansion-state hand-back and selection styling still need parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
 Physical Pixel/Mac acceptance, actual account/team replacement during live
@@ -212,3 +213,91 @@ Next: complete remote workspace/group mutations and full notification actions/
 presentation inside the browser sidebar, then verify main-screen integration and
 physical Pixel/Mac acceptance. Signed 554, draft PR #1 and the active goal are
 unchanged; this checkpoint does not establish full iOS parity.
+
+## Shared notification rows and actions — 2026-10-04
+
+Scoped iOS reference remains `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
+`NotificationFeedRow.swift`, `NotificationFeedRowPresentation.swift`,
+`NotificationFeedListRow.swift` and `NotificationFeedView.swift` in
+`Packages/iOS/CmuxMobileShellUI`. These define leading swipe/context-menu read
+changes, nested metadata suppression, relative times, group disclosure below the
+latest row and a confirmation before Mark All Read.
+
+The main feed and routed browser now render the same display-only
+`NativeFeedRowValue`/`NativeFeedRowContext` through `NativeFeedRow`. The browser
+shows time, source/computer provenance, nested history, read-state semantics,
+long-press Open/read menus, leading swipe and the custom accessibility read action.
+Title-only history retains its source, and changed connection availability keeps
+the computer label; these correct two mismatches in the previous main renderer.
+Disclosure now precedes expanded children. The browser also provides pull refresh
+and confirmed Mark All Read, including notifications hidden by search.
+
+Only issued opaque notification keys, explicit read booleans and a hash of the
+captured computer scope cross the mutation protocol. Both the presentation and
+host resolve the current account, exact pairing and notification. Bulk confirmation
+cannot silently broaden after a computer selection or pairing change. The feed
+coordinator checks exact pairings and the caller's permission predicate inside
+its mutation lock before sending. Existing source-revision acknowledgement logic
+still owns read-state updates; the browser does not optimistically invent success.
+Offline computers retain unread state, with partial failure reported by the shared
+coordinator. Browser notification requests reject concurrent duplicate actions,
+retain errors across feed polls, and are cancelled when the presentation exits or
+the caller's request times out. No mutation is automatically retried.
+
+Verification evidence is retained under the ignored
+`captures/runtime/browser-sidebar-notifications/` directory; results follow below.
+
+The first build passed in **1m38s**, with **82 JVM tests**: 34 sidebar, 37 feed
+coordinator, nine feed-model and two shared-row presentation checks. The initial
+Android batch ran three scenarios in **96.046 s**: filters/sorting/query return
+and global Settings/Computers/task navigation passed, while the new notification
+scenario timed out after its left-edge gesture invoked Android Back. The window
+log and failure image record the browser leaving. The test now starts the swipe
+inside the row and waits for its authoritative read state before reversing it.
+Its wide-layout exit also uses Android Back, matching that layout's controls.
+Test-only rebuilds took **20 s** and **21 s**.
+
+The first focused retry stopped at launch (**38.365 s**): pixels showed the loaded
+page, but the UIAutomator tree still held the initial Browser title/loading node.
+The test now reads the stable pane-picker node through `UiObject2.text`, which
+refreshes it from the accessibility provider, while still asserting the exact
+loaded and draft titles. That diagnostic is retained in
+`focused-launch-failure.log`, `focused-failure.png/xml` and `focused-runtime.log`.
+It does not establish reliable TalkBack event delivery; that remains an explicit
+accessibility acceptance item. App/JVM sources were unchanged during these test
+repairs. Final focused results follow below.
+
+The fresh-node focused run passed in **38.501 s** after a **20 s** test-only
+build. Visual inspection then found the browser divider above the history toggle
+instead of below it. The projection now identifies a head row with disclosure,
+and the browser places one divider after the disclosure, matching the shared main
+feed and scoped iOS reference. This final app/test build passed in **34 s** and
+all **82 JVM tests passed again**.
+
+**All three Android scenarios passed on the final build in 99.891 s.** The new
+scenario verifies grouped history, rejected and successful menu read changes,
+swipe unread, cancellation and confirmation of bulk read with hidden search
+results, exact computer scope, pull refresh, unchanged page load count and an
+unsent webpage draft. Existing filters/sort/two-query hand-back and all three global
+navigation entry points passed in the same final batch. `history-final.png/xml`
+was inspected and confirms the corrected divider placement. These are three
+distinct scenarios; earlier repeats do not add distinct coverage.
+
+- Final app APK SHA-256: `2e640535790de9cf8da077b9112263aa97c99c7ca9498a307449a5dc68e7f70e`.
+- Final test APK SHA-256: `234d178487e04917b46bf1a0d63996f72131b20ebd2ed0e71fc18a69d5cfb5bc`.
+- Authoritative receipts: `verification.json`, `source-hashes-final.json`,
+  `build-final.log`, `final.log`, `display-before-final.json`,
+  `display-after-final.json`, `crash-final.log`, `history-final.png/xml`.
+- Installed app/test hashes and frozen sources matched. Display settings were
+  restored; the crash buffer was empty. The sole emulator was stopped/reaped.
+  No new AVD was created and no physical Pixel was connected or modified.
+
+Runtime uses the production browser Activity/service/proxy/shared row renderer
+with generated mutation callbacks. The production feed coordinator is separately
+tested against generated RPC peers. This does not prove live Mac/Pixel read
+acknowledgements, authenticated main-screen integration, parent recreation,
+process recovery, large-font behavior or TalkBack event delivery. Notification
+expansion stability across changing groups and expansion-state hand-back to the
+parent remain open, as do workspace/group actions and global workspace creation.
+The full goal remains active; PR #1 remains draft. Signed 554 stays the last
+verified download until the next batched signed build completes verification.

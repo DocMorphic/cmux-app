@@ -686,6 +686,23 @@ class NativeFeedCoordinatorTest {
         } }
     }
 
+    @Test fun notificationWritesRejectReplacedPairingAndWithdrawnPresentationBeforeSending() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.items?.isNotEmpty() == true }
+                val entry = aggregateNativeFeed(coordinator.sources.value.values).single()
+                val replaced = entry.copy(source = entry.source.copy(mac = entry.source.mac.copy(code = "old-code")))
+                assertTrue(runCatching { coordinator.setRead(replaced, true) }.isFailure)
+                assertTrue(runCatching { coordinator.setRead(entry, true) { false } }.isFailure)
+                assertTrue(runCatching { coordinator.markNotificationsRead(listOf(entry.source.mac)) { false } }.isFailure)
+                assertTrue(runCatching { coordinator.markNotificationsRead(listOf(replaced.source.mac)) }.isFailure)
+                assertTrue(peer.requests.none { it.optString("method") in setOf("notification.feed.mark_read", "notification.feed.mark_all_read") })
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun staleFeedCannotUndoAcknowledgedReadOrUnread() = runBlocking {
         FeedPeer("a").use { peer ->
             val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
