@@ -12,6 +12,24 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — real keyboard URI grants (2026-10-04)
+
+[KEYBOARD_URI_GRANTS.md](KEYBOARD_URI_GRANTS.md) verifies the existing image-input
+permission lifetime using a real platform keyboard and private provider in a
+separate test APK/UID. Three Android cases pass in one final run (21.865 s): delayed
+copy after editor removal, rejected/throwing receivers, and input-queue cancellation.
+Actual provider reads succeed while owned and are denied before/after the grant.
+
+The fixture is absent from app DEX/manifest, and the production APK is unchanged.
+The original emulator keyboard was restored, the fixture keyboard disabled, and
+the existing AVD stopped. Earlier fixture startup, readiness-probe and System UI
+ANR failures are retained in the evidence. No new AVD, app or signed build here.
+
+**Next:** physical Pixel/Mac browser and Gboard acceptance, clipboard grant behavior,
+whole-process recreation, HTTPS/native-account acceptance and the broader source
+parity audit. Android feed and push configuration remain open. Build 494 remains
+the last signed milestone; the last unsigned-release/ART gate is `786264d`.
+
 ## Latest checkpoint — partial attachment providers (2026-10-04)
 
 [COMPOSER_PARTIAL_PROVIDERS.md](COMPOSER_PARTIAL_PROVIDERS.md) brings ordered

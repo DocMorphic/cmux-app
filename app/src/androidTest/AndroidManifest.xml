@@ -1,0 +1,17 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Only the instrumentation APK has these components. The private provider
+         has a different UID from the app; access requires a real platform grant. -->
+    <application>
+        <provider android:name="io.github.docmorphic.cmuxapp.GrantFixtureProvider"
+            android:authorities="${applicationId}.keyboard-grants"
+            android:exported="false" android:grantUriPermissions="true" />
+        <service android:name="io.github.docmorphic.cmuxapp.GrantFixtureKeyboard"
+            android:label="cmux grant test keyboard" android:exported="true"
+            android:permission="android.permission.BIND_INPUT_METHOD">
+            <intent-filter><action android:name="android.view.InputMethod" /></intent-filter>
+            <meta-data android:name="android.view.im" android:resource="@xml/grant_fixture_keyboard" />
+        </service>
+        <receiver android:name="io.github.docmorphic.cmuxapp.GrantFixtureKeyboardCommand"
+            android:exported="true" />
+    </application>
+</manifest>
