@@ -18,13 +18,42 @@ Read this first, then `PARITY.md`, `ANDROID_TESTING.md`, `RESEARCH.md`, and
 not a request to scaffold another prototype. The dated sections of the other
 documents are historical; newer verified entries supersede older pending claims.
 
-**Delivery update — 2026-10-04:** signed development build **546** is now verified.
+**Delivery update — 2026-10-04:** signed development build **554** is now verified.
 See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) and the latest checkpoint below for its
 source, download, packaging, ART and signed-out upgrade evidence. The goal remains
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — empty SSH workspaces and phone-browser restoration (2026-10-04)
+## Latest checkpoint — signed build 554 and upgrade verification (2026-10-04)
+
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) links signed development build **554**, source
+`0da7bb50590b972f0d4d9dbae42851677e874fdc`, Actions run `37215611518`.
+The accumulated main-feed/SSH creation, lock/layout fixes, empty-workspace and
+browser restoration changes now have a verified signed artifact. CI passed
+app/Ghostty JVM tests, APK assembly, packaging and Android 17 ART (Gradle 10m3s).
+Independent download checks matched artifact/source/digests, signer, all 14 viewer
+assets, 19 native alignments and eight excluded debug fixture activities. Native
+payloads match build 546; both x86_64 CI and local arm64 ART accepted the release.
+
+The sole API37/16KB AVD upgraded **546 → 554** without uninstall and retained its
+first-install time. Android's transient package-update Activity intercepted the
+initial launch; that diagnostic is retained. Explicit cold launch after it cleared
+reached MainActivity in **1,658 ms**, with the sign-in screen visually checked,
+`pageSizeCompat=0` and an empty crash buffer. The baseline was signed out: this
+does not verify authenticated migration or the physical Pixel/Mac browser flow.
+Settings were unchanged. The existing AVD was stopped/reaped; no new AVD. The
+Pixel was absent from ADB and untouched. Evidence: `captures/runtime/release-0da7bb5/`.
+
+The next scoped iOS audit is recorded in [WORKSPACE_ROWS.md](WORKSPACE_ROWS.md):
+pane-name search, combined machine/unread filters and local Last Opened / Custom
+Order / Recent Activity behavior, including stable-build identities and grouped
+ordering. The implementation of Last Opened includes recent-use timestamps,
+which supersedes an older alphabetical-only source comment. These remain next
+steps, with broader parity, cold/network recovery, physical acceptance and
+push/notice configuration still open. Global parity pin unchanged; PR #1 remains
+a draft and the goal remains active. No GitHub release was published.
+
+## Earlier checkpoint — empty SSH workspaces and phone-browser restoration (2026-10-04)
 
 A cmux-tui workspace now has a durable destination independent of its panes.
 Empty rows open the shared waiting view with New terminal and New browser actions.

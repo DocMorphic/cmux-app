@@ -1,5 +1,46 @@
 # Workspace row presentation
 
+**Delivery:** signed build **554** now includes the feature checkpoints below.
+See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for download and verification scope; older
+checkpoint delivery numbers are historical.
+
+## Next implementation — search, compound filters and ordering (2026-10-04)
+
+Read-only audit at upstream `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
+`WorkspaceListView.swift`, `WorkspaceListFilterState.swift`,
+`WorkspaceListFilterControls.swift`, `MobileWorkspaceListFilter.swift`,
+`MobileWorkspaceAggregation.swift`, `MobileWorkspaceRecencyOrder.swift`, and
+`MobileWorkspaceSortStore.swift`. These are next steps, not implemented claims;
+the global parity pin remains unchanged.
+
+1. Index live SSH pane names alongside workspace title, preview and host name.
+   Mac search already indexes terminal and group names. Build metadata from the
+   same admitted inventory used to open a row; exclude dead/replaced panes.
+2. Compose unread and a multi-select set of exact computer identities. An empty
+   set means all computers; a bare device ID must not match tagged sibling builds.
+   Share filter state between list/search. Hide machine controls below two
+   computers and clear their now-hidden selection; also clear the machine
+   dimension when the title picker scopes to one computer. Preserve unread.
+3. Add local **Last Opened**, **Custom Order**, and **Recent Activity** options in
+   All Computers. Single-computer scope retains its host's order. Last Opened
+   uses foreground first, then last-used time, then name/device/build tie breaks.
+   `MobileWorkspaceSortMode.swift` has an older alphabetical-only comment; the
+   aggregation implementation and UI copy include last-used time. Custom Order
+   ranks explicit computer priorities ahead of foreground and retains offline
+   slots. Neither choice sends workspace move RPCs.
+4. Recent Activity sorts pinned first, then newest activity, with missing times
+   last and stable ties. The unfiltered list ranks complete group blocks by their
+   newest member, preserving member order, anchors, collapse and durable empty
+   headers. Search or explicit filters use flat rows. Compute a display projection
+   without rewriting source order; retain exact source ownership for all actions.
+5. Verify build identity isolation, hidden-filter recovery, stable ties, group
+   pin/recency order, offline priority, single-computer scope and live SSH search.
+   Then run targeted UI cases on the sole existing AVD, with a batched build.
+
+Local audit receipt: `captures/runtime/release-0da7bb5/next-source-audit.json`.
+Regular-width sidebar policy remains a separate follow-up. Physical Pixel/Mac
+acceptance and broad upstream review are still open.
+
 ## Latest checkpoint — empty SSH workspaces and phone-browser restoration (2026-10-04)
 
 A cmux-tui workspace now has a durable destination independent of its panes.
