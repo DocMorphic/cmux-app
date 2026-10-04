@@ -2705,6 +2705,7 @@ internal class NativeFixturePeer : AutoCloseable {
     @Volatile var gridHistoryRows = 0
     @Volatile var alternateScreen = false
     @Volatile var gridFirstLine = "cmux Android terminal"
+    @Volatile var gridFooter: String? = null
     @Volatile var gridBackground = "#111316"
     private var viewportColumns = 40
     private var viewportRows = 20
@@ -2946,6 +2947,10 @@ internal class NativeFixturePeer : AutoCloseable {
             listOf(gridFirstLine, "Colors and grid layout", "$ printf cmux", "cmux").forEachIndexed { row, line ->
                 val value = line.take(columns)
                 if (row < rows) spans.put(JSONObject().put("row", row).put("column", 0)
+                    .put("text", value).put("cell_width", value.length).put("style_id", 0))
+            }
+            gridFooter?.takeIf { rows > 4 }?.take(columns)?.let { value ->
+                spans.put(JSONObject().put("row", rows - 1).put("column", 0)
                     .put("text", value).put("cell_width", value.length).put("style_id", 0))
             }
             JSONObject().put("render_grid", JSONObject().put("format", "cmux.render-grid.v1")

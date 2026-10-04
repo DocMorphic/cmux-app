@@ -30,8 +30,9 @@ remains bounded at 20,000 and evicts the oldest row when more output arrives.
 
 SSH providers have separate history mechanisms; this setting describes Mac native
 terminal hydration. No claim is made that changing it reconfigures a remote tmux
-or shell's history. Haptic, alternate-screen notice, legal/support and remaining
-Settings/source/visual parity still require their own audit and implementation.
+or shell's history. Haptic, legal/support and remaining Settings/source/visual parity still require
+their own audit and implementation. Alternate-screen controls are covered by
+the later checkpoint below.
 
 ## Verification
 
@@ -139,3 +140,61 @@ a compiled-bytecode check then caught a stale RPC assertion before it ran. The
 final rebuild contains the actual `terminal.paste` assertion. These were test
 setup corrections, not app changes or passing runs. The sole AVD was stopped
 and reaped. No additional emulator, signed APK or release was created.
+
+
+## Alternate-screen notice and full-height preference — 2026-10-04
+
+Reviewed at the same scoped iOS reference `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
+`MobileDisplaySettings.swift`, `MobileSettingsView.swift`,
+`AltScreenNoticeButton.swift`, `WorkspaceDetailView.swift`, and the terminal
+package's `GhosttySurfaceView.swift` (`alternateScreenSizingEnabled` and
+`viewportSnapshot`). The global upstream parity pin remains unchanged.
+
+Android now offers the two Terminal settings from iOS:
+
+- **Full-Screen Sizing Notice** defaults on. An orange triangle appears only
+  for the selected alternate-screen terminal. Its anchored, scrollable popup
+  contains the iOS explanation and **Don't Show Again** action. Back/outside
+  dismissal leaves the preference on; permanent dismissal persists across
+  recreation, and Settings can turn it back on. A surface/connection change or
+  return to primary screen retires the popup. Android uses Material's anchored
+  popup for platform focus, back handling and constrained scrolling.
+- **Use Full Terminal Height** defaults off. When on, alternate-screen capacity
+  follows the keyboard-independent path already used by primary/shared grids.
+  When off, an unshared alternate-screen terminal still reports the settled
+  visible viewport. As in iOS, shared sizing keeps its keyboard-independent
+  report regardless of this preference, so one phone's keyboard does not resize
+  the shared grid. Both controls use observed `cmux-display` preferences;
+  wrong-typed values fall back to the iOS defaults.
+
+The initial debug/test build passed in 1m36s. Nine existing JVM cases passed:
+keyboard layout (five) and viewport geometry fence (four). The three selected
+Android checks passed together in **75.239s**: the real Activity/IME/RPC flow,
+notice ownership/suppression/restoration at double font scale, and the existing
+terminal-picker regression. The Activity check verifies smaller viewport rows
+when the keyboard opens in default mode, restoration after hide, and unchanged
+48-row capacity in full-height mode; it also verifies suppression across
+recreation, re-enabling through Settings, and hiding on return to primary mode.
+The popup and settings screenshots were inspected. The original legacy screenshot
+had only blank lower fixture rows because the four lines of text at its top had
+shifted out of view. A footer fixture and pixel assertion were then added to
+verify actual bottom-row rendering above the keyboard; results follow below.
+
+These checks use the production screen and RPC with an emulator-local connector.
+They do not establish physical Pixel/Mac, real account/Iroh, or signed-release
+acceptance. Haptics, legal/support, broader upstream/source/UI parity and the
+production connection graph still need work. Push/feed configuration remains
+open. No additional AVD or signed milestone was created; signed build 517 is
+unchanged. Runtime evidence is under ignored
+`captures/runtime/terminal-sizing-preferences/`.
+
+
+The strengthened runtime case passed in **56.646s** after a 26s test-only build.
+Pixel assertions find bright footer glyphs in the terminal's bottom band in both
+modes, and the final screenshots were inspected: default mode resizes the grid;
+full-height mode keeps 48 rows and slides the footer above the dock/IME. The
+fixture footer is opt-in, so existing tests retain their original replay data.
+Both crash-buffer captures are empty. The sole AVD was stopped and reaped.
+
+Debug APK SHA-256: `fdc3d930bbc17679138cda25c248c9a58f447a7dbae9354b06322824099bc899`.
+Test APK SHA-256: `79d8644eeb6a3e6838554dd6f6742c7f69894cf3426db0fa3fe80f784033b01a`.

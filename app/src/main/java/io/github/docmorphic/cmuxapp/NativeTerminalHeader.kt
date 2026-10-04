@@ -37,7 +37,8 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
     onNewBrowser: () -> Unit, onKeyboard: () -> Unit, onBrowser: (NativeBrowser) -> Unit,
     onTerminal: (NativeTerminal) -> Unit,
     onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null,
-    onSizing: (() -> Unit)? = null, debugText: () -> String? = { null }) {
+    onSizing: (() -> Unit)? = null, debugText: () -> String? = { null },
+    altScreenNotice: (@Composable () -> Unit)? = null) {
     val accent = Color(0xFF76B9FF)
     Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "Back to workspaces" }) {
@@ -54,6 +55,7 @@ internal fun NativeTerminalHeader(terminal: NativeTerminal, workspace: NativeWor
                 onClick = { close(); onFiles() }, enabled = ready)
         }
         }
+        altScreenNotice?.invoke()
         TextButton(onClick = onKeyboard, enabled = terminal.isReady) { Text(if (directTyping) "Compose" else "Keyboard", color = if (terminal.isReady) accent else Color(0xFF666A72), fontSize = 12.sp) }
     }
 }

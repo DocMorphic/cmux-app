@@ -25,17 +25,23 @@ internal data class NativeDisplayPreferences(
     val wrapTitles: Boolean = false,
     val previewLines: Int = 2,
     val scrollbackRows: Int = TerminalScrollbackPreference.defaultRows,
+    val showAltScreenNotice: Boolean = true,
+    val useFullTerminalHeight: Boolean = false,
 ) {
     companion object {
         const val wrapKey = "wrap-workspace-titles"
         const val previewKey = "workspace-preview-lines"
         const val scrollbackKey = "terminal-scrollback-rows"
+        const val altScreenNoticeKey = "show-alt-screen-notice"
+        const val fullTerminalHeightKey = "use-full-terminal-height"
         fun read(preferences: SharedPreferences): NativeDisplayPreferences {
             val stored = preferences.all
             return NativeDisplayPreferences(
                 stored[wrapKey] as? Boolean ?: false,
                 (stored[previewKey] as? Int ?: 2).coerceIn(1, 2),
                 TerminalScrollbackPreference.clamp(stored[scrollbackKey] as? Int ?: TerminalScrollbackPreference.defaultRows),
+                stored[altScreenNoticeKey] as? Boolean ?: true,
+                stored[fullTerminalHeightKey] as? Boolean ?: false,
             )
         }
     }

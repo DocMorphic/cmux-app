@@ -808,7 +808,7 @@ fun NativeScreen(
     val inputTarget = draftTarget
     val selectedSizing = selectedTerminal?.id?.let(terminalSizingStates::get)
     val terminalAttached = selectedSizing?.allowsTraffic ?: true
-    val keepKeyboardGrid = terminalActiveScreen == "primary" || selectedSizing?.state != null
+    val keepKeyboardGrid = terminalActiveScreen == "primary" || selectedSizing?.state != null || displayState.useFullTerminalHeight
     val terminalViewportPresentation = rememberTerminalViewportPresentation(client, selectedTerminal?.id,
         terminalMeasurement, keepKeyboardGrid)
     val terminalReportPixels = terminalViewportPresentation.pixels
@@ -2301,7 +2301,7 @@ fun NativeScreen(
         NativeFeedbackSettingsButton()
         NativeDiagnosticsSettings()
         TextButton(onClick = { showSshKeys = true }, modifier = Modifier.padding(horizontal = 14.dp).testTag("settings.ssh.keys")) { Text("SSH Keys") }
-        NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences)
+        NativeTerminalPreferenceSettings(folderTapEnabled, showMissingArtifacts, artifactPreferences, displayState)
         NativeDisplaySettings(artifactPreferences, displayState)
         TextButton(onClick = { showShortcuts = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Terminal Shortcuts") }
         TextButton(onClick = { showLicenses = true }, modifier = Modifier.padding(horizontal = 14.dp)) { Text("Open-source licenses") }
@@ -2514,7 +2514,12 @@ fun NativeScreen(
                     if (directTyping) { rawKeyboardView?.finishComposition(); directTyping = false }
                     else openDirectKeyboard()
                 }, onSizing = if (terminalAttached && selectedSizing?.state != null) ({ showSizing = true }) else null,
-                onBrowser = { browser ->
+                altScreenNotice = {
+                    NativeAltScreenNotice(client, terminal.id,
+                        terminalActiveScreen == "alternate" && displayState.showAltScreenNotice) {
+                        artifactPreferences.edit().putBoolean(NativeDisplayPreferences.altScreenNoticeKey, false).apply()
+                    }
+                }, onBrowser = { browser ->
                     rawKeyboardView?.finishComposition(); directTyping = false
                     inputModifiers = TerminalInputModifiers(); stopTerminalScrolling(); softwareKeyboard?.hide()
                     selectPane(NativeWorkspacePane(browser = browser))
@@ -3594,8 +3599,9 @@ private fun NativePairingConfirmation(code: String?, onDismiss: () -> Unit, onCo
 
 @Composable
 private fun NativeTerminalPreferenceSettings(folderTapEnabled: Boolean, showMissingArtifacts: Boolean,
-    artifactPreferences: android.content.SharedPreferences) {
+    artifactPreferences: android.content.SharedPreferences, displayState: NativeDisplayPreferences) {
     Text("TERMINAL", Modifier.padding(horizontal = 22.dp, vertical = 10.dp), color = nativeMuted, fontSize = 11.sp)
+    NativeTerminalSizingSettings(artifactPreferences, displayState)
     Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("Open Folders on Tap", Modifier.weight(1f))
         Switch(folderTapEnabled, onCheckedChange = { artifactPreferences.edit().putBoolean("terminal-folder-tap", it).apply() },

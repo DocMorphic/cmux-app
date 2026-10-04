@@ -12,6 +12,28 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — alternate-screen terminal controls (2026-10-04)
+
+[DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#alternate-screen-notice-and-full-height-preference--2026-10-04)
+adds the iOS **Full-Screen Sizing Notice** and **Use Full Terminal Height** controls.
+The selected alternate-screen terminal gets an accessible warning popup with
+persistent suppression and Settings restoration. Full-height mode opts into the
+existing keyboard-independent viewport path; default and shared sizing retain
+their previous policies.
+
+Debug/test build and nine geometry JVM cases pass. Three Android cases pass
+(75.239s); the real Activity/IME/RPC case was then strengthened with a bottom-row
+footer and pixel assertions and passed again (56.646s). Screenshots confirm the
+footer remains above the keyboard, and double-font-scale popup dismissal,
+connection/surface retirement, recreation and preference persistence are covered.
+No physical Pixel was visible in ADB. The single AVD is stopped. Signed build 517
+is unchanged; this source has not had the final signed-release gate.
+
+**Next:** remaining Settings haptics and legal/support parity; production shared
+connection graph and physical Pixel/Mac browser/recovery acceptance; broader
+upstream/source/UI audit. Push/feed configuration remains open. The goal remains
+active. These fixtures do not establish real account/Iroh or push acceptance.
+
 ## Latest checkpoint — real-dispatch terminal acceptance (2026-10-04)
 
 [DISPLAY_SETTINGS.md](DISPLAY_SETTINGS.md#attach-investigation--2026-10-04)
