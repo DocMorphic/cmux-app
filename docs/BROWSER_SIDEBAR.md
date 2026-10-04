@@ -38,10 +38,11 @@ cannot clear a newly selected destination.
 ## Remaining parity and verification scope
 
 This is the browser's global **navigation** sidebar. Its workspace rows and group
-headers reuse existing components, but remote row mutations, compound machine
-filter controls, sort/order editing, New Task/settings entry points, full
-notification row presentation/actions and selection styling still need parity
-work. Main-screen controls remain implemented separately; this does not establish
+headers reuse existing components. Compound machine filtering, independent
+workspace/notification searches and unread filters, sort mode and computer-order
+editing are now shared with the main screen. Remote row mutations, New
+Task/settings entry points, full notification row presentation/actions and
+selection styling still need parity work. Main-screen controls remain implemented separately; this does not establish
 that the separate browser has every iOS sidebar affordance.
 
 Physical Pixel/Mac acceptance, actual account/team replacement during live
@@ -94,3 +95,64 @@ parameter (18 s); the first JVM run exposed swapped name/device fixture argument
 (1m32s); corrected APK/JVM build passed (1m33s); IPC-bound check build passed
 (27 s); window-test setup build passed (18 s); accessibility/harness repair build
 passed (40 s). No emulator ran during these builds.
+
+## Shared filters, sorting and return state — 2026-10-04
+
+Scoped iOS reference remains `0fc35d6247c63ff0e2c4555c8aac2cc88fe111cc`:
+`WorkspaceListFilterState.swift`, `WorkspaceListFilterControls.swift` and
+`MobilePrimarySearchCoordinator.swift` in `Packages/iOS/CmuxMobileShellUI`.
+Their shared session state, independent search scopes and composable read/machine
+filter are applied to the browser's separate process.
+
+The browser now sends both queries and both unread filters plus opaque selected
+machine keys. It adopts all of them back together. A dedicated final state message
+runs when leaving the browser, including after hiding the sidebar, so an edit does
+not depend on another visible feed poll before return. Removed machine choices
+are pruned using the same policy as the main screen; a scoped title picker clears
+hidden machine-filter choices. Pruned choices do not reappear on a later poll.
+
+The shared filter menu exposes Last Opened, Custom Order and Recent Activity for
+All Computers. The existing computer-order sheet supports drag and accessibility
+moves. Sort writes run in the main process against the existing local preference
+store, behind the presentation/owner check. Order submissions must contain exactly
+the issued/current computer keys; stale, missing, duplicate and foreign keys are
+rejected. No host RPC is issued for local sorting. Browser save requests are
+serialized, and action failures remain visible across successful feed refreshes.
+The order sheet shows save progress/errors and resets its draft after a rejection.
+
+Machine-filter metadata reuses the bounded computer display list rather than
+repeating names/build labels. Every IPC page retains its byte/revision checks.
+The schema is internal to the same installed APK's two processes.
+
+The first verification batch passed **45 JVM tests** (25 sidebar, nine sorting,
+four filtering and seven search) and **five Android tests in 78.018 s**. Build
+and APK packaging passed in 1m34s. The new browser test uses the production sidebar
+projection with generated two-Mac snapshots: compound filtering, saved mode/order,
+both search scopes, both unread filters and return after hiding an active search.
+The other checks cover browser draft retention, stale destination rejection,
+shared-editor drag/accessibility actions and sort controls without machine choices.
+This remains fixture evidence, not live Mac/account/SSH or physical Pixel proof.
+
+The initial order screenshot was taken while rows still appeared in the prior
+order despite the persisted preference and underlying list having changed. A
+focused follow-up now also requires the displayed row positions to match before
+capturing the editor; its outcome is recorded below. Initial verification and
+frozen-source receipts are under `captures/runtime/browser-sidebar-controls/`.
+
+The focused repeat passed **one Android test in 45.243 s**, after a **20 s**
+test-APK-only build. It now requires Mac B's rendered reorder handle to be above
+Mac A's, and the inspected `computer-order-verified.png/xml` shows that order.
+App and JVM sources were unchanged from the five-test batch; this is a repeat of
+one of those five scenarios, not a sixth distinct test. Installed app/test hashes
+and frozen source hashes matched. Display settings were restored, the crash
+buffer was empty, and the sole emulator was stopped and reaped.
+
+- App APK SHA-256: `96945c1f34bd1a88691af2510b70529d327dc62f4d05e60e604b1b067c51dddf`.
+- Final test APK SHA-256: `5f7dae661303b3cac1dd108c95d85d4c8beca24d698ba4e0a5f092cd2017ec27`.
+- Receipts: `verification.json`, `verification-visual.json`,
+  `source-hashes-visual.json`, `build.log`, `test-build-visual.log` and runtime
+  logs under the ignored `captures/runtime/browser-sidebar-controls/` directory.
+
+No physical Pixel was connected or modified. Real NativeScreen account/native/SSH
+integration and parent recreation remain unverified by this fixture. Signed build
+554 is unchanged; PR #1 remains draft and the full parity goal remains active.

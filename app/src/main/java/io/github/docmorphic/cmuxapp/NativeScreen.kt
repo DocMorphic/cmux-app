@@ -3344,7 +3344,8 @@ internal fun NativeScreen(
         val mac = store.visiblePairedMacs().singleOrNull { it.ownsOrigin(selectedComputerOrigin) }
         val ssh = sshSession?.hosts?.state?.value?.hosts?.singleOrNull { "ssh:${it.id}" == selectedComputerOrigin }
         NativeSidebarPresentation(mac?.let { workspaceMacFilterId(it.deviceId, it.instanceTag) } ?: ssh?.let { workspaceSshFilterId(it.id) },
-            notificationTab, searchState.text(searchScope), if (notificationTab) unreadNotificationsOnly else unreadWorkspacesOnly)
+            notificationTab, searchState.text(NativeSearchScope.WORKSPACES), searchState.text(NativeSearchScope.NOTIFICATIONS),
+            unreadWorkspacesOnly, unreadNotificationsOnly, workspaceFilter.machines)
     })
     val sidebarAdopt by rememberUpdatedState<(NativeSidebarPresentation) -> Unit>({ presentation ->
         if (sidebarCurrent()) {
@@ -3353,10 +3354,9 @@ internal fun NativeScreen(
             selectedComputerOrigin = mac?.origin ?: ssh?.let { "ssh:${it.id}" }.orEmpty()
             store.update { it.put("computer_selection", selectedComputerOrigin) }
             notificationTab = presentation.notifications
-            searchState = if (presentation.notifications) searchState.commit().copy(notificationQuery = presentation.text)
-                else searchState.commit().copy(workspaceQuery = presentation.text)
-            if (presentation.notifications) unreadNotificationsOnly = presentation.unread
-            else workspaceFilter = workspaceFilter.copy(unread = presentation.unread)
+            searchState = searchState.commit().copy(workspaceQuery = presentation.workspaceQuery, notificationQuery = presentation.notificationQuery)
+            unreadNotificationsOnly = presentation.notificationUnread
+            workspaceFilter = NativeWorkspaceFilter(presentation.workspaceUnread, presentation.machines)
         }
     })
     val sidebarNavigate by rememberUpdatedState<(NativeSidebarTarget) -> Unit>({ target ->
@@ -3397,7 +3397,11 @@ internal fun NativeScreen(
                 { held.close(); connections?.close() })
         }, navigate = { check(currentOwner()); sidebarNavigate(it) },
             initial = { if (currentOwner()) sidebarInitial() else NativeSidebarPresentation() },
-            adoptPresentation = { if (currentOwner()) sidebarAdopt(it) })
+            adoptPresentation = { if (currentOwner()) sidebarAdopt(it) },
+            saveSort = { mode, order ->
+                check(currentOwner()) { "Sidebar account changed" }
+                mode?.let(workspaceSortStore::setMode); order?.let(workspaceSortStore::setPriority)
+            })
     } }
     CompositionLocalProvider(LocalMacCompatibilityWarnings provides displayWarnings,
         LocalWorkspaceCustomizationAction provides customizePane, LocalRoutedSidebarHost provides sidebarHost) {

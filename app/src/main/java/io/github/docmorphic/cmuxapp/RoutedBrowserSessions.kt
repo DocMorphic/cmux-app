@@ -129,6 +129,18 @@ internal object RoutedBrowserSessions {
             entry.sidebarExchange.begin(snapshot).also { entry.sidebarQuery = query }
         } else entry.sidebarExchange.page(checkNotNull(args.getString("revision")), offset)
     }
+    fun sidebarState(entry: Entry, query: RoutedSidebarQuery) {
+        check(live(entry.id) === entry && !entry.menuRetired && entry.sidebar?.current() == true) { "Sidebar account changed" }
+        entry.sidebarQuery = query
+    }
+    fun sortSidebar(entry: Entry, command: RoutedSidebarSort) {
+        check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible && entry.sidebar?.current() == true)
+        val query = checkNotNull(entry.sidebarQuery)
+        check(!query.notifications && query.computer == null && entry.sidebarExchange.permitsSort(command)) {
+            "Sidebar sort options changed. Refresh the list."
+        }
+        checkNotNull(entry.sidebar).sort(command)
+    }
     fun selectSidebar(entry: Entry, key: String): String {
         check(live(entry.id) === entry && !entry.menuRetired && entry.foreground && entry.sidebarVisible) { "Sidebar is not visible" }
         return entry.sidebarExchange.prepare(key) { entry.sidebar?.resolve(it) != null }

@@ -35,9 +35,12 @@ class RoutedBrowserPresentationTest {
     private val device get() = UiDevice.getInstance(instrumentation)
     // Set window dimensions before the bare Compose test host is launched. Unlike
     // MainActivity, that host has no onCreate content restoration after a resize.
+    private var scenarioName = ""
     @get:Rule(order = 0) val display = object : org.junit.rules.TestWatcher() {
         private var originalSize: String? = null
         override fun starting(description: org.junit.runner.Description) {
+            scenarioName = description.methodName
+            check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk")) { "Disposable emulator required" }
             if (description.methodName.startsWith("globalSidebar")) {
                 originalSize = device.executeShellCommand("wm size").lineSequence()
                     .firstOrNull { it.startsWith("Override") }?.substringAfter(":")?.trim() ?: "reset"
@@ -62,15 +65,21 @@ class RoutedBrowserPresentationTest {
     private var sidebarAdopted: RoutedSidebarQuery? = null
     private var sidebarRows = listOf(RoutedSidebarRow("other", "workspace", "Other computer workspace", preview = "Remote preview"))
     private var sidebarAllows = true
+    private var projectedSidebar: NativeRoutedSidebarHost? = null
+    private var adoptedPresentation: NativeSidebarPresentation? = null
+    private var sortJson: String? = null
+    private val sortStore = NativeWorkspaceSortStore({ sortJson }, { sortJson = it })
     private val sidebarHost = object : RoutedSidebarHost {
         override val owner: Any = "fixture-owner"
-        override fun current() = true
-        override fun read(query: RoutedSidebarQuery) = RoutedSidebarSnapshot(listOf(RoutedSidebarComputer("other-mac", "Other Mac")),
+        override fun current() = projectedSidebar?.current() ?: true
+        override fun initialQuery() = projectedSidebar?.initialQuery() ?: RoutedSidebarQuery()
+        override fun read(query: RoutedSidebarQuery) = projectedSidebar?.read(query) ?: RoutedSidebarSnapshot(listOf(RoutedSidebarComputer("other-mac", "Other Mac")),
             if (query.notifications) listOf(RoutedSidebarRow("notice", "notification", "Remote notification", unread = true))
             else sidebarRows.filter { query.text.isBlank() || it.title.contains(query.text, ignoreCase = true) })
-        override fun resolve(key: String): (() -> Unit)? = if (sidebarAllows && (key == "notice" || sidebarRows.any { it.key == key }))
+        override fun resolve(key: String): (() -> Unit)? = projectedSidebar?.resolve(key) ?: if (sidebarAllows && (key == "notice" || sidebarRows.any { it.key == key }))
             ({ sidebarDestinations += key }) else null
-        override fun adopt(query: RoutedSidebarQuery) { sidebarAdopted = query }
+        override fun adopt(query: RoutedSidebarQuery) { sidebarAdopted = query; projectedSidebar?.adopt(query) }
+        override fun sort(command: RoutedSidebarSort) { checkNotNull(projectedSidebar).sort(command) }
         override fun retain() = RoutedSidebarLease({ sidebarActive += it }, { sidebarReleases.incrementAndGet() })
     }
     private val key = LocalBrowserKey("generated-account", "generated-team", "generated-mac", "workspace")
@@ -139,6 +148,21 @@ class RoutedBrowserPresentationTest {
             }; start()
         }
         main {
+            if (scenarioName == "globalSidebarSharesFiltersSortOrderAndBothSearchScopesOnReturn") {
+                fun source(id: String) = NativeFeedSource(NativeCredentialStore.PairedMac("generated-$id", id, "Mac $id"),
+                    workspaces = parseWorkspaces(JSONObject("""{"workspaces":[
+                        {"id":"alpha","title":"Alpha $id","has_unread":true},
+                        {"id":"read","title":"Alpha read $id","has_unread":false},
+                        {"id":"beta","title":"Beta $id","has_unread":true}]}""")), availability = NativeFeedAvailability.CONNECTED)
+                val sources = listOf(source("A"), source("B"))
+                val computers = sources.map { NativeSortComputer(workspaceMacFilterId(it.mac.deviceId, null)!!, it.mac.name) }
+                projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-salt",
+                    { NativeSidebarInput(sources, emptyList(), computers, sortStore.state.value) },
+                    { RoutedSidebarLease({}) {} }, {},
+                    initial = { NativeSidebarPresentation(workspaceQuery = "Alpha", notificationQuery = "notice", machines = setOf(computers.first().id)) },
+                    adoptPresentation = { adoptedPresentation = it },
+                    saveSort = { mode, order -> mode?.let(sortStore::setMode); order?.let(sortStore::setPriority) })
+            }
             network = NativeMacBrowserNetwork(owner, object : MacBrowserAccess {
                 override suspend fun availability() = MacBrowserAvailability.AVAILABLE
                 override suspend fun listeningPorts() = BrowserTunnelProtocol.ListeningPorts(emptyList(), false)
@@ -223,6 +247,42 @@ class RoutedBrowserPresentationTest {
             assertEquals(listOf("notice"), sidebarDestinations.toList())
             assertTrue(sidebarAdopted?.notifications == true)
         }
+    }
+    @Test fun globalSidebarSharesFiltersSortOrderAndBothSearchScopesOnReturn() {
+        browser("Routed fixture ▾")
+        text("Alpha A"); assertFalse(device.hasObject(By.text("Alpha B")))
+        desc("Filter workspaces").click(); text("Unread").click()
+        assertTrue(device.wait(Until.gone(By.text("Alpha read A")), 5_000))
+        desc("Filter workspaces").click(); text("Mac B").click(); text("Alpha B")
+        desc("Filter workspaces").click(); text("Recent Activity").click()
+        until { sortStore.state.value.mode == NativeWorkspaceSortMode.ACTIVITY }
+        desc("Filter workspaces").click(); text("Custom Order").click(); text("Computer Order")
+        val first = desc("Drag to reorder Mac A").visibleCenter
+        val second = desc("Drag to reorder Mac B").visibleCenter
+        assertTrue(device.drag(first.x, first.y, second.x, second.y + 35, 50))
+        until { sortStore.state.value.priority.firstOrNull() == workspaceMacFilterId("B", null) }
+        until { desc("Drag to reorder Mac B").visibleCenter.y < desc("Drag to reorder Mac A").visibleCenter.y }
+        capturePicker("routed-sidebar-computer-order")
+        text("Done").click()
+        text("Notifications").click()
+        desc("Notification filter").click(); text("Unread").click()
+        desc("Search").click()
+        val notice = checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText").text("notice")), 5_000))
+        notice.text = "notice final"; device.pressEnter(); desc("Search")
+        text("Workspaces").click()
+        desc("Search").click()
+        val workspace = checkNotNull(device.wait(Until.findObject(By.clazz("android.widget.EditText").text("Alpha")), 5_000))
+        workspace.text = "Beta"
+        // Hide while still editing: this commits without requiring another visible feed poll.
+        desc("Hide sidebar").click(); desc("Show sidebar"); device.waitForIdle()
+        device.pressBack(); compose.waitForIdle(); text("Reopen fixture")
+        until { sidebarReleases.get() == 1 }
+        assertEquals(NativeSidebarPresentation(workspaceQuery = "Beta", notificationQuery = "notice final",
+            workspaceUnread = true, notificationUnread = true,
+            machines = setOf(workspaceMacFilterId("A", null)!!, workspaceMacFilterId("B", null)!!)), adoptedPresentation)
+        assertEquals(NativeWorkspaceSortMode.PRIORITY, sortStore.state.value.mode)
+        assertEquals(sortStore.state.value, NativeWorkspaceSortStore({ sortJson }, {}).state.value)
+        assertEquals(false, sidebarActive.last())
     }
     @Test fun customizationSavesAndRetriesWithoutReloadingThePageOrReleasingItsHost() {
         main { menuCustomizationEnabled = true; failCustomization = true }

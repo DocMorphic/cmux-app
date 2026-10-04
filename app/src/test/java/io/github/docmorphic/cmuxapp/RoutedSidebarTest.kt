@@ -49,7 +49,7 @@ class RoutedSidebarTest {
     }
     @Test fun queryRejectsMalformedComputerInsteadOfTruncatingAuthority() {
         assertThrows(IllegalArgumentException::class.java) { RoutedSidebarWire.query("""{"computer":"${"a".repeat(129)}"}""") }
-        val query = RoutedSidebarQuery(true, "résumé", "mac", true, setOf("updates"), mapOf("group" to true))
+        val query = RoutedSidebarQuery(true, "workspace", "résumé", "mac", true, false, setOf("other"), setOf("updates"), mapOf("group" to true))
         assertEquals(query, RoutedSidebarWire.query(RoutedSidebarWire.query(query)))
     }
     @Test fun outgoingQueryCannotExceedTheIpcBudget() {
@@ -88,8 +88,8 @@ class RoutedSidebarTest {
             if (query.text == "old") withContext(NonCancellable) { release.await() }
             RoutedSidebarExchange().begin(snapshot(1).copy(rows = listOf(RoutedSidebarRow("key", "workspace", query.text))))
         }, { "ticket" })
-        controller.initialize(RoutedSidebarQuery(text = "old")); controller.configure(true, true); controller.visible(true); runCurrent()
-        controller.query(RoutedSidebarQuery(text = "new")); runCurrent()
+        controller.initialize(RoutedSidebarQuery(workspaceQuery = "old")); controller.configure(true, true); controller.visible(true); runCurrent()
+        controller.query(RoutedSidebarQuery(workspaceQuery = "new")); runCurrent()
         assertEquals("new", controller.state.value.snapshot!!.rows.single().title)
         release.complete(Unit); runCurrent(); assertEquals("new", controller.state.value.snapshot!!.rows.single().title)
     }
@@ -117,7 +117,7 @@ class RoutedSidebarTest {
         listOf(NativeSortComputer(workspaceMacFilterId(source.mac.deviceId, null)!!, "Mac")), NativeWorkspaceSortState(), locale = Locale.US)
     @Test fun displayProjectionDoesNotSerializePairingOrDirectoryAndSearchStillFindsDirectory() {
         val source = source(); val host = NativeRoutedSidebarHost("owner", "salt", { input(source) }, { RoutedSidebarLease({}) {} }, {})
-        val snapshot = host.read(RoutedSidebarQuery(text = "/private/path"))!!
+        val snapshot = host.read(RoutedSidebarQuery(workspaceQuery = "/private/path"))!!
         assertEquals(1, snapshot.rows.size)
         val wire = RoutedSidebarWire.page(RoutedSidebarExchange().begin(snapshot))
         assertFalse(wire.contains("secret-code")); assertFalse(wire.contains("/private/path")); assertFalse(wire.contains("device"))
@@ -139,10 +139,118 @@ class RoutedSidebarTest {
     @Test fun stableOwnerAndSaltSurviveHostRecreationAndAdoptScope() {
         val value = input(source()); var adopted: NativeSidebarPresentation? = null
         fun host() = NativeRoutedSidebarHost("owner", "salt", { value }, { RoutedSidebarLease({}) {} }, {},
-            { NativeSidebarPresentation(value.computers.single().id, true, "query", true) }, { adopted = it })
+            { NativeSidebarPresentation(value.computers.single().id, true, "workspaces", "query", true, false) }, { adopted = it })
         val a = host(); val b = host()
         assertEquals(a.read(RoutedSidebarQuery()), b.read(RoutedSidebarQuery()))
         b.adopt(a.initialQuery())
-        assertEquals(NativeSidebarPresentation(value.computers.single().id, true, "query", true), adopted)
+        assertEquals(NativeSidebarPresentation(value.computers.single().id, true, "workspaces", "query", true, false), adopted)
     }
+    @Test fun unreadFiltersAndSearchQueriesStayIndependentAcrossTabSwitches() = runTest {
+        val controller = RoutedSidebarController(backgroundScope, {}, { _, _, _ -> RoutedSidebarExchange().begin(snapshot(0)) }, { "ticket" })
+        controller.initialize(RoutedSidebarQuery(workspaceQuery = "alpha", notificationQuery = "notice", workspaceUnread = true))
+        controller.tab(true)
+        assertEquals("notice", controller.state.value.query.text); assertFalse(controller.state.value.query.unread)
+        controller.query(controller.state.value.query.withUnread(true))
+        controller.beginSearch(); controller.edit("new notice", controller.state.value.search.generation); controller.finishSearch()
+        controller.tab(false)
+        assertEquals("alpha", controller.state.value.query.text); assertTrue(controller.state.value.query.unread)
+        controller.query(controller.state.value.query.withUnread(false)); controller.tab(true)
+        assertEquals("new notice", controller.state.value.query.text); assertTrue(controller.state.value.query.unread)
+        assertEquals(RoutedSidebarQuery(true, "alpha", "new notice", workspaceUnread = false, notificationUnread = true), controller.state.value.query)
+    }
+    private fun mixed(): NativeSidebarInput {
+        fun mac(id: String, unread: Boolean) = NativeFeedSource(NativeCredentialStore.PairedMac("secret-$id", "device", id, id),
+            workspaces = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"shared","title":"$id workspace","has_unread":$unread}]}""")))
+        val a = mac("stable", true); val b = mac("nightly", false)
+        val sshHost = SshHostRecord(name = "SSH", endpoint = SshEndpoint("example.test", 22, "user"))
+        val ssh = sshTmuxFeedRows(sshHost, listOf(SshTmuxWorkspace(1, 1, 1, "SSH workspace", emptyList())))
+        return NativeSidebarInput(listOf(a, b), ssh, listOf(
+            NativeSortComputer(workspaceMacFilterId("device", "stable")!!, "stable"),
+            NativeSortComputer(workspaceMacFilterId("device", "nightly")!!, "nightly"),
+            NativeSortComputer(workspaceSshFilterId(sshHost.id), "SSH")), NativeWorkspaceSortState(), locale = Locale.US)
+    }
+    @Test fun compoundFilterKeepsExactBuildAndSshIdentityAndComposesWithUnread() {
+        val input = mixed()
+        val host = NativeRoutedSidebarHost("owner", "salt", { input }, { RoutedSidebarLease({}) {} }, {})
+        val snapshot = host.read(RoutedSidebarQuery())!!
+        val stable = snapshot.computers.single { it.name == "stable" }.key
+        val ssh = snapshot.computers.single { it.name == "SSH" }.key
+        assertEquals(3, snapshot.filterMachines.size)
+        val filtered = host.read(RoutedSidebarQuery(machines = setOf(stable, ssh)))!!
+        assertEquals(setOf("stable workspace", "SSH workspace"), filtered.rows.map { it.title }.toSet())
+        assertEquals(listOf("stable workspace"), host.read(RoutedSidebarQuery(workspaceUnread = true, machines = setOf(stable, ssh)))!!.rows.map { it.title })
+        val scoped = host.read(RoutedSidebarQuery(computer = stable, machines = setOf(ssh)))!!
+        assertTrue(scoped.selectedMachines.isEmpty()); assertTrue(scoped.filterMachines.isEmpty())
+        assertEquals(listOf("stable workspace"), scoped.rows.map { it.title })
+    }
+    @Test fun unavailableMachineFiltersArePrunedAndDoNotResurrectOnLaterPolls() = runTest {
+        var available = true
+        val controller = RoutedSidebarController(backgroundScope, {}, { query, _, _ ->
+            RoutedSidebarExchange().begin(snapshot(0).copy(selectedMachines = if (available) query.machines else emptySet()))
+        }, { "ticket" })
+        controller.initialize(RoutedSidebarQuery(machines = setOf("mac"))); controller.configure(true, true); controller.visible(true); runCurrent()
+        available = false; advanceTimeBy(1501); runCurrent(); assertTrue(controller.state.value.query.machines.isEmpty())
+        available = true; advanceTimeBy(1501); runCurrent(); assertTrue(controller.state.value.query.machines.isEmpty())
+    }
+    @Test fun fullPresentationAdoptsBothQueriesFiltersAndMappedMachineKeys() {
+        val input = mixed(); var adopted: NativeSidebarPresentation? = null
+        val initial = NativeSidebarPresentation(null, true, "workspace query", "notice query", true, false,
+            input.computers.take(2).map { it.id }.toSet())
+        val host = NativeRoutedSidebarHost("owner", "salt", { input }, { RoutedSidebarLease({}) {} }, {}, { initial }, { adopted = it })
+        val query = RoutedSidebarWire.query(RoutedSidebarWire.query(host.initialQuery()))
+        assertFalse(query.machines.any { it in initial.machines }); host.adopt(query)
+        assertEquals(initial, adopted)
+    }
+    @Test fun hostSortWritesLocalPreferencesAndRejectsMissingOrReplacedComputerKeys() {
+        var value: NativeSidebarInput? = mixed(); var saved: String? = null
+        val store = NativeWorkspaceSortStore({ saved }, { saved = it })
+        val host = NativeRoutedSidebarHost("owner", "salt", { value?.copy(sort = store.state.value) }, { RoutedSidebarLease({}) {} }, {},
+            saveSort = { mode, order -> mode?.let(store::setMode); order?.let(store::setPriority) })
+        val old = host.read(RoutedSidebarQuery())!!
+        host.sort(RoutedSidebarSort.Mode(NativeWorkspaceSortMode.PRIORITY))
+        val order = old.computers.reversed().map { it.key }
+        host.sort(RoutedSidebarSort.Order(order))
+        assertEquals(order, host.read(RoutedSidebarQuery())!!.computers.map { it.key })
+        assertEquals(store.state.value, NativeWorkspaceSortStore({ saved }, {}).state.value)
+        val before = saved
+        assertThrows(IllegalStateException::class.java) { host.sort(RoutedSidebarSort.Order(order.drop(1))) }
+        value = value!!.copy(computers = value!!.computers.dropLast(1))
+        assertThrows(IllegalStateException::class.java) { host.sort(RoutedSidebarSort.Order(order)) }
+        value = null
+        assertThrows(IllegalStateException::class.java) { host.sort(RoutedSidebarSort.Mode(NativeWorkspaceSortMode.ACTIVITY)) }
+        assertEquals(before, saved)
+    }
+    @Test fun sortingRequiresAnIssuedEditableSnapshotAndAnExactComputerSet() {
+        val exchange = RoutedSidebarExchange()
+        val mode = RoutedSidebarSort.Mode(NativeWorkspaceSortMode.ACTIVITY)
+        assertFalse(exchange.permitsSort(mode)); exchange.begin(snapshot(0)); assertFalse(exchange.permitsSort(mode))
+        exchange.begin(snapshot(0).copy(sortMode = NativeWorkspaceSortMode.AUTOMATIC))
+        assertTrue(exchange.permitsSort(mode)); assertTrue(exchange.permitsSort(RoutedSidebarSort.Order(listOf("mac"))))
+        assertFalse(exchange.permitsSort(RoutedSidebarSort.Order(listOf("mac", "mac"))))
+        assertFalse(exchange.permitsSort(RoutedSidebarSort.Order(listOf("forged")))); assertFalse(exchange.permitsSort(RoutedSidebarSort.Order(emptyList())))
+    }
+    @Test fun sortWireRejectsUnknownModesAmbiguousCommandsAndDuplicateKeys() {
+        val order = RoutedSidebarSort.Order(listOf("a", "b"))
+        assertEquals(order, RoutedSidebarWire.sort(RoutedSidebarWire.sort(order)))
+        assertEquals(RoutedSidebarSort.Mode(NativeWorkspaceSortMode.ACTIVITY), RoutedSidebarWire.sort("""{"mode":"recentActivity"}"""))
+        assertThrows(IllegalStateException::class.java) { RoutedSidebarWire.sort("""{"mode":"remote-command"}""") }
+        assertThrows(IllegalArgumentException::class.java) { RoutedSidebarWire.sort("""{"mode":"automatic","order":[]}""") }
+        assertThrows(IllegalArgumentException::class.java) { RoutedSidebarWire.sort("""{"order":["a","a"]}""") }
+    }
+    @Test fun sortCommandsSerializeAndErrorsRemainVisibleAfterSuccessfulFeedRefresh() = runTest {
+        val gate = CompletableDeferred<Unit>(); val calls = mutableListOf<RoutedSidebarSort>()
+        val controller = RoutedSidebarController(backgroundScope, {}, { _, _, _ -> RoutedSidebarExchange().begin(snapshot(0)) }, { "ticket" },
+            saveSort = { command -> calls += command; if (calls.size == 1) gate.await() else error("Computers changed") })
+        controller.configure(true, true); controller.visible(true); runCurrent()
+        val mode = RoutedSidebarSort.Mode(NativeWorkspaceSortMode.PRIORITY)
+        val order = RoutedSidebarSort.Order(listOf("mac"))
+        val first = backgroundScope.async { controller.sort(mode) }; val second = backgroundScope.async { controller.sort(order) }
+        runCurrent(); assertEquals(listOf(mode), calls); assertTrue(controller.state.value.saving)
+        gate.complete(Unit); runCurrent(); assertTrue(first.await()); assertFalse(second.await())
+        advanceTimeBy(2000); runCurrent()
+        assertEquals("Computers changed", controller.state.value.actionError); assertEquals(1, controller.state.value.orderGeneration)
+        controller.retry(); runCurrent(); assertNull(controller.state.value.actionError)
+        controller.visible(false); runCurrent(); assertFalse(controller.sort(mode)); assertEquals(2, calls.size)
+    }
+
 }

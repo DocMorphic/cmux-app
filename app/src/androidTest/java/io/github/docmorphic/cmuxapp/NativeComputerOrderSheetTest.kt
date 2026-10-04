@@ -16,7 +16,7 @@ class NativeComputerOrderSheetTest {
         val rows = listOf(NativeSortComputer("a","Stable",buildLabel="Stable"),
             NativeSortComputer("b","Nightly",buildLabel="Nightly"),NativeSortComputer("c","Offline Mac"))
         val saved = mutableListOf<List<String>>(); var dismissed = false
-        compose.setContent { CmuxTheme { NativeComputerOrderSheet(rows, { dismissed = true }, { saved += it }) } }
+        compose.setContent { CmuxTheme { NativeComputerOrderSheet(rows, { dismissed = true }, save = { saved += it }) } }
         val list = compose.onNodeWithTag("workspace.sort.computers")
         val bounds = list.fetchSemanticsNode().boundsInRoot
         val first = compose.onNodeWithTag("workspace.sort.computer:a").fetchSemanticsNode().boundsInRoot.center - bounds.topLeft

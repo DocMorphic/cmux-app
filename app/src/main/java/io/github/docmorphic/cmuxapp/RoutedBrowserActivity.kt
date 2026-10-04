@@ -49,7 +49,8 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         read = { query, revision, offset -> RoutedSidebarWire.page(checkNotNull(request(RoutedBrowserProtocol.SIDEBAR, Bundle().apply {
             putString("query", RoutedSidebarWire.query(query)); putString("revision", revision); putInt("offset", offset)
         }).getString("sidebar"))) },
-        select = { key -> checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_SELECT, Bundle().apply { putString("key", key) }).getString("selection")) })
+        select = { key -> checkNotNull(request(RoutedBrowserProtocol.SIDEBAR_SELECT, Bundle().apply { putString("key", key) }).getString("selection")) },
+        saveSort = { command -> request(RoutedBrowserProtocol.SIDEBAR_SORT, Bundle().apply { putString("sort", RoutedSidebarWire.sort(command)) }); Unit })
     private fun configureSidebar() = sidebar.configure(binding != null && state.value.sidebarAvailable && !state.value.retired, foreground)
     private val endpoint = Messenger(Handler(Looper.getMainLooper()) { message ->
         when (message.what) {
@@ -152,6 +153,9 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         configureSidebar()
     }
     suspend fun flush() {
+        sidebar.finishSearch()
+        if (state.value.sidebarAvailable && !state.value.retired) request(RoutedBrowserProtocol.SIDEBAR_STATE,
+            Bundle().apply { putString("query", RoutedSidebarWire.query(sidebar.state.value.query)) })
         state.value.surface?.let { request(RoutedBrowserProtocol.SNAPSHOT, RoutedBrowserProtocol.snapshot(it.state.value)) }
         if (binding != null) CookieManager.getInstance().flush()
     }

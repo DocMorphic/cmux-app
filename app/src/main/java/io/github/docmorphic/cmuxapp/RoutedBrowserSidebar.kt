@@ -6,6 +6,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.painterResource
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,6 +26,16 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
     onOpen: (String) -> Unit, onFinishSearch: (Boolean) -> Unit) {
     DisposableEffect(controller) { controller.visible(true); onDispose { controller.visible(false) } }
     var computers by remember { mutableStateOf(false) }
+    var filters by remember { mutableStateOf(false) }
+    var showOrder by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val filter = NativeWorkspaceFilter(ui.query.workspaceUnread, ui.query.machines)
+    LaunchedEffect(ui.query.notifications, ui.query.computer) { filters = false; showOrder = false }
+    if (showOrder) key(ui.orderGeneration) {
+        NativeComputerOrderSheet(ui.snapshot?.computers.orEmpty().map { NativeSortComputer(it.key, it.name, buildLabel = it.build) },
+            onDismiss = { showOrder = false }, error = ui.actionError, saving = ui.saving,
+            save = { ids -> scope.launch { controller.sort(RoutedSidebarSort.Order(ids)) } })
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(if (ui.query.notifications) "Notifications" else "Workspaces", Modifier.weight(1f).padding(18.dp), fontWeight = FontWeight.SemiBold)
         NativeWorkspaceSidebarToggle()
@@ -40,18 +53,40 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                     onClick = { computers = false; controller.query(ui.query.copy(computer = computer.key)) }) }
             }
         }
-        FilterChip(selected = ui.query.unread, onClick = { controller.query(ui.query.copy(unread = !ui.query.unread)) },
-            label = { Text("Unread") }, modifier = Modifier.padding(end = 12.dp))
+        if (ui.query.notifications) Box {
+            IconButton(onClick = { filters = true }) {
+                Icon(painterResource(if (ui.query.notificationUnread) R.drawable.ic_feed_filter_active else R.drawable.ic_feed_filter), "Notification filter")
+            }
+            DropdownMenu(filters, onDismissRequest = { filters = false }) {
+                DropdownMenuItem(text = { Text("All Notifications") }, leadingIcon = { Text(if (!ui.query.notificationUnread) "✓" else " ") },
+                    onClick = { filters = false; controller.query(ui.query.withUnread(false)) })
+                DropdownMenuItem(text = { Text("Unread") }, leadingIcon = { Text(if (ui.query.notificationUnread) "✓" else " ") },
+                    onClick = { filters = false; controller.query(ui.query.withUnread(true)) })
+            }
+        } else NativeWorkspaceFilterMenu(filter, ui.snapshot?.filterMachines.orEmpty().map { NativeWorkspaceFilterMachine(it.key, it.name, it.build) },
+            filters, { filters = it }, onChange = { controller.query(ui.query.copy(workspaceUnread = it.unread, machines = it.machines)) },
+            sortMode = ui.snapshot?.sortMode, onSort = { mode -> scope.launch {
+                if (controller.sort(RoutedSidebarSort.Mode(mode)) && mode == NativeWorkspaceSortMode.PRIORITY) showOrder = true
+            } }, onOrder = { showOrder = true })
     }
-    if (ui.loading || ui.navigating || ui.snapshot?.loading == true) LinearProgressIndicator(Modifier.fillMaxWidth())
-    ui.error?.let { message -> Column(Modifier.padding(12.dp)) {
+    if (ui.loading || ui.navigating || ui.saving || ui.snapshot?.loading == true) LinearProgressIndicator(Modifier.fillMaxWidth())
+    (ui.actionError ?: ui.error)?.let { message -> Column(Modifier.padding(12.dp)) {
         Text(message, color = MaterialTheme.colorScheme.error)
         TextButton(onClick = controller::retry) { Text("Retry") }
     } }
     ui.snapshot?.status?.let { Text(it, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall) }
     LazyColumn(Modifier.weight(1f)) {
         val rows = ui.snapshot?.rows.orEmpty()
-        if (rows.isEmpty() && !ui.loading && ui.error == null) item { Text("No matches", Modifier.padding(20.dp)) }
+        if (rows.isEmpty() && !ui.loading && ui.error == null) item {
+            Text(when {
+                ui.query.text.isNotBlank() -> "No matches"
+                ui.query.notifications -> if (ui.query.notificationUnread) "No unread notifications." else "No notifications yet."
+                filter.unread && filter.machines.isNotEmpty() -> "No unread workspaces on the selected machines"
+                filter.unread -> "No unread workspaces"
+                filter.machines.isNotEmpty() -> "No workspaces on the selected machines"
+                else -> "No workspaces yet."
+            }, Modifier.padding(20.dp))
+        }
         items(rows, key = { it.key }, contentType = { it.kind }) { row ->
             when (row.kind) {
                 "workspace" -> Column(Modifier.padding(start = if (row.depth == 1) 24.dp else 0.dp)) {

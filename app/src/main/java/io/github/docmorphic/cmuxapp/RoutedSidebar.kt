@@ -18,11 +18,25 @@ internal data class RoutedSidebarRow(
         emptyList(), null, preview, color, subtitle, count, previewAt = previewAt)
 }
 internal data class RoutedSidebarComputer(val key: String, val name: String, val build: String? = null)
-internal data class RoutedSidebarQuery(val notifications: Boolean = false, val text: String = "",
-    val computer: String? = null, val unread: Boolean = false, val expanded: Set<String> = emptySet(),
-    val groupExpansion: Map<String, Boolean> = emptyMap())
+internal data class RoutedSidebarQuery(val notifications: Boolean = false,
+    val workspaceQuery: String = "", val notificationQuery: String = "", val computer: String? = null,
+    val workspaceUnread: Boolean = false, val notificationUnread: Boolean = false,
+    val machines: Set<String> = emptySet(), val expanded: Set<String> = emptySet(),
+    val groupExpansion: Map<String, Boolean> = emptyMap()) {
+    val text get() = if (notifications) notificationQuery else workspaceQuery
+    val unread get() = if (notifications) notificationUnread else workspaceUnread
+    fun withText(value: String) = if (notifications) copy(notificationQuery = NativeSearchText.boundQuery(value))
+        else copy(workspaceQuery = NativeSearchText.boundQuery(value))
+    fun withUnread(value: Boolean) = if (notifications) copy(notificationUnread = value) else copy(workspaceUnread = value)
+}
+internal sealed interface RoutedSidebarSort {
+    data class Mode(val mode: NativeWorkspaceSortMode) : RoutedSidebarSort
+    data class Order(val keys: List<String>) : RoutedSidebarSort
+}
 internal data class RoutedSidebarSnapshot(val computers: List<RoutedSidebarComputer>, val rows: List<RoutedSidebarRow>,
-    val unread: Int = 0, val loading: Boolean = false, val status: String? = null)
+    val unread: Int = 0, val loading: Boolean = false, val status: String? = null,
+    val filterMachines: List<RoutedSidebarComputer> = emptyList(), val selectedMachines: Set<String> = emptySet(),
+    val sortMode: NativeWorkspaceSortMode? = null)
 internal data class RoutedSidebarPage(val revision: String, val snapshot: RoutedSidebarSnapshot,
     val offset: Int, val next: Int?, val total: Int)
 
@@ -34,6 +48,7 @@ internal interface RoutedSidebarHost {
     fun adopt(query: RoutedSidebarQuery) {}
     fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot?
     fun resolve(key: String): (() -> Unit)?
+    fun sort(command: RoutedSidebarSort) { error("Sidebar sorting is unavailable") }
     fun retain(): RoutedSidebarLease
 }
 internal class RoutedSidebarLease(private val setActive: (Boolean) -> Unit, private val release: () -> Unit) : AutoCloseable {
@@ -74,6 +89,15 @@ internal class RoutedSidebarExchange {
         return RoutedSidebarPage(expectedRevision, value.copy(rows = rows), offset,
             (offset + rows.size).takeIf { it < value.rows.size }, value.rows.size)
     }
+    fun permitsSort(command: RoutedSidebarSort): Boolean {
+        val value = snapshot ?: return false
+        if (value.sortMode == null) return false
+        return when (command) {
+            is RoutedSidebarSort.Mode -> true
+            is RoutedSidebarSort.Order -> command.keys.distinct().size == command.keys.size &&
+                command.keys.toSet() == value.computers.map { it.key }.toSet()
+        }
+    }
     fun prepare(key: String, canOpen: (String) -> Boolean): String {
         check(key in issued && canOpen(key)) { "This destination changed. Refresh the sidebar." }
         return UUID.randomUUID().toString().also { selection = it to key }
@@ -94,28 +118,55 @@ internal object RoutedSidebarWire {
     private fun JSONObject.optional(key: String, limit: Int): String? = optString(key).takeUnless { isNull(key) || it.isEmpty() }?.bounded(limit)
     private fun JSONObject.finite(key: String) = optDouble(key).takeIf { it.isFinite() }
     private fun token(value: String) = value.also { require(it.length in 1..128 && it.none(Char::isISOControl)) }
-    fun query(value: RoutedSidebarQuery) = JSONObject().put("notifications", value.notifications)
-        .put("text", NativeSearchText.boundQuery(value.text)).put("computer", value.computer)
-        .put("unread", value.unread).put("expanded", JSONArray(value.expanded.sorted()))
-        .put("groups", JSONObject(value.groupExpansion)).toString().also {
-            require(it.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Too many expanded sidebar groups. Collapse some groups and retry." }
-        }
+    private fun keys(value: JSONArray, limit: Int = 256): List<String> {
+        require(value.length() <= limit)
+        return (0 until value.length()).map { token(value.getString(it)) }
+    }
+    private fun checked(value: String) = value.also {
+        require(it.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Sidebar state is too large. Collapse some groups and retry." }
+    }
+    fun sort(value: RoutedSidebarSort): String = checked(when (value) {
+        is RoutedSidebarSort.Mode -> JSONObject().put("mode", value.mode.raw)
+        is RoutedSidebarSort.Order -> JSONObject().put("order", JSONArray(value.keys))
+    }.toString())
+    fun sort(value: String): RoutedSidebarSort {
+        val json = JSONObject(checked(value))
+        require(json.has("mode") != json.has("order"))
+        return if (json.has("mode")) RoutedSidebarSort.Mode(checkNotNull(NativeWorkspaceSortMode.entries.singleOrNull { it.raw == json.getString("mode") }))
+        else RoutedSidebarSort.Order(keys(json.getJSONArray("order")).also { require(it.distinct().size == it.size) })
+    }
+    fun query(value: RoutedSidebarQuery) = checked(JSONObject().put("notifications", value.notifications)
+        .put("workspace_query", NativeSearchText.boundQuery(value.workspaceQuery))
+        .put("notification_query", NativeSearchText.boundQuery(value.notificationQuery)).put("computer", value.computer)
+        .put("workspace_unread", value.workspaceUnread).put("notification_unread", value.notificationUnread)
+        .put("machines", JSONArray(value.machines.sorted())).put("expanded", JSONArray(value.expanded.sorted()))
+        .put("groups", JSONObject(value.groupExpansion)).toString())
     fun query(value: String): RoutedSidebarQuery {
-        require(value.toByteArray(Charsets.UTF_8).size <= MAX_BYTES)
-        val json = JSONObject(value); val expanded = json.optJSONArray("expanded") ?: JSONArray()
+        val json = JSONObject(checked(value)); val expanded = json.optJSONArray("expanded") ?: JSONArray()
         val groups = json.optJSONObject("groups") ?: JSONObject()
-        require(expanded.length() <= 10_000 && groups.length() <= 10_000)
-        return RoutedSidebarQuery(json.optBoolean("notifications"), NativeSearchText.boundQuery(json.optString("text")),
-            if (json.isNull("computer")) null else token(json.getString("computer")), json.optBoolean("unread"),
-            (0 until expanded.length()).map { token(expanded.getString(it)) }.toSet(),
+        require(groups.length() <= 10_000)
+        return RoutedSidebarQuery(json.optBoolean("notifications"), NativeSearchText.boundQuery(json.optString("workspace_query")),
+            NativeSearchText.boundQuery(json.optString("notification_query")),
+            if (json.isNull("computer")) null else token(json.getString("computer")),
+            json.optBoolean("workspace_unread"), json.optBoolean("notification_unread"),
+            keys(json.optJSONArray("machines") ?: JSONArray()).toSet(), keys(expanded, 10_000).toSet(),
             groups.keys().asSequence().associate { token(it) to groups.getBoolean(it) })
+    }
+    private fun computers(value: List<RoutedSidebarComputer>) = JSONArray().also { array -> value.forEach {
+        array.put(JSONObject().put("key", token(it.key)).put("name", it.name.bounded(64)).put("build", it.build?.bounded(32)))
+    } }
+    private fun computers(value: JSONArray): List<RoutedSidebarComputer> {
+        require(value.length() <= 256)
+        return (0 until value.length()).map { value.getJSONObject(it).let { item ->
+            RoutedSidebarComputer(token(item.getString("key")), item.getString("name").bounded(64), item.optional("build", 32))
+        } }.also { require(it.map { row -> row.key }.distinct().size == it.size) }
     }
     fun page(value: RoutedSidebarPage): String = JSONObject().put("revision", value.revision).put("offset", value.offset)
         .put("next", value.next ?: JSONObject.NULL).put("total", value.total)
         .put("unread", value.snapshot.unread).put("loading", value.snapshot.loading).put("status", value.snapshot.status?.bounded(2048))
-        .put("computers", JSONArray().also { array -> value.snapshot.computers.forEach {
-            array.put(JSONObject().put("key", token(it.key)).put("name", it.name.bounded(64)).put("build", it.build?.bounded(32)))
-        } }).put("rows", JSONArray().also { array -> value.snapshot.rows.forEach {
+        .put("sort_mode", value.snapshot.sortMode?.raw).put("machines", JSONArray(value.snapshot.filterMachines.map { it.key }))
+        .put("selected_machines", JSONArray(value.snapshot.selectedMachines.sorted()))
+        .put("computers", computers(value.snapshot.computers)).put("rows", JSONArray().also { array -> value.snapshot.rows.forEach {
             array.put(row(it))
         } }).toString()
     fun row(value: RoutedSidebarRow) = JSONObject().put("key", token(value.key)).put("kind", value.kind).put("title", value.title.bounded(1024))
@@ -125,16 +176,18 @@ internal object RoutedSidebarWire {
                 .put("icon", value.iconSymbol?.bounded(128)).put("availability", value.availability.name).put("depth", value.depth).put("expanded", value.expanded).put("open", value.canOpen)
     fun page(value: String): RoutedSidebarPage {
         require(value.toByteArray(Charsets.UTF_8).size <= MAX_BYTES)
-        val json = JSONObject(value); val computers = json.getJSONArray("computers"); val rows = json.getJSONArray("rows")
-        require(computers.length() <= 256 && rows.length() <= 100)
+        val json = JSONObject(value); val computerRows = json.getJSONArray("computers"); val rows = json.getJSONArray("rows")
+        require(computerRows.length() <= 256 && rows.length() <= 100)
+        val computerValues = computers(computerRows)
+        val machineKeys = keys(json.optJSONArray("machines") ?: JSONArray()).toSet()
+        val selectedMachines = keys(json.optJSONArray("selected_machines") ?: JSONArray()).toSet()
+        require(computerValues.map { it.key }.containsAll(machineKeys) && machineKeys.containsAll(selectedMachines))
         val total = json.getInt("total"); val offset = json.getInt("offset")
         require(total in 0..MAX_ROWS && offset in 0..total && offset + rows.length() <= total)
         val next = if (json.isNull("next")) null else json.getInt("next").also { require(it == offset + rows.length() && it > offset && it < total) }
         require(next != null || offset + rows.length() == total)
         return RoutedSidebarPage(token(json.getString("revision")), RoutedSidebarSnapshot(
-            (0 until computers.length()).map { computers.getJSONObject(it).let { item ->
-                RoutedSidebarComputer(token(item.getString("key")), item.getString("name").bounded(512), item.optional("build", 128))
-            } }, (0 until rows.length()).map { rows.getJSONObject(it).let { item ->
+            computerValues, (0 until rows.length()).map { rows.getJSONObject(it).let { item ->
                 val kind = item.getString("kind").also { require(it in setOf("workspace", "group", "footer", "notification", "heading", "updates")) }
                 RoutedSidebarRow(token(item.getString("key")), kind, item.getString("title").bounded(1024),
                     item.optional("subtitle", 2048), item.optional("preview", 4096), item.optional("computer", 512),
@@ -142,6 +195,8 @@ internal object RoutedSidebarWire {
                     item.optBoolean("pinned"), item.optional("color", 32), item.finite("activity"), item.finite("previewAt"),
                     NativeFeedAvailability.valueOf(item.getString("availability")), item.optInt("depth").coerceIn(0, 1),
                     item.optBoolean("expanded"), item.optBoolean("open"), item.optional("icon", 128))
-            } }, json.optInt("unread").coerceAtLeast(0), json.optBoolean("loading"), json.optional("status", 2048)), offset, next, total)
+            } }, json.optInt("unread").coerceAtLeast(0), json.optBoolean("loading"), json.optional("status", 2048),
+                computerValues.filter { it.key in machineKeys }, selectedMachines,
+                if (json.isNull("sort_mode")) null else NativeWorkspaceSortMode.entries.single { it.raw == json.getString("sort_mode") }), offset, next, total)
     }
 }

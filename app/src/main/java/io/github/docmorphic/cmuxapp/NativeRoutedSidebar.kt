@@ -15,14 +15,16 @@ internal data class NativeSidebarInput(val sources: List<NativeFeedSource>, val 
     val sshAvailability: Map<java.util.UUID, NativeFeedAvailability> = emptyMap(),
     val appearances: NativeMacAppearances = NativeMacAppearances(), val locale: Locale = Locale.getDefault())
 internal data class NativeSidebarPresentation(val computer: String? = null, val notifications: Boolean = false,
-    val text: String = "", val unread: Boolean = false)
+    val workspaceQuery: String = "", val notificationQuery: String = "", val workspaceUnread: Boolean = false,
+    val notificationUnread: Boolean = false, val machines: Set<String> = emptySet())
 
 /** Uses the same ordering, search, group and notification projection policies as the main screen. */
 internal class NativeRoutedSidebarHost(override val owner: Any, private val salt: String,
     private val input: () -> NativeSidebarInput?, private val retainFeed: () -> RoutedSidebarLease,
     private val navigate: (NativeSidebarTarget) -> Unit,
     private val initial: () -> NativeSidebarPresentation = { NativeSidebarPresentation() },
-    private val adoptPresentation: (NativeSidebarPresentation) -> Unit = {}) : RoutedSidebarHost {
+    private val adoptPresentation: (NativeSidebarPresentation) -> Unit = {},
+    private val saveSort: ((NativeWorkspaceSortMode?, List<String>?) -> Unit)? = null) : RoutedSidebarHost {
     private fun id(vararg values: Any?): String = MessageDigest.getInstance("SHA-256")
         .digest(JSONArray(listOf(salt) + values).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private fun computer(key: String) = id("computer", key)
@@ -34,12 +36,36 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         entry.notification.id, entry.notification.workspaceId, entry.notification.surfaceId)
     override fun retain() = retainFeed()
     override fun current() = input() != null
-    override fun initialQuery() = initial().let { RoutedSidebarQuery(it.notifications, it.text, it.computer?.let(::computer), it.unread) }
+    override fun initialQuery() = initial().let { RoutedSidebarQuery(it.notifications, it.workspaceQuery, it.notificationQuery,
+        it.computer?.let(::computer), it.workspaceUnread, it.notificationUnread, it.machines.map(::computer).toSet()) }
+    private fun machines(value: NativeSidebarInput) = (value.sources.filter { it.workspaces.isNotEmpty() }.mapNotNull {
+        workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag)
+    } + value.ssh.map { workspaceSshFilterId(it.host.id) }).toSet()
+    private fun filter(value: NativeSidebarInput, query: RoutedSidebarQuery) = NativeWorkspaceFilter(query.workspaceUnread, query.machines)
+        .forMenu(machines(value).map(::computer).toSet(), query.computer != null)
+    override fun sort(command: RoutedSidebarSort) {
+        val save = checkNotNull(saveSort) { "Sidebar sorting is unavailable" }
+        val value = checkNotNull(input()) { "Sidebar account changed" }
+        when (command) {
+            is RoutedSidebarSort.Mode -> save(command.mode, null)
+            is RoutedSidebarSort.Order -> {
+                val current = value.computers.associateBy { computer(it.id) }
+                check(command.keys.distinct().size == command.keys.size && command.keys.toSet() == current.keys) {
+                    "Computers changed. Reopen Computer Order."
+                }
+                save(null, command.keys.map { current.getValue(it).id })
+            }
+        }
+    }
     override fun adopt(query: RoutedSidebarQuery) {
         val value = input() ?: return
         val selection = query.computer?.let { key -> value.computers.singleOrNull { computer(it.id) == key }?.id }
         if (query.computer != null && selection == null) return
-        adoptPresentation(NativeSidebarPresentation(selection, query.notifications, NativeSearchText.boundQuery(query.text), query.unread))
+        val selectedMachines = filter(value, query).machines
+        adoptPresentation(NativeSidebarPresentation(selection, query.notifications,
+            NativeSearchText.boundQuery(query.workspaceQuery), NativeSearchText.boundQuery(query.notificationQuery),
+            query.workspaceUnread, query.notificationUnread,
+            value.computers.filter { computer(it.id) in selectedMachines }.map { it.id }.toSet()))
     }
 
     override fun read(query: RoutedSidebarQuery): RoutedSidebarSnapshot? {
@@ -52,7 +78,11 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         val sshRows = value.ssh.filter { validScope && (selected == null || workspaceSshFilterId(it.host.id) == selected) }
         val entries = aggregateNativeFeed(sources, computerName = value.appearances::name)
         val unread = entries.count { !it.notification.isRead }
-        val rows = if (query.notifications) notifications(entries, query, value.locale) else workspaces(value, sources, sshRows, query, selected == null)
+        val filter = filter(value, query)
+        val rows = if (query.notifications) notifications(entries, query, value.locale) else workspaces(value,
+            sources.filter { source -> filter.matches(workspaceMacFilterId(source.mac.deviceId, source.mac.instanceTag)?.let(::computer), true) },
+            sshRows.filter { filter.matches(computer(workspaceSshFilterId(it.host.id)), it.workspace.hasUnread) },
+            query, selected == null, filter.active)
         val offline = sources.filter { it.availability == NativeFeedAvailability.OFFLINE }
         return RoutedSidebarSnapshot(ordered.map { RoutedSidebarComputer(computer(it.id), it.name, it.buildLabel) }, rows, unread,
             sources.any { it.availability == NativeFeedAvailability.CONNECTING },
@@ -60,17 +90,20 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
                 !validScope -> "This computer is no longer available. Choose another computer."
                 offline.isNotEmpty() -> "Unavailable: ${offline.joinToString { value.appearances.name(it.mac) }}. Showing the last received updates."
                 else -> null
-            })
+            }, filterMachines = if (query.computer == null) ordered.filter { it.id in machines(value) }
+                .map { RoutedSidebarComputer(computer(it.id), it.name, it.buildLabel) } else emptyList(),
+            selectedMachines = filter.machines,
+            sortMode = value.sort.mode.takeIf { saveSort != null && query.computer == null && !query.notifications })
     }
     private fun workspaces(value: NativeSidebarInput, sources: List<NativeFeedSource>, sshRows: List<SshFeedRow>,
-        query: RoutedSidebarQuery, all: Boolean): List<RoutedSidebarRow> {
+        query: RoutedSidebarQuery, all: Boolean, filtering: Boolean): List<RoutedSidebarRow> {
         val matches = NativeSearchIndex(workspaceSearchRows(sources, value.appearances::name), value.locale).matches(query.text)
         val sshMatches = NativeSearchIndex(sshRows.map { it.key to it.searchFields() }, value.locale).matches(query.text)
         val collapsed = sources.flatMap { source -> source.groups.map { item ->
             WorkspaceListEntry.Header(source, item).key to (query.groupExpansion[group(source, item.id)]?.not() ?: item.isCollapsed)
         } }.toMap()
         return sortedWorkspaceRows(sources, sshRows.filter { it.key in sshMatches && (!query.unread || it.workspace.hasUnread) },
-            value.computers, value.sort, all, matches, query.text.isNotBlank(), query.unread, collapsed, value.locale).map { row ->
+            value.computers, value.sort, all, matches, query.text.isNotBlank() || filtering, query.unread, collapsed, value.locale).map { row ->
             when (row) {
                 is NativeWorkspaceDisplayRow.Ssh -> displayWorkspace(ssh(row.row), row.row.workspace, row.row.host.name,
                     (value.sshAvailability[row.row.host.id] ?: NativeFeedAvailability.OFFLINE), 0, row.row.openTarget() != null)

@@ -12,7 +12,33 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — global sidebar in the separate browser (2026-10-04)
+## Latest checkpoint — browser filters, sorting and return state (2026-10-04)
+
+The separate browser sidebar now shares compound machine/unread filtering,
+independent workspace/notification searches and unread states, all three sort
+modes, and the computer-order editor. Final state is adopted on return even after
+hiding an active search. Sort writes are serialized, validated against the current
+owner/computer set, and persisted through the existing local preference store;
+action failures remain visible across successful feed refreshes.
+
+**45 JVM tests and five Android tests passed** (runtime **78.018 s**, sole API37/
+16KB AVD). A focused repeat of the new controls scenario passed in **45.243 s**
+with a stronger rendered-order assertion and inspected screenshot. App and JVM
+sources were unchanged for that repeat. These checks use the production browser
+Activity/service/proxy/projection with generated two-Mac snapshots, a private HTTP
+fixture and local preferences. See [BROWSER_SIDEBAR.md](BROWSER_SIDEBAR.md) for
+source references, hashes and receipts. Display settings were restored and the
+emulator stopped/reaped. No Pixel was connected or modified.
+
+**Remaining:** browser remote row mutations, New Task/settings entry points,
+full notification presentation/actions and selection refinements. Real main-screen
+account/native/SSH integration, parent recreation and physical Pixel/Mac acceptance
+still need verification. Production recovery, push/notice configuration, legacy
+tickets and the wider upstream audit remain open. PR #1 stays draft; the goal is
+active. Signed **554** remains the latest download and excludes these sidebar
+changes, which await a batched signed build.
+
+## Earlier checkpoint — global sidebar in the separate browser (2026-10-04)
 
 The on-device browser now has a global workspace/notification navigation sidebar
 in wide windows. It receives bounded display pages from the main process and uses

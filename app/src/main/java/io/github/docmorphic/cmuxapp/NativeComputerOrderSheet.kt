@@ -25,7 +25,7 @@ internal fun moveWorkspaceComputer(ids: List<String>, id: String, destination: I
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun NativeComputerOrderSheet(computers: List<NativeSortComputer>, onDismiss: () -> Unit, save: (List<String>) -> Unit) {
+internal fun NativeComputerOrderSheet(computers: List<NativeSortComputer>, onDismiss: () -> Unit, error: String? = null, saving: Boolean = false, save: (List<String>) -> Unit) {
     var ids by remember { mutableStateOf(computers.map { it.id }) }
     val currentComputers by rememberUpdatedState(computers)
     val currentSave by rememberUpdatedState(save)
@@ -69,6 +69,8 @@ internal fun NativeComputerOrderSheet(computers: List<NativeSortComputer>, onDis
                 Text("Computer Order", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
                 TextButton(onClick = onDismiss) { Text("Done") }
             }
+            if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())
+            error?.let { Text(it, Modifier.padding(horizontal = 20.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.error) }
             Text("Workspaces keep each computer’s own order. Drag computers to choose which come first.",
                 Modifier.padding(horizontal = 20.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium)
             LazyColumn(Modifier.weight(1f, fill = false).fillMaxWidth().testTag("workspace.sort.computers")
