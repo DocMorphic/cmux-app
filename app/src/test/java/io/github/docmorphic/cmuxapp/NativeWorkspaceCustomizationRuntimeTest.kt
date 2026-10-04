@@ -66,6 +66,31 @@ class NativeWorkspaceCustomizationRuntimeTest {
     private fun baseline(coordinator: NativeFeedCoordinator, wire: Wire) =
         WorkspaceCustomizationDraft.from(coordinator.sources.value.getValue(wire.mac.origin).workspaces.single())
 
+    @Test fun offlineSnapshotKeepsDiscoveryButCannotAuthorizeAMutation() = runBlocking {
+        fixture { wire, coordinator ->
+            val initial = baseline(coordinator, wire)
+            coordinator.pause()
+            val retained = coordinator.sources.value.getValue(wire.mac.origin)
+            assertEquals(NativeFeedAvailability.OFFLINE, retained.availability)
+            assertTrue(retained.canCustomizeWorkspace())
+            assertEquals(initial, WorkspaceCustomizationDraft.from(retained.workspaces.single()))
+            assertTrue(runCatching { coordinator.customizeWorkspace(wire.mac, "workspace", initial, initial.copy(name = "Offline edit")) }.isFailure)
+            assertTrue(wire.writes.isEmpty())
+            coordinator.retainMacs(emptyList())
+            assertTrue(coordinator.sources.value.isEmpty())
+        }
+    }
+    @Test fun customizationDiscoveryRequiresBothOwnerCapabilitiesAcrossConnectionStates() {
+        val mac = Wire().mac
+        NativeFeedAvailability.entries.forEach { availability ->
+            val source = NativeFeedSource(mac, availability = availability,
+                capabilities = setOf("workspace.actions.v1", WORKSPACE_METADATA_CAPABILITY))
+            assertTrue(source.canCustomizeWorkspace())
+            assertFalse(source.copy(capabilities = setOf(WORKSPACE_METADATA_CAPABILITY)).canCustomizeWorkspace())
+            assertFalse(source.copy(capabilities = setOf("workspace.actions.v1")).canCustomizeWorkspace())
+            assertFalse(source.copy(capabilities = emptySet()).canCustomizeWorkspace())
+        }
+    }
     @Test fun metadataMutationsUseVerifiedOwnerAndPublishFreshList() = runBlocking {
         fixture { wire, coordinator ->
             val initial = baseline(coordinator, wire)

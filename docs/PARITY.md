@@ -12,6 +12,26 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — offline workspace editor and Activity restoration (2026-10-04)
+
+[WORKSPACE_CUSTOMIZATION.md](WORKSPACE_CUSTOMIZATION.md#offline-discovery-and-save-admission--2026-10-04)
+records the iOS capability-lifetime audit. Android now keeps Customize available
+from the owning Mac's retained capability snapshot during an outage. Saves still
+require its current verified connection; reconnection never replays drafts.
+
+**13 JVM tests + one expanded Android flow pass** (41.571s). The real Activity
+opens the editor offline, preserves all fields across recreation, retains the
+draft after an offline save rejection, and applies the exact actions only after
+reconnection and explicit Save. Pane-menu clearing still works. This uses a local
+RPC fixture and retained runtime, not whole-process or live account acceptance.
+Screenshots inspected; crash buffer empty; sole AVD stopped/reaped. No Pixel was
+available, and signed build 517 is unchanged.
+
+**Next:** broader workspace row/UI parity, whole-process/account transition
+restoration, physical Pixel/Mac metadata/browser/recovery, production connection
+graph acceptance and the current-source signed gate. Push/feed provider setup
+remains open. Overall goal remains active.
+
 ## Latest checkpoint — browser workspace customization (2026-10-04)
 
 [WORKSPACE_CUSTOMIZATION.md](WORKSPACE_CUSTOMIZATION.md#local-browser-process-integration--2026-10-04)

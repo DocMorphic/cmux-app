@@ -119,14 +119,44 @@ Main debug APK SHA-256:
 Local receipt: `captures/runtime/browser-workspace-customization/verification.json`.
 Signed build 517 is unchanged.
 
+## Offline discovery and save admission — 2026-10-04
+
+At the scoped upstream revision, `WorkspaceListRowModel.rowModel` and
+`WorkspaceDetailContainer` discover Customize using the owning workspace's
+`supportsWorkspaceActions` and `supportsWorkspaceMetadata`. In
+`MobileShellComposite`, `markSecondaryMacUnavailable` and
+`clearRemoteConnectionContext` downgrade retained rows' status/authority while
+preserving their action-capability snapshots. `sendWorkspaceMutation` returns
+not-connected when the owning route is absent; it never substitutes another Mac.
+
+Android now follows that separation. The last known capability snapshot keeps
+Customize available during an outage or feed pause. An unknown host or one
+missing either capability does not offer it. Every save still requires the
+current, allowed, verified owning connection and its fresh capability set.
+Offline save failure leaves the editor/draft open. Reconnection does not submit
+pending edits automatically, and unpair/account retirement removes retained rows.
+
+### Offline and Activity restoration verification
+
+**13 JVM tests pass**, including a paused production coordinator that retains
+menu capabilities but rejects writes, owner removal, and both-capability gates
+across all connection states. The expanded real Activity/local RPC case passes
+in **41.571s**: disconnect, open the row editor offline, edit all four fields,
+recreate the Activity, reject an offline save with no writes, reconnect with no
+automatic replay, explicitly save the exact four actions, then clear description
+and color from the terminal's pane picker. Restored form and saved-row screenshots
+were inspected; the crash buffer was empty. The sole AVD was stopped/reaped.
+The fixture records expected socket-closed exceptions from the deliberate outage.
+
+This verifies Activity recreation with the retained runtime and local peer.
+Whole-process death, account/team migration and live Pixel/Mac behavior remain
+separate acceptance work. The main/test APK build passed in 42s; the local receipt
+`captures/runtime/workspace-offline-restoration/verification.json` records hashes.
+Signed build 517 is unchanged.
+
 ## Remaining acceptance
 
-Offline entry-point parity still needs the owning-Mac capability-lifetime audit.
-The scoped iOS `WorkspaceListRowModel` and `WorkspaceDetailContainer` use the two
-capabilities without an extra connection-status gate; its mutation path returns
-not-connected for an unavailable owner. Android currently requires a connected
-owning Mac at entry. Full
-Activity/process-restoration, physical Pixel/Mac
+Whole-process restoration and production account/team transitions, physical Pixel/Mac
 metadata changes, broader row visuals and full source/UI parity remain separate
 acceptance work. This scoped feature does not establish completion of the app's
 production account/network graph or overall goal. Signed build 517 is unchanged.

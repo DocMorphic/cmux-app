@@ -21,7 +21,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 internal val LocalWorkspaceCustomizationAction = staticCompositionLocalOf<((NativeWorkspace) -> Unit)?> { null }
-internal fun NativeFeedSource.canCustomizeWorkspace() = availability == NativeFeedAvailability.CONNECTED &&
+// iOS retains the owning Mac's capability snapshot through transport outages.
+// Discovery is stable; the coordinator requires a live verified owner for every write.
+internal fun NativeFeedSource.canCustomizeWorkspace() =
     WORKSPACE_METADATA_CAPABILITY in capabilities && "workspace.actions.v1" in capabilities
 internal data class WorkspaceCustomizationTarget(val origin: String, val workspaceId: String)
 internal val workspaceCustomizationTargetSaver = listSaver<WorkspaceCustomizationTarget?, String>(

@@ -1,6 +1,9 @@
 package io.github.docmorphic.cmuxapp
 
 import android.os.Build
+import androidx.lifecycle.ViewModelProvider
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.*
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.*
@@ -11,13 +14,16 @@ import java.io.File
 
 /** Production screen/coordinator and real Android dispatch, with an isolated framed Mac peer. */
 class NativeWorkspaceCustomizationRuntimeTest {
-    @Test fun rowEditorSavesMacMetadataAndPanePickerCanClearIt() {
+    @Test fun offlineEditorRestoresAcrossActivityRecreationAndRetriesAfterReconnect() {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val device = UiDevice.getInstance(instrumentation)
         val store = NativeCredentialStore(context)
         val peer = NativeFixturePeer()
+        val online = AtomicBoolean(true)
+        lateinit var feed: NativeFeedSession
+        fun until(predicate: () -> Boolean) = runBlocking { withTimeout(15_000) { while (!predicate()) delay(50) } }
         val folder = File(context.getExternalFilesDir(null), "workspace-customization").apply { mkdirs() }
         fun node(selector: BySelector): UiObject2 {
             val found = device.wait(Until.findObject(selector), 15_000)
@@ -47,9 +53,14 @@ class NativeWorkspaceCustomizationRuntimeTest {
                 peer.customWorkspaceListing = listing; JSONObject()
             }
             NativeLifecycleTestActivity.connector = NativeConnector { _, _ ->
+                check(online.get()) { "Fixture Mac offline" }
                 MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture" }).also { it.connect() }
             }
-            ActivityScenario.launch(NativeLifecycleTestActivity::class.java).use {
+            ActivityScenario.launch(NativeLifecycleTestActivity::class.java).use { scenario ->
+                node(By.desc("Actions for Original workspace"))
+                scenario.onActivity { feed = ViewModelProvider(it)[NativeFeedSession::class.java] }
+                online.set(false); peer.disconnectClients()
+                until { feed.coordinator.sources.value.values.singleOrNull()?.availability == NativeFeedAvailability.OFFLINE }
                 node(By.desc("Actions for Original workspace")).click(); node(By.text("Customize Workspace")).click()
                 node(By.text("Original workspace").clazz("android.widget.EditText")).text = "Customized workspace"
                 node(By.text("Baseline").clazz("android.widget.EditText")).text = "Description from Android"
@@ -58,6 +69,22 @@ class NativeWorkspaceCustomizationRuntimeTest {
                 node(By.text("#007AFF").clazz("android.widget.EditText")).text = "#12ABEF"
                 node(By.text("#12ABEF").clazz("android.widget.EditText")); device.waitForIdle()
                 device.takeScreenshot(File(folder, "editor.png"))
+                // Recreate the actual host Activity while the owning Mac is offline.
+                scenario.recreate()
+                node(By.text("Customized workspace").clazz("android.widget.EditText"))
+                node(By.text("Description from Android").clazz("android.widget.EditText"))
+                node(By.text("#12ABEF").clazz("android.widget.EditText"))
+                assertTrue(actions().isEmpty())
+                node(By.text("Save")).click()
+                node(By.text("Couldn't save workspace")); node(By.text("OK")).click()
+                node(By.text("Customized workspace").clazz("android.widget.EditText"))
+                node(By.text("Description from Android").clazz("android.widget.EditText"))
+                assertTrue(actions().isEmpty())
+                device.takeScreenshot(File(folder, "offline-restored-editor.png"))
+                online.set(true)
+                runBlocking { feed.coordinator.refresh() }
+                until { feed.coordinator.sources.value.values.singleOrNull()?.availability == NativeFeedAvailability.CONNECTED }
+                assertTrue("Reconnection must not replay pending edits", actions().isEmpty())
                 node(By.text("Save")).click()
                 node(By.desc("Actions for Customized workspace"))
                 assertEquals(listOf("rename", "set_description", "set_color", "pin"), actions())
@@ -72,7 +99,7 @@ class NativeWorkspaceCustomizationRuntimeTest {
                 node(By.text("Save")).click()
                 node(By.text("Shell ▾"))
                 assertEquals(listOf("clear_description", "clear_color"), actions().takeLast(2))
-                assertTrue(peer.failures.toString(), peer.failures.isEmpty())
+                assertTrue(peer.failures.toString(), peer.failures.all { it == "java.net.SocketException: Socket closed" })
                 File(folder, "verified.txt").writeText(actions().joinToString("\n"))
             }
         } finally { NativeLifecycleTestActivity.connector = null; peer.close(); store.clear() }
