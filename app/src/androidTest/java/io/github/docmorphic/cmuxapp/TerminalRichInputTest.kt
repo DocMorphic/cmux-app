@@ -49,7 +49,7 @@ class TerminalRichInputTest {
         }
     }
 
-    @Test fun clipboardPreservesImagesFilesAndTextWithoutCoercingIntentsOrLocalPaths() {
+    @Test fun clipboardAttachmentsConsumeCaptionsWithoutCoercingIntentsOrLocalPaths() {
         val directory = File(context.cacheDir, "task-previews").apply { mkdirs() }
         val image = File(directory, "clipboard-fixture.png").apply { writeBytes(byteArrayOf(1)) }
         val file = File(directory, "clipboard-fixture.txt").apply { writeText("file content") }
@@ -58,11 +58,15 @@ class TerminalRichInputTest {
             val imageUri = uri(image)
             val fileUri = uri(file)
             val clip = ClipData("Mixed", arrayOf("image/png", "text/plain"), ClipData.Item("caption", null, null, imageUri))
-            clip.addItem(ClipData.Item(fileUri))
+            clip.addItem(ClipData.Item("file caption", null, null, fileUri))
             clip.addItem(ClipData.Item("literal command"))
             val content = TerminalPasteContent.fromClipboard(context, clip)
             assertEquals(listOf(TerminalPasteContent.Item.Attachment(imageUri, true),
-                TerminalPasteContent.Item.Attachment(fileUri, false), TerminalPasteContent.Item.Text("literal command")), content.items)
+                TerminalPasteContent.Item.Attachment(fileUri, false)), content.items)
+            val text = ClipData.newPlainText("Text", "printf 'λ界'\n")
+            text.addItem(ClipData.Item("second line"))
+            assertEquals(listOf(TerminalPasteContent.Item.Text("printf 'λ界'\n"),
+                TerminalPasteContent.Item.Text("second line")), TerminalPasteContent.fromClipboard(context, text).items)
             val link = ClipData.newRawUri("Link", Uri.parse("https://cmux.com"))
             assertEquals(listOf(TerminalPasteContent.Item.Text("https://cmux.com")), TerminalPasteContent.fromClipboard(context, link).items)
             assertTrue(runCatching { TerminalPasteContent.fromClipboard(context, ClipData.newIntent("Intent", Intent(Intent.ACTION_VIEW))) }.isFailure)

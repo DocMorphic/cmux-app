@@ -1,6 +1,8 @@
 package io.github.docmorphic.cmuxapp
 
 import android.content.ClipDescription
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.graphics.Bitmap
 import android.view.View
 import android.view.ViewGroup
@@ -74,6 +76,84 @@ class SshImageInputScreenTest {
     }
     private fun keyboard(view: View): TerminalKeyboardView? = if (view is TerminalKeyboardView) view else
         (view as? ViewGroup)?.let { group -> (0 until group.childCount).firstNotNullOfOrNull { keyboard(group.getChildAt(it)) } }
+
+    private fun mixedClipboard() {
+        compose.runOnIdle {
+            compose.activity.getSystemService(ClipboardManager::class.java).setPrimaryClip(
+                ClipData("Image with captions", arrayOf("image/png", "text/plain"),
+                    ClipData.Item("same-item caption\n", null, null, image().contentUri)).apply {
+                    addItem(ClipData.Item("separate caption\n"))
+                })
+        }
+    }
+
+    @Test fun toolbarImagePasteDisarmsControlAndNeverSendsCaptionsOrEnter() {
+        compose.runOnUiThread { terminal.release = CompletableDeferred() }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshShellScreen(terminal, onBack = {})
+        } } }
+        compose.onNodeWithText("Keyboard").performClick()
+        mixedClipboard()
+        compose.onNodeWithContentDescription("Ctrl").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Paste").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Ctrl").assert(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Off"))
+        compose.waitUntil(10_000) { terminal.images.size == 1 }
+        compose.runOnIdle {
+            val view = checkNotNull(keyboard(compose.activity.window.decorView))
+            assertTrue(checkNotNull(view.onCreateInputConnection(EditorInfo())).commitText("cλ", 1))
+            assertTrue(terminal.writes.isEmpty())
+            terminal.release!!.complete(Unit)
+        }
+        compose.waitUntil(10_000) { terminal.writes.size >= 2 }
+        compose.runOnIdle {
+            assertEquals(listOf("'/fixture/image.png'", "cλ"), terminal.writes.map { it.decodeToString() })
+            assertEquals(1, terminal.images.size)
+        }
+    }
+
+    @Test fun toolbarComposerImagePastePreservesPromptAndWaitsForSend() {
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshShellScreen(terminal, onBack = {})
+        } } }
+        compose.onNodeWithTag("ssh.shell.composer").performTextInput("Explain λ")
+        mixedClipboard()
+        compose.onNodeWithContentDescription("Paste").performScrollTo().performClick()
+        compose.waitUntil(10_000) { terminal.composer.current.attachments.size == 1 }
+        compose.runOnIdle {
+            assertEquals("Explain λ", terminal.composer.current.text)
+            assertTrue(terminal.images.isEmpty()); assertTrue(terminal.writes.isEmpty())
+        }
+        compose.onNodeWithTag("ssh.shell.send").performClick()
+        compose.waitUntil(10_000) { terminal.writes.size >= 2 }
+        compose.runOnIdle {
+            assertEquals(listOf("'/fixture/image.png' ", "Explain λ\r"), terminal.writes.map { it.decodeToString() })
+        }
+    }
+
+    @Test fun zoomFilesAndComposerClearArmedModifiersWithoutSendingInput() {
+        var filesOpened = 0
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshShellScreen(terminal, onFiles = { filesOpened++ }, onBack = {})
+        } } }
+        compose.onNodeWithText("Keyboard").performClick()
+        for (action in listOf("Zoom In", "Zoom Out")) {
+            compose.onNodeWithContentDescription("Alt").performScrollTo().performClick()
+            compose.onNodeWithContentDescription(action).performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Alt").assert(SemanticsMatcher.expectValue(
+                androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Off"))
+        }
+        compose.onNodeWithContentDescription("Alt").performScrollTo().performClick()
+        compose.onNodeWithTag("ssh.shell.files").performClick()
+        compose.onNodeWithContentDescription("Alt").assert(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Off"))
+        compose.onNodeWithText("Keyboard").performClick()
+        compose.onNodeWithContentDescription("Ctrl").performScrollTo().performClick()
+        compose.onNodeWithText("Compose").performClick()
+        compose.onNodeWithContentDescription("Ctrl").assert(SemanticsMatcher.expectValue(
+            androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "Off"))
+        compose.runOnIdle { assertEquals(1, filesOpened); assertTrue(terminal.writes.isEmpty()) }
+    }
 
     @Test fun composerImeImageRetainsDraftAcrossNavigationAndSendsImageBeforeText() {
         val request = AtomicReference<PlatformTextInputMethodRequest?>()

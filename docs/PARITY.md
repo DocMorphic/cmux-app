@@ -12,6 +12,25 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest checkpoint — terminal attachment paste (2026-10-04)
+
+[TERMINAL_PASTE_PRECEDENCE.md](TERMINAL_PASTE_PRECEDENCE.md) aligns direct and toolbar
+attachment paste with iOS: captions/fallback text no longer accompany the attachment
+as remote input. Android keeps ordered attachment batches. SSH Paste, Files, Zoom
+and Compose clear armed modifiers; native Zoom now does too.
+
+Nine distinct Android cases pass across two runs: eight initially, then the corrected
+Files-button lookup case. Image upload ordering, no unintended caption/Enter,
+composer staging and unchanged plain-text classification are covered. Debug/test
+assembly and engine packaging pass. The existing emulator is stopped; no signed
+milestone was created. ADB shows no physical Pixel, so browser/Mac acceptance remains
+pending and the existing reconnect question should not be repeated.
+
+**Next:** physical Pixel/Mac browser and connection recovery, remaining notice
+process-death/HTTPS acceptance and broader source parity. Android feed and push
+configuration remain open. Build 494 remains the last signed APK; the last
+unsigned-release/ART gate is `786264d`.
+
 ## Latest checkpoint — Computers process-death recovery (2026-10-04)
 
 [CACHED_COMPUTERS.md](CACHED_COMPUTERS.md#process-death-acceptance--2026-10-04)

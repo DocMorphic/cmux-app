@@ -118,6 +118,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     } }
     fun showFiles() {
         rawKeyboard?.finishComposition()
+        modifiers = TerminalInputModifiers()
         if (input.queue.status.value.let { it.pendingBytes == 0 && it.error == null && !it.closed }) { direct = false; keyboard?.hide(); onFiles?.invoke() }
     }
     val viewport = TerminalViewport.fit(size.width, size.height, cells)
@@ -151,6 +152,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             TextButton(onClick = ::showText, modifier = Modifier.testTag("ssh.shell.text")) { Text("Text") }
             if (onFiles != null) TextButton(onClick = ::showFiles, enabled = !preparing && inputStatus.error == null && !inputStatus.closed, modifier = Modifier.testTag("ssh.shell.files")) { Text("Files") }
             TextButton(onClick = {
+                modifiers = TerminalInputModifiers()
                 if (direct) { rawKeyboard?.finishComposition(); direct = false; keyboard?.hide() } else showKeyboard()
             }, enabled = canInput) { Text(if (direct) "Compose" else "Keyboard") }
         }
@@ -198,13 +200,17 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
                 rawKeyboard?.finishComposition()
                 when (button) {
                     TerminalToolbarButton.PASTE -> {
+                        modifiers = TerminalInputModifiers()
                         try {
                             val clip = context.getSystemService(android.content.ClipboardManager::class.java).primaryClip
                             if (clip == null) message = "The clipboard is empty."
                             else input.paste(TerminalPasteContent.fromClipboard(context, clip), direct)
                         } catch (_: Exception) { message = "Could not read the clipboard." }
                     }
-                    TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT -> zoom.step(if (button == TerminalToolbarButton.ZOOM_IN) 1 else -1)
+                    TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT -> {
+                        modifiers = TerminalInputModifiers()
+                        zoom.step(if (button == TerminalToolbarButton.ZOOM_IN) 1 else -1)
+                    }
                     TerminalToolbarButton.FILES -> showFiles()
                     else -> button.key?.let { write(modifiers.special(it, display.applicationCursorKeys)); modifiers = modifiers.consume() }
                 }

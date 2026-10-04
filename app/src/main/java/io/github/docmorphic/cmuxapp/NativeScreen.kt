@@ -2661,8 +2661,10 @@ fun NativeScreen(
                             inputModifiers = TerminalInputModifiers()
                             stopTerminalScrolling(); softwareKeyboard?.hide(); showTerminalFiles = true
                         }
-                        TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT ->
+                        TerminalToolbarButton.ZOOM_IN, TerminalToolbarButton.ZOOM_OUT -> {
+                            inputModifiers = TerminalInputModifiers()
                             terminalZoom.step(if (button == TerminalToolbarButton.ZOOM_IN) 1 else -1)
+                        }
                         else -> button.key?.let { key ->
                             rawKeyboardView?.finishComposition()
                             val sequence = inputModifiers.special(key, currentGrid.applicationCursorKeys)

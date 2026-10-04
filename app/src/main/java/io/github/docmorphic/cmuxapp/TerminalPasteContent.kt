@@ -41,14 +41,22 @@ class TerminalPasteContent(val items: List<Item>, private val release: () -> Uni
         /** Never coerce a local content URI or Intent into a shell command. */
         fun fromClipboard(context: Context, clip: ClipData): TerminalPasteContent {
             require(clip.itemCount <= 10) { "Paste up to 10 items at a time" }
+            val attachments = (0 until clip.itemCount).mapNotNull { index ->
+                clip.getItemAt(index).uri?.takeIf { it.scheme == "content" }
+            }
+            if (attachments.isNotEmpty()) {
+                // Like iOS image paste, an attachment consumes the whole clip. Captions
+                // and provider fallback text must not become additional shell input.
+                // Android can carry multiple attachments; preserve their order.
+                return TerminalPasteContent(attachments.map { uri ->
+                    Item.Attachment(uri, context.contentResolver.getType(uri)?.startsWith("image/") == true)
+                })
+            }
             val items = (0 until clip.itemCount).map { index ->
                 val item = clip.getItemAt(index)
                 val uri = item.uri
-                val image = uri?.scheme == "content" && context.contentResolver.getType(uri)?.startsWith("image/") == true
                 when {
-                    image -> Item.Attachment(uri!!, true)
                     item.text != null -> Item.Text(item.text.toString())
-                    uri?.scheme == "content" -> Item.Attachment(uri, false)
                     uri?.scheme == "https" || uri?.scheme == "http" -> Item.Text(uri.toString())
                     else -> error("This clipboard item cannot be pasted into a terminal")
                 }
