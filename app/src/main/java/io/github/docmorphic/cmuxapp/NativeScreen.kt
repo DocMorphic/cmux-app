@@ -3125,7 +3125,9 @@ internal fun NativeScreen(
                             canClose = sshSession?.workspaceFeed?.canClose(row) == true, handlesHold = true,
                             closeConfirmation = row.confirmation, onOpen = {
                                 if (store.taskSession() == browserLogin && browserLogin != null && sshSession?.workspaceFeed?.isCurrent(row) == true) {
-                                    val target = row.targets.firstOrNull()
+                                    val first = row.targets.firstOrNull()
+                                    val remembered = first?.let { store.lastWorkspaceTab(browserLogin, sshWorkspaceTabKey(browserLogin, row.host, it)) }
+                                    val target = row.reopenTarget(remembered)
                                     if (target != null) { screenResume.cancel(); workspaceRoute = null; sshNavigation.open(browserLogin, row.host, target) }
                                     else error = "This workspace has no live terminal or browser. Open Computers to manage it."
                                 }
@@ -3252,7 +3254,14 @@ internal fun NativeScreen(
             showSettings -> settingsContent()
             showTaskComposer -> taskComposerContent()
             sshRoute != null && sshSession != null -> key(sshRoute.login, sshRoute.host.id) {
-                SshWorkspacesRoute(sshSession, sshRoute.host.id, sshRoute.target) { sshNavigation.leave() }
+                SshWorkspacesRoute(sshSession, sshRoute.host.id, sshRoute.target, onDisplayed = { target ->
+                    if (store.taskSession() == sshRoute.login && sshSession.isOpen &&
+                        sshSession.hosts.state.value.host(sshRoute.host.id)?.connectsLike(sshRoute.host) == true) {
+                        target.rememberedTab()?.let { tab ->
+                            store.rememberWorkspaceTab(sshRoute.login, sshWorkspaceTabKey(sshRoute.login, sshRoute.host, target), tab)
+                        }
+                    }
+                }) { sshNavigation.leave() }
             }
             screenResume.pending != null && selectedWorkspace == null && localBrowser == null -> {
                 NativeWorkspaceWaitingPane("Restoring workspace…",

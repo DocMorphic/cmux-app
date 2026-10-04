@@ -21,7 +21,10 @@ internal class SshConnections<C : SshManagedConnection>(
 ) : AutoCloseable {
     private val job = SupervisorJob(checkNotNull(lifetime.coroutineContext[Job]))
     private val scope = CoroutineScope(lifetime.coroutineContext + job)
-    private val lock = Any()
+    // Host publication can resume this coordinator inline on Main.immediate while
+    // holding the store monitor. Transport guards run on IO and consult the store.
+    // Share that monitor so those two paths cannot acquire the same locks in reverse.
+    private val lock = hosts
     private var closed = false
     private val entries = mutableMapOf<UUID, Entry>()
     private val status = MutableStateFlow<Map<UUID, SshConnectionStatus>>(emptyMap())

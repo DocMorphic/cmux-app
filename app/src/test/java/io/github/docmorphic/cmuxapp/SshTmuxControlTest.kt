@@ -72,6 +72,28 @@ class SshTmuxControlTest {
         val failure = async { runCatching { other.command("no retry") } }; runCurrent()
         assertTrue(failure.await().isFailure); assertTrue(other.isClosed); assertTrue(broken.sent.isEmpty())
     }
+    @Test fun unrelatedWindowLayoutCannotEndANewWindowAwaitingItsFirstLayoutNotice() = runTest {
+        val pipe = Pipe(); val client = SshTmuxControl("test", pipe, backgroundScope)
+        val init = async { client.initialize() }; runCurrent(); pipe.reply(1, "@2 %7 80x24"); runCurrent(); init.await()
+        val events = mutableListOf<TmuxPaneEvent>(); client.attach(8, 3, events::add)
+        pipe.reply(2); pipe.reply(3, "0"); pipe.reply(4, "new window"); pipe.reply(5, "pane_width=80,pane_height=24"); pipe.reply(6); runCurrent()
+        pipe.feed("%layout-change @2 abcd,80x24,0,0,7 abcd,80x24,0,0,7 *\n"); runCurrent()
+        assertFalse(events.contains(TmuxPaneEvent.Ended))
+        pipe.feed("%output %8 still alive\n"); runCurrent()
+        assertEquals("still alive", (events.last() as TmuxPaneEvent.Output).bytes.toString(Charsets.UTF_8))
+        client.close()
+    }
+    @Test fun inventoryRequestedBeforeAnAttachmentCannotRetireItButAFreshInventoryCan() = runTest {
+        val pipe = Pipe(); val client = SshTmuxControl("test", pipe, backgroundScope)
+        val oldInventory = async { client.initialize() }; runCurrent()
+        val events = mutableListOf<TmuxPaneEvent>(); client.attach(8, 3, events::add); runCurrent()
+        pipe.reply(1, "@2 %7 80x24"); runCurrent(); oldInventory.await()
+        assertFalse(events.contains(TmuxPaneEvent.Ended))
+        pipe.reply(2); pipe.reply(3, "0"); pipe.reply(4, "new window"); pipe.reply(5, "pane_width=80,pane_height=24"); pipe.reply(6); runCurrent()
+        val freshInventory = async { client.initialize() }; runCurrent(); pipe.reply(7, "@2 %7 80x24"); runCurrent(); freshInventory.await()
+        assertEquals(1, events.count { it == TmuxPaneEvent.Ended })
+        client.close()
+    }
     @Test fun chunkedInputCannotContinueIntoReplacementAttachment() = runTest {
         val pipe = Pipe(); val client = SshTmuxControl("test", pipe, backgroundScope)
         client.attach(7, 2) {}; runCurrent()

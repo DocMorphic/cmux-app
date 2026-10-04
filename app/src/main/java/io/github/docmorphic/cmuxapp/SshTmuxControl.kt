@@ -86,6 +86,7 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
         return result.await()
     }
     suspend fun initialize() {
+        val attached = panes.toMap()
         val rows = command("list-panes -s -F '#{window_id} #{pane_id} #{pane_width}x#{pane_height}'")
         val next = mutableMapOf<Int, List<TmuxLeaf>>()
         for (row in rows) {
@@ -97,7 +98,10 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
             check(dimensions.size == 2 && dimensions.all { it in 1..65535 })
             next[window] = next[window].orEmpty() + TmuxLeaf(pane, dimensions[0], dimensions[1], 0, 0)
         }
-        layouts.clear(); layouts.putAll(next); updateGrids()
+        layouts.clear(); layouts.putAll(next)
+        // The reply can predate a newly created window/attachment. Only retire
+        // attachments which existed when this inventory was requested.
+        updateGrids(attached)
     }
     private fun refreshLayouts() {
         if (layoutRefresh?.isActive == true) { layoutRefreshAgain = true; return }
@@ -186,7 +190,8 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
                 val fields = message.arguments
                 when (message.kind) {
                     "%exit" -> { receivedExit = true; finish() }
-                    "%window-add", "%window-renamed", "%sessions-changed", "%session-renamed" -> changed()
+                    "%window-add" -> { refreshLayouts(); changed() }
+                    "%window-renamed", "%sessions-changed", "%session-renamed" -> changed()
                     // tmux also broadcasts this when another grouped session
                     // unlinks a window that our session still owns. Confirm
                     // membership before retiring its panes.
@@ -201,15 +206,19 @@ internal class SshTmuxControl(val groupedSession: String, private val pipe: SshT
                             }
                         }
                         val before = layouts[window].orEmpty().map { it.pane }.toSet()
-                        layouts[window] = leaves; updateGrids()
+                        layouts[window] = leaves
+                        // A layout notice says nothing about other windows. In particular,
+                        // their first layout event may not have arrived after new-window.
+                        updateGrids(panes.filterValues { it.window == window })
                         if (before != leaves.map { it.pane }.toSet()) changed()
                     }
                 }
             }
         }
     }
-    private fun updateGrids() {
-        for ((pane, entry) in panes.toMap()) {
+    private fun updateGrids(captured: Map<Int, Pane>) {
+        for ((pane, entry) in captured) {
+            if (panes[pane] !== entry) continue
             val geometry = leaf(pane, entry)
             if (geometry == null) { endPane(pane); continue }
             val next = geometry.columns to geometry.rows

@@ -24,7 +24,50 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — shared Mac/SSH feed (2026-10-04)
+## Latest checkpoint — SSH pane memory and connection races (2026-10-04)
+
+Reopening a main-feed SSH row now restores its last successfully displayed
+terminal or streamed-browser target. It uses the existing encrypted, bounded
+512-entry preference store, scoped to the login, SSH endpoint/key/jump route,
+and stable workspace identity. Rename and pause preserve preferences; owner
+replacement does not. cmux selections resolve against live resource identities
+and are recaptured after numeric renumbering. Missing or malformed choices fall
+back to the first listed live pane. Only an admitted, current host session can
+write a displayed selection. Scoped iOS reference: `MobileWorkspaceLastTabStore.swift`
+at `0fc35d6`; the global parity pin is unchanged.
+
+The first Android run exposed two additional defects. A new tmux pane was ended
+by an unrelated window's layout update. Then a fresh SSH handshake deadlocked:
+Main held the host-store monitor while publishing to the connection observer,
+and an IO transport guard held the connection monitor while waiting for the
+host store. The captured Android stack is retained. Connection checks now share
+the store monitor. tmux layout updates affect their own window; inventory replies
+can retire only attachments present when the inventory request began. New-window
+notices refresh layouts. Three deterministic regressions failed before these fixes.
+
+**39 JVM tests and seven Android checks passed** on the final source. Android
+completed in **141.589s** against the private real SSH/cmux-tui/tmux fixture on
+the existing API37/16KB AVD. Both second-pane reopen paths preserved terminal
+identity and accepted input after saved-screen restoration. Reconnect/pause,
+window/split creation, shared-feed navigation/search and encrypted storage checks
+also passed. Streamed-browser selection resolution has JVM coverage; no new
+physical browser acceptance is claimed. Source hashes matched and the final
+crash buffer was empty. Main/test APK build: **58s**. The initial failed/hung run
+was deliberately stopped and is not counted as a pass.
+Evidence: `captures/runtime/ssh-last-tabs/verification.json` and its adjacent logs.
+
+The fixture and sole AVD were stopped/reaped, including their owned processes.
+ADB has no Pixel attached; the phone and its sign-in were untouched. Signed
+build **546** remains the latest download. No signed build was dispatched.
+
+**Next:** restore independent on-device SSH browsers on row reopen/cold launch,
+handle remembered choices through incomplete discovery, add direct empty-workspace
+pane creation and pane metadata search. Compound filters/sort, wider-layout policy,
+broader upstream audit and physical Pixel/Mac browser/reconnect acceptance remain
+open. Push/notice configuration and legacy tickets remain tracked separately.
+The goal is active and PR #1 remains a draft.
+
+## Earlier checkpoint — shared Mac/SSH feed (2026-10-04)
 
 Existing cmux-tui workspaces, tmux sessions and live phone shells now appear in
 All Computers with the same row presentation as Macs. SSH preview text names

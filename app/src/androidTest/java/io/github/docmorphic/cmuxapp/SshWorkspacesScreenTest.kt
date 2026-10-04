@@ -183,6 +183,37 @@ class SshWorkspacesScreenTest {
         compose.onNodeWithTag("computers.pairing.help").assertIsDisplayed()
     }
 
+    @Test fun mainFeedReopensLastSelectedCmuxAndTmuxPanesAfterSavedRestoration() = withMainFeed { peer, restoration ->
+        selectSshFeed()
+        for ((title, action, kind) in listOf(Triple("Desktop cmux", "New Screen", SshWorkspaceKind.CMUX_TUI),
+            Triple("desktop-tmux", "New Window", SshWorkspaceKind.TMUX))) {
+            compose.onNodeWithText(title).performClick(); ready()
+            val first = terminalIdentity()
+            compose.onNodeWithTag("ssh.shell.menu").performClick()
+            selectNewTerminal { compose.onNodeWithText(action).performScrollTo().performClick() }
+            val second = checkNotNull(terminalIdentity())
+            assertNotEquals(first, second)
+            val marker = "Remembered second $kind pane"
+            send(marker)
+            compose.onNodeWithText("Back").performClick()
+            val store = NativeCredentialStore(compose.activity)
+            val login = checkNotNull(store.taskSession())
+            val row = feedRow(kind)
+            val saved = store.lastWorkspaceTab(login, sshWorkspaceTabKey(login, row.host, row.targets.first()))
+            assertNotNull(saved)
+            assertNotEquals(row.targets.first(), row.reopenTarget(saved))
+            restoration.emulateSavedInstanceStateRestore()
+            compose.onNodeWithText(title).performClick(); ready()
+            assertEquals(second, terminalIdentity()); waitText(marker)
+            restoration.emulateSavedInstanceStateRestore(); ready()
+            assertEquals(second, terminalIdentity()); send("Restored $kind selection")
+            compose.onNodeWithText("Back").performClick()
+        }
+        assertEquals(2, workspace().screens.size)
+        assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.create", "workspace.close", "mobile.terminal.replay") })
+        capture("ssh-last-selected-panes")
+    }
+
     @Test fun mainFeedClosePreservesConfirmationSnapshotAndTargetsOnlyTheSshWorkspace() = withMainFeed { peer, _ ->
         selectSshFeed(); openFeedClose(SshWorkspaceKind.CMUX_TUI)
         compose.onNodeWithText("Cancel").performClick()
