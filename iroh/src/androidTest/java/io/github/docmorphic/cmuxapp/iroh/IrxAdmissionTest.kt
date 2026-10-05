@@ -13,6 +13,30 @@ import java.nio.ByteBuffer
 class IrxAdmissionTest {
     @Before fun initialize() = IrohRuntime.initialize(InstrumentationRegistry.getInstrumentation().targetContext)
 
+    /** Real QUIC/admission using the production automatic target policy. Endpoint
+     * binding is a local fixture; this does not claim authenticated relay readiness.
+     */
+    @Test fun automaticTargetWithoutRelayHintAdmitsAndExchangesBytes() = runBlocking {
+        fixture(automaticTarget = true, server = { connection ->
+            IrxDuplexLane(connection.acceptBi()).use { lane ->
+                assertEquals("control", lane.readFrame()?.getString("lane"))
+                assertEquals(IrxWire.ALPN, lane.readFrame()?.getString("proto"))
+                lane.writeFrame(JSONObject().put("v", 1).put("session", "optional-relay-fixture")
+                    .put("keepaliveIntervalMs", 5000).put("keepaliveDeadlineMs", 2000))
+                assertEquals("ping", readRaw(lane, 4).decodeToString())
+                lane.write("pong".toByteArray())
+            }
+        }) { connection, expected ->
+            IrxClientSession.admit(connection, expected).use { session ->
+                session.authorizeDirectPaths()
+                session.control.write("ping".toByteArray())
+                assertEquals("pong", readRaw(session.control, 4).decodeToString())
+                assertEquals("optional-relay-fixture", session.admission.session)
+                assertEquals(IrxConnectionDiagnostics.Route.PRIVATE_NETWORK, session.diagnostics().route)
+            }
+        }
+    }
+
     @Test fun admitsAndPreservesRawBytesAfterFragmentedControlFrame() = runBlocking {
         fixture(server = { connection ->
             connection.acceptBi().use { stream ->
@@ -292,7 +316,7 @@ class IrxAdmissionTest {
         return result
     }
 
-    private suspend fun fixture(server: suspend (Connection) -> Unit,
+    private suspend fun fixture(automaticTarget: Boolean = false, server: suspend (Connection) -> Unit,
                                 client: suspend (Connection, ByteArray) -> Unit) = withTimeout(15_000) {
         val hostOptions = EndpointOptions(preset = presetMinimal(), bindAddr = "127.0.0.1:0",
             alpns = listOf(IrxWire.ALPN.toByteArray()), portMappingEnabled = false,
@@ -310,10 +334,17 @@ class IrxAdmissionTest {
                         } }
                     }
                     try {
-                        host.id().use { id -> EndpointAddr(id, null, host.boundSockets()).use { address ->
-                            // Ownership of this native connection transfers to IrxClientSession.admit.
-                            client(phone.connect(address, IrxWire.ALPN.toByteArray()), id.toBytes())
-                        } }
+                        host.id().use { id ->
+                            val expected = id.toBytes()
+                            val target = if (automaticTarget) IrxDialTarget.create(IrxEndpointPathMode.AUTOMATIC,
+                                expected.joinToString("") { "%02x".format(it) }, null, host.boundSockets()) else null
+                            EndpointId.fromBytes(target?.peerBytes ?: expected).use { targetId ->
+                                EndpointAddr(targetId, target?.relayUrl, target?.directAddresses ?: host.boundSockets()).use { address ->
+                                    // Ownership transfers to IrxClientSession.admit.
+                                    client(phone.connect(address, IrxWire.ALPN.toByteArray()), expected)
+                                }
+                            }
+                        }
                     } finally { clientFinished.complete(Unit) }
                     peer.await()
                 }

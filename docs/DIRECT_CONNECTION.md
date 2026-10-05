@@ -2,6 +2,53 @@
 
 Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 
+## Optional remote relay hint (2026-10-05)
+
+The scoped upstream audit at `186cec79781256867ad4516f0802118738bd2393`
+confirmed that `MobileIrxRuntimeComposition+Dial.swift` passes an optional remote
+relay hint. `Packages/Shared/CmuxIrxTransport/Sources/CmuxIrxTransport/IrxEndpoint.swift`
+then forwards that optional value and private addresses to native `EndpointAddr`.
+Its automatic endpoint still requires usable local relay credentials before
+binding. Missing remote metadata and missing local credentials are different
+conditions. Source copies and hashes: `captures/runtime/transport-route-audit/`.
+
+Android now preserves that distinction. `NativeIrohBackend` no longer rejects an
+otherwise eligible Mac just because both Mac and directory relay hints are absent.
+`IrxDialTarget` allows a null automatic hint and retains enabled private candidates;
+identity-only targets reach native dialing without an invented relay. Supplied
+hints retain HTTPS validation, exact peer identity validation remains, and Direct
+strips relay hints and still requires explicit candidates. Mode-specific limits
+remain eight automatic hints / sixteen Direct candidates. Candidate lists are
+snapshotted before dialing. Binding credentials, account fences, peer admission,
+timeouts and post-admission NAT authorization remain in the existing runtime.
+
+**39 JVM tests passed**, zero failures/errors/skips: eight new dial-target cases,
+21 runtime cases, eight connection-setting cases and two native transport cases.
+CI's existing batched APK job now runs `:iroh:testDebugUnitTest` too. Debug app,
+app instrumentation and Iroh instrumentation APKs built successfully.
+
+**25 Android checks passed** on the sole API37 arm64 / 16 KB AVD:
+
+- Nineteen native admission/Direct/status cases, **6.550 seconds**, including a new
+  real local QUIC admission and duplex exchange using the production automatic
+  target policy with no remote relay hint. Endpoint binding in this new case is
+  a local fixture; it does not prove production relay readiness. Existing checks
+  verify that automatic binding rejects absent/expired credentials and that
+  Direct strips relays, admits peers and handles retirement/cancellation.
+- Six app cases, **38.470 seconds**: the five ticket chooser/rotation/state/
+  Keystore cases and the production Direct-backend fixture. The revised route
+  chooser passed native-default, explicit Tailscale and explicit native selection.
+  Both chooser screenshots were inspected; no compatibility or ANR overlay.
+
+Crash buffer empty; display/sleep settings unchanged; emulator stopped/reaped.
+No new AVD was created. Logs, source/APK hashes and receipts are retained in
+`captures/runtime/optional-relay/`. Debug APK SHA-256:
+`bf13d1a9a00b1499864d1d4869d7885e8fd5d475aa518b9e423eedd2126a2e12`.
+This debug batch includes the token-recovery and route-ordering source. It does
+not establish real account token rejection/recovery, automatic production relay
+binding or physical Pixel/Mac acceptance. Signed **596** remains the latest
+verified download and excludes this batch. Full parity remains open.
+
 ## Active iOS contract
 
 `MacComputerDetailView.connectionMethodSection` presents Iroh, Tailscale Only

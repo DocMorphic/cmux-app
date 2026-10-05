@@ -26,7 +26,22 @@ recovery source `d8edb8b` is committed/pushed and passed 109 focused JVM checks;
 it is not in 596 and has no Android runtime acceptance yet. Start with
 [REMAINING_WORK.md](REMAINING_WORK.md) for the current completion gates.
 
-## Latest source checkpoint — pairing route order (2026-10-05)
+## Latest source checkpoint — optional relay hint and Android batch (2026-10-05)
+
+Confirmed against the pinned iOS endpoint supervisor: a remote relay hint is
+optional even in Automatic; local binding credentials remain required. Android
+now permits the missing hint while retaining identity, account, admission and
+Direct-mode constraints. **39 JVM and 25 Android checks passed**, including real
+local QUIC, Direct-backend and the updated ticket chooser. Screenshots inspected;
+settings unchanged; sole emulator stopped/reaped. See
+[DIRECT_CONNECTION.md](DIRECT_CONNECTION.md#optional-remote-relay-hint-2026-10-05)
+for exact scope, timings and debug APK hash. Signed **596** remains the verified
+download; these newer changes are not in it. The Pixel was absent during the
+batch; one USB/unlock request is pending for physical acceptance. Continue
+independent entry-source route policy/content lifecycle work while awaiting it.
+Goal active; global parity pins unchanged.
+
+## Earlier source checkpoint — pairing route order (2026-10-05)
 
 Legacy ticket choices now follow iOS priority/ID order, including canonical Unicode
 ID comparison and stable ties, before filtering/deduplication. Confirmation and

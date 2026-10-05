@@ -204,7 +204,7 @@ jobs:
           ./gradlew --no-daemon --no-parallel --max-workers=1
           -Pkotlin.compiler.execution.strategy=in-process
           '-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'
-          :ghostty:testDebugUnitTest :app:testDebugUnitTest
+          :ghostty:testDebugUnitTest :iroh:testDebugUnitTest :app:testDebugUnitTest
           :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --stacktrace
       - name: Verify signed APK contents and all native alignment
         run: |

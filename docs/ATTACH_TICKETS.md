@@ -1,10 +1,12 @@
 # Attach-ticket compatibility audit
 
-**Delivery:** build **589** (`cba6c6e`) now contains ticket policy, decoding,
-storage/input and initial manual legacy Tailscale acquisition. Its packaging,
-ART and signed-out upgrade/reboot checks passed; see [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
-The native RPC auth, shared Tailscale and saved-ticket handshake checkpoints below
-are newer source and are not yet in that APK. Physical acceptance remains open.
+**Delivery:** signed **596** includes native RPC auth, shared/saved Tailscale
+admission and Mac-wide ticket gates. Token recovery, route ordering and optional
+relay changes are newer source. The route chooser now has passing Android
+acceptance in the optional-relay batch; see
+[DIRECT_CONNECTION.md](DIRECT_CONNECTION.md#optional-remote-relay-hint-2026-10-05).
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) is authoritative for signed downloads.
+Physical acceptance remains open.
 
 ## Pairing route order (2026-10-05)
 
@@ -47,7 +49,9 @@ can authorize exact Tailscale coordinates, while external URL receipt cannot.
 A complete comparison of those entry flows remains open; this checkpoint does
 not claim that all iOS route eligibility/default-selection behavior is matched.
 
-A separate inspected difference needs resolution: upstream
+The following relay difference was subsequently fixed and verified with the
+scope described in [DIRECT_CONNECTION.md](DIRECT_CONNECTION.md#optional-remote-relay-hint-2026-10-05).
+The original finding was: upstream
 `ios/cmuxPackage/Sources/cmuxFeature/MobileIrxRuntimeComposition+Dial.swift`
 passes `record.relayURLs.first ?? directory.relayURLs.first` as an optional hint.
 Android `NativeIrohBackend` throws if both are absent and `IrxEndpointRuntime.dial`

@@ -125,8 +125,7 @@ internal class NativeIrohBackend(
                 }
             }
             requireCurrent()
-            val relay = if (directOnly) null else (mac.relayUrls.firstOrNull() ?: state.value.directoryRelays.firstOrNull()
-                ?: error("This Mac has no relay address yet"))
+            val relay = if (directOnly) null else (mac.relayUrls.firstOrNull() ?: state.value.directoryRelays.firstOrNull())
             val direct = if (directOnly) intent.addresses else privatePaths.addresses(mac)
             check(allowed()) { "Computer connection settings changed" }
             live.dial(mac.endpointId, relay, allowed, direct)
