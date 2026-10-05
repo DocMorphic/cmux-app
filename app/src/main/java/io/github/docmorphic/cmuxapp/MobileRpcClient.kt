@@ -34,7 +34,7 @@ internal class MobileRpcOutcomeUnknown : java.io.IOException("The connection rec
 
 /**
  * The control channel of cmux's mobile RPC protocol. The caller must supply a
- * legacy route or admitted native transport and a current same-account Stack token.
+ * legacy route with same-account Stack auth, or an already-admitted native transport.
  * Control requests are never replayed here after a timeout. Optional input delivery
  * identities are interpreted by the session sender.
  */
@@ -209,7 +209,8 @@ class MobileRpcClient internal constructor(
         val id = UUID.randomUUID().toString()
         val parameters = MobileJson.objectValue(params.toString())
         val body = JSONObject().put("id", id).put("method", method).put("params", parameters)
-        val token = if (method == "mobile.host.status") {
+        val token = if (transport.rpcAuthorization == MobileRpcAuthorization.TRANSPORT_ADMISSION) null
+        else if (method == "mobile.host.status") {
             try { accessToken()?.trim() }
             catch (error: Exception) { if (error is CancellationException) throw error; null }
         } else {

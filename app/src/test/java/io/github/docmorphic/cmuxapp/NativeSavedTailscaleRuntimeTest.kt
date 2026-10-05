@@ -12,6 +12,40 @@ import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
 class NativeSavedTailscaleRuntimeTest {
+    @Test fun preferenceChangeWhileDiscoveryWaitsStillUsesSavedTicketAdmission() = runBlocking<Unit> {
+        Fixture(manualTickets = true).use { f ->
+            f.settings.update(f.target, { true }) { it.copy(method = NativeMacConnectionMethod.IROH) }
+            val resolved = CompletableDeferred<Unit>(); f.resolveHook = { resolved.complete(Unit) }
+            val release = CompletableDeferred<Unit>(); var backendDials = 0
+            val mac = IrohV2Computer("record", "unused-iroh-peer", "mac", "default", "Mac", emptyList())
+            val backend = object : IrohAccountBackend {
+                override val state = MutableStateFlow(IrohV2ControlState(ready = true, computers = listOf(mac), permissionExpiresAt = 2000))
+                override val connectionSettings = f.settings
+                override val routeRevisions = f.revisions
+                override fun dialIntent(mac: IrohV2Computer) = f.settings.state.value.intent(mac).let {
+                    if (it.method == NativeMacConnectionMethod.TAILSCALE) it.copy(tailscale = f.grants.value) else it
+                }
+                override suspend fun start() { release.await() }
+                override suspend fun refresh() {}
+                override fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport {
+                    backendDials++; error("Must use saved Tailscale admission")
+                }
+                override fun close() { release.cancel() }
+            }
+            NativeIrohRuntime(f.teams, { f.teams.value.scope == it }, { "unused" }, { _, _ -> backend },
+                now = { 1000 }, savedTailscale = f.local).use { runtime ->
+                val pending = async { runtime.connect(f.pairing()) }
+                withTimeout(2000) { resolved.await() }
+                assertFalse(pending.isCompleted)
+                f.settings.update(f.target, { true }) { it.copy(method = NativeMacConnectionMethod.TAILSCALE) }
+                release.complete(Unit)
+                withTimeout(2000) { pending.await() }.use { it.workspaces() }
+                assertEquals(0, backendDials)
+                assertEquals(1, f.wires.size)
+                assertTrue("mobile.attach_ticket.create" in f.wires.single().methods)
+            }
+        }
+    }
     @Test fun manualTicketIsSharedByAdmittedLeasesAndReacquiredAfterLastClose() = runBlocking<Unit> {
         Fixture(manualTickets = true).use { f ->
             val first = checkNotNull(f.local.connectIfSelected(f.pairing()))
@@ -78,6 +112,7 @@ class NativeSavedTailscaleRuntimeTest {
         var malformedTicket = false
         var ticketHook: () -> Unit = {}
         var expectedTicket: String? = if (manualTickets) "saved-ticket" else null
+        var resolveHook: () -> Unit = {}
         val compatibility = NativeMacCompatibilityGate({ teams.value.scope == it })
         val local: NativeSavedTailscaleRuntime
         init {
@@ -92,6 +127,9 @@ class NativeSavedTailscaleRuntimeTest {
                 } }, { selected, allowed ->
                     transportFailure?.let { throw it }
                     Wire(selected.first(), allowed, this).also { wires += it }
+                }, resolve = { pairing ->
+                    resolveHook()
+                    pairing.macDeviceId?.let { device -> pairing.buildTag?.let { build -> NativeComputerTarget(device, build, "Mac") } }
                 })
             }
         }

@@ -105,6 +105,8 @@ internal class IrxMobileRpcTransport(
     private val permits: () -> Boolean,
     private val applicationActive: StateFlow<IrxProbeActivity> = MutableStateFlow(IrxProbeActivity(true))
 ) : MobileRpcTransport {
+    // establish returns only IrxClientSession.admit's authenticated, peer-verified session.
+    override val rpcAuthorization = MobileRpcAuthorization.TRANSPORT_ADMISSION
     private val lock = Any()
     private val connecting = Mutex()
     private var session: IrxClientSession? = null

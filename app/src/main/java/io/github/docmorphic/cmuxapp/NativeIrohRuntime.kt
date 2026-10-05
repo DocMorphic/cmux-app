@@ -286,6 +286,12 @@ internal class NativeIrohRuntime(
         require(pairing.buildTag == null || pairing.buildTag == mac.buildTag) { "Mac build changed" }
         val intent = dialIntent(run, mac)
         check(intent.dialable) { "This connection method needs an address. Open Computer Details to add one." }
+        if (intent.method == NativeMacConnectionMethod.TAILSCALE && savedTailscale != null) {
+            // Preferences may change while discovery is pending after the first saved-route check.
+            return checkNotNull(savedTailscale.connectIfSelected(run.account, NativeComputerTarget.from(mac))) {
+                "Connection settings changed. Reconnect to this Mac."
+            }
+        }
         val permits = { authorized(run, mac, intent) }
         return run.connections.acquire(connectionKey(mac, intent), permits,
             validate = { client ->

@@ -9,8 +9,11 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import javax.net.SocketFactory
 
+internal enum class MobileRpcAuthorization { ACCOUNT_BEARER, TRANSPORT_ADMISSION }
+
 /** One connection incarnation. Independent events are complete, unframed JSON payloads. */
 internal interface MobileRpcTransport : AutoCloseable {
+    val rpcAuthorization: MobileRpcAuthorization get() = MobileRpcAuthorization.ACCOUNT_BEARER
     /** Available only on an admitted, connected numeric Tailscale candidate. */
     fun tailscalePeer(): PairingCode.Route? = null
     fun diagnostics(): MobileTransportDiagnostics? = null

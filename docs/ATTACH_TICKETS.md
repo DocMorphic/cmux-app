@@ -1,5 +1,45 @@
 # Attach-ticket compatibility audit
 
+## native RPC auth and routing race (2026-10-05)
+
+Android now models RPC authorization as a transport property. Only
+`IrxMobileRpcTransport` declares transport admission: its session factory returns
+`IrxClientSession` only after peer identity/ALPN/host admission succeeds. Its RPC
+frames omit the entire `auth` object and never request a Stack token, including
+status, ticket-scoped leases and future verbs. Default TCP/Tailscale transports
+retain account auth and applicable ticket context. Host capability strings cannot
+change this local transport classification. Native write/repair admission guards
+remain in place; auth omission does not bypass transport retirement.
+
+Reviewed `MobileCoreRPCClient.swift` at upstream
+`186cec79781256867ad4516f0802118738bd2393`: Iroh selects `transportAdmission`, and
+`requestDataWithAuth` removes `auth` before requesting either credential. The
+Android endpoint/session admission and native write guards were inspected too.
+Exact reference hashes and selected source copies are in the evidence directory.
+Saved native tickets retain selection/lifecycle context; their tokens do not need
+to participate in native initial admission under this protocol.
+
+A preference change while directory discovery waits now re-enters the dedicated
+saved-Tailscale runtime. It cannot fall through the native backend's older TCP
+path and bypass manual-ticket acquisition. A regression changes Iroh to Tailscale
+during the wait and verifies ticket acquisition with no backend dial.
+
+**115 focused JVM checks passed**, no failures/errors/skips: six authorization,
+21 saved-Tailscale, 21 native runtime, 37 pairing authority, 13 pool, eight ticket
+RPC and nine control-repair cases. The initial revocation fixture failed because
+Kotlin delegation bypassed its overridden `write` via `writeWithGeneration`; the
+fixture now guards both, as the inspected production transport does. Original
+failure XML/log and final passing evidence are retained in
+`captures/runtime/native-rpc-auth/`. The first repair-suite wildcard matched no
+class; the final run explicitly included `MobileControlRepairTest`.
+
+No Android runtime or physical native acceptance is claimed for this change.
+Batch 589 still builds source `cba6c6e`, before this checkpoint; poll its existing
+run instead of starting another. Signed 581 remains the verified delivery until
+589 completes and is checked. Next: legacy mutation gates, physical native pairing
+and recovery, production push/notice configuration and UI/accessibility acceptance.
+Goal active; global parity pins unchanged.
+
 ## saved-ticket initial Tailscale handshake (2026-10-05)
 
 Saved encrypted context is now loaded and validated before connection dispatch.
