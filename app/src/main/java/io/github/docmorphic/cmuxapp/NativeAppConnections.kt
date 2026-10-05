@@ -69,17 +69,11 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             val team = checkNotNull(teams.state.value.scope) { "Refresh your account teams before connecting." }
             check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden, changed, or belongs to another account or team." }
             val pairing = PairingCodeParser.parse(mac.code).getOrThrow()
-            val client = when (pairing) {
-                is PairingCode.Tailscale -> tailscale.connectSaved(pairing, account, team)
-                is PairingCode.Iroh -> native.connect(pairing.copy(userId = team.userId, teamId = team.teamId))
-            }
-            try {
-                check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden or its account changed. Open Computers to reconnect." }
-                if (mac.ticketRevision == null) return client
+            val ticket = if (mac.ticketRevision == null) null else {
                 val context = checkNotNull(store.attachTicket(team, mac))
                 val admissionLock = Any()
                 var checkedRevision = Long.MIN_VALUE
-                return client.withAttachTicket(context) {
+                NativeSavedTicketAdmission(mac, context) {
                     check(teams.isCurrent(team)) { "Account or team changed" }
                     synchronized(admissionLock) {
                         val revision = store.revisions.value
@@ -91,6 +85,17 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
                         }
                     }
                 }
+            }
+            ticket?.requireCurrent()
+            val client = when (pairing) {
+                is PairingCode.Tailscale -> tailscale.connectSaved(pairing, account, team, ticket)
+                is PairingCode.Iroh -> native.connect(pairing.copy(userId = team.userId, teamId = team.teamId))
+            }
+            try {
+                check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden or its account changed. Open Computers to reconnect." }
+                ticket?.requireCurrent()
+                if (ticket == null || pairing is PairingCode.Tailscale) return client
+                return client.withAttachTicket(ticket.context, ticket::requireCurrent)
             } catch (failure: Throwable) { client.close(); throw failure }
         }
         override fun allowsSaved(mac: NativeCredentialStore.PairedMac): Boolean {

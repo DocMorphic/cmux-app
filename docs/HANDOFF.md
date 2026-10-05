@@ -24,7 +24,38 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — shared Tailscale ticket admission (2026-10-05)
+## Latest checkpoint — saved-ticket initial Tailscale handshake (2026-10-05)
+
+Saved encrypted context is now loaded and validated before connection dispatch.
+A captured admission binds the context to its saved public route, account/team,
+ticket revision and host/build. The Tailscale authority checks that binding before
+dialing, verifies the host against both the grant and saved record, and uses the
+context on its first protected workspace request. It does not replace a saved
+selection with a newly acquired manual Mac ticket. Expired context retains the
+selection while the token policy falls back to account auth.
+
+Saved-record admission also participates in the transport/token/frame guards and
+periodic retirement, so forgetting/replacing a ticket can close a pending or live
+connection. Keystore context checks remain cached by credential-store revision.
+Native Iroh saved records now fail early when context is missing or stale, but
+still apply it after existing native admission; native transport-auth semantics
+remain a separate open review.
+
+**100 focused JVM checks passed**, zero failures/errors/skips: 37 Tailscale
+authority, 20 shared saved-Tailscale, 13 ticket store, 22 pairing persistence and
+eight RPC context checks. Six new authority cases cover first-request auth,
+expiry, pre-dial binding/retirement, host/build mismatch, retirement during token
+lookup, and retirement after connection. Evidence:
+`captures/runtime/saved-ticket-handshake/`. No Android runtime/physical acceptance
+is claimed and no emulator was started.
+
+Signed batch 589 remains tied to `cba6c6e`, before this and the shared-ticket
+checkpoint; poll <https://github.com/DocMorphic/cmux-app/actions/runs/37253661827>
+without starting another build. Signed 581 is the latest verified delivery.
+Next: native transport-auth review, the preference-change routing race, legacy
+mutation gates, physical recovery and UI/accessibility/push acceptance. Goal active.
+
+## Earlier checkpoint — shared Tailscale ticket admission (2026-10-05)
 
 Computer Details' Add/Edit Tailscale probe now invokes the same manual ticket
 request with the current account profile. The native-directory saved-Tailscale

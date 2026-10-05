@@ -49,11 +49,13 @@ internal class TailscaleConnector(context: Context, store: NativeCredentialStore
     override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = connectOwned(pairing, account, null)
     suspend fun connectTicket(pairing: PairingCode.Tailscale, ticket: MobileAttachTicket, account: NativeAccount, team: NativeTeamScope) =
         connectOwned(pairing, account, team, ticket)
-    suspend fun connectSaved(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope) = connectOwned(pairing, account, team)
-    private suspend fun connectOwned(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope?, ticket: MobileAttachTicket? = null): MobileRpcClient {
+    suspend fun connectSaved(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope,
+        savedTicket: NativeSavedTicketAdmission? = null) = connectOwned(pairing, account, team, savedTicket = savedTicket)
+    private suspend fun connectOwned(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope?,
+        ticket: MobileAttachTicket? = null, savedTicket: NativeSavedTicketAdmission? = null): MobileRpcClient {
         var acquired: MobileRpcClient? = null
         return try {
-            withContext(Dispatchers.IO) { authority.connect(pairing, team, ticket, account::accessToken).also { acquired = it } }
+            withContext(Dispatchers.IO) { authority.connect(pairing, team, ticket, savedTicket, account::accessToken).also { acquired = it } }
         } catch (failure: Throwable) {
             // Cancellation can reject the dispatcher return after the socket was acquired.
             acquired?.close(); throw failure

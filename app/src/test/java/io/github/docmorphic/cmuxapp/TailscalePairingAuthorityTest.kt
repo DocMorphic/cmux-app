@@ -25,6 +25,9 @@ class TailscalePairingAuthorityTest {
         var workspaceHook: () -> Unit = {}
         var expected: NativeCredentialStore.PairedMac? = null
         var ticket: MobileAttachTicket? = null
+        var savedTicket: NativeSavedTicketAdmission? = null
+        var savedCurrent = true
+        var savedBearer: String? = "saved-fixture"
         var manual = false
         var manualError: String? = null
         var malformedManual = false
@@ -46,7 +49,7 @@ class TailscalePairingAuthorityTest {
             }, manualTicket = { client, route, host, owner ->
                 if (manual) ManualAttachTicketRequest.request(client, route, host, owner, null) else null
             })
-        suspend fun connect() = authority.connect(pairing, attachTicket = ticket) { tokenCalls++; tokenHook(); "fixture-access" }
+        suspend fun connect() = authority.connect(pairing, attachTicket = ticket, savedTicket = savedTicket) { tokenCalls++; tokenHook(); "fixture-access" }
         fun authorize() = authority.authorize(pairing)
         fun grant() = grants.find(checkNotNull(scope), TailscaleGrantStore.source(pairing))
         fun switch(next: NativeTeamScope?) {
@@ -97,8 +100,12 @@ class TailscalePairingAuthorityTest {
                         .put("mac_instance_tag", fixture.build).put("mac_app_version", fixture.version))
                 }
                 "mobile.workspace.list" -> {
+                    if (fixture.savedTicket != null) {
+                        if (fixture.savedBearer == null) assertFalse(request.getJSONObject("auth").has("attach_token"))
+                        else assertEquals(fixture.savedBearer, request.getJSONObject("auth").getString("attach_token"))
+                    }
                     fixture.ticket?.let { assertEquals("synthetic-ticket", request.getJSONObject("auth").getString("attach_token")) }
-                    if (fixture.manual && fixture.ticket == null) {
+                    if (fixture.manual && fixture.ticket == null && fixture.savedTicket == null) {
                         if (fixture.manualError == null) assertEquals("manual-fixture", request.getJSONObject("auth").getString("attach_token"))
                         else assertFalse(request.getJSONObject("auth").has("attach_token"))
                     }
@@ -118,6 +125,85 @@ class TailscalePairingAuthorityTest {
         """{"version":1,"workspaceID":"work","terminalID":"term","macDeviceID":"$device","macUserID":"user",
             "auth_token":"synthetic-ticket","routes":[{"id":"ts","kind":"tailscale",
             "endpoint":{"type":"host_port","host":"$host","port":58465}}]}""").getOrThrow()
+
+    private suspend fun savedFixture(expiry: Long? = null, change: (NativeCredentialStore.PairedMac) -> NativeCredentialStore.PairedMac = { it }): Fixture {
+        val f = Fixture(); f.authorize(); f.connect().close(); f.tokenCalls = 0
+        val row = NativeCredentialStore.PairedMac("cmux-ios://attach?v=2&r=mac.tail.ts.net%3A58465&ub=user", "mac", "Mac", "default",
+            accountUserId = "user", accountTeamId = "team", ticketRevision = "captured-revision")
+        f.savedTicket = NativeSavedTicketAdmission(change(row), MobileAttachTicketContext("work", "term", "saved-fixture", expiry)) {
+            check(f.savedCurrent) { "Saved ticket retired" }
+        }
+        f.manual = true
+        return f
+    }
+
+    @Test fun savedTicketAuthenticatesFirstWorkspaceRequestWithoutRequestingReplacementTicket() = runBlocking<Unit> {
+        val f = savedFixture()
+        try {
+            f.connect().use { client -> client.workspaces() }
+            assertEquals(listOf("mobile.host.status", "mobile.workspace.list", "mobile.workspace.list"), f.transports.last().methods)
+            assertEquals(1, f.resolves)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun expiredSavedTicketUsesAccountFallbackWithoutAcquiringWiderContext() = runBlocking<Unit> {
+        val f = savedFixture(expiry = 0); f.savedBearer = null
+        try {
+            f.connect().close()
+            assertEquals(listOf("mobile.host.status", "mobile.workspace.list"), f.transports.last().methods)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun savedTicketBindingAndRetirementFailBeforeDialOrTokenLookup() = runBlocking<Unit> {
+        val changes: List<(NativeCredentialStore.PairedMac) -> NativeCredentialStore.PairedMac> = listOf(
+            { it.copy(code = "cmux-ios://attach?v=2&r=100.99.1.8:58465") },
+            { it.copy(accountUserId = "other") }, { it.copy(accountTeamId = "other") }, { it.copy(ticketRevision = null) })
+        for (change in changes) {
+            val f = savedFixture(change = change)
+            try {
+                assertTrue(runCatching { f.connect() }.isFailure)
+                assertEquals(1, f.transports.size); assertEquals(0, f.tokenCalls)
+            } finally { f.authority.close() }
+        }
+        val f = savedFixture(); f.savedCurrent = false
+        try {
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(1, f.transports.size); assertEquals(0, f.tokenCalls)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun savedTicketIdentityCannotOverrideAuthenticatedGrantIdentity() = runBlocking<Unit> {
+        for (change in listOf<(NativeCredentialStore.PairedMac) -> NativeCredentialStore.PairedMac>(
+            { it.copy(deviceId = "other") }, { it.copy(instanceTag = "nightly") })) {
+            val f = savedFixture(change = change)
+            try {
+                assertTrue(runCatching { f.connect() }.isFailure)
+                assertEquals(listOf("mobile.host.status"), f.transports.last().methods)
+                assertTrue(f.transports.last().closed)
+            } finally { f.authority.close() }
+        }
+    }
+
+    @Test fun savedTicketRetiredDuringTokenLookupCannotWriteProtectedFrame() = runBlocking<Unit> {
+        val f = savedFixture(); f.tokenHook = { if (f.tokenCalls == 2) f.savedCurrent = false }
+        try {
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(listOf("mobile.host.status"), f.transports.last().methods)
+            assertTrue(f.transports.last().closed)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun savedTicketRetirementClosesAnAlreadyAdmittedConnection() = runBlocking<Unit> {
+        val f = savedFixture()
+        try {
+            f.connect().use { client ->
+                f.savedCurrent = false; f.authority.retireInvalid()
+                assertTrue(client.isClosed); assertTrue(f.transports.last().closed)
+                assertTrue(runCatching { client.workspaces() }.isFailure)
+                assertEquals(listOf("mobile.host.status", "mobile.workspace.list"), f.transports.last().methods)
+            }
+        } finally { f.authority.close() }
+    }
 
     @Test fun manualTicketAcquiredBeforeWorkspaceAdmissionAndReacquiredOnPinnedReconnect() = runBlocking<Unit> {
         val f = Fixture(); f.manual = true; f.authorize()

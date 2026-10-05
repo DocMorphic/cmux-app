@@ -170,10 +170,13 @@ internal class TailscalePairingAuthority(
     }
 
     suspend fun connect(pairing: PairingCode.Tailscale, expectedScope: NativeTeamScope? = null,
-                        attachTicket: MobileAttachTicket? = null, token: suspend () -> String?): MobileRpcClient {
+                        attachTicket: MobileAttachTicket? = null, savedTicket: NativeSavedTicketAdmission? = null,
+                        token: suspend () -> String?): MobileRpcClient {
         val owner = owner(pairing)
         check(expectedScope == null || expectedScope == owner) { "Account or team changed. Reconnect to the Mac." }
         require(attachTicket == null || NativeTicketPairingRoutes.covers(attachTicket, pairing)) { "Ticket does not cover this route" }
+        require(attachTicket == null || savedTicket == null) { "Ambiguous ticket context" }
+        savedTicket?.requireBinding(pairing, owner)
         val source = TailscaleGrantStore.source(pairing)
         val consent = synchronized(lock) { check(!closed); consents[source]?.takeIf { it.scope == owner } }
         val saved = grants.find(owner, source)
@@ -181,6 +184,7 @@ internal class TailscalePairingAuthority(
         val capturedExpected = expected(pairing)
         val promoted = AtomicReference<TailscaleSavedGrant?>(if (consent == null) saved else null)
         fun allowed(): Boolean = runCatching {
+            savedTicket?.requireCurrent()
             permits(owner) && synchronized(lock) { !closed } &&
                 (promoted.get()?.let { grants.find(owner, source) == it }
                     ?: synchronized(lock) { consents[source] == consent })
@@ -221,12 +225,13 @@ internal class TailscalePairingAuthority(
                 capturedExpected?.requireMatchingHost(status)
                 saved?.let { check(it.matches(status)) { "This route reaches a different Mac or cmux installation. Pair the intended Mac again." } }
                 attachTicket?.requireHost(status)
-                val sessionTicket = attachTicket ?: run {
+                savedTicket?.mac?.requireMatchingHost(status)
+                val sessionContext = savedTicket?.context ?: attachTicket?.context() ?: run {
                     requestingManualTicket = true
-                    manualTicket(base, route, status, owner).also { requestingManualTicket = false }
+                    manualTicket(base, route, status, owner)?.context().also { requestingManualTicket = false }
                 }
                 requireAllowed()
-                val client = if (sessionTicket == null) base else base.withAttachTicket(sessionTicket.context(), ::requireAllowed)
+                val client = if (sessionContext == null) base else base.withAttachTicket(sessionContext, ::requireAllowed)
                 candidate = client
                 if (client !== base) synchronized(lock) { clients.remove(base); check(!closed); clients[client] = ::allowed }
                 // Host status alone is not a successful account-authenticated session.
