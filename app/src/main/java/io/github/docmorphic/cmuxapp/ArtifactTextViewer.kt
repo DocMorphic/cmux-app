@@ -55,6 +55,7 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
     var selected by mutableIntStateOf(0)
     var searchedQuery: String? = null
     var captureViewport: (() -> Unit)? = null
+    val markdownViewport = MarkdownViewportState()
     var anchor = 0
     var lineFraction = 0f
     var horizontalDp = 0f
@@ -83,9 +84,10 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
         fun saver(context: Context, artifact: LocalFilePreview) = listSaver<ArtifactViewerState, Any>(
             save = { state ->
                 state.captureViewport?.invoke()
+                state.markdownViewport.capture?.invoke()
                 listOf(state.rendered, state.searchOpen, state.goToLineOpen, state.query, state.selected,
                     state.lineNumbers, state.anchor, state.lineFraction, state.horizontalDp,
-                    state.selectionStart, state.selectionEnd)
+                    state.selectionStart, state.selectionEnd) + state.markdownViewport.save()
             }, restore = { values -> ArtifactViewerState(context, artifact).apply {
                 rendered = values[0] as Boolean && renderedAvailable
                 searchOpen = values[1] as Boolean; goToLineOpen = values[2] as Boolean
@@ -93,6 +95,7 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
                 lineNumbers = values[5] as Boolean; anchor = values[6] as Int
                 lineFraction = values[7] as Float; horizontalDp = values[8] as Float
                 selectionStart = values[9] as Int; selectionEnd = values[10] as Int
+                markdownViewport.restore(values.drop(11))
             } })
     }
 }

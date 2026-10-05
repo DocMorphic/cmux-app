@@ -1,5 +1,66 @@
 # Content preview lifecycle
 
+## Rendered Markdown reading state — 2026-10-05
+
+`ArtifactViewerState` now saves a small Markdown viewport bookmark: CSS scroll
+coordinates, pinch zoom and a document-block anchor. Capture is synchronous on
+Android's save callback, while the JavaScript adapter tracks block geometry.
+The saved state contains no document bytes or Android view. Raw/Rendered toggles
+share this bookmark, and renderer replacements reuse it. Older saved bundles
+without the five new values remain readable.
+
+`MarkdownViewportBinding` restores after the new WebView has committed a visual
+state and follows subsequent layout changes above the anchor. It updates the
+bookmark's coordinate origin after those changes, so resuming interaction and
+reopening the document preserve the paragraph-relative position. Touch, keyboard,
+mouse and explicit accessibility scroll/click actions end automatic restoration;
+automatic accessibility focus does not. Anchor lookup uses binary search through
+the document's block children. Disposal clears native callbacks and the saved
+capture closure before destroying the WebView. The upstream shell and all other
+hash-pinned assets are unchanged.
+
+**Seven JVM policy checks passed. Two Android lifecycle checks passed in
+33.480 s** on the sole arm64 API 37 / 16 KB AVD. Real pinch/scroll followed by
+Activity recreation and Raw/Rendered switching preserved native zoom/scroll and
+the visual-viewport position of the same heading. A late 180 CSS-pixel height
+increase above the reader, then interaction and reopening the original layout,
+preserved the paragraph-relative bookmark. Two actual WebView renderer
+terminations restored that viewport; a third displayed the existing raw-source
+fallback with the real source text. The checks wait for a committed visual state
+and require painted text pixels. All seven final screenshots were inspected.
+
+**Three existing Markdown regressions passed in 23.465 s** on the identical
+production APK: table/code/Mermaid/Vega rendering and mode switching, sanitization
+and image-consent boundaries, and the large-file raw-only limit. Mermaid labels
+and Vega bars passed actual screenshot pixel assertions; the screenshot was
+inspected. All 14 pinned asset hashes matched. Final runs had no app-process crash
+entries or new ANRs, device settings were unchanged, and the single AVD was
+stopped and reaped. Source/APK hashes and raw outputs are retained locally in
+`captures/runtime/markdown-lifecycle/`.
+
+Earlier attempts are retained: the first fallback assertion used an accessibility
+label absent from the native raw view; the next layout assertion failed to account
+for the heading's existing CSS padding. Both test errors were corrected. A later
+39.823 s two-test pass still captured one unpainted recovery frame and a transient
+layout frame, so its coordinate assertions were strengthened with heading geometry,
+visual-state commitment and screenshot text pixels before the final pass above.
+The separate regression run remains valid because its production APK hash matches
+the final APK. Emulator cold boots produced launcher/System UI ANRs; those dialogs
+were dismissed and healthy UI confirmed before testing. They are recorded apart
+from test-run results.
+
+Scoped reference: `MarkdownWebContentView.swift` under
+`Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Markdown/` at
+`186cec79781256867ad4516f0802118738bd2393`. Its coordinator owns page zoom and
+allows two WebKit content-process recovery attempts. Android retains its existing
+two-retry/raw-source fallback policy. The scoped reference and SHA-256 receipt
+are in `captures/runtime/markdown-lifecycle/`; the global parity pin is unchanged.
+
+This does not close physical Pixel acceptance, application-process death with
+remote artifact refetch, different-width/text-reflow restoration, the full native
+panel transport-loss route, or large-document performance/accessibility gates.
+The signed download remains build 606 until the next bundled release.
+
 ## Native file and Markdown panel retention — 2026-10-05
 
 The actual native panel route now uses `NativePanelPresentation`, retained by

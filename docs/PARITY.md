@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Rendered Markdown reading-state recovery (2026-10-05)
+
+Rendered Markdown now retains a bounded scroll/zoom/block bookmark across
+Activity recreation, Raw/Rendered switching and renderer replacement. Seven
+JVM policy checks and two Android lifecycle checks (33.480 s) passed. Runtime
+checks use real pinch, actual renderer termination, late layout changes, heading
+geometry and painted-text pixels; all seven screenshots were inspected. Three
+existing Markdown regressions (23.465 s) passed on the identical production APK,
+including Mermaid/Vega pixel assertions and sanitization. All 14 assets matched;
+no new run ANRs or app-process crash entries; settings unchanged; sole AVD stopped
+and reaped. See [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md) for
+failed attempts, scoped upstream references and evidence limits. Physical routes,
+process death/refetch, width/text reflow and full transport-loss recovery remain
+open. Signed 606 and the global parity pin are unchanged; the goal remains active.
+
 ## Signed delivery checkpoint — build 606 (2026-10-05)
 
 Source `b99d495` is now available in signed **606**, with the token, route,

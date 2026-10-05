@@ -45,7 +45,7 @@ internal fun ArtifactTextPreview(artifact: LocalFilePreview, state: ArtifactView
                     catch (error: Exception) { ensureActive(); state.failure = error.message ?: "Could not read Markdown"; state.rendered = false }
                 }
                 if (text == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-                else MarkdownWebPreview(text!!, onFailure = { state.failure = it; state.rendered = false })
+                else MarkdownWebPreview(text!!, state.markdownViewport, onFailure = { state.failure = it; state.rendered = false })
             } else ArtifactRawTextPreview(state)
         }
     }
@@ -71,7 +71,7 @@ internal object MarkdownAssets {
 }
 
 @Composable
-internal fun MarkdownWebPreview(markdown: String, onFailure: (String) -> Unit) {
+internal fun MarkdownWebPreview(markdown: String, viewport: MarkdownViewportState, onFailure: (String) -> Unit) {
     val context = LocalContext.current
     val zoom = LocalDensity.current.fontScale
     val latestFailure by rememberUpdatedState(onFailure)
@@ -84,7 +84,7 @@ internal fun MarkdownWebPreview(markdown: String, onFailure: (String) -> Unit) {
     key(recovery) {
         val controller = remember { MarkdownWebController(context, shell!!, markdown, zoom, {
             if (recovery < 2) recovery++ else latestFailure("Markdown renderer stopped. Showing raw source.")
-        }, { latestFailure(it) }) }
+        }, { latestFailure(it) }, viewport) }
         DisposableEffect(controller) { onDispose { controller.close() } }
         AndroidView(factory = { controller.create() }, modifier = Modifier.fillMaxSize().semantics { contentDescription = "Rendered Markdown" },
             update = { controller.update(markdown, zoom) }, onRelease = { controller.close() })
@@ -93,15 +93,17 @@ internal fun MarkdownWebPreview(markdown: String, onFailure: (String) -> Unit) {
 
 /** Loads only the bundled shell; activated links leave the viewer and images use the consent route. */
 internal class MarkdownWebController(private val context: Context, private val shell: String, private var markdown: String,
-    private var zoom: Float, private val onCrash: () -> Unit, private val onFailure: (String) -> Unit) : AutoCloseable {
+    private var zoom: Float, private val onCrash: () -> Unit, private val onFailure: (String) -> Unit,
+    private val viewport: MarkdownViewportState = MarkdownViewportState()) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val images = MarkdownRemoteImages()
     private val requested = mutableSetOf<String>()
     private var view: WebView? = null
+    private var viewportBinding: MarkdownViewportBinding? = null
     @Volatile private var loaded = false
     @Volatile private var closed = false
     @SuppressLint("SetJavaScriptEnabled")
-    fun create(): WebView = WebView(ContextThemeWrapper(context, android.R.style.Theme_Material_NoActionBar).apply {
+    fun create(): WebView = MarkdownViewportWebView(ContextThemeWrapper(context, android.R.style.Theme_Material_NoActionBar).apply {
         // Compose's dark palette does not change the Activity's legacy light theme.
         // WebView derives prefers-color-scheme from its Android context.
         applyOverrideConfiguration(Configuration(context.resources.configuration).apply {
@@ -110,6 +112,7 @@ internal class MarkdownWebController(private val context: Context, private val s
     }).also { web ->
         view = web
         NativeViewHaptics(web)
+        viewportBinding = MarkdownViewportBinding(web, viewport)
         web.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         web.settings.apply {
             javaScriptEnabled = true; allowFileAccess = false; allowContentAccess = false
@@ -169,10 +172,12 @@ internal class MarkdownWebController(private val context: Context, private val s
         web.settings.textZoom = (zoom * 100).toInt().coerceIn(50, 400)
         web.evaluateJavascript(MarkdownPreviewPolicy.renderScript(markdown) + "true;") { result ->
             if (!closed && result != "true") onFailure("Markdown renderer failed. Showing raw source.")
+            else if (!closed) viewportBinding?.rendered()
         }
     }
     private suspend fun handle(message: JSONObject) {
         if (closed) return
+        if (message.optString("action") == "markdownViewport") { viewportBinding?.geometry(message); return }
         val lib = message.optString("lib")
         val specs = MarkdownAssets.libraries[lib]
         if (specs != null && requested.add(lib)) {
@@ -188,6 +193,7 @@ internal class MarkdownWebController(private val context: Context, private val s
     }
     override fun close() {
         if (closed) return
+        viewportBinding?.close(); viewportBinding = null
         closed = true; images.close(); scope.cancel()
         view?.let { it.stopLoading(); it.removeJavascriptInterface("CmuxMarkdownBridge"); it.destroy() }
         view = null
