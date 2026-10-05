@@ -34,7 +34,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   acceptance remain open. See `CONTENT_PREVIEW_LIFECYCLE.md`.
 - Signed milestone build 616 passed CI at `f72f036` (Actions run 37352608676),
   without preview publication. It excludes the newer image interaction batch.
-  Build 606 remains the independently verified download until 616 is checked locally.
+  Local packaging verification passed; six CI Android 17 ART probes passed.
+  Signed-616 launch/upgrade and physical acceptance remain open.
 
 - The Files/Save/export integration milestone passed 18 Android checks on the
   existing API37/16 KB AVD: real Save picker and Share chooser, exact read-only
@@ -78,8 +79,9 @@ and currently disabled; the upstream watcher is active on main with review issue
   compiled and 27 focused JVM cases passed. Android/Pixel route, visible reading
   state and rotation/reconnect acceptance for this batch remain pending; no APK
   build or emulator run was performed. See `CONTENT_PREVIEW_LIFECYCLE.md`.
-- Build **606** at `b99d495` is the latest independently verified download. CI, local packaging,
-  fifteen arm64 ART classes, signed-out 596 → 606 upgrade and reboot passed. [PIXEL_INSTALL.md](PIXEL_INSTALL.md) is authoritative for downloads.
+- Build **616** at `f72f036` is the latest signed development download. CI and local
+  packaging checks passed; signed-616 runtime/upgrade remains open. Earlier signed-out
+  596 → 606 upgrade/reboot evidence does not verify this APK. [PIXEL_INSTALL.md](PIXEL_INSTALL.md) is authoritative for downloads.
 - Rejected-token recovery passed **109 focused JVM tests** and is now in build
   606. Actual Mac rejection/recovery acceptance remains open. Continue batching
   features into signed milestones rather than signing every small commit.

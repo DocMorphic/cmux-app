@@ -1,10 +1,47 @@
 # Pixel 6a install and native pairing check
 
-Current source development is on `main`; the signed build below is an earlier
-verified milestone from `feature/local-mac-bridge`. It is still
-a development build; see [PARITY.md](PARITY.md) for the unverified features.
+Current source development is on `main`. These are development milestones;
+see [REMAINING_WORK.md](REMAINING_WORK.md) for incomplete parity and acceptance.
 
-## Current signed development APK — build 606 (2026-10-05)
+## Current signed development APK — build 616 (2026-10-05)
+
+[Build 616](https://github.com/DocMorphic/cmux-app/actions/runs/37352608676)
+passed at `f72f036b8b37d2f5cddddc48b3600dec9ddb615a`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37352608676/artifacts/11364767698)
+and extract `app-release.apk`. It is an Actions development artifact, with no
+public preview or production release promotion.
+
+This milestone includes the accumulated Files and native-panel retention/retry,
+rendered Markdown restoration, fresh remote file actions, persistent background
+Save writes/recovery and durable Share/Open handoffs. Its debug integration passed
+18 Android checks plus a focused corrected-error follow-up; the exact scopes and
+remaining lifecycle gates are in [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md).
+The newer 3× image zoom and image context-menu batch at `5d65877` is **not included**.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **616**, version 0.2.0.
+- SHA-256: `aec042d437aea8899e50d35bdbb2e267986a6923fd6dcb345bb37bbfa4a3d2e2`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **228,582,007 bytes**; compressed artifact **120,466,718 bytes**.
+- Local file: `build/signed-run-37352608676/app-release.apk`.
+
+CI passed policy/helper checks, JVM tests, debug/test/release assembly (14m 55s
+for the Gradle step), packaging verification and six Android 17 ART class probes.
+The downloaded CI class-loading log confirms all six probes. Local verification
+independently checked the stable signer, package/version/SDK contract, disabled
+backup, all 14 packaged viewer assets, 19 native LOAD/RELRO alignments, 16 KB ZIP
+alignment, notice-engine pin and exclusion of all ten debug fixture Activities.
+Verifier scripts, manifest inventory and asset manifests match the release source.
+The authenticated download selected the exact run's signed artifact; GitHub's
+archive digest is recorded as metadata, not independently rehashed.
+
+No local signed-616 launch, upgrade, arm64 ART run or physical Pixel check has yet
+been performed. The earlier signed-out upgrade/reboot evidence below applies to
+606, not this new APK. Signed-in migration, production push and full Mac/Pixel
+acceptance remain open. No new local AVD was created or started for this build.
+Evidence: `captures/runtime/release-f72f036/`, plus the integration milestone's
+CI/artifact metadata under `captures/runtime/file-actions-integration/`.
+
+## Earlier signed development APK — build 606 (2026-10-05)
 
 [Build 606](https://github.com/DocMorphic/cmux-app/actions/runs/37267686166)
 passed at `b99d4957d389d49bf8a65f577736a0a71e36bd06`. Download the
