@@ -19,6 +19,24 @@ internal class MobileAttachTicketContext(
 
     fun isExpired(nowMillis: Long) = expiresAtMillis?.let { it <= nowMillis } == true
 
+    /** Only for the enclosing Keystore-encrypted credential transaction. Never a public locator. */
+    internal fun credentialJson(): JSONObject = JSONObject().put("version", 1).put("workspace", workspaceId)
+        .put("terminal", terminalId ?: JSONObject.NULL).put("token", authToken ?: JSONObject.NULL)
+        .put("expires", expiresAtMillis ?: JSONObject.NULL)
+
+    companion object {
+        internal fun fromCredentialJson(value: JSONObject): MobileAttachTicketContext {
+            val fields = PairingTicketJson.decode(value.toString())
+            require(fields.keys == setOf("version", "workspace", "terminal", "token", "expires")) { "Invalid ticket state" }
+            require((fields["version"] as? java.math.BigDecimal)?.longValueExact() == 1L)
+            fun string(key: String): String? = fields[key]?.let { it as? String ?: error("Invalid ticket state") }
+            val expiry = fields["expires"]?.let {
+                (it as? java.math.BigDecimal ?: error("Invalid ticket state")).longValueExact()
+            }
+            return MobileAttachTicketContext(checkNotNull(string("workspace")), string("terminal"), string("token"), expiry)
+        }
+    }
+
     fun allowsMacWorkspaceMutations(hostAuthorizesByAccount: Boolean, nowMillis: Long): Boolean =
         hostAuthorizesByAccount || (authToken != null && !isExpired(nowMillis) && workspaceId.isBlank())
 

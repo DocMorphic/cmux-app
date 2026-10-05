@@ -61,7 +61,22 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             }
             try {
                 check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden or its account changed. Open Computers to reconnect." }
-                return client
+                if (mac.ticketRevision == null) return client
+                val context = checkNotNull(store.attachTicket(team, mac))
+                val admissionLock = Any()
+                var checkedRevision = Long.MIN_VALUE
+                return client.withAttachTicket(context) {
+                    check(teams.isCurrent(team)) { "Account or team changed" }
+                    synchronized(admissionLock) {
+                        val revision = store.revisions.value
+                        if (checkedRevision != revision) {
+                            check(allowsSaved(mac)) { "Saved route authorization changed" }
+                            // Read rechecks visibility, captured ticket revision, account and route binding.
+                            checkNotNull(store.attachTicket(team, mac))
+                            checkedRevision = revision
+                        }
+                    }
+                }
             } catch (failure: Throwable) { client.close(); throw failure }
         }
         override fun allowsSaved(mac: NativeCredentialStore.PairedMac): Boolean {

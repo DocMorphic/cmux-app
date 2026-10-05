@@ -32,7 +32,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
 
     data class PairedMac(val code: String, val deviceId: String, val name: String, val instanceTag: String? = null,
                          val accountUserId: String? = null, val accountTeamId: String? = null, val stableOrigin: String? = null,
-                         val previousOrigins: Set<String> = emptySet()) {
+                         val previousOrigins: Set<String> = emptySet(), val ticketRevision: String? = null) {
         internal val origin = stableOrigin ?: pairingOrigin(code, deviceId, instanceTag)
         internal val origins get() = previousOrigins + origin
         internal fun ownsOrigin(value: String?) = value != null && value in origins
@@ -82,6 +82,18 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         check(permits()) { "Account or team changed. Reconnect to the Mac." }
         return checkNotNull(remembered)
     }
+
+    internal fun rememberAttachTicket(team: NativeTeamScope, expected: PairedMac, ticket: MobileAttachTicket,
+                                     accountEmail: String?, permits: () -> Boolean): PairedMac {
+        check(permits()) { "Account or team changed" }
+        var result: PairedMac? = null
+        update { state -> result = NativeAttachTicketStore.install(state, team, expected, ticket, accountEmail) }
+        check(permits()) { "Account or team changed" }
+        return checkNotNull(result)
+    }
+
+    internal fun attachTicket(team: NativeTeamScope, mac: PairedMac): MobileAttachTicketContext? =
+        NativeAttachTicketStore.read(load(), team, mac)
 
     fun forgetMac(code: String) = update { NativePairingRecords.removeLocal(it, code) }
 
@@ -166,6 +178,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
 
     /** Caller holds storageLock. */
     private fun save(value: JSONObject) {
+        NativeAttachTicketStore.prune(value)
         NativeAccountDeletionRecord.prune(value)
         NativeAccountProfileCache.prune(value)
         NativeNotificationDismissOutbox(value).prune()

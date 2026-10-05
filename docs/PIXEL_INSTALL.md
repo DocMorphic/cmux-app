@@ -64,7 +64,9 @@ to main. A later RPC ticket-policy change has 53 focused JVM checks and is not i
 open. The later legacy codec adds 59 Swift-generated comparison cases; 84 focused
 JVM checks pass including policy/parser regressions. It is not connected to pairing
 UI or included in 581. No replacement signed APK was requested for these partial
-feature checkpoints.
+feature checkpoints. Scoped encrypted ticket storage and caller-local RPC views
+subsequently passed 105 JVM checks; they are also absent from 581. The legacy
+paste/scan producer and complete connection workflow are still pending.
 
 ## Previous signed development APK — build 571 (2026-10-05)
 

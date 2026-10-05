@@ -17,6 +17,59 @@ class MobileRpcAttachTicketTest {
         sent
     }
 
+    @Test fun callerTicketsStayIsolatedOnSharedWireAndClosingOneReleasesOnlyItsHandle() = runBlocking<Unit> {
+        val wire = PoolTestTransport()
+        var releases = 0
+        MobileRpcClient(wire, { "fixture-stack" }).use { owner ->
+            owner.connect()
+            val first = owner.lease { releases++ }.withAttachTicket(ticket()) {}
+            val second = owner.lease { releases++ }.withAttachTicket(MobileAttachTicketContext("", null, "second-ticket", null)) {}
+            try {
+                assertEquals("fixture-attach", exchange(first, wire, "workspace.list").getJSONObject("auth").getString("attach_token"))
+                assertEquals("second-ticket", exchange(second, wire, "workspace.list").getJSONObject("auth").getString("attach_token"))
+                assertFalse(exchange(owner, wire, "workspace.list").getJSONObject("auth").has("attach_token"))
+                first.close(); first.close()
+                assertEquals(1, releases)
+                assertFalse(owner.isClosed); assertFalse(second.isClosed)
+                assertEquals("second-ticket", exchange(second, wire, "workspace.list").getJSONObject("auth").getString("attach_token"))
+            } finally { first.close(); second.close() }
+            assertEquals(2, releases)
+        }
+    }
+
+    @Test fun ticketReplacementDuringAccountTokenLookupPreventsAnyFrame() = runBlocking<Unit> {
+        val wire = PoolTestTransport()
+        val entered = CompletableDeferred<Unit>(); val resume = CompletableDeferred<Unit>()
+        val current = java.util.concurrent.atomic.AtomicBoolean(true)
+        MobileRpcClient(wire, { entered.complete(Unit); resume.await(); "fixture-stack" }).use { owner ->
+            owner.connect()
+            val scoped = owner.lease {}.withAttachTicket(ticket()) { check(current.get()) { "Pairing changed" } }
+            scoped.use {
+                val result = async { runCatching { scoped.request("workspace.list") } }
+                withTimeout(2000) { entered.await() }
+                current.set(false); resume.complete(Unit)
+                assertTrue(withTimeout(2000) { result.await() }.isFailure)
+                assertTrue(wire.sent.tryReceive().isFailure)
+                assertFalse(owner.isClosed)
+            }
+        }
+    }
+
+    @Test fun requestLocalOmissionAlsoWorksOnTicketScopedViews() = runBlocking<Unit> {
+        val wire = PoolTestTransport()
+        MobileRpcClient(wire, { "fixture-stack" }).use { owner ->
+            owner.connect()
+            owner.lease {}.withAttachTicket(ticket()) {}.use { scoped ->
+                val result = async { scoped.requestWithAttachTicketPolicy("workspace.group.create", JSONObject(),
+                    ticketPolicy = MobileAttachTicketPolicy.OMIT) }
+                val frame = withTimeout(2000) { wire.sent.receive() }
+                assertFalse(frame.getJSONObject("auth").has("attach_token")); wire.answer(frame)
+                withTimeout(2000) { result.await() }
+                assertEquals("fixture-attach", exchange(scoped, wire, "workspace.list").getJSONObject("auth").getString("attach_token"))
+            }
+        }
+    }
+
     @Test fun framedRequestsAttachOnlyCoveredContextAndKeepAccountAuthForFallback() = runBlocking<Unit> {
         val wire = PoolTestTransport()
         MobileRpcClient(wire, { "fixture-stack" }, ticket()).use { client ->

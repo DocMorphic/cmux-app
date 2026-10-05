@@ -43,7 +43,8 @@ class MobileRpcClient internal constructor(
     private val accessToken: suspend () -> String?,
     private val attachTicket: MobileAttachTicketContext? = null,
     private val delegate: MobileRpcClient? = null,
-    private val releaseLease: (() -> Unit)? = null
+    private val releaseLease: (() -> Unit)? = null,
+    private val requestAdmission: () -> Unit = {}
 ) : AutoCloseable {
     internal constructor(route: PairingCode.Route, accessToken: suspend () -> String?, attachTicket: MobileAttachTicketContext? = null,
                 socketFactory: SocketFactory = SocketFactory.getDefault()) :
@@ -122,6 +123,13 @@ class MobileRpcClient internal constructor(
         return MobileRpcClient(transport, accessToken, attachTicket, this, release)
     }
 
+    /** Transfers ownership of this handle to a caller-local ticket view; the pooled wire is unchanged. */
+    internal fun withAttachTicket(context: MobileAttachTicketContext?, admitted: () -> Unit): MobileRpcClient {
+        check(!isClosed) { "Cannot scope a closed connection" }
+        admitted()
+        return MobileRpcClient(transport, accessToken, context, this, { close() }, admitted)
+    }
+
     private suspend fun <T> borrowing(block: suspend (MobileRpcClient) -> T): T = coroutineScope {
         val operation = checkNotNull(currentCoroutineContext()[Job])
         synchronized(stateLock) {
@@ -173,14 +181,21 @@ class MobileRpcClient internal constructor(
 
     private suspend fun requestAdmitted(method: String, params: JSONObject, timeoutMillis: Long,
         ticketPolicy: MobileAttachTicketPolicy = MobileAttachTicketPolicy.WHEN_COVERED,
+        ticketContext: MobileAttachTicketContext? = attachTicket,
         admitted: () -> Unit): JSONObject {
-        admitted()
-        if (delegate != null) return borrowing { it.requestAdmitted(method, params, timeoutMillis, ticketPolicy, admitted) }
-        return MobileDebugLog.trace(debugRpcOperation(method)) { requestOnTransport(method, params, timeoutMillis, ticketPolicy, admitted) }
+        val scopedAdmission = { requestAdmission(); admitted() }
+        scopedAdmission()
+        if (delegate != null) return borrowing {
+            it.requestAdmitted(method, params, timeoutMillis, ticketPolicy, ticketContext, scopedAdmission)
+        }
+        return MobileDebugLog.trace(debugRpcOperation(method)) {
+            requestOnTransport(method, params, timeoutMillis, ticketPolicy, ticketContext, scopedAdmission)
+        }
     }
 
     private suspend fun requestOnTransport(method: String, params: JSONObject, timeoutMillis: Long,
         ticketPolicy: MobileAttachTicketPolicy,
+        ticketContext: MobileAttachTicketContext?,
         admitted: () -> Unit): JSONObject {
         require(method.isNotBlank())
         val id = UUID.randomUUID().toString()
@@ -197,7 +212,7 @@ class MobileRpcClient internal constructor(
         if (!token.isNullOrEmpty()) {
             val auth = JSONObject().put("stack_access_token", token)
             if (ticketPolicy == MobileAttachTicketPolicy.WHEN_COVERED)
-                attachTicket?.tokenFor(method, parameters, System.currentTimeMillis())?.let { auth.put("attach_token", it) }
+                ticketContext?.tokenFor(method, parameters, System.currentTimeMillis())?.let { auth.put("attach_token", it) }
             body.put("auth", auth)
         }
         val answer = CompletableDeferred<JSONObject>()

@@ -22,7 +22,7 @@ internal object NativeComputerMenuPairing {
     fun isCurrent(mac: NativeCredentialStore.PairedMac, saved: List<NativeCredentialStore.PairedMac>): Boolean =
         saved.singleOrNull { it.origin == mac.origin }?.let {
             it.code == mac.code && it.deviceId == mac.deviceId && it.instanceTag == mac.instanceTag &&
-                it.accountUserId == mac.accountUserId && it.accountTeamId == mac.accountTeamId
+                it.accountUserId == mac.accountUserId && it.accountTeamId == mac.accountTeamId && it.ticketRevision == mac.ticketRevision
         } == true
 }
 

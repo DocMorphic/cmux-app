@@ -76,7 +76,8 @@ internal object NativePairingPersistence {
         check(decoded.none { it !in matches && it.second.origins.any(retained::contains) }) {
             "Saved computer history has conflicting ownership. Remove the conflicting pairing before reconnecting."
         }
-        val remembered = scoped.copy(previousOrigins = aliases)
+        val retainedTicket = scoped.ticketRevision ?: matches.singleOrNull { it.second.code == scoped.code }?.second?.ticketRevision
+        val remembered = scoped.copy(previousOrigins = aliases, ticketRevision = retainedTicket)
         val next = JSONArray()
         val replaced = matches.map { it.first }.toSet()
         for (index in 0 until previous.length()) {
@@ -85,6 +86,7 @@ internal object NativePairingPersistence {
         }
         if (existing == null) next.put(NativePairingRecords.encode(remembered))
         state.put("pairings", next).put("pairing_code", remembered.code)
+        NativeAttachTicketStore.prune(state)
         return remembered
     }
 
@@ -101,6 +103,7 @@ internal object NativePairingPersistence {
         }
         next.put(NativePairingRecords.encode(incoming))
         state.put("pairings", next).put("pairing_code", incoming.code)
+        NativeAttachTicketStore.prune(state)
         return incoming
     }
 }

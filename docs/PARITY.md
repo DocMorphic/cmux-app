@@ -12,7 +12,36 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — legacy attach-ticket decoding (2026-10-05)
+## Latest checkpoint — scoped ticket storage and connection views (2026-10-05)
+
+Ticket context now has an account/team, Mac/build and public-route binding inside
+the existing Keystore-encrypted credential state. Public pairing records carry
+only a random revision. Replacement invalidates captured records; forgetting and
+route replacement prune detached credentials. Reconnecting the same route retains
+its selection/token/expiry, while malformed or missing context fails explicitly.
+
+Saved connections with ticket revisions now receive a caller-local RPC view.
+Ticket selection and admission checks pass through pooled leases without changing
+other consumers' context. Account/route/visibility/revision changes are checked
+before requests and again before frame writes; credential reads are cached by
+store revision. A token lookup racing ticket retirement sends no frame.
+
+**105 JVM checks passed**, zero failures/errors/skips, including 13 new storage
+lifecycle cases and seven ticket/RPC cases, plus pool, repair, pairing, forget,
+visibility and terminal-sizing regressions. Evidence:
+`captures/runtime/attach-ticket-storage/`; details in
+[ATTACH_TICKETS.md](ATTACH_TICKETS.md). No Android Keystore instrumentation, APK,
+emulator or physical run in this checkpoint. Pixel absent; signed **581** remains
+the latest verified APK and predates these changes.
+
+Ticket installation is an internal post-admission API: incoming legacy URLs are
+still not wired into UI, and existing saved rows remain ticketless. Next connect
+paste/scan selection and exact-route/manual ticket acquisition, review native
+transport auth, add capability-aware mutation calls, and verify the complete flow.
+Physical recovery, push/notice, modal/accessibility and upstream audit work remain.
+Goal active; PR #1 remains open draft; parity pins unchanged.
+
+## Earlier checkpoint — legacy attach-ticket decoding (2026-10-05)
 
 Added bounded decoding for full/compact attach payloads and ancient `pair` URLs,
 including scope, token precedence, expiry, UUID canonicalization, route IDs and

@@ -13,6 +13,9 @@ internal object NativePairingRecords {
         val user = optional("owner_user"); val team = optional("owner_team")
         require((user == null) == (team == null))
         val origin = optional("stable_origin")
+        val ticketRevision = optional("attach_ticket_revision")
+        require(ticketRevision == null || (user != null && origin != null &&
+            runCatching { java.util.UUID.fromString(ticketRevision).toString() == ticketRevision }.getOrDefault(false)))
         require(origin == null || (user != null && origin.length == 64 && origin.all { it in "0123456789abcdef" }))
         val aliases = if (!item.has("previous_origins")) emptySet() else {
             require(user != null && origin != null)
@@ -22,7 +25,7 @@ internal object NativePairingRecords {
             }
         }
         NativeCredentialStore.PairedMac(item.getString("code").also { require(it.isNotBlank()) }, item.optString("device_id"),
-            item.optString("name", "cmux"), optional("instance_tag"), user, team, origin, aliases.filterNot { it == origin }.toSet())
+            item.optString("name", "cmux"), optional("instance_tag"), user, team, origin, aliases.filterNot { it == origin }.toSet(), ticketRevision)
     }.getOrNull()
 
     fun encode(row: NativeCredentialStore.PairedMac): JSONObject = JSONObject().put("code", row.code)
@@ -30,6 +33,7 @@ internal object NativePairingRecords {
             row.accountUserId?.let { put("owner_user", it) }
             row.accountTeamId?.let { put("owner_team", it) }
             row.stableOrigin?.let { put("stable_origin", it) }
+            row.ticketRevision?.let { put("attach_ticket_revision", it) }
             if (row.previousOrigins.isNotEmpty()) put("previous_origins", JSONArray(row.previousOrigins.sorted()))
         }
 
@@ -76,6 +80,7 @@ internal object NativePairingRecords {
         }
         TailscaleGrantStore.removeForCode(state, code, team)
         state.put("pairings", next)
+        NativeAttachTicketStore.prune(state)
         if (removed.any { it.code == state.optString("pairing_code") }) state.put("pairing_code", "")
         if (removed.any { it.ownsOrigin(state.optString("computer_selection")) }) state.put("computer_selection", "")
     }

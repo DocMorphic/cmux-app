@@ -102,11 +102,13 @@ internal object NativeComputerForgetLocal {
             val tag = (item.opt("instance_tag") as? String)?.takeIf { it.isNotBlank() }
             val decoded = NativePairingRecords.decode(item)
             val row = captured.firstOrNull { decoded != null && it.code == code && it.deviceId == device && it.instanceTag == tag &&
-                it.accountUserId == decoded.accountUserId && it.accountTeamId == decoded.accountTeamId && it.origin == decoded.origin }
+                it.accountUserId == decoded.accountUserId && it.accountTeamId == decoded.accountTeamId && it.origin == decoded.origin &&
+                it.ticketRevision == decoded.ticketRevision }
             // The captured row must itself still be native and in its owning scope.
             if (row != null && NativeComputerTarget.from(row, team) != null) removed += row else next.put(item)
         }
         state.put("pairings", next)
+        NativeAttachTicketStore.prune(state)
         if (removed.any { it.code == state.optString("pairing_code") }) state.put("pairing_code", "")
         if (removed.any { it.ownsOrigin(state.optString("computer_selection")) }) state.put("computer_selection", "")
     }

@@ -1,5 +1,59 @@
 # Attach-ticket compatibility audit
 
+## Storage and caller-local RPC context (2026-10-05)
+
+`NativeAttachTicketStore` saves the minimal selection/token/expiry context under
+`attach_ticket_contexts` in `NativeCredentialStore`'s existing AES-GCM/Android
+Keystore transaction. Tokens and raw ticket URLs never enter `PairedMac.code`,
+origin hashes or its string representation. The public record carries a random
+`attach_ticket_revision`; the credential entry binds it to account, team, stable
+origin, canonical device, build and exact public route string. Installation
+requires a current visible, owned and route-authorized record, matching ticket
+identity/account hints and coverage of every selected public route. Iroh endpoint
+identity must match; Tailscale comparisons reuse the existing canonical public
+route parser without resolving or dialing addresses.
+
+Replacement changes the revision and prunes the old secret. Menu captures,
+reconnect writes and captured Forget cleanup compare that revision, preventing
+an old operation from overwriting or deleting a replacement. Ordinary reconnect
+retains context only for the same route; route replacement drops it. Credential
+transactions, local Forget and native Forget prune detached/misbound/duplicate
+entries. An attached revision with missing or malformed context fails on read,
+instead of becoming an unscoped connection. Persisted context requires all five
+canonical fields, including explicit nullable expiry, so a missing expiry cannot
+silently widen a token lifetime. Expired or tokenless tickets still retain their
+selection; the existing policy determines whether a token can be sent.
+
+`MobileRpcClient.withAttachTicket` transfers a caller's owned connection handle
+into a ticket view. The context travels with each request through all lease layers;
+the pooled transport's default and sibling clients remain unchanged. Closing a
+view releases its underlying handle once. Its admission callback is retained in
+the pending request and checked before token lookup, before a frame write and by
+existing resend/repair paths. `NativeAppConnections.connectSaved` creates this
+view for records carrying a ticket revision and rechecks account/team, visibility,
+route and revision. Keystore reads are repeated only when the credential-store
+revision changes; current team admission is checked on every request.
+
+**105 JVM tests passed**, no failures/errors/skips: 13 storage lifecycle cases,
+seven framed ticket/lease cases, nine ticket-policy, 13 pool, nine control-repair,
+22 pairing-persistence, 12 Forget, four menu-capture, seven visibility and nine
+terminal-sizing cases. The first 75 checks also passed. The new storage tests use
+JSON state through the production lifecycle functions; they do not instrument
+Android Keystore. The RPC cases exercise actual framing through a fixture wire,
+including sibling ticket isolation, one-handle close, per-request omission and
+retirement during access-token lookup with no frame sent. Evidence/logs/XML/source
+hashes: `captures/runtime/attach-ticket-storage/` (ignored).
+
+**The legacy paste/scan producer is still pending.** No existing record acquires
+credentials automatically. The install API must be called only after verified
+account/host/route admission. Complete UI ticket selection, exact-route/manual
+acquisition, native transport-auth review and capability-aware mutations next.
+The saved-connection view currently attaches after ordinary route admission;
+historical hosts needing a ticket during that initial handshake also need explicit
+integration. A JVM pass does not establish old-host, physical pairing, lifecycle
+performance or Android encrypted-storage acceptance. No new APK/device run;
+signed 581 predates this work. Goal active and global references unchanged.
+
 ## Codec implementation and Swift fixtures (2026-10-05)
 
 `MobileAttachTicketCodec` now decodes full/compact JSON and the ancient `pair`
