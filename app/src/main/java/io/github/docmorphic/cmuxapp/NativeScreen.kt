@@ -206,9 +206,9 @@ internal fun NativeScreen(
             mutationAuthorityTick++
         }
     }
-    val currentMacMutationAllowed = remember(client, hostCapabilities, mutationAuthorityTick) {
-        client?.allowsMacWorkspaceMutations() == true
-    }
+    // Eligibility depends on wall time, so a remembered result can outlive its ticket
+    // when another surface opens or an expiry wakeup precedes a clock adjustment.
+    val currentMacMutationAllowed = client?.allowsMacWorkspaceMutations() == true
     var savedPairedMacs by remember { mutableStateOf(store.pairedMacs()) }
     LaunchedEffect(store, historyRevision) { savedPairedMacs = store.pairedMacs() }
     val eligibleMacs = savedPairedMacs.filter {

@@ -25,7 +25,40 @@ and reboot passed on the sole AVD. Emulator stopped/reaped. Authenticated/physic
 acceptance remains open. Newer source through `5b506cb` is not in 589. Continue
 with runtime verification of the mutation gates and physical native/recovery/UI/push acceptance.
 
-## Latest source checkpoint — Mac mutation ticket authority (2026-10-05)
+## Latest source checkpoint — ticket expiry Android acceptance (2026-10-05)
+
+A new real Compose/framed-peer check reproduced a stale task-composer gate after
+Mac ticket expiry: the sidebar closed its menu, but the composer retained a cached
+time-dependent eligibility value. NativeScreen now evaluates eligibility on each
+composition; its deadline wakeup still refreshes the screen. The final RPC guard
+already rejects expired requests and remains unchanged.
+
+Three new Android cases cover a valid legacy Mac-wide group action followed by
+expiry/menu dismissal and a disabled nonempty task draft; a workspace-scoped
+legacy ticket exposing no Mac-wide actions; and an account-capable host creating
+in a group despite an expired narrow ticket, with no attach token on the frame.
+The fixture can now independently advertise account authorization.
+
+**60 focused JVM tests passed**, zero failures/errors/skips; debug and test APKs
+built. **13 Android tests passed** on the existing API 37 arm64 / 16 KB emulator:
+three new cases (40.047 s), then five ticket chooser/state/Keystore cases, task
+model submission, durable draft rejection, legacy creation response, browser
+sidebar group moves and real drag ordering (ten cases, 89.087 s). These are
+synthetic peers, not physical or authenticated Mac acceptance.
+
+The first screenshot captured an emulator System UI ANR dialog. A subsequent
+clean run still reproduced the stale gate; its diagnostic screenshot/tree and
+all failed logs are retained. Final expiry/group/browser/chooser screenshots were
+inspected; final crash buffer empty; test-modified display size/density restored,
+sleep settings preserved. The sole AVD was stopped/reaped. No new AVD created;
+Pixel absent and untouched. Evidence: `captures/runtime/mac-mutation-runtime/`.
+
+Signed build **589** remains the verified delivery; this checkpoint is newer.
+Next: one signed milestone for accumulated ticket/auth fixes, then physical native
+pairing/recovery acceptance, production push and remaining UI/accessibility work.
+Goal active; PR #1 open/draft; global parity pins unchanged.
+
+## Earlier source checkpoint — Mac mutation ticket authority (2026-10-05)
 
 Workspace creation/moves and group creation/actions now follow the reviewed iOS
 Mac mutation ticket policy: account-capable hosts authorize these operations

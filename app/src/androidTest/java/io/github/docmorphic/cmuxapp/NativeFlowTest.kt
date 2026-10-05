@@ -99,6 +99,67 @@ class NativeFlowTest {
             .all { it.getJSONObject("params").getString("workspace_id") == "workspace-2" })
     }
 
+    @Test fun legacyMacTicketExpiryClosesOpenGroupMenuAndDisablesTaskCreation() {
+        peer.accountMutationsSupported = false
+        peer.groupActionsSupported = true; peer.taskGroupsSupported = true
+        peer.notificationFeed = searchNotifications()
+        val expiry = System.currentTimeMillis() + 20_000
+        showSearchFixture(MobileAttachTicketContext("", null, "synthetic-legacy-ticket", expiry))
+        val group = compose.onNodeWithContentDescription("Open Completed group")
+        group.performTouchInput { longClick() }
+        compose.onNodeWithText("Pin Group").assertIsDisplayed().performClick()
+        compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "workspace.group.action" } }
+        val sent = peer.requests.single { it.optString("method") == "workspace.group.action" }
+        assertEquals("complete", sent.getJSONObject("params").getString("group_id"))
+        assertEquals("synthetic-legacy-ticket", sent.getJSONObject("auth").getString("attach_token"))
+        group.performTouchInput { longClick() }
+        compose.onNodeWithText("New Workspace in Group").assertIsDisplayed()
+        screenshot("legacy-ticket-group-menu")
+        compose.waitUntil(30_000) {
+            System.currentTimeMillis() >= expiry && compose.onAllNodesWithText("Pin Group").fetchSemanticsNodes().isEmpty() &&
+                compose.onAllNodesWithText("New Workspace in Group").fetchSemanticsNodes().isEmpty()
+        }
+        group.performTouchInput { longClick() }
+        compose.onNodeWithText("Pin Group").assertDoesNotExist()
+        compose.onNodeWithContentDescription("New Task").performClick()
+        compose.onNodeWithContentDescription("Task prompt").performTextInput("Do not send after ticket expiry")
+        screenshot("legacy-ticket-expired-task")
+        try {
+            compose.onNodeWithText("Pair this Mac again or update cmux to create tasks.").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
+        } catch (failure: AssertionError) {
+            throw AssertionError(compose.onRoot().printToString() + "\nMethods: " +
+                peer.requests.map { it.optString("method") }.joinToString(), failure)
+        }
+        assertEquals(1, peer.requests.count { it.optString("method") == "workspace.group.action" })
+        assertTrue(peer.requests.none { it.optString("method") == "workspace.create" })
+    }
+
+    @Test fun workspaceScopedTicketCannotExposeMacWideGroupOrTaskActions() {
+        peer.accountMutationsSupported = false
+        peer.groupActionsSupported = true; peer.taskGroupsSupported = true
+        peer.notificationFeed = searchNotifications()
+        showSearchFixture(MobileAttachTicketContext("workspace-1", "terminal-1", "synthetic-narrow-ticket", null))
+        compose.onNodeWithContentDescription("Open Completed group").performTouchInput { longClick() }
+        compose.onNodeWithText("Pin Group").assertDoesNotExist()
+        compose.onNodeWithText("New Workspace in Group").assertDoesNotExist()
+        compose.onNodeWithContentDescription("New Task").performClick()
+        compose.onNodeWithText("Pair this Mac again or update cmux to create tasks.").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
+        assertTrue(peer.requests.none { it.optString("method") in setOf("workspace.create", "workspace.group.action") })
+    }
+
+    @Test fun accountCapableHostCreatesInGroupDespiteExpiredNarrowTicket() {
+        showGroupCreationFixture(legacy = true,
+            ticket = MobileAttachTicketContext("workspace-1", "terminal-1", "synthetic-expired-ticket", 0))
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Created in group").fetchSemanticsNodes().isNotEmpty() }
+        val sent = peer.requests.single { it.optString("method") == "workspace.create" }
+        assertEquals("complete", sent.getJSONObject("params").getString("group_id"))
+        assertFalse(sent.getJSONObject("auth").has("attach_token"))
+        assertTrue(sent.getJSONObject("auth").has("stack_access_token"))
+        assertTrue(peer.requests.none { it.optString("method") == "mobile.terminal.replay" })
+    }
+
     @Test fun workspaceDeleteConfirmationCancelsThenClosesOnlySelectedWorkspace() {
         peer.notificationFeed = searchNotifications()
         showSearchFixture()
@@ -2093,7 +2154,7 @@ class NativeFlowTest {
         compose.onNodeWithText("Settings").assertIsDisplayed()
     }
 
-    private fun showGroupCreationFixture(legacy: Boolean, gate: CountDownLatch? = null) {
+    private fun showGroupCreationFixture(legacy: Boolean, gate: CountDownLatch? = null, ticket: MobileAttachTicketContext? = null) {
         peer.taskGroupsSupported = true
         peer.notificationFeed = searchNotifications()
         peer.workspaceCreationResponse = {
@@ -2106,7 +2167,7 @@ class NativeFlowTest {
             if (!legacy) listing.put("created_workspace_id", "group-created").put("created_terminal_id", "group-terminal")
             listing
         }
-        showSearchFixture()
+        showSearchFixture(ticket)
         compose.onNodeWithText("Completed group").performTouchInput { longClick() }
         compose.onNodeWithText("New Workspace in Group").performClick()
         compose.waitUntil(10_000) { peer.requests.any { it.optString("method") == "workspace.create" } }
@@ -2428,11 +2489,11 @@ class NativeFlowTest {
         screenshot("notification-unavailable")
     }
 
-    private fun showSearchFixture() {
+    private fun showSearchFixture(ticket: MobileAttachTicketContext? = null) {
         compose.setContent {
             CmuxTheme { Surface(Modifier.fillMaxSize()) {
                 NativeScreen(onUseHelper = {}, connector = NativeConnector { _, _ ->
-                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }).also { it.connect() }
+                    MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture-token" }, ticket).also { it.connect() }
                 })
             } }
         }
@@ -2852,6 +2913,7 @@ internal class NativeFixturePeer : AutoCloseable {
     val rejectNextPaste = AtomicBoolean(false)
     val rejectNextInput = AtomicBoolean(false)
     @Volatile var rejectedMethods: Set<String> = emptySet()
+    @Volatile var accountMutationsSupported = true
     @Volatile var groupActionsSupported = false
     @Volatile var workspaceMetadataSupported = false
     @Volatile var workspaceChangesSupported = false
@@ -3053,7 +3115,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 if (identifiedInput) it.put(TerminalInputDelivery.CAPABILITY)
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (groupActionsSupported) it.put("workspace.group_actions.v1")
-                it.put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)
+                if (accountMutationsSupported) it.put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)
                 it.put("workspace.actions.v1").put("workspace.read_state.v1").put("workspace.close.v1")
                 if (workspaceMetadataSupported) it.put(WORKSPACE_METADATA_CAPABILITY)
                 if (workspaceChangesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)
