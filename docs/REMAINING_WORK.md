@@ -25,6 +25,12 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Save destination writes now have persistent background ownership, foreground
+  progress/Cancel, startup recovery and serialized destination/grant access.
+  Kotlin compilation and 27 focused JVM tests passed. WorkManager, separate Android
+  processes, real providers and kill/reboot acceptance remain unverified. Finish
+  fresh-launch failed-save recovery UI and abandoned-copy cleanup before the combined
+  integration run. See `CONTENT_PREVIEW_LIFECYCLE.md`; no APK/emulator run.
 - Upstream monitoring has succeeded on main and created bot review issue #2.
   The complete-tree fallback and expanded release-script coverage pass 16 policy
   tests; the live inventory detects 1,060 relevant paths at `1012a019`. Detection

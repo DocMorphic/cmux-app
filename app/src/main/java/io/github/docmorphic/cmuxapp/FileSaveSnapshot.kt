@@ -7,6 +7,8 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.util.UUID
+import java.io.RandomAccessFile
+import java.nio.channels.OverlappingFileLockException
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
@@ -38,6 +40,55 @@ internal data class FileSaveSnapshot(val id: String, val filename: String, val m
 
 /** Immutable bytes and a durable journal. The caller confines each identity to one writer. */
 internal class FileSaveFiles(private val root: File) {
+    fun load(id: String): FileSaveSnapshot? {
+        require(UUID.fromString(id).toString() == id)
+        val directory = File(root, id)
+        require(directory.canonicalFile.parentFile == root.canonicalFile)
+        val state = File(directory, "state.json")
+        if (!state.exists()) return null
+        check(state.length() <= 12_288) { "Invalid save journal" }
+        return checkNotNull(FileSaveSnapshot.decode(state.readText())).also { check(it.id == id) }
+    }
+    fun entries(): List<FileSaveSnapshot> = root.listFiles().orEmpty()
+        .filter { it.isDirectory }.mapNotNull { runCatching { load(it.name) }.getOrNull() }
+    fun recoverable(): List<FileSaveSnapshot> = entries()
+        .filter { it.phase == FileSavePhase.WRITING || it.phase in terminal && it.ownsGrant }
+    /** A file lock also serializes the isolated browser process and the main-process worker. */
+    suspend fun <T> withWriter(value: FileSaveSnapshot, action: suspend () -> T): T =
+        withLock(member(value, "writer.lock"), action)
+    suspend fun <T> withGrantLock(action: suspend () -> T): T = withLock(File(root, ".grants.lock"), action)
+    suspend fun <T> withDestination(value: FileSaveSnapshot, action: suspend () -> T): T {
+        val identity = MessageDigest.getInstance("SHA-256").digest(checkNotNull(value.destination).toByteArray(Charsets.UTF_8)).hex()
+        return withLock(File(root, ".destination-$identity.lock"), action)
+    }
+    private suspend fun <T> withLock(path: File, action: suspend () -> T): T = withContext(Dispatchers.IO) {
+        RandomAccessFile(path, "rw").use { handle ->
+            var lock: java.nio.channels.FileLock? = null
+            try {
+                while (lock == null) {
+                    ensureActive()
+                    lock = try { handle.channel.tryLock() } catch (_: OverlappingFileLockException) { null }
+                    if (lock == null) delay(50)
+                }
+                action()
+            } finally { lock?.release() }
+        }
+    }
+    fun requestCancellation(value: FileSaveSnapshot) {
+        if (file(value).parentFile!!.exists()) FileOutputStream(member(value, "cancel"), true).use { it.fd.sync() }
+    }
+    fun isCancellationRequested(value: FileSaveSnapshot) = member(value, "cancel").exists()
+    fun reportProgress(value: FileSaveSnapshot, received: Long, total: Long) {
+        require(received in 0..total)
+        atomic(member(value, "progress.json"), JSONObject().put("received", received).put("total", total).toString())
+    }
+    fun progress(value: FileSaveSnapshot): Pair<Long, Long>? = runCatching {
+        val path = member(value, "progress.json")
+        check(path.length() in 1..256)
+        val json = JSONObject(path.readText())
+        val received = json.getLong("received"); val total = json.getLong("total")
+        require(received in 0..total); received to total
+    }.getOrNull()
     fun file(value: FileSaveSnapshot): File = File(File(root, value.id), "content").also {
         require(it.canonicalFile.parentFile?.parentFile == root.canonicalFile) { "Invalid save snapshot" }
     }
@@ -151,7 +202,9 @@ internal class FileSaveFiles(private val root: File) {
         require(phase == FileSavePhase.COMPLETED || phase == FileSavePhase.CANCELLED)
         if (!file(value).parentFile!!.exists()) return
         record(value.copy(phase = phase)); file(value).delete(); member(value, "seal.json").delete()
+        member(value, "progress.json").delete()
     }
     fun remove(value: FileSaveSnapshot) { file(value).parentFile?.deleteRecursively() }
     private fun ByteArray.hex() = joinToString("") { "%02x".format(it.toInt() and 255) }
+    companion object { val terminal = setOf(FileSavePhase.COMPLETED, FileSavePhase.CANCELLED) }
 }

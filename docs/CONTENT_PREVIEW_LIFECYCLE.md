@@ -1,5 +1,59 @@
 # Content preview lifecycle
 
+## Persistent destination writes — 2026-10-05
+
+After the user selects a Save destination, its sealed private copy and URI/grant
+ownership are recorded before dispatch to a WorkManager writer. The picker result
+handoff completes even if the requesting ViewModel is cleared during that handoff.
+Closing an Activity after dispatch leaves the writer running. A restored Activity
+observes the durable journal/progress rather than starting a second inline writer.
+Main-process startup recovers WRITING journals, including the gap between recording
+the destination and enqueueing work. Scheduler interruption retains the sealed copy
+and WRITING state; a later worker restarts the destination write from those bytes.
+
+The writer uses a data-sync foreground notification with progress and Cancel.
+The non-exported scheduling receiver runs in the main process so the isolated
+browser process does not own a second WorkManager scheduler. WorkManager input
+contains only the private UUID; the URI stays in the private journal. File locks
+serialize writers for one export, different exports targeting the same URI, and
+persisted-grant acquisition/release across processes. Permissions acquired by this
+export are not released while another WRITING export borrows that URI. A terminal
+receipt retaining a grant is eligible for later cleanup; workers retry that cleanup.
+Pre-existing grants remain owned by their original callers.
+
+Cancellation is durable and checked before opening the destination and between
+write chunks. Cleanup waits for the writer to close its output. A queued cancelled
+write never opens the provider. An already-started provider write can leave partial
+destination bytes; cleanup does not delete a user-selected document. Terminal
+receipts suppress duplicate delivery. Provider failures retain the sealed copy for
+explicit destination retry; they do not fail the WorkManager dependency chain,
+which could otherwise cancel a retry queued as the previous worker finishes.
+
+**Verification:** main Kotlin compiled; **27 focused JVM tests passed** in 20 s
+(10 transfer/locking cases, 10 recovery cases, 7 snapshot cases). An earlier
+25-case pass took 38 s before the shared-destination/grant locking cases were added.
+Checks use real private files and file locks with independent store instances:
+duplicate delivery, scheduler-style coroutine cancellation and resumption, competing
+writers, cancellation before open, cleanup ordering, rejected provider access,
+deferred grant release and persisted progress. They do not execute WorkManager,
+Android process death, or an actual DocumentsProvider. Logs/XML/source hashes are
+retained in ignored `captures/runtime/save-worker-batch/`.
+
+Android contracts: [long-running workers](https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/long-running)
+and [document URI permissions](https://developer.android.com/training/data-storage/shared/documents-files).
+Foreground admission, job quotas and provider permission persistence still need
+actual Android acceptance; a temporary-only or revoked provider grant may require
+the user to choose a destination again. No unavoidable platform limitation is
+claimed from these source/JVM checks. The existing scoped iOS Save materialization
+reference remains `186cec79781256867ad4516f0802118738bd2393`; global pins unchanged.
+
+No APK, emulator or Pixel test ran. Signed 606 remains the verified download.
+Next: combined Android/Pixel acceptance of picker return, closing/rotating Activities,
+browser-process scheduling, kill/reboot recovery, notification Cancel, shared URI
+permissions, slow/large/provider writes and the earlier Files/Share/Open batches.
+Fresh-launch recovery UI for failed background saves, abandoned-copy/receipt/lock
+reclamation and Share/Open process restoration remain implementation work.
+
 ## Retained Share/Open ownership — 2026-10-05
 
 Share, Open and Copy Image now use an Activity-owned `FileExportModel` and a

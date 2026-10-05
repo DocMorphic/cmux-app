@@ -15,6 +15,18 @@ available, and the upstream watcher is active on main. Main integration does
 not establish full parity or authorize production release promotion. Earlier
 feature-branch/draft-only instructions below are historical.
 
+## Latest Save background batch — 2026-10-05
+
+Save destination writes now use a persistent WorkManager writer with foreground
+progress/Cancel, main-process dispatch from the isolated browser, startup recovery,
+and file locks for export/destination/grant ownership. The Activity observes durable
+status; closing it after handoff no longer cancels the destination write. Main
+Kotlin compiled and 27 focused JVM checks passed in 20 s; no APK/emulator/device
+run. See `CONTENT_PREVIEW_LIFECYCLE.md` and ignored
+`captures/runtime/save-worker-batch/` for exact scope. Next: failed-background-save
+recovery UI, abandoned durable-copy/receipt cleanup, Share/Open process restoration,
+then combined Android/Pixel acceptance. Signed 606 remains the verified download.
+
 ## Upstream watcher activation — 2026-10-05
 
 The first main watch run `37343967042` succeeded and created bot-owned issue #2.

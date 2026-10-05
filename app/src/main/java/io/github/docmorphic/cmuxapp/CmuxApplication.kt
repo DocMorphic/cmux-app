@@ -51,6 +51,7 @@ class CmuxApplication : Application() {
             getSystemService(android.app.ActivityManager::class.java).runningAppProcesses?.firstOrNull { it.pid == android.os.Process.myPid() }?.processName.orEmpty()
         runCatching { MobileDiagnostics.install(this, if (process.endsWith(":browser")) DiagnosticRole.BROWSER else DiagnosticRole.APP) }
         MobileDiagnostics.event(DebugOperation.APP_START)
+        if (process == packageName) FileSaveWork.recover(this)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             private var visible = 0
             override fun onActivityStarted(activity: Activity) { if (visible++ == 0) {

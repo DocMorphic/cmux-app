@@ -47,15 +47,12 @@ internal class FileSaveModel(application: Application, private val saved: SavedS
     init {
         pending?.let { snapshot -> job = viewModelScope.launch {
             try {
-                val recovered = files.restore(snapshot, legacyRoot)
+                val disk = withContext(Dispatchers.IO) { files.latest(snapshot) }
+                val recovered = if (disk.phase == FileSavePhase.WRITING) disk else files.restore(snapshot, legacyRoot)
                 ensureActive(); update(recovered)
                 when (recovered.phase) {
                     FileSavePhase.COMPLETED, FileSavePhase.CANCELLED -> {
-                        withContext(Dispatchers.IO) {
-                            files.finish(recovered, recovered.phase)
-                            releaseGrant(recovered)
-                            runCatching { files.record(recovered.copy(ownsGrant = false)) }
-                        }
+                        FileSaveWork.transfer(getApplication()).run(recovered.id)
                         if (recovered.phase == FileSavePhase.COMPLETED)
                             lastSavedUri = recovered.destination?.let(Uri::parse)
                         update(null)
@@ -146,40 +143,45 @@ internal class FileSaveModel(application: Application, private val saved: SavedS
             try {
                 val uri = Uri.parse(checkNotNull(writing.destination))
                 if (acquireGrant) {
-                    // A provider may offer only task-lifetime access. Preserve grants owned by other features.
-                    writing = withContext(Dispatchers.IO) {
+                    // Persist before dispatch. A worker needs only the private identity, never a URI in its Data.
+                    writing = withContext(NonCancellable + Dispatchers.IO) { files.withGrantLock {
                         val owned = runCatching {
                             if (resolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }) false
                             else { resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION); true }
                         }.getOrDefault(false)
                         writing.copy(ownsGrant = owned).also { durable ->
                             try { files.record(durable) }
-                            catch (error: Exception) { releaseGrant(durable); throw error }
+                            catch (error: Exception) {
+                                if (owned) runCatching { resolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
+                                throw error
+                            }
+                            FileSaveWork.dispatch(getApplication(), durable)
                         }
-                    }
+                    } }
                     ensureActive(); update(writing)
                 }
-                record(writing)
-                var reported = -1L
-                files.write(writing, progress = { received, total ->
-                    if (received == total || reported < 0 || received - reported >= 1024 * 1024) {
-                        reported = received
-                        withContext(Dispatchers.Main.immediate) { if (pending == writing) progress = received to total }
+                if (!acquireGrant) FileSaveWork.dispatch(getApplication(), writing)
+                while (pending?.id == writing.id) {
+                    val latest = withContext(Dispatchers.IO) { files.latest(writing) }
+                    ensureActive()
+                    when (latest.phase) {
+                        FileSavePhase.COMPLETED -> { lastSavedUri = uri; update(null); progress = null; return@launch }
+                        FileSavePhase.CANCELLED -> { update(null); progress = null; return@launch }
+                        FileSavePhase.FAILED -> {
+                            update(latest); progress = null
+                            failure = "Couldn't write to the selected location. Choose another location and try again."
+                            return@launch
+                        }
+                        else -> progress = withContext(Dispatchers.IO) { files.progress(latest) }
                     }
-                }) { checkNotNull(resolver.openOutputStream(uri, "wt")) { "Could not open the save destination." } }
-                withContext(Dispatchers.IO) {
-                    files.finish(writing, FileSavePhase.COMPLETED)
-                    releaseGrant(writing)
-                    runCatching { files.record(writing.copy(phase = FileSavePhase.COMPLETED, ownsGrant = false)) }
+                    delay(250)
                 }
-                ensureActive()
-                if (pending == writing) { lastSavedUri = uri; update(null); progress = null }
             } catch (error: Exception) {
-                ensureActive(); if (pending == writing) {
-                    val failed = writing.copy(phase = FileSavePhase.FAILED)
-                    runCatching { record(failed) }; update(failed); progress = null
-                    failure = if (error is SecurityException) "Permission to save here was denied. Choose another location."
-                        else "Couldn't write to the selected location. Choose another location and try again."
+                ensureActive()
+                if (pending?.id == writing.id) {
+                    // Never race a worker by overwriting its terminal record from this observer.
+                    progress = null
+                    failure = "Couldn't check the save. Reopen the app to recover its status."
                 }
             }
         }
@@ -189,9 +191,12 @@ internal class FileSaveModel(application: Application, private val saved: SavedS
         if (!canRetry || job?.isActive == true) return
         job = viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) { releaseGrant(request) }
-                val ready = request.copy(phase = FileSavePhase.READY, destination = null, ownsGrant = false)
-                record(ready); ensureActive()
+                val ready = files.withWriter(request) {
+                    check(files.latest(request).phase == FileSavePhase.FAILED)
+                    check(FileSaveWork.releaseGrant(getApplication(), request)) { "Could not release save permission" }
+                    request.copy(phase = FileSavePhase.READY, destination = null, ownsGrant = false).also(files::record)
+                }
+                ensureActive()
                 if (pending == request) { failure = null; update(ready) }
             } catch (error: Exception) { ensureActive(); failure = "Couldn't prepare the file for another save. Try again." }
         }
@@ -202,24 +207,19 @@ internal class FileSaveModel(application: Application, private val saved: SavedS
         hasDeferredResult = false; deferredResult = null
         if (request != null) cleanup(request, previousJob)
     }
-    private fun releaseGrant(request: FileSaveSnapshot) {
-        request.destination?.takeIf { request.ownsGrant }?.let { destination -> runCatching {
-            resolver.releasePersistableUriPermission(Uri.parse(destination), Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        } }
-    }
     private fun cleanup(request: FileSaveSnapshot, previousJob: Job?) {
         // Wait for a cancelled writer before removing its bytes or releasing its provider grant.
         viewModelScope.launch(NonCancellable + Dispatchers.IO) {
+            runCatching { files.requestCancellation(request) }
             previousJob?.join()
-            val latest = runCatching { files.latest(request) }.getOrDefault(request)
-            val terminalPhase = latest.phase.takeIf { it == FileSavePhase.COMPLETED || it == FileSavePhase.CANCELLED }
-                ?: FileSavePhase.CANCELLED
-            runCatching { files.finish(latest, terminalPhase) }.onFailure { runCatching { files.remove(latest) } }
-            releaseGrant(latest)
-            runCatching { files.record(files.latest(latest).copy(ownsGrant = false)) }
+            if (files.file(request).parentFile?.exists() == true)
+                runCatching { FileSaveWork.transfer(getApplication()).cancel(request) }
         }
     }
-    override fun onCleared() { discard() }
+    override fun onCleared() {
+        // The persistent writer outlives closing the preview/Activity. Other phases have no destination job.
+        if (pending?.phase != FileSavePhase.WRITING) discard()
+    }
     companion object { private const val STATE = "file-save.snapshot.v1" }
 }
 
