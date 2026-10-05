@@ -32,6 +32,7 @@ internal data class RoutedBrowserUi(val surface: LocalBrowserSurface? = null,
 
 internal class RoutedBrowserController(application: Application) : AndroidViewModel(application) {
     private val app = application.applicationContext
+    val web = LocalBrowserWebOwner(app)
     private val mutable = MutableStateFlow(RoutedBrowserUi())
     val state = mutable.asStateFlow()
     private val replies = mutableMapOf<Int, CompletableDeferred<Bundle>>()
@@ -178,6 +179,7 @@ internal class RoutedBrowserController(application: Application) : AndroidViewMo
         return "$main\n\nBrowser process\n${debugLogSnapshot(app)}"
     }
     override fun onCleared() {
+        web.close()
         if (bound) { app.unbindService(connection); bound = false }
         disconnected()
     }
@@ -270,7 +272,7 @@ class RoutedBrowserActivity : ComponentActivity() {
                         Text(checkNotNull(ui.error)); TextButton(onClick = { leave("restart") }) { Text("Retry") }
                     }
                     ui.surface == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                    else -> LocalBrowserPane(checkNotNull(ui.surface), beforeNavigation = controller::prepare) { leave("close") }
+                    else -> LocalBrowserPane(checkNotNull(ui.surface), beforeNavigation = controller::prepare, retainedWeb = controller.web) { leave("close") }
                 }
             })
         } } } } }

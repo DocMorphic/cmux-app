@@ -618,6 +618,7 @@ class RoutedBrowserPresentationTest {
             androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
                 .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED).filterIsInstance<RoutedChangesActivity>().single()
         }
+        val originalModel = main { androidx.lifecycle.ViewModelProvider(originalSheet)[RoutedChangesModel::class.java] }
         main { originalSheet.recreate() }
         compose.waitUntil(15_000) { main {
             androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
@@ -625,6 +626,16 @@ class RoutedBrowserPresentationTest {
                 .filterIsInstance<RoutedChangesActivity>().any { it !== originalSheet }
         } }
         sheetText("fresh-B")
+        try {
+            device.setOrientationLeft(); until { device.displayRotation != 0 }; sheetText("fresh-B")
+            main {
+                val sheet = androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                    .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED).filterIsInstance<RoutedChangesActivity>().single()
+                assertSame(originalModel, androidx.lifecycle.ViewModelProvider(sheet)[RoutedChangesModel::class.java])
+            }
+            capturePicker("browser-sidebar-changes-rotated")
+            device.setOrientationNatural(); until { device.displayRotation == 0 }; sheetText("fresh-B")
+        } finally { device.setOrientationNatural(); device.unfreezeRotation() }
         assertEquals(listOf("B:Files", "B:Diff"), changesReads.toList())
         assertEquals(0, sidebarReleases.get())
         capturePicker("browser-sidebar-changes-diff")

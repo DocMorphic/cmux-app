@@ -1,5 +1,16 @@
 # Changes preview lifecycle
 
+## Browser parent follow-up — 2026-10-05
+
+The routed text Changes sheet now passes recreation plus rotation in both
+directions while the underlying webpage retains its JavaScript draft. The
+browser also has a retained view owner, with exact DOM/history retention tested
+through two Activity recreations in the production view components. See
+[LOCAL_BROWSER.md](LOCAL_BROWSER.md#retained-browser-view-and-changes-rotation--2026-10-05)
+for the four-test evidence and precise scope. Forced separate-process parent
+recreation with a binary preview, process recovery and pending-picker/media/text/Save
+restoration remain open. Signed 596 is unchanged.
+
 ## PDF navigation and image transform restoration — 2026-10-05
 
 Short final PDF pages now get enough trailing layout space to reach the top of

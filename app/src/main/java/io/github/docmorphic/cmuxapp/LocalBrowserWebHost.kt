@@ -13,9 +13,9 @@ import kotlinx.coroutines.*
 /** Owns only this pane's WebView. It has no JavaScript bridge, file access or Mac credentials. */
 @SuppressLint("SetJavaScriptEnabled")
 internal class LocalBrowserWebHost(context: Context, private val surface: LocalBrowserSurface,
-    private val chooseFiles: (Any, WebChromeClient.FileChooserParams, ValueCallback<Array<Uri>>) -> Boolean,
-    private val cancelFiles: (Any) -> Unit,
-    private val beforeNavigation: (suspend (String?) -> Unit)? = null) : FrameLayout(context) {
+    private var chooseFiles: (Any, WebChromeClient.FileChooserParams, ValueCallback<Array<Uri>>) -> Boolean,
+    private var cancelFiles: (Any) -> Unit,
+    private var beforeNavigation: (suspend (String?) -> Unit)? = null) : FrameLayout(context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var navigation: Job? = null
     private var policyRefresh: Job? = null
@@ -73,7 +73,8 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
                     // Browser-owned redirects/forms retain their original navigation and request body.
                     // All destinations already use the immutable proxy; refresh policy without replaying them.
                     policyRefresh?.cancel()
-                    policyRefresh = scope.launch { runCatching { beforeNavigation.invoke(url) } }
+                    val prepare = beforeNavigation
+                    policyRefresh = scope.launch { runCatching { prepare?.invoke(url) } }
                 }
             }
             override fun doUpdateVisitedHistory(web: WebView, url: String?, isReload: Boolean) {
@@ -124,12 +125,13 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
         navigation?.cancel(); policyRefresh?.cancel()
         // History and reload can also fail before a page-start callback.
         if (isWeb(url)) navigatingUrl = url
-        if (beforeNavigation == null) { action(); return }
+        val prepare = beforeNavigation
+        if (prepare == null) { action(); return }
         val ticket = token
         stopped = false; failed = false; surface.started(ticket)
         navigation = scope.launch {
             try {
-                beforeNavigation.invoke(url)
+                prepare.invoke(url)
                 ensureActive()
                 if (current(view, ticket) && !stopped) { preparedUrl = url; action() }
             } catch (failure: CancellationException) {
@@ -185,6 +187,14 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
         // history survive. Redraw the existing renderer instead of loading its URL again.
         browser?.invalidate()
     }
+    fun bindUi(chooseFiles: (Any, WebChromeClient.FileChooserParams, ValueCallback<Array<Uri>>) -> Boolean,
+        cancelFiles: (Any) -> Unit, beforeNavigation: (suspend (String?) -> Unit)?) {
+        this.chooseFiles = chooseFiles; this.cancelFiles = cancelFiles; this.beforeNavigation = beforeNavigation
+    }
+    fun detachUi() {
+        browser?.let(cancelFiles)
+        chooseFiles = { _, _, _ -> false }; cancelFiles = {}; beforeNavigation = null
+    }
     fun release() {
         if (released) return
         released = true; surface.detach(token)
@@ -194,5 +204,6 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
             removeView(view); view.destroy()
         }
         browser = null
+        detachUi()
     }
 }

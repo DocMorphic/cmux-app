@@ -26,7 +26,20 @@ recovery source `d8edb8b` is committed/pushed and passed 109 focused JVM checks;
 it is not in 596 and has no Android runtime acceptance yet. Start with
 [REMAINING_WORK.md](REMAINING_WORK.md) for the current completion gates.
 
-## Latest source checkpoint — PDF navigation and image gestures (2026-10-05)
+## Latest source checkpoint — retained browser view (2026-10-05)
+
+The routed controller now retains its WebView across Activity recreation, with
+replaceable Activity context/callbacks and lease-checked detach/cleanup. **Four
+Android checks passed in 79.876 s**: exact DOM/view/history retention in the
+production view components, routed Changes-sheet rotation/revocation, routed
+browser rotation/history and real system-picker upload. Screenshots inspected;
+no run ANRs/crashes; settings unchanged; sole AVD stopped/reaped. See
+[LOCAL_BROWSER.md](LOCAL_BROWSER.md#retained-browser-view-and-changes-rotation--2026-10-05)
+for exact test-host scope and remaining parent/binary/process/picker acceptance.
+A ninth debug-only Activity is now covered by the dynamic release exclusion
+inventory. Signed **596** unchanged; Pixel absent; goal active.
+
+## Earlier source checkpoint — PDF navigation and image gestures (2026-10-05)
 
 Short/mixed-height PDF navigation now selects the intended page and updates its
 controls. Image zoom/pan survive recreation; an actual one-finger pan bug found

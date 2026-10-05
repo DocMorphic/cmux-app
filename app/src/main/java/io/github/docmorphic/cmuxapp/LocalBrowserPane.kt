@@ -60,7 +60,8 @@ internal class LocalBrowserFileSelection(private var inFlight: Boolean = false) 
 }
 
 @Composable
-internal fun LocalBrowserPane(surface: LocalBrowserSurface, beforeNavigation: (suspend (String?) -> Unit)? = null, onClose: () -> Unit) {
+internal fun LocalBrowserPane(surface: LocalBrowserSurface, beforeNavigation: (suspend (String?) -> Unit)? = null,
+    retainedWeb: LocalBrowserWebOwner? = null, onClose: () -> Unit) {
     val state by surface.state.collectAsState()
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -102,18 +103,25 @@ internal fun LocalBrowserPane(surface: LocalBrowserSurface, beforeNavigation: (s
             TextButton(onClick = { surface.request(LocalBrowserCommand.RELOAD) }, enabled = !state.closed) { Text("Retry") }
         } }
         key(surface.id) {
-            AndroidView(factory = { context -> LocalBrowserWebHost(context, surface, chooseFiles = { view, params, callback ->
+            var lease by remember(surface, retainedWeb) { mutableStateOf<LocalBrowserWebOwner.Lease?>(null) }
+            val choose: (Any, WebChromeClient.FileChooserParams, ValueCallback<Array<Uri>>) -> Boolean = { view, params, callback ->
                 if (!files.begin(view, params.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE, callback)) false
                 else {
                     try { launcher.launch(params.createIntent()) }
                     catch (_: Exception) { files.finish(null) }
                     true
                 }
-            }, cancelFiles = files::cancel, beforeNavigation = beforeNavigation) }, update = { host ->
+            }
+            AndroidView(factory = { context ->
+                if (retainedWeb == null) LocalBrowserWebHost(context, surface, choose, files::cancel, beforeNavigation)
+                else retainedWeb.attach(context, surface, choose, files::cancel, beforeNavigation).also { lease = it }.host
+            }, update = { host ->
                 // Observe requests even when their navigation snapshot has not changed yet.
                 state.workRevision
                 host.applyPendingWork(); host.foreground(foreground)
-            }, onRelease = { it.release() }, modifier = Modifier.weight(1f).fillMaxWidth().testTag("LocalBrowserPage"))
+            }, onRelease = { host ->
+                if (retainedWeb == null) host.release() else lease?.let(retainedWeb::detach)
+            }, modifier = Modifier.weight(1f).fillMaxWidth().testTag("LocalBrowserPage"))
         }
     }
 }

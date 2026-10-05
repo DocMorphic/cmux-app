@@ -1,5 +1,52 @@
 # Phone-local browser parity audit
 
+## Retained browser view and Changes rotation — 2026-10-05
+
+The routed browser controller now owns one `LocalBrowserWebOwner`. Activity
+recreation can reattach its existing WebView instead of destroying the DOM and
+loading its URL again. A mutable context wrapper is rebound to the current
+Activity while attached and to the application while detached. Activity-owned
+file-picker callbacks are cancelled/cleared on detach and replaced on attach;
+a stale composition release cannot detach a newer lease. Replacing the surface
+or clearing the controller retires the view and its work. This is in-memory
+retention; it does not persist a live DOM through process death.
+
+**Four Android checks passed in 79.876 s** on the sole 16 KB emulator:
+
+1. A debug lifecycle host uses the production owner, pane and WebView. Two full
+   Activity recreations retain the exact WebView, unsent input value, JavaScript
+   counter and back history without another page request. Back/Forward still
+   work. Closing the host destroys/detaches the view and replaces its Activity
+   context with the application context. `RoutedBrowserController` is wired to
+   that same owner; the explicit `ActivityScenario.recreate()` calls in this
+   check target the debug host, not the separate-process Activity.
+2. Production routed Changes sheet: open Mac B's diff while the browser has an
+   unsent JavaScript draft, recreate the sheet and rotate both ways. The same
+   sheet model and exact Mac B requests survive without refetch. Dismissal
+   returns to the unchanged page; removing Mac A's capability closes its next
+   sheet, retires leases and preserves the browser draft without reload.
+3. Existing production routed-browser rotation/history/host-lease regression.
+4. Real system picker cancel, reopen and multipart upload through the routed
+   browser process, verifying the uploaded bytes.
+
+Three screenshots inspected; no crash entries or new ANR events during the run.
+Window/sleep settings unchanged after the wide-screen test restored its override;
+emulator stopped/reaped. No Pixel/Mac workflow was exercised. Evidence is in
+`captures/runtime/browser-view-retention/`, including build/instrumentation logs,
+source/APK hashes, event baselines, settings and screenshots. The new debug-only
+`RetainedBrowserTestActivity` is now the ninth debug Activity; the release
+verifier inventories those names dynamically and must check all nine on the next
+signed build. Signed **596** remains the verified download and does not include
+this change. No global upstream pin was advanced by this Android lifecycle fix.
+
+Still open: forced recreation of the separate-process parent while a binary
+Changes preview is open, renderer/process death, live-host acceptance, pending
+picker restoration, and media/text/Save viewer restoration. The legacy direct
+(non-routed) fallback still uses its existing fresh-WebView remount policy.
+
+The following initial audit is historical; newer checkpoints supersede its
+pending implementation statements.
+
 Status: resolver, state foundation, WebView pane and workspace navigation
 implemented 2026-09-30; **physical acceptance remains open**.
 Reference revision: `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
