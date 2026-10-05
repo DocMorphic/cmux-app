@@ -209,6 +209,12 @@ Neither parity reference was advanced. Local evidence is retained in ignored
 `captures/runtime/upstream-watch-main/`. Signed APK 606 remains the verified
 download; automatic previews remain disabled.
 
+The upgraded [main workflow run](https://github.com/DocMorphic/cmux-app/actions/runs/37345099154)
+then succeeded at source `0c1c4c3`, published the same full-tree inventory to issue
+#2, and uploaded its JSON/Markdown artifact. Its 3,930 total / 1,060 relevant paths
+match the local report. This verifies detection-to-review publication on GitHub;
+porting those changes and selecting a later Android build remain separate work.
+
 ## Historical verification before main integration
 
 Ten policy tests pass, including a real Git history with a six-commit feature

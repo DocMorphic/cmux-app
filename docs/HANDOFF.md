@@ -24,6 +24,8 @@ Sixteen policy tests passed. A read-only report at `1012a019` found 3,930 change
 paths / 1,060 relevant paths with complete file coverage; 1,000 of 1,114 commit
 subjects were retained and explicitly flagged incomplete. No parity reference
 advanced, no app build/emulator run, and scheduled APK previews remain disabled.
+The upgraded main run `37345099154` also succeeded at `0c1c4c3`, updating issue #2
+with the same complete file inventory and uploading the report artifact.
 See `UPDATES.md` and ignored `captures/runtime/upstream-watch-main/`. Next app
 implementation work remains export/background recovery and the completion gates.
 
