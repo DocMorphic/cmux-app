@@ -1,5 +1,40 @@
 # Android background push
 
+## Durable sender outbox checkpoint — 2026-10-06
+
+`push/outbox.mjs` adds a local encrypted queue around the existing sender contract.
+SQLite transactions retain accepted queue entries and original expiry across a
+restart; timed claims coordinate separate processes. AES-256-GCM encrypts token,
+registration, recipient and envelope data using a host-supplied credential-store
+key. Queue IDs are keyed hashes. Retry timing, attempts, ownership and coarse
+states are persisted. A lost claim cannot complete a newer worker's entry.
+
+Unavailable responses use exponential backoff/jitter and provider Retry-After;
+credentials/payload rejection park for explicit recovery. Exact UNREGISTERED
+retirement intent is durable before the host's idempotent compare-and-retire
+callback runs, so a retry preserves a replacement token/generation and does not
+send again. Completed records erase payloads and keep bounded deduplication
+receipts until expiry. The scheduling hint includes expiry cleanup even when all
+entries are blocked/completed. Wrong keys/corrupt records fail closed; capacity
+errors do not silently evict fresh messages. Leases cannot guarantee exactly-once
+provider delivery after an ambiguous send/crash; original ciphertext is reused
+for Android's existing deduplication.
+
+Focused verification covers encrypted disk contents, reopen, identity conflicts,
+capacity/expiry, retry deadlines, authorization revoked during OAuth, parked
+recovery, exact-generation retirement, stale-worker completion, a real SIGKILL
+during send and two subprocesses concurrently draining one local database.
+All **23 Node checks passed** on both Node26.8.2 and the minimum Node22.16.0,
+including 12 outbox cases and the existing 11 transport cases. Evidence is in
+`captures/runtime/push-outbox/`. No Android APK/emulator or live cloud request is
+part of this checkpoint. The push package now requires Node22.16+ for built-in SQLite.
+
+This is a host component, not a deployed service. Provider choice/provisioning,
+authenticated helper enrollment, sender-key binding, notification subscription,
+the policy/registration store and scheduler/key lifecycle still need integration.
+Android token lifecycle and real Pixel/Doze/provider acceptance remain open.
+See [push/README.md](../push/README.md) for the executable API and host contract.
+
 ## FCM sender transport checkpoint — 2026-10-05
 
 `push/fcm.mjs` now implements the sender-side HTTP v1 transport usable by either a

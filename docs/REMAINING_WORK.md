@@ -91,12 +91,19 @@ and currently disabled; the upstream watcher is active on main with review issue
   checkpoint above starts anchoring; full gesture deferral remains open. See
   `WORKSPACE_ROWS.md`. No APK/emulator was used for this batch.
 
+- Added the encrypted sender outbox with atomic local SQLite claims, crash/restart
+  recovery, original ciphertext/expiry, bounded deduplication receipts, persisted
+  backoff and exact-generation retirement intent. Local checks include SIGKILL
+  and concurrent subprocesses. Credential-store key, scheduler, authenticated
+  enrollment/policy store and live provider integration are still host work;
+  see `PUSH_DELIVERY.md` and `push/README.md`. No Android build was needed.
+
 - Added the FCM sender transport for the pending private-helper/backend choice:
   encrypted data-only delivery, explicit recipient/admission checks, expiry and
   size bounds, OAuth, retry timing and exact unregistered-token classification.
   Eleven local Node checks passed and join milestone CI. No cloud resources,
   registration or live push were created. Provider choice, authenticated helper
-  enrollment/sender trust, durable outbox and Android token lifecycle remain open;
+  enrollment/sender trust, durable outbox integration and Android token lifecycle remain open;
   see `PUSH_DELIVERY.md` and `push/README.md`.
 
 - PDF interaction source now adds search/highlights, selectable page text and
