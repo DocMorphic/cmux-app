@@ -1,5 +1,47 @@
 # Content preview lifecycle
 
+## Compatibility PDF text source batch — 2026-10-06
+
+The viewer no longer disables text controls below API35. Older Android versions
+now use the already-pinned PDFBox parser for page text, document search and word
+lookup; API35+ retains Android's native text engine. Rendering stays on Android
+PdfRenderer on every supported version. The compatibility engine is selectable
+internally in instrumentation so it can also be exercised on the existing API37
+AVD without allocating another emulator.
+
+The parser collects reading-order text and glyph bounds, restores PDFBox's
+removed crop origin, and applies the same crop/rotation transform used for link
+annotations. Search ignores case and joins inferred whitespace/line breaks while
+retaining original UTF-16 offsets. Long-press word lookup uses Unicode word
+boundaries. Ligature/bidi normalization retains normalized reading text; where
+normalization changes character order/count, highlights retain the whole word's
+glyph bounds rather than inventing a character mapping. This does not implement
+direct on-page range handles or cross-page selection.
+
+The document owner serializes native and compatibility operations and closes the
+shared parser. Only two extracted pages are cached. Extraction checks document
+permissions and rejects pages beyond 100,000 glyph callbacks or 500,000 UTF-16
+units; a search rejects more than 10,000 matches. Those limits surface the existing
+retry/error UI instead of silently truncating text. They are not a complete bound
+on arbitrary PDF parsing/font resource consumption. PDFBox may now decode font
+metadata for compatibility text; embedded-file extraction, script execution and
+PDFBox raster rendering remain unused.
+
+**14 focused JVM checks pass**, covering phrase/offset mapping, missing bounds,
+Unicode words, surrogate pairs, normalized glyph groups, large searches and
+existing link/zoom coordinate rules. The first run caught a Kotlin receiver-
+shadowing error in word lookup; the original failure log is retained. Main and
+instrumentation Kotlin compilation succeeded (17 s final pass). Two new Android
+cases cover forced compatibility extraction with crop/all right-angle page
+rotations, actual render, links/word selection and close/reopen. **Those Android
+cases have not run**; they join the next integration milestone. Actual older-
+Android runtime, visible highlight/text acceptance, embedded/non-Latin fonts and
+physical Pixel acceptance remain open. No APK/emulator was started for this batch.
+
+Evidence: `captures/runtime/pdf-text-compat/`. Global upstream parity/review pins
+are unchanged. The iOS reference remains its PDFKit-backed vertical continuous
+viewer at scoped commit `186cec79781256867ad4516f0802118738bd2393`.
+
 ## PDF annotation compatibility — 2026-10-05
 
 The combined workspace/PDF milestone exposed a real Android native extraction

@@ -10,7 +10,8 @@ import android.os.ParcelFileDescriptor
 import java.io.File
 import kotlin.math.sqrt
 
-internal class ChangesPdfDocument(private val file: File) : AutoCloseable {
+internal class ChangesPdfDocument(private val file: File, nativeText: Boolean = Build.VERSION.SDK_INT >= 35) : AutoCloseable {
+    private val useNativeText = nativeText && Build.VERSION.SDK_INT >= 35
     private val descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     private val renderer = try { PdfRenderer(descriptor) } catch (error: Throwable) { descriptor.close(); throw error }
     private var closed = false
@@ -31,13 +32,18 @@ internal class ChangesPdfDocument(private val file: File) : AutoCloseable {
             catch (error: Throwable) { bitmap.recycle(); throw error }
         }
     }
-    val supportsText get() = Build.VERSION.SDK_INT >= 35
+    val supportsText get() = true
+    private fun compatibility(): PdfAnnotationLinks {
+        if (linkIndex == null) linkIndex = PdfAnnotationLinks(file, pageSizes)
+        return checkNotNull(linkIndex)
+    }
     @Synchronized fun text(index: Int): String {
-        check(!closed); if (!supportsText) return ""
+        check(!closed); if (!useNativeText) return compatibility().text(index).text
         return renderer.openPage(index).use { it.textContents.joinToString("\n") { content -> content.text } }
     }
     @Synchronized fun search(index: Int, query: String): List<PdfTextMatch> {
-        check(!closed); if (!supportsText || query.isBlank()) return emptyList()
+        check(!closed); if (query.isBlank()) return emptyList()
+        if (!useNativeText) return compatibility().text(index).search(index, query)
         return renderer.openPage(index).use { page -> page.searchText(query).map { match ->
             PdfTextMatch(index, match.textStartIndex, match.bounds.map { it.pdfBounds() })
         } }
@@ -50,14 +56,14 @@ internal class ChangesPdfDocument(private val file: File) : AutoCloseable {
         try {
             if (!attemptedLinkIndex) {
                 attemptedLinkIndex = true
-                linkIndex = PdfAnnotationLinks(file, pageSizes)
+                compatibility()
             }
             parsed = linkIndex?.links(index)
         } catch (error: Exception) {
             if (error is java.util.concurrent.CancellationException) throw error
             incompleteLinks = true
         }
-        if (!supportsText) return parsed.orEmpty()
+        if (Build.VERSION.SDK_INT < 35) return parsed.orEmpty()
         val native = try { renderer.openPage(index).use { page ->
             page.linkContents.mapNotNull { link -> PdfLinkTarget.external(link.uri.toString())?.let {
                 PdfDocumentLink(link.bounds.map { it.pdfBounds() }, it)
@@ -80,7 +86,9 @@ internal class ChangesPdfDocument(private val file: File) : AutoCloseable {
         } } }
     }
     @Synchronized fun word(index: Int, x: Float, y: Float): String? {
-        check(!closed); if (!supportsText) return null
+        check(!closed)
+        if (!x.isFinite() || !y.isFinite() || x !in 0f..1f || y !in 0f..1f) return null
+        if (!useNativeText) return compatibility().text(index).word(x * pageSizes[index].first, y * pageSizes[index].second)
         return renderer.openPage(index).use { page ->
             val boundary = SelectionBoundary(Point((x * page.width).toInt().coerceIn(0, page.width - 1),
                 (y * page.height).toInt().coerceIn(0, page.height - 1)))
@@ -95,4 +103,3 @@ internal class ChangesPdfDocument(private val file: File) : AutoCloseable {
         }
     }
 }
-

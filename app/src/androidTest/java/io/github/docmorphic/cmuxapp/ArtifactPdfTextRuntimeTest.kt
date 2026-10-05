@@ -13,14 +13,14 @@ import org.junit.Test
 
 class ArtifactPdfTextRuntimeTest {
     /** Original two-page PDF with text plus external and internal annotations. */
-    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400): File {
+    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false): File {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val text = listOf("CMUX first needle", "CMUX second needle")
         val streams = text.map { "BT /F1 18 Tf 30 340 Td ($it) Tj ET" }
         val objects = listOf(
             "<< /Type /Catalog /Pages 2 0 R /Names << /Dests << /Names [(target) [4 0 R /XYZ 0 400 0]] >> >> >>",
             "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Rotate $sourceRotation /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R /Annots [8 0 R 9 0 R] >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] ${if (crop) "/CropBox [10 20 290 380]" else ""} /Rotate $sourceRotation /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R /Annots [8 0 R 9 0 R] >>",
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 $targetHeight] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>",
             "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
             "<< /Length ${streams[0].length} >>\nstream\n${streams[0]}\nendstream",
@@ -55,6 +55,37 @@ class ArtifactPdfTextRuntimeTest {
             assertTrue(links.any { it.target == PdfLinkTarget.External("https://cmux.com/docs") })
             assertTrue(links.any { (it.target as? PdfLinkTarget.Page)?.index == 1 })
         } } finally { file.delete() }
+    }
+    @Test fun compatibilityTextSearchAndWordSelectionRespectCropAndAllPageRotations() {
+        for (rotation in listOf(0, 90, 180, 270)) {
+            val file = fixture(sourceRotation = rotation, crop = true)
+            try { ChangesPdfDocument(file, nativeText = false).use { pdf ->
+                assertTrue(pdf.supportsText)
+                assertTrue(pdf.text(0).contains("CMUX first needle"))
+                val match = pdf.search(0, "NEEDLE").single()
+                val (width, height) = pdf.pageSizes[0]
+                assertTrue(match.bounds.all { it.left >= 0 && it.top >= 0 && it.right <= width && it.bottom <= height })
+                val first = match.bounds.first()
+                assertEquals("needle", pdf.word(0, (first.left + first.right) / (2 * width), (first.top + first.bottom) / (2 * height)))
+                assertEquals(1, pdf.search(0, "first needle").size)
+                assertNull(pdf.word(0, Float.NaN, .5f)); assertNull(pdf.word(0, -1f, .5f))
+                assertTrue(pdf.links(0).any { it.target is PdfLinkTarget.Page })
+                // Rendering remains the real platform path when compatibility text is selected.
+                pdf.render(0, 300).recycle()
+            } } finally { file.delete() }
+        }
+    }
+    @Test fun compatibilityTextCanBeReopenedAndIsRetiredWithItsDocument() {
+        val file = fixture()
+        try {
+            val first = ChangesPdfDocument(file, nativeText = false)
+            val text = first.text(1); val matches = first.search(1, "needle")
+            first.close()
+            assertThrows(IllegalStateException::class.java) { first.text(1) }
+            ChangesPdfDocument(file, nativeText = false).use { reopened ->
+                assertEquals(text, reopened.text(1)); assertEquals(matches, reopened.search(1, "needle"))
+            }
+        } finally { file.delete() }
     }
     @Test fun directNamedAndActionDestinationsUseTargetPageAndRotatedSourceCoordinates() {
         for (form in listOf("direct", "named", "action")) {

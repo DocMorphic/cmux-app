@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- PDF text/search/word-copy controls now have a compatibility engine below API35
+  using the existing pinned parser. API35+ keeps the native engine; rendering is
+  still native on all versions. Crop/rotation geometry, normalized text offsets,
+  Unicode word lookup and bounded page caching are implemented. Fourteen focused
+  JVM checks pass; main/instrumentation compile. Two new Android cases are queued
+  for the next milestone, including forced compatibility mode on the existing
+  AVD. Older-Android runtime/font coverage and full PDFKit selection/destination
+  behavior remain open; see `CONTENT_PREVIEW_LIFECYCLE.md`.
+
 - Notification rows now support revealed/full read swipes with stable intent and
   current action admission. The main feed reconciles all keyed rows and anchors
   live changes; history controls, browser notification geometry and native rich

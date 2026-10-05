@@ -11,11 +11,14 @@ import com.tom_roush.pdfbox.pdmodel.interactive.documentnavigation.destination.P
 import com.tom_roush.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageDestination
 import java.io.File
 
-/** Metadata only: no JavaScript, embedded-file extraction, launch actions, fonts or rendering. */
+/** Links and compatibility text; no JavaScript, embedded-file extraction, launch actions or rendering. */
 internal class PdfAnnotationLinks(file: File, private val pageSizes: List<Pair<Int, Int>>) : AutoCloseable {
     private val document = PDDocument.load(file, MemoryUsageSetting.setupMixed(8L * 1024 * 1024, 128L * 1024 * 1024)
         .setTempDir(file.parentFile))
     private val cache = mutableMapOf<Int, List<PdfDocumentLink>>()
+    private val textCache = object : LinkedHashMap<Int, PdfCompatibilityTextPage>(3, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, PdfCompatibilityTextPage>?) = size > 2
+    }
     private fun coordinates(index: Int): PdfPageCoordinates {
         val page = document.getPage(index)
         val crop = page.cropBox
@@ -42,6 +45,10 @@ internal class PdfAnnotationLinks(file: File, private val pageSizes: List<Pair<I
             if (bounds.isEmpty()) null else PdfDocumentLink(bounds, target)
         }
     }
+    fun text(index: Int): PdfCompatibilityTextPage = textCache.getOrPut(index) {
+        require(document.numberOfPages == pageSizes.size) { "PDF parsers disagree about page count" }
+        pdfCompatibilityText(document, index, coordinates(index))
+    }
     private fun destination(raw: PDDestination?): PdfLinkTarget.Page? {
         val destination = when (raw) {
             is PDNamedDestination -> document.documentCatalog.findNamedDestinationPage(raw)
@@ -66,5 +73,5 @@ internal class PdfAnnotationLinks(file: File, private val pageSizes: List<Pair<I
         val point = geometry.point(x, top) ?: return null
         return PdfLinkTarget.Page(index, point.second.coerceIn(0f, pageSizes[index].second.toFloat()))
     }
-    override fun close() { cache.clear(); document.close() }
+    override fun close() { cache.clear(); textCache.clear(); document.close() }
 }
