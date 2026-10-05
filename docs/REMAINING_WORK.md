@@ -25,6 +25,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Combined workspace/PDF milestone: **14/14 Android tests passed in 66.575 s**
+  on the existing API37/16 KiB AVD; eight focused PDF JVM tests also passed.
+  This supersedes the queued Android status in the three workspace source batches
+  and PDF source batch below. Direct/named/GoTo PDF links now use a pinned metadata
+  parser after the native extractor omitted valid direct destinations. Actual
+  enlarged text, workspace anchoring/gesture retirement and PDF link/search/
+  recreation/copy paths passed. Debug APKs built; font scale restored, no final
+  crash/ANR entries, AVD stopped/reaped. Physical acceptance and a new signed
+  delivery remain pending; see `WORKSPACE_ROWS.md` and `CONTENT_PREVIEW_LIFECYCLE.md`.
+
 - Main/browser workspace membership and order now wait through scroll/fling,
   row holds and open swipes. Surviving content stays current; removed rows are
   inert and cached callbacks check membership/lifetime. Recycled swipe owners

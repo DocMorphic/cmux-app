@@ -461,3 +461,9 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android keeps visibility in its encrypted local account state, with exact stored
 origin/alias and owner/build matching, synchronous guarded persistence and
 foreground/feed/terminal/browser retirement checks.
+
+PDF annotation/destination parsing uses PdfBox-Android 2.0.27.0 (Apache-2.0),
+https://github.com/TomRoush/PdfBox-Android, tag v2.0.27.0 /
+45da92629dad5b3c9887eceefecc89a1423f5457. License/notice texts are included in
+third_party/pdfbox-android and the in-app licenses. Rendering remains Android
+PdfRenderer. No embedded-file extraction or script execution is used.

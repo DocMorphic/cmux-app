@@ -47,6 +47,7 @@ internal object MobileDiagnostics {
 class CmuxApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        com.tom_roush.pdfbox.android.PDFBoxResourceLoader.init(this)
         val process = if (android.os.Build.VERSION.SDK_INT >= 28) getProcessName() else
             getSystemService(android.app.ActivityManager::class.java).runningAppProcesses?.firstOrNull { it.pid == android.os.Process.myPid() }?.processName.orEmpty()
         runCatching { MobileDiagnostics.install(this, if (process.endsWith(":browser")) DiagnosticRole.BROWSER else DiagnosticRole.APP) }

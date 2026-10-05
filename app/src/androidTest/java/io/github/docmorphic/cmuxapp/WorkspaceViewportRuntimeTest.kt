@@ -45,6 +45,7 @@ class WorkspaceViewportRuntimeTest {
         val neighborY = y("Workspace 21")
         compose.runOnIdle { rows = listOf(workspaces[20]) + workspaces.filterNot { it.id == "w20" } }
         assertY("Workspace 21", neighborY)
+        workspaceMilestoneCapture("native-stable-neighbor")
         compose.onNodeWithText("Workspace 20").assertIsNotDisplayed()
         compose.runOnIdle { status = true }
         assertY("Workspace 21", neighborY)
@@ -67,6 +68,7 @@ class WorkspaceViewportRuntimeTest {
         val neighborY = y("Workspace 21")
         compose.runOnIdle { rows = listOf(original[20]) + original.filterNot { it.key == "w20" } }
         assertY("Workspace 21", neighborY)
+        workspaceMilestoneCapture("browser-stable-neighbor")
         compose.runOnIdle { rows = rows.filterNot { it.key == "w1" } }
         assertY("Workspace 21", neighborY)
         scroll(0)

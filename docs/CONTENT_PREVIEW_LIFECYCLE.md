@@ -1,5 +1,32 @@
 # Content preview lifecycle
 
+## PDF annotation compatibility — 2026-10-05
+
+The combined workspace/PDF milestone exposed a real Android native extraction
+gap: valid direct `/Dest` links were missing. The original fixture is retained.
+The metadata parser now covers direct, named and GoTo destinations and permitted
+URI annotations, using crop/rotation-aware bounds and the destination page's own
+geometry. Native inferred text URLs remain available. Rendering and text/search
+still use Android PdfRenderer. Parser failure retains native fallback and exposes
+incomplete links; document disposal closes both parsers.
+
+PdfBox-Android is pinned with source/license provenance in
+`third_party/pdfbox-android/README.md`; no new native library is added. Scratch
+storage is bounded, and embedded-file extraction and script execution are unused.
+The dependency uses the existing Bouncy Castle 1.86 family; APK packaging merges
+its license metadata and excludes unused duplicate OSGi descriptors.
+
+Eight focused JVM checks pass, and debug/app-test APK assembly succeeds. The
+combined Android milestone passed **14/14 tests in 66.575 s**, including three PDF
+cases covering direct/named/GoTo links, rotated source and differently sized target
+pages, real accessibility navigation, text/word lookup, search highlight pixels,
+recreation and clipboard. The highlight screenshot was visually checked. The
+initial run had 11/13 passing cases; its two failures and the subsequent fix are
+preserved under `captures/runtime/workspace-pdf-milestone/`. No crash or ANR was
+recorded in the final run. This source change does not
+close full PDFKit selection, destination X/zoom, older-Android acceptance,
+large/hostile PDF resource acceptance or physical Pixel/Mac parity.
+
 ## PDF text, search and links source batch — 2026-10-05
 
 The scoped iOS `ChatArtifactPDFView.swift` at

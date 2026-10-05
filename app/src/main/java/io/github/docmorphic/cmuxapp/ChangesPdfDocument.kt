@@ -10,10 +10,14 @@ import android.os.ParcelFileDescriptor
 import java.io.File
 import kotlin.math.sqrt
 
-internal class ChangesPdfDocument(file: File) : AutoCloseable {
+internal class ChangesPdfDocument(private val file: File) : AutoCloseable {
     private val descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     private val renderer = try { PdfRenderer(descriptor) } catch (error: Throwable) { descriptor.close(); throw error }
     private var closed = false
+    private var linkIndex: PdfAnnotationLinks? = null
+    private var attemptedLinkIndex = false
+    var incompleteLinks = false
+        private set
     val pageSizes: List<Pair<Int, Int>> = try { (0 until renderer.pageCount).map { index -> renderer.openPage(index).use { it.width to it.height } } }
         catch (error: Throwable) { renderer.close(); descriptor.close(); throw error }
     @Synchronized fun render(index: Int, width: Int): Bitmap {
@@ -39,17 +43,41 @@ internal class ChangesPdfDocument(file: File) : AutoCloseable {
         } }
     }
     @Synchronized fun links(index: Int): List<PdfDocumentLink> {
-        check(!closed); if (!supportsText) return emptyList()
-        return renderer.openPage(index).use { page ->
+        check(!closed)
+        // Android's native extractor skips direct /Dest annotations. Parse annotations,
+        // including named destinations, before falling back to platform extraction.
+        var parsed: List<PdfDocumentLink>? = null
+        try {
+            if (!attemptedLinkIndex) {
+                attemptedLinkIndex = true
+                linkIndex = PdfAnnotationLinks(file, pageSizes)
+            }
+            parsed = linkIndex?.links(index)
+        } catch (error: Exception) {
+            if (error is java.util.concurrent.CancellationException) throw error
+            incompleteLinks = true
+        }
+        if (!supportsText) return parsed.orEmpty()
+        val native = try { renderer.openPage(index).use { page ->
             page.linkContents.mapNotNull { link -> PdfLinkTarget.external(link.uri.toString())?.let {
                 PdfDocumentLink(link.bounds.map { it.pdfBounds() }, it)
-            } } + page.gotoLinks.mapNotNull { link ->
+            } } + (if (parsed != null) emptyList() else page.gotoLinks.mapNotNull { link ->
                 val target = link.destination
                 target.pageNumber.takeIf { it in pageSizes.indices }?.let {
                     PdfDocumentLink(link.bounds.map { it.pdfBounds() }, PdfLinkTarget.Page(it, target.yCoordinate))
                 }
-            }
+            })
+        } } catch (error: Exception) {
+            if (parsed == null || error is java.util.concurrent.CancellationException) throw error
+            incompleteLinks = true
+            emptyList()
         }
+        // Preserve platform-inferred URLs in ordinary text. Explicit annotations win
+        // when they cover the same area, including native destinations with wrong crop coordinates.
+        val annotated = parsed ?: return native
+        return annotated + native.filter { link -> annotated.none { explicit -> explicit.bounds.any { a ->
+            link.bounds.any { b -> a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top }
+        } } }
     }
     @Synchronized fun word(index: Int, x: Float, y: Float): String? {
         check(!closed); if (!supportsText) return null
@@ -60,6 +88,11 @@ internal class ChangesPdfDocument(file: File) : AutoCloseable {
         }
     }
     private fun RectF.pdfBounds() = PdfTextBounds(left, top, right, bottom)
-    @Synchronized override fun close() { if (!closed) { closed = true; renderer.close(); descriptor.close() } }
+    @Synchronized override fun close() {
+        if (!closed) {
+            closed = true
+            try { linkIndex?.close() } finally { try { renderer.close() } finally { descriptor.close() } }
+        }
+    }
 }
 

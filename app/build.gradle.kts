@@ -123,6 +123,12 @@ android {
     sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/terminal")
     sourceSets.getByName("androidTest").assets.directories.add("src/test/resources/browser")
 
+    packaging.resources {
+        merges += "META-INF/LICENSE.md"
+        // OSGi module descriptors are not used by Android; keep notices in the APK.
+        excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+    }
+
     buildFeatures {
         buildConfig = true
         compose = true
@@ -148,6 +154,12 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.2.1")
     implementation("com.github.mwiede:jsch:2.28.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
+    implementation("org.bouncycastle:bcutil-jdk18on:1.86")
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0") {
+        // Use the same maintained BC family as the app; do not package duplicate 15to18 classes.
+        exclude(group = "org.bouncycastle")
+    }
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.webkit:webkit:1.17.1")
     implementation("androidx.compose.material3:material3")

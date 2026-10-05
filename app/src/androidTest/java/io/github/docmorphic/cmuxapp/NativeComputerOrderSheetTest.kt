@@ -39,6 +39,7 @@ class NativeComputerOrderSheetTest {
         compose.onNodeWithText("Recent Activity").performClick()
         compose.runOnIdle { assertEquals(NativeWorkspaceSortMode.ACTIVITY,selected); assertTrue(open) }
         compose.onNodeWithTag("workspace.sort.recentActivity").assertIsSelected()
+        workspaceMilestoneCapture("view-options")
         compose.onNodeWithText("Edit Computer Order").assertDoesNotExist()
         compose.onNodeWithText("Custom Order").performClick()
         compose.runOnIdle { assertEquals(0, editorOpens); assertTrue(open) }
@@ -46,5 +47,35 @@ class NativeComputerOrderSheetTest {
         compose.onNodeWithTag("workspace.sort.recentActivity").assertIsNotSelected()
         compose.onNodeWithText("Edit Computer Order").performClick()
         compose.runOnIdle { assertEquals(1, editorOpens); assertFalse(open) }
+    }
+    @Test fun enlargedTextKeepsSortChoicesAndScrollableFiltersUsable() {
+        org.junit.Assume.assumeTrue(android.os.Build.MODEL.contains("sdk"))
+        val device = androidx.test.uiautomator.UiDevice.getInstance(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation())
+        val originalScale = device.executeShellCommand("settings get system font_scale").trim()
+        try {
+            device.executeShellCommand("settings put system font_scale 2.0")
+            compose.waitUntil(10_000) { compose.activity.resources.configuration.fontScale >= 1.99f }
+            var open by mutableStateOf(false)
+            var selected by mutableStateOf(NativeWorkspaceSortMode.AUTOMATIC)
+            var filter by mutableStateOf(NativeWorkspaceFilter())
+            compose.setContent { CmuxTheme {
+                NativeWorkspaceFilterMenu(filter, emptyList(), open, { open = it }, { filter = it },
+                    sortMode = selected, onSort = { selected = it }, onOrder = {})
+            } }
+            compose.onNodeWithContentDescription("Filter workspaces").performClick()
+            NativeWorkspaceSortMode.entries.forEach { compose.onNodeWithText(it.title).assertIsDisplayed() }
+            val headerHeight = compose.onNodeWithText("Sort Computers By").fetchSemanticsNode().boundsInRoot.height
+            assertTrue("Popup text did not actually enlarge", headerHeight / compose.activity.resources.displayMetrics.density > 26f)
+            compose.onNodeWithText("Custom Order").performClick()
+            compose.onNodeWithTag("workspace.sort.computerPriority").assertIsSelected()
+            workspaceMilestoneCapture("view-options-large-text")
+            compose.onNodeWithText("Unread").performScrollTo().performClick()
+            compose.runOnIdle { assertTrue(filter.unread); assertTrue(open) }
+            workspaceMilestoneCapture("view-options-large-text-filter")
+        } finally {
+            device.executeShellCommand(if (originalScale == "null") "settings delete system font_scale" else
+                "settings put system font_scale $originalScale")
+            compose.waitUntil(10_000) { kotlin.math.abs(compose.activity.resources.configuration.fontScale - (originalScale.toFloatOrNull() ?: 1f)) < .01f }
+        }
     }
 }

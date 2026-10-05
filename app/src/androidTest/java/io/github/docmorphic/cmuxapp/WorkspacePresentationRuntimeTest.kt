@@ -40,8 +40,9 @@ class WorkspacePresentationRuntimeTest {
             workspaces = listOf(initial[2].copy(id = "new", title = "Arrived"), initial[1].copy(title = "Updated"), initial[2])
         }
         compose.onNodeWithTag("workspace.row:new").assertDoesNotExist()
-        compose.onNodeWithTag("workspace.title:b").assertTextEquals("Updated")
+        compose.onNodeWithTag("workspace.title:b", useUnmergedTree = true).assertTextEquals("Updated")
         assertEquals(beforeY, compose.onNodeWithTag("workspace.row:b").fetchSemanticsNode().boundsInRoot.top, 1f)
+        workspaceMilestoneCapture("held-swipe-latest-content")
         compose.runOnIdle { cachedClick(); assertEquals(0, opened); assertEquals(0, actions) }
         Espresso.pressBack()
         compose.onNodeWithTag("workspace.row:new").assertIsDisplayed()

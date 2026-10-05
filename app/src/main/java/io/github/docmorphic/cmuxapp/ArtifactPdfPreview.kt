@@ -144,12 +144,12 @@ private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<P
     var pageFailure by remember(pdf, index) { mutableStateOf<String?>(null) }
     var linkFailure by remember(pdf, index) { mutableStateOf(false) }
     val links by produceState<List<PdfDocumentLink>>(emptyList(), pdf, index) {
-        try { value = withContext(Dispatchers.IO) { pdf.links(index) } }
+        try { value = withContext(Dispatchers.IO) { pdf.links(index) }; linkFailure = pdf.incompleteLinks }
         catch (error: Exception) { currentCoroutineContext().ensureActive(); linkFailure = true }
     }
     BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(pageSize.first.toFloat() / pageSize.second).semantics {
         contentDescription = "PDF page ${index + 1} of ${pdf.pageSizes.size}"
-        if (pdf.supportsText) customActions = listOf(CustomAccessibilityAction("Read or copy page text") { onPageText(); true }) +
+        customActions = (if (pdf.supportsText) listOf(CustomAccessibilityAction("Read or copy page text") { onPageText(); true }) else emptyList()) +
             links.map { link -> CustomAccessibilityAction(when (val target = link.target) {
                 is PdfLinkTarget.Page -> "Go to page ${target.index + 1}"
                 is PdfLinkTarget.External -> "Open ${target.url}"

@@ -4,6 +4,24 @@
 for the latest signed artifact and its verification scope; historical delivery
 statements below describe their dated checkpoints.
 
+## Combined workspace/PDF milestone (2026-10-05)
+
+One shared debug build and the sole existing API37/16 KiB AVD exercise the view
+options, native/browser drag and stable viewport anchors, gesture-held rows and
+PDF interaction together. The initial run found a test selector using the merged
+semantics tree for a child title; it now selects the actual unmerged title node.
+The enlarged-font case now changes and restores the emulator's system font scale
+and measures the rendered heading, after screenshot inspection exposed that a
+local density override had not enlarged popup text. No physical phone is changed.
+
+Final run: **14/14 Android tests passed in 66.575 s**, including all 11 workspace
+cases and three PDF cases. Enlarged system text was visibly confirmed and restored
+to 1.0; crash buffer was empty and no ANR/crash events appeared. The existing AVD
+was stopped/reaped. Full row-height/action/status/footer reconciliation,
+TalkBack traversal, scroll/fling timing and physical smoothness remain open.
+Evidence: `captures/runtime/workspace-pdf-milestone/`; earlier failed evidence is
+preserved alongside the corrected run. Global upstream pins are unchanged.
+
 ## Gesture-held workspace membership source batch (2026-10-05)
 
 The native and routed-browser lists now retain rendered workspace order and

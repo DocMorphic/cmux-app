@@ -13,20 +13,24 @@ import org.junit.Test
 
 class ArtifactPdfTextRuntimeTest {
     /** Original two-page PDF with text plus external and internal annotations. */
-    private fun fixture(): File {
+    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400): File {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val text = listOf("CMUX first needle", "CMUX second needle")
         val streams = text.map { "BT /F1 18 Tf 30 340 Td ($it) Tj ET" }
         val objects = listOf(
-            "<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Catalog /Pages 2 0 R /Names << /Dests << /Names [(target) [4 0 R /XYZ 0 400 0]] >> >> >>",
             "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R /Annots [8 0 R 9 0 R] >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Rotate $sourceRotation /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R /Annots [8 0 R 9 0 R] >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 $targetHeight] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>",
             "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
             "<< /Length ${streams[0].length} >>\nstream\n${streams[0]}\nendstream",
             "<< /Length ${streams[1].length} >>\nstream\n${streams[1]}\nendstream",
             "<< /Type /Annot /Subtype /Link /Rect [30 250 180 280] /A << /S /URI /URI (https://cmux.com/docs) >> >>",
-            "<< /Type /Annot /Subtype /Link /Rect [30 200 180 230] /Dest [4 0 R /XYZ 0 400 0] >>")
+            "<< /Type /Annot /Subtype /Link /Rect [30 200 180 230] " + when (form) {
+                "named" -> "/Dest (target)"
+                "action" -> "/A << /S /GoTo /D [4 0 R /XYZ 0 400 0] >>"
+                else -> "/Dest [4 0 R /XYZ 0 400 0]"
+            } + " >>")
         val output = ByteArrayOutputStream()
         fun write(value: String) { output.write(value.toByteArray(Charsets.US_ASCII)) }
         write("%PDF-1.4\n"); val offsets = mutableListOf<Int>()
@@ -52,6 +56,17 @@ class ArtifactPdfTextRuntimeTest {
             assertTrue(links.any { (it.target as? PdfLinkTarget.Page)?.index == 1 })
         } } finally { file.delete() }
     }
+    @Test fun directNamedAndActionDestinationsUseTargetPageAndRotatedSourceCoordinates() {
+        for (form in listOf("direct", "named", "action")) {
+            val file = fixture(form, sourceRotation = 90, targetHeight = 600)
+            try { ChangesPdfDocument(file).use { pdf ->
+                val link = pdf.links(0).single { it.target is PdfLinkTarget.Page }
+                assertEquals(PdfLinkTarget.Page(1, 200f), link.target)
+                assertEquals(PdfTextBounds(200f, 30f, 230f, 180f), link.bounds.single())
+                assertFalse(pdf.incompleteLinks)
+            } } finally { file.delete() }
+        }
+    }
     @Test fun searchNavigatesHighlightsAndPageTextCopiesAfterRecreation() {
         check(Build.VERSION.SDK_INT >= 35 && (Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk")))
         val instrumentation = InstrumentationRegistry.getInstrumentation(); val context = instrumentation.targetContext
@@ -60,6 +75,22 @@ class ArtifactPdfTextRuntimeTest {
         val captures = File(context.getExternalFilesDir(null), "pdf-text").apply { mkdirs() }
         try { ActivityScenario.launch<ArtifactPreviewTestActivity>(Intent(context, ArtifactPreviewTestActivity::class.java)
             .putExtra("path", file.absolutePath).putExtra("route", ChangesPreviewRoute.PDF.name).putExtra("mime", "application/pdf")).use { scenario ->
+            // Exercise the actual document link action before opening search.
+            val deadline = android.os.SystemClock.uptimeMillis() + 10_000
+            var followed = false
+            while (!followed && android.os.SystemClock.uptimeMillis() < deadline) {
+                fun follow(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+                    if (node == null) return false
+                    node.actionList.firstOrNull { it.label?.toString() == "Go to page 2" }?.let { return node.performAction(it.id) }
+                    return (0 until node.childCount).any { follow(node.getChild(it)) }
+                }
+                followed = follow(instrumentation.uiAutomation.rootInActiveWindow)
+                if (!followed) android.os.SystemClock.sleep(100)
+            }
+            assertTrue("Internal page link action unavailable", followed)
+            find(By.desc("PDF page 2 of 2"))
+            find(By.text("Previous page")).click()
+            find(By.desc("PDF page 1 of 2"))
             find(By.text("Search document")).click(); find(By.clazz("android.widget.EditText")).text = "needle"
             assertTrue(find(By.desc("PDF search results")).wait(Until.textEquals("1 / 2"), 10_000))
             find(By.text("Next match")).click(); find(By.desc("PDF page 2 of 2"))
