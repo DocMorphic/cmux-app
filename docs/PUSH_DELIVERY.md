@@ -1,5 +1,20 @@
 # Android background push
 
+## Scoped upstream recheck (2026-10-05)
+
+Current upstream HEAD was `186cec79781256867ad4516f0802118738bd2393`
+when checked. Its `web/services/apns/pushDeliveryService.ts` blob is still
+`2b67eeba385e8905fa660afa047976eb03785bea`, identical to the October 2 reviewed
+`f204ade` source. The delegated `deviceDeliveryLease.ts` blob is likewise unchanged
+at `220745b95e9f19a916b69773f47ff5620f18c1b2`: both target claiming and retained
+recipient authorization explicitly require `platform == "ios"`. The delivery
+service selects `sendApnsNotificationReliably` by default.
+
+This is a scoped source comparison, not a probe of the deployed service or a
+complete upstream review. It provides no new Android FCM delivery integration.
+The project/provider choice, token lifecycle and real Doze/process-death delivery
+remain open. The broad parity and reviewed references are unchanged.
+
 ## Current state and delivery decision
 
 The existing Android foreground service watches independently admitted saved Macs

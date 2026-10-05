@@ -1,10 +1,25 @@
 # Android runtime checks
 
+## CI compiler memory (2026-10-05)
+
+Signed milestone run 579 failed during `:app:compileDebugKotlin` with
+`OutOfMemoryError: GC overhead limit exceeded`; no signed APK was produced. The
+compiler reported the method it was processing in `TerminalStreamMirror`, but the
+root exception is heap exhaustion, not a proven error in that method. The local
+incremental debug build and 90 focused JVM/four Android checks had passed.
+
+The CI APK step now uses one worker, disables parallel Gradle execution, runs
+Kotlin compilation in the Gradle process and gives that process a 4 GiB heap with
+a 1 GiB metaspace ceiling. `--no-daemon` releases it before the emulator gate.
+Local `gradle.properties` remains at 2 GiB for the 8 GiB Mac. A successful clean
+signed CI run is still required to establish that this resolves the failure.
+
 ## Release DEX verification
 
 Before a signed milestone can be uploaded, `android.yml` boots an ephemeral
 Android 17 / 16 KB x86_64 emulator on the GitHub runner and verifies the release
-APK's `NativeScreenKt` with ART. The probe loads the APK's DEX directly through
+APK's `NativeScreenKt`, native sidebar host, browser sidebar/drag list, and changes
+sheet/Activity with ART. The probe loads the APK's DEX directly through
 `app_process`; it does not install the arm64 APK or run its native libraries.
 The AVD manager and emulator use one explicit directory under `RUNNER_TEMP`;
 build 488 exposed their differing default search paths on the Linux runner.
@@ -20,6 +35,12 @@ For the existing local emulator or an explicitly selected device:
 python3 scripts/verify-android-classload.py path/to/app-release.apk \
   --serial emulator-5554 --output captures/runtime/classload.log
 ```
+
+Use repeated `--class-name` options to verify additional changed surfaces in one
+APK transfer, for example `--class-name io.github.docmorphic.cmuxapp.NativeScreenKt`
+and `--class-name io.github.docmorphic.cmuxapp.RoutedSidebarDragListKt`. The default
+remains `NativeScreenKt`; success requires every requested class to load and expose
+its methods. This checks ART verification, not interaction with those surfaces.
 
 Set `JAVA_HOME` to JDK 17 and `ANDROID_HOME` to the SDK. The tool uses a temporary
 on-device directory, requires a completed boot, preserves installed packages and

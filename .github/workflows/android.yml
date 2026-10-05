@@ -197,7 +197,15 @@ jobs:
         env:
           CMUX_APP_RELEASE_KEYSTORE: ${{ runner.temp }}/cmux-app-release.p12
           CMUX_APP_RELEASE_PASSWORD: ${{ secrets.CMUX_APP_RELEASE_PASSWORD }}
-        run: ./gradlew :ghostty:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --stacktrace
+        # Clean debug/release compilation exceeded the inherited 2 GiB Kotlin heap
+        # in run 579. Serialize compiler work in one 4 GiB CI JVM and release it
+        # before starting the ART emulator. Keep the 8 GiB Mac's local defaults.
+        run: >-
+          ./gradlew --no-daemon --no-parallel --max-workers=1
+          -Pkotlin.compiler.execution.strategy=in-process
+          '-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'
+          :ghostty:testDebugUnitTest :app:testDebugUnitTest
+          :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --stacktrace
       - name: Verify signed APK contents and all native alignment
         run: |
           python3 scripts/verify-signed-apk.py app/build/outputs/apk/release/app-release.apk --version "$GITHUB_RUN_NUMBER" --output "$RUNNER_TEMP/cmux-signed-verification"
@@ -231,7 +239,13 @@ jobs:
           done
           test "$ready" = true
           adb -s emulator-5554 shell df -h /data > "$RUNNER_TEMP/cmux-runtime-verification/data-space.txt"
-          python3 scripts/verify-android-classload.py app/build/outputs/apk/release/app-release.apk --serial emulator-5554 --output "$RUNNER_TEMP/cmux-runtime-verification/classload.log"
+          python3 scripts/verify-android-classload.py app/build/outputs/apk/release/app-release.apk --serial emulator-5554 --output "$RUNNER_TEMP/cmux-runtime-verification/classload.log" \
+            --class-name io.github.docmorphic.cmuxapp.NativeScreenKt \
+            --class-name io.github.docmorphic.cmuxapp.NativeRoutedSidebarHost \
+            --class-name io.github.docmorphic.cmuxapp.RoutedBrowserSidebarKt \
+            --class-name io.github.docmorphic.cmuxapp.RoutedSidebarDragListKt \
+            --class-name io.github.docmorphic.cmuxapp.WorkspaceChangesSheetKt \
+            --class-name io.github.docmorphic.cmuxapp.RoutedChangesActivity
       - name: Retain Android runtime verification evidence
         if: always()
         uses: actions/upload-artifact@v4

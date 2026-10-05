@@ -7,6 +7,7 @@ cannot detect. It does not replace actual Activity launch or authenticated tests
 """
 import argparse
 import os
+import re
 from pathlib import Path
 import shlex
 import shutil
@@ -33,11 +34,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('apk', type=Path)
     parser.add_argument('--serial', required=True)
+    parser.add_argument('--class-name', action='append', dest='classes',
+        help='Fully qualified class to verify; repeat for several (default: NativeScreenKt)')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--sdk', type=Path, default=os.environ.get('ANDROID_HOME') or os.environ.get('ANDROID_SDK_ROOT'))
     args = parser.parse_args()
     if args.sdk is None or not args.apk.is_file():
         parser.error('Provide an existing APK and ANDROID_HOME or --sdk')
+    names = args.classes or ['io.github.docmorphic.cmuxapp.NativeScreenKt']
+    if any(not re.fullmatch(r'[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)+', name) for name in names):
+        parser.error('Class names must be fully qualified Java binary names')
     java_home = os.environ.get('JAVA_HOME')
     javac = str(Path(java_home) / 'bin/javac') if java_home else shutil.which('javac')
     if not javac:
@@ -63,11 +69,10 @@ def main():
             run(adb + ['push', args.apk.resolve(), remote + '/candidate.apk'], capture_output=True)
             run(adb + ['push', root / 'classes.dex', remote + '/probe.dex'], capture_output=True)
             run(adb + ['shell', 'chmod', '444', remote + '/candidate.apk', remote + '/probe.dex'])
-            name = 'io.github.docmorphic.cmuxapp.NativeScreenKt'
-            command = 'CLASSPATH=' + shlex.quote(remote + '/probe.dex:' + remote + '/candidate.apk') + ' app_process /system/bin VerifyAndroidClasses ' + name
+            command = 'CLASSPATH=' + shlex.quote(remote + '/probe.dex:' + remote + '/candidate.apk') + ' app_process /system/bin VerifyAndroidClasses ' + ' '.join(map(shlex.quote, names))
             result = subprocess.run(adb + ['shell', command], capture_output=True, text=True, timeout=120)
             args.output.write_text(result.stdout + result.stderr, encoding='utf-8')
-            if result.returncode or 'VERIFIED ' + name + ' methods=' not in result.stdout:
+            if result.returncode or any('VERIFIED ' + name + ' methods=' not in result.stdout for name in names):
                 raise SystemExit('ART class verification failed; inspect ' + str(args.output))
             print(result.stdout.strip())
         finally:
