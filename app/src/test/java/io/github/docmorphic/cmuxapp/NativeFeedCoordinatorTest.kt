@@ -11,6 +11,77 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun retainedArtifactsUseExactMacAndRejectWithdrawnAdmission() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            val terminal = ArtifactAuthorization.Terminal("w", "t")
+            val listing = JSONObject("""{"workspaces":[{"id":"w","terminals":[{"id":"t"}]}]}""")
+            a.artifactsSupported = true; b.artifactsSupported = true
+            a.workspaceResponse = listing; b.workspaceResponse = listing
+            var allowed = true; var caller = true
+            val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { allowed })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.hasWorkspaceSnapshot } == 2 }
+                val access = checkNotNull(coordinator.terminalArtifactAccess(mac("b"), terminal) { caller })
+                assertEquals("b", access.rpc.stat(terminal, "/report.txt").getString("owner"))
+                assertTrue(a.requests.none { it.optString("method").contains(".artifact.") })
+                assertNull(coordinator.terminalArtifactAccess(mac("b").copy(instanceTag = "nightly"), terminal) { true })
+                assertNull(coordinator.terminalArtifactAccess(mac("b"), terminal.copy(surfaceId = "other")) { true })
+                caller = false; assertFalse(access.current())
+                assertTrue(runCatching { access.rpc.stat(terminal, "/report.txt") }.isFailure)
+                caller = true; allowed = false; assertFalse(access.current())
+                assertTrue(runCatching { access.rpc.stat(terminal, "/report.txt") }.isFailure)
+                assertEquals(1, b.requests.count { it.optString("method").contains(".artifact.") })
+            } finally { coordinator.close() }
+        } }
+    }
+
+    @Test fun retainedArtifactAdmissionDoesNotRebindAfterReconnectOrTerminalRemoval() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val terminal = ArtifactAuthorization.Terminal("w", "t")
+            peer.artifactsSupported = true
+            peer.workspaceResponse = JSONObject("""{"workspaces":[{"id":"w","terminals":[{"id":"t"}]}]}""")
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                val original = checkNotNull(coordinator.terminalArtifactAccess(mac("a"), terminal) { true })
+                coordinator.pause(); assertFalse(original.current())
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.availability == NativeFeedAvailability.CONNECTED }
+                assertFalse(original.current())
+                assertTrue(runCatching { original.rpc.stat(terminal, "/report.txt") }.isFailure)
+                val replacement = checkNotNull(coordinator.terminalArtifactAccess(mac("a"), terminal) { true })
+                assertTrue(replacement.current())
+                peer.workspaceResponse = JSONObject("""{"workspaces":[{"id":"w","terminals":[]}]}""")
+                coordinator.refreshWorkspaceLists(listOf(mac("a")))
+                awaitState { !replacement.current() }
+                assertTrue(runCatching { replacement.rpc.stat(terminal, "/report.txt") }.isFailure)
+                assertTrue(peer.requests.none { it.optString("method").contains(".artifact.") })
+            } finally { coordinator.close() }
+        }
+    }
+
+    @Test fun artifactReplyIsRejectedWhenOwnerIsRevokedWhileRequestIsInFlight() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.artifactsSupported = true
+            peer.workspaceResponse = JSONObject("""{"workspaces":[{"id":"w","terminals":[{"id":"t"}]}]}""")
+            val gate = java.util.concurrent.CountDownLatch(1)
+            peer.artifactGate = gate
+            var permitted = true
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                val terminal = ArtifactAuthorization.Terminal("w", "t")
+                val access = checkNotNull(coordinator.terminalArtifactAccess(mac("a"), terminal) { permitted })
+                val response = async { runCatching { access.rpc.stat(terminal, "/report.txt") } }
+                awaitState { peer.requests.any { it.optString("method").contains(".artifact.") } }
+                permitted = false; gate.countDown()
+                assertTrue(response.await().isFailure); assertFalse(access.current())
+            } finally { gate.countDown(); coordinator.close() }
+        }
+    }
     @Test fun legacyMacTicketEnablesGroupActionsAndExpiryRefreshesThePublishedUiAuthority() = runBlocking {
         FeedPeer("a").use { peer ->
             peer.accountMutationsSupported = false; peer.groupCreationSupported = true; peer.newGroupCreationSupported = true
@@ -885,6 +956,8 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     @Volatile var rejectedMethods = emptySet<String>()
     @Volatile var createResponse: JSONObject? = null
     @Volatile var changesSupported = false
+    @Volatile var artifactsSupported = false
+    @Volatile var artifactGate: java.util.concurrent.CountDownLatch? = null
     @Volatile var changedFiles = 2
     @Volatile var summaryError: String? = null
     @Volatile var hostBuild: Any = "default"
@@ -925,6 +998,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                             if (rowActionsSupported) it.put("workspace.actions.v1").put("workspace.read_state.v1").put("workspace.close.v1")
                             if (powerSupported) it.put("caffeine.control.v1")
                             if (changesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)
+                            if (artifactsSupported) it.put("terminal.artifact.v1").put("chat.artifact.gallery.v1")
                         })
                     "mobile.workspace.changes.summary" -> JSONObject().put("summaries", JSONArray().put(JSONObject()
                         .put("workspace_id", "w").put("is_repo", true).put("files_changed", changedFiles).put("additions", 4).put("deletions", 1)))
@@ -955,7 +1029,10 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                         revision = mutationRevision.get()
                         JSONObject().put("revision", revision)
                     }
-                    else -> JSONObject()
+                    else -> if (request.getString("method").contains(".artifact.")) {
+                        artifactGate?.await(5, java.util.concurrent.TimeUnit.SECONDS)
+                        JSONObject().put("owner", id)
+                    } else JSONObject()
                 }
                 val summaryFailure = summaryError.takeIf { request.getString("method") == "mobile.workspace.changes.summary" }
                 val rejected = (request.getString("method") == "workspace.action" && rejectWorkspaceAction) || summaryFailure != null || request.getString("method") in rejectedMethods

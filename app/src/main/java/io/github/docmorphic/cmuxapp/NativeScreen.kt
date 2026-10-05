@@ -844,12 +844,15 @@ internal fun NativeScreen(
     fun openTerminalText() { stopTerminalScrolling(); textSnapshot = TerminalTextSnapshot.capture(grid) }
     textSnapshot?.let { TerminalTextSheet(it) { textSnapshot = null } }
     val filesMemory = rememberSaveable(saver = TerminalFilesMemory.saver) { TerminalFilesMemory() }
-    val filesKey = draftTarget?.let { target -> pairedMacs.singleOrNull { it.code == code }?.let {
+    val filesMac = pairedMacs.singleOrNull { it.code == code }
+    val retainedFiles = feedSession.filesSheet
+    val filesKey = draftTarget?.let { target -> filesMac?.let {
         workspaceTabKey(browserLogin, teamState.scope, it, target.workspace)
     } }
     val emptyFilesState = remember { TerminalFilesState() }
     val filesState = if (connectionReady && connectedCode == code && browserLogin != null && filesKey != null && draftTarget != null)
-        filesMemory.bind(browserLogin, filesKey, draftTarget.surface) else emptyFilesState
+        filesMemory.bind(browserLogin, filesKey, draftTarget.surface,
+            retainedFiles?.takeIf { it.matches(browserLogin, filesKey, draftTarget.surface) }?.navigation) else emptyFilesState
     SideEffect {
         filesMemory.retainLogin(browserLogin)
         if (draftTarget == null && screenResume.pending == null && workspaceRoute?.resume == null) filesMemory.clear()
@@ -890,14 +893,49 @@ internal fun NativeScreen(
     DisposableEffect(artifactTapController) { onDispose { artifactTapController.close() } }
     val artifactChipCount = artifactController?.count?.collectAsState()?.value
     val artifactRefresh = artifactController?.galleryRefresh?.collectAsState()?.value ?: 0
-    if (terminalArtifactPath != null && artifactsReady && artifactRpc != null && draftTarget != null) {
-        ArtifactPathSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), terminalArtifactPath!!, navigation = filesState.direct) {
-            filesState.closePath()
+    // The verified feed channel and its lease survive main-screen reconnection during recreation.
+    // Observing feedSources also rechecks admission after a host/capability/workspace change.
+    val filesFeed = filesMac?.let { feedSources[it.origin] }
+    val retainedFilesAllowed = retainedFiles?.let {
+        it.login == browserLogin && it.mac.code == code && it.current() &&
+            (!connectionReady || draftTarget != null && it.matches(browserLogin, filesKey, draftTarget.surface))
+    } == true
+    LaunchedEffect(showTerminalFiles, terminalArtifactPath, filesMac) {
+        if ((showTerminalFiles || terminalArtifactPath != null) && filesMac != null && !retainedFilesAllowed) {
+            try { feedCoordinator.refreshWorkspaceLists(listOf(filesMac)) }
+            catch (failure: Exception) { currentCoroutineContext().ensureActive() }
         }
     }
-    if (showTerminalFiles && artifactsReady && artifactRpc != null && draftTarget != null) {
-        ArtifactFilesSheet(artifactRpc, ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), artifactRefresh, navigation = filesState.gallery) {
-            filesState.closeGallery()
+    SideEffect {
+        if (retainedFiles != null && !retainedFilesAllowed) feedSession.dismissFiles(retainedFiles)
+        if (artifactsReady && (showTerminalFiles || terminalArtifactPath != null) && browserLogin != null &&
+            filesKey != null && filesMac != null && draftTarget != null && filesFeed != null) {
+            feedSession.openFiles(browserLogin, filesKey, filesMac,
+                ArtifactAuthorization.Terminal(draftTarget.workspace, draftTarget.surface), filesState)
+        }
+    }
+    if (retainedFilesAllowed && retainedFiles != null) {
+        val retainedPath = retainedFiles.navigation.path
+        if (retainedPath != null) ArtifactPathSheet(retainedFiles.access.rpc, retainedFiles.terminal, retainedPath,
+            navigation = retainedFiles.navigation.direct, retainedPreview = retainedFiles.directPreview) {
+            retainedFiles.closePath(); filesState.closePath()
+            if (!retainedFiles.navigation.showing) feedSession.dismissFiles(retainedFiles)
+        }
+        if (retainedFiles.navigation.showing) ArtifactFilesSheet(retainedFiles.access.rpc, retainedFiles.terminal, artifactRefresh,
+            navigation = retainedFiles.navigation.gallery, retained = retainedFiles) {
+            retainedFiles.closeGallery(); filesState.closeGallery()
+            if (retainedFiles.navigation.path == null) feedSession.dismissFiles(retainedFiles)
+        }
+    } else if (artifactsReady && (showTerminalFiles || terminalArtifactPath != null)) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { filesState.closeGallery(); filesState.closePath() },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(Modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    FilesHeader("Files", null, { filesState.closeGallery(); filesState.closePath() })
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    FilesMessage("Connecting to files…", filesFeed?.error)
+                }
+            }
         }
     }
 

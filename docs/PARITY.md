@@ -30,6 +30,24 @@ source audit is in [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md).
 Full parity remains unverified and the goal active. Older delivery statements
 below are historical; build 606 supersedes 596 as the verified download.
 
+## Latest source checkpoint — terminal Files ownership (2026-10-05)
+
+The actual terminal Files gallery now retains the verified feed connection,
+session/gallery/navigation and selected-file transfer through Activity recreation.
+Direct-path sheets share that retained presentation with separate previews.
+Admission is fenced to the exact Mac/account/terminal/connection, and retiring
+an owner cancels transfers and deletes private files. 68 JVM and ten Android
+checks passed: the actual NativeScreen test verifies PDF page 2 pixels/bounds,
+stable owner/file, one fetch across recreation, a pending transfer surviving
+another recreation, visible content and cleanup; the existing nine Files checks
+cover scope/reconnect/share regressions. Screenshots inspected, no app crashes
+or new run ANRs, settings unchanged, sole AVD stopped/reaped. The initial System
+UI startup ANR and retry are preserved. See `CONTENT_PREVIEW_LIFECYCLE.md`.
+
+This is newer than signed 606. Native Markdown-panel retention, pending Save,
+full text/direct-tap route recreation, revocation UI and physical acceptance
+remain separate gates. Full parity is unverified.
+
 ## Latest source checkpoint — text and media recreation (2026-10-05)
 
 Raw-text search, reading position, selection, display options and Go-to-line

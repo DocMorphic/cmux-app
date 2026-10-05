@@ -40,10 +40,11 @@ internal class TerminalFilesMemory {
     private var scope: String? = null
     private var surface: String? = null
     private var state = TerminalFilesState()
-    fun bind(login: String, key: NativeWorkspaceTabKey, surface: String): TerminalFilesState {
+    fun bind(login: String, key: NativeWorkspaceTabKey, surface: String, retained: TerminalFilesState? = null): TerminalFilesState {
         if (this.login != login || scope != key.encoded || this.surface != surface) {
             this.login = login; scope = key.encoded; this.surface = surface; state = TerminalFilesState()
         }
+        if (retained != null) state = retained
         return state
     }
     fun clear() { login = null; scope = null; surface = null; state = TerminalFilesState() }

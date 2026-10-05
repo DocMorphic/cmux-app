@@ -1,8 +1,51 @@
-# Changes preview lifecycle
+# Content preview lifecycle
 
-## Main Files integration follow-up — source audit (2026-10-05)
+## Main terminal Files retention — 2026-10-05
 
-The text/media tests below recreate the shared viewer with the same local file.
+Main terminal Files now uses a `TerminalFilesPresentation` retained by
+`NativeFeedSession`. The gallery, its admitted session, navigation and selected
+preview download survive Activity recreation. A connection lease retains the
+verified feed channel while the main terminal reconnects. Direct terminal-path
+sheets use the same presentation with a separate selected-preview controller.
+Only the selected pager file downloads; closing/backing out releases its private
+files. No Activity, Android view or file bytes enter retained navigation state.
+
+`NativeFeedCoordinator.terminalArtifactAccess` captures one exact verified Mac,
+connection and terminal. It checks account/caller eligibility and terminal
+membership before and after requests, cancels borrowed operations when the feed
+retires, and never rebinds an old admission to a replacement connection. Main
+Files hides and closes an invalid presentation; reopening creates a new scan,
+so saved session routes must pass the existing session-identity checks.
+
+Verification: **68 JVM tests** passed (six controller, seven preview files, six
+artifact RPC, 45 feed coordinator, four navigation memory). The actual
+`NativeScreen` terminal → Files gallery test passed in **24.449 s** on the sole
+arm64 API 37 / 16 KB AVD. It verifies PDF page 2 pixels and exact bounds, the same
+retained owner/file and unchanged fetch count after recreation, one in-progress
+text transfer completing after another recreation, exact visible/file content,
+and cleanup on Done. The nine existing Files Android regressions passed in
+**76.590 s**, covering session replacement, reconnect navigation, direct relative
+folder authorization, corrupt-transfer retry and share ownership.
+
+Both screenshots were inspected. The first attempt never reached the workspace
+because of an Android System UI startup ANR; its log/screenshot are preserved.
+After grounded dismissal and a responsive hierarchy, the unchanged test passed.
+No app crashes or subsequent ANRs; device settings unchanged; sole AVD stopped
+and process reaped. Local evidence: `captures/runtime/files-retention/`, including
+source/APK hashes, JUnit XML, raw Android results and screenshots.
+
+This source change is newer than signed build **606**. This test does not close
+physical Pixel/Mac acceptance, direct-tap recreation, long-text reading/search
+restoration through the full Files route, account/connection revocation UI,
+native Markdown-panel retention, pending Save results, rendered-Markdown state,
+or process death. Continue those specific checks rather than treating the
+shared-viewer or gallery PDF test as proof for every content route.
+
+## Historical source audit before terminal Files retention (2026-10-05)
+
+The following audit preceded the implementation above. Its native Markdown-panel
+and pending Save findings remain open. The text/media tests below recreate the
+shared viewer with the same local file.
 Changes supplies that stable file through its retained preview controller. The
 main Files flow and native Markdown panels still need equivalent integration:
 `ArtifactFilesSheet` creates its gallery store in `remember`, while

@@ -59,6 +59,21 @@ internal class NativeFeedSession(
     val workspaceTabs = NativeWorkspaceTabNavigation(store)
     val terminalStartup = NativeTerminalStartup()
     val paneNavigation = NativePaneNavigation()
+    var filesSheet by mutableStateOf<TerminalFilesPresentation?>(null)
+        private set
+    fun openFiles(login: String, key: NativeWorkspaceTabKey, mac: NativeCredentialStore.PairedMac,
+                  terminal: ArtifactAuthorization.Terminal, navigation: TerminalFilesState) {
+        filesSheet?.let { if (it.matches(login, key, terminal.surfaceId) && it.mac == mac && it.current()) return }
+        val access = coordinator.terminalArtifactAccess(mac, terminal) {
+            !viewModelCleared && account.isSignedIn() && store.taskSession() == login
+        } ?: return
+        dismissFiles()
+        filesSheet = TerminalFilesPresentation(scope, login, key, mac, terminal, navigation, access, holdBrowser(mac))
+    }
+    fun dismissFiles(expected: TerminalFilesPresentation? = filesSheet) {
+        if (filesSheet !== expected) return
+        val previous = filesSheet; filesSheet = null; previous?.close()
+    }
     var changesSheet by mutableStateOf<WorkspaceChangesPresentation?>(null)
         private set
     fun openChanges(mac: NativeCredentialStore.PairedMac, workspace: NativeWorkspace) {
@@ -115,9 +130,9 @@ internal class NativeFeedSession(
     }
 
     var projection by mutableStateOf(NativeFeedProjection())
-    fun clear() { ticketPairing.clear(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
+    fun clear() { ticketPairing.clear(); dismissFiles(); dismissChanges(); sidebarHistory.clear(); browserHolds.clear(); sidebarHolds.clear(); feedMacs = emptyList(); foreground = false; macColorSlots.clear(); macSwitchRecovery.clear(); browserNetworks.clear(); terminalInputs.clear(); terminalSizing.clear(); paneNavigation.clear(); workspaceSnapshots.clear(); terminalStartup.clear(); workspaceTabs.clear(); localBrowsers.clear(); taskModels.clear(); workspaceMoves.clear(); coordinator.close(); projection = NativeFeedProjection() }
     private fun dispose() { clear(); terminalInputs.close(); scope.cancel() }
-    override fun onCleared() { ticketPairing.clear(); viewModelCleared = true; dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
+    override fun onCleared() { ticketPairing.clear(); viewModelCleared = true; dismissFiles(); dismissChanges(); foreground = false; if (browserHolds.isEmpty() && sidebarHolds.isEmpty()) dispose() else reconcileFeed() }
 
     class Factory(private val connector: NativeConnector, private val account: NativeAccount,
         private val store: NativeCredentialStore) : ViewModelProvider.Factory {

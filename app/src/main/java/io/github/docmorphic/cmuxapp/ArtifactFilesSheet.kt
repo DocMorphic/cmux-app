@@ -45,14 +45,15 @@ internal val filesMuted = Color(0xFF9B9FA8)
 private val filesPanel = Color(0xFF191B1F)
 
 @Composable
-internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, refreshSignal: Int = 0, navigation: ArtifactNavigationState? = null, onDismiss: () -> Unit) {
+internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, refreshSignal: Int = 0, navigation: ArtifactNavigationState? = null,
+    retained: TerminalFilesPresentation? = null, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val store = remember(rpc, terminal) { ArtifactGalleryStore(scope, terminal, rpc) }
+    val store = retained?.galleryStore() ?: remember(rpc, terminal) { ArtifactGalleryStore(scope, terminal, rpc) }
     val detail = navigation ?: remember(terminal) { ArtifactNavigationState() }
     val latestSignal by rememberUpdatedState(refreshSignal)
     var showingSession by remember(store) { mutableStateOf(true) }
-    DisposableEffect(store) { onDispose { store.close() } }
-    LaunchedEffect(store) { store.initialize().join(); store.setQuery(detail.searchText) }
+    DisposableEffect(store, retained) { onDispose { if (retained == null) store.close() } }
+    LaunchedEffect(store) { if (retained == null) { store.initialize().join(); store.setQuery(detail.searchText) } }
     // The terminal controller sends only accepted count reports, never provisional per-frame counts.
     LaunchedEffect(store) {
         snapshotFlow { latestSignal }.drop(1).collect { if (showingSession) store.refreshLive() }
@@ -62,7 +63,8 @@ internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorizatio
             Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
                 // collectAsState can retain its previous flow's value until its collector
                 // restarts. A new client must never observe the old session admission.
-                key(store) { ArtifactFilesContent(rpc, store, onDismiss, onScopeChanged = { showingSession = it }, navigation = detail) }
+                key(store) { ArtifactFilesContent(rpc, store, onDismiss, onScopeChanged = { showingSession = it }, navigation = detail,
+                    retainedPreview = retained?.galleryPreview) }
             }
         }
     }
@@ -71,7 +73,7 @@ internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorizatio
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore, onDismiss: () -> Unit, onScopeChanged: (Boolean) -> Unit = {},
-    navigation: ArtifactNavigationState? = null) {
+    navigation: ArtifactNavigationState? = null, retainedPreview: ArtifactPreviewController? = null) {
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE) }
     val scan by store.inView.collectAsState()
@@ -113,9 +115,12 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
     }
     fun back() { detail.back() }
     BackHandler(enabled = detail.destinations.isNotEmpty()) { back() }
+    LaunchedEffect(detail.destinations.lastOrNull(), routesReady, retainedPreview) {
+        if (!routesReady || detail.destinations.lastOrNull() !is ArtifactDestination.Preview) retainedPreview?.clear()
+    }
     when (val destination = detail.destinations.lastOrNull().takeIf { routesReady }) {
         is ArtifactDestination.Preview -> key(rpc, destination) { ArtifactFilePreview(rpc, destination, ::back, onDismiss,
-            initialPath = detail.selectedPath, onSelectionChanged = { detail.selectedPath = it }) }
+            initialPath = detail.selectedPath, onSelectionChanged = { detail.selectedPath = it }, retained = retainedPreview) }
         is ArtifactDestination.Folder -> key(destination) {
             ArtifactFolderContent(rpc, thumbnails, destination, ::back, onDismiss) { item, entries ->
                 open(item, entries, destination.authorization)

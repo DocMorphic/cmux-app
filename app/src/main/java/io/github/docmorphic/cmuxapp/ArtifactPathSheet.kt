@@ -12,19 +12,21 @@ import kotlinx.coroutines.ensureActive
 
 /** Direct terminal taps retain terminal authorization for every descendant and preview. */
 @Composable
-internal fun ArtifactPathSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, path: String, navigation: ArtifactNavigationState? = null, onDismiss: () -> Unit) {
+internal fun ArtifactPathSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, path: String, navigation: ArtifactNavigationState? = null,
+    retainedPreview: ArtifactPreviewController? = null, onDismiss: () -> Unit) {
     val detail = navigation ?: remember(terminal, path) { ArtifactNavigationState() }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = Color(0xFF111316), contentColor = Color(0xFFE5E7EB)) {
             Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
-                key(rpc, terminal, path) { ArtifactPathContent(rpc, terminal, path, onDismiss, detail) }
+                key(rpc, terminal, path) { ArtifactPathContent(rpc, terminal, path, onDismiss, detail, retainedPreview) }
             }
         }
     }
 }
 
 @Composable
-private fun ArtifactPathContent(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, path: String, onDismiss: () -> Unit, navigation: ArtifactNavigationState) {
+private fun ArtifactPathContent(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, path: String, onDismiss: () -> Unit,
+    navigation: ArtifactNavigationState, retainedPreview: ArtifactPreviewController?) {
     var routes by navigation::destinations
     var failure by remember { mutableStateOf<String?>(null) }
     var retry by remember { mutableIntStateOf(0) }
@@ -44,13 +46,16 @@ private fun ArtifactPathContent(rpc: ArtifactRpc, terminal: ArtifactAuthorizatio
     }
     fun back() { if (routes.size <= 1) onDismiss() else navigation.back() }
     BackHandler { back() }
+    LaunchedEffect(routes.lastOrNull(), retainedPreview) {
+        if (routes.lastOrNull() !is ArtifactDestination.Preview) retainedPreview?.clear()
+    }
     when (val route = routes.lastOrNull().takeIf { navigation.matches(terminal, null) }) {
         null -> Column(Modifier.fillMaxSize()) {
             FilesHeader(path.substringAfterLast('/'), null, onDismiss)
             FilesMessage(if (failure == null) "Loading preview…" else "Couldn't open file", failure, if (failure == null) null else "Retry") { retry++ }
         }
         is ArtifactDestination.Preview -> key(route) { ArtifactFilePreview(rpc, route, ::back, onDismiss,
-            initialPath = navigation.selectedPath, onSelectionChanged = { navigation.selectedPath = it }) }
+            initialPath = navigation.selectedPath, onSelectionChanged = { navigation.selectedPath = it }, retained = retainedPreview) }
         is ArtifactDestination.Folder -> key(route) {
             ArtifactFolderContent(rpc, thumbnails, route, ::back, onDismiss) { item, entries ->
                 navigation.open(if (item.kind == ArtifactKind.DIRECTORY) ArtifactDestination.Folder(item, terminal)

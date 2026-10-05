@@ -21,7 +21,7 @@ internal class NativeFeedCoordinator(
         var client: MobileRpcClient? = null
         var verified = false
         var capabilities = emptySet<String>()
-        val browserOperations = mutableSetOf<Job>()
+        val borrowedOperations = mutableSetOf<Job>()
         var job: Job? = null
         val mutex = Mutex()
         val refresh = NativeFeedRefresh()
@@ -68,11 +68,11 @@ internal class NativeFeedCoordinator(
     private fun remove(origin: String) {
         // The monitor's finally releases its client after bounded stream cleanup.
         // Closing here would prevent unsubscribe while another consumer keeps the wire alive.
-        handles.remove(origin)?.let { cancelBrowsers(it); it.changes?.close(); it.job?.cancel(); it.refresh.close() }
+        handles.remove(origin)?.let { cancelBorrowedOperations(it); it.changes?.close(); it.job?.cancel(); it.refresh.close() }
     }
-    private fun cancelBrowsers(handle: Handle) {
-        handle.browserOperations.toList().forEach { it.cancel(CancellationException("Browser computer connection changed")) }
-        handle.browserOperations.clear()
+    private fun cancelBorrowedOperations(handle: Handle) {
+        handle.borrowedOperations.toList().forEach { it.cancel(CancellationException("Borrowed computer connection changed")) }
+        handle.borrowedOperations.clear()
     }
 
     /** Fresh admission is checked on the feed's owner dispatcher, never against cached UI capabilities. */
@@ -94,13 +94,13 @@ internal class NativeFeedCoordinator(
                 val active = checkNotNull(handle)
                 val client = checkNotNull(active.client)
                 val operation = checkNotNull(currentCoroutineContext()[Job])
-                active.browserOperations += operation
+                active.borrowedOperations += operation
                 try {
                     val result = withContext(Dispatchers.IO) { action(client) }
                     ensureActive()
                     check(handle() === active && active.client === client) { "Browser computer changed" }
                     result
-                } finally { active.browserOperations -= operation }
+                } finally { active.borrowedOperations -= operation }
             }
         override suspend fun use(host: String, port: Int, connected: suspend (BrowserTunnelLane) -> Unit) = admitted { client ->
             check(client.useBrowserTunnel(host, port, connected)) { "Browser route has no tunnel lanes" }
@@ -216,7 +216,7 @@ internal class NativeFeedCoordinator(
                 val source = mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac)
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
                     error = failure.message ?: "Computer unavailable", keepAwake = null, changes = emptyMap()))
-            } finally { handle.changes?.close(); handle.changes = null; handle.verified = false; handle.capabilities = emptySet(); cancelBrowsers(handle); active?.close(); handle.client = null }
+            } finally { handle.changes?.close(); handle.changes = null; handle.verified = false; handle.capabilities = emptySet(); cancelBorrowedOperations(handle); active?.close(); handle.client = null }
             handle.refresh.awaitRequest(10_000)
         }
     }
@@ -297,6 +297,34 @@ internal class NativeFeedCoordinator(
                 result
             }
         }
+    }
+
+    /** Files outlive their Activity, but never their verified host connection or terminal admission. */
+    fun terminalArtifactAccess(mac: NativeCredentialStore.PairedMac, terminal: ArtifactAuthorization.Terminal,
+                               permits: () -> Boolean): TerminalArtifactAccess? {
+        val handle = handles[mac.origin]?.takeIf { it.mac == mac && current(it) && it.verified } ?: return null
+        val client = handle.client?.takeUnless { it.isClosed } ?: return null
+        val capabilities = ArtifactCapabilities.read(handle.capabilities)
+        fun admitted() = permits() && current(handle, client) && handle.verified && !client.isClosed &&
+            capabilities.terminal && ArtifactCapabilities.read(handle.capabilities) == capabilities &&
+            mutableSources.value[mac.origin]?.let { source -> source.mac == mac && source.workspaces.any { workspace ->
+                workspace.id == terminal.workspaceId && workspace.terminals.any { it.id == terminal.surfaceId }
+            } } == true
+        if (!admitted()) return null
+        suspend fun <T> use(action: suspend () -> T): T = withContext(scope.coroutineContext.minusKey(Job)) {
+            check(admitted()) { "Files computer or terminal is no longer available" }
+            val operation = checkNotNull(currentCoroutineContext()[Job])
+            handle.borrowedOperations += operation
+            try {
+                val result = withContext(Dispatchers.IO) { action() }
+                ensureActive(); check(admitted()) { "Files computer or terminal changed" }
+                result
+            } finally { handle.borrowedOperations -= operation }
+        }
+        val rpc = ArtifactRpc(capabilities,
+            if (client.supportsArtifactLanes) ({ resource, consume -> use { client.useArtifactLane(resource, consume) } }) else null,
+            { method, params -> use { client.request(method, params) } })
+        return TerminalArtifactAccess(rpc, ::admitted)
     }
 
     /** Never substitute the foreground Mac when a row's owning session is unavailable. */

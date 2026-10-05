@@ -29,6 +29,20 @@ identified that main Files/Markdown-panel downloads are still composition-owned
 and can lose viewer state on recreation. Prioritize that integration gap after
 this signed batch. [REMAINING_WORK.md](REMAINING_WORK.md) is the current checklist.
 
+## Latest source checkpoint — main Files retention (2026-10-05)
+
+The terminal Files gallery now retains its admitted feed connection, gallery
+store and selected download across Activity recreation. Direct-path sheets are
+wired to the same owner; exact verified host/terminal/account checks prevent
+silent admission reuse after reconnect. 68 JVM and ten Android checks passed,
+including actual NativeScreen PDF pixels/page/bounds and a pending transfer with
+unchanged fetch counts. Both screenshots inspected; no app crashes/new ANRs;
+settings unchanged; sole AVD stopped/reaped. Initial System UI startup ANR is
+preserved in `captures/runtime/files-retention/`. See
+`CONTENT_PREVIEW_LIFECYCLE.md` for precise scope and open cases. Native Markdown
+panels, direct-tap/text route recreation, pending Save and physical checks remain.
+This checkpoint is newer than the independently verified signed build 606.
+
 ## Latest source checkpoint — text and media recreation (2026-10-05)
 
 Raw-text search, reading position, selection, display options and Go-to-line
