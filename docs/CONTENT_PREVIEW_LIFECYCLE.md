@@ -1,5 +1,47 @@
 # Content preview lifecycle
 
+## Fresh-launch Save recovery and reclamation — 2026-10-05
+
+The Activity root now discovers unfinished Save records when resumed or after
+its current Save/error closes. It does not continually poll the directory while
+idle. A fresh Activity can observe a background write or show a retained failure
+with its filename, Retry and Cancel. READY/WAITING copies recovered without their
+original Activity bundle require explicit Retry before opening another picker;
+they do not assume a picker result is still outstanding. A saved Activity bundle
+retains the existing picker-return path. Prepared copies are verified before retry.
+
+File-based UI leases prevent multiple Activities/processes from adopting one
+copy or opening duplicate pickers. Preparation acquires ownership before publishing
+its journal. Closing an Activity releases UI ownership after its job/handoff stops;
+WRITING and FAILED copies remain recoverable. Cancellation removes the private
+copy after producer/writer shutdown. Cleanup retaining a borrowed permission now
+dispatches another worker to finish releasing it. Per-request lease tracking also
+covers a new Save starting while cancellation of an older Save is still finishing.
+
+Main-process startup now performs conservative reclamation. Unowned PREPARING
+records without a seal and older than 24 hours lose their incomplete bytes and
+become CANCELLED receipts. COMPLETED/CANCELLED records older than seven days can
+be removed after owned permissions are released. Active UI leases, WRITING,
+FAILED, READY, WAITING, sealed preparation, recent/future timestamps and records
+still owning grants are preserved. Retryable copies have no automatic expiry;
+the user can remove them through Cancel. These policies cover valid journals;
+malformed/orphan directory handling and safe reclamation of empty coordination
+lock files remain open. The cleanup does not inspect or delete user destinations.
+
+**Verification:** **35 focused JVM tests passed** in 24 s: 8 new ownership,
+candidate-discovery and reclamation cases, plus the existing 27 transfer/recovery
+cases. Main and Android instrumentation Kotlin then compiled successfully; the
+final compile took 15 s. A new guarded emulator test exercises recovery without
+an old bundle, no automatic picker, recreation, explicit Retry, picker cancellation
+and private-copy removal. That test has been compiled **but not executed**.
+Logs, XML and source hashes: ignored `captures/runtime/save-recovery-ui-batch/`.
+
+No APK, emulator or Pixel run. Signed 606 is unchanged. Still required: combined
+Android acceptance of fresh launch/process death, concurrent main/browser owners,
+picker-result ordering, notifications, grant sharing and large/slow providers.
+Share/Open process restoration and the remaining viewer/UI format audit also
+remain work; this checkpoint does not establish full iOS parity.
+
 ## Persistent destination writes — 2026-10-05
 
 After the user selects a Save destination, its sealed private copy and URI/grant

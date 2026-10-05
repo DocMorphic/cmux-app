@@ -15,6 +15,8 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
+import java.util.UUID
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -134,5 +136,42 @@ class FileSaveLifecycleTest {
             await("Retry cancellation left private bytes") { !cache(pending).exists() }
             assertEquals(2, count.get()); assertTrue(source.isFile)
         } } finally { instrumentation.removeMonitor(monitor); source.delete() }
+    }
+
+    @Test fun freshActivityRecoversFailedSaveWithoutOldBundleAndOnlyOpensPickerOnRetry() {
+        guard()
+        val source = File(context.cacheDir, "cmux-recovered-${System.nanoTime()}.txt").also { it.writeText("Saved private snapshot") }
+        val files = FileSaveWork.files(context)
+        check(files.recoveryCandidates().isEmpty()) { "Resolve existing pending saves before running the isolated recovery fixture" }
+        val request = FileSaveSnapshot(UUID.randomUUID().toString(), source.name, "text/plain", FileSavePhase.PREPARING)
+        runBlocking {
+            files.prepare(request, source, source.length())
+            files.record(request.copy(phase = FileSavePhase.FAILED))
+        }
+        val count = AtomicInteger()
+        val monitor = object : Instrumentation.ActivityMonitor() {
+            override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
+                if (intent.action != Intent.ACTION_CREATE_DOCUMENT) return null
+                count.incrementAndGet()
+                return Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null)
+            }
+        }
+        instrumentation.addMonitor(monitor)
+        try { launch(source).use { scenario ->
+            find(By.text("Couldn't save file"))
+            val owner = scenario.model()
+            assertEquals(request.id, scenario.read { owner.pending?.id })
+            assertTrue(scenario.read { owner.canRetry }); assertEquals(0, count.get())
+            source.delete()
+            scenario.recreate(); find(By.text("Couldn't save file")); assertEquals(0, count.get())
+            screenshot("recovered-background-failure")
+            find(By.text("Try again")).click()
+            await("Recovered save retry did not receive picker cancellation") { scenario.read { !owner.busy && owner.failure == null } }
+            assertEquals(1, count.get())
+            await("Recovered private copy was not released") { !files.file(request).exists() }
+        } } finally {
+            instrumentation.removeMonitor(monitor); source.delete()
+            runBlocking { FileSaveWork.transfer(context).cancel(request) }
+        }
     }
 }

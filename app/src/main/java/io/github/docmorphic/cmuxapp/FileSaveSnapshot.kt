@@ -12,6 +12,11 @@ import java.nio.channels.OverlappingFileLockException
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
+internal class FileSaveUiLease(val id: String, private val handle: RandomAccessFile,
+    private val lock: java.nio.channels.FileLock) : AutoCloseable {
+    @Synchronized override fun close() { if (handle.channel.isOpen) { try { lock.release() } finally { handle.close() } } }
+}
+
 internal enum class FileSavePhase { PREPARING, READY, WAITING, WRITING, FAILED, COMPLETED, CANCELLED }
 
 /** Only a private snapshot identity and picker state enter the Activity's saved state. */
@@ -40,6 +45,22 @@ internal data class FileSaveSnapshot(val id: String, val filename: String, val m
 
 /** Immutable bytes and a durable journal. The caller confines each identity to one writer. */
 internal class FileSaveFiles(private val root: File) {
+    /** Nonblocking ownership of picker/error UI across Activities and Android processes. */
+    fun claimUi(id: String): FileSaveUiLease? {
+        require(UUID.fromString(id).toString() == id)
+        check(root.isDirectory || root.mkdirs())
+        val handle = RandomAccessFile(File(root, ".ui-$id.lock"), "rw")
+        try {
+            val lock = try { handle.channel.tryLock() } catch (_: OverlappingFileLockException) { null }
+            if (lock == null) { handle.close(); return null }
+            return FileSaveUiLease(id, handle, lock)
+        } catch (error: Throwable) { handle.close(); throw error }
+    }
+    fun recoveryCandidates(): List<FileSaveSnapshot> = entries().filter { it.phase !in terminal }
+        .sortedWith(compareBy<FileSaveSnapshot> { if (it.phase == FileSavePhase.FAILED) 0 else 1 }
+            .thenBy { member(it, "state.json").lastModified() }.thenBy { it.id })
+    fun updatedAt(value: FileSaveSnapshot) = member(value, "state.json").lastModified()
+    fun hasSeal(value: FileSaveSnapshot) = member(value, "seal.json").isFile
     fun load(id: String): FileSaveSnapshot? {
         require(UUID.fromString(id).toString() == id)
         val directory = File(root, id)

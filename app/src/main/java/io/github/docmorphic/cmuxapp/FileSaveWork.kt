@@ -56,6 +56,7 @@ internal object FileSaveWork {
             files(context).recoverable().forEach { value ->
                 runCatching { enqueue(context, value.id, recovery = true) }
             }
+            runCatching { FileSaveMaintenance(files(context)).prune(System.currentTimeMillis()) }
         }
     }
 }

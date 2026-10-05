@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.*
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.*
 
 internal val LocalFileSaves = staticCompositionLocalOf<FileSaveModel?> { null }
@@ -40,29 +41,58 @@ internal class FileSaveModel(application: Application, private val saved: SavedS
     var progress by mutableStateOf<Pair<Long, Long>?>(null)
         private set
     private var job: Job? = null
+    private val uiLeases = ConcurrentHashMap<String, FileSaveUiLease>()
     private var hasDeferredResult = false
     private var deferredResult: Uri? = null
     val busy get() = pending != null || restoring
     val canRetry get() = !restoring && pending?.let { it.phase == FileSavePhase.FAILED && files.file(it).isFile } == true
-    init {
-        pending?.let { snapshot -> job = viewModelScope.launch {
+    init { pending?.let { restore(it) } }
+    private fun releaseUi(id: String) {
+        uiLeases.remove(id)?.close()
+    }
+    fun recoverPending() {
+        if (busy || failure != null || job?.isActive == true) return
+        restore(null)
+    }
+    private fun restore(savedSnapshot: FileSaveSnapshot?) {
+        restoring = true
+        job = viewModelScope.launch {
+            var snapshot = savedSnapshot
+            var acquiredId: String? = null
             try {
-                val disk = withContext(Dispatchers.IO) { files.latest(snapshot) }
-                val recovered = if (disk.phase == FileSavePhase.WRITING) disk else files.restore(snapshot, legacyRoot)
+                val claimed = withContext(NonCancellable + Dispatchers.IO) {
+                    val candidates = savedSnapshot?.let(::listOf) ?: files.recoveryCandidates()
+                    candidates.firstOrNull { candidate ->
+                        files.claimUi(candidate.id)?.let {
+                            acquiredId = candidate.id; uiLeases[candidate.id] = it; true
+                        } ?: false
+                    }
+                }
+                snapshot = claimed
+                ensureActive()
+                if (claimed == null) { update(null); return@launch }
+                update(claimed)
+                val disk = withContext(Dispatchers.IO) { files.latest(claimed) }
+                val recovered = if (disk.phase == FileSavePhase.WRITING || disk.phase in FileSaveFiles.terminal) disk else {
+                    val value = files.restore(claimed, legacyRoot)
+                    // A fresh Activity has no matching outstanding picker result. Ask before opening another picker.
+                    if (savedSnapshot == null && value.phase !in FileSaveFiles.terminal)
+                        files.withWriter(value) { value.copy(phase = FileSavePhase.FAILED).also(files::record) }
+                    else value
+                }
                 ensureActive(); update(recovered)
                 when (recovered.phase) {
                     FileSavePhase.COMPLETED, FileSavePhase.CANCELLED -> {
                         FileSaveWork.transfer(getApplication()).run(recovered.id)
-                        if (recovered.phase == FileSavePhase.COMPLETED)
-                            lastSavedUri = recovered.destination?.let(Uri::parse)
-                        update(null)
+                        if (recovered.phase == FileSavePhase.COMPLETED) lastSavedUri = recovered.destination?.let(Uri::parse)
+                        update(null); releaseUi(recovered.id)
                     }
-                    FileSavePhase.FAILED -> failure = "The file wasn't saved. Try another destination."
+                    FileSavePhase.FAILED -> failure = "${recovered.filename} wasn't saved. Try another destination, or cancel to remove its private copy."
                     else -> Unit
                 }
             } catch (error: Exception) {
                 ensureActive(); update(null)
-                cleanup(snapshot, null)
+                snapshot?.let { cleanup(it, null) }
                 failure = "The saved file copy is unavailable or incomplete. Reopen its preview and save it again."
             } finally {
                 if (currentCoroutineContext().isActive) {
@@ -71,9 +101,9 @@ internal class FileSaveModel(application: Application, private val saved: SavedS
                     else if (hasDeferredResult) {
                         val uri = deferredResult; hasDeferredResult = false; deferredResult = null; result(uri)
                     }
-                }
+                } else acquiredId?.let(::releaseUi)
             }
-        } }
+        }
     }
     private fun update(value: FileSaveSnapshot?) { pending = value; saved[STATE] = value?.encode() }
     private suspend fun record(value: FileSaveSnapshot) = withContext(Dispatchers.IO) { files.record(value) }
@@ -87,6 +117,10 @@ internal class FileSaveModel(application: Application, private val saved: SavedS
         job = viewModelScope.launch {
             var preparing = request
             try {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    uiLeases[request.id] = checkNotNull(files.claimUi(request.id))
+                }
+                ensureActive()
                 if (remote == null) {
                     val local = checkNotNull(artifact)
                     files.prepare(preparing, local.file, local.size)
@@ -165,11 +199,11 @@ internal class FileSaveModel(application: Application, private val saved: SavedS
                     val latest = withContext(Dispatchers.IO) { files.latest(writing) }
                     ensureActive()
                     when (latest.phase) {
-                        FileSavePhase.COMPLETED -> { lastSavedUri = uri; update(null); progress = null; return@launch }
-                        FileSavePhase.CANCELLED -> { update(null); progress = null; return@launch }
+                        FileSavePhase.COMPLETED -> { lastSavedUri = uri; update(null); progress = null; releaseUi(writing.id); return@launch }
+                        FileSavePhase.CANCELLED -> { update(null); progress = null; releaseUi(writing.id); return@launch }
                         FileSavePhase.FAILED -> {
                             update(latest); progress = null
-                            failure = "Couldn't write to the selected location. Choose another location and try again."
+                            failure = "${latest.filename} wasn't saved. Choose another location, or cancel to remove its private copy."
                             return@launch
                         }
                         else -> progress = withContext(Dispatchers.IO) { files.progress(latest) }
@@ -212,13 +246,25 @@ internal class FileSaveModel(application: Application, private val saved: SavedS
         viewModelScope.launch(NonCancellable + Dispatchers.IO) {
             runCatching { files.requestCancellation(request) }
             previousJob?.join()
-            if (files.file(request).parentFile?.exists() == true)
-                runCatching { FileSaveWork.transfer(getApplication()).cancel(request) }
+            try {
+                if (files.file(request).parentFile?.exists() == true) {
+                    val final = FileSaveWork.transfer(getApplication()).cancel(request)
+                    if (final.ownsGrant) FileSaveWork.dispatch(getApplication(), final)
+                }
+            } catch (_: Exception) { /* Keep the durable record for recovery. */ }
+            finally { releaseUi(request.id) }
         }
     }
     override fun onCleared() {
         // The persistent writer outlives closing the preview/Activity. Other phases have no destination job.
-        if (pending?.phase != FileSavePhase.WRITING) discard()
+        if (pending?.phase in setOf(FileSavePhase.WRITING, FileSavePhase.FAILED)) {
+            val request = pending; val previousJob = job
+            previousJob?.cancel()
+            viewModelScope.launch(NonCancellable + Dispatchers.IO) {
+                previousJob?.join(); request?.let { releaseUi(it.id) }
+            }
+        }
+        else discard()
     }
     companion object { private const val STATE = "file-save.snapshot.v1" }
 }
@@ -231,7 +277,14 @@ internal fun FileSaveHost(content: @Composable () -> Unit) {
     val model = remember(owner) { ViewModelProvider(owner)[FileSaveModel::class.java] }
     val contract = remember { FileSaveContract() }
     val launcher = rememberLauncherForActivityResult(contract, model::result)
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     val pending = model.pending
+    LaunchedEffect(model, lifecycle, pending, model.failure) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            model.recoverPending()
+            awaitCancellation()
+        }
+    }
     LaunchedEffect(pending, model.restoring) {
         if (pending?.phase == FileSavePhase.READY && !model.restoring) {
             try { if (model.launching(pending)) launcher.launch(pending) }

@@ -15,6 +15,19 @@ available, and the upstream watcher is active on main. Main integration does
 not establish full parity or authorize production release promotion. Earlier
 feature-branch/draft-only instructions below are historical.
 
+## Latest Save recovery UI batch — 2026-10-05
+
+Fresh/resumed Activities now discover unfinished saves and offer explicit Retry
+or Cancel for retained failures/orphaned pickers. Cross-process UI leases prevent
+duplicate owners. WRITING/FAILED survive Activity closure; startup reclamation
+removes only expired terminal records or old unsealed preparation with no UI owner
+or owned grant. Retryable copies are retained until user decision. Thirty-five
+focused JVM tests passed, and main/instrumentation Kotlin compiled. The new
+fresh-Activity Android test is compiled but unexecuted. No APK/emulator run.
+See `CONTENT_PREVIEW_LIFECYCLE.md` and `captures/runtime/save-recovery-ui-batch/`.
+Next: Share/Open process restoration, malformed/orphan storage handling and empty
+lock-file reclamation, then combined Android/Pixel acceptance. Signed 606 unchanged.
+
 ## Latest Save background batch — 2026-10-05
 
 Save destination writes now use a persistent WorkManager writer with foreground
