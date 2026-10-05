@@ -27,6 +27,7 @@ internal class TailscaleCandidateTransport(private val routes: List<PairingCode.
     private val connecting = Mutex()
     private var candidate: MobileRpcTransport? = null
     private var connected = false
+    private var connectedRoute: PairingCode.Route? = null
     private var closed = false
 
     override suspend fun connect() = connecting.withLock {
@@ -45,7 +46,7 @@ internal class TailscaleCandidateTransport(private val routes: List<PairingCode.
                 transport.connect()
                 currentCoroutineContext().ensureActive()
                 check(permits()) { "The Tailscale authorization changed" }
-                synchronized(lock) { check(!closed && candidate === transport); connected = true }
+                synchronized(lock) { check(!closed && candidate === transport); connectedRoute = route; connected = true }
                 return@withLock
             } catch (failure: Exception) {
                 transport?.close()
@@ -63,12 +64,16 @@ internal class TailscaleCandidateTransport(private val routes: List<PairingCode.
     }
     override fun diagnostics(): MobileTransportDiagnostics? = try { active().diagnostics().also { active() } }
         catch (failure: Throwable) { close(); throw failure }
+    override fun tailscalePeer(): PairingCode.Route {
+        active()
+        return synchronized(lock) { check(!closed && connected); checkNotNull(connectedRoute) }
+    }
     override suspend fun read(): ByteArray? = try { active().read().also { active() } }
         catch (failure: Throwable) { close(); throw failure }
     override suspend fun write(bytes: ByteArray) = try { active().write(bytes) }
         catch (failure: Throwable) { close(); throw failure }
     override fun close() {
-        val previous = synchronized(lock) { closed = true; connected = false; candidate.also { candidate = null } }
+        val previous = synchronized(lock) { closed = true; connected = false; connectedRoute = null; candidate.also { candidate = null } }
         previous?.close()
     }
 }

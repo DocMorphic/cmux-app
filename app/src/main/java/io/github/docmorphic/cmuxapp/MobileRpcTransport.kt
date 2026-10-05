@@ -11,6 +11,8 @@ import javax.net.SocketFactory
 
 /** One connection incarnation. Independent events are complete, unframed JSON payloads. */
 internal interface MobileRpcTransport : AutoCloseable {
+    /** Available only on an admitted, connected numeric Tailscale candidate. */
+    fun tailscalePeer(): PairingCode.Route? = null
     fun diagnostics(): MobileTransportDiagnostics? = null
     val independentEvents: Flow<ByteArray>? get() = null
     val surfaceEventLanes: Boolean get() = false

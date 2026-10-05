@@ -12,8 +12,51 @@ import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
 class NativeSavedTailscaleRuntimeTest {
+    @Test fun manualTicketIsSharedByAdmittedLeasesAndReacquiredAfterLastClose() = runBlocking<Unit> {
+        Fixture(manualTickets = true).use { f ->
+            val first = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            val second = checkNotNull(f.local.connectIfSelected(f.pairing()))
+            assertEquals(1, f.wires.size)
+            assertEquals(listOf("mobile.host.status", "mobile.attach_ticket.create", "mobile.workspace.list"), f.wires.single().methods)
+            first.workspaces(); second.workspaces()
+            first.close(); assertFalse(second.isClosed); second.workspaces(); second.close()
+            assertTrue(f.wires.single().closed)
+            checkNotNull(f.local.connectIfSelected(f.pairing())).use { it.workspaces() }
+            assertEquals(2, f.wires.size)
+            assertTrue(f.wires.all { it.methods.count { method -> method == "mobile.attach_ticket.create" } == 1 })
+        }
+    }
+
+    @Test fun unsupportedManualTicketUsesAccountAdmissionWithoutPublishingCredentials() = runBlocking<Unit> {
+        Fixture(manualTickets = true).use { f ->
+            f.ticketError = "method_not_found"; f.expectedTicket = null
+            checkNotNull(f.local.connectIfSelected(f.pairing())).use { it.workspaces() }
+            assertEquals(1, f.wires.size)
+        }
+    }
+
+    @Test fun malformedOrUnauthorizedManualTicketNeverPublishesSharedConnection() = runBlocking<Unit> {
+        for (malformed in listOf(true, false)) Fixture(manualTickets = true).use { f ->
+            f.malformedTicket = malformed
+            if (!malformed) f.ticketError = "unauthorized"
+            val failure = runCatching { f.local.connectIfSelected(f.pairing()) }.exceptionOrNull()
+            assertTrue(if (malformed) failure is InvalidManualAttachTicket else failure is MobileRpcException)
+            assertEquals(listOf("mobile.host.status", "mobile.attach_ticket.create"), f.wires.single().methods)
+            assertTrue(f.wires.single().closed); assertNull(f.local.powerSession(f.team, f.target))
+        }
+    }
+
+    @Test fun grantRevokedDuringTicketRequestCannotPublishOrReachWorkspace() = runBlocking<Unit> {
+        Fixture(manualTickets = true).use { f ->
+            f.ticketHook = { f.setRoutes(emptyList()) }
+            assertTrue(runCatching { f.local.connectIfSelected(f.pairing()) }.isFailure)
+            assertEquals(listOf("mobile.host.status", "mobile.attach_ticket.create"), f.wires.single().methods)
+            assertTrue(f.wires.single().closed); assertNull(f.local.powerSession(f.team, f.target))
+        }
+    }
+
     private class Fixture(private val enforceCompatibility: Boolean = false,
-        audience: NativeMacBuildAudience? = null) : AutoCloseable {
+        audience: NativeMacBuildAudience? = null, manualTickets: Boolean = false) : AutoCloseable {
         val team = NativeTeamScope("login", "user", "team", 1)
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
         val target = NativeComputerTarget("mac", "default", "Mac")
@@ -31,13 +74,19 @@ class NativeSavedTailscaleRuntimeTest {
         val hostGates = java.util.concurrent.ConcurrentHashMap<Pair<String, String>, CompletableDeferred<Unit>>()
         val hostEntered = Channel<Unit>(16)
         var version = "0.64.24"
+        var ticketError: String? = null
+        var malformedTicket = false
+        var ticketHook: () -> Unit = {}
+        var expectedTicket: String? = if (manualTickets) "saved-ticket" else null
         val compatibility = NativeMacCompatibilityGate({ teams.value.scope == it })
         val local: NativeSavedTailscaleRuntime
         init {
             settings.update(target, { true }) { it.copy(method = NativeMacConnectionMethod.TAILSCALE) }
             local = NativeSavedTailscaleRuntime(teams, { teams.value.scope == it }, { tokenHook(); "fixture-token" },
                 admitCompatibility = { owner, client, host -> if (enforceCompatibility) compatibility.admit(owner, client, host, true) },
-                audience = audience) { owner ->
+                audience = audience, manualTicket = { client, route, host, scope, email ->
+                    if (manualTickets) ManualAttachTicketRequest.request(client, route, host, scope, email) else null
+                }) { owner ->
                 NativeSavedTailscaleAccount(settings, revisions, { selected -> grants.value.filter {
                     it.user == owner.userId && it.team == owner.teamId && it.device == selected.deviceId && it.build == selected.buildTag
                 } }, { selected, allowed ->
@@ -66,19 +115,34 @@ class NativeSavedTailscaleRuntimeTest {
         val replies = Channel<ByteArray>(32)
         val methods = CopyOnWriteArrayList<String>()
         @Volatile var closed = false
+        override fun tailscalePeer() = grant.route.also { check(!closed && allowed()) }
         override suspend fun connect() { check(allowed()) }
         override suspend fun write(bytes: ByteArray) {
             check(!closed && allowed())
             val request = JSONObject(MobileFrameDecoder().feed(bytes).single().decodeToString())
             val method = request.getString("method"); methods += method
             assertEquals("fixture-token", request.getJSONObject("auth").getString("stack_access_token"))
+            if (method == "mobile.attach_ticket.create") {
+                assertFalse(request.getJSONObject("auth").has("attach_token"))
+                fixture.ticketHook()
+                val reply = JSONObject().put("id", request.getString("id")).put("ok", fixture.ticketError == null)
+                if (fixture.ticketError != null) reply.put("error", JSONObject().put("code", fixture.ticketError).put("message", "fixture"))
+                else reply.put("result", if (fixture.malformedTicket) JSONObject() else JSONObject().put("ticket", JSONObject(
+                    """{"version":1,"workspaceID":"","macDeviceID":"${grant.device}","macUserID":"user","auth_token":"saved-ticket",
+                        "routes":[{"id":"ts","kind":"tailscale","endpoint":{"type":"host_port","host":"100.99.1.8","port":12345}}]}""")))
+                replies.send(MobileFrameCodec.encode(reply.toString().toByteArray())); return
+            }
             val result = when (method) {
                 "mobile.host.status" -> {
                     fixture.hostEntered.send(Unit); hostGate?.await()
                     JSONObject().put("mac_device_id", if (fixture.badIdentity) "other" else grant.device)
                         .put("mac_instance_tag", grant.build).put("mac_app_version", fixture.version).put("capabilities", JSONArray())
                 }
-                "mobile.workspace.list" -> JSONObject().put("workspaces", JSONArray())
+                "mobile.workspace.list" -> {
+                    if (fixture.expectedTicket == null) assertFalse(request.getJSONObject("auth").has("attach_token"))
+                    else assertEquals(fixture.expectedTicket, request.getJSONObject("auth").getString("attach_token"))
+                    JSONObject().put("workspaces", JSONArray())
+                }
                 else -> error("Unexpected fixture request: $method")
             }
             replies.send(MobileFrameCodec.encode(JSONObject().put("id", request.getString("id"))

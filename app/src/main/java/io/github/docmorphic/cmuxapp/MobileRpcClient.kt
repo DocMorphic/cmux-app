@@ -119,9 +119,14 @@ class MobileRpcClient internal constructor(
     }
 
     /** Each consumer owns its subscriptions and cancellation, while one owner retains the wire. */
-    internal fun lease(release: () -> Unit): MobileRpcClient {
+    internal fun lease(ticketContext: MobileAttachTicketContext? = attachTicket, release: () -> Unit): MobileRpcClient {
         check(delegate == null && !isClosed) { "Cannot lease a closed or borrowed connection" }
-        return MobileRpcClient(transport, accessToken, attachTicket, this, release).also { it.hostAccountMutations = hostAccountMutations }
+        return MobileRpcClient(transport, accessToken, ticketContext, this, release).also { it.hostAccountMutations = hostAccountMutations }
+    }
+
+    internal fun tailscalePeer(): PairingCode.Route? {
+        check(!isClosed)
+        return delegate?.tailscalePeer() ?: transport.tailscalePeer()
     }
 
     /** Transfers ownership of this handle to a caller-local ticket view; the pooled wire is unchanged. */

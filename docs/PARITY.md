@@ -12,7 +12,39 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — manual legacy Tailscale tickets (2026-10-05)
+## Latest checkpoint — shared Tailscale ticket admission (2026-10-05)
+
+Computer Details' Add/Edit Tailscale probe now invokes the same manual ticket
+request with the current account profile. The native-directory saved-Tailscale
+runtime also acquires a ticket after matching host/device/build and confirming
+which captured numeric route actually connected. The candidate transport exposes
+that selected route only while connected and admitted.
+
+The connection pool accepts an admission-time ticket context. Workspace and
+compatibility validation use a temporary non-owning lease; successful publication
+keeps the context with the pool entry and supplies it to each foreground, feed or
+power lease. The wire's default context stays unchanged. One live entry performs
+one acquisition; after its final lease closes, reconnect acquires a fresh ticket.
+Malformed/denied tickets never publish an entry, and grant revocation during the
+request closes the candidate before workspace access.
+
+**108 JVM checks passed**, zero failures/errors/skips: 20 saved-Tailscale, 21 native
+runtime, eight candidate transport, 13 pool, eight ticket RPC, 31 pairing authority
+and seven manual request cases. Evidence: `captures/runtime/shared-manual-ticket/`.
+These are framed fixture tests, not Android runtime or physical Mac acceptance.
+No local emulator or APK build was started in this checkpoint.
+
+Signed batch **589**, source `cba6c6ec10e36871f4fcf78d116ef1673ae68a64`, is running
+at <https://github.com/DocMorphic/cmux-app/actions/runs/37253661827>. It contains the
+preceding pairing work, not this checkpoint. Poll that exact run; do not dispatch
+a duplicate. Signed **581** remains the latest verified delivery until all 589
+gates pass. Next: native transport auth, legacy mutation gates, remaining saved-
+ticket initial-handshake behavior, and complete physical pairing/recovery checks.
+Audit the backend routing fallback when connection preferences change mid-admission.
+Push/notice configuration and UI/accessibility acceptance also remain open.
+Goal active; no global reference pins advanced.
+
+## Earlier checkpoint — manual legacy Tailscale tickets (2026-10-05)
 
 The legacy Tailscale connector now requests `mobile.attach_ticket.create` after
 consent/grant and host identity checks, before protected workspace admission. It

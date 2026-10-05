@@ -7,7 +7,7 @@ import kotlinx.coroutines.sync.withLock
 
 /** One account incarnation owns these wires. UI/feed/service callers only receive leases. */
 internal class MobileRpcConnections : AutoCloseable {
-    private class Entry(val client: MobileRpcClient, var references: Int = 0)
+    private class Entry(val client: MobileRpcClient, val ticket: MobileAttachTicketContext?, var references: Int = 0)
     private class Admission(val mutex: Mutex = Mutex(), var users: Int = 0)
     private val lock = Any()
     // Serialize callers for one Mac without making other Macs wait for its dial/probe.
@@ -26,6 +26,7 @@ internal class MobileRpcConnections : AutoCloseable {
 
     suspend fun acquire(key: String, permits: () -> Boolean,
                         validate: suspend (MobileRpcClient) -> Unit = {},
+                        ticketContext: suspend (MobileRpcClient) -> MobileAttachTicketContext? = { null },
                         create: () -> MobileRpcClient): MobileRpcClient {
         val admission = synchronized(lock) {
             check(!closed && permits()) { "Computer access changed" }
@@ -50,11 +51,14 @@ internal class MobileRpcConnections : AutoCloseable {
                         candidates[key] = client
                     }
                     client.connect()
-                    validate(client)
+                    val ticket = ticketContext(client)
+                    check(permits() && !client.isClosed) { "Computer access changed" }
+                    if (ticket == null) validate(client)
+                    else client.lease(ticket) {}.use { validate(it) }
                     currentCoroutineContext().ensureActive()
                     synchronized(lock) {
                         check(!closed && permits() && candidates[key] === client && !client.isClosed) { "Computer access changed" }
-                        val entry = Entry(client)
+                        val entry = Entry(client, ticket)
                         entries[key] = entry
                         candidates.remove(key)
                         borrow(key, entry)
@@ -74,7 +78,7 @@ internal class MobileRpcConnections : AutoCloseable {
     }
 
     private fun borrow(key: String, entry: Entry): MobileRpcClient {
-        val lease = entry.client.lease {
+        val release = {
             val retire = synchronized(lock) {
                 entry.references--
                 if (entry.references == 0 && entries[key] === entry) {
@@ -84,6 +88,7 @@ internal class MobileRpcConnections : AutoCloseable {
             }
             if (retire) entry.client.close()
         }
+        val lease = if (entry.ticket == null) entry.client.lease(release = release) else entry.client.lease(entry.ticket, release)
         entry.references++
         return lease
     }

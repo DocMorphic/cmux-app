@@ -24,7 +24,7 @@ internal data class NativeComputersState(
 
 /** Account/team changes replace the complete discovery, endpoint and RPC owner. */
 internal class NativeIrohRuntime(
-    teams: StateFlow<NativeAccountTeamsState>,
+    private val teams: StateFlow<NativeAccountTeamsState>,
     private val isCurrent: (NativeTeamScope) -> Boolean,
     private val accessToken: suspend () -> String?,
     private val backend: suspend (NativeTeamScope, () -> Boolean) -> IrohAccountBackend,
@@ -214,6 +214,14 @@ internal class NativeIrohRuntime(
     /** Local appearance may be edited offline, but never through a retired account/team page. */
     fun permitsAppearance(team: NativeTeamScope): Boolean = synchronized(lock) { !closed && isCurrent(team) }
     fun usesSavedTailscale(team: NativeTeamScope, target: NativeComputerTarget) = savedTailscale?.selected(team, target) == true
+
+    suspend fun requestManualAttachTicket(client: MobileRpcClient, route: PairingCode.Route,
+        host: org.json.JSONObject, team: NativeTeamScope): MobileAttachTicket? {
+        check(permitsAppearance(team)) { "Account or team changed. Reopen Computer Details." }
+        return ManualAttachTicketRequest.request(client, route, host, team, teams.value.email).also {
+            check(permitsAppearance(team)) { "Account or team changed. Reopen Computer Details." }
+        }
+    }
 
     /** Also used by the short-lived, identity-checked Add Tailscale Connection probe. */
     suspend fun admitAuthenticatedHost(team: NativeTeamScope, client: MobileRpcClient, host: org.json.JSONObject) {

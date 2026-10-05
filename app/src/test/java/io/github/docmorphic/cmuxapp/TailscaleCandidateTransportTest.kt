@@ -57,7 +57,9 @@ class TailscaleCandidateTransportTest {
         val a = Wire().apply { failConnect = true }; val b = Wire()
         val attempts = mutableListOf<PairingCode.Route>()
         TailscaleCandidateTransport(listOf(first, second), { true }) { route, _ -> attempts += route; if (route == first) a else b }.use { transport ->
+            assertTrue(runCatching { transport.tailscalePeer() }.isFailure)
             transport.connect(); transport.connect()
+            assertEquals(second, transport.tailscalePeer())
             assertEquals(listOf(first, second), attempts); assertTrue(a.closed)
             transport.write(byteArrayOf(7)); assertArrayEquals(byteArrayOf(7), b.writes.single())
             assertArrayEquals(byteArrayOf(8), transport.read())
@@ -93,6 +95,7 @@ class TailscaleCandidateTransportTest {
         var allowed = true; var attempts = 0; val wire = Wire()
         val transport = TailscaleCandidateTransport(listOf(first, second), { allowed }) { _, _ -> attempts++; wire }
         transport.connect(); allowed = false
+        assertTrue(runCatching { transport.tailscalePeer() }.isFailure)
         assertTrue(runCatching { transport.write(byteArrayOf(9)) }.isFailure)
         assertTrue(wire.closed); assertTrue(wire.writes.isEmpty()); assertEquals(1, attempts)
     }

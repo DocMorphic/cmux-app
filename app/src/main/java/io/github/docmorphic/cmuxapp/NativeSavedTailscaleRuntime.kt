@@ -24,6 +24,7 @@ internal class NativeSavedTailscaleRuntime(
     private val token: suspend () -> String?,
     private val admitCompatibility: suspend (NativeTeamScope, MobileRpcClient, org.json.JSONObject) -> Unit = { _, _, _ -> },
     private val audience: NativeMacBuildAudience? = null,
+    private val manualTicket: suspend (MobileRpcClient, PairingCode.Route, org.json.JSONObject, NativeTeamScope, String?) -> MobileAttachTicket? = ManualAttachTicketRequest::request,
     private val account: (NativeTeamScope) -> NativeSavedTailscaleAccount
 ) : AutoCloseable {
     private class Owner(val team: NativeTeamScope, val account: NativeSavedTailscaleAccount) {
@@ -110,9 +111,18 @@ internal class NativeSavedTailscaleRuntime(
         if (intent.method != NativeMacConnectionMethod.TAILSCALE) return null
         check(intent.dialable) { "Add a Tailscale connection in Computer Details first." }
         val permits = { allowed(run, target, intent) }
-        return run.connections.acquire(key(target, intent), permits, validate = { client ->
+        var admittedHost: org.json.JSONObject? = null
+        return run.connections.acquire(key(target, intent), permits, ticketContext = { client ->
             val host = client.hostStatus()
             check(intent.tailscale.all { it.matches(host) }) { "This Tailscale route reaches a different Mac or cmux installation." }
+            admittedHost = host
+            val route = checkNotNull(client.tailscalePeer()) { "The connected Tailscale route is unavailable" }
+            check(intent.tailscale.any { it.route == route }) { "The connected route is not authorized" }
+            val ticket = manualTicket(client, route, host, run.team, teams.value.email)
+            check(permits()) { "The Tailscale authorization changed" }
+            ticket?.context()
+        }, validate = { client ->
+            val host = checkNotNull(admittedHost)
             client.workspaces()
             check(permits()) { "The Tailscale authorization changed" }
             admitCompatibility(run.team, client, host)
