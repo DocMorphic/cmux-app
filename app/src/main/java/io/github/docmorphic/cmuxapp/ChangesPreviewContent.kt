@@ -7,12 +7,9 @@ import android.graphics.drawable.Animatable
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.pdf.PdfRenderer
-import android.net.Uri
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.widget.ImageView
-import android.widget.MediaController
-import android.widget.VideoView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -61,7 +58,7 @@ internal fun ChangesPreviewContent(artifact: ChangesPreviewArtifact) {
 @Composable
 internal fun FilePreviewContent(artifact: LocalFilePreview) {
     val context = LocalContext.current
-    val state = remember(artifact.file) { ArtifactViewerState(context, artifact) }
+    val state = rememberSaveable(artifact.file.absolutePath, saver = ArtifactViewerState.saver(context, artifact)) { ArtifactViewerState(context, artifact) }
     Column(Modifier.fillMaxSize()) {
         FilePreviewActions(artifact, state)
         Box(Modifier.weight(1f)) {
@@ -241,36 +238,5 @@ private fun ChangesPdfPreview(file: File) {
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ChangesMediaPreview(file: File) {
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var view by remember { mutableStateOf<VideoView?>(null) }
-    var failure by remember { mutableStateOf<String?>(null) }
-    var prepared by remember { mutableStateOf(false) }
-    var playing by remember { mutableStateOf(false) }
-    LaunchedEffect(view) { while (isActive) { playing = view?.isPlaying == true; delay(250) } }
-    DisposableEffect(lifecycle, view) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) { view?.pause(); playing = false } }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
-    Column(Modifier.fillMaxSize()) {
-        if (failure != null) ChangesNotice("Preview unavailable", failure.orEmpty())
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            TextButton(enabled = prepared, onClick = { if (view?.isPlaying == true) view?.pause() else view?.start(); playing = view?.isPlaying == true }) { Text(if (playing) "Pause" else "Play") }
-            TextButton(enabled = prepared, onClick = { view?.seekTo(0); view?.pause(); playing = false }) { Text("Restart") }
-        }
-        AndroidView(factory = { context -> VideoView(context).apply {
-            view = this
-            setMediaController(MediaController(context).also { it.setAnchorView(this) })
-            setOnPreparedListener { prepared = true }
-            setOnCompletionListener { playing = false }
-            setOnErrorListener { _, _, _ -> failure = "Android could not play this media format. Use Open in Viewer actions to choose another player."; true }
-            setVideoURI(Uri.fromFile(file))
-        } }, modifier = Modifier.fillMaxWidth().weight(1f).semantics { contentDescription = "Media preview ${file.name}" },
-            onRelease = { it.stopPlayback(); view = null })
     }
 }

@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <activity android:name=".ArtifactPreviewTestActivity" android:exported="false" />
         <activity android:name=".RetainedBrowserTestActivity" android:exported="false" />
         <activity android:name=".NativeNoticeProcessActivity" android:exported="false"
             android:process=":notice_process_test" android:taskAffinity="${applicationId}.noticeprocess" />

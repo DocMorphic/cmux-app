@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.Spannable
+import android.text.Selection
 import android.text.SpannableString
 import android.text.TextPaint
 import android.text.style.MetricAffectingSpan
@@ -21,6 +22,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -49,6 +53,13 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
     var query by mutableStateOf("")
     var matches by mutableStateOf<List<IntRange>>(emptyList())
     var selected by mutableIntStateOf(0)
+    var searchedQuery: String? = null
+    var captureViewport: (() -> Unit)? = null
+    var anchor = 0
+    var lineFraction = 0f
+    var horizontalDp = 0f
+    var selectionStart = -1
+    var selectionEnd = -1
     var searching by mutableStateOf(false)
     var lineNumbers by mutableStateOf(true)
     private val kind = ArtifactTextKind.forPath(artifact.file.name)
@@ -67,6 +78,23 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
         jumpTo(matches[selected].first)
     }
     fun closeSearch() { searchOpen = false; query = ""; matches = emptyList(); selected = 0 }
+    companion object {
+        // Store only UI coordinates/options. The file, decoded text and syntax are reread.
+        fun saver(context: Context, artifact: LocalFilePreview) = listSaver<ArtifactViewerState, Any>(
+            save = { state ->
+                state.captureViewport?.invoke()
+                listOf(state.rendered, state.searchOpen, state.goToLineOpen, state.query, state.selected,
+                    state.lineNumbers, state.anchor, state.lineFraction, state.horizontalDp,
+                    state.selectionStart, state.selectionEnd)
+            }, restore = { values -> ArtifactViewerState(context, artifact).apply {
+                rendered = values[0] as Boolean && renderedAvailable
+                searchOpen = values[1] as Boolean; goToLineOpen = values[2] as Boolean
+                query = values[3] as String; selected = values[4] as Int; searchedQuery = query
+                lineNumbers = values[5] as Boolean; anchor = values[6] as Int
+                lineFraction = values[7] as Float; horizontalDp = values[8] as Float
+                selectionStart = values[9] as Int; selectionEnd = values[10] as Int
+            } })
+    }
 }
 
 @Composable
@@ -96,8 +124,11 @@ internal fun ArtifactRawTextPreview(state: ArtifactViewerState) {
         state.matches = emptyList()
         try {
             val results = withContext(Dispatchers.Default) { val job = currentCoroutineContext(); document.search(state.query) { job.ensureActive() } }
-            state.matches = results; state.selected = 0
-            results.firstOrNull()?.let { state.jumpTo(it.first) }
+            val changedQuery = state.searchedQuery != state.query
+            state.searchedQuery = state.query
+            state.matches = results
+            state.selected = if (changedQuery || results.isEmpty()) 0 else state.selected.coerceIn(results.indices)
+            if (changedQuery) results.firstOrNull()?.let { state.jumpTo(it.first) }
         } finally { state.searching = false }
     }
     Column(Modifier.fillMaxSize()) {
@@ -106,8 +137,8 @@ internal fun ArtifactRawTextPreview(state: ArtifactViewerState) {
         val document = state.document
         if (document == null && state.failure == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         else if (document != null) AndroidView(factory = { ArtifactTextScrollView(it, state::setFont) },
-            modifier = Modifier.fillMaxWidth().weight(1f).semantics { contentDescription = "Raw text preview" },
-            update = { it.update(state, document) })
+            modifier = Modifier.fillMaxWidth().weight(1f).clipToBounds().semantics { contentDescription = "Raw text preview" },
+            update = { it.update(state, document) }, onRelease = { it.release() })
     }
 }
 
@@ -130,7 +161,7 @@ private fun ArtifactSearchBar(state: ArtifactViewerState) {
 
 @Composable
 private fun ArtifactLineDialog(state: ArtifactViewerState) {
-    var line by remember { mutableStateOf("") }
+    var line by rememberSaveable { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     fun go() {
@@ -142,7 +173,7 @@ private fun ArtifactLineDialog(state: ArtifactViewerState) {
         OutlinedTextField(line, { line = it.filter(Char::isDigit) }, Modifier.focusRequester(focus), label = { Text("Line number") }, singleLine = true,
             supportingText = { Text("1–${state.document?.lineCount ?: 1}") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
             keyboardActions = KeyboardActions(onGo = { go() }))
-    }, confirmButton = { TextButton(onClick = { go() }, enabled = line.toIntOrNull() != null) { Text("Go") } },
+    }, confirmButton = { TextButton(onClick = { go() }, enabled = line.toIntOrNull() != null && state.document != null) { Text("Go") } },
         dismissButton = { TextButton(onClick = { state.goToLineOpen = false }) { Text("Cancel") } })
     LaunchedEffect(Unit) { focus.requestFocus() }
 }
@@ -151,6 +182,8 @@ private fun ArtifactLineDialog(state: ArtifactViewerState) {
 internal class ArtifactTextScrollView(context: Context, private val changeFont: (Float) -> Unit) : ScrollView(context) {
     val textView = ArtifactNumberedTextView(context)
     private val horizontal = HorizontalScrollView(context).apply { isFillViewport = true }
+    private var viewerState: ArtifactViewerState? = null
+    private var restoring = false
     private var document: ArtifactTextDocument? = null
     private var syntax: ArtifactSyntaxResult? = null
     private var ranges: List<IntRange>? = null
@@ -203,7 +236,29 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
         }
         return super.dispatchTouchEvent(event)
     }
+    fun release() {
+        captureViewport()
+        viewerState?.captureViewport = null
+        viewerState = null
+    }
+    private fun captureViewport() {
+        if (restoring) return
+        val state = viewerState ?: return
+        val layout = textView.layout ?: return
+        val y = (scrollY - textView.paddingTop).coerceAtLeast(0)
+        val line = layout.getLineForVertical(y)
+        state.anchor = layout.getLineStart(line)
+        state.lineFraction = (y - layout.getLineTop(line)).toFloat() /
+            (layout.getLineBottom(line) - layout.getLineTop(line)).coerceAtLeast(1)
+        state.horizontalDp = horizontal.scrollX / resources.displayMetrics.density
+        state.selectionStart = textView.selectionStart; state.selectionEnd = textView.selectionEnd
+    }
     fun update(state: ArtifactViewerState, value: ArtifactTextDocument) {
+        val first = viewerState !== state
+        if (first) {
+            release(); viewerState = state; restoring = true
+            state.captureViewport = ::captureViewport
+        }
         if (document !== value) {
             document = value; textView.document = value
             textView.setText(SpannableString(value.text), TextView.BufferType.SPANNABLE)
@@ -233,6 +288,27 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
             buffer.getSpans(0, buffer.length, BackgroundColorSpan::class.java).forEach(buffer::removeSpan)
             state.matches.forEachIndexed { index, range -> buffer.setSpan(BackgroundColorSpan(if (index == state.selected) 0xFF8A6320.toInt() else 0xFF41483E.toInt()), range.first, range.last + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
             ranges = state.matches; selected = state.selected
+        }
+        if (first) {
+            // Run after text measurement; a character anchor survives changed line wrapping.
+            textView.addOnLayoutChangeListener(object : android.view.View.OnLayoutChangeListener {
+                override fun onLayoutChange(v: android.view.View, l: Int, t: Int, r: Int, b: Int,
+                    oldL: Int, oldT: Int, oldR: Int, oldB: Int) {
+                    textView.removeOnLayoutChangeListener(this)
+                    if (viewerState !== state) return
+                    val layout = textView.layout ?: return
+                    val line = layout.getLineForOffset(state.anchor.coerceIn(0, value.text.length))
+                    val top = layout.getLineTop(line)
+                    val y = if (state.anchor == 0 && state.lineFraction == 0f) 0 else
+                        top + textView.paddingTop + ((layout.getLineBottom(line) - top) * state.lineFraction).toInt()
+                    scrollTo(0, y)
+                    if (!state.wrap) horizontal.scrollTo((state.horizontalDp * resources.displayMetrics.density).toInt(), 0)
+                    if (state.selectionStart >= 0 && state.selectionEnd >= 0)
+                        Selection.setSelection(textView.text as Spannable, state.selectionStart.coerceAtMost(value.text.length),
+                            state.selectionEnd.coerceAtMost(value.text.length))
+                    restoring = false
+                }
+            })
         }
         if (state.jump != null && state.jump != appliedJump) {
             appliedJump = state.jump

@@ -12,7 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest source checkpoint — retained browser view (2026-10-05)
+## Latest source checkpoint — text and media recreation (2026-10-05)
+
+Raw-text search, reading position, selection, display options and Go-to-line
+input now survive Activity recreation. Media resumes at its saved position
+across recreation and stays paused after a background round trip. Screenshot
+review also exposed text painting over the toolbar; explicit viewport clipping
+and a pixel assertion now cover that bug. **Seven Android checks passed in
+94.922 s**, including the three new lifecycle flows and existing text/audio
+regressions. Final screenshots inspected, no run crashes/ANRs, settings unchanged,
+sole AVD stopped/reaped. See [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#text-and-media-recreation--2026-10-05)
+for failed attempts, scoped iOS references and remaining viewer gates. Ten
+nonexported debug Activities now require release exclusion. Signed **596** is
+unchanged; physical Pixel absent; full parity remains unverified and goal active.
+
+## Earlier source checkpoint — retained browser view (2026-10-05)
 
 The routed controller now retains its WebView across Activity recreation, with
 replaceable Activity context/callbacks and lease-checked detach/cleanup. **Four

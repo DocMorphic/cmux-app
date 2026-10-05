@@ -1,5 +1,73 @@
 # Changes preview lifecycle
 
+## Text and media recreation — 2026-10-05
+
+The shared artifact viewer now saves raw-text reading position as a character
+anchor with a fractional line offset, horizontal position, selection, search
+query/result, line-number visibility, Raw/Rendered choice and Go-to-line dialog
+input. It reloads text/syntax rather than storing a document in the saved-state
+bundle. Restoring a search no longer jumps back to its first result. Go waits
+for the reloaded document before accepting navigation.
+
+Media previews save their position, restore paused or active playback across
+Activity recreation, pause on backgrounding, and stay paused on return. A small
+saved bookmark replaces the old polling-only state; player/views are released
+with the composition. Only configuration recreation saves an autoplay request.
+The tests use a 30-second WAV and actual Android playback/seek positions; video
+frame/codec coverage and process-death recovery are still separate gates.
+
+Screenshot review found that the native text view could draw scrolled document
+lines over the search row, toolbar and system bars. The raw-text viewport is now
+explicitly clipped. A pixel assertion checks the empty center of the toolbar for
+leaked document glyphs, and the final screenshot visibly confirms the correction.
+
+**Seven Android tests passed in 94.922 s** on the sole existing 16 KB AVD:
+
+- Paused seek at eight seconds, Activity recreation, continued playback from the
+  saved position, background/foreground pause, another paused recreation,
+  Restart and player release.
+- Search result `2/2`, exact reading position, selected text range, line-number
+  setting and unchanged document bytes across recreation; subsequent search
+  wrap to `1/2`, plus the toolbar pixel check.
+- Markdown Raw mode and a pending Go-to-line `120` draft across recreation,
+  followed by navigation in the native source view.
+- Existing three text checks for search/navigation, Unicode selection/copy,
+  line-number rendering, per-kind wrap/font persistence and pinch; existing
+  Changes audio prepare/play/restart/close check.
+
+All three final screenshots were inspected. No crash entries or ANR events in
+the final run; device settings unchanged; emulator stopped and reaped. The first
+cold boot had a System UI startup ANR before testing and a stalled launcher was
+restarted. The initial seven-test attempt had six passes and one test selector
+failure: UI Automator could not see a Compose-only raw-view label. A diagnostic
+screenshot proved that raw Markdown was displayed; the test now checks the
+actual native view and exact source bytes. The next seven passed in 101.277 s,
+but screenshot review exposed the clipping bug; the final run above includes its
+fix and stronger pixel assertion. Initial build setup/import errors were fixed
+before runtime testing. Original logs and screenshots are retained.
+
+Scoped iOS references at `186cec79781256867ad4516f0802118738bd2393`:
+`ChatArtifactMediaView.swift` (SHA-256
+`a3d4533995547f50ffae8efdd007a6c2a44f18ae6926e905c8c040a2237f36b9`)
+uses AVKit controls and releases its player on dismantle;
+`ChatArtifactTextView.swift` (SHA-256
+`b279ae19d45f030e94f6a60957de0c8fe092570c9b2fcfd806daa32b253b7964`)
+passes search/navigation/display state into a native text container. These scoped
+references do not advance the global parity pin.
+
+Evidence: `captures/runtime/text-media-lifecycle/` (source/APK hashes, runner,
+results, screenshots, settings, event/crash logs, earlier attempts and references).
+The new nonexported `ArtifactPreviewTestActivity` is debug-only, bringing the
+release exclusion inventory to **ten** Activities; release verification derives
+this list dynamically. No signed APK was produced in this batch; **596** remains
+the verified download. No Pixel was attached.
+
+**Still open:** rendered-Markdown scroll/zoom and renderer recovery; pending Save
+picker restoration; forced browser-parent recreation with binary previews;
+video/codec and changed-aspect-ratio acceptance, process death, accessibility and
+physical Pixel/Mac testing. Other completion gates remain in
+[REMAINING_WORK.md](REMAINING_WORK.md).
+
 ## Browser parent follow-up — 2026-10-05
 
 The routed text Changes sheet now passes recreation plus rotation in both
