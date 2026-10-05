@@ -3,15 +3,49 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Source ahead of the signed APK (2026-10-05)
+## Current signed development APK — build 589 (2026-10-05)
 
-Legacy ticket input/route confirmation, encrypted persistence and scoped RPC
-context have passed focused JVM and emulator checks. Manual legacy Tailscale
-ticket acquisition has additional focused JVM coverage. They are not in signed 581
-and have not completed physical Pixel/Mac acceptance. See the latest checkpoint
-in [PARITY.md](PARITY.md); no new signed delivery is claimed here.
+[Build 589](https://github.com/DocMorphic/cmux-app/actions/runs/37253661827)
+passed at `cba6c6ec10e36871f4fcf78d116ef1673ae68a64`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37253661827/artifacts/11321794646)
+and extract `app-release.apk`. This is an Actions development artifact; PR #1
+remains open/draft, with no public release or merge.
 
-## Current signed development APK — build 581 (2026-10-05)
+This batch includes scoped ticket RPC policy, legacy full/compact ticket decoding,
+encrypted ticket persistence, link/paste route confirmation and lifecycle handling,
+and manual ticket acquisition for the legacy Tailscale connector. Later shared-
+Tailscale admission, saved-ticket initial handshake and native Iroh auth fixes
+(`ede7e2e`, `372779b`, `5b506cb`) are not in this APK.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **589**, version 0.2.0.
+- SHA-256: `6f931c8fce7a9d23d74ba6266766c712c71cc26265e41b2ff75c532c18400614`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **228,434,475 bytes**; compressed artifact **120,327,252 bytes**.
+- Local file: `build/signed-run-37253661827/app-release.apk`.
+
+CI passed app/Ghostty JVM checks and APK assembly in **13m 09s**, signed packaging,
+and six Android 17 ART probes. No total JVM test count is inferred from the log.
+Independent checks matched the artifact/run/source metadata, ZIP and APK digests,
+stable signer, 14 packaged assets, all 19 native LOAD/RELRO alignments, 16 KB ZIP
+alignment, notice-engine pin, manifest contract and eight excluded debug fixture
+activities. All 19 native payloads match 581. Nine production classes passed
+local arm64 API37 ART loading, including the pairing dialog and MainActivity.
+
+The sole API37/16KB AVD upgraded **581 → 589** with `install -r`, retaining its
+first-install time `2026-09-30 01:57:49`. The immediate post-install launch command
+reported SystemUI's transient `PackageUpdateActivity`; the screen later showed
+cmux sign-in. A subsequent explicit stop/start verified a **1,253 ms cold launch**.
+After guest reboot it still resolved the exact installed APK and cold-launched in
+**4,073 ms**. These single observations are not a performance benchmark.
+Screenshots inspected; crash buffers empty; settings unchanged. The emulator was
+stopped/reaped, and the redundant download ZIP removed. Evidence:
+`captures/runtime/release-cba6c6e/`.
+
+The baseline and candidate were signed out. This does not prove authenticated
+migration, full pairing behavior or physical Pixel/Mac acceptance. Pixel absent
+from ADB; phone data untouched. The goal remains active.
+
+## Earlier signed development APK — build 581 (2026-10-05)
 
 [Build 581](https://github.com/DocMorphic/cmux-app/actions/runs/37246515883)
 passed at `fc2a3fad46761f9d0e71185d1fc7f31795114d22`. Download the

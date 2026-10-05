@@ -1,5 +1,11 @@
 # Attach-ticket compatibility audit
 
+**Delivery:** build **589** (`cba6c6e`) now contains ticket policy, decoding,
+storage/input and initial manual legacy Tailscale acquisition. Its packaging,
+ART and signed-out upgrade/reboot checks passed; see [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
+The native RPC auth, shared Tailscale and saved-ticket handshake checkpoints below
+are newer source and are not yet in that APK. Physical acceptance remains open.
+
 ## native RPC auth and routing race (2026-10-05)
 
 Android now models RPC authorization as a transport property. Only

@@ -12,7 +12,27 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — native RPC auth and routing race (2026-10-05)
+## Latest checkpoint — signed build 589 verified (2026-10-05)
+
+Signed development build **589** at `cba6c6ec10e36871f4fcf78d116ef1673ae68a64` is
+verified. Download and exact evidence: [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
+CI build/tests, packaging and six ART classes passed; local provenance, stable
+signer, 14 assets, 19 native alignments, 16 KB ZIP alignment and nine arm64 ART
+classes passed. The sole AVD upgraded 581 → 589 without clearing data, preserved
+its first-install date, and cold-launched sign-in before and after guest reboot.
+Installed digest matched; crash buffers empty; screenshots inspected; settings
+unchanged; emulator stopped/reaped. Evidence: `captures/runtime/release-cba6c6e/`.
+The initial launch timing assertion hit Android's package-update activity; the
+subsequent explicit stop/start verified the app launch, without reinstalling.
+
+This delivers ticket decoding/storage/input and initial manual legacy Tailscale
+acquisition. Shared Tailscale ticket admission, saved-ticket initial handshake
+and native Iroh auth/routing fixes after `cba6c6e` remain source ahead of the APK.
+Physical/account migration, legacy mutation gates, push/notice configuration,
+UI/accessibility and the broader upstream audit remain open. No new AVD created;
+Pixel absent and untouched. Goal active; PR #1 open/draft; global pins unchanged.
+
+## Earlier checkpoint — native RPC auth and routing race (2026-10-05)
 
 Android now models RPC authorization as a transport property. Only
 `IrxMobileRpcTransport` declares transport admission: its session factory returns

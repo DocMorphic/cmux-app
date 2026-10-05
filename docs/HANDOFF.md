@@ -18,13 +18,14 @@ Read this first, then `PARITY.md`, `ANDROID_TESTING.md`, `RESEARCH.md`, and
 not a request to scaffold another prototype. The dated sections of the other
 documents are historical; newer verified entries supersede older pending claims.
 
-**Delivery update — 2026-10-05:** signed development build **581** is now verified.
-See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) and the latest checkpoint below for its
-source, download, packaging, ART and signed-out upgrade evidence. The goal remains
-active; physical/authenticated acceptance, feed/push configuration and broader
-parity remain open. Older delivery sections below are historical.
+**Delivery update — 2026-10-05:** signed build **589** at `cba6c6e` is verified.
+See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the download, hashes and evidence.
+CI and independent packaging/ART checks passed; signed-out 581 → 589 upgrade
+and reboot passed on the sole AVD. Emulator stopped/reaped. Authenticated/physical
+acceptance remains open. Newer source through `5b506cb` is not in 589. Continue
+with legacy mutation gates and physical native/recovery/UI/push acceptance.
 
-## Latest checkpoint — native RPC auth and routing race (2026-10-05)
+## Earlier checkpoint — native RPC auth and routing race (2026-10-05)
 
 Android now models RPC authorization as a transport property. Only
 `IrxMobileRpcTransport` declares transport admission: its session factory returns
