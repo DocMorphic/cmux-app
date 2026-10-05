@@ -184,6 +184,28 @@ class NativeTicketPairingRuntimeTest {
         } finally { store.clear(); context.deleteSharedPreferences(name) }
     }
 
+    @Test fun authenticatedLegacyBuildAdoptionSurvivesKeystoreReloadWithoutDuplicateComputerOrStaleTicket() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "legacy-adoption-${UUID.randomUUID()}"
+        val store = NativeCredentialStore(context, name)
+        try {
+            val public = "cmux-ios://attach?v=3&i=$peer&d=fixture-mac&ub=fixture-user&t=fixture-team"
+            val old = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(public, "fixture-mac", "Older Mac"), owner)
+            store.update { it.put("task_session", owner.login).put("refresh_token", "synthetic-refresh")
+                .put("pairings", JSONArray().put(NativePairingRecords.encode(old))).put("computer_selection", old.origin) }
+            val ticketRow = store.rememberAttachTicket(owner, old, ticket(), null) { true }
+            val learned = store.rememberAuthenticatedMac(ticketRow.copy(instanceTag = "default", name = "Verified Mac"), owner,
+                expected = ticketRow) { true }
+            val restored = NativeCredentialStore(context, name)
+            assertEquals(listOf(learned), restored.pairedMacs())
+            assertEquals(old.origin, learned.origin); assertEquals("default", learned.instanceTag)
+            assertEquals(old.origin, restored.load()!!.getString("computer_selection"))
+            assertNull(learned.ticketRevision); assertNull(restored.attachTicket(owner, learned))
+            assertNotNull(NativeComputerTarget.from(learned, owner))
+            assertEquals(learned, restored.rememberAuthenticatedMac(learned, owner, expected = learned) { true })
+        } finally { store.clear(); context.deleteSharedPreferences(name) }
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()

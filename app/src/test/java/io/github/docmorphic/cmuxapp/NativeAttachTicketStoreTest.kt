@@ -161,6 +161,18 @@ class NativeAttachTicketStoreTest {
         assertTrue(runCatching { NativeAttachTicketStore.read(state, team, saved) }.isFailure)
     }
 
+    @Test fun authenticatedLegacyBuildAdoptionDropsOldTicketBindingInsteadOfLeavingADanglingRevision() {
+        val public = "cmux-ios://attach?v=3&i=$peer&d=device&ub=user&t=team"
+        val old = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(public, "device", "Mac"), team)
+        val value = state(old)
+        val saved = install(value, old)
+        assertNotNull(saved.ticketRevision)
+        val result = NativePairingPersistence.remember(value, saved.copy(instanceTag = "default"), team, saved)
+        assertEquals(saved.origin, result.origin); assertEquals("default", result.instanceTag)
+        assertNull(result.ticketRevision); assertFalse(value.has(NativeAttachTicketStore.KEY))
+        assertNull(NativeAttachTicketStore.read(value, team, result))
+    }
+
     @Test fun editedTailscaleGrantReconnectPreservesPublicLocatorTicketAndHistoryWithoutReauthorizingOldAddress() {
         val code = "cmux-ios://attach?v=2&ub=user&r=100.64.0.7:58465"
         val row = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(code, "device", "Mac", "default"), team)

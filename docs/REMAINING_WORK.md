@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Authenticated legacy build adoption now preserves a captured or sole owned
+  untagged computer's draft/notification/selection origins, keeps sibling builds
+  separate and removes ticket credentials whose old build binding has changed.
+  58 focused JVM tests and main/instrumentation Kotlin compilation passed (23 s).
+  The Keystore reload case is queued for the next Android milestone; no APK/AVD.
+  Pre-tag directory route enrichment, raw Tailscale handshake/grant adoption,
+  metadata reconciliation and physical acceptance remain. See `ATTACH_TICKETS.md`.
+
 - Saved raw-primary reconnect now uses current exact Mac/build grants after an
   address edit, with captured row/account/method admission and transport-only
   fallback. Old tickets are restricted to their original source; replacement

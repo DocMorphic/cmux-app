@@ -178,9 +178,10 @@ Real saved-method changes on Mac/Pixel still need acceptance.
   grants and preserves the public locator; a saved ticket accompanies only its
   original source. See `TAILSCALE_CONNECTION.md`. The new Android Details case
   and physical edited-address/cold-start acceptance remain pending.
-- Implement explicit legacy pre-tag identity adoption without choosing an
-  arbitrary sibling or losing history. This batch requires an exact stored build;
-  a missing build remains unchanged until authenticated identity can establish it.
+- Authenticated persistence now adopts a captured or sole owned legacy pre-tag
+  record while preserving its history; see the checkpoint below. Sole-build
+  directory route enrichment and learning a build through an old untagged raw
+  Tailscale grant still need connection-layer integration and physical acceptance.
 - Verify authenticated legacy-to-native enrichment and reconnect in the real
   account flow, including foreground retry, hidden/forgotten rows, directory
   outages, drafts/notifications, ticket binding and strict per-build methods.
@@ -748,3 +749,42 @@ sites and refresh/retirement lifecycle remain before Android integration.
    host has not been established.
 
 The remaining integration work is open. The RPC policy above postdates build 581.
+
+## Authenticated legacy build adoption (2026-10-06)
+
+Scoped source audit at `186cec79781256867ad4516f0802118738bd2393`:
+`MobilePairedMacInstanceTagTests.swift` covers an imported untagged record followed
+by an authenticated tagged upsert. `PresenceMap.reconnectRouteAuthority` allows
+an untagged record to use a sole online route-advertising instance;
+`MobileShellComposite+PresenceRouteSync.swift` applies that rule before persisting
+route hints. These are distinct from accepting a final authenticated build.
+The global implemented/reviewed pins are unchanged.
+
+Android's authenticated persistence now accepts a known host build for a captured
+owned untagged record, or a sole owned untagged record for the same device. It
+retains the old draft/notification/selection origin; when an exact tagged record
+already exists, both origins are retained. Ordinary tagged reconnects do not
+consume unrelated legacy rows. Multiple legacy rows require an explicit captured
+selection; tagged sibling builds, other owners, hidden and stale records are not
+adopted. This fixes the persistence step of an old native pairing's literal-peer
+reconnect, whose existing runtime already verifies the current directory and host.
+
+A ticket bound to the old untagged identity is removed when that binding changes,
+including its revision, instead of leaving an unreadable credential reference.
+Fresh ticket installation remains after the authenticated write. A native upgrade
+does not retag an old raw Tailscale grant or import an unverified alternate peer.
+
+58 focused JVM tests passed with no failures/errors/skips; main and instrumentation
+Kotlin compilation passed in 23 seconds. Cases cover real draft/notification-ledger
+restoration, exact-build coalescing, explicit legacy selection, ownership and
+visibility rejection, ticket cleanup and existing pairing/directory regressions.
+The Keystore reload case
+`authenticatedLegacyBuildAdoptionSurvivesKeystoreReloadWithoutDuplicateComputerOrStaleTicket`
+is compiled and queued for the next combined Android milestone. No APK, emulator
+or physical run was performed. Evidence and scoped source snapshots are in local
+ignored `captures/runtime/legacy-build-adoption/`.
+
+Remaining: unambiguous directory route enrichment for pre-tag rows, live raw
+Tailscale handshake/grant adoption, old appearance/route metadata reconciliation,
+and Pixel/Mac acceptance. This checkpoint does not close the full legacy-upgrade
+or connection-parity gate.

@@ -58,12 +58,34 @@ internal object NativePairingPersistence {
             canonicalMacDeviceId(row.deviceId) == canonicalMacDeviceId(incoming.deviceId) && row.instanceTag == incoming.instanceTag
         val owner = team.userId to team.teamId
         val owned = decoded.filter { NativePairingRecords.owner(it.second, grants) == owner }
-        check(owned.none { it.second.code == incoming.code && !sameIdentity(it.second) }) { "This pairing reaches a different Mac or installation." }
-        val matches = owned.filter { sameIdentity(it.second) }
+        val exactMatches = owned.filter { sameIdentity(it.second) }
+        // A verified session can fill a missing build; discovery alone cannot.
+        // An explicit captured row wins, otherwise only one owned legacy row may
+        // donate history. Tagged sibling builds are never candidates for adoption.
+        val legacyCandidates = if (incoming.instanceTag != null && (expected == null || expected.instanceTag == null))
+            owned.filter { it.second.instanceTag == null && it.second.deviceId.isNotBlank() &&
+                canonicalMacDeviceId(it.second.deviceId) == canonicalMacDeviceId(incoming.deviceId) }
+        else emptyList()
+        val legacy = if (expected != null && expected.instanceTag == null && incoming.instanceTag != null) {
+            check(canonicalMacDeviceId(expected.deviceId) == canonicalMacDeviceId(incoming.deviceId)) { "Computer identity changed" }
+            checkNotNull(legacyCandidates.singleOrNull { it.second.origin == expected.origin }) {
+                "The older pairing has no unambiguous account ownership. Pair this Mac again."
+            }
+        } else {
+            check(legacyCandidates.size <= 1) { "Choose the older saved computer before upgrading its build identity." }
+            legacyCandidates.singleOrNull()
+        }
+        if (legacy != null) check(!NativeComputerVisibility.isHidden(state, legacy.second)) {
+            "This computer is hidden on this phone. Show it in Computers before connecting."
+        }
+        check(owned.none { it != legacy && it.second.code == incoming.code && !sameIdentity(it.second) }) {
+            "This pairing reaches a different Mac or installation."
+        }
+        val matches = exactMatches + listOfNotNull(legacy)
         // A fresh authenticated native reconnect supplies authority. A QR must not
         // choose arbitrarily between old native routes (these records have no dates).
-        val nativeMatches = matches.filter { PairingCodeParser.parse(it.second.code).getOrNull() is PairingCode.Iroh }
-        val nativeCodes = (nativeMatches.map { it.second.code } + matches.mapNotNull {
+        val nativeMatches = exactMatches.filter { PairingCodeParser.parse(it.second.code).getOrNull() is PairingCode.Iroh }
+        val nativeCodes = (nativeMatches.map { it.second.code } + exactMatches.mapNotNull {
             it.second.nativeRouteCode?.takeIf { _ -> NativePairingRecords.retainedNativeRoute(it.second) != null }
         }).distinct()
         check(pairing !is PairingCode.Tailscale || nativeCodes.size <= 1) {
@@ -93,7 +115,11 @@ internal object NativePairingPersistence {
         check(decoded.none { it !in matches && it.second.origins.any(retained::contains) }) {
             "Saved computer history has conflicting ownership. Remove the conflicting pairing before reconnecting."
         }
-        val retainedTicket = scoped.ticketRevision ?: matches.singleOrNull { it.second.code == scoped.code }?.second?.ticketRevision
+        // A credential bound to the untagged identity must not survive as a
+        // dangling revision after the build binding changes. Fresh tickets are
+        // installed by the caller after this authenticated write.
+        val incomingTicket = scoped.ticketRevision?.takeUnless { legacy != null && it == legacy.second.ticketRevision }
+        val retainedTicket = incomingTicket ?: matches.singleOrNull { it.second.code == scoped.code && sameIdentity(it.second) }?.second?.ticketRevision
         val remembered = scoped.copy(previousOrigins = aliases, ticketRevision = retainedTicket)
         val next = JSONArray()
         val replaced = matches.map { it.first }.toSet()

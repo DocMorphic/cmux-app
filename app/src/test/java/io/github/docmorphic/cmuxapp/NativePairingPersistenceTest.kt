@@ -26,6 +26,83 @@ class NativePairingPersistenceTest {
         (0 until rows.length()).map { rows.getJSONObject(it).getString("code") }
     }
 
+    private fun legacyNative(endpoint: String = "peer") = NativeCredentialStore.PairedMac(
+        "cmux-ios://attach?v=3&i=$endpoint&d=mac&ub=user&t=team", "mac", "Legacy Mac")
+
+    @Test fun authenticatedLegacyNativeReconnectLearnsBuildAndPreservesActualDraftAndNotificationHistory() {
+        val legacy = legacyNative()
+        val state = state(legacy).put("computer_selection", legacy.origin)
+        val drafts = TaskDrafts(); val draftId = UUID.randomUUID().toString()
+        val editor = drafts.begin(draftId, legacy.origin, legacy.name, "/tmp")
+        drafts.edit(editor) { it.copy(prompt = "Keep legacy draft") }
+        val ledgerState = JSONObject(); val ledger = NativeNotificationLedger(ledgerState)
+        val notification = NativeNotification("n", "w", "s", "Ready", "Done", false)
+        ledger.baseline(legacy.origin, emptyList())
+        val destination = ledger.stage(legacy.origin, notification)
+        ledger.acknowledge(legacy.origin, listOf(notification.id))
+        val result = NativePairingPersistence.remember(state, legacy.copy(name = "Verified Mac", instanceTag = "default"), scope, legacy)
+        assertEquals("default", result.instanceTag); assertEquals(legacy.origin, result.origin)
+        assertEquals(legacy.code, result.code); assertEquals(scope.userId, result.accountUserId)
+        assertEquals(1, codes(state).size); assertEquals(legacy.origin, state.getString("computer_selection"))
+        val restored = TaskDrafts(drafts.saved())
+        restored.begin(draftId, result.origin, result.name, "/tmp")
+        assertEquals("Keep legacy draft", restored.state.value[draftId]?.prompt)
+        val restarted = NativeNotificationLedger(JSONObject(ledgerState.toString()))
+        assertTrue(restarted.prune(result.origins).isEmpty())
+        assertEquals(destination, restarted.destination(destination.routeId))
+        assertTrue(restarted.unseen(result.origin, listOf(notification)).isEmpty())
+        assertEquals(result, NativePairingRecords.decode(state.getJSONArray("pairings").getJSONObject(0)))
+        assertNotNull(NativeComputerTarget.from(result, scope))
+    }
+
+    @Test fun authenticatedNativePairingCanAdoptSoleGrantOwnedUntaggedRawHistoryWithoutRetaggingItsAddressGrant() {
+        val legacy = incoming.copy(instanceTag = null)
+        val state = state(legacy); val oldGrant = grant(state, legacy)
+        val result = NativePairingPersistence.remember(state, native(), scope)
+        assertEquals(legacy.origin, result.origin); assertEquals(native().code, result.code)
+        assertEquals("default", result.instanceTag); assertEquals(1, codes(state).size)
+        assertEquals(oldGrant, TailscaleGrantStore({ state }, {}).find(scope, oldGrant.source))
+    }
+
+    @Test fun explicitLegacySelectionPreservesOtherLegacyRowsAndTaggedSiblingBuilds() {
+        val selected = legacyNative("selected"); val otherLegacy = legacyNative("other")
+        val sibling = native(build = "nightly", endpoint = "nightly")
+        val state = state(otherLegacy, sibling, selected)
+        val before = state.toString()
+        assertThrows(IllegalStateException::class.java) { NativePairingPersistence.remember(state, native(), scope) }
+        assertEquals(before, state.toString())
+        val result = NativePairingPersistence.remember(state, native(), scope, selected)
+        assertEquals(selected.origin, result.origin)
+        assertEquals(listOf(otherLegacy.code, sibling.code, result.code), codes(state))
+        assertFalse(result.ownsOrigin(sibling.origin)); assertFalse(result.ownsOrigin(otherLegacy.origin))
+    }
+
+    @Test fun coalescingWithKnownExactBuildRetainsBothOriginsButDoesNotAdoptOnAnOrdinaryTaggedReconnect() {
+        val legacy = legacyNative(); val known = NativePairingRecords.scoped(native(), scope)
+        val state = state(legacy, known)
+        val unchanged = NativePairingPersistence.remember(state, native(), scope, known)
+        assertEquals(2, codes(state).size); assertFalse(unchanged.ownsOrigin(legacy.origin))
+        val result = NativePairingPersistence.remember(state, native(), scope, legacy)
+        assertEquals(known.origin, result.origin)
+        assertEquals(setOf(known.origin, legacy.origin), result.origins)
+        assertEquals(1, codes(state).size)
+    }
+
+    @Test fun hiddenOrWrongOwnerLegacyRecordCannotDonateHistoryOrBeRevived() {
+        val legacy = legacyNative()
+        val hidden = state(legacy)
+        assertTrue(NativeComputerVisibility.setVisible(hidden, scope.login, legacy, false) { true })
+        val before = hidden.toString()
+        assertThrows(IllegalStateException::class.java) { NativePairingPersistence.remember(hidden, native(), scope) }
+        assertEquals(before, hidden.toString())
+        for (changed in listOf(legacy.copy(code = legacy.code.replace("t=team", "t=other")),
+            legacy.copy(code = "cmux-ios://attach?v=3&i=peer&d=mac"))) {
+            val state = state(changed); val previous = state.toString()
+            assertThrows(IllegalStateException::class.java) { NativePairingPersistence.remember(state, native(), scope, changed) }
+            assertEquals(previous, state.toString())
+        }
+    }
+
     @Test fun reconnectWriteRejectsForgottenReplacedOrAmbiguousPairingInsideTransaction() {
         val expected = native()
         for (scoped in listOf(true, false)) {
