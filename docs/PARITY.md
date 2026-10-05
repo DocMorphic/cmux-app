@@ -12,7 +12,40 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — browser sidebar drag ordering (2026-10-05)
+## Latest checkpoint — signed build 581 and ticket audit (2026-10-05)
+
+Signed development build **581**, source `fc2a3fad46761f9d0e71185d1fc7f31795114d22`,
+is verified and linked in [PIXEL_INSTALL.md](PIXEL_INSTALL.md). It contains the
+recent SSH Close, display/selection, retained changes-sheet and browser drag work.
+Run 579 failed from compiler heap exhaustion; the CI-only 4 GiB/single-worker,
+in-process configuration passed the replacement clean test/build in **14m 31s**.
+Packaging and all six Android ART probes passed. Local Mac memory defaults remain
+2 GiB. No total JVM count is inferred from the build log.
+
+Downloaded provenance/digests, stable signer, 14 assets, 19 native alignments,
+16 KB ZIP alignment and eight excluded debug fixture activities were independently
+checked. All 19 native payloads match 571. Local arm64 ART accepted the same six
+classes as CI x86_64. The sole API37/16KB emulator upgraded **571 → 581** without
+uninstall/data clear, retained its original install date, cold-launched sign-in,
+and retained a resolving package with the exact APK hash after guest reboot.
+Screenshots inspected, crash buffers empty, settings unchanged, emulator stopped
+and reaped. Evidence: `captures/runtime/release-fc2a3fa/`.
+
+The previous emulator's missing 571 package registration had been repaired by a
+verified `install -r`; that repaired baseline survived two fresh emulator starts.
+Cause unproven. Baseline/candidate are signed out, and no physical Pixel is present;
+authenticated migration, network/process recovery and real Mac acceptance remain
+open. This is a delivery gate, not a new full-feature acceptance result.
+
+[ATTACH_TICKETS.md](ATTACH_TICKETS.md) records a scoped iOS/current-host source audit:
+legacy URL grammars, token expiry/coverage, account-capability precedence, per-RPC
+token omission and current host scope. The source review does not implement legacy
+pairing or prove old-host interoperability. Next: integrate missing ticket behavior,
+remaining modal/accessibility/large-list work, physical recovery and push/notice
+configuration, and finish the upstream audit. Goal active, PR #1 draft, no public
+release/merge, global parity pin unchanged.
+
+## Earlier checkpoint — browser sidebar drag ordering (2026-10-05)
 
 The browser sidebar now supports long-press dragging, before/after insertion,
 dropping a workspace into a group, moving a whole group via its anchor, and Move

@@ -11,8 +11,13 @@ incremental debug build and 90 focused JVM/four Android checks had passed.
 The CI APK step now uses one worker, disables parallel Gradle execution, runs
 Kotlin compilation in the Gradle process and gives that process a 4 GiB heap with
 a 1 GiB metaspace ceiling. `--no-daemon` releases it before the emulator gate.
-Local `gradle.properties` remains at 2 GiB for the 8 GiB Mac. A successful clean
-signed CI run is still required to establish that this resolves the failure.
+Local `gradle.properties` remains at 2 GiB for the 8 GiB Mac. Replacement signed
+[run 581](https://github.com/DocMorphic/cmux-app/actions/runs/37246515883), source
+`fc2a3fad46761f9d0e71185d1fc7f31795114d22`, passed this clean test/build step in
+14m 31s, then passed packaging and all six ART probes. This establishes that the
+new memory settings handled the failing source batch; it is not a guarantee for
+all future source growth. Independent local arm64 probes accepted the same six
+classes. See `PIXEL_INSTALL.md` for the signed artifact and upgrade scope.
 
 ## Release DEX verification
 

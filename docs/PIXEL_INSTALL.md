@@ -3,7 +3,65 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 571 (2026-10-05)
+## Current signed development APK — build 581 (2026-10-05)
+
+[Build 581](https://github.com/DocMorphic/cmux-app/actions/runs/37246515883)
+passed at `fc2a3fad46761f9d0e71185d1fc7f31795114d22`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37246515883/artifacts/11319288810)
+and extract `app-release.apk`. PR #1 remains a draft; this is an Actions
+development artifact, not a published GitHub release.
+
+This batch adds SSH sidebar Close, shared workspace display preferences,
+workspace/group selection highlighting, changes sheets above the live browser,
+retained diff selection/cache/scroll across Activity recreation, and browser
+workspace/group drag ordering. Main-list changes-sheet rotation also has focused
+debug coverage. See `BROWSER_SIDEBAR.md` for feature evidence and its limits.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **581**, version 0.2.0.
+- SHA-256: `0e060d6fa68c586ddba3e179b6fd14ea1567f17d041335bc43b6c9732dd813f1`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **228,401,683 bytes**; compressed artifact **120,283,381 bytes**.
+- Min SDK 26, target SDK 36; local file `build/signed-run-37246515883/app-release.apk`.
+
+Run 579 failed from Kotlin heap exhaustion and produced no signed APK. The CI-only
+4 GiB heap, in-process compiler and one worker fixed this batch: run 581 passed
+app/Ghostty JVM tests and debug/test/release assembly in **14m 31s**, then passed
+signed packaging and six Android ART class checks. The local Mac heap remains
+2 GiB. No total JVM count is inferred from the CI log.
+
+Downloaded ZIP digest, artifact/run/source metadata and extracted APK digest
+matched GitHub/CI. Independent verification confirmed the stable signer, 14 viewer
+assets, all 19 native LOAD/RELRO alignments, 16 KB ZIP alignment, disabled backup,
+non-debuggable manifest, notice-engine pin and eight excluded debug fixture
+activities. All 19 native payloads match 571 byte-for-byte. CI x86_64 and local
+arm64 Android 17 ART accepted all six requested classes: main screen, native
+sidebar host, browser sidebar, drag list, changes sheet and changes Activity.
+
+The sole API 37 / 16,384-byte arm64 emulator upgraded **571 → 581** using
+`install -r`, retaining first-install time `2026-09-30 01:57:49`. Explicit stop/start
+reached the sign-in screen with **COLD / 1,867 ms**. After a guest reboot, the
+package still resolved, its installed APK digest matched the verified download,
+and a cold launch reached sign-in in **8,139 ms**. These individual launches are
+not a performance benchmark. Before/after/reboot screenshots were inspected;
+there was no compatibility/ANR dialog, `pageSizeCompat=0`, and empty crash buffers.
+Screen timeout/stay-awake settings stayed unchanged; the sole AVD was stopped and
+reaped. No additional AVD was created. The Pixel was absent and untouched.
+
+Baseline caveat: before this batch, emulator package settings listed 571 while its
+scanned package was missing. Reinstalling verified 571 with `-r` repaired it without
+clearing data; it survived two fresh emulator starts before this upgrade. Its cause
+was not established. Both baseline and candidate were signed out, so this does
+not establish authenticated migration or physical Pixel/Mac acceptance.
+
+Evidence: `captures/runtime/release-fc2a3fa/` (ignored); prior baseline repair in
+`captures/runtime/release-5c458e4/`. Remaining work includes physical/network/process
+recovery, modal content state, accessibility, large-list drag acceptance,
+production push/notice configuration, legacy tickets and the broader upstream
+audit. `ATTACH_TICKETS.md` now records a scoped source audit, not an implementation.
+Goal active; global parity pin unchanged; scheduled workflows still await merge
+to main. Subsequent documentation commits do not require another APK.
+
+## Previous signed development APK — build 571 (2026-10-05)
 
 [Build 571](https://github.com/DocMorphic/cmux-app/actions/runs/37237674958)
 passed at `608000ccd598da44f8939cf8ed08ac95e7b0149e`. Download the
