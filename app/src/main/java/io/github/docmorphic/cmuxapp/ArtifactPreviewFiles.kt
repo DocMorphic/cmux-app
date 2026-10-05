@@ -72,9 +72,9 @@ internal class ArtifactPreviewFiles(root: File, private val transfer: ArtifactCo
         val partial = File(directory, "download.partial")
         val destination = File(directory, changesPreviewName(filename).let { if (it == "download.partial") "file-download.partial" else it })
         try {
-            partial.outputStream().use { output ->
+            ArtifactLocalOutput(partial).use { output ->
                 transfer.stream(path, metadata, limit) { bytes, received -> output.write(bytes); progress(received, metadata.size) }
-                output.fd.sync()
+                output.sync()
             }
             currentCoroutineContext().ensureActive()
             if (!partial.renameTo(destination)) throw ArtifactPreviewException(

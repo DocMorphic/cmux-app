@@ -21,7 +21,13 @@ internal data class ArtifactPreviewFailure(val kind: Kind, val actualSize: Long?
     fun presentation(authorization: ArtifactAuthorization, markdownPanel: Boolean,
                      connection: NativeFeedAvailability, formatBytes: (Long) -> String = { "$it bytes" }): ArtifactFailureCopy {
         if (kind == Kind.TOO_LARGE) return ArtifactFailureCopy("File too large to preview",
-            if (actualSize != null && limit != null) "This file is ${formatBytes(actualSize)}; previews are limited to ${formatBytes(limit)}."
+            if (actualSize != null && limit != null) {
+                val actualText = formatBytes(actualSize); val limitText = formatBytes(limit)
+                if (actualSize > limit && actualText == limitText) {
+                    val numbers = java.text.NumberFormat.getIntegerInstance()
+                    "This file exceeds the $limitText preview limit (${numbers.format(actualSize)} bytes; limit ${numbers.format(limit)} bytes)."
+                } else "This file is $actualText; previews are limited to $limitText."
+            }
             else if (limit != null) "This preview is limited to ${formatBytes(limit)}." else "This file exceeds the preview size limit.", false)
         if (markdownPanel) return when (kind) {
             Kind.UNSUPPORTED -> ArtifactFailureCopy("Update cmux on your Mac", "The connected Mac's cmux version can't preview this file.", false)

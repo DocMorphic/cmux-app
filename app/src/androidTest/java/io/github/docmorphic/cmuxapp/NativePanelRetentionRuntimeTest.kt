@@ -141,7 +141,7 @@ class NativePanelRetentionRuntimeTest {
                 .put("size", ChangesContentTransfer.PREVIEW_BYTES + 1)
         }
         find(By.text("Panel workspace")).click(); find(By.text("File too large to preview"))
-        find(By.textContains("previews are limited to")); assertFalse(device.hasObject(By.text("Retry")))
+        find(By.textContains("exceeds the")); assertFalse(device.hasObject(By.text("Retry")))
         assertEquals(0, fetches(peer)); assertNull(scenario.panel()?.preview?.state?.value?.artifact)
         screenshot("failure-size-limit")
     }

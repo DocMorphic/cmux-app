@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Preview storage and size limits (2026-10-05)
+
+Local preview writes now distinguish storage-full/quota errors from other local
+IO failures without mislabeling remote socket failures. Rounded size-limit
+messages include exact byte counts when the short sizes would look equal.
+19 focused JVM checks and five Android checks (10.210 s) passed, including a
+real proxy-file ENOSPC write, ordinary output, partial cleanup and the visible
+size-limit message. Screenshot inspected, 14 assets verified, source/APK hashes
+matched, no successful-run crashes/new ANRs, settings unchanged, sole AVD
+stopped/reaped. The initial `/dev/full` test was blocked by Android access controls;
+it was replaced with a documented proxy-file fixture, without permission changes.
+See [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md) for startup ANRs,
+exact coverage and remaining directory/rename/read/export/decoder/physical gaps.
+Signed 606 and the global parity pin are unchanged; the goal remains active.
+
 ## Typed preview failures and retry (2026-10-05)
 
 Shared previews now retain typed failures and use the scoped iOS file/Markdown

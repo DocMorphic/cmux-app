@@ -1,5 +1,47 @@
 # Content preview lifecycle
 
+## Local preview storage and size-limit clarity — 2026-10-05
+
+Local open/write/sync/close operations now classify Android errno causes separately
+from remote transfer failures. ENOSPC and EDQUOT produce the storage-full state;
+other local IO failures produce local-storage-unavailable. The scan is bounded by
+identity to tolerate cyclic causes, and does not parse localized error messages.
+Stream exceptions from the Mac remain outside this boundary, and partial files
+still get cleaned up. The controller retains only the structured state and a
+short diagnostic, not the exception/cause graph.
+
+This follows `ChatArtifactLocalFailureClassifier.swift` at scoped reference
+`186cec79781256867ad4516f0802118738bd2393`; source/hash recorded under
+`captures/runtime/preview-storage/`. The global parity pin is unchanged.
+When formatted actual and limit sizes round to the same text, the oversized-file
+message now explicitly says the limit was exceeded and includes localized exact
+byte counts. The ordinary short size message remains for distinct rounded sizes.
+
+The runtime fixture uses Android's documented
+[proxy-file callback](https://developer.android.com/reference/android/os/ProxyFileDescriptorCallback#onWrite(long,int,byte[]))
+to return ENOSPC through a real file descriptor without filling storage. An initial
+attempt using `/dev/full` instead was rejected by Android access controls and
+failed its storage-full assertion; the other four checks passed. The failure and
+runner preflight correction are preserved under `captures/runtime/preview-storage/`.
+No device permissions were changed.
+
+**19 focused JVM checks and five Android runtime checks (10.210 s) passed.**
+The latter verify an actual file-descriptor write returning ENOSPC, nested errno
+and quota classification, cause-cycle termination, real local open failure,
+exact successful bytes, socket-failure classification and partial cleanup, plus
+the actual native-panel size-limit UI with no content fetch. The corrected size
+screenshot was inspected. All 14 viewer assets verified; source and both APK
+hashes match the final receipts. The successful run has no crash entries or new
+ANRs and unchanged screen/sleep settings. Two cold boots before the runtime runs
+hit System UI ANRs; their screenshots and recovered home screens are retained.
+An earlier startup was stopped before testing to add the scoped iOS quota case.
+The sole AVD is stopped/reaped. Signed 606 remains the verified download.
+
+Storage classification here covers output operations;
+directory creation/rename still report generic local-storage-unavailable, and
+decoder/read/export errors and physical-device acceptance remain open. It does
+not complete the broader native admission/retry, lifecycle or parity gates.
+
 ## Typed preview failures and explicit retry — 2026-10-05
 
 The shared file preview controller now retains a structured failure alongside its

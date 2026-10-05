@@ -86,4 +86,18 @@ class ArtifactPreviewFailureTest {
             assertEquals(ArtifactPreviewFailure.Kind.FILE_NOT_FOUND, missing.kind); assertEquals(2, stats)
         } finally { controller.close(); job.cancelAndJoin(); root.deleteRecursively() }
     }
+
+    @Test fun roundedSizesCannotMakeAnOversizedFileLookWithinTheLimit() {
+        val limit = 64L * 1024 * 1024
+        val copy = ArtifactPreviewFailure(ArtifactPreviewFailure.Kind.TOO_LARGE, limit + 1, limit)
+            .presentation(panel, true, NativeFeedAvailability.CONNECTED) { "67 MB" }
+        val numbers = java.text.NumberFormat.getIntegerInstance()
+        assertTrue(copy.message.contains("exceeds the 67 MB preview limit"))
+        assertTrue(copy.message.contains(numbers.format(limit + 1)))
+        assertTrue(copy.message.contains("limit ${numbers.format(limit)} bytes"))
+        assertFalse(copy.retry)
+        val distinct = ArtifactPreviewFailure(ArtifactPreviewFailure.Kind.TOO_LARGE, 99, 10)
+            .presentation(panel, false, NativeFeedAvailability.CONNECTED) { "$it B" }
+        assertEquals("This file is 99 B; previews are limited to 10 B.", distinct.message)
+    }
 }
