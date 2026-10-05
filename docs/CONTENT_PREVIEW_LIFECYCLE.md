@@ -1,5 +1,24 @@
 # Content preview lifecycle
 
+## Combined PDF/notification runtime milestone — 2026-10-06
+
+The clean `ca00fde` source built debug/test APKs in 80 seconds. The existing API37
+/16 KiB AVD passed **10/10 Android cases in 41.576 seconds**. Five are PDF cases,
+including both new forced-compatibility checks: crop/all right-angle page rotations,
+search/word lookup, native raster rendering, link preservation and close/reopen.
+The native text/search/link cases and UI link navigation, highlighted matches,
+recreation and clipboard case also passed. The actual match-highlight screenshot
+was visually inspected. Five notification/empty-state cases passed in the same
+run; see `WORKSPACE_ROWS.md`.
+
+No new crash/ANR events appeared; the crash buffer was empty. Font scale remained
+1.0 and the sole emulator was stopped/reaped. APK hashes, command, logs and images
+are retained in `captures/runtime/feed-pdf-milestone/`. This supersedes the pending
+runtime status of the two compatibility cases below. Forcing the compatibility
+engine on API37 does **not** establish API26–34 class loading or device behavior;
+older-Android runtime, embedded/non-Latin fonts, full PDFKit selection/destination
+behavior and physical Pixel/Mac acceptance remain open. No signed release changed.
+
 ## Compatibility PDF text source batch — 2026-10-06
 
 The viewer no longer disables text controls below API35. Older Android versions

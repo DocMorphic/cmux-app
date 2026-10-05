@@ -4,6 +4,29 @@
 for the latest signed artifact and its verification scope; historical delivery
 statements below describe their dated checkpoints.
 
+## Combined notification/PDF runtime milestone (2026-10-06)
+
+Source `ca00fdea02a73cc87e08446163f56f73af2f24ad`, clean checkout. One debug/test
+APK build completed in 80 seconds; the existing API37 / 16 KiB AVD then passed
+**10/10 Android cases in 41.576 seconds**, with no failures or skips:
+
+- Two notification cases: revealed read intent through refresh/revocation and
+  held main-feed membership/position with removed callbacks retired.
+- Three native empty-state cases: Mac/SSH/filter guidance and docs dispatch,
+  held error geometry with busy/disposed retry guards, and recovery preserved
+  across row removal/remount until timeout.
+- Five PDF cases: compatibility extraction across crop/all four page rotations,
+  close/reopen, native text/search/word lookup, direct/named/GoTo links and actual
+  UI navigation/highlights/recreation/clipboard. See `CONTENT_PREVIEW_LIFECYCLE.md`.
+
+No new crash/ANR events appeared; the crash buffer was empty. PDF highlight and
+empty timeout screenshots were visually inspected. Font scale remained 1.0.
+The emulator was stopped and reaped; no additional AVD or signed release was
+created. Evidence, APK hashes and commands: `captures/runtime/feed-pdf-milestone/`.
+This supersedes the queued runtime status of the three notification/empty cases
+below. Separate-browser/history routes, recycling/configuration/accessibility/
+performance and physical Mac/Pixel acceptance remain open.
+
 ## Notification lists and rich empty/recovery content (2026-10-06)
 
 Scoped reference: iOS `NotificationFeedRow.swift`, `NotificationFeedListRow.swift`

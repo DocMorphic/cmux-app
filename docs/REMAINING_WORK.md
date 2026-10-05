@@ -25,12 +25,21 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Combined notification/PDF milestone at clean `ca00fde`: one debug/test APK
+  build (80 s), **10/10 Android cases passed in 41.576 s** on the existing API37 /
+  16 KiB AVD. Covers two notification gesture/membership cases, three empty-state
+  recovery cases and five PDF cases including the compatibility engine. Visible
+  native PDF highlights and empty timeout UI were inspected. No new crash/ANR,
+  empty crash buffer, font scale 1.0, AVD stopped/reaped. No physical/signed release
+  acceptance. Evidence: `captures/runtime/feed-pdf-milestone/`. This supersedes
+  the queued runtime checks in the next two source-batch entries.
+
 - PDF text/search/word-copy controls now have a compatibility engine below API35
   using the existing pinned parser. API35+ keeps the native engine; rendering is
   still native on all versions. Crop/rotation geometry, normalized text offsets,
   Unicode word lookup and bounded page caching are implemented. Fourteen focused
-  JVM checks pass; main/instrumentation compile. Two new Android cases are queued
-  for the next milestone, including forced compatibility mode on the existing
+  JVM checks pass; main/instrumentation compile. Two new Android cases passed in
+  the milestone above, including forced compatibility mode on the existing
   AVD. Older-Android runtime/font coverage and full PDFKit selection/destination
   behavior remain open; see `CONTENT_PREVIEW_LIFECYCLE.md`.
 
@@ -38,8 +47,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   current action admission. The main feed reconciles all keyed rows and anchors
   live changes; history controls, browser notification geometry and native rich
   empty/retry content now use measured deferral. Fourteen focused feed JVM checks
-  pass; main/instrumentation compile, including three new UI cases queued for the
-  next milestone. This supersedes the remaining implementation gaps for native
+  pass; main/instrumentation compile, and three new UI cases passed in the
+  milestone above. This supersedes the remaining implementation gaps for native
   rich empty and browser notification-row geometry in the older checkpoint below.
   Runtime/route/recycling/large-font/accessibility/performance/physical acceptance
   remain open. See `WORKSPACE_ROWS.md`; no APK/emulator was started for this batch.
