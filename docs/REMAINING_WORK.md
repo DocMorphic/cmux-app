@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Media-session callbacks now connect platform/headset playback controls to the
+  preview's existing player and audio-focus owner. Initial paused previews stay
+  inactive; background/retired previews reject commands and released sessions
+  cannot restart replacement views. Main/instrumentation Kotlin compile; the
+  real-controller fixture is compiled but not run. Run it with tracks and focus
+  at the next combined milestone, then verify real headset/system UI behavior
+  and iOS equivalence. Routing/PiP and physical acceptance remain open.
+
 - Alternate audio and embedded subtitle selection is implemented, with saved
   choices, subtitle Auto/Off and timed-text cues. Six selection-policy JVM tests
   passed and main/instrumentation Kotlin compile. Actual multi-track playback,
@@ -38,7 +46,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   Ten focused JVM tests passed; main and Android tests compiled. The new platform
   focus fixture and existing media lifecycle cases are queued for the next combined
   device milestone. Actual headset/Bluetooth/call/audible-output acceptance and
-  media-session/remote controls remain open. See `CONTENT_PREVIEW_LIFECYCLE.md`.
+  media-session/remote-control acceptance remain open (source implemented above).
+  See `CONTENT_PREVIEW_LIFECYCLE.md`.
   The signed build at `19698a4` excluded this newer source batch and failed before
   building because GitHub could not acquire a hosted runner (run 37364121139).
   No new APK was produced; retry is deferred to the next combined milestone.

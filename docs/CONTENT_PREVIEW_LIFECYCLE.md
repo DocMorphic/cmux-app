@@ -1,5 +1,35 @@
 # Content preview lifecycle
 
+## Media session source batch — 2026-10-05
+
+Each Android preview now owns a framework MediaSession with play, pause, stop,
+seek, ±10-second skip and supported playback-speed callbacks. Media-button events
+use the framework callback dispatch. Metadata includes only the displayed file
+name and duration; playback state publishes actual playing/paused/buffering state,
+position and speed. Commands use the same player and audio-focus path as the UI.
+Opening a paused preview does not activate its session; actual playback does.
+Backgrounding deactivates it and rejects commands. Closing or replacing the view
+releases the session and clears its callbacks, preventing an old controller from
+starting the replacement. This adds no background playback service.
+
+The scoped `ChatArtifactMediaView.swift` at
+`186cec79781256867ad4516f0802118738bd2393` uses AVPlayerViewController and pauses
+on dismantling. The same revision's `ios/Config/Info.plist` declares only
+remote-notification background mode. Those source facts do not prove every AVKit
+remote-control/background behavior; physical comparison remains necessary.
+Android lifecycle/callback requirements were checked against the
+[framework MediaSession reference](https://developer.android.com/reference/android/media/session/MediaSession).
+
+Verification: main and instrumentation Kotlin compile. The initial test compile
+caught nullable metadata access, corrected with an explicit non-null assertion.
+The new guarded Android fixture sends real MediaController commands, a media-key
+event, and checks metadata, clamped seeking, speed, background rejection and
+release across recreation. It is **compiled but not run**, queued with the audio
+focus and track-selection cases at the next combined milestone. Hardware headset
+dispatch, system UI visibility, audible output, routing/PiP and Pixel/iOS
+comparison remain unverified. No APK or emulator was started for this batch.
+Local evidence: `captures/runtime/media-session-batch/`.
+
 ## Audio and subtitle selection source batch — 2026-10-05
 
 The scoped iOS media reference delegates track controls to AVPlayerViewController.

@@ -99,6 +99,9 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
     private val audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build()
     private val focus = ArtifactAudioFocusOwner(ArtifactAndroidAudioFocus(context, audioAttributes), ::focusChanged)
+    private val mediaSession = ArtifactMediaSession(context, audioAttributes, state) {
+        this.takeIf { !released && state.view === this }
+    }
     private var listeningForDisconnect = false
     private val disconnect = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -134,11 +137,13 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         }
         setOnCompletionListener { if (!released && state.view === this) {
             state.position = duration.coerceAtLeast(0); state.playRequested = false; abandonAudio()
+            publishPlayback()
         } }
         setOnErrorListener { _, _, _ ->
             if (released || state.view !== this) return@setOnErrorListener true
             state.prepared = false; state.playRequested = false; abandonAudio()
             state.failure = "Android could not play this media format. Use Open in Viewer actions to choose another player."
+            publishPlayback()
             true
         }
     }
@@ -150,6 +155,7 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         player?.setOnSeekCompleteListener(null); player = null
         seeking = false; state.prepared = false; state.failure = null; state.controlFailure = null
         setVideoURI(Uri.fromFile(file))
+        publishPlayback()
     }
     fun selectAudio(preference: String) {
         if (released || !state.prepared || (preference != ArtifactMediaTracks.AUTO &&
@@ -165,12 +171,18 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
     fun selectCaption(preference: String) { trackController?.selectCaption(preference) }
     fun capturePosition() {
         if (!released && state.view === this && state.prepared && !seeking) state.position = currentPosition.coerceAtLeast(0)
+        publishPlayback()
+    }
+    private fun publishPlayback() {
+        if (!released) mediaSession.update(sourceFile?.name ?: "Media preview",
+            state.prepared && runCatching { isPlaying }.getOrDefault(false), seeking)
     }
     override fun seekTo(msec: Int) {
         if (released) return
         state.position = if (state.prepared) ArtifactMediaControls.seek(msec, 0, state.duration) else msec.coerceAtLeast(0)
         seeking = true
         super.seekTo(state.position)
+        publishPlayback()
     }
     override fun start() {
         if (released) return
@@ -179,7 +191,7 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         startIfRequested()
     }
     private fun startIfRequested() {
-        if (released || !state.foreground || !state.prepared || seeking || !state.playRequested) return
+        if (released || !state.foreground || !state.prepared || seeking || !state.playRequested) { publishPlayback(); return }
         when (focus.acquire()) {
             ArtifactFocusPermission.GRANTED -> {
                 state.controlFailure = null
@@ -198,9 +210,10 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
                 state.controlFailure = "Audio is unavailable right now. Tap Play to try again."
             }
         }
+        publishPlayback()
     }
     override fun pause() { if (!released) {
-        capturePosition(); state.playRequested = false; super.pause(); abandonAudio()
+        capturePosition(); state.playRequested = false; super.pause(); abandonAudio(); publishPlayback()
     } }
     private fun focusChanged(event: ArtifactFocusEvent) {
         if (released || state.view !== this) return
@@ -210,6 +223,7 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
             ArtifactFocusEvent.TRANSIENT_LOSS -> { capturePosition(); super.pause() }
             ArtifactFocusEvent.LOSS -> pause()
         }
+        publishPlayback()
     }
     private fun applyVolume() {
         val level = if (state.muted) 0f else focus.volumeMultiplier
@@ -227,6 +241,7 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         val speed = ArtifactMediaControls.speed(value)
         // PlaybackParams starts MediaPlayer. Defer it until playback owns focus.
         if (!state.playRequested || !state.foreground || seeking || !focus.canPlay || applySpeed(speed)) state.speed = speed
+        publishPlayback()
     }
     private fun applySpeed(value: Float): Boolean {
         val current = player ?: return false
@@ -258,10 +273,12 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
             if (!changingConfiguration) state.playRequested = false
             super.pause(); abandonAudio()
         }
+        publishPlayback()
     }
     fun release() {
         if (released) return
         capturePosition(); released = true
+        mediaSession.close()
         trackController?.close(); trackController = null
         abandonAudio(); focus.close()
         player?.setOnSeekCompleteListener(null); player = null
