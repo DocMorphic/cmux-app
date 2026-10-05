@@ -1,0 +1,981 @@
+{
+  "upstream": "186cec79781256867ad4516f0802118738bd2393",
+  "source": "Packages/iOS/CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite+Helpers.swift",
+  "source_sha256": "e08610bb434dbd8076a0705862d56043cb068fe015e5578233a70d73cee0f44f",
+  "comparator_sha256": "9b516f82faf289b3d674f8f0eeb6c0ad21c792d44287d70b3cc6a45d61a85fa0",
+  "extraction": "Unchanged routeSortsBefore function with id/priority stand-in; Swift stable sort",
+  "cases": [
+    {
+      "name": "group_0_order_0",
+      "routes": [
+        {
+          "id": "max",
+          "priority": 9223372036854775807,
+          "key": 0
+        },
+        {
+          "id": "zero",
+          "priority": 0,
+          "key": 1
+        },
+        {
+          "id": "min",
+          "priority": -9223372036854775808,
+          "key": 2
+        },
+        {
+          "id": "negative",
+          "priority": -1,
+          "key": 3
+        },
+        {
+          "id": "one",
+          "priority": 1,
+          "key": 4
+        }
+      ],
+      "expected": [
+        2,
+        3,
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "name": "group_0_order_1",
+      "routes": [
+        {
+          "id": "one",
+          "priority": 1,
+          "key": 4
+        },
+        {
+          "id": "min",
+          "priority": -9223372036854775808,
+          "key": 2
+        },
+        {
+          "id": "max",
+          "priority": 9223372036854775807,
+          "key": 0
+        },
+        {
+          "id": "zero",
+          "priority": 0,
+          "key": 1
+        },
+        {
+          "id": "negative",
+          "priority": -1,
+          "key": 3
+        }
+      ],
+      "expected": [
+        2,
+        3,
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "name": "group_0_order_2",
+      "routes": [
+        {
+          "id": "negative",
+          "priority": -1,
+          "key": 3
+        },
+        {
+          "id": "max",
+          "priority": 9223372036854775807,
+          "key": 0
+        },
+        {
+          "id": "min",
+          "priority": -9223372036854775808,
+          "key": 2
+        },
+        {
+          "id": "one",
+          "priority": 1,
+          "key": 4
+        },
+        {
+          "id": "zero",
+          "priority": 0,
+          "key": 1
+        }
+      ],
+      "expected": [
+        2,
+        3,
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "name": "group_0_order_3",
+      "routes": [
+        {
+          "id": "one",
+          "priority": 1,
+          "key": 4
+        },
+        {
+          "id": "min",
+          "priority": -9223372036854775808,
+          "key": 2
+        },
+        {
+          "id": "max",
+          "priority": 9223372036854775807,
+          "key": 0
+        },
+        {
+          "id": "zero",
+          "priority": 0,
+          "key": 1
+        },
+        {
+          "id": "negative",
+          "priority": -1,
+          "key": 3
+        }
+      ],
+      "expected": [
+        2,
+        3,
+        1,
+        4,
+        0
+      ]
+    },
+    {
+      "name": "group_1_order_0",
+      "routes": [
+        {
+          "id": "z",
+          "priority": 0,
+          "key": 0
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 1
+        },
+        {
+          "id": "a2",
+          "priority": 0,
+          "key": 2
+        },
+        {
+          "id": "a10",
+          "priority": 0,
+          "key": 3
+        },
+        {
+          "id": "A",
+          "priority": 0,
+          "key": 4
+        },
+        {
+          "id": "é",
+          "priority": 0,
+          "key": 5
+        },
+        {
+          "id": "é",
+          "priority": 0,
+          "key": 6
+        },
+        {
+          "id": "",
+          "priority": 0,
+          "key": 7
+        },
+        {
+          "id": "😀",
+          "priority": 0,
+          "key": 8
+        },
+        {
+          "id": "中",
+          "priority": 0,
+          "key": 9
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 10
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 11
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 12
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 13
+        },
+        {
+          "id": "a/b",
+          "priority": 0,
+          "key": 14
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 15
+        }
+      ],
+      "expected": [
+        4,
+        1,
+        15,
+        14,
+        3,
+        2,
+        0,
+        10,
+        11,
+        12,
+        13,
+        5,
+        6,
+        9,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "group_1_order_1",
+      "routes": [
+        {
+          "id": "a10",
+          "priority": 0,
+          "key": 3
+        },
+        {
+          "id": "a/b",
+          "priority": 0,
+          "key": 14
+        },
+        {
+          "id": "a2",
+          "priority": 0,
+          "key": 2
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 10
+        },
+        {
+          "id": "A",
+          "priority": 0,
+          "key": 4
+        },
+        {
+          "id": "😀",
+          "priority": 0,
+          "key": 8
+        },
+        {
+          "id": "é",
+          "priority": 0,
+          "key": 6
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 1
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 13
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 12
+        },
+        {
+          "id": "z",
+          "priority": 0,
+          "key": 0
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 15
+        },
+        {
+          "id": "",
+          "priority": 0,
+          "key": 7
+        },
+        {
+          "id": "é",
+          "priority": 0,
+          "key": 5
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 11
+        },
+        {
+          "id": "中",
+          "priority": 0,
+          "key": 9
+        }
+      ],
+      "expected": [
+        4,
+        1,
+        15,
+        14,
+        3,
+        2,
+        0,
+        10,
+        11,
+        13,
+        12,
+        6,
+        5,
+        9,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "group_1_order_2",
+      "routes": [
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 13
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 15
+        },
+        {
+          "id": "",
+          "priority": 0,
+          "key": 7
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 12
+        },
+        {
+          "id": "a2",
+          "priority": 0,
+          "key": 2
+        },
+        {
+          "id": "中",
+          "priority": 0,
+          "key": 9
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 11
+        },
+        {
+          "id": "é",
+          "priority": 0,
+          "key": 6
+        },
+        {
+          "id": "é",
+          "priority": 0,
+          "key": 5
+        },
+        {
+          "id": "😀",
+          "priority": 0,
+          "key": 8
+        },
+        {
+          "id": "A",
+          "priority": 0,
+          "key": 4
+        },
+        {
+          "id": "z",
+          "priority": 0,
+          "key": 0
+        },
+        {
+          "id": "a10",
+          "priority": 0,
+          "key": 3
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 1
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 10
+        },
+        {
+          "id": "a/b",
+          "priority": 0,
+          "key": 14
+        }
+      ],
+      "expected": [
+        4,
+        15,
+        1,
+        14,
+        3,
+        2,
+        0,
+        11,
+        10,
+        13,
+        12,
+        6,
+        5,
+        9,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "group_1_order_3",
+      "routes": [
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 10
+        },
+        {
+          "id": "A",
+          "priority": 0,
+          "key": 4
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 12
+        },
+        {
+          "id": "z",
+          "priority": 0,
+          "key": 0
+        },
+        {
+          "id": "中",
+          "priority": 0,
+          "key": 9
+        },
+        {
+          "id": "a10",
+          "priority": 0,
+          "key": 3
+        },
+        {
+          "id": "a/b",
+          "priority": 0,
+          "key": 14
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 15
+        },
+        {
+          "id": "",
+          "priority": 0,
+          "key": 7
+        },
+        {
+          "id": "a2",
+          "priority": 0,
+          "key": 2
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 1
+        },
+        {
+          "id": "é",
+          "priority": 0,
+          "key": 6
+        },
+        {
+          "id": "é",
+          "priority": 0,
+          "key": 5
+        },
+        {
+          "id": "😀",
+          "priority": 0,
+          "key": 8
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 13
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 11
+        }
+      ],
+      "expected": [
+        4,
+        15,
+        1,
+        14,
+        3,
+        2,
+        0,
+        10,
+        11,
+        12,
+        13,
+        6,
+        5,
+        9,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "group_2_order_0",
+      "routes": [
+        {
+          "id": "z",
+          "priority": -1,
+          "key": 0
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 1
+        },
+        {
+          "id": "a2",
+          "priority": 1,
+          "key": 2
+        },
+        {
+          "id": "a10",
+          "priority": -1,
+          "key": 3
+        },
+        {
+          "id": "A",
+          "priority": 0,
+          "key": 4
+        },
+        {
+          "id": "é",
+          "priority": 1,
+          "key": 5
+        },
+        {
+          "id": "é",
+          "priority": -1,
+          "key": 6
+        },
+        {
+          "id": "",
+          "priority": 0,
+          "key": 7
+        },
+        {
+          "id": "😀",
+          "priority": 1,
+          "key": 8
+        },
+        {
+          "id": "中",
+          "priority": -1,
+          "key": 9
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 10
+        },
+        {
+          "id": "Å",
+          "priority": 1,
+          "key": 11
+        },
+        {
+          "id": "à̕",
+          "priority": -1,
+          "key": 12
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 13
+        },
+        {
+          "id": "a/b",
+          "priority": 1,
+          "key": 14
+        },
+        {
+          "id": "a",
+          "priority": -1,
+          "key": 15
+        }
+      ],
+      "expected": [
+        15,
+        3,
+        0,
+        12,
+        6,
+        9,
+        4,
+        1,
+        10,
+        13,
+        7,
+        14,
+        2,
+        11,
+        5,
+        8
+      ]
+    },
+    {
+      "name": "group_2_order_1",
+      "routes": [
+        {
+          "id": "a2",
+          "priority": 1,
+          "key": 2
+        },
+        {
+          "id": "a10",
+          "priority": -1,
+          "key": 3
+        },
+        {
+          "id": "A",
+          "priority": 0,
+          "key": 4
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 1
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 13
+        },
+        {
+          "id": "中",
+          "priority": -1,
+          "key": 9
+        },
+        {
+          "id": "é",
+          "priority": -1,
+          "key": 6
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 10
+        },
+        {
+          "id": "a",
+          "priority": -1,
+          "key": 15
+        },
+        {
+          "id": "a/b",
+          "priority": 1,
+          "key": 14
+        },
+        {
+          "id": "Å",
+          "priority": 1,
+          "key": 11
+        },
+        {
+          "id": "😀",
+          "priority": 1,
+          "key": 8
+        },
+        {
+          "id": "",
+          "priority": 0,
+          "key": 7
+        },
+        {
+          "id": "z",
+          "priority": -1,
+          "key": 0
+        },
+        {
+          "id": "à̕",
+          "priority": -1,
+          "key": 12
+        },
+        {
+          "id": "é",
+          "priority": 1,
+          "key": 5
+        }
+      ],
+      "expected": [
+        15,
+        3,
+        0,
+        12,
+        6,
+        9,
+        4,
+        1,
+        10,
+        13,
+        7,
+        14,
+        2,
+        11,
+        5,
+        8
+      ]
+    },
+    {
+      "name": "group_2_order_2",
+      "routes": [
+        {
+          "id": "é",
+          "priority": 1,
+          "key": 5
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 1
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 10
+        },
+        {
+          "id": "中",
+          "priority": -1,
+          "key": 9
+        },
+        {
+          "id": "Å",
+          "priority": 1,
+          "key": 11
+        },
+        {
+          "id": "a10",
+          "priority": -1,
+          "key": 3
+        },
+        {
+          "id": "z",
+          "priority": -1,
+          "key": 0
+        },
+        {
+          "id": "à̕",
+          "priority": -1,
+          "key": 12
+        },
+        {
+          "id": "a2",
+          "priority": 1,
+          "key": 2
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 13
+        },
+        {
+          "id": "😀",
+          "priority": 1,
+          "key": 8
+        },
+        {
+          "id": "é",
+          "priority": -1,
+          "key": 6
+        },
+        {
+          "id": "A",
+          "priority": 0,
+          "key": 4
+        },
+        {
+          "id": "a/b",
+          "priority": 1,
+          "key": 14
+        },
+        {
+          "id": "",
+          "priority": 0,
+          "key": 7
+        },
+        {
+          "id": "a",
+          "priority": -1,
+          "key": 15
+        }
+      ],
+      "expected": [
+        15,
+        3,
+        0,
+        12,
+        6,
+        9,
+        4,
+        1,
+        10,
+        13,
+        7,
+        14,
+        2,
+        11,
+        5,
+        8
+      ]
+    },
+    {
+      "name": "group_2_order_3",
+      "routes": [
+        {
+          "id": "😀",
+          "priority": 1,
+          "key": 8
+        },
+        {
+          "id": "z",
+          "priority": -1,
+          "key": 0
+        },
+        {
+          "id": "",
+          "priority": 0,
+          "key": 7
+        },
+        {
+          "id": "A",
+          "priority": 0,
+          "key": 4
+        },
+        {
+          "id": "Å",
+          "priority": 1,
+          "key": 11
+        },
+        {
+          "id": "a/b",
+          "priority": 1,
+          "key": 14
+        },
+        {
+          "id": "Å",
+          "priority": 0,
+          "key": 10
+        },
+        {
+          "id": "é",
+          "priority": -1,
+          "key": 6
+        },
+        {
+          "id": "中",
+          "priority": -1,
+          "key": 9
+        },
+        {
+          "id": "a10",
+          "priority": -1,
+          "key": 3
+        },
+        {
+          "id": "à̕",
+          "priority": 0,
+          "key": 13
+        },
+        {
+          "id": "à̕",
+          "priority": -1,
+          "key": 12
+        },
+        {
+          "id": "é",
+          "priority": 1,
+          "key": 5
+        },
+        {
+          "id": "a2",
+          "priority": 1,
+          "key": 2
+        },
+        {
+          "id": "a",
+          "priority": -1,
+          "key": 15
+        },
+        {
+          "id": "a",
+          "priority": 0,
+          "key": 1
+        }
+      ],
+      "expected": [
+        15,
+        3,
+        0,
+        12,
+        6,
+        9,
+        4,
+        1,
+        10,
+        13,
+        7,
+        14,
+        2,
+        11,
+        5,
+        8
+      ]
+    }
+  ]
+}

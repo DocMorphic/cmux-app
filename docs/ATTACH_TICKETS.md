@@ -6,6 +6,59 @@ ART and signed-out upgrade/reboot checks passed; see [PIXEL_INSTALL.md](PIXEL_IN
 The native RPC auth, shared Tailscale and saved-ticket handshake checkpoints below
 are newer source and are not yet in that APK. Physical acceptance remains open.
 
+## Pairing route order (2026-10-05)
+
+The explicit legacy-ticket confirmation now orders supported choices by ascending
+route priority, then route ID, matching the pinned iOS `routeSortsBefore`
+comparator. Previously it used incoming array order. ID comparison normalizes to
+NFC and compares Unicode scalars; plain JVM UTF-16 ordering differs for supplementary
+characters. Equal keys retain input order. Sorting happens before supported-route
+filtering and public-code deduplication, without modifying the decoded ticket.
+No route is dialed or authorized by sorting: the user still confirms a choice,
+then account/team/host identity and the existing route-specific gates apply.
+
+`scripts/generate-route-order-fixtures.py` extracts the complete comparator
+unchanged from `MobileShellComposite+Helpers.swift` at upstream
+`186cec79781256867ad4516f0802118738bd2393`. It runs that comparator in Swift against
+synthetic id/priority fields. Twelve exported cases cover signed priority limits,
+permutations, ties, duplicate IDs, prefixes, canonical equivalents, combining
+marks and supplementary Unicode. This is a comparator reference, not a simulated
+connection or a full iOS route-policy implementation.
+
+**104 focused JVM tests passed**, zero failures/errors/skips: twelve Swift reference
+cases, ten ticket confirmation/account/lifecycle cases, thirteen ticket-store
+cases, thirty-nine manual pairing cases, twenty-two saved Tailscale cases and
+eight rejected-token recovery cases. Two new ticket-choice cases check default
+order, unsupported routes, deduplication, unchanged tickets and absence of an
+implicit connection. Native/Tailscale tests now select by type rather than row
+position. The updated Compose chooser test checks the initial native explanation,
+explicit Tailscale selection and explicit native selection; Android test Kotlin
+compilation passed. That revised UI case has **not yet run on Android**.
+Evidence: `captures/runtime/route-order/`. No APK build or emulator was started;
+build **596** remains the latest verified download and excludes these changes.
+
+### Route policy follow-up
+
+The inspected `NativeIrohBackend`, `NativeMacDialIntent` and
+`NativeSavedTailscaleRuntime` retain strict Direct/Tailscale behavior. This comparator
+change does not alter those saved methods. The Android explicit chooser and iOS
+entry-source-specific QR policy are different layers: iOS in-app manual entry
+can authorize exact Tailscale coordinates, while external URL receipt cannot.
+A complete comparison of those entry flows remains open; this checkpoint does
+not claim that all iOS route eligibility/default-selection behavior is matched.
+
+A separate inspected difference needs resolution: upstream
+`ios/cmuxPackage/Sources/cmuxFeature/MobileIrxRuntimeComposition+Dial.swift`
+passes `record.relayURLs.first ?? directory.relayURLs.first` as an optional hint.
+Android `NativeIrohBackend` throws if both are absent and `IrxEndpointRuntime.dial`
+also requires a non-null relay for Automatic. Investigate the upstream endpoint
+supervisor and binding/admission contract before changing this; missing remote
+relay metadata must be distinguished from missing local relay credentials.
+Direct already supports a null relay and a separate relay-disabled endpoint.
+The additional primary-source file and hash are retained under
+`captures/runtime/transport-route-audit/`. No change to this relay behavior or
+claim of native runtime acceptance is made here. Global parity pins are unchanged.
+
 ## native RPC auth and routing race (2026-10-05)
 
 Android now models RPC authorization as a transport property. Only

@@ -37,8 +37,11 @@ class NativeTicketPairingRuntimeTest {
         compose.onNodeWithText("100.64.0.7:58465").assertIsDisplayed()
         compose.onNodeWithText("synthetic-runtime-token").assertDoesNotExist()
         compose.runOnIdle { assertNull(chosen) }
+        compose.onNodeWithText("cmux will verify this Mac in your account and selected team before connecting.").assertIsDisplayed()
+        compose.onNodeWithText("100.64.0.7:58465").performClick()
+        compose.onNodeWithText("cmux will send your account session to this Mac over Tailscale. Continue only if this address came from your Mac.").assertIsDisplayed()
         capture("ticket-tailscale-confirmation")
-        compose.onNodeWithTag("ticket.route.1").performClick()
+        compose.onNodeWithText("Native connection").performClick()
         compose.onNodeWithText("cmux will verify this Mac in your account and selected team before connecting.").assertIsDisplayed()
         capture("ticket-native-confirmation")
         compose.onNodeWithTag("ticket.connect").performClick()

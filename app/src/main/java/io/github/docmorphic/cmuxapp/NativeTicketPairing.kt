@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import java.net.URLEncoder
+import java.text.Normalizer
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -9,7 +10,26 @@ import kotlinx.coroutines.flow.asStateFlow
 internal object NativeTicketPairingRoutes {
     data class Choice(val code: String, val label: String, val pairing: PairingCode)
 
-    fun choices(ticket: MobileAttachTicket): List<Choice> = ticket.routes.mapNotNull { route ->
+    /** iOS routeSortsBefore: ascending priority, then canonically normalized ID. */
+    internal fun ordered(routes: List<MobileAttachRoute>): List<MobileAttachRoute> = routes.sortedWith { left, right ->
+        left.priority.compareTo(right.priority).takeIf { it != 0 } ?: compareRouteIds(left.id, right.id)
+    }
+
+    private fun compareRouteIds(left: String, right: String): Int {
+        // Swift String ordering uses Unicode scalar order after canonical
+        // normalization. JVM UTF-16 order differs for supplementary characters.
+        val a = Normalizer.normalize(left, Normalizer.Form.NFC)
+        val b = Normalizer.normalize(right, Normalizer.Form.NFC)
+        var i = 0; var j = 0
+        while (i < a.length && j < b.length) {
+            val x = a.codePointAt(i); val y = b.codePointAt(j)
+            if (x != y) return x.compareTo(y)
+            i += Character.charCount(x); j += Character.charCount(y)
+        }
+        return (a.length - i).compareTo(b.length - j)
+    }
+
+    fun choices(ticket: MobileAttachTicket): List<Choice> = ordered(ticket.routes).mapNotNull { route ->
         fun encode(value: String) = URLEncoder.encode(value, "UTF-8")
         val code: String
         val label: String

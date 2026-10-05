@@ -26,11 +26,47 @@ class NativeTicketPairingTest {
         assertFalse(NativeTicketPairingRoutes.covers(ticket, PairingCode.Tailscale(listOf(PairingCode.Route("100.64.0.8", 58465)), "user")))
     }
 
+    @Test fun proposalDefaultsToPriorityThenIdWithoutConnectingOrChangingTheTicket() {
+        val original = ticket()
+        val tailscale = original.routes.single { it.kind == "tailscale" }
+        val native = original.routes.single { it.kind == "iroh" }
+        for ((routes, first) in listOf(
+            listOf(tailscale.copy(priority = 4), native.copy(priority = -3)) to PairingCode.Iroh::class.java,
+            listOf(native.copy(priority = 5), tailscale.copy(priority = -1)) to PairingCode.Tailscale::class.java,
+            listOf(tailscale, native) to PairingCode.Iroh::class.java
+        )) {
+            val value = original.constrainingRoutes(routes, "Fixture")
+            val session = NativeTicketPairing(); session.propose(value, team, null)
+            val proposal = session.pending.value!!
+            assertEquals(first, proposal.choices.first().pairing.javaClass)
+            assertEquals(routes, value.routes)
+            assertNull(session.resumeCode()) // Ordering does not authorize or dial a route.
+        }
+    }
+
+    @Test fun unsupportedAndDuplicateRoutesDoNotDisplaceThePreferredUsableChoice() {
+        val original = ticket()
+        val native = original.routes.single { it.kind == "iroh" }
+        val tailscale = original.routes.single { it.kind == "tailscale" }
+        val value = original.constrainingRoutes(listOf(
+            native.copy(id = "later", priority = 50), tailscale.copy(priority = 1),
+            tailscale.copy(kind = "debug_loopback", priority = -20),
+            MobileAttachRoute("web", "websocket", -30, MobileAttachEndpoint.Url("wss://fixture.invalid")),
+            native.copy(id = "preferred", priority = -2)
+        ), "Fixture")
+        val choices = NativeTicketPairingRoutes.choices(value)
+        assertEquals(2, choices.size)
+        assertTrue(choices.first().pairing is PairingCode.Iroh)
+        assertTrue(choices.last().pairing is PairingCode.Tailscale)
+        assertTrue(choices.all { NativeTicketPairingRoutes.covers(value, it.pairing) })
+    }
+
     @Test fun selectingTailscaleRetainsScopeAndRequiresCurrentProposalOwner() {
         val session = NativeTicketPairing(); session.propose(ticket(), team, null)
         val proposal = session.pending.value!!
-        assertTrue(runCatching { session.select(proposal, proposal.choices.first(), team.copy(teamId = "other"), computers()) }.isFailure)
-        val selected = session.select(proposal, proposal.choices.first(), team, computers())
+        val choice = proposal.choices.single { it.pairing is PairingCode.Tailscale }
+        assertTrue(runCatching { session.select(proposal, choice, team.copy(teamId = "other"), computers()) }.isFailure)
+        val selected = session.select(proposal, choice, team, computers())
         assertEquals("w", selected.ticket.context().workspaceId)
         assertEquals("t", selected.ticket.context().terminalId)
         assertNull(session.pending.value); assertSame(selected, session.current(selected.code, team))
@@ -41,7 +77,7 @@ class NativeTicketPairingTest {
 
     @Test fun nativeSelectionUsesFreshDirectoryIdentityAndBuild() {
         val session = NativeTicketPairing(); session.propose(ticket(), team, null)
-        val proposal = session.pending.value!!; val choice = proposal.choices.last()
+        val proposal = session.pending.value!!; val choice = proposal.choices.single { it.pairing is PairingCode.Iroh }
         for (directory in listOf(NativeComputersState(), computers("different"), computers(owner = team.copy(teamId = "other")),
             computers().copy(computers = computers().computers + computers().computers)))
             assertTrue(runCatching { session.select(proposal, choice, team, directory) }.isFailure)
@@ -53,11 +89,11 @@ class NativeTicketPairingTest {
     @Test fun opaqueDeviceIdsRemainCaseSensitiveButUuidAliasesMatch() {
         val session = NativeTicketPairing(); session.propose(ticket("DEVICE"), team, null)
         val p = session.pending.value!!
-        assertTrue(runCatching { session.select(p, p.choices.last(), team, computers("device")) }.isFailure)
+        assertTrue(runCatching { session.select(p, p.choices.single { it.pairing is PairingCode.Iroh }, team, computers("device")) }.isFailure)
         val uuid = "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"
         session.propose(ticket(uuid), team, null)
         val q = session.pending.value!!
-        assertNotNull(session.select(q, q.choices.last(), team, computers(uuid.lowercase())))
+        assertNotNull(session.select(q, q.choices.single { it.pairing is PairingCode.Iroh }, team, computers(uuid.lowercase())))
     }
 
     @Test fun replacingProposalAndAccountChangesRetireCapturedActions() {

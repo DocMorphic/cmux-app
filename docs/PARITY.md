@@ -12,7 +12,19 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest source checkpoint — rejected account-token recovery (2026-10-05)
+## Latest source checkpoint — pairing route order (2026-10-05)
+
+Legacy ticket choices now follow iOS priority/ID order, including canonical Unicode
+ID comparison and stable ties, before filtering/deduplication. Confirmation and
+route authority remain required. **104 focused JVM tests passed**, including
+12 Swift-generated comparator cases; updated chooser instrumentation compiled
+but has not run on Android. No APK or emulator was started. This and the token
+recovery source are newer than signed **596**. See
+[ATTACH_TICKETS.md](ATTACH_TICKETS.md#pairing-route-order-2026-10-05) for evidence,
+entry-source policy scope and the newly identified optional-relay audit follow-up.
+Goal active; global parity pins unchanged.
+
+## Earlier source checkpoint — rejected account-token recovery (2026-10-05)
 
 Bearer-authorized Tailscale RPC now follows the reviewed iOS recovery contract:
 an explicit host `unauthorized` response can force-refresh the account token and

@@ -9,7 +9,7 @@ a physical workflow gate. These are work areas, not equal-sized progress units.
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Account, pairing and connections | Verify the recent native authorization, legacy ticket and rejected-token recovery changes against actual hosts; finish route priority/default selection comparison; exercise account/team changes, saved routes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
+| Account, pairing and connections | Verify the recent native authorization, legacy ticket and rejected-token recovery changes against actual hosts; verify the new priority/ID ordering on Android and finish entry-source eligibility/default selection comparison; exercise account/team changes, saved routes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |
 | Files, Changes and content viewers | Finish the remaining format/menu comparisons and modal/binary preview restoration, including browser-parent recreation. | An explicit supported-format matrix checked against pinned iOS code, visible rendering and file actions on Pixel, and restoration tests that verify the displayed content. |
@@ -25,9 +25,11 @@ a physical workflow gate. These are work areas, not equal-sized progress units.
 - The newer rejected-token recovery source passed **109 focused JVM tests** and
   is not in build 596. Batch its Android verification with the next coherent
   feature milestone; do not build and sign for each small commit.
-- Token recovery is committed/pushed as `d8edb8b`. Next work is connection
-  selection/recovery and the remaining content lifecycle gaps, followed by a
-  coherent Android verification batch.
+- Token recovery is committed/pushed as `d8edb8b`. Route ordering now has 12
+  Swift-reference cases within 104 passing JVM checks; the revised chooser test
+  compiles and awaits Android execution. Next: entry-source route policy and the
+  optional-relay difference documented in [ATTACH_TICKETS.md](ATTACH_TICKETS.md),
+  then remaining content lifecycle gaps and a coherent Android verification batch.
 - The Pixel is currently absent from ADB. Continue source/emulator work, then
   request one planned physical test session when the next coherent batch is ready.
 - Use only the existing AVD and stop it after testing. No extra virtual devices.
