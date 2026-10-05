@@ -21,22 +21,22 @@ internal fun NativeWorkspaceFilterMenu(filter: NativeWorkspaceFilter, machines: 
             Icon(painterResource(if (filter.active) R.drawable.ic_feed_filter_active else R.drawable.ic_feed_filter),
                 null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        DropdownMenu(open, onDismissRequest = { onOpen(false) }) {
-            fun select(value: NativeWorkspaceFilter) { onChange(value); onOpen(false) }
+        DropdownMenu(open, onDismissRequest = { onOpen(false) }, modifier = Modifier.width(320.dp)) {
+            // The iOS view-options card updates the list live and stays open.
+            fun select(value: NativeWorkspaceFilter) { onChange(value) }
+            sortMode?.let { mode ->
+                NativeWorkspaceSortTiles(mode, onSort)
+                if (mode == NativeWorkspaceSortMode.PRIORITY && onOrder != null) {
+                    HorizontalDivider(Modifier.padding(horizontal = 14.dp))
+                    DropdownMenuItem(text = { Text("Edit Computer Order") },
+                        onClick = { onOpen(false); onOrder() })
+                }
+                HorizontalDivider(Modifier.padding(vertical = 4.dp), thickness = 6.dp)
+            }
             DropdownMenuItem(text = { Text("All workspaces") }, leadingIcon = { Text(if (!filter.unread) "✓" else " ") },
                 modifier = Modifier.semantics { selected = !filter.unread }, onClick = { select(filter.copy(unread = false)) })
             DropdownMenuItem(text = { Text("Unread") }, leadingIcon = { Text(if (filter.unread) "✓" else " ") },
                 modifier = Modifier.semantics { selected = filter.unread }, onClick = { select(filter.copy(unread = true)) })
-            sortMode?.let { mode ->
-                HorizontalDivider()
-                NativeWorkspaceSortMode.entries.forEach { choice ->
-                    DropdownMenuItem(text = { Text(choice.title) }, leadingIcon = { Text(if (mode == choice) "✓" else " ") },
-                        modifier = Modifier.testTag("workspace.sort.${choice.raw}").semantics { selected = mode == choice },
-                        onClick = { onOpen(false); onSort(choice) })
-                }
-                if (mode == NativeWorkspaceSortMode.PRIORITY && onOrder != null)
-                    DropdownMenuItem(text = { Text("Edit Computer Order") }, onClick = { onOpen(false); onOrder() })
-            }
             if (machines.size > 1) {
                 HorizontalDivider()
                 DropdownMenuItem(text = { Text("All Machines") }, leadingIcon = { Text(if (filter.machines.isEmpty()) "✓" else " ") },

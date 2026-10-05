@@ -25,12 +25,12 @@ class NativeWorkspaceFilterMenuTest {
         fun machine(value: NativeWorkspaceFilterMachine) = compose.onNodeWithTag("workspace.filter.machine:${value.id}")
         menu(); compose.onNodeWithText("Stable").assertIsDisplayed(); compose.onNodeWithText("Nightly").assertIsDisplayed()
         machine(stable).performClick()
-        menu(); machine(stable).assertIsSelected(); machine(nightly).assertIsNotSelected(); machine(nightly).performClick()
-        menu(); compose.onNodeWithText("Unread").performClick()
+        machine(stable).assertIsSelected(); machine(nightly).assertIsNotSelected(); machine(nightly).performClick()
+        compose.onNodeWithText("Unread").performClick()
         compose.runOnIdle { assertEquals(NativeWorkspaceFilter(true, setOf(stable.id, nightly.id)), filter) }
-        menu(); machine(stable).performClick()
+        machine(stable).performClick()
         compose.runOnIdle { assertEquals(NativeWorkspaceFilter(true, setOf(nightly.id)), filter) }
-        menu(); compose.onNodeWithText("All Machines").performClick()
-        compose.runOnIdle { assertEquals(NativeWorkspaceFilter(true), filter) }
+        compose.onNodeWithText("All Machines").performClick()
+        compose.runOnIdle { assertEquals(NativeWorkspaceFilter(true), filter); assertTrue(open) }
     }
 }

@@ -1,8 +1,38 @@
 # Workspace row presentation
 
-**Delivery:** signed build **554** includes changes through `0da7bb5`. The newer
-filters, sorting and adaptive sidebar checkpoints await the next signed milestone.
-See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for download and verification scope.
+**Delivery:** development is on `main`. See [PIXEL_INSTALL.md](PIXEL_INSTALL.md)
+for the latest signed artifact and its verification scope; historical delivery
+statements below describe their dated checkpoints.
+
+## View-options card source batch (2026-10-05)
+
+Scoped reference: `WorkspaceListViewOptionsPopover.swift` at upstream
+`186cec79781256867ad4516f0802118738bd2393`; global parity pin unchanged.
+The shared main/browser workspace menu now leads with **Sort Computers By** and
+three illustrated radio choices. The diagrams show the last-opened computer
+rising, ranked computer sections with drag grips, and an interleaved activity
+timeline. Selection uses theme-aware outlines/checkmarks; labels can wrap with
+font scaling and the card scrolls. Single-computer scope still hides sorting.
+
+Sort, read-state and machine selections keep the card open so the underlying
+feed updates live. **Custom Order** now only selects the mode in both hosts;
+**Edit Computer Order** is the explicit editor entry and dismisses the Android
+popup before showing its sheet. Compound machine choices and exact stable/nightly
+identities remain available. Accessibility exposes a sort heading and selected
+radio roles, without announcing the decorative miniature shapes separately.
+
+Main and instrumentation Kotlin compilation passed. Updated Android cases cover
+persistent selection, explicit editor entry, main Mac/SSH order/filter behavior
+and the separate browser's shared state. They are **compiled, not runtime-verified**
+for this batch; run them at the next combined milestone, with compact/wide and
+enlarged-font screenshots and TalkBack traversal. No new APK, emulator or physical
+phone session was used. Evidence: `captures/runtime/workspace-view-options/`.
+
+The source audit also identified live-feed viewport work still outstanding:
+iOS anchors to the first stable visible row during inserts/removals/moves, avoids
+anchoring moved rows, preserves absolute-top behavior and defers geometry during
+gestures. Android's existing lazy-list stable keys alone do not prove those rules.
+This remains implementation/acceptance work, alongside physical workflow parity.
 
 ## Latest checkpoint — adaptive workspace sidebar (2026-10-04)
 

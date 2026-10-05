@@ -565,12 +565,14 @@ class RoutedBrowserPresentationTest {
     @Test fun globalSidebarSharesFiltersSortOrderAndBothSearchScopesOnReturn() {
         browser("Routed fixture ▾")
         text("Alpha A"); assertFalse(device.hasObject(By.text("Alpha B")))
-        desc("Filter workspaces").click(); text("Unread").click()
+        desc("Filter workspaces").click(); text("Unread").click(); device.pressBack()
         assertTrue(device.wait(Until.gone(By.text("Alpha read A")), 5_000))
-        desc("Filter workspaces").click(); text("Mac B").click(); text("Alpha B")
-        desc("Filter workspaces").click(); text("Recent Activity").click()
+        desc("Filter workspaces").click(); text("Mac B").click(); device.pressBack(); text("Alpha B")
+        desc("Filter workspaces").click(); text("Recent Activity").click(); device.pressBack()
         until { sortStore.state.value.mode == NativeWorkspaceSortMode.ACTIVITY }
-        desc("Filter workspaces").click(); text("Custom Order").click(); text("Computer Order")
+        desc("Filter workspaces").click(); text("Custom Order").click()
+        assertFalse(device.hasObject(By.text("Computer Order")))
+        text("Edit Computer Order").click(); text("Computer Order")
         val first = desc("Drag to reorder Mac A").visibleCenter
         val second = desc("Drag to reorder Mac B").visibleCenter
         assertTrue(device.drag(first.x, first.y, second.x, second.y + 35, 50))

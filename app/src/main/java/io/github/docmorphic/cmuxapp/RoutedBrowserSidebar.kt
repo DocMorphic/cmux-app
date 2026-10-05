@@ -98,7 +98,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
         } else NativeWorkspaceFilterMenu(filter, ui.snapshot?.filterMachines.orEmpty().map { NativeWorkspaceFilterMachine(it.key, it.name, it.build) },
             filters, { filters = it }, onChange = { controller.query(ui.query.copy(workspaceUnread = it.unread, machines = it.machines)) },
             sortMode = ui.snapshot?.sortMode, onSort = { mode -> scope.launch {
-                if (controller.sort(RoutedSidebarSort.Mode(mode)) && mode == NativeWorkspaceSortMode.PRIORITY) showOrder = true
+                controller.sort(RoutedSidebarSort.Mode(mode))
             } }, onOrder = { showOrder = true })
         if (!ui.query.notifications) RoutedSidebarCreateMenu(ui.snapshot?.creation.orEmpty(), ui.query.computer,
             ui.navigating || ui.mutationBusy || ui.saving, onOpen, ui.snapshot?.createGroup) { key ->

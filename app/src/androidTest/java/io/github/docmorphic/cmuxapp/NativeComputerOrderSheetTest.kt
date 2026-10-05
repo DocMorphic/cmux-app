@@ -31,12 +31,20 @@ class NativeComputerOrderSheetTest {
         compose.runOnIdle { assertTrue(dismissed) }
     }
     @Test fun allComputerSortControlsRemainAvailableWithNoMachineFilterChoices() {
-        var open by mutableStateOf(false); var selected by mutableStateOf(NativeWorkspaceSortMode.AUTOMATIC)
+        var open by mutableStateOf(false); var selected by mutableStateOf(NativeWorkspaceSortMode.AUTOMATIC); var editorOpens = 0
         compose.setContent { CmuxTheme { NativeWorkspaceFilterMenu(NativeWorkspaceFilter(),emptyList(),open,{open=it},{},
-            sortMode=selected,onSort={selected=it}) } }
+            sortMode=selected,onSort={selected=it},onOrder={editorOpens++}) } }
         compose.onNodeWithContentDescription("Filter workspaces").performClick()
         NativeWorkspaceSortMode.entries.forEach { compose.onNodeWithText(it.title).assertIsDisplayed() }
         compose.onNodeWithText("Recent Activity").performClick()
-        compose.runOnIdle { assertEquals(NativeWorkspaceSortMode.ACTIVITY,selected) }
+        compose.runOnIdle { assertEquals(NativeWorkspaceSortMode.ACTIVITY,selected); assertTrue(open) }
+        compose.onNodeWithTag("workspace.sort.recentActivity").assertIsSelected()
+        compose.onNodeWithText("Edit Computer Order").assertDoesNotExist()
+        compose.onNodeWithText("Custom Order").performClick()
+        compose.runOnIdle { assertEquals(0, editorOpens); assertTrue(open) }
+        compose.onNodeWithTag("workspace.sort.computerPriority").assertIsSelected()
+        compose.onNodeWithTag("workspace.sort.recentActivity").assertIsNotSelected()
+        compose.onNodeWithText("Edit Computer Order").performClick()
+        compose.runOnIdle { assertEquals(1, editorOpens); assertFalse(open) }
     }
 }

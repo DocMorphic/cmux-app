@@ -3208,7 +3208,6 @@ internal fun NativeScreen(
                             workspaceFilter = next.forMenu(filterMachines.map { it.id }.toSet(), !allWorkspaceComputers)
                     }, sortMode = workspaceSort.mode.takeIf { allWorkspaceComputers }, onSort = { mode ->
                         workspaceSortStore.setMode(mode)
-                        if (mode == NativeWorkspaceSortMode.PRIORITY) showComputerOrder = true
                     }, onOrder = { showComputerOrder = true })
                 NativeWorkspaceCreateMenu(
                     macs = pairedMacs.filter { selectedSshComputer == null && (selectedOrigin == null || it.origin == selectedOrigin) },

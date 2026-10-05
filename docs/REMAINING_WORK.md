@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Workspace view options now use the iOS-style illustrated sort tiles and stay
+  open during sort/read-state/machine changes. Custom Order no longer opens its
+  editor automatically in either the main or separate-browser sidebar. Main and
+  instrumentation Kotlin compile; revised interaction cases await the next
+  integration milestone, including enlarged text and TalkBack. Live-feed stable
+  viewport anchoring/gesture deferral remains a confirmed source gap. See
+  `WORKSPACE_ROWS.md`. No APK/emulator was used for this batch.
+
 - Added the FCM sender transport for the pending private-helper/backend choice:
   encrypted data-only delivery, explicit recipient/admission checks, expiry and
   size bounds, OAuth, retry timing and exact unregistered-token classification.
