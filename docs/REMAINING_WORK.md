@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Native text/Markdown previews now stream readable prefixes with strict UTF-8,
+  progress, EOF-gated Copy Contents, exact remote Copy path, Latest/End tail
+  following and reading/selection retention. Thirty-three JVM checks passed and
+  main/instrumentation Kotlin compiled. The growing-document UI fixture is queued
+  with image gestures for the next Android milestone. Live routes, large-document
+  performance, Markdown reflow and physical acceptance remain open. Build 616
+  excludes this batch; see `CONTENT_PREVIEW_LIFECYCLE.md`.
+
 - Image viewer source comparison now implements iOS 3× tapped-point double-tap,
   centroid-anchored pinch, minimum-scale paging tolerance and long-press
   Share/Save/Copy Image using the shared retained action owners. Image/PDF decoder

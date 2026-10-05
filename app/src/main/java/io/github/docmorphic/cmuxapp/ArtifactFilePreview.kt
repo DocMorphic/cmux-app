@@ -51,8 +51,9 @@ internal fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthor
     }
     val produced by controller.state.collectAsState()
     val state = produced.takeIf { active && controller.matches(it, rpc, authorization, path, forceMarkdown) } ?: ArtifactPreviewState()
+    val preview = state.text?.artifact ?: state.artifact
     Column(Modifier.fillMaxSize().semantics { contentDescription = "File preview $path" }) {
-        if (state.artifact == null) FilePreviewActions(null, remote = remote.takeIf { active })
+        if (preview == null) FilePreviewActions(null, remote = remote.takeIf { active })
         when {
             state.error != null -> {
                 val failure = (state.failure ?: ArtifactPreviewFailure(ArtifactPreviewFailure.Kind.LOAD_FAILED))
@@ -61,7 +62,9 @@ internal fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthor
                     }
                 FilesMessage(failure.title, failure.message, "Retry".takeIf { failure.retry }, retry ?: controller::retry)
             }
-            state.artifact != null -> key(state.artifact!!.file.absolutePath) { FilePreviewContent(state.artifact!!, remote) }
+            preview != null -> key(preview.file.absolutePath) {
+                FilePreviewContent(preview, remote, streaming = state.text, received = state.received)
+            }
             else -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 if ((state.total ?: 0) > 0) LinearProgressIndicator(progress = { (state.received.toFloat() / state.total!!).coerceIn(0f, 1f) })
                 else LinearProgressIndicator()

@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 internal data class ArtifactPreviewState(val identity: Any? = null, val artifact: LocalFilePreview? = null,
     val total: Long? = null, val received: Long = 0, val error: String? = null,
-    val failure: ArtifactPreviewFailure? = null)
+    val failure: ArtifactPreviewFailure? = null, val text: ArtifactStreamingText? = null)
 
 /** One selected file, owned by a presentation rather than its Android view. UI-dispatcher confined. */
 internal class ArtifactPreviewController(private val scope: CoroutineScope) : AutoCloseable {
@@ -59,7 +59,7 @@ internal class ArtifactPreviewController(private val scope: CoroutineScope) : Au
     fun connectionLost() {
         if (closed || !scope.isActive || request == null || mutable.value.artifact != null || mutable.value.error != null) return
         job?.cancel(); job = null
-        mutable.value = mutable.value.copy(error = "Mac disconnected.",
+        mutable.value = mutable.value.copy(text = null, error = "Mac disconnected.",
             failure = ArtifactPreviewFailure(ArtifactPreviewFailure.Kind.MAC_UNREACHABLE))
     }
 
@@ -78,7 +78,11 @@ internal class ArtifactPreviewController(private val scope: CoroutineScope) : Au
                     if (next.forceMarkdown) it.copy(kind = ArtifactKind.TEXT, mime = "text/markdown") else it
                 }
                 ensureActive(); publish { it.copy(total = metadata.size) }
-                val artifact = files.download(next.path, metadata) { received, total ->
+                val artifact = files.download(next.path, metadata, textProgress = { text ->
+                    withContext(scope.coroutineContext.minusKey(Job)) {
+                        ensureActive(); publish { it.copy(text = text) }
+                    }
+                }) { received, total ->
                     withContext(scope.coroutineContext.minusKey(Job)) {
                         ensureActive(); publish { it.copy(received = received, total = total) }
                     }
@@ -87,7 +91,7 @@ internal class ArtifactPreviewController(private val scope: CoroutineScope) : Au
                 awaitCancellation()
             } catch (failure: Exception) {
                 currentCoroutineContext().ensureActive()
-                publish { it.copy(error = failure.message ?: "Could not load preview", failure = ArtifactPreviewFailure.from(failure, next.authorization)) }
+                publish { it.copy(text = null, error = failure.message ?: "Could not load preview", failure = ArtifactPreviewFailure.from(failure, next.authorization)) }
                 awaitCancellation()
             } finally { withContext(NonCancellable + Dispatchers.IO) { files.close() } }
         }

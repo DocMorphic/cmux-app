@@ -48,6 +48,7 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
     var rendered by mutableStateOf(renderedAvailable)
     var failure by mutableStateOf<String?>(null)
     var document by mutableStateOf<ArtifactTextDocument?>(null)
+    var followTail = false
     var syntax by mutableStateOf<ArtifactSyntaxResult?>(null)
     var highlightedDocument: ArtifactTextDocument? = null
     var searchOpen by mutableStateOf(false)
@@ -74,7 +75,7 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
     val raw get() = artifact.route == ChangesPreviewRoute.TEXT && !rendered
     fun updateWrap(value: Boolean) { wrap = value; preferences.edit().putBoolean("wrap.${kind.name}", value).apply() }
     fun setFont(value: Float) { fontSize = ArtifactTextKind.fontSize(value); preferences.edit().putFloat("font.${kind.name}", fontSize).apply() }
-    fun jumpTo(offset: Int) { jump = ++jumpSequence to offset }
+    fun jumpTo(offset: Int, follow: Boolean = false) { followTail = follow; jump = ++jumpSequence to offset }
     fun next(delta: Int) {
         if (matches.isEmpty()) return
         selected = Math.floorMod(selected + delta, matches.size)
@@ -89,7 +90,7 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
                 state.markdownViewport.capture?.invoke()
                 listOf(state.rendered, state.searchOpen, state.goToLineOpen, state.query, state.selected,
                     state.lineNumbers, state.anchor, state.lineFraction, state.horizontalDp,
-                    state.selectionStart, state.selectionEnd) + state.markdownViewport.save()
+                    state.selectionStart, state.selectionEnd) + state.markdownViewport.save() + state.followTail
             }, restore = { values -> ArtifactViewerState(context, artifact).apply {
                 rendered = values[0] as Boolean && renderedAvailable
                 searchOpen = values[1] as Boolean; goToLineOpen = values[2] as Boolean
@@ -97,16 +98,17 @@ internal class ArtifactViewerState(context: Context, val artifact: LocalFilePrev
                 lineNumbers = values[5] as Boolean; anchor = values[6] as Int
                 lineFraction = values[7] as Float; horizontalDp = values[8] as Float
                 selectionStart = values[9] as Int; selectionEnd = values[10] as Int
-                markdownViewport.restore(values.drop(11))
+                markdownViewport.restore(values.drop(11).take(5))
+                followTail = values.getOrNull(16) as? Boolean ?: false
             } })
     }
 }
 
 @Composable
-internal fun ArtifactRawTextPreview(state: ArtifactViewerState) {
+internal fun ArtifactRawTextPreview(state: ArtifactViewerState, streaming: Boolean = false) {
     val context = LocalContext.current
-    LaunchedEffect(state) {
-        if (state.document == null) try {
+    LaunchedEffect(state, streaming) {
+        if (!streaming && state.document == null) try {
             state.document = withContext(Dispatchers.IO) { ArtifactTextDocument(state.artifact.file.readText()) }
         } catch (error: Exception) { ensureActive(); state.failure = ARTIFACT_TEXT_READ_FAILURE }
     }
@@ -230,6 +232,7 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
         }
     }
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) viewerState?.followTail = false
         val wasZooming = zooming
         scale.onTouchEvent(event)
         if (zooming) {
@@ -260,6 +263,8 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
     }
     fun update(state: ArtifactViewerState, value: ArtifactTextDocument) {
         val first = viewerState !== state
+        val appended = !first && document !== value && document?.let { value.text.startsWith(it.text) } == true
+        if (appended) { captureViewport(); restoring = true }
         if (first) {
             release(); viewerState = state; restoring = true
             state.captureViewport = ::captureViewport
@@ -294,19 +299,19 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
             state.matches.forEachIndexed { index, range -> buffer.setSpan(BackgroundColorSpan(if (index == state.selected) 0xFF8A6320.toInt() else 0xFF41483E.toInt()), range.first, range.last + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
             ranges = state.matches; selected = state.selected
         }
-        if (first) {
+        if (first || appended) {
             // Run after text measurement; a character anchor survives changed line wrapping.
             textView.addOnLayoutChangeListener(object : android.view.View.OnLayoutChangeListener {
                 override fun onLayoutChange(v: android.view.View, l: Int, t: Int, r: Int, b: Int,
                     oldL: Int, oldT: Int, oldR: Int, oldB: Int) {
                     textView.removeOnLayoutChangeListener(this)
-                    if (viewerState !== state) return
+                    if (viewerState !== state || document !== value) return
                     val layout = textView.layout ?: return
                     val line = layout.getLineForOffset(state.anchor.coerceIn(0, value.text.length))
                     val top = layout.getLineTop(line)
                     val y = if (state.anchor == 0 && state.lineFraction == 0f) 0 else
                         top + textView.paddingTop + ((layout.getLineBottom(line) - top) * state.lineFraction).toInt()
-                    scrollTo(0, y)
+                    scrollTo(0, if (state.followTail) (textView.height - height).coerceAtLeast(0) else y)
                     if (!state.wrap) horizontal.scrollTo((state.horizontalDp * resources.displayMetrics.density).toInt(), 0)
                     if (state.selectionStart >= 0 && state.selectionEnd >= 0)
                         Selection.setSelection(textView.text as Spannable, state.selectionStart.coerceAtMost(value.text.length),
@@ -323,7 +328,8 @@ internal class ArtifactTextScrollView(context: Context, private val changeFont: 
                 val offset = requested!!.second.coerceIn(0, value.text.length)
                 val layout = textView.layout ?: return@post
                 val line = layout.getLineForOffset(offset)
-                scrollTo(0, (layout.getLineTop(line) + textView.paddingTop - height / 3).coerceAtLeast(0))
+                scrollTo(0, if (state.followTail) (textView.height - height).coerceAtLeast(0)
+                    else (layout.getLineTop(line) + textView.paddingTop - height / 3).coerceAtLeast(0))
                 if (!state.wrap) horizontal.scrollTo((layout.getPrimaryHorizontal(offset).toInt() + textView.paddingLeft - width / 3).coerceAtLeast(0), 0)
             }
         }

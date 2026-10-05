@@ -19,6 +19,9 @@ class ArtifactPreviewTestActivity : ComponentActivity() {
     internal var loading: Boolean
         get() = fixture.loading
         set(value) { fixture.loading = value }
+    internal var streaming: ArtifactStreamingText?
+        get() = fixture.streaming
+        set(value) { fixture.streaming = value }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         intent.getStringExtra("export_id")?.let { id ->
@@ -34,10 +37,18 @@ class ArtifactPreviewTestActivity : ComponentActivity() {
         check(file.canonicalFile.toPath().startsWith(cacheDir.canonicalFile.toPath()))
         val route = ChangesPreviewRoute.valueOf(checkNotNull(intent.getStringExtra("route")))
         val preview = LocalFilePreview(file, file.length(), intent.getStringExtra("mime"), route)
+        if (streaming == null && savedInstanceState == null) intent.getStringExtra("initial_text")?.let {
+            streaming = ArtifactStreamingText(preview, ArtifactTextDocument(it))
+        }
+        val remote = intent.getStringExtra("remote_path")?.let { path ->
+            RemoteArtifactSource(ArtifactRpc(ArtifactCapabilities(false, false, false, false, false)) { _, _ ->
+                error("This fixture has no remote transport")
+            }, ArtifactAuthorization.Terminal("fixture", "fixture"), path)
+        }
         setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().safeDrawingPadding()) {
                 if (loading) Column { FilePreviewActions(null); Text("Loading replacement preview") }
-                else FilePreviewContent(preview)
+                else FilePreviewContent(preview, remote, streaming, streaming?.document?.text?.toByteArray()?.size?.toLong() ?: preview.size)
             }
         } } }
     }
@@ -48,4 +59,5 @@ class ArtifactPreviewTestActivity : ComponentActivity() {
 internal class ArtifactPreviewTestModel : ViewModel() {
     var initialized = false
     var loading by mutableStateOf(false)
+    var streaming by mutableStateOf<ArtifactStreamingText?>(null)
 }

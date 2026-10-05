@@ -47,7 +47,8 @@ internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: Change
 }
 
 @Composable
-internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactViewerState? = null, remote: RemoteArtifactSource? = null) {
+internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactViewerState? = null, remote: RemoteArtifactSource? = null,
+    complete: Boolean = true) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val actions = filePreviewActionHandler(artifact, remote)
@@ -76,14 +77,18 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
                 DropdownMenu(menu, { menu = false }, containerColor = androidx.compose.ui.graphics.Color(0xFF232428)) {
                     listOf(FilePreviewAction.SHARE, FilePreviewAction.SAVE, FilePreviewAction.OPEN).forEach { action -> DropdownMenuItem(text = { Text(action.label) }, onClick = { perform(action) }) }
                     if (artifact?.route == ChangesPreviewRoute.IMAGE) DropdownMenuItem(text = { Text("Copy Image") }, onClick = { perform(FilePreviewAction.COPY_IMAGE) })
+                    remote?.let { source -> DropdownMenuItem(text = { Text("Copy path") }, onClick = {
+                        menu = false
+                        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("File path", source.path))
+                    }) }
                     if (artifact?.route == ChangesPreviewRoute.TEXT && viewer != null) {
-                        DropdownMenuItem(text = { Text("Copy Contents") }, enabled = !busy && artifact.size in 0..(4L * 1024 * 1024), onClick = {
+                        DropdownMenuItem(text = { Text("Copy Contents") }, enabled = complete && !busy && artifact.size in 0..(4L * 1024 * 1024), onClick = {
                             menu = false; busy = true
                             scope.launch {
                                 try {
                                     val text = viewer.document?.text ?: withContext(Dispatchers.IO) { artifact.file.readText() }
                                     (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText(artifact.file.name, text))
-                                } catch (error: Exception) { ensureActive(); failure = error.message ?: "Could not copy contents." }
+                                } catch (error: Exception) { ensureActive(); failure = "This file can't be copied. Reopen its preview and try again." }
                                 finally { busy = false }
                             }
                         })
@@ -92,7 +97,7 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
                             DropdownMenuItem(text = { Text("Search") }, onClick = { menu = false; viewer.searchOpen = !viewer.searchOpen; if (!viewer.searchOpen) viewer.closeSearch() })
                             DropdownMenuItem(text = { Text("Go to line") }, onClick = { menu = false; viewer.goToLineOpen = true }, enabled = viewer.document != null)
                             DropdownMenuItem(text = { Text("Top") }, onClick = { menu = false; viewer.jumpTo(0) })
-                            DropdownMenuItem(text = { Text("End") }, onClick = { menu = false; viewer.jumpTo(viewer.document?.text?.length ?: 0) })
+                            DropdownMenuItem(text = { Text(if (complete) "End" else "Latest") }, onClick = { menu = false; viewer.jumpTo(viewer.document?.text?.length ?: 0, follow = true) })
                             DropdownMenuItem(text = { Text("Line numbers") }, trailingIcon = { if (viewer.lineNumbers) Text("✓") }, onClick = { menu = false; viewer.lineNumbers = !viewer.lineNumbers })
                             DropdownMenuItem(text = { Text("Word wrap") }, trailingIcon = { if (viewer.wrap) Text("✓") }, onClick = { menu = false; viewer.updateWrap(!viewer.wrap) })
                             DropdownMenuItem(text = { Text("Text size") }, onClick = { menu = false; fontDialog = true })

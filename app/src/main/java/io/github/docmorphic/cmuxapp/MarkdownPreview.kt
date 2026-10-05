@@ -33,20 +33,20 @@ internal object MarkdownPreviewPolicy {
 }
 
 @Composable
-internal fun ArtifactTextPreview(artifact: LocalFilePreview, state: ArtifactViewerState) {
+internal fun ArtifactTextPreview(artifact: LocalFilePreview, state: ArtifactViewerState, streaming: ArtifactStreamingText? = null) {
     Column(Modifier.fillMaxSize()) {
         if (state.markdown && !state.renderedAvailable) Text("Rendered Markdown is available for files up to 1.5 MB.", Modifier.padding(horizontal = 16.dp), color = filesMuted)
         state.failure?.let { Text(it, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.error) }
         if (state.raw && artifact.size > ArtifactSyntaxPolicy.MAX_HIGHLIGHT_BYTES) ArtifactHighlightingOffPill(artifact.size)
         Box(Modifier.weight(1f)) {
             if (state.rendered) {
-                val text by produceState<String?>(null, artifact.file) {
+                val text = if (streaming != null) streaming.document.text else produceState<String?>(null, artifact.file) {
                     try { value = withContext(Dispatchers.IO) { artifact.file.readText() } }
                     catch (error: Exception) { ensureActive(); state.failure = ARTIFACT_TEXT_READ_FAILURE; state.rendered = false }
-                }
+                }.value
                 if (text == null) LinearProgressIndicator(Modifier.fillMaxWidth())
                 else MarkdownWebPreview(text!!, state.markdownViewport, onFailure = { state.failure = it; state.rendered = false })
-            } else ArtifactRawTextPreview(state)
+            } else ArtifactRawTextPreview(state, streaming != null)
         }
     }
 }

@@ -60,18 +60,26 @@ internal fun ChangesPreviewContent(artifact: ChangesPreviewArtifact) {
 }
 
 @Composable
-internal fun FilePreviewContent(artifact: LocalFilePreview, remote: RemoteArtifactSource? = null) {
+internal fun FilePreviewContent(artifact: LocalFilePreview, remote: RemoteArtifactSource? = null,
+    streaming: ArtifactStreamingText? = null, received: Long = artifact.size) {
     val context = LocalContext.current
     val state = rememberSaveable(artifact.file.absolutePath, saver = ArtifactViewerState.saver(context, artifact)) { ArtifactViewerState(context, artifact) }
+    LaunchedEffect(state, streaming) {
+        streaming?.let { state.document = it.document }
+    }
     Column(Modifier.fillMaxSize()) {
-        FilePreviewActions(artifact, state, remote)
+        FilePreviewActions(artifact, state, remote, complete = streaming?.complete ?: true)
+        if (streaming != null && !streaming.complete) Column(Modifier.padding(horizontal = 16.dp)) {
+            LinearProgressIndicator(progress = { if (artifact.size > 0) (received.toFloat() / artifact.size).coerceIn(0f, 1f) else 0f }, modifier = Modifier.fillMaxWidth())
+            Text("$received of ${artifact.size} bytes", fontSize = 12.sp)
+        }
         Box(Modifier.weight(1f)) {
             key(artifact.file.absolutePath) {
                 when (artifact.route) {
                     ChangesPreviewRoute.IMAGE -> ChangesImagePreview(artifact, remote)
                     ChangesPreviewRoute.PDF -> ChangesPdfPreview(artifact.file)
                     ChangesPreviewRoute.MEDIA -> ChangesMediaPreview(artifact.file)
-                    ChangesPreviewRoute.TEXT -> ArtifactTextPreview(artifact, state)
+                    ChangesPreviewRoute.TEXT -> ArtifactTextPreview(artifact, state, streaming)
                     ChangesPreviewRoute.EXTERNAL -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Preview unavailable", style = MaterialTheme.typography.titleMedium)

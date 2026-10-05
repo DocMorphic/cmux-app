@@ -61,6 +61,7 @@ internal class ArtifactContentTransfer(private val rpc: ArtifactRpc, private val
 internal class ArtifactPreviewFiles(root: File, private val transfer: ArtifactContentTransfer) : AutoCloseable {
     val directory = File(root, UUID.randomUUID().toString())
     suspend fun download(path: String, metadata: ArtifactMetadata, byteLimit: Long? = null, filename: String = changesPreviewName(path),
+        textProgress: (suspend (ArtifactStreamingText?) -> Unit)? = null,
         progress: suspend (Long, Long) -> Unit): LocalFilePreview = withContext(Dispatchers.IO) {
         val route = filePreviewRoute(metadata.kind.name.lowercase(), metadata.mime, path)
         val limit = byteLimit ?: if (route == ChangesPreviewRoute.MEDIA) ChangesContentTransfer.MEDIA_BYTES else ChangesContentTransfer.PREVIEW_BYTES
@@ -71,15 +72,26 @@ internal class ArtifactPreviewFiles(root: File, private val transfer: ArtifactCo
             ArtifactPreviewFailure(ArtifactPreviewFailure.Kind.LOCAL_STORAGE_UNAVAILABLE), "Could not create the preview folder.")
         val partial = File(directory, "download.partial")
         val destination = File(directory, changesPreviewName(filename).let { if (it == "download.partial") "file-download.partial" else it })
+        val preview = LocalFilePreview(destination, metadata.size, metadata.mime, route)
+        val text = if (route == ChangesPreviewRoute.TEXT && textProgress != null) ArtifactTextStream() else null
+        var lastText: ArtifactTextDocument? = null
         try {
             ArtifactLocalOutput(partial).use { output ->
-                transfer.stream(path, metadata, limit) { bytes, received -> output.write(bytes); progress(received, metadata.size) }
+                transfer.stream(path, metadata, limit) { bytes, received ->
+                    output.write(bytes); progress(received, metadata.size)
+                    text?.let { stream ->
+                        val document = stream.append(bytes, received == metadata.size)
+                        if (stream.invalid) { lastText = null; textProgress?.invoke(null) }
+                        else if (document != null) { lastText = document; textProgress?.invoke(ArtifactStreamingText(preview, document)) }
+                    }
+                }
                 output.sync()
             }
             currentCoroutineContext().ensureActive()
             if (!partial.renameTo(destination)) throw ArtifactPreviewException(
                 ArtifactPreviewFailure(ArtifactPreviewFailure.Kind.LOCAL_STORAGE_UNAVAILABLE), "Could not finish the preview download.")
-            LocalFilePreview(destination, metadata.size, metadata.mime, route)
+            lastText?.let { textProgress?.invoke(ArtifactStreamingText(preview, it, complete = true)) }
+            if (text?.invalid == true) preview.copy(route = ChangesPreviewRoute.EXTERNAL) else preview
         } catch (failure: Throwable) { directory.deleteRecursively(); throw failure }
     }
     override fun close() { directory.deleteRecursively() }

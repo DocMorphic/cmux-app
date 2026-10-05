@@ -1,5 +1,62 @@
 # Content preview lifecycle
 
+## Progressive text and viewer-path actions — 2026-10-05
+
+The scoped iOS source at `186cec79781256867ad4516f0802118738bd2393` displays
+text/Markdown during transfer, accepts only valid UTF-8, disables Copy Contents
+until EOF and at sizes over 4 MiB, labels the incomplete-text jump Latest, and
+supports a durable follow-tail request ended by user interaction. Its full-viewer
+menu includes Copy path. Inspected ViewerModel, ViewerActionsMenu, Action and
+TextBottomPinStateMachine sources and hashes are under
+`captures/runtime/streaming-text-batch/upstream.json`. MediaView was also inspected:
+it uses a local AVPlayer with system controls and pauses/releases on dismantle;
+this check alone does not establish Android media-control parity.
+
+Native Files/direct-file/panel previews now publish incremental immutable text
+snapshots from the retained download owner. A strict streaming UTF-8 decoder carries
+split code points across chunks and publishes the first prefix, EOF, and updates
+at most every 100 ms between them. Document/string/line-index construction stays
+on IO. Downloads keep the existing size limits and private partial-file ownership;
+complete status is published only after sync and rename. The displayed path stays
+stable across completion, and the shared view does not reread an unfinished file.
+Malformed UTF-8 retires the text snapshot; after transfer, the complete unchanged
+bytes use the external/binary viewer so Open/Share/Save remain available.
+
+Raw text and rendered Markdown accept the progressive snapshots. The header shows
+received/total bytes. Copy Contents is disabled until the verified local copy is
+complete; Share/Save/Open still use the captured remote source and its independent
+fresh transfer. Copy path copies the exact remote path, including Unicode, rather
+than a private Android cache path. Menus show Latest while loading and End at EOF.
+Append updates capture/restore reading anchor and selection. An explicit
+Latest/End request follows appended text; touching the text or choosing another
+jump ends that request. Its small bookmark is saved through Activity recreation.
+Connection loss clears unfinished text and late callbacks cannot replace the
+failure. Existing completed-file retention remains in place.
+
+**Verification:** **33 focused JVM tests passed** (6 incremental decoder,
+3 progressive-controller, 10 retained-controller, 7 preview files and 7 native-lane
+checks). They cover every UTF-8 split boundary in a multilingual string, malformed
+and truncated sequences, buffer overflow, throttling/EOF, visible-prefix state
+before the final chunk, stable final filename/exact bytes, disconnect and binary
+fallback. Main and instrumentation Kotlin compiled in the 45 s check; the new
+runtime fixture then compiled in 24 s. Logs/XML/source hashes are under
+`captures/runtime/streaming-text-batch/`.
+
+A guarded Android fixture now injects growing documents into the existing debug
+host to check readable prefixes, disabled/enabled Copy Contents, exact remote
+path, selection/scroll/recreation and Latest-to-End following. **It has not run**;
+it does not itself test live RPC delivery. It is queued with the image gesture
+batch for the next combined Android milestone. No APK, emulator or physical device
+run occurred in this batch. Build 616 excludes these changes.
+
+Remaining: real-route progressive rendering, large-document memory/layout and
+search/highlight performance, Markdown incremental reflow/scroll, precise tail
+behavior through reflow/hardware input and interruptions, process death and
+physical Pixel acceptance. This is the native artifact pipeline; Changes and
+other local-only text routes retain their separate loading policies. Full format,
+Quick Look-equivalent rendering, media and UI parity audits remain open, and the
+global upstream parity pin is unchanged.
+
 ## Image interaction source parity batch — 2026-10-05
 
 Compared `ChatArtifactZoomableImageView.swift`, `ChatArtifactZoomPolicy.swift` and
