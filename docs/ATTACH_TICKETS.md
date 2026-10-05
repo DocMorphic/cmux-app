@@ -1,5 +1,66 @@
 # Attach-ticket compatibility audit
 
+## Codec implementation and Swift fixtures (2026-10-05)
+
+`MobileAttachTicketCodec` now decodes full/compact JSON and the ancient `pair`
+and payload-bearing `attach` URLs. It preserves workspace/terminal selection,
+canonical-versus-alias token precedence, optional expiry, UUID device spelling,
+route ordering/IDs/priorities, endpoint shape and current/historical hint metadata.
+Compact tickets discard token/name/expiry fields just like Swift. Expired full
+attach tickets remain structurally readable; their token policy still refuses an
+expired bearer. Ancient `pair` URLs enforce expiry at input. Unknown compatibility
+is normalized to zero only for URL input (and compact DTOs), not raw full RPC data.
+
+`PairingTicketJson` provides strict bounded JSON without Android/JVM `org.json`
+coercion differences. Duplicate decoded keys, invalid Unicode/UTF-8, ambiguous URL
+query keys, credential query parameters, decorated authorities/paths/fragments,
+nonstandard JSON and oversized input fail with fixed redacted errors. Deliberate
+input limits are 100,000 URL characters, 65,536 decoded bytes/JSON characters,
+16 nesting levels, 256 entries per JSON collection, 32 routes, 1,024-character
+ordinary fields and 4,096-character tokens. URL/hint fields have their separate
+8,192/2,048-character bounds. Swift does not impose all these resource limits or
+reject every ambiguous URL shape; Android applies them at its untrusted boundary.
+No decoded ticket or path hint by itself authorizes a connection. Hint structural
+safety is not freshness: future consumers must still verify current observation,
+expiry, active provider/profile and managed-relay admission before dialing.
+
+The committed synthetic fixtures are generated with:
+
+```sh
+python3 scripts/generate-attach-ticket-fixtures.py \
+  --source /path/to/cmux
+```
+
+The generator reads 33 exact files at
+`186cec79781256867ad4516f0802118738bd2393`: 32 shared Swift dependencies and
+`CmxAttachTicketInput.swift`. It compiles the unchanged wire-declaration prefix of
+`CmxTransport.swift` before `public protocol CmxByteTransport:`; all other sources
+are unchanged complete files. The fixture JSON records original/compiled hashes,
+the extraction boundary and runner hash. Only synthetic identities, addresses and
+tokens are used. It executes the upstream URL parser plus compact/full codecs on
+this Mac, not the complete upstream test suite or an iOS runtime.
+
+**84 JVM tests passed**, zero failures/errors/skips. The 59 interop cases include
+26 Swift acceptances and 33 rejections; applicable cases also compare raw RPC
+results, including missing compatibility. Coverage includes old hint forms,
+current public/private/LAN/VPN hints, source/profile mismatches, one-hour lifetimes,
+IPv4/IPv6/mapped-address exclusions, relay URL restrictions, compact DTO typing,
+full-token aliases, fractional dates and ancient expiry. Six boundary tests cover
+JSON/URL ambiguity, size/depth/number limits, redaction and unchanged v2/v3 UI
+admission. Nine policy, four framed-request/lease and six parser regressions pass.
+An intermediate generator assertion incorrectly expected fractional ISO dates to
+fail; actual Swift accepted them, and the fixture expectation was corrected.
+Original logs, final XML, source hashes and receipt are retained in
+`captures/runtime/attach-ticket-codec/` (ignored).
+
+**Legacy pairing is not connected to the UI yet.** Next integrate encrypted scoped
+persistence, public-locator separation, exact-route acquisition, transport-admitted
+auth and capability-aware mutations. Do not store raw ticket URLs in the existing
+public code/origin fields or enable parsing while silently dropping scope/token.
+No APK or Android runtime run was done for this codec; Pixel absent, no emulator
+started. Signed build 581 predates both the codec and RPC policy. Global parity
+pins remain unchanged; live old-host and physical Mac/Pixel acceptance remain open.
+
 ## RPC policy implementation (2026-10-05)
 
 `MobileAttachTicketContext` now carries bounded workspace/terminal selection,
@@ -36,7 +97,8 @@ of iOS transport-admitted auth omission before a ticket is used over native Iroh
 
 ## Scope (2026-10-05)
 
-This is a source audit, not implemented or runtime-verified legacy compatibility.
+This section records the earlier source audit. The checkpoints above supersede
+its implementation status; live legacy compatibility remains unverified.
 The five files below were read at `204a11dfcc76280205e50406ab94270a1c152155`.
 Their Git blobs are unchanged at `186cec79781256867ad4516f0802118738bd2393`.
 The broad implemented/reviewed references remain unchanged. Original sources and

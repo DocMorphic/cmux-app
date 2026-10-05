@@ -61,7 +61,10 @@ audit. `ATTACH_TICKETS.md` now records a scoped source audit, not an implementat
 Goal active; global parity pin unchanged; scheduled workflows still await merge
 to main. A later RPC ticket-policy change has 53 focused JVM checks and is not in
 581; it is a prerequisite for legacy pairing, whose URL/storage integration remains
-open. No replacement signed APK has been requested for that partial feature.
+open. The later legacy codec adds 59 Swift-generated comparison cases; 84 focused
+JVM checks pass including policy/parser regressions. It is not connected to pairing
+UI or included in 581. No replacement signed APK was requested for these partial
+feature checkpoints.
 
 ## Previous signed development APK — build 571 (2026-10-05)
 

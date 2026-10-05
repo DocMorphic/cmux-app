@@ -24,7 +24,33 @@ source, download, packaging, ART and signed-out upgrade evidence. The goal remai
 active; physical/authenticated acceptance, feed/push configuration and broader
 parity remain open. Older delivery sections below are historical.
 
-## Latest checkpoint — attach-ticket RPC policy (2026-10-05)
+## Latest checkpoint — legacy attach-ticket decoding (2026-10-05)
+
+Added bounded decoding for full/compact attach payloads and ancient `pair` URLs,
+including scope, token precedence, expiry, UUID canonicalization, route IDs and
+provenance-aware Iroh hints. Raw RPC tickets preserve missing compatibility;
+pairing URLs normalize it to zero. Compact tickets intentionally omit tokens,
+expiry and names. Older unsafe/private hints remain inert discovery metadata.
+The decoded object grants no route or account authority.
+
+**84 JVM checks passed**, with zero failures/errors/skips: 59 source-generated
+Swift interoperability cases, six input-boundary cases, nine ticket-policy cases,
+four framed-request/lease cases and six existing v2/v3 parser regressions. The
+fixture generator compiles the pinned upstream wire declarations and iOS input
+parser; it does not run an iOS app or establish live old-host interoperability.
+See [ATTACH_TICKETS.md](ATTACH_TICKETS.md) for regeneration and exact limits.
+Evidence: `captures/runtime/attach-ticket-codec/`. No APK, emulator or phone run;
+the Pixel was absent. Signed **581** remains the verified delivery and predates
+both this decoder and the preceding RPC policy.
+
+Next: keep bearer-bearing tickets separate from public route locators, integrate
+account/team-scoped encrypted persistence, exact-route acquisition, native auth
+policy and capability-aware mutations, then exercise the complete pairing flow.
+UI admission still accepts only existing v2/v3 routes. Physical recovery, push/
+notice configuration, modal/accessibility work and the broad audit remain open.
+Goal active, PR #1 draft, global parity pins unchanged.
+
+## Earlier checkpoint — attach-ticket RPC policy (2026-10-05)
 
 The unused raw attach-token constructor has been replaced with typed, redacted
 selection/expiry context. Production RPC now applies the reviewed iOS per-method

@@ -53,7 +53,7 @@ object PairingCodeParser {
         }
     }
 
-    private fun isCmuxScheme(value: String?): Boolean = value in setOf(
+    internal fun isCmuxScheme(value: String?): Boolean = value in setOf(
         "cmux-android", "cmux-ios", "cmux-ios-dev", "cmux-ios-com.cmux.app",
         "cmux-ios-dev.cmux.app.beta", "cmux-ios-dev.cmux.app.internal",
         "cmux-ios-dev.cmux.app.demo", "cmux-ios-dev.cmux.ios"

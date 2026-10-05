@@ -1,0 +1,2418 @@
+{
+  "upstream": "186cec79781256867ad4516f0802118738bd2393",
+  "source_sha256": {
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxTransport.swift": {
+      "original_sha256": "8ceedc1a251f9155db07702fb30b4b907c13f3733e9f6487f744633da4c4ef8a",
+      "compiled_sha256": "3a100483a7e4694ada18ea9555f64faf3744ff00541c41372b4002c871c0b71c"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/MobileSyncProtocol.swift": {
+      "original_sha256": "861485f3c476ff6815337a9ffbfa14312c68758a506183e88eb4bac2a34e0020",
+      "compiled_sha256": "861485f3c476ff6815337a9ffbfa14312c68758a506183e88eb4bac2a34e0020"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxAttachTicketCompactCoder.swift": {
+      "original_sha256": "e8c8caec94247bd40d388f04c37e9a7f00d16ddf33cc25b7e63e970a387735d6",
+      "compiled_sha256": "e8c8caec94247bd40d388f04c37e9a7f00d16ddf33cc25b7e63e970a387735d6"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxAttachTicketCompactCoderError.swift": {
+      "original_sha256": "33777d96ec9e5e9c719157719220bf68288fcdac1f05e7535fe7af9898f60c94",
+      "compiled_sha256": "33777d96ec9e5e9c719157719220bf68288fcdac1f05e7535fe7af9898f60c94"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CompactAttachTicket.swift": {
+      "original_sha256": "f406d7ca1e7d6103c8a4cec81bb7c99493843444c1f1ee93d05fd9944703f937",
+      "compiled_sha256": "f406d7ca1e7d6103c8a4cec81bb7c99493843444c1f1ee93d05fd9944703f937"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CompactAttachRoute.swift": {
+      "original_sha256": "58bb387fc0ee6bc2b2f6bf74416b708fdc6e509461be4835b98a55d671c91731",
+      "compiled_sha256": "58bb387fc0ee6bc2b2f6bf74416b708fdc6e509461be4835b98a55d671c91731"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CompactAttachEndpoint.swift": {
+      "original_sha256": "22257237b868a29c6b940c957d905fcee3483070fcbcbfdff27b56c1a8ba34fb",
+      "compiled_sha256": "22257237b868a29c6b940c957d905fcee3483070fcbcbfdff27b56c1a8ba34fb"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxPairingRouteDisclosureMode.swift": {
+      "original_sha256": "d19e93f13eea68f61ba80d9b20c8eae0e201951f059f60ee8737ec9a1adc243e",
+      "compiled_sha256": "d19e93f13eea68f61ba80d9b20c8eae0e201951f059f60ee8737ec9a1adc243e"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxPairingQRCode.swift": {
+      "original_sha256": "d618c64a1f6844e1fa9802ab77104880997f763d163d657d3a7774ac8b519348",
+      "compiled_sha256": "d618c64a1f6844e1fa9802ab77104880997f763d163d657d3a7774ac8b519348"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxPairingURLScheme.swift": {
+      "original_sha256": "95ce03c5762044e54aeb409e5090cc6c34e0eeb644230ba9faa38b39688bc4f1",
+      "compiled_sha256": "95ce03c5762044e54aeb409e5090cc6c34e0eeb644230ba9faa38b39688bc4f1"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxPairingURLSchemeResolver.swift": {
+      "original_sha256": "7cba787c1b516f33d331abce853c6674ba5d2aa56c95b24e3a33e78399582f5e",
+      "compiled_sha256": "7cba787c1b516f33d331abce853c6674ba5d2aa56c95b24e3a33e78399582f5e"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxDeviceIDCanonicalization.swift": {
+      "original_sha256": "e9460d6bb03834d38ca44b343a35ef800d5aab60bcf2ce18dc00f915a4af49d4",
+      "compiled_sha256": "e9460d6bb03834d38ca44b343a35ef800d5aab60bcf2ce18dc00f915a4af49d4"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohPeerIdentity.swift": {
+      "original_sha256": "c143e96038ba1f4e13629be3b8e03fba6c3b26509a201b13b40211bf9ed0a667",
+      "compiled_sha256": "c143e96038ba1f4e13629be3b8e03fba6c3b26509a201b13b40211bf9ed0a667"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohPeerIdentityError.swift": {
+      "original_sha256": "eaa097455696fc8ee8420f73c73ce2637015a48482c215f558407ebd50720bd1",
+      "compiled_sha256": "eaa097455696fc8ee8420f73c73ce2637015a48482c215f558407ebd50720bd1"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohPathHint.swift": {
+      "original_sha256": "4ccd37c9c8f9f5eab1c703c16d5f3e75c41a65250b93f18056d65f4e6d85edb9",
+      "compiled_sha256": "4ccd37c9c8f9f5eab1c703c16d5f3e75c41a65250b93f18056d65f4e6d85edb9"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohPathHintError.swift": {
+      "original_sha256": "89d965d2a19b68732daf68e4de0c1be12431663e8e340cb8e005f030b6ebc828",
+      "compiled_sha256": "89d965d2a19b68732daf68e4de0c1be12431663e8e340cb8e005f030b6ebc828"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohPathHintKind.swift": {
+      "original_sha256": "d49436ca7cfe605305dd4f2cccb7773f71de6da7ad20214e3b10109d6a7644de",
+      "compiled_sha256": "d49436ca7cfe605305dd4f2cccb7773f71de6da7ad20214e3b10109d6a7644de"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohPathHintSource.swift": {
+      "original_sha256": "789261b77eecc1baede28d2cd536d01e0058f11137f4655537156f3285805442",
+      "compiled_sha256": "789261b77eecc1baede28d2cd536d01e0058f11137f4655537156f3285805442"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohPathHintPrivacyScope.swift": {
+      "original_sha256": "3ea941df19c02aaa9fb9ecce662297d9c493340c5e63a7ffcdd0d770c2aeacc0",
+      "compiled_sha256": "3ea941df19c02aaa9fb9ecce662297d9c493340c5e63a7ffcdd0d770c2aeacc0"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohPathHintUse.swift": {
+      "original_sha256": "5d9f8110c0bcefbcde72c598ce147cddfa545a26d3650a16c7b342eb6ed3e41b",
+      "compiled_sha256": "5d9f8110c0bcefbcde72c598ce147cddfa545a26d3650a16c7b342eb6ed3e41b"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohPathHint+AddressValidation.swift": {
+      "original_sha256": "49be1d00be529b274879a896fce62c74e8e70e4f4fa6f636460a2587cef6cc32",
+      "compiled_sha256": "49be1d00be529b274879a896fce62c74e8e70e4f4fa6f636460a2587cef6cc32"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohNetworkProfileKey.swift": {
+      "original_sha256": "776251405960c5c6d457fe26d2b0c520b9d5f5b56232780f39ef106a0771bd4e",
+      "compiled_sha256": "776251405960c5c6d457fe26d2b0c520b9d5f5b56232780f39ef106a0771bd4e"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohNetworkProfileKeyError.swift": {
+      "original_sha256": "a353ed5d2214df9161603078a0d28e81455ea357a37b585f99dcdf7f10cee3b4",
+      "compiled_sha256": "a353ed5d2214df9161603078a0d28e81455ea357a37b585f99dcdf7f10cee3b4"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohRelayOrigin.swift": {
+      "original_sha256": "9a2be74b64db9cd8afa3f5294383003b23af7887d2a7c85ed0f736bea4c07b68",
+      "compiled_sha256": "9a2be74b64db9cd8afa3f5294383003b23af7887d2a7c85ed0f736bea4c07b68"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxLoopbackHost.swift": {
+      "original_sha256": "677d9574cfa7cb7163e90c18fcb90b9962604156ceea4b2623443f1fd045bfbb",
+      "compiled_sha256": "677d9574cfa7cb7163e90c18fcb90b9962604156ceea4b2623443f1fd045bfbb"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxTailscalePeerAddress.swift": {
+      "original_sha256": "3aa3eb6c9bf8d14582cf3a8d8a34885d400da4f382d7e56494172077d56ebb6d",
+      "compiled_sha256": "3aa3eb6c9bf8d14582cf3a8d8a34885d400da4f382d7e56494172077d56ebb6d"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/MobileIOSAppNamespace.swift": {
+      "original_sha256": "9f4b043aa698a8d2f5816189b4af2931a0f44abd933d41825a9d8bab581279e1",
+      "compiled_sha256": "9f4b043aa698a8d2f5816189b4af2931a0f44abd933d41825a9d8bab581279e1"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/MobileIOSBuildScope.swift": {
+      "original_sha256": "8969f31ca1e0fcd2f12736947156c58a0899ba85f929d787f108cfc83a55b40d",
+      "compiled_sha256": "8969f31ca1e0fcd2f12736947156c58a0899ba85f929d787f108cfc83a55b40d"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/MobileIOSLegacyBackupScope.swift": {
+      "original_sha256": "5d88605648de4a7fd752b520220db8fe648faf7b16ead4c36b0ba5099b7618eb",
+      "compiled_sha256": "5d88605648de4a7fd752b520220db8fe648faf7b16ead4c36b0ba5099b7618eb"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxAttachRouteDisclosure.swift": {
+      "original_sha256": "5423f730f98fae71124d8dd54e09b87faabf67c747f9aae6f0aa7667c968c64e",
+      "compiled_sha256": "5423f730f98fae71124d8dd54e09b87faabf67c747f9aae6f0aa7667c968c64e"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohDialPlan.swift": {
+      "original_sha256": "15010ac9e39110b219cc36b9e60b041eac7f281d76e7ddd5cbbbe502d34dfaa3",
+      "compiled_sha256": "15010ac9e39110b219cc36b9e60b041eac7f281d76e7ddd5cbbbe502d34dfaa3"
+    },
+    "Packages/Shared/CMUXMobileCore/Sources/CMUXMobileCore/CmxIrohTransportPolicy.swift": {
+      "original_sha256": "a624f2470381eabfbabc8be6182006b7057f77ac5315b3ec944a00eb3940bfa3",
+      "compiled_sha256": "a624f2470381eabfbabc8be6182006b7057f77ac5315b3ec944a00eb3940bfa3"
+    },
+    "Packages/iOS/CmuxMobileRPC/Sources/CmuxMobileRPC/CmxAttachTicketInput.swift": {
+      "original_sha256": "2d759477ef9966f716be877313f72049153bba8de4907e49491dc91f5aaac7b9",
+      "compiled_sha256": "2d759477ef9966f716be877313f72049153bba8de4907e49491dc91f5aaac7b9"
+    }
+  },
+  "runner_sha256": "0b6e675370edbd6c790f3996a0444da9404e346eb572793a2752c61f038b5fc6",
+  "extraction": "CmxTransport.swift prefix before public protocol CmxByteTransport:; all other sources unchanged",
+  "fixtures": [
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "full_mixed",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJob3N0IjoiMTAwLjY0LjAuNyIsInBvcnQiOjU4NDY1LCJ0eXBlIjoiaG9zdF9wb3J0In0sImlkIjoidGFpbHNjYWxlIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjowfSx7ImVuZHBvaW50Ijp7Imhvc3QiOiJtYWMuZXhhbXBsZS50cy5uZXQiLCJwb3J0Ijo1ODQ2NiwidHlwZSI6Imhvc3RfcG9ydCJ9LCJpZCI6InRhaWxzY2FsZV8yIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjotNH0seyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJ0eXBlIjoicGVlciJ9LCJpZCI6ImN1c3RvbSIsImtpbmQiOiJpcm9oIiwicHJpb3JpdHkiOjB9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": null,
+        "name": null,
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": null,
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"ab\":\"100\",\"av\":\"0.70.0\",\"d\":\"abcdefab-1234-5678-abcd-123456789abc\",\"pc\":1,\"r\":[{\"e\":{\"h\":\"100.64.0.7\",\"p\":58465},\"k\":\"tailscale\"},{\"e\":{\"h\":\"mac.example.ts.net\",\"p\":58466},\"k\":\"tailscale\",\"p\":-4},{\"e\":{\"i\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"i\":\"custom\",\"k\":\"iroh\"}],\"t\":\"surface\",\"u\":\"fixture-user\",\"v\":1,\"w\":\"workspace-🧪\"}",
+      "name": "compact_mixed",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": null,
+        "name": null,
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": null,
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhYiI6IjEwMCIsImF2IjoiMC43MC4wIiwiZCI6ImFiY2RlZmFiLTEyMzQtNTY3OC1hYmNkLTEyMzQ1Njc4OWFiYyIsInBjIjoxLCJyIjpbeyJlIjp7ImgiOiIxMDAuNjQuMC43IiwicCI6NTg0NjV9LCJrIjoidGFpbHNjYWxlIn0seyJlIjp7ImgiOiJtYWMuZXhhbXBsZS50cy5uZXQiLCJwIjo1ODQ2Nn0sImsiOiJ0YWlsc2NhbGUiLCJwIjotNH0seyJlIjp7ImkiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIn0sImkiOiJjdXN0b20iLCJrIjoiaXJvaCJ9XSwidCI6InN1cmZhY2UiLCJ1IjoiZml4dHVyZS11c2VyIiwidiI6MSwidyI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": null,
+        "name": null,
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": null,
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"ab\":\"100\",\"av\":\"0.70.0\",\"d\":\"abcdefab-1234-5678-abcd-123456789abc\",\"pc\":1,\"r\":[{\"e\":{\"i\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"i\":\"custom\",\"k\":\"iroh\"}],\"t\":\"surface\",\"u\":\"fixture-user\",\"v\":1,\"w\":\"workspace-🧪\"}",
+      "name": "compact_iroh_identity",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": null,
+        "name": null,
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": null,
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhYiI6IjEwMCIsImF2IjoiMC43MC4wIiwiZCI6ImFiY2RlZmFiLTEyMzQtNTY3OC1hYmNkLTEyMzQ1Njc4OWFiYyIsInBjIjoxLCJyIjpbeyJlIjp7ImkiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIn0sImkiOiJjdXN0b20iLCJrIjoiaXJvaCJ9XSwidCI6InN1cmZhY2UiLCJ1IjoiZml4dHVyZS11c2VyIiwidiI6MSwidyI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 1577836800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2020-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "expired_full_still_decodes",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 1577836800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMDIwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJob3N0IjoiMTAwLjY0LjAuNyIsInBvcnQiOjU4NDY1LCJ0eXBlIjoiaG9zdF9wb3J0In0sImlkIjoidGFpbHNjYWxlIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjowfSx7ImVuZHBvaW50Ijp7Imhvc3QiOiJtYWMuZXhhbXBsZS50cy5uZXQiLCJwb3J0Ijo1ODQ2NiwidHlwZSI6Imhvc3RfcG9ydCJ9LCJpZCI6InRhaWxzY2FsZV8yIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjotNH0seyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJ0eXBlIjoicGVlciJ9LCJpZCI6ImN1c3RvbSIsImtpbmQiOiJpcm9oIiwicHJpb3JpdHkiOjB9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 0,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "alias-token",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"authToken\":\"alias-token\",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "camel_token_unknown_compatibility",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": null,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "alias-token",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoVG9rZW4iOiJhbGlhcy10b2tlbiIsImV4cGlyZXNBdCI6IjIxMDAtMDEtMDFUMDA6MDA6MDBaIiwibWFjQXBwQnVpbGQiOiIxMDAiLCJtYWNBcHBWZXJzaW9uIjoiMC43MC4wIiwibWFjRGV2aWNlSUQiOiJhYmNkZWZhYi0xMjM0LTU2NzgtYWJjZC0xMjM0NTY3ODlhYmMiLCJtYWNEaXNwbGF5TmFtZSI6IkZpeHR1cmUgTWFjIiwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJob3N0IjoiMTAwLjY0LjAuNyIsInBvcnQiOjU4NDY1LCJ0eXBlIjoiaG9zdF9wb3J0In0sImlkIjoidGFpbHNjYWxlIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjowfSx7ImVuZHBvaW50Ijp7Imhvc3QiOiJtYWMuZXhhbXBsZS50cy5uZXQiLCJwb3J0Ijo1ODQ2NiwidHlwZSI6Imhvc3RfcG9ydCJ9LCJpZCI6InRhaWxzY2FsZV8yIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjotNH0seyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJ0eXBlIjoicGVlciJ9LCJpZCI6ImN1c3RvbSIsImtpbmQiOiJpcm9oIiwicHJpb3JpdHkiOjB9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"authToken\":\"ignored-alias\",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "canonical_token_wins",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJhdXRoVG9rZW4iOiJpZ25vcmVkLWFsaWFzIiwiZXhwaXJlc0F0IjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJtYWNBcHBCdWlsZCI6IjEwMCIsIm1hY0FwcFZlcnNpb24iOiIwLjcwLjAiLCJtYWNEZXZpY2VJRCI6ImFiY2RlZmFiLTEyMzQtNTY3OC1hYmNkLTEyMzQ1Njc4OWFiYyIsIm1hY0Rpc3BsYXlOYW1lIjoiRml4dHVyZSBNYWMiLCJtYWNQYWlyaW5nQ29tcGF0aWJpbGl0eVZlcnNpb24iOjEsIm1hY1VzZXJJRCI6ImZpeHR1cmUtdXNlciIsInJvdXRlcyI6W3siZW5kcG9pbnQiOnsiaG9zdCI6IjEwMC42NC4wLjciLCJwb3J0Ijo1ODQ2NSwidHlwZSI6Imhvc3RfcG9ydCJ9LCJpZCI6InRhaWxzY2FsZSIsImtpbmQiOiJ0YWlsc2NhbGUiLCJwcmlvcml0eSI6MH0seyJlbmRwb2ludCI6eyJob3N0IjoibWFjLmV4YW1wbGUudHMubmV0IiwicG9ydCI6NTg0NjYsInR5cGUiOiJob3N0X3BvcnQifSwiaWQiOiJ0YWlsc2NhbGVfMiIsImtpbmQiOiJ0YWlsc2NhbGUiLCJwcmlvcml0eSI6LTR9LHsiZW5kcG9pbnQiOnsiaWQiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwidHlwZSI6InBlZXIifSwiaWQiOiJjdXN0b20iLCJraW5kIjoiaXJvaCIsInByaW9yaXR5IjowfV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "alias-token",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":null,\"authToken\":\"alias-token\",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "null_canonical_uses_alias",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "alias-token",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjpudWxsLCJhdXRoVG9rZW4iOiJhbGlhcy10b2tlbiIsImV4cGlyZXNBdCI6IjIxMDAtMDEtMDFUMDA6MDA6MDBaIiwibWFjQXBwQnVpbGQiOiIxMDAiLCJtYWNBcHBWZXJzaW9uIjoiMC43MC4wIiwibWFjRGV2aWNlSUQiOiJhYmNkZWZhYi0xMjM0LTU2NzgtYWJjZC0xMjM0NTY3ODlhYmMiLCJtYWNEaXNwbGF5TmFtZSI6IkZpeHR1cmUgTWFjIiwibWFjUGFpcmluZ0NvbXBhdGliaWxpdHlWZXJzaW9uIjoxLCJtYWNVc2VySUQiOiJmaXh0dXJlLXVzZXIiLCJyb3V0ZXMiOlt7ImVuZHBvaW50Ijp7Imhvc3QiOiIxMDAuNjQuMC43IiwicG9ydCI6NTg0NjUsInR5cGUiOiJob3N0X3BvcnQifSwiaWQiOiJ0YWlsc2NhbGUiLCJraW5kIjoidGFpbHNjYWxlIiwicHJpb3JpdHkiOjB9LHsiZW5kcG9pbnQiOnsiaG9zdCI6Im1hYy5leGFtcGxlLnRzLm5ldCIsInBvcnQiOjU4NDY2LCJ0eXBlIjoiaG9zdF9wb3J0In0sImlkIjoidGFpbHNjYWxlXzIiLCJraW5kIjoidGFpbHNjYWxlIiwicHJpb3JpdHkiOi00fSx7ImVuZHBvaW50Ijp7ImlkIjoiYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYSIsInR5cGUiOiJwZWVyIn0sImlkIjoiY3VzdG9tIiwia2luZCI6Imlyb2giLCJwcmlvcml0eSI6MH1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": null,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": null,
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": ""
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":null,\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":null,\"version\":1,\"workspaceID\":\"\"}",
+      "name": "mac_wide_without_expiry",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": null,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": null,
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": ""
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOm51bGwsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJob3N0IjoiMTAwLjY0LjAuNyIsInBvcnQiOjU4NDY1LCJ0eXBlIjoiaG9zdF9wb3J0In0sImlkIjoidGFpbHNjYWxlIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjowfSx7ImVuZHBvaW50Ijp7Imhvc3QiOiJtYWMuZXhhbXBsZS50cy5uZXQiLCJwb3J0Ijo1ODQ2NiwidHlwZSI6Imhvc3RfcG9ydCJ9LCJpZCI6InRhaWxzY2FsZV8yIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjotNH0seyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJ0eXBlIjoicGVlciJ9LCJpZCI6ImN1c3RvbSIsImtpbmQiOiJpcm9oIiwicHJpb3JpdHkiOjB9XSwidGVybWluYWxJRCI6bnVsbCwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiIifQ"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": null,
+        "appVersion": null,
+        "compatibility": 0,
+        "device": "opaque CASE ",
+        "email": "fixture@example.invalid",
+        "expires": null,
+        "name": null,
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.8",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "explicit",
+            "kind": "tailscale",
+            "priority": 0
+          }
+        ],
+        "terminal": null,
+        "token": null,
+        "user": null,
+        "workspace": ""
+      },
+      "json": "{\"auth_token\":\"ignored-compact-token\",\"d\":\"opaque CASE \",\"e\":\"ignored\",\"n\":\"ignored\",\"r\":[{\"e\":{\"h\":\"100.64.0.8\",\"p\":58465,\"t\":\"host_port\"},\"i\":\"explicit\",\"k\":\"tailscale\"}],\"u\":\"fixture@example.invalid\",\"v\":1}",
+      "name": "first_compact_revision",
+      "rawExpected": {
+        "appBuild": null,
+        "appVersion": null,
+        "compatibility": 0,
+        "device": "opaque CASE ",
+        "email": "fixture@example.invalid",
+        "expires": null,
+        "name": null,
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.8",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "explicit",
+            "kind": "tailscale",
+            "priority": 0
+          }
+        ],
+        "terminal": null,
+        "token": null,
+        "user": null,
+        "workspace": ""
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiaWdub3JlZC1jb21wYWN0LXRva2VuIiwiZCI6Im9wYXF1ZSBDQVNFICIsImUiOiJpZ25vcmVkIiwibiI6Imlnbm9yZWQiLCJyIjpbeyJlIjp7ImgiOiIxMDAuNjQuMC44IiwicCI6NTg0NjUsInQiOiJob3N0X3BvcnQifSwiaSI6ImV4cGxpY2l0IiwiayI6InRhaWxzY2FsZSJ9XSwidSI6ImZpeHR1cmVAZXhhbXBsZS5pbnZhbGlkIiwidiI6MX0"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": null,
+        "appVersion": null,
+        "compatibility": 0,
+        "device": "opaque CASE ",
+        "email": "fixture@example.invalid",
+        "expires": null,
+        "name": null,
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.8",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          }
+        ],
+        "terminal": null,
+        "token": null,
+        "user": null,
+        "workspace": ""
+      },
+      "json": "{\"auth_token\":\"ignored-compact-token\",\"d\":\"opaque CASE \",\"e\":\"ignored\",\"n\":\"ignored\",\"r\":[{\"e\":{\"h\":\"100.64.0.8\",\"i\":\"ignored\",\"p\":58465,\"t\":\"host_port\"},\"k\":\"tailscale\"}],\"u\":\"fixture@example.invalid\",\"v\":1}",
+      "name": "explicit_endpoint_type_wins",
+      "rawExpected": {
+        "appBuild": null,
+        "appVersion": null,
+        "compatibility": 0,
+        "device": "opaque CASE ",
+        "email": "fixture@example.invalid",
+        "expires": null,
+        "name": null,
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.8",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          }
+        ],
+        "terminal": null,
+        "token": null,
+        "user": null,
+        "workspace": ""
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiaWdub3JlZC1jb21wYWN0LXRva2VuIiwiZCI6Im9wYXF1ZSBDQVNFICIsImUiOiJpZ25vcmVkIiwibiI6Imlnbm9yZWQiLCJyIjpbeyJlIjp7ImgiOiIxMDAuNjQuMC44IiwiaSI6Imlnbm9yZWQiLCJwIjo1ODQ2NSwidCI6Imhvc3RfcG9ydCJ9LCJrIjoidGFpbHNjYWxlIn1dLCJ1IjoiZml4dHVyZUBleGFtcGxlLmludmFsaWQiLCJ2IjoxfQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\"ignored-compact-token\",\"d\":\"opaque CASE \",\"e\":\"ignored\",\"n\":\"ignored\",\"r\":[{\"e\":{\"h\":\"100.64.0.8\",\"i\":7,\"p\":58465,\"t\":\"host_port\"},\"k\":\"tailscale\"}],\"u\":\"fixture@example.invalid\",\"v\":1}",
+      "name": "compact_type_checks_unused_fields",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiaWdub3JlZC1jb21wYWN0LXRva2VuIiwiZCI6Im9wYXF1ZSBDQVNFICIsImUiOiJpZ25vcmVkIiwibiI6Imlnbm9yZWQiLCJyIjpbeyJlIjp7ImgiOiIxMDAuNjQuMC44IiwiaSI6NywicCI6NTg0NjUsInQiOiJob3N0X3BvcnQifSwiayI6InRhaWxzY2FsZSJ9XSwidSI6ImZpeHR1cmVAZXhhbXBsZS5pbnZhbGlkIiwidiI6MX0"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 1893456000500,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2030-01-01T00:00:00.500Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "fractional_date",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 1893456000500,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          },
+          {
+            "endpoint": {
+              "host": "mac.example.ts.net",
+              "port": 58466,
+              "type": "host_port"
+            },
+            "id": "tailscale_2",
+            "kind": "tailscale",
+            "priority": -4
+          },
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "custom",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMDMwLTAxLTAxVDAwOjAwOjAwLjUwMFoiLCJtYWNBcHBCdWlsZCI6IjEwMCIsIm1hY0FwcFZlcnNpb24iOiIwLjcwLjAiLCJtYWNEZXZpY2VJRCI6ImFiY2RlZmFiLTEyMzQtNTY3OC1hYmNkLTEyMzQ1Njc4OWFiYyIsIm1hY0Rpc3BsYXlOYW1lIjoiRml4dHVyZSBNYWMiLCJtYWNQYWlyaW5nQ29tcGF0aWJpbGl0eVZlcnNpb24iOjEsIm1hY1VzZXJJRCI6ImZpeHR1cmUtdXNlciIsInJvdXRlcyI6W3siZW5kcG9pbnQiOnsiaG9zdCI6IjEwMC42NC4wLjciLCJwb3J0Ijo1ODQ2NSwidHlwZSI6Imhvc3RfcG9ydCJ9LCJpZCI6InRhaWxzY2FsZSIsImtpbmQiOiJ0YWlsc2NhbGUiLCJwcmlvcml0eSI6MH0seyJlbmRwb2ludCI6eyJob3N0IjoibWFjLmV4YW1wbGUudHMubmV0IiwicG9ydCI6NTg0NjYsInR5cGUiOiJob3N0X3BvcnQifSwiaWQiOiJ0YWlsc2NhbGVfMiIsImtpbmQiOiJ0YWlsc2NhbGUiLCJwcmlvcml0eSI6LTR9LHsiZW5kcG9pbnQiOnsiaWQiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwidHlwZSI6InBlZXIifSwiaWQiOiJjdXN0b20iLCJraW5kIjoiaXJvaCIsInByaW9yaXR5IjowfV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "type": "url",
+              "url": "wss://fixture.invalid/rpc"
+            },
+            "id": "web",
+            "kind": "websocket",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"type\":\"url\",\"url\":\"wss:\\/\\/fixture.invalid\\/rpc\"},\"id\":\"web\",\"kind\":\"websocket\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "websocket_shape",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "type": "url",
+              "url": "wss://fixture.invalid/rpc"
+            },
+            "id": "web",
+            "kind": "websocket",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJ0eXBlIjoidXJsIiwidXJsIjoid3NzOlwvXC9maXh0dXJlLmludmFsaWRcL3JwYyJ9LCJpZCI6IndlYiIsImtpbmQiOiJ3ZWJzb2NrZXQifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "127.0.0.1",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "loopback",
+            "kind": "debug_loopback",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"127.0.0.1\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"loopback\",\"kind\":\"debug_loopback\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "loopback_is_structural_only",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "127.0.0.1",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "loopback",
+            "kind": "debug_loopback",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJob3N0IjoiMTI3LjAuMC4xIiwicG9ydCI6NTg0NjUsInR5cGUiOiJob3N0X3BvcnQifSwiaWQiOiJsb29wYmFjayIsImtpbmQiOiJkZWJ1Z19sb29wYmFjayJ9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "relay_identifier",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "relay_1"
+                },
+                {
+                  "expires": null,
+                  "inert": true,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "private_network",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "100.64.0.9:4444"
+                },
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "relay_url",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "https://relay.example.com"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"direct_addrs\":[\"100.64.0.9:4444\"],\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"relay_hint\":\"relay_1\",\"relay_url\":\"https:\\/\\/relay.example.com\",\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "legacy_peer_hints",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "relay_identifier",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "relay_1"
+                },
+                {
+                  "expires": null,
+                  "inert": true,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "private_network",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "100.64.0.9:4444"
+                },
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "relay_url",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "https://relay.example.com"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJkaXJlY3RfYWRkcnMiOlsiMTAwLjY0LjAuOTo0NDQ0Il0sImlkIjoiYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYSIsInJlbGF5X2hpbnQiOiJyZWxheV8xIiwicmVsYXlfdXJsIjoiaHR0cHM6XC9cL3JlbGF5LmV4YW1wbGUuY29tIiwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": true,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "private_network",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "not-an-address"
+                },
+                {
+                  "expires": null,
+                  "inert": true,
+                  "kind": "relay_url",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "http://127.0.0.1"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"direct_addrs\":[\"not-an-address\"],\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"relay_url\":\"http:\\/\\/127.0.0.1\",\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "unsafe_legacy_hint_is_inert",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": true,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "private_network",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "not-an-address"
+                },
+                {
+                  "expires": null,
+                  "inert": true,
+                  "kind": "relay_url",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "http://127.0.0.1"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJkaXJlY3RfYWRkcnMiOlsibm90LWFuLWFkZHJlc3MiXSwiaWQiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicmVsYXlfdXJsIjoiaHR0cDpcL1wvMTI3LjAuMC4xIiwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "8.8.8.8:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "current_public_hint",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "8.8.8.8:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiI4LjguOC44OjQ0NDQifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": 1893459600000,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": 1893456000000,
+                  "privacy": "private_network",
+                  "profileId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "profileSource": "tailscale",
+                  "source": "tailscale",
+                  "value": "100.64.0.9:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"expires_at\":\"2030-01-01T01:00:00Z\",\"kind\":\"direct_address\",\"network_profile\":{\"profile_id\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"source\":\"tailscale\"},\"observed_at\":\"2030-01-01T00:00:00Z\",\"privacy_scope\":\"private_network\",\"source\":\"tailscale\",\"value\":\"100.64.0.9:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "current_private_hint",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": 1893459600000,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": 1893456000000,
+                  "privacy": "private_network",
+                  "profileId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "profileSource": "tailscale",
+                  "source": "tailscale",
+                  "value": "100.64.0.9:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJleHBpcmVzX2F0IjoiMjAzMC0wMS0wMVQwMTowMDowMFoiLCJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJuZXR3b3JrX3Byb2ZpbGUiOnsicHJvZmlsZV9pZCI6ImJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmIiLCJzb3VyY2UiOiJ0YWlsc2NhbGUifSwib2JzZXJ2ZWRfYXQiOiIyMDMwLTAxLTAxVDAwOjAwOjAwWiIsInByaXZhY3lfc2NvcGUiOiJwcml2YXRlX25ldHdvcmsiLCJzb3VyY2UiOiJ0YWlsc2NhbGUiLCJ2YWx1ZSI6IjEwMC42NC4wLjk6NDQ0NCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": true,
+                  "kind": "direct_address",
+                  "observed": 1893456000000,
+                  "privacy": "private_network",
+                  "profileId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "profileSource": "tailscale",
+                  "source": "tailscale",
+                  "value": "100.64.0.9:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"network_profile\":{\"profile_id\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"source\":\"tailscale\"},\"observed_at\":\"2030-01-01T00:00:00Z\",\"privacy_scope\":\"private_network\",\"source\":\"tailscale\",\"value\":\"100.64.0.9:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "incomplete_private_hint_is_inert",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": true,
+                  "kind": "direct_address",
+                  "observed": 1893456000000,
+                  "privacy": "private_network",
+                  "profileId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "profileSource": "tailscale",
+                  "source": "tailscale",
+                  "value": "100.64.0.9:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJuZXR3b3JrX3Byb2ZpbGUiOnsicHJvZmlsZV9pZCI6ImJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmIiLCJzb3VyY2UiOiJ0YWlsc2NhbGUifSwib2JzZXJ2ZWRfYXQiOiIyMDMwLTAxLTAxVDAwOjAwOjAwWiIsInByaXZhY3lfc2NvcGUiOiJwcml2YXRlX25ldHdvcmsiLCJzb3VyY2UiOiJ0YWlsc2NhbGUiLCJ2YWx1ZSI6IjEwMC42NC4wLjk6NDQ0NCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": null,
+        "appVersion": null,
+        "compatibility": 0,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture",
+        "routes": [
+          {
+            "endpoint": {
+              "host": "100.64.0.7",
+              "port": 58465,
+              "type": "host_port"
+            },
+            "id": "tailscale",
+            "kind": "tailscale",
+            "priority": 0
+          }
+        ],
+        "terminal": null,
+        "token": null,
+        "user": null,
+        "workspace": "workspace-main"
+      },
+      "json": "{\"expires_at\":\"2100-01-01T00:00:00Z\",\"host\":\"100.64.0.7\",\"mac_device_id\":\"ABCDEFAB-1234-5678-ABCD-123456789ABC\",\"mac_display_name\":\"Fixture\",\"port\":58465,\"transport\":\"tailscale\",\"version\":1}",
+      "name": "ancient_pair",
+      "url": "cmux-ios://pair?v=1&payload=eyJleHBpcmVzX2F0IjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJob3N0IjoiMTAwLjY0LjAuNyIsIm1hY19kZXZpY2VfaWQiOiJBQkNERUZBQi0xMjM0LTU2NzgtQUJDRC0xMjM0NTY3ODlBQkMiLCJtYWNfZGlzcGxheV9uYW1lIjoiRml4dHVyZSIsInBvcnQiOjU4NDY1LCJ0cmFuc3BvcnQiOiJ0YWlsc2NhbGUiLCJ2ZXJzaW9uIjoxfQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"expires_at\":\"2020-01-01T00:00:00Z\",\"host\":\"100.64.0.7\",\"mac_device_id\":\"ABCDEFAB-1234-5678-ABCD-123456789ABC\",\"mac_display_name\":\"Fixture\",\"port\":58465,\"transport\":\"tailscale\",\"version\":1}",
+      "name": "expired_ancient_pair",
+      "url": "cmux-ios://pair?v=1&payload=eyJleHBpcmVzX2F0IjoiMjAyMC0wMS0wMVQwMDowMDowMFoiLCJob3N0IjoiMTAwLjY0LjAuNyIsIm1hY19kZXZpY2VfaWQiOiJBQkNERUZBQi0xMjM0LTU2NzgtQUJDRC0xMjM0NTY3ODlBQkMiLCJtYWNfZGlzcGxheV9uYW1lIjoiRml4dHVyZSIsInBvcnQiOjU4NDY1LCJ0cmFuc3BvcnQiOiJ0YWlsc2NhbGUiLCJ2ZXJzaW9uIjoxfQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"expires_at\":\"2100-01-01T00:00:00Z\",\"host\":\"100.64.0.7\",\"mac_device_id\":\"ABCDEFAB-1234-5678-ABCD-123456789ABC\",\"mac_display_name\":\"Fixture\",\"port\":58465,\"some_secret\":\"synthetic\",\"transport\":\"tailscale\",\"version\":1}",
+      "name": "ancient_forbids_secret_fields",
+      "url": "cmux-ios://pair?v=1&payload=eyJleHBpcmVzX2F0IjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJob3N0IjoiMTAwLjY0LjAuNyIsIm1hY19kZXZpY2VfaWQiOiJBQkNERUZBQi0xMjM0LTU2NzgtQUJDRC0xMjM0NTY3ODlBQkMiLCJtYWNfZGlzcGxheV9uYW1lIjoiRml4dHVyZSIsInBvcnQiOjU4NDY1LCJzb21lX3NlY3JldCI6InN5bnRoZXRpYyIsInRyYW5zcG9ydCI6InRhaWxzY2FsZSIsInZlcnNpb24iOjF9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":\"surface\",\"version\":2,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "unknown_version",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJob3N0IjoiMTAwLjY0LjAuNyIsInBvcnQiOjU4NDY1LCJ0eXBlIjoiaG9zdF9wb3J0In0sImlkIjoidGFpbHNjYWxlIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjowfSx7ImVuZHBvaW50Ijp7Imhvc3QiOiJtYWMuZXhhbXBsZS50cy5uZXQiLCJwb3J0Ijo1ODQ2NiwidHlwZSI6Imhvc3RfcG9ydCJ9LCJpZCI6InRhaWxzY2FsZV8yIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjotNH0seyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJ0eXBlIjoicGVlciJ9LCJpZCI6ImN1c3RvbSIsImtpbmQiOiJpcm9oIiwicHJpb3JpdHkiOjB9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoyLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "no_routes",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbXSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" \\n\",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "blank_token",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIFxuIiwiZXhwaXJlc0F0IjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJtYWNBcHBCdWlsZCI6IjEwMCIsIm1hY0FwcFZlcnNpb24iOiIwLjcwLjAiLCJtYWNEZXZpY2VJRCI6ImFiY2RlZmFiLTEyMzQtNTY3OC1hYmNkLTEyMzQ1Njc4OWFiYyIsIm1hY0Rpc3BsYXlOYW1lIjoiRml4dHVyZSBNYWMiLCJtYWNQYWlyaW5nQ29tcGF0aWJpbGl0eVZlcnNpb24iOjEsIm1hY1VzZXJJRCI6ImZpeHR1cmUtdXNlciIsInJvdXRlcyI6W3siZW5kcG9pbnQiOnsiaG9zdCI6IjEwMC42NC4wLjciLCJwb3J0Ijo1ODQ2NSwidHlwZSI6Imhvc3RfcG9ydCJ9LCJpZCI6InRhaWxzY2FsZSIsImtpbmQiOiJ0YWlsc2NhbGUiLCJwcmlvcml0eSI6MH0seyJlbmRwb2ludCI6eyJob3N0IjoibWFjLmV4YW1wbGUudHMubmV0IiwicG9ydCI6NTg0NjYsInR5cGUiOiJob3N0X3BvcnQifSwiaWQiOiJ0YWlsc2NhbGVfMiIsImtpbmQiOiJ0YWlsc2NhbGUiLCJwcmlvcml0eSI6LTR9LHsiZW5kcG9pbnQiOnsiaWQiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwidHlwZSI6InBlZXIifSwiaWQiOiJjdXN0b20iLCJraW5kIjoiaXJvaCIsInByaW9yaXR5IjowfV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":7}",
+      "name": "wrong_workspace_type",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJob3N0IjoiMTAwLjY0LjAuNyIsInBvcnQiOjU4NDY1LCJ0eXBlIjoiaG9zdF9wb3J0In0sImlkIjoidGFpbHNjYWxlIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjowfSx7ImVuZHBvaW50Ijp7Imhvc3QiOiJtYWMuZXhhbXBsZS50cy5uZXQiLCJwb3J0Ijo1ODQ2NiwidHlwZSI6Imhvc3RfcG9ydCJ9LCJpZCI6InRhaWxzY2FsZV8yIiwia2luZCI6InRhaWxzY2FsZSIsInByaW9yaXR5IjotNH0seyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJ0eXBlIjoicGVlciJ9LCJpZCI6ImN1c3RvbSIsImtpbmQiOiJpcm9oIiwicHJpb3JpdHkiOjB9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6N30"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"yesterday\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"tailscale\",\"kind\":\"tailscale\",\"priority\":0},{\"endpoint\":{\"host\":\"mac.example.ts.net\",\"port\":58466,\"type\":\"host_port\"},\"id\":\"tailscale_2\",\"kind\":\"tailscale\",\"priority\":-4},{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"type\":\"peer\"},\"id\":\"custom\",\"kind\":\"iroh\",\"priority\":0}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "invalid_date",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiJ5ZXN0ZXJkYXkiLCJtYWNBcHBCdWlsZCI6IjEwMCIsIm1hY0FwcFZlcnNpb24iOiIwLjcwLjAiLCJtYWNEZXZpY2VJRCI6ImFiY2RlZmFiLTEyMzQtNTY3OC1hYmNkLTEyMzQ1Njc4OWFiYyIsIm1hY0Rpc3BsYXlOYW1lIjoiRml4dHVyZSBNYWMiLCJtYWNQYWlyaW5nQ29tcGF0aWJpbGl0eVZlcnNpb24iOjEsIm1hY1VzZXJJRCI6ImZpeHR1cmUtdXNlciIsInJvdXRlcyI6W3siZW5kcG9pbnQiOnsiaG9zdCI6IjEwMC42NC4wLjciLCJwb3J0Ijo1ODQ2NSwidHlwZSI6Imhvc3RfcG9ydCJ9LCJpZCI6InRhaWxzY2FsZSIsImtpbmQiOiJ0YWlsc2NhbGUiLCJwcmlvcml0eSI6MH0seyJlbmRwb2ludCI6eyJob3N0IjoibWFjLmV4YW1wbGUudHMubmV0IiwicG9ydCI6NTg0NjYsInR5cGUiOiJob3N0X3BvcnQifSwiaWQiOiJ0YWlsc2NhbGVfMiIsImtpbmQiOiJ0YWlsc2NhbGUiLCJwcmlvcml0eSI6LTR9LHsiZW5kcG9pbnQiOnsiaWQiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwidHlwZSI6InBlZXIifSwiaWQiOiJjdXN0b20iLCJraW5kIjoiaXJvaCIsInByaW9yaXR5IjowfV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"host\":\"100.64.0.7\",\"port\":58465,\"type\":\"host_port\"},\"id\":\"bad\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "endpoint_kind_mismatch",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJob3N0IjoiMTAwLjY0LjAuNyIsInBvcnQiOjU4NDY1LCJ0eXBlIjoiaG9zdF9wb3J0In0sImlkIjoiYmFkIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"type\":\"peer\"},\"id\":\"bad\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "noncanonical_peer",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6IkFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEiLCJ0eXBlIjoicGVlciJ9LCJpZCI6ImJhZCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"},{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "too_many_hints",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiI4LjguOC44OjQ0NDQifSx7ImtpbmQiOiJkaXJlY3RfYWRkcmVzcyIsInByaXZhY3lfc2NvcGUiOiJwdWJsaWNfaW50ZXJuZXQiLCJzb3VyY2UiOiJuYXRpdmUiLCJ2YWx1ZSI6IjguOC44Ljg6NDQ0NCJ9LHsia2luZCI6ImRpcmVjdF9hZGRyZXNzIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiOC44LjguODo0NDQ0In0seyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiI4LjguOC44OjQ0NDQifSx7ImtpbmQiOiJkaXJlY3RfYWRkcmVzcyIsInByaXZhY3lfc2NvcGUiOiJwdWJsaWNfaW50ZXJuZXQiLCJzb3VyY2UiOiJuYXRpdmUiLCJ2YWx1ZSI6IjguOC44Ljg6NDQ0NCJ9LHsia2luZCI6ImRpcmVjdF9hZGRyZXNzIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiOC44LjguODo0NDQ0In0seyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiI4LjguOC44OjQ0NDQifSx7ImtpbmQiOiJkaXJlY3RfYWRkcmVzcyIsInByaXZhY3lfc2NvcGUiOiJwdWJsaWNfaW50ZXJuZXQiLCJzb3VyY2UiOiJuYXRpdmUiLCJ2YWx1ZSI6IjguOC44Ljg6NDQ0NCJ9LHsia2luZCI6ImRpcmVjdF9hZGRyZXNzIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiOC44LjguODo0NDQ0In0seyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiI4LjguOC44OjQ0NDQifSx7ImtpbmQiOiJkaXJlY3RfYWRkcmVzcyIsInByaXZhY3lfc2NvcGUiOiJwdWJsaWNfaW50ZXJuZXQiLCJzb3VyY2UiOiJuYXRpdmUiLCJ2YWx1ZSI6IjguOC44Ljg6NDQ0NCJ9LHsia2luZCI6ImRpcmVjdF9hZGRyZXNzIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiOC44LjguODo0NDQ0In0seyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiI4LjguOC44OjQ0NDQifSx7ImtpbmQiOiJkaXJlY3RfYWRkcmVzcyIsInByaXZhY3lfc2NvcGUiOiJwdWJsaWNfaW50ZXJuZXQiLCJzb3VyY2UiOiJuYXRpdmUiLCJ2YWx1ZSI6IjguOC44Ljg6NDQ0NCJ9LHsia2luZCI6ImRpcmVjdF9hZGRyZXNzIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiOC44LjguODo0NDQ0In0seyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiI4LjguOC44OjQ0NDQifSx7ImtpbmQiOiJkaXJlY3RfYWRkcmVzcyIsInByaXZhY3lfc2NvcGUiOiJwdWJsaWNfaW50ZXJuZXQiLCJzb3VyY2UiOiJuYXRpdmUiLCJ2YWx1ZSI6IjguOC44Ljg6NDQ0NCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"127.0.0.1:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_127.0.0.1:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiIxMjcuMC4wLjE6ODAifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"10.0.0.1:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_10.0.0.1:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiIxMC4wLjAuMTo4MCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"192.0.2.1:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_192.0.2.1:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiIxOTIuMC4yLjE6ODAifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"[::1]:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_[::1]:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiJbOjoxXTo4MCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"[2001:db8::1]:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_[2001:db8::1]:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiJbMjAwMTpkYjg6OjFdOjgwIn1dLCJ0eXBlIjoicGVlciJ9LCJpZCI6Imlyb2giLCJraW5kIjoiaXJvaCJ9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"[::ffff:127.0.0.1]:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_[::ffff:127.0.0.1]:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiJbOjpmZmZmOjEyNy4wLjAuMV06ODAifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:080\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_8.8.8.8:080",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiI4LjguOC44OjA4MCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"[8.8.8.8]:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_[8.8.8.8]:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiJbOC44LjguOF06ODAifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"169.254.1.1:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_169.254.1.1:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiIxNjkuMjU0LjEuMTo4MCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"[fe80::1]:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_[fe80::1]:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiJbZmU4MDo6MV06ODAifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"[fd00:ec2::254]:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_[fd00:ec2::254]:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiJbZmQwMDplYzI6OjI1NF06ODAifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"[3fff::1]:80\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_public_[3fff::1]:80",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiJbM2ZmZjo6MV06ODAifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "1.1.1.1:443"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"1.1.1.1:443\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "valid_public_1.1.1.1:443",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "1.1.1.1:443"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiIxLjEuMS4xOjQ0MyJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "[2606:4700:4700::1111]:443"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"[2606:4700:4700::1111]:443\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "valid_public_[2606:4700:4700::1111]:443",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "[2606:4700:4700::1111]:443"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiJbMjYwNjo0NzAwOjQ3MDA6OjExMTFdOjQ0MyJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "[::ffff:8.8.8.8]:443"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"[::ffff:8.8.8.8]:443\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "valid_public_[::ffff:8.8.8.8]:443",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": null,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": null,
+                  "privacy": "public_internet",
+                  "profileId": null,
+                  "profileSource": null,
+                  "source": "native",
+                  "value": "[::ffff:8.8.8.8]:443"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJwcml2YWN5X3Njb3BlIjoicHVibGljX2ludGVybmV0Iiwic291cmNlIjoibmF0aXZlIiwidmFsdWUiOiJbOjpmZmZmOjguOC44LjhdOjQ0MyJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"relay_url\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"http:\\/\\/relay.example.com\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_relay_http://relay.example.com",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoicmVsYXlfdXJsIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiaHR0cDpcL1wvcmVsYXkuZXhhbXBsZS5jb20ifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"relay_url\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"https:\\/\\/relay.local\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_relay_https://relay.local",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoicmVsYXlfdXJsIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiaHR0cHM6XC9cL3JlbGF5LmxvY2FsIn1dLCJ0eXBlIjoicGVlciJ9LCJpZCI6Imlyb2giLCJraW5kIjoiaXJvaCJ9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"relay_url\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"https:\\/\\/127.0.0.1\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_relay_https://127.0.0.1",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoicmVsYXlfdXJsIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiaHR0cHM6XC9cLzEyNy4wLjAuMSJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"relay_url\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"https:\\/\\/user@relay.example.com\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_relay_https://user@relay.example.com",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoicmVsYXlfdXJsIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiaHR0cHM6XC9cL3VzZXJAcmVsYXkuZXhhbXBsZS5jb20ifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"relay_url\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"https:\\/\\/relay.example.com\\/path\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_relay_https://relay.example.com/path",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoicmVsYXlfdXJsIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiaHR0cHM6XC9cL3JlbGF5LmV4YW1wbGUuY29tXC9wYXRoIn1dLCJ0eXBlIjoicGVlciJ9LCJpZCI6Imlyb2giLCJraW5kIjoiaXJvaCJ9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"relay_url\",\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"https:\\/\\/relay.example.com?x=1\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "forbidden_relay_https://relay.example.com?x=1",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoicmVsYXlfdXJsIiwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiaHR0cHM6XC9cL3JlbGF5LmV4YW1wbGUuY29tP3g9MSJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"expires_at\":\"2030-01-01T01:00:01Z\",\"kind\":\"direct_address\",\"network_profile\":{\"profile_id\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"source\":\"tailscale\"},\"observed_at\":\"2030-01-01T00:00:00Z\",\"privacy_scope\":\"private_network\",\"source\":\"tailscale\",\"value\":\"100.64.0.9:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "private_ttl_exceeded",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJleHBpcmVzX2F0IjoiMjAzMC0wMS0wMVQwMTowMDowMVoiLCJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJuZXR3b3JrX3Byb2ZpbGUiOnsicHJvZmlsZV9pZCI6ImJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmIiLCJzb3VyY2UiOiJ0YWlsc2NhbGUifSwib2JzZXJ2ZWRfYXQiOiIyMDMwLTAxLTAxVDAwOjAwOjAwWiIsInByaXZhY3lfc2NvcGUiOiJwcml2YXRlX25ldHdvcmsiLCJzb3VyY2UiOiJ0YWlsc2NhbGUiLCJ2YWx1ZSI6IjEwMC42NC4wLjk6NDQ0NCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"expires_at\":\"2030-01-01T01:00:00Z\",\"kind\":\"direct_address\",\"network_profile\":{\"profile_id\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"source\":\"lan\"},\"observed_at\":\"2030-01-01T00:00:00Z\",\"privacy_scope\":\"private_network\",\"source\":\"tailscale\",\"value\":\"100.64.0.9:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "profile_source_mismatch",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJleHBpcmVzX2F0IjoiMjAzMC0wMS0wMVQwMTowMDowMFoiLCJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJuZXR3b3JrX3Byb2ZpbGUiOnsicHJvZmlsZV9pZCI6ImJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmIiLCJzb3VyY2UiOiJsYW4ifSwib2JzZXJ2ZWRfYXQiOiIyMDMwLTAxLTAxVDAwOjAwOjAwWiIsInByaXZhY3lfc2NvcGUiOiJwcml2YXRlX25ldHdvcmsiLCJzb3VyY2UiOiJ0YWlsc2NhbGUiLCJ2YWx1ZSI6IjEwMC42NC4wLjk6NDQ0NCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"expires_at\":\"2030-01-01T00:00:00Z\",\"kind\":\"direct_address\",\"network_profile\":{\"profile_id\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"source\":\"tailscale\"},\"observed_at\":\"2030-01-01T00:00:00Z\",\"privacy_scope\":\"private_network\",\"source\":\"tailscale\",\"value\":\"100.64.0.9:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "zero_private_lifetime",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJleHBpcmVzX2F0IjoiMjAzMC0wMS0wMVQwMDowMDowMFoiLCJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJuZXR3b3JrX3Byb2ZpbGUiOnsicHJvZmlsZV9pZCI6ImJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmIiLCJzb3VyY2UiOiJ0YWlsc2NhbGUifSwib2JzZXJ2ZWRfYXQiOiIyMDMwLTAxLTAxVDAwOjAwOjAwWiIsInByaXZhY3lfc2NvcGUiOiJwcml2YXRlX25ldHdvcmsiLCJzb3VyY2UiOiJ0YWlsc2NhbGUiLCJ2YWx1ZSI6IjEwMC42NC4wLjk6NDQ0NCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": 1893459600000,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": 1893456000000,
+                  "privacy": "private_network",
+                  "profileId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "profileSource": "tailscale",
+                  "source": "tailscale",
+                  "value": "100.64.0.9:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"expires_at\":\"2030-01-01T01:00:00Z\",\"kind\":\"direct_address\",\"network_profile_id\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"observed_at\":\"2030-01-01T00:00:00Z\",\"privacy_scope\":\"private_network\",\"source\":\"tailscale\",\"value\":\"100.64.0.9:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "legacy_profile_identifier",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": 1893459600000,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": 1893456000000,
+                  "privacy": "private_network",
+                  "profileId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "profileSource": "tailscale",
+                  "source": "tailscale",
+                  "value": "100.64.0.9:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJleHBpcmVzX2F0IjoiMjAzMC0wMS0wMVQwMTowMDowMFoiLCJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJuZXR3b3JrX3Byb2ZpbGVfaWQiOiJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiIiwib2JzZXJ2ZWRfYXQiOiIyMDMwLTAxLTAxVDAwOjAwOjAwWiIsInByaXZhY3lfc2NvcGUiOiJwcml2YXRlX25ldHdvcmsiLCJzb3VyY2UiOiJ0YWlsc2NhbGUiLCJ2YWx1ZSI6IjEwMC42NC4wLjk6NDQ0NCJ9XSwidHlwZSI6InBlZXIifSwiaWQiOiJpcm9oIiwia2luZCI6Imlyb2gifV0sInRlcm1pbmFsSUQiOiJzdXJmYWNlIiwidmVyc2lvbiI6MSwid29ya3NwYWNlSUQiOiJ3b3Jrc3BhY2Ut8J-nqiJ9"
+    },
+    {
+      "accepted": false,
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"kind\":\"direct_address\",\"network_profile\":{\"profile_id\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"source\":\"tailscale\"},\"privacy_scope\":\"public_internet\",\"source\":\"native\",\"value\":\"8.8.8.8:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "public_profile_rejected",
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJuZXR3b3JrX3Byb2ZpbGUiOnsicHJvZmlsZV9pZCI6ImJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmIiLCJzb3VyY2UiOiJ0YWlsc2NhbGUifSwicHJpdmFjeV9zY29wZSI6InB1YmxpY19pbnRlcm5ldCIsInNvdXJjZSI6Im5hdGl2ZSIsInZhbHVlIjoiOC44LjguODo0NDQ0In1dLCJ0eXBlIjoicGVlciJ9LCJpZCI6Imlyb2giLCJraW5kIjoiaXJvaCJ9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": 1893459600000,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": 1893456000000,
+                  "privacy": "local_network",
+                  "profileId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "profileSource": "lan",
+                  "source": "lan",
+                  "value": "100.64.0.9:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"expires_at\":\"2030-01-01T01:00:00Z\",\"kind\":\"direct_address\",\"network_profile\":{\"profile_id\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"source\":\"lan\"},\"observed_at\":\"2030-01-01T00:00:00Z\",\"privacy_scope\":\"local_network\",\"source\":\"lan\",\"value\":\"100.64.0.9:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "current_lan_hint",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": 1893459600000,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": 1893456000000,
+                  "privacy": "local_network",
+                  "profileId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "profileSource": "lan",
+                  "source": "lan",
+                  "value": "100.64.0.9:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJleHBpcmVzX2F0IjoiMjAzMC0wMS0wMVQwMTowMDowMFoiLCJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJuZXR3b3JrX3Byb2ZpbGUiOnsicHJvZmlsZV9pZCI6ImJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmIiLCJzb3VyY2UiOiJsYW4ifSwib2JzZXJ2ZWRfYXQiOiIyMDMwLTAxLTAxVDAwOjAwOjAwWiIsInByaXZhY3lfc2NvcGUiOiJsb2NhbF9uZXR3b3JrIiwic291cmNlIjoibGFuIiwidmFsdWUiOiIxMDAuNjQuMC45OjQ0NDQifV0sInR5cGUiOiJwZWVyIn0sImlkIjoiaXJvaCIsImtpbmQiOiJpcm9oIn1dLCJ0ZXJtaW5hbElEIjoic3VyZmFjZSIsInZlcnNpb24iOjEsIndvcmtzcGFjZUlEIjoid29ya3NwYWNlLfCfp6oifQ"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": 1893459600000,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": 1893456000000,
+                  "privacy": "private_network",
+                  "profileId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "profileSource": "custom_vpn",
+                  "source": "custom_vpn",
+                  "value": "100.64.0.9:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[{\"expires_at\":\"2030-01-01T01:00:00Z\",\"kind\":\"direct_address\",\"network_profile\":{\"profile_id\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"source\":\"custom_vpn\"},\"observed_at\":\"2030-01-01T00:00:00Z\",\"privacy_scope\":\"private_network\",\"source\":\"custom_vpn\",\"value\":\"100.64.0.9:4444\"}],\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "current_custom_vpn_hint",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [
+                {
+                  "expires": 1893459600000,
+                  "inert": false,
+                  "kind": "direct_address",
+                  "observed": 1893456000000,
+                  "privacy": "private_network",
+                  "profileId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "profileSource": "custom_vpn",
+                  "source": "custom_vpn",
+                  "value": "100.64.0.9:4444"
+                }
+              ],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJpZCI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEiLCJwYXRoX2hpbnRzIjpbeyJleHBpcmVzX2F0IjoiMjAzMC0wMS0wMVQwMTowMDowMFoiLCJraW5kIjoiZGlyZWN0X2FkZHJlc3MiLCJuZXR3b3JrX3Byb2ZpbGUiOnsicHJvZmlsZV9pZCI6ImJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmIiLCJzb3VyY2UiOiJjdXN0b21fdnBuIn0sIm9ic2VydmVkX2F0IjoiMjAzMC0wMS0wMVQwMDowMDowMFoiLCJwcml2YWN5X3Njb3BlIjoicHJpdmF0ZV9uZXR3b3JrIiwic291cmNlIjoiY3VzdG9tX3ZwbiIsInZhbHVlIjoiMTAwLjY0LjAuOTo0NDQ0In1dLCJ0eXBlIjoicGVlciJ9LCJpZCI6Imlyb2giLCJraW5kIjoiaXJvaCJ9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    },
+    {
+      "accepted": true,
+      "expected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "json": "{\"auth_token\":\" fixture-token-not-a-credential \",\"expiresAt\":\"2100-01-01T00:00:00Z\",\"macAppBuild\":\"100\",\"macAppVersion\":\"0.70.0\",\"macDeviceID\":\"abcdefab-1234-5678-abcd-123456789abc\",\"macDisplayName\":\"Fixture Mac\",\"macPairingCompatibilityVersion\":1,\"macUserID\":\"fixture-user\",\"routes\":[{\"endpoint\":{\"direct_addrs\":7,\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"path_hints\":[],\"relay_url\":\"not a url\",\"type\":\"peer\"},\"id\":\"iroh\",\"kind\":\"iroh\"}],\"terminalID\":\"surface\",\"version\":1,\"workspaceID\":\"workspace-🧪\"}",
+      "name": "empty_current_hints_override_legacy",
+      "rawExpected": {
+        "appBuild": "100",
+        "appVersion": "0.70.0",
+        "compatibility": 1,
+        "device": "abcdefab-1234-5678-abcd-123456789abc",
+        "email": null,
+        "expires": 4102444800000,
+        "name": "Fixture Mac",
+        "routes": [
+          {
+            "endpoint": {
+              "hints": [],
+              "identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "peer"
+            },
+            "id": "iroh",
+            "kind": "iroh",
+            "priority": 0
+          }
+        ],
+        "terminal": "surface",
+        "token": "fixture-token-not-a-credential",
+        "user": "fixture-user",
+        "workspace": "workspace-🧪"
+      },
+      "url": "cmux-ios://attach?v=1&payload=eyJhdXRoX3Rva2VuIjoiIGZpeHR1cmUtdG9rZW4tbm90LWEtY3JlZGVudGlhbCAiLCJleHBpcmVzQXQiOiIyMTAwLTAxLTAxVDAwOjAwOjAwWiIsIm1hY0FwcEJ1aWxkIjoiMTAwIiwibWFjQXBwVmVyc2lvbiI6IjAuNzAuMCIsIm1hY0RldmljZUlEIjoiYWJjZGVmYWItMTIzNC01Njc4LWFiY2QtMTIzNDU2Nzg5YWJjIiwibWFjRGlzcGxheU5hbWUiOiJGaXh0dXJlIE1hYyIsIm1hY1BhaXJpbmdDb21wYXRpYmlsaXR5VmVyc2lvbiI6MSwibWFjVXNlcklEIjoiZml4dHVyZS11c2VyIiwicm91dGVzIjpbeyJlbmRwb2ludCI6eyJkaXJlY3RfYWRkcnMiOjcsImlkIjoiYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYSIsInBhdGhfaGludHMiOltdLCJyZWxheV91cmwiOiJub3QgYSB1cmwiLCJ0eXBlIjoicGVlciJ9LCJpZCI6Imlyb2giLCJraW5kIjoiaXJvaCJ9XSwidGVybWluYWxJRCI6InN1cmZhY2UiLCJ2ZXJzaW9uIjoxLCJ3b3Jrc3BhY2VJRCI6IndvcmtzcGFjZS3wn6eqIn0"
+    }
+  ]
+}
