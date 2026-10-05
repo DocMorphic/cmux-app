@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Workspace body rows now distinguish equal-height content refresh from measured
+  geometry changes during gestures. Shared main/browser hold state and standalone
+  swipe state defer taller/shorter visual models until release; revealed read
+  actions preserve their intent while callbacks check current capabilities.
+  Cached revoked actions and pending close confirmations are retired. Source and
+  instrumentation compile; three new Android cases await the next combined
+  milestone. Group/header/footer/status geometry and runtime/performance/physical
+  acceptance remain open. See `WORKSPACE_ROWS.md`.
+
 - Combined workspace/PDF milestone: **14/14 Android tests passed in 66.575 s**
   on the existing API37/16 KiB AVD; eight focused PDF JVM tests also passed.
   This supersedes the queued Android status in the three workspace source batches

@@ -127,6 +127,50 @@ class NativeWorkspaceSwipeTest {
         assertEquals(listOf("b:mark_read"), actions)
     }
 
+    @Test fun revealedReadIntentSurvivesUnreadRefreshAndRevokedCachedActionsAreInert() {
+        var row by mutableStateOf(workspace)
+        var enabled by mutableStateOf(true)
+        val actions = mutableListOf<String>()
+        compose.setContent { CmuxTheme { Column(Modifier.width(360.dp)) {
+            NativeWorkspaceRow(row, canReadState = enabled, canClose = enabled,
+                onOpen = {}, onAction = { action, _ -> actions += action })
+        } } }
+        val swipe = compose.onNodeWithTag("workspace.swipe:swipe")
+        swipe.performTouchInput { swipe(center, center + Offset(width * .3f, 0f), 400) }
+        compose.onNodeWithText("Mark as Read").assertIsDisplayed()
+        compose.runOnIdle { row = row.copy(hasUnread = false) }
+        compose.onNodeWithText("Mark as Read").assertIsDisplayed()
+        compose.onNodeWithText("Mark as Read").performClick()
+        compose.runOnIdle { assertEquals(listOf("mark_read"), actions) }
+        val cached = compose.onNodeWithTag("workspace.row:swipe").fetchSemanticsNode()
+            .config[SemanticsActions.CustomActions]
+        val cachedRead = cached.single { it.label == "Mark as Unread" }
+        val cachedClose = cached.single { it.label == "Delete workspace" }
+        compose.runOnIdle { enabled = false }
+        compose.runOnUiThread {
+            assertFalse(cachedRead.action())
+            assertFalse(cachedClose.action())
+        }
+        compose.onNodeWithText("Delete Workspace?").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(listOf("mark_read"), actions) }
+    }
+
+    @Test fun capabilityLossDismissesPendingCloseWithoutDispatching() {
+        var enabled by mutableStateOf(true)
+        val actions = mutableListOf<String>()
+        compose.setContent { CmuxTheme { Column(Modifier.width(360.dp)) {
+            NativeWorkspaceRow(workspace, canClose = enabled,
+                onOpen = {}, onAction = { action, _ -> actions += action })
+        } } }
+        compose.onNodeWithTag("workspace.swipe:swipe").performTouchInput { swipeLeft() }
+        val confirm = compose.onNodeWithTag("workspace.close.confirm").fetchSemanticsNode()
+            .config[SemanticsActions.OnClick].action!!
+        compose.runOnIdle { enabled = false }
+        compose.onNodeWithText("Delete Workspace?").assertDoesNotExist()
+        compose.runOnUiThread { confirm() }
+        compose.runOnIdle { assertTrue(actions.isEmpty()) }
+    }
+
     private fun screenshot(name: String) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val folder = File(context.getExternalFilesDir(null), "workspace-swipe").apply { mkdirs() }

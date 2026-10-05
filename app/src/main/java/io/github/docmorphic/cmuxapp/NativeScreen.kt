@@ -3745,7 +3745,13 @@ internal fun NativeWorkspaceRow(
     val currentOpen by rememberUpdatedState(onOpen)
     val currentAction by rememberUpdatedState(onAction)
     fun dispatchOpen() { if (admitted()) currentOpen() }
-    fun dispatchAction(action: String, value: String?) { if (admitted()) currentAction(action, value) }
+    val actionPolicy by rememberUpdatedState(WorkspaceRowActionPolicy(canReadState, canClose, canWorkspaceActions,
+        canCustomize, !groupMoveMenu.isEmpty || remoteGroupMenu != null, changesChip?.files?.let { it > 0 } == true))
+    fun dispatchAction(action: String, value: String?): Boolean {
+        if (!admitted() || !actionPolicy.permits(action)) return false
+        currentAction(action, value)
+        return true
+    }
     val highlighted = isSelected && LocalWorkspaceShellChrome.current.split
     val menu = rememberWorkspaceContextMenu(workspace.id)
     var groupPicker by remember(menu, menu.expanded) { mutableStateOf(false) }
@@ -3759,18 +3765,33 @@ internal fun NativeWorkspaceRow(
     var pendingClose by remember(menu) { mutableStateOf<Pair<WorkspaceCloseConfirmation, () -> Unit>?>(null) }
     val rowPresent = admitted()
     LaunchedEffect(rowPresent) { if (!rowPresent) { menu.expanded = false; rename = false; pendingClose = null } }
-    fun requestClose() {
-        if (closeConfirmation == null) dispatchAction("close", null)
-        else pendingClose = closeConfirmation to { dispatchAction("close", null) }
+    fun requestClose(): Boolean {
+        if (!admitted() || !actionPolicy.close) return false
+        if (closeConfirmation == null) return dispatchAction("close", null)
+        pendingClose = closeConfirmation to { dispatchAction("close", null); Unit }
+        return true
+    }
+    LaunchedEffect(canClose, canWorkspaceActions) {
+        if (!canClose) pendingClose = null
+        if (!canWorkspaceActions) rename = false
     }
     var title by remember(menu, workspace.id) { mutableStateOf(workspace.title) }
     val readLabel = if (workspace.hasUnread) "Mark as Read" else "Mark as Unread"
-    val markRead = { dispatchAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null) }
     NativeWorkspaceSwipeActions(workspace.id, workspace.hasUnread, canReadState, canClose,
-        onRead = markRead, onClose = ::requestClose) { dismissSwipe ->
+        onRead = { unread -> dispatchAction(if (unread) "mark_unread" else "mark_read", null) },
+        onClose = { requestClose() }) { dismissSwipe, swipeActions ->
     Box {
     val openRow = { if (!menuExpanded && !menu.held && !dismissSwipe()) dispatchOpen() }
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).then(if (handlesHold)
+    val locale = LocalConfiguration.current.locales[0]
+    val zone = java.util.TimeZone.getDefault()
+    val now = System.currentTimeMillis()
+    val day = java.time.Instant.ofEpochMilli(now).atZone(zone.toZoneId()).toLocalDate()
+    val trailing = remember(workspace.lastActivityAt, workspace.previewAt, availability, locale, zone.id, day) {
+        workspaceActivityLabel(workspace, availability, now, locale, zone)
+    }
+    val visual = WorkspaceRowVisual(workspace, displayPreferences, highlighted, changesChip, trailing)
+    WorkspaceMeasuredContent(visual, LocalWorkspaceGeometryHeld.current) { shown, measuring ->
+        NativeWorkspaceRowBody(shown, measuring, if (measuring) Modifier.fillMaxWidth().height(IntrinsicSize.Min) else Modifier.fillMaxWidth().height(IntrinsicSize.Min).then(if (handlesHold)
         Modifier.combinedClickable(onClick = openRow, onLongClick = { if (hasMenu) { dismissSwipe(); menu.expanded = true } })
         else Modifier.clickable(onClick = openRow))
         .semantics {
@@ -3779,50 +3800,15 @@ internal fun NativeWorkspaceRow(
             customActions = buildList {
                 addAll(moveActions)
                 if (hasMenu) add(CustomAccessibilityAction("Show workspace actions") { dismissSwipe(); menu.expanded = true; true })
-                if (canReadState) add(CustomAccessibilityAction(readLabel) { dismissSwipe(); markRead(); true })
-                if (canClose) add(CustomAccessibilityAction("Delete workspace") { dismissSwipe(); requestClose(); true })
+                if (swipeActions.canRead) add(CustomAccessibilityAction(if (swipeActions.hasUnread) "Mark as Read" else "Mark as Unread") {
+                    dismissSwipe(); dispatchAction(if (swipeActions.hasUnread) "mark_read" else "mark_unread", null)
+                })
+                if (swipeActions.canClose) add(CustomAccessibilityAction("Delete workspace") { dismissSwipe(); requestClose() })
             }
             stateDescription = listOfNotNull("Pinned".takeIf { workspace.isPinned },
                 workspace.unreadState.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
-        }.padding(horizontal = 18.dp)
-        .background(if (highlighted) nativeAccent.copy(alpha = .14f) else Color.Transparent, RoundedCornerShape(14.dp))
-        .padding(horizontal = if (highlighted) 10.dp else 0.dp, vertical = 8.dp).testTag("workspace.row:${workspace.id}"), verticalAlignment = Alignment.CenterVertically) {
-        NativeUnreadGutter(workspace.unreadState)
-        val workspaceAccent = workspace.color?.takeIf { Regex("#[0-9a-fA-F]{6}").matches(it) }?.drop(1)?.toLongOrNull(16)
-        Box(Modifier.width(3.dp).fillMaxHeight().padding(vertical = 5.dp)
-            .background(workspaceAccent?.let { Color(0xFF000000L or it).copy(alpha = .95f) } ?: Color.Transparent, RoundedCornerShape(1.5.dp))
-            .testTag("workspace.color:${workspace.id}"))
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (workspace.isPinned) Icon(painterResource(R.drawable.ic_workspace_pin_fill), null, tint = nativeMuted,
-                    modifier = Modifier.size(11.dp).alignBy { it.measuredHeight }.testTag("workspace.pin:${workspace.id}"))
-                Text(workspace.title.ifBlank { "Workspace" }, Modifier.weight(1f).alignByBaseline().testTag("workspace.title:${workspace.id}"),
-                    fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold,
-                    color = if (highlighted) nativeAccent else LocalContentColor.current,
-                    maxLines = if (displayPreferences.wrapTitles) Int.MAX_VALUE else 1, overflow = TextOverflow.Ellipsis)
-                val locale = LocalConfiguration.current.locales[0]
-                val zone = java.util.TimeZone.getDefault()
-                val referenceMilliseconds = System.currentTimeMillis()
-                val referenceDay = java.time.Instant.ofEpochMilli(referenceMilliseconds).atZone(zone.toZoneId()).toLocalDate()
-                val trailing = remember(workspace.lastActivityAt, workspace.previewAt, availability, locale, zone.id, referenceDay) {
-                    workspaceActivityLabel(workspace, availability, referenceMilliseconds, locale, zone)
-                }
-                if (trailing.isNotEmpty()) Text(trailing, Modifier.alignByBaseline().testTag("workspace.status:${workspace.id}"),
-                    color = nativeMuted, fontSize = 15.sp, lineHeight = 20.sp, maxLines = 1)
-            }
-            workspace.description?.trim()?.takeIf { it.isNotEmpty() }?.let {
-                Text(it, Modifier.testTag("workspace.description:${workspace.id}"), fontSize = 15.sp, lineHeight = 20.sp,
-                    minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(workspace.preview?.takeIf { it.isNotEmpty() } ?: workspace.terminals.firstOrNull()?.title ?: workspace.title,
-                    Modifier.weight(1f).testTag("workspace.preview:${workspace.id}"), color = nativeMuted, fontSize = 15.sp, lineHeight = 20.sp,
-                    minLines = displayPreferences.previewLines, maxLines = displayPreferences.previewLines, overflow = TextOverflow.Ellipsis)
-                changesChip?.takeIf { it.files > 0 }?.let { chip ->
-                    NativeWorkspaceChangesChip(chip, workspace.id) { dispatchAction("changes", null) }
-                }
-            }
+        }) {
+            dispatchAction("changes", null)
         }
     }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = {

@@ -93,7 +93,7 @@ internal fun NativeWorkspaceDragList(
     }
     WorkspaceViewportAnchorEffect(list, prefixKeys + renderedRows.map { it.key },
         gestureActive = held != null || swipeCoordinator.activeKey != null)
-    CompositionLocalProvider(LocalWorkspaceSwipeCoordinator provides swipeCoordinator, LocalWorkspaceContextMenus provides contextMenus) {
+    CompositionLocalProvider(LocalWorkspaceSwipeCoordinator provides swipeCoordinator, LocalWorkspaceContextMenus provides contextMenus, LocalWorkspaceGeometryHeld provides holdOrder) {
     Box(modifier) {
         LazyColumn(Modifier.fillMaxSize().pointerInput(reorderEnabled) {
             detectDragGesturesAfterLongPress(

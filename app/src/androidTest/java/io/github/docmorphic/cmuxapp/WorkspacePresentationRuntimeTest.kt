@@ -51,12 +51,43 @@ class WorkspacePresentationRuntimeTest {
         compose.onNodeWithTag("workspace.row:b").performClick()
         compose.runOnIdle { assertEquals(1, opened) }
     }
+    @Test fun heightChangingContentWaitsWhileEqualHeightPreviewStaysLive() {
+        val initial = parseWorkspaces(JSONObject("""{"workspaces":[{"id":"a","title":"First","preview":"Old preview"},
+            {"id":"b","title":"Second"},{"id":"c","title":"Third"}]}"""))
+        var workspaces by mutableStateOf(initial)
+        compose.setContent { CmuxTheme {
+            val source = NativeFeedSource(NativeCredentialStore.PairedMac("fixture", "fixture", "Fixture"), workspaces = workspaces)
+            NativeWorkspaceDragList(workspaceHierarchy(source), false, Modifier.width(320.dp).height(500.dp),
+                onMove = { _, _, _ -> false }, empty = {}) { entry ->
+                NativeWorkspaceRow((entry as WorkspaceListEntry.Workspace).workspace,
+                    canReadState = true, displayPreferences = NativeDisplayPreferences(wrapTitles = true),
+                    onOpen = {}, onAction = { _, _ -> })
+            }
+        } }
+        val beforeY = compose.onNodeWithTag("workspace.row:b").fetchSemanticsNode().boundsInRoot.top
+        compose.onNodeWithTag("workspace.swipe:b").performTouchInput {
+            swipe(start = center.copy(x = 5f), end = center.copy(x = width * .45f), durationMillis = 400)
+        }
+        compose.runOnIdle { workspaces = listOf(initial[0].copy(preview = "Fresh preview")) + initial.drop(1) }
+        compose.onNodeWithTag("workspace.preview:a", useUnmergedTree = true).assertTextEquals("Fresh preview")
+        compose.runOnIdle { workspaces = listOf(initial[0].copy(description = "Temporary description")) + initial.drop(1) }
+        compose.onNodeWithTag("workspace.description:a", useUnmergedTree = true).assertDoesNotExist()
+        assertEquals(beforeY, compose.onNodeWithTag("workspace.row:b").fetchSemanticsNode().boundsInRoot.top, 1f)
+        compose.runOnIdle { workspaces = listOf(initial[0].copy(title = "A much longer title that must wrap onto several lines in the workspace list",
+            description = "Latest description")) + initial.drop(1) }
+        compose.onNodeWithTag("workspace.title:a", useUnmergedTree = true).assertTextEquals("First")
+        assertEquals(beforeY, compose.onNodeWithTag("workspace.row:b").fetchSemanticsNode().boundsInRoot.top, 1f)
+        Espresso.pressBack()
+        compose.onNodeWithTag("workspace.description:a", useUnmergedTree = true).assertTextEquals("Latest description")
+        assertTrue(compose.onNodeWithTag("workspace.row:b").fetchSemanticsNode().boundsInRoot.top > beforeY)
+    }
+
     @Test fun recycledSwipeOwnerReleasesOrderHoldWithoutClearingAnotherOwner() {
         val coordinator = WorkspaceSwipeCoordinator()
         var shown by mutableStateOf(true)
         compose.setContent { CmuxTheme {
             CompositionLocalProvider(LocalWorkspaceSwipeCoordinator provides coordinator) {
-                if (shown) NativeWorkspaceSwipeActions("owner", false, true, false, {}, {}) {
+                if (shown) NativeWorkspaceSwipeActions("owner", false, true, false, {}, {}) { _, _ ->
                     androidx.compose.material3.Text("Owner")
                 }
             }

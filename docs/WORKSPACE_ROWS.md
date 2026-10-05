@@ -4,6 +4,43 @@
 for the latest signed artifact and its verification scope; historical delivery
 statements below describe their dated checkpoints.
 
+## Measured workspace content and stable swipe intent (2026-10-05)
+
+Scoped source: `WorkspaceListUpdatePlan.swift` and `WorkspaceListTableCoordinator.swift`
+at `186cec79781256867ad4516f0802118738bd2393`. The iOS plan classifies measured-height
+and native-action changes as geometry, while same-height content can refresh during
+a gesture. These references were read from the pinned upstream checkout; global
+parity pins remain unchanged.
+
+`NativeWorkspaceRow` now separates stateless drawing from menus, confirmations and
+interaction ownership. `WorkspaceMeasuredContent` measures a changed visual model
+in an unplaced, noninteractive probe only while geometry is held. Equal-height
+updates enter the existing content slot immediately; height-changing descriptions,
+wrapped titles, chips or display preferences retain the previous visual model.
+Release takes the latest target directly. Width, density, font-scale and layout
+direction changes invalidate the old geometry. The probe creates no dialogs,
+background jobs or gesture owners, and its action tags/inputs are suppressed.
+
+Both main and routed-browser lists provide their scroll/hold/swipe state to rows;
+a standalone row also holds its own swipe geometry. The revealed read action and
+its accessibility action keep their original intent across unread-state refreshes.
+Execution checks current membership and capabilities. Revoked cached read/delete
+controls cannot dispatch; losing close/edit support retires open confirmations.
+Swipe ownership lasts until the closing displacement reaches zero, including a
+cancelled gesture that never drew a displaced frame, and cannot clear a newer owner.
+
+**Verification status:** main and instrumentation Kotlin compile; three new Android
+cases are queued with the existing swipe, row-presentation and viewport cases for
+the next combined milestone. They cover equal-height preview refresh, description/
+wrapped-title deferral and latest-on-release, stable read intent, revoked cached
+actions and close confirmation retirement. No APK or emulator run is claimed for
+this source batch. Compilation evidence: `captures/runtime/workspace-height-actions/`.
+
+**Still open:** exact runtime geometry/semantics and performance acceptance of the
+new measurement path; group/header/footer and status/empty chrome reconciliation;
+full scroll/fling/drag combinations, TalkBack and physical Pixel smoothness. The
+previous batch's 14 passing runtime checks predate this implementation.
+
 ## Combined workspace/PDF milestone (2026-10-05)
 
 One shared debug build and the sole existing API37/16 KiB AVD exercise the view

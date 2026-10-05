@@ -18,10 +18,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-internal fun NativeWorkspaceChangesChip(chip: WorkspaceChangesChip, workspaceId: String, onOpen: () -> Unit) {
+internal fun NativeWorkspaceChangesChip(chip: WorkspaceChangesChip, workspaceId: String, measuring: Boolean = false, onOpen: () -> Unit) {
     Box(Modifier.sizeIn(minWidth = 44.dp, minHeight = 44.dp)
-        .testTag("workspace.changes:$workspaceId")
-        .clickable(role = Role.Button, onClickLabel = "View changes", onClick = onOpen)
+        .then(if (measuring) Modifier else Modifier.testTag("workspace.changes:$workspaceId")
+            .clickable(role = Role.Button, onClickLabel = "View changes", onClick = onOpen))
         .semantics(mergeDescendants = true) { contentDescription = chip.label }, contentAlignment = Alignment.Center) {
         Row(Modifier.background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .12f), RoundedCornerShape(50))
             .padding(horizontal = 6.dp, vertical = 3.dp).clearAndSetSemantics {}, horizontalArrangement = Arrangement.spacedBy(3.dp)) {

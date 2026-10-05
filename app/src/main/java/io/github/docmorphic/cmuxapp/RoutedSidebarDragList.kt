@@ -79,7 +79,7 @@ internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: Strin
     val hideEmptyPrefix = rows.isEmpty() && renderedRows.isNotEmpty()
     WorkspaceViewportAnchorEffect(list, (if (hideEmptyPrefix) emptyList() else prefixKeys) + renderedRows.map { it.key },
         gestureActive = held != null || swipes.activeKey != null)
-    CompositionLocalProvider(LocalWorkspaceContextMenus provides menus, LocalWorkspaceSwipeCoordinator provides swipes) {
+    CompositionLocalProvider(LocalWorkspaceContextMenus provides menus, LocalWorkspaceSwipeCoordinator provides swipes, LocalWorkspaceGeometryHeld provides holdOrder) {
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().pointerInput(Unit) {
             detectDragGesturesAfterLongPress(onDragStart = { point ->

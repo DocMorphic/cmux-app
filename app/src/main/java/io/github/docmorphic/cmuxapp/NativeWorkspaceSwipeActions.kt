@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.first
 
 internal class WorkspaceSwipeCoordinator { var activeKey by mutableStateOf<String?>(null) }
 internal val LocalWorkspaceSwipeCoordinator = compositionLocalOf<WorkspaceSwipeCoordinator?> { null }
@@ -40,8 +41,8 @@ internal val LocalWorkspaceSwipeKey = compositionLocalOf<String?> { null }
 @Composable
 internal fun NativeWorkspaceSwipeActions(
     workspaceId: String, hasUnread: Boolean, canRead: Boolean, canClose: Boolean,
-    onRead: () -> Unit, onClose: () -> Unit,
-    content: @Composable (dismissIfOpen: () -> Boolean) -> Unit
+    onRead: (unread: Boolean) -> Unit, onClose: () -> Unit,
+    content: @Composable (dismissIfOpen: () -> Boolean, actions: WorkspaceSwipeActions) -> Unit
 ) {
     val fallback = remember { WorkspaceSwipeCoordinator() }
     val coordinator = LocalWorkspaceSwipeCoordinator.current ?: fallback
@@ -54,12 +55,19 @@ internal fun NativeWorkspaceSwipeActions(
     var width by remember { mutableIntStateOf(0) }
     var offset by remember(key) { mutableFloatStateOf(0f) }
     var dragging by remember(key) { mutableStateOf(false) }
+    val currentActions = WorkspaceSwipeActions(hasUnread, canRead, canClose)
+    val committed = remember(key) { WorkspaceSwipeActionHolder(currentActions) }
+    val geometryHeld = LocalWorkspaceGeometryHeld.current || coordinator.activeKey == key || offset != 0f
+    val shownActions = if (geometryHeld) committed.actions else currentActions
+    SideEffect { committed.actions = shownActions }
+    val latestCanRead by rememberUpdatedState(canRead)
+    val latestCanClose by rememberUpdatedState(canClose)
+    val latestAdmission by rememberUpdatedState(LocalWorkspaceRowAdmission.current)
     val latestRead by rememberUpdatedState(onRead)
     val latestClose by rememberUpdatedState(onClose)
     fun dismiss(): Boolean {
         val wasOpen = offset != 0f
         offset = 0f; dragging = false
-        if (coordinator.activeKey == key) coordinator.activeKey = null
         return wasOpen
     }
     LaunchedEffect(coordinator.activeKey, canRead, canClose) {
@@ -67,15 +75,22 @@ internal fun NativeWorkspaceSwipeActions(
     }
     BackHandler(offset != 0f) { dismiss() }
     val displayed by animateFloatAsState(offset, if (dragging) snap() else tween(160), label = "workspace swipe")
+    // Also handles a cancelled gesture that never drew a displaced frame (no animation callback).
+    LaunchedEffect(offset, dragging, coordinator.activeKey) {
+        if (offset == 0f && !dragging && coordinator.activeKey == key) {
+            snapshotFlow { displayed }.first { it == 0f }
+            if (offset == 0f && !dragging && coordinator.activeKey == key) coordinator.activeKey = null
+        }
+    }
     Box(Modifier.fillMaxWidth().clipToBounds().onSizeChanged { width = it.width }
         .testTag("workspace.swipe:$workspaceId")
-        .pointerInput(key, canRead, canClose, direction) {
-            if (canRead || canClose) detectHorizontalDragGestures(
+        .pointerInput(key, shownActions, direction) {
+            if (shownActions.canRead || shownActions.canClose) detectHorizontalDragGestures(
                 onDragStart = { coordinator.activeKey = key; dragging = true },
                 onHorizontalDrag = { change, amount ->
                     change.consume()
                     offset = (offset + amount * direction).coerceIn(
-                        if (canClose) -width.toFloat() else 0f, if (canRead) width.toFloat() else 0f)
+                        if (shownActions.canClose) -width.toFloat() else 0f, if (shownActions.canRead) width.toFloat() else 0f)
                 },
                 onDragCancel = { dismiss() },
                 onDragEnd = {
@@ -84,7 +99,10 @@ internal fun NativeWorkspaceSwipeActions(
                     when {
                         width > 0 && abs(value) >= maxOf(actionWidth, width * .65f) -> {
                             dismiss()
-                            if (value > 0 && canRead) latestRead() else if (value < 0 && canClose) latestClose()
+                            if (latestAdmission()) {
+                                if (value > 0 && shownActions.canRead && latestCanRead) latestRead(!shownActions.hasUnread)
+                                else if (value < 0 && shownActions.canClose && latestCanClose) latestClose()
+                            }
                         }
                         abs(value) >= actionWidth / 2 -> offset = if (value > 0) actionWidth else -actionWidth
                         else -> dismiss()
@@ -100,14 +118,22 @@ internal fun NativeWorkspaceSwipeActions(
                     .testTag("workspace.swipe.action:$workspaceId")
                     .clickable(role = Role.Button) {
                         dismiss()
-                        if (leading && canRead) latestRead() else if (!leading && canClose) latestClose()
+                        if (latestAdmission()) {
+                            if (leading && shownActions.canRead && latestCanRead) latestRead(!shownActions.hasUnread)
+                            else if (!leading && shownActions.canClose && latestCanClose) latestClose()
+                        }
                     }.padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
-                    Text(if (leading) if (hasUnread) "Mark as Read" else "Mark as Unread" else "Delete",
+                    Text(if (leading) if (shownActions.hasUnread) "Mark as Read" else "Mark as Unread" else "Delete",
                         color = Color.White, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
             }
         }
         Box(Modifier.absoluteOffset { IntOffset((displayed * direction).roundToInt(), 0) }
-            .background(Color(0xFF0B0C0E))) { content(::dismiss) }
+            .background(Color(0xFF0B0C0E))) {
+            CompositionLocalProvider(LocalWorkspaceGeometryHeld provides geometryHeld) { content(::dismiss, shownActions) }
+        }
     }
 }
+
+internal data class WorkspaceSwipeActions(val hasUnread: Boolean, val canRead: Boolean, val canClose: Boolean)
+private class WorkspaceSwipeActionHolder(var actions: WorkspaceSwipeActions)
