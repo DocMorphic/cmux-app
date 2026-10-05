@@ -169,6 +169,9 @@ class FileSaveLifecycleTest {
             await("Recovered save retry did not receive picker cancellation") { scenario.read { !owner.busy && owner.failure == null } }
             assertEquals(1, count.get())
             await("Recovered private copy was not released") { !files.file(request).exists() }
+            // A modal hides the background preview from accessibility until it closes.
+            find(By.text(ARTIFACT_TEXT_READ_FAILURE))
+            screenshot("missing-preview-readable-error")
         } } finally {
             instrumentation.removeMonitor(monitor); source.delete()
             runBlocking { FileSaveWork.transfer(context).cancel(request) }

@@ -1,5 +1,53 @@
 # Content preview lifecycle
 
+## Files, Save and export integration milestone — 2026-10-05
+
+Source: `8690d1f` plus the integration tests and friendly text-read error fix in
+this checkpoint. **18 Android tests passed in 193.768 s** on the existing
+`cmux_api37_16k` AVD. One combined debug/test APK build covered the accumulated
+Files retention, remote materialization, background Save and durable export work.
+
+- Four Save cases exercised the real document picker, picker cancellation and
+  recreation, a provider failure/retry, fresh failure recovery without an old
+  bundle, and a real destination write after the original preview was replaced
+  and deleted. Only synthetic fixtures and their exact destination URI were used.
+- Two new export cases exercise restored READY confirmation through recreation,
+  a real Android Sharesheet, MIME/ClipData/read-grant and exact provider bytes,
+  completed-receipt replay prevention, and ambiguous PRESENTING recovery while
+  preserving potentially delivered bytes. No recipient was selected or message
+  sent. Provider bytes are read through the test resolver, not a recipient app.
+  A debug-only Activity injects a saved request ID into a new owner; this is
+  **not** an Android process-kill test.
+- Nine Files cases cover folder/filter/grid/search, remote-path copy, direct
+  references, gallery Share, transfer retry, reconnect and replaced-session
+  authority. One route-level Files test retains PDF reading state and a pending
+  transfer across recreation. Two Changes cases verify exact image clipboard
+  bytes, including extensionless image MIME.
+
+All eleven fresh screenshots were inspected. The recovered-Save screenshot
+exposed a raw filesystem exception behind the modal after preview deletion.
+Text and Markdown reads now show a friendly instruction to reopen the preview,
+while preserving coroutine cancellation. The strengthened recovery test then
+**passed in 9.104 s**, with two corrected screenshots inspected. Its first
+follow-up attempt failed because a modal hides background text from accessibility;
+the assertion now checks that text after the modal closes. The app change was
+unchanged between those attempts. The original failure evidence is retained.
+
+Successful runs had empty crash logs, no new ANR events, unchanged screen/sleep
+settings, and the sole AVD was stopped and reaped. No new AVD or physical-device
+operation occurred. One preflight hierarchy read caught a transient splash/null
+root; a fresh hierarchy and visible sign-in screen were confirmed before testing.
+Evidence, exact APK hashes, original failures and screenshots are under ignored
+`captures/runtime/file-actions-integration/` and its `read-error-followup/` folder.
+
+This closes the stated fixture integration checks, not full iOS parity. Actual
+process kill/reboot, separate main/browser-process concurrency, large/slow provider
+writes, notification cancellation/shared grants, receiver-side access, broad
+format/UI/accessibility and real Mac/Pixel acceptance remain open. Malformed and
+orphan storage reclamation remains implementation work. Signed 606 remains the
+last independently verified download until the next signed milestone succeeds.
+Global upstream parity pins are unchanged.
+
 ## Durable Share/Open preparation — 2026-10-05
 
 Share, Open and Copy Image now retain a private export identity in the Activity's

@@ -9,8 +9,9 @@ a development build; see [PARITY.md](PARITY.md) for the unverified features.
 [Build 606](https://github.com/DocMorphic/cmux-app/actions/runs/37267686166)
 passed at `b99d4957d389d49bf8a65f577736a0a71e36bd06`. Download the
 [signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37267686166/artifacts/11327796025)
-and extract `app-release.apk`. This is an Actions development artifact; PR #1
-remains open/draft, with no main-branch merge or public release promotion.
+and extract `app-release.apk`. This is an Actions development artifact. PR #1
+has since merged and development continues on `main`; no public release has been
+promoted.
 
 This batch includes rejected-account-token recovery, iOS route-priority ordering,
 optional Iroh peer relay hints, retained Changes downloads, PDF navigation,

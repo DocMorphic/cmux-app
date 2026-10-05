@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.*
 
+internal const val ARTIFACT_TEXT_READ_FAILURE = "This file can't be read. Reopen its preview and try again."
+
 @Stable
 internal class ArtifactViewerState(context: Context, val artifact: LocalFilePreview) {
     val markdown = MarkdownPreviewPolicy.isMarkdown(artifact.file.name, artifact.mime)
@@ -106,7 +108,7 @@ internal fun ArtifactRawTextPreview(state: ArtifactViewerState) {
     LaunchedEffect(state) {
         if (state.document == null) try {
             state.document = withContext(Dispatchers.IO) { ArtifactTextDocument(state.artifact.file.readText()) }
-        } catch (error: Exception) { ensureActive(); state.failure = error.message ?: "Could not read text." }
+        } catch (error: Exception) { ensureActive(); state.failure = ARTIFACT_TEXT_READ_FAILURE }
     }
     LaunchedEffect(state, state.document) {
         val document = state.document ?: return@LaunchedEffect

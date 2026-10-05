@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.SavedStateHandle
 import androidx.compose.ui.Modifier
 import java.io.File
 
@@ -20,6 +21,13 @@ class ArtifactPreviewTestActivity : ComponentActivity() {
         set(value) { fixture.loading = value }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        intent.getStringExtra("export_id")?.let { id ->
+            ViewModelProvider(this, object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    FileExportModel(application, SavedStateHandle(mapOf("file-export.pending.v1" to id))) as T
+            })[FileExportModel::class.java]
+        }
         fixture = ViewModelProvider(this)[ArtifactPreviewTestModel::class.java]
         if (!fixture.initialized) { loading = savedInstanceState?.getBoolean("loading") ?: false; fixture.initialized = true }
         val file = File(checkNotNull(intent.getStringExtra("path")))

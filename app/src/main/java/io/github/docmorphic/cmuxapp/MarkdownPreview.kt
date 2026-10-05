@@ -42,7 +42,7 @@ internal fun ArtifactTextPreview(artifact: LocalFilePreview, state: ArtifactView
             if (state.rendered) {
                 val text by produceState<String?>(null, artifact.file) {
                     try { value = withContext(Dispatchers.IO) { artifact.file.readText() } }
-                    catch (error: Exception) { ensureActive(); state.failure = error.message ?: "Could not read Markdown"; state.rendered = false }
+                    catch (error: Exception) { ensureActive(); state.failure = ARTIFACT_TEXT_READ_FAILURE; state.rendered = false }
                 }
                 if (text == null) LinearProgressIndicator(Modifier.fillMaxWidth())
                 else MarkdownWebPreview(text!!, state.markdownViewport, onFailure = { state.failure = it; state.rendered = false })
