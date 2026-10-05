@@ -25,12 +25,17 @@ and currently disabled; the upstream watcher remains configured.
 
 ## Current delivery and next actions
 
+- Share/Open/Copy Image and gallery-row Share now have Activity-owned preparation
+  and one-time system presentation, with cancellation and cache leases for active
+  exports. Main Kotlin compiled and 17 focused JVM checks passed. Real Activity
+  rotation/chooser/clipboard and process-death behavior remain unverified; no
+  APK or emulator run. See `CONTENT_PREVIEW_LIFECYCLE.md`.
 - Remote Save/Share/Open now re-stat and stream the current Mac file, including
   when a preview exceeds its size limit. Save streams directly to its durable
   copy with preparation progress/cancellation. Main Kotlin compiled and 26
   focused JVM checks passed. Actual toolbar/chooser/picker, network changes and
-  large-file behavior remain pending, as does Share/Open ownership through
-  recreation. See `CONTENT_PREVIEW_LIFECYCLE.md`.
+  large-file behavior remain pending. The subsequent export-owner batch implements
+  retention through recreation; its Android runtime acceptance remains pending. See `CONTENT_PREVIEW_LIFECYCLE.md`.
 - Save recovery now has durable private copies, atomic phase records, integrity
   checking before destination writes, and cancellable progress. Main Kotlin
   compiled and 17 focused JVM checks passed. Actual Android

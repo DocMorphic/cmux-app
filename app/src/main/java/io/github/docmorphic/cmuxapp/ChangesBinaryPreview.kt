@@ -3,7 +3,6 @@ package io.github.docmorphic.cmuxapp
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
@@ -16,7 +15,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import kotlinx.coroutines.*
 import java.io.File
 
@@ -53,6 +51,8 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val saves = checkNotNull(LocalFileSaves.current)
+    val exports = checkNotNull(LocalFileExports.current)
+    val exportState by exports.controller.state.collectAsState()
     var menu by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
@@ -62,42 +62,14 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
         val source = remote.takeUnless { action == "Copy Image" }
         if (captured == null && source == null) return
         if (action == "Save") { menu = false; failure = null; saves.begin(captured, source); return }
-        busy = true; failure = null; menu = false
-        scope.launch {
-            var exported: File? = null
-            try {
-                val root = File(context.cacheDir, "task-previews")
-                val materialized = source?.materialize(root) { metadata -> fileActionType(changesPreviewName(source.path), metadata.mime).filename }
-                val type = if (materialized != null) fileActionType(materialized.file.name, materialized.mime)
-                    else fileActionType(checkNotNull(captured).file.name, captured.mime)
-                val mime = type.mime
-                val file = materialized?.file ?: exportFilePreview(checkNotNull(captured), root, type.filename)
-                exported = file
-                ensureActive()
-                val uri = FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file)
-                when (action) {
-                    "Copy Image" -> {
-                        (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newUri(context.contentResolver, file.name, uri))
-                        busy = false
-                    }
-                    else -> {
-                        val intent = if (action == "Share") artifactShareIntent(context, file, mime)
-                            else Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime)
-                        intent.clipData = ClipData.newRawUri(file.name, uri)
-                        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        context.startActivity(Intent.createChooser(intent, if (action == "Share") "Share ${file.name}" else "Open ${file.name}"))
-                        busy = false
-                    }
-                }
-            } catch (error: Exception) {
-                exported?.parentFile?.deleteRecursively(); busy = false
-                if (error is CancellationException) throw error
-                failure = if (error is android.content.ActivityNotFoundException) "No installed app can open this file."
-                    else if (source != null) ArtifactPreviewFailure.from(error, source.authorization)
-                        .presentation(source.authorization, false, NativeFeedAvailability.CONNECTED).let { "${it.title}. ${it.message}" }
-                    else error.message ?: "Could not prepare file."
-            }
+        failure = null; menu = false
+        val kind = when (action) {
+            "Share" -> FileExportAction.SHARE
+            "Open" -> FileExportAction.OPEN
+            "Copy Image" -> FileExportAction.COPY_IMAGE
+            else -> return
         }
+        exports.begin(kind, captured, source)
     }
     if (fontDialog && viewer != null) AlertDialog(onDismissRequest = { fontDialog = false }, title = { Text("Text size") },
         text = { Column {
@@ -109,9 +81,9 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(artifact?.let { "${it.size} bytes" }.orEmpty(), Modifier.weight(1f), fontSize = 12.sp, color = changesMuted)
             Box {
-                IconButton(onClick = { menu = true }, enabled = (artifact != null || remote != null) && !busy && !saves.busy,
+                IconButton(onClick = { menu = true }, enabled = (artifact != null || remote != null) && !busy && !saves.busy && !exportState.busy,
                     modifier = Modifier.semantics { contentDescription = "Viewer actions" }) {
-                    if (busy || saves.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Box(Modifier.size(24.dp).border(1.dp, filesMuted, CircleShape), contentAlignment = Alignment.Center) { Text("⋯", fontSize = 19.sp) }
+                    if (busy || saves.busy || exportState.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Box(Modifier.size(24.dp).border(1.dp, filesMuted, CircleShape), contentAlignment = Alignment.Center) { Text("⋯", fontSize = 19.sp) }
                 }
                 DropdownMenu(menu, { menu = false }, containerColor = androidx.compose.ui.graphics.Color(0xFF232428)) {
                     listOf("Share", "Save", "Open").forEach { action -> DropdownMenuItem(text = { Text(action) }, onClick = { perform(action) }) }

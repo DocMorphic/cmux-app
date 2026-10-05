@@ -33,13 +33,14 @@ internal suspend fun materializeArtifactShare(rpc: ArtifactRpc, authorization: A
     currentCoroutineContext().ensureActive()
     withContext(Dispatchers.IO) {
         root.mkdirs()
-        root.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 3_600_000 }?.forEach { it.deleteRecursively() }
+        ArtifactExportCache.prune(root)
     }
     val files = ArtifactPreviewFiles(root, transfer)
+    val lease = ArtifactExportCache.hold(files.directory)
     try {
         return files.download(path, metadata, byteLimit = Long.MAX_VALUE, filename = name(metadata)) { _, _ -> }
     } catch (failure: Throwable) {
         withContext(NonCancellable + Dispatchers.IO) { files.close() }
         throw failure
-    }
+    } finally { lease.close() }
 }

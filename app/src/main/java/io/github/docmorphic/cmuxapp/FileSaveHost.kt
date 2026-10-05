@@ -238,7 +238,7 @@ internal fun FileSaveHost(content: @Composable () -> Unit) {
             catch (error: Exception) { currentCoroutineContext().ensureActive(); model.launchFailed(error) }
         }
     }
-    CompositionLocalProvider(LocalFileSaves provides model) { content() }
+    CompositionLocalProvider(LocalFileSaves provides model) { FileExportHost(content) }
     if (pending?.phase in setOf(FileSavePhase.PREPARING, FileSavePhase.WRITING) && model.failure == null) AlertDialog(
         onDismissRequest = {}, title = { Text(if (pending?.phase == FileSavePhase.PREPARING) "Preparing file…" else "Saving file…") },
         text = {

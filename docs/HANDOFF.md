@@ -15,6 +15,17 @@ available, and the upstream watcher remains configured. Main integration does
 not establish full parity or authorize production release promotion. Earlier
 feature-branch/draft-only instructions below are historical.
 
+## Latest export ownership batch — 2026-10-05
+
+Share/Open/Copy Image and row Share now use an Activity-owned controller and
+resumed-Activity host with one-time presentation claims. Active exports have
+cache leases; cancellation and failed chooser launch clean unpublished copies.
+Main Kotlin compiled and 17 focused JVM checks passed. No APK/emulator/runtime
+run. Next: persistent background Save completion, abandoned-copy/receipt cleanup,
+Share/Open process restoration, then integrated Activity/Pixel acceptance of
+these export changes with Files/Save recovery. Detailed scope and receipts are
+in `CONTENT_PREVIEW_LIFECYCLE.md`.
+
 ## Latest remote export batch — 2026-10-05
 
 Remote Save/Share/Open now re-stat and fetch the current scoped Mac file, with
@@ -22,8 +33,8 @@ export access even when its inline preview exceeds the limit. Save streams
 directly to its durable snapshot and shows cancellable preparation progress.
 Main Kotlin compiled and 26 focused JVM checks passed; no APK or emulator run.
 Current-loader freshness implementation is done, but UI/provider/network
-acceptance remains. Next implementation work: retain Share/Open action ownership
-through recreation; persistent background Save completion; cleanup of abandoned
+acceptance remains. The subsequent owner batch adds recreation retention. Remaining implementation:
+persistent background Save completion; cleanup of abandoned
 copies/old receipts. See `CONTENT_PREVIEW_LIFECYCLE.md` for scope and evidence.
 
 ## Latest Save implementation batch — 2026-10-05

@@ -1,5 +1,6 @@
 package io.github.docmorphic.cmuxapp
 
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -69,23 +70,25 @@ internal class ChangesPreviewFiles(root: File, private val transfer: ChangesCont
 /** Export a snapshot independent of the preview lifetime; a picker/clipboard may outlive its page. */
 internal suspend fun exportChangesPreview(artifact: ChangesPreviewArtifact, root: File, filename: String = artifact.file.name): File =
     exportFilePreview(artifact.localPreview(), root, filename)
-internal suspend fun exportFilePreview(artifact: LocalFilePreview, root: File, filename: String = artifact.file.name): File = withContext(Dispatchers.IO) {
-    root.mkdirs()
-    root.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 3_600_000 }?.forEach { it.deleteRecursively() }
+internal suspend fun exportFilePreview(artifact: LocalFilePreview, root: File, filename: String = artifact.file.name): File {
     val directory = File(root, UUID.randomUUID().toString())
-    check(directory.mkdirs()) { "Could not prepare the file." }
+    val lease = ArtifactExportCache.hold(directory)
     try {
-        val output = File(directory, changesPreviewName(filename))
-        artifact.file.inputStream().use { input -> output.outputStream().use { target ->
-            val buffer = ByteArray(64 * 1024)
-            while (true) {
-                currentCoroutineContext().ensureActive()
-                val count = input.read(buffer)
-                if (count < 0) break
-                target.write(buffer, 0, count)
-            }
-        } }
-        currentCoroutineContext().ensureActive()
-        output
-    } catch (failure: Throwable) { directory.deleteRecursively(); throw failure }
+        return withContext(Dispatchers.IO) {
+            root.mkdirs(); ArtifactExportCache.prune(root)
+            check(directory.mkdirs()) { "Could not prepare the file." }
+            val output = File(directory, changesPreviewName(filename))
+            artifact.file.inputStream().use { input -> output.outputStream().use { target ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    ensureActive(); val count = input.read(buffer); if (count < 0) break
+                    target.write(buffer, 0, count)
+                }
+            } }
+            ensureActive(); output
+        }
+    } catch (failure: Throwable) {
+        withContext(NonCancellable + Dispatchers.IO) { directory.deleteRecursively() }
+        throw failure
+    } finally { lease.close() }
 }

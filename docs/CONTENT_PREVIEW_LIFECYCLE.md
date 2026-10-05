@@ -1,5 +1,50 @@
 # Content preview lifecycle
 
+## Retained Share/Open ownership — 2026-10-05
+
+Share, Open and Copy Image now use an Activity-owned `FileExportModel` and a
+view-independent controller. Gallery-row Share uses the same owner. Preparation
+and errors outlive the requesting row/preview composable; the Activity root
+observes the result and launches the system action only when resumed. A prepared
+request can be claimed once. Recreated or stale observers cannot present it a
+second time or consume a newer request. Requests retain their captured remote
+scope and do not silently switch Macs/connections.
+
+Preparation has a cancellable root dialog. Cancellation, failed presentation
+and permanent owner closure release unpublished copies after their producer
+stops. Successful handoff leaves the exported copy available to the receiving
+app or clipboard. Local export cleanup now also covers cancellation while
+returning from the IO dispatcher. In-process cache leases protect transfers and
+prepared files awaiting presentation from the existing one-hour cache cleanup;
+durable Save copies use their separate store. Expired unleased exports remain
+eligible for cleanup. The controller retains files/data, never Android views
+or an Activity context; system intents use the currently resumed Activity.
+
+Scoped iOS reference at `186cec79781256867ad4516f0802118738bd2393`:
+`ChatArtifactViewerPageModel` owns running/error/presentation state and serializes
+file-action preparation; `ChatArtifactViewerFileActionState` is its immutable
+presentation state. Android adapts this ownership to Activity recreation.
+This does not establish identical dismissal/process behavior or advance the
+global parity pin. Source copies/hashes are under
+`captures/runtime/export-owner-batch/`.
+
+**Verification:** main Kotlin compiled and **17 focused JVM tests passed** in a
+23-second Gradle run: six controller cases, one cache-lease case, three remote
+sharing regressions and seven local/Changes export regressions. They cover a
+single presentation claim, stale callbacks, late cancelled bytes, receiver-owned
+file lifetime, failed chooser cleanup, retained ready/error state and overlapping
+cache leases. Source hashes, logs and XML are preserved in that evidence folder.
+These are controller/IO checks, not a real Activity rotation or chooser launch.
+
+No emulator, Android runtime suite or APK build ran. Signed 606 is unchanged.
+Still required: actual rotation/background/foreground and chooser/clipboard
+handoff on Pixel, starting actions while a preview changes, concurrent Activities,
+account/route revocation during preparation, large/slow transfers and delayed
+receiving-app reads. Share/Open state is retained in memory through recreation;
+process-death restoration before presentation remains open. Persistent background
+Save completion and abandoned durable-copy/receipt cleanup remain implementation
+work. Integrate these with the earlier Files/Save batches before final acceptance.
+
 ## Current Mac bytes for remote file actions — 2026-10-05
 
 Remote Save, Share and Open now capture the visible path's current scoped RPC,

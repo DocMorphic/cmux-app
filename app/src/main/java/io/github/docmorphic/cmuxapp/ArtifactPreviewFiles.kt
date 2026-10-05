@@ -59,7 +59,7 @@ internal class ArtifactContentTransfer(private val rpc: ArtifactRpc, private val
 
 /** A selection owns its private download. Export actions make an independent narrowly shared copy. */
 internal class ArtifactPreviewFiles(root: File, private val transfer: ArtifactContentTransfer) : AutoCloseable {
-    private val directory = File(root, UUID.randomUUID().toString())
+    val directory = File(root, UUID.randomUUID().toString())
     suspend fun download(path: String, metadata: ArtifactMetadata, byteLimit: Long? = null, filename: String = changesPreviewName(path),
         progress: suspend (Long, Long) -> Unit): LocalFilePreview = withContext(Dispatchers.IO) {
         val route = filePreviewRoute(metadata.kind.name.lowercase(), metadata.mime, path)

@@ -2,8 +2,6 @@ package io.github.docmorphic.cmuxapp
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Intent
-import java.io.File
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
@@ -275,34 +273,15 @@ private fun ArtifactGalleryRow(rpc: ArtifactRpc, item: ArtifactItem, grid: Boole
 private fun ArtifactGalleryRowContent(rpc: ArtifactRpc, item: ArtifactItem, grid: Boolean, thumbnails: ArtifactThumbnails, authorization: ArtifactAuthorization, onOpen: () -> Unit) {
     val context = LocalContext.current
     var menu by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    var sharing by remember { mutableStateOf(false) }
-    var shareFailure by remember { mutableStateOf<String?>(null) }
+    val exports = checkNotNull(LocalFileExports.current)
+    val saves = checkNotNull(LocalFileSaves.current)
+    val exportState by exports.controller.state.collectAsState()
+    val source = remember(rpc, authorization, item.path) { RemoteArtifactSource(rpc, authorization, item.path) }
+    val sharing = exportState.busy && exportState.key == source
     fun share() {
-        if (sharing || !item.exists || item.kind == ArtifactKind.DIRECTORY) return
-        sharing = true; menu = false; shareFailure = null
-        scope.launch {
-            var exported: LocalFilePreview? = null
-            var handedOff = false
-            try {
-                val file = materializeArtifactShare(rpc, authorization, item.path, File(context.cacheDir, "task-previews")) { metadata ->
-                    fileActionType(changesPreviewName(item.path), metadata.mime).filename
-                }
-                exported = file
-                ensureActive()
-                context.startActivity(Intent.createChooser(artifactShareIntent(context, file.file, fileActionType(file.file.name, file.mime).mime), "Share ${file.file.name}"))
-                handedOff = true
-            } catch (error: Exception) {
-                ensureActive()
-                shareFailure = error.message ?: "Could not prepare file."
-            } finally {
-                if (!handedOff) withContext(NonCancellable + Dispatchers.IO) { exported?.file?.parentFile?.deleteRecursively() }
-                sharing = false
-            }
-        }
+        if (exportState.busy || saves.busy || !item.exists || item.kind == ArtifactKind.DIRECTORY) return
+        menu = false; exports.begin(FileExportAction.SHARE, null, source)
     }
-    shareFailure?.let { message -> AlertDialog(onDismissRequest = { shareFailure = null }, title = { Text("Couldn't share file") },
-        text = { Text(message) }, confirmButton = { TextButton(onClick = { shareFailure = null }) { Text("OK") } }) }
     Box {
         val modifier = Modifier.fillMaxWidth().combinedClickable(onClick = onOpen, onLongClick = { menu = true })
             .semantics { contentDescription = "Open ${if (item.kind == ArtifactKind.DIRECTORY) "folder" else "file"} ${item.path}" }
@@ -320,7 +299,7 @@ private fun ArtifactGalleryRowContent(rpc: ArtifactRpc, item: ArtifactItem, grid
         }
         if (sharing) CircularProgressIndicator(Modifier.align(Alignment.TopEnd).size(18.dp).semantics { contentDescription = "Preparing ${item.displayName} to share" }, strokeWidth = 2.dp)
         DropdownMenu(menu, { menu = false }) {
-            if (item.kind != ArtifactKind.DIRECTORY) DropdownMenuItem(text = { Text("Share") }, enabled = item.exists && !sharing, onClick = ::share)
+            if (item.kind != ArtifactKind.DIRECTORY) DropdownMenuItem(text = { Text("Share") }, enabled = item.exists && !exportState.busy && !saves.busy, onClick = ::share)
             if (item.kind == ArtifactKind.DIRECTORY) DropdownMenuItem(text = { Text("Browse folder") }, enabled = item.exists, onClick = { menu = false; onOpen() })
             DropdownMenuItem(text = { Text("Copy path") }, onClick = {
                 context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("File path", item.path)); menu = false
