@@ -1,5 +1,28 @@
 # Changes preview lifecycle
 
+## Main Files integration follow-up — source audit (2026-10-05)
+
+The text/media tests below recreate the shared viewer with the same local file.
+Changes supplies that stable file through its retained preview controller. The
+main Files flow and native Markdown panels still need equivalent integration:
+`ArtifactFilesSheet` creates its gallery store in `remember`, while
+`ArtifactPreviewPage` downloads in `produceState`, closes its private directory
+on disposal, and keys the viewer by the local absolute path. `ArtifactPreviewFiles`
+uses a new UUID directory per download. MainActivity does not handle orientation
+changes itself, so recreation can redownload into a different key and discard
+saved viewer state even when the remembered remote destination is restored.
+This is source evidence of an outstanding integration gap, not a new runtime
+result. The earlier component tests must not be described as end-to-end Files
+rotation acceptance.
+
+Next: move the gallery/download lifetime to the owning retained presentation,
+keep authorization/session invalidation explicit, and test the actual Files and
+Markdown-panel routes across recreation with exact content, position, selection
+and fetch-count assertions. Cover an in-progress download and closing/revoking
+the owner as well. Pending Save-result ownership must work across both the loading
+and loaded states; saving a local path only inside `FilePreviewActions` is not
+sufficient because those states currently mount it at different call sites.
+
 ## Text and media recreation — 2026-10-05
 
 The shared artifact viewer now saves raw-text reading position as a character
