@@ -13,14 +13,21 @@ internal object NativeDirectoryRouteUpgrade {
         val computers = directory.computers.distinct().groupBy {
             NativeMacIdentity(canonicalMacDeviceId(it.deviceId), it.buildTag)
         }.mapValues { it.value.singleOrNull() }
+        // Do not filter ambiguous builds before counting: two conflicting records
+        // for one build must not make a different sibling look like the sole route.
+        val soleDevices = directory.computers.distinct().groupBy { canonicalMacDeviceId(it.deviceId) }
+            .mapValues { it.value.singleOrNull() }
         var changed = false
         val next = JSONArray()
         for (index in 0 until previous.length()) {
             val value = previous.get(index)
             val row = (value as? JSONObject)?.let(NativePairingRecords::decode)
-            val computer = row?.instanceTag?.let { computers[NativeMacIdentity(canonicalMacDeviceId(row.deviceId), it)] }
+            val computer = row?.let { saved -> saved.instanceTag?.let {
+                computers[NativeMacIdentity(canonicalMacDeviceId(saved.deviceId), it)]
+            } ?: if (saved.instanceTag == null) soleDevices[canonicalMacDeviceId(saved.deviceId)] else null }
+            val pairing = row?.let { PairingCodeParser.parse(it.code).getOrNull() }
             val upgrade = if (row != null && computer != null &&
-                PairingCodeParser.parse(row.code).getOrNull() is PairingCode.Tailscale &&
+                (pairing is PairingCode.Tailscale || (pairing is PairingCode.Iroh && row.instanceTag == null)) &&
                 NativePairingRecords.owner(row, grants) == (team.userId to team.teamId) &&
                 !NativeComputerVisibility.isHidden(state, row)) {
                 val code = PairingCodeParser.computer(computer, team)

@@ -24,13 +24,14 @@ internal class NativeSavedTailscaleRouteAdmission(val mac: NativeCredentialStore
     fun requireBinding(pairing: PairingCode.Tailscale, owner: NativeTeamScope) {
         requireCurrent()
         check(coversPrimaryTicket(pairing) || (mac.accountUserId == owner.userId && mac.accountTeamId == owner.teamId &&
-            mac.stableOrigin != null && !mac.instanceTag.isNullOrBlank())) { "A replacement route requires an owned Mac identity" }
+            mac.stableOrigin != null && grant.build != null && NativeComputerTarget.from(mac, owner)?.buildTag == grant.build)) { "A replacement route requires an owned Mac identity" }
         check(PairingCodeParser.parse(mac.code).getOrNull() == pairing && grant.user == owner.userId &&
-            grant.team == owner.teamId && grant.device == canonicalMacDeviceId(mac.deviceId) && grant.build == mac.instanceTag) {
+            grant.team == owner.teamId && grant.device == canonicalMacDeviceId(mac.deviceId) &&
+            grant.build == (mac.instanceTag ?: NativeComputerTarget.from(mac, owner)?.buildTag)) {
             "Saved destination does not match this computer"
         }
     }
-    fun coversPrimaryTicket(pairing: PairingCode.Tailscale) = grant.source == TailscaleGrantStore.source(pairing)
+    fun coversPrimaryTicket(pairing: PairingCode.Tailscale) = grant.source == TailscaleGrantStore.source(pairing) && grant.build == mac.instanceTag
     override fun toString() = "SavedTailscaleRouteAdmission(redacted)"
 }
 

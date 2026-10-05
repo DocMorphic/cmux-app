@@ -6,7 +6,8 @@ internal data class NativeSavedMacRoute(val code: String, val pairing: PairingCo
 internal fun nativeSavedMacRoute(mac: NativeCredentialStore.PairedMac, method: NativeMacConnectionMethod): NativeSavedMacRoute {
     val primary = PairingCodeParser.parse(mac.code).getOrThrow()
     val native = NativePairingRecords.retainedNativeRoute(mac)
-    return if (primary is PairingCode.Tailscale && native != null && method != NativeMacConnectionMethod.TAILSCALE)
+    return if (native != null && ((primary is PairingCode.Tailscale && method != NativeMacConnectionMethod.TAILSCALE) ||
+            (primary is PairingCode.Iroh && mac.instanceTag == null)))
         NativeSavedMacRoute(checkNotNull(mac.nativeRouteCode), native, false)
     else NativeSavedMacRoute(mac.code, primary, true)
 }

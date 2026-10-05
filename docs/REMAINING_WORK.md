@@ -25,6 +25,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Sole-build directory enrichment now supplies provisional native routes for
+  untagged native and raw saved Macs. Details/method selection and foreground
+  reconnect use the exact scoped build; host authentication still supplies the
+  final tag. Existing tickets cannot cross a provisional build boundary, even
+  with an unchanged source. **104 focused JVM tests passed**; main/instrumentation
+  Kotlin compile passed (20 s final run). An initial screen method-size failure
+  was resolved by extracting the reconnect-key helper. No APK/AVD. The queued
+  Details and Keystore tests belong in the next combined connection milestone;
+  live old-raw-grant build adoption and Pixel/Mac recovery remain open. See
+  `ATTACH_TICKETS.md` and `captures/runtime/legacy-directory-routes/`.
+
 - Authenticated legacy build adoption now preserves a captured or sole owned
   untagged computer's draft/notification/selection origins, keeps sibling builds
   separate and removes ticket credentials whose old build binding has changed.

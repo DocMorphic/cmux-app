@@ -14,9 +14,9 @@ internal data class NativeComputersState(
     val localConnectionKeys: Map<NativeMacIdentity, String> = emptyMap()
 ) {
     fun connectionKey(pairing: PairingCode.Iroh?, savedTarget: NativeComputerTarget? = null): String? {
-        if (pairing == null) return null
-        val deviceId = savedTarget?.deviceId ?: pairing.macDeviceId
-        val buildTag = savedTarget?.buildTag ?: pairing.buildTag
+        if (pairing == null && savedTarget == null) return null
+        val deviceId = savedTarget?.deviceId ?: pairing?.macDeviceId
+        val buildTag = savedTarget?.buildTag ?: pairing?.buildTag
         val local = deviceId?.let { device -> buildTag?.let { build ->
             localConnectionKeys[NativeMacIdentity(canonicalMacDeviceId(device), build)]
         } }
@@ -27,7 +27,7 @@ internal data class NativeComputersState(
             } ?: return null
             return connectionKeys[current.endpointId]
         }
-        return connectionKeys[pairing.endpointId]
+        return pairing?.endpointId?.let(connectionKeys::get)
     }
 }
 

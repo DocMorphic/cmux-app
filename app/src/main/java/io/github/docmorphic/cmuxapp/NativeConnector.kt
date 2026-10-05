@@ -91,7 +91,7 @@ internal class TailscaleConnector(private val context: Context, private val stor
         val settings = NativeMacConnectionStore.create(context.applicationContext, team)
         fun intent(): NativeMacDialIntent {
             check(!settings.state.value.error) { "Could not read this phone’s connection settings." }
-            return mac.instanceTag?.let { settings.state.value.intent(NativeComputerTarget(mac.deviceId, it, mac.name)) }
+            return NativeComputerTarget.from(mac, team)?.let { settings.state.value.intent(it) }
                 ?: NativeMacDialIntent(recovery = settings.state.value.recovery)
         }
         val capturedIntent = intent()

@@ -24,6 +24,112 @@ class NativeDirectoryRouteUpgradeTest {
     }
     private fun row(state: JSONObject) = NativeComputerVisibility.saved(state).single()
 
+    private fun legacyState(): JSONObject {
+        val state = state()
+        val grants = TailscaleGrantStore({ state }, { it(state) })
+        val grant = grants.find(team, TailscaleGrantStore.source(PairingCodeParser.parse(raw).getOrThrow() as PairingCode.Tailscale))!!
+        grants.save(team, grant.copy(build = null)) { true }
+        state.put("pairings", JSONArray().put(NativePairingRecords.encode(row(state).copy(instanceTag = null))))
+        return state
+    }
+
+    @Test fun soleDirectoryBuildSuppliesProvisionalRouteThenAuthenticatedPromotionPreservesLegacyHistory() {
+        val state = legacyState(); val before = row(state)
+        val grants = state.getJSONArray("tailscale_grants_v1").toString()
+        assertTrue(NativeDirectoryRouteUpgrade.retain(state, team, directory))
+        val enriched = row(state)
+        assertNull(enriched.instanceTag); assertEquals(before.origin, enriched.origin)
+        assertEquals(before.code, enriched.code)
+        val target = NativeComputerTarget.from(enriched, team)!!
+        assertEquals("default", target.buildTag)
+        assertEquals(grants, state.getJSONArray("tailscale_grants_v1").toString())
+        assertEquals(enriched, NativePairingRecords.decode(NativePairingRecords.encode(enriched)))
+        assertEquals(enriched, NativeDirectoryRouteUpgrade.refreshedSelection(before, enriched, team, TailscaleGrantStore({ state }, {})))
+        val route = nativeSavedMacRoute(enriched, NativeMacConnectionMethod.IROH)
+        assertFalse(route.usesPrimaryTicket); assertTrue(route.pairing is PairingCode.Iroh)
+        val authenticated = NativePairingPersistence.remember(state, before.copy(code = route.code, instanceTag = "default"), team, enriched)
+        assertEquals(before.origin, authenticated.origin); assertEquals("default", authenticated.instanceTag)
+        assertEquals(1, NativeComputerVisibility.saved(state).size)
+        assertEquals(before.origin, state.getString("computer_selection"))
+    }
+
+    @Test fun nativePreTagPairingCanReplaceItsStalePeerOnlyFromSoleScopedDirectoryAndLearnAfterAuthentication() {
+        val old = NativeCredentialStore.PairedMac("cmux-ios://attach?v=3&i=old-peer&d=mac&ub=user&t=team", "mac", "Legacy Native")
+        val state = legacyState().put("pairings", JSONArray().put(NativePairingRecords.encode(old)))
+            .put("computer_selection", old.origin)
+        assertTrue(NativeDirectoryRouteUpgrade.retain(state, team, directory))
+        val enriched = row(state)
+        assertEquals(old.code, enriched.code); assertNull(enriched.instanceTag)
+        for (method in NativeMacConnectionMethod.entries) {
+            val selected = nativeSavedMacRoute(enriched, method)
+            assertEquals(computer.endpointId, (selected.pairing as PairingCode.Iroh).endpointId)
+            assertFalse(selected.usesPrimaryTicket)
+        }
+        assertEquals("default", NativeComputerTarget.from(enriched, team)!!.buildTag)
+        val verified = NativePairingPersistence.remember(state, enriched.copy(code = enriched.nativeRouteCode!!,
+            nativeRouteCode = null, instanceTag = "default"), team, enriched)
+        assertEquals(old.origin, verified.origin); assertEquals("default", verified.instanceTag)
+        assertEquals(1, NativeComputerVisibility.saved(state).size)
+    }
+
+    @Test fun rawPrimaryReconnectObservesItsExactDiscoveredBuildAndLocalTailscaleRouteRevision() {
+        val target = NativeComputerTarget.from(computer)
+        val state = directory.copy(connectionKeys = mapOf(computer.endpointId to "native-route"))
+        assertEquals("native-route", state.connectionKey(null, target))
+        assertNull(state.connectionKey(null, target.copy(buildTag = "nightly")))
+        assertNull(state.connectionKey(null))
+        val local = state.copy(localConnectionKeys = mapOf(NativeMacIdentity("mac", "default") to "local-route"))
+        assertEquals("local-route", local.connectionKey(null, target))
+    }
+
+    @Test fun foregroundReconnectKeyChangesForPersistedLocatorAndAccountButNotHostRename() {
+        val state = legacyState(); val before = row(state)
+        val first = nativeForegroundReconnectKey(directory, listOf(before), team, before.code)
+        NativeDirectoryRouteUpgrade.retain(state, team, directory)
+        val enriched = row(state)
+        val second = nativeForegroundReconnectKey(directory, listOf(enriched), team, enriched.code)
+        assertNotEquals(first, second)
+        assertEquals(second, nativeForegroundReconnectKey(directory, listOf(enriched.copy(name = "Renamed")), team, enriched.code))
+        assertNotEquals(second, nativeForegroundReconnectKey(directory, listOf(enriched), team.copy(generation = 2), enriched.code))
+    }
+
+    @Test fun missingOrAmbiguousBuildsDoNotChooseOrEraseLegacyNativeRoutes() {
+        val state = legacyState(); val before = state.toString()
+        for (computers in listOf(emptyList(), listOf(computer, computer.copy(buildTag = "nightly", endpointId = "b".repeat(64))),
+            listOf(computer, computer.copy(recordId = "conflict"), computer.copy(buildTag = "nightly", endpointId = "b".repeat(64))))) {
+            assertFalse(NativeDirectoryRouteUpgrade.retain(state, team, directory.copy(computers = computers)))
+            assertEquals(before, state.toString())
+        }
+        assertTrue(NativeDirectoryRouteUpgrade.retain(state, team, directory.copy(computers = listOf(computer, computer))))
+        val retained = state.toString()
+        assertFalse(NativeDirectoryRouteUpgrade.retain(state, team, directory.copy(computers = emptyList())))
+        assertEquals(retained, state.toString())
+    }
+
+    @Test fun provisionalIdentityRequiresFullScopeAndDoesNotSilentlyRetagOldTailscaleGrant() {
+        val state = legacyState(); NativeDirectoryRouteUpgrade.retain(state, team, directory)
+        val enriched = row(state); val grants = TailscaleGrantStore({ state }, {})
+        assertTrue(NativeSavedTailscaleRoutes.candidates(enriched, team, grants).isEmpty())
+        assertNull(NativePairingRecords.retainedNativeRoute(enriched.copy(nativeRouteCode = "cmux-ios://attach?v=3&i=peer&d=mac&b=default")))
+        assertNull(NativeComputerTarget.from(enriched.copy(accountTeamId = "other"), team))
+        assertNull(NativeComputerTarget.from(enriched.copy(code = raw.replace("ub=user", "ub=other")), team))
+    }
+
+    @Test fun independentlyAuthorizedTaggedGrantCanConnectProvisionalRowWithoutOldTicketAndLearnBuild() {
+        val state = legacyState(); NativeDirectoryRouteUpgrade.retain(state, team, directory)
+        val enriched = row(state); val grants = TailscaleGrantStore({ state }, { it(state) })
+        val old = grants.find(team, TailscaleGrantStore.source(PairingCodeParser.parse(raw).getOrThrow() as PairingCode.Tailscale))!!
+        val tagged = old.copy(id = UUID.randomUUID().toString(), build = "default")
+        grants.save(team, tagged) { true }
+        assertEquals(listOf(tagged), NativeSavedTailscaleRoutes.candidates(enriched, team, grants))
+        val admission = NativeSavedTailscaleRouteAdmission(enriched, tagged) { true }
+        val pairing = PairingCodeParser.parse(raw).getOrThrow() as PairingCode.Tailscale
+        admission.requireBinding(pairing, team)
+        assertFalse(admission.coversPrimaryTicket(pairing))
+        val result = NativePairingPersistence.remember(state, saved(), team, enriched)
+        assertEquals(enriched.origin, result.origin); assertEquals("default", result.instanceTag)
+    }
+
     @Test fun retainsUniqueScopedIdentityWithoutReplacingRawTicketGrantsNamesOrHistory() {
         val state = state(); val before = row(state)
         val ticket = MobileAttachTicketCodec.decodeJson("""{"version":1,"workspaceID":"w","macDeviceID":"mac","macUserID":"user",
@@ -64,12 +170,11 @@ class NativeDirectoryRouteUpgradeTest {
             NativeComputerPresence(false, null), NativeComputerRouteLabel(NativeMacConnectionMethod.IROH, null))), listOf(changed))
         assertEquals(1, list.saved.size); assertTrue(list.discovered.isEmpty())
     }
-    @Test fun wrongOwnerBuildMissingTagAndAmbiguousPeersCannotSupplyAnUpgrade() {
+    @Test fun wrongOwnerBuildAndAmbiguousPeersCannotSupplyAnUpgrade() {
         for (change in listOf<(JSONObject) -> Unit>(
             { it.put("task_session", "other") }, { it.remove("refresh_token") },
             { it.put("pairings", JSONArray().put(NativePairingRecords.encode(row(it).copy(accountTeamId = "other")))) },
-            { it.put("pairings", JSONArray().put(NativePairingRecords.encode(row(it).copy(instanceTag = "nightly")))) },
-            { it.put("pairings", JSONArray().put(NativePairingRecords.encode(row(it).copy(instanceTag = null)))) }
+            { it.put("pairings", JSONArray().put(NativePairingRecords.encode(row(it).copy(instanceTag = "nightly")))) }
         )) {
             val state = state(); change(state); val original = state.toString()
             assertFalse(NativeDirectoryRouteUpgrade.retain(state, team, directory)); assertEquals(original, state.toString())

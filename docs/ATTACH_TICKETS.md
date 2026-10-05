@@ -179,9 +179,10 @@ Real saved-method changes on Mac/Pixel still need acceptance.
   original source. See `TAILSCALE_CONNECTION.md`. The new Android Details case
   and physical edited-address/cold-start acceptance remain pending.
 - Authenticated persistence now adopts a captured or sole owned legacy pre-tag
-  record while preserving its history; see the checkpoint below. Sole-build
-  directory route enrichment and learning a build through an old untagged raw
-  Tailscale grant still need connection-layer integration and physical acceptance.
+  record while preserving its history; see the checkpoints below. Sole-build
+  directory route enrichment is now implemented for native and raw legacy rows.
+  Learning a build through an old untagged raw Tailscale grant still needs
+  connection-layer integration and physical acceptance.
 - Verify authenticated legacy-to-native enrichment and reconnect in the real
   account flow, including foreground retry, hidden/forgotten rows, directory
   outages, drafts/notifications, ticket binding and strict per-build methods.
@@ -788,3 +789,40 @@ Remaining: unambiguous directory route enrichment for pre-tag rows, live raw
 Tailscale handshake/grant adoption, old appearance/route metadata reconciliation,
 and Pixel/Mac acceptance. This checkpoint does not close the full legacy-upgrade
 or connection-parity gate.
+
+## Provisional native routes for legacy records (2026-10-06)
+
+The authenticated account directory can now enrich an owned untagged saved row
+(native or raw Tailscale) only when exactly one distinct directory record exists
+for its device. Ambiguous peers/builds are counted before filtering; an ambiguous
+build plus one other build cannot accidentally become a sole candidate. Empty or
+ambiguous snapshots preserve the previous locator. Hidden, forgotten and wrong-
+owner records remain excluded. This follows the scoped sole-route authority
+comparison documented above; global upstream pins are unchanged.
+
+The fully scoped locator stays in `nativeRouteCode`. The primary code, origin,
+ticket binding and final `instanceTag` stay unchanged until host authentication.
+Computer Details and method settings use the provisional locator's exact build;
+native connection still resolves current account permission and verifies the host.
+Old native endpoints can use the new locator, with no old ticket transferred to
+it. Foreground reconnect observes persisted locator changes, account changes and
+exact-build route revisions, including rows whose primary code is raw Tailscale.
+
+Independently authorized tagged Tailscale grants can also serve this provisional
+identity. A matching source string alone cannot reuse a ticket bound to the old
+untagged build. Both source and build must match. An untagged raw grant is not
+retagged by directory discovery; that separate live handshake path remains open.
+Successful authenticated persistence uses the existing history-preserving upgrade.
+
+The screen's method-size compiler limit was reached while adding the reconnect
+key. Extracting its calculation into `nativeForegroundReconnectKey` resolved it.
+Focused results and source hashes are recorded in `REMAINING_WORK.md` and local
+`captures/runtime/legacy-directory-routes/`, including the compiler failure and
+successful follow-up. No APK/emulator/physical run is claimed for this batch.
+Android UI/Keystore integration and Mac/Pixel recovery checks remain pending.
+
+Final verification: 104 focused JVM tests passed with no failures/errors/skips;
+main and instrumentation Kotlin compile passed (20 seconds final run). Cases
+cover sole/ambiguous directory entries, provisional native and raw identity,
+method selection, ticket build boundaries, saved/native reconnect keys, ownership,
+persistence and existing connection/runtime regressions.

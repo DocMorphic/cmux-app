@@ -22,3 +22,14 @@ internal data class NativeReconnectComputers(
             }.singleOrNull() == mac
     }
 }
+
+/** Keep account and persisted locator changes in the foreground connection's effect key. */
+internal data class NativeForegroundReconnectKey(val owner: NativeTeamScope?, val nativeRoute: String?, val connection: String?)
+
+internal fun nativeForegroundReconnectKey(state: NativeComputersState,
+    saved: List<NativeCredentialStore.PairedMac>, team: NativeTeamScope?, code: String): NativeForegroundReconnectKey {
+    val mac = saved.singleOrNull { it.code == code }
+    val target = if (team == null || mac == null) null else NativeComputerTarget.from(mac, team)
+    return NativeForegroundReconnectKey(team, mac?.nativeRouteCode,
+        state.connectionKey(PairingCodeParser.parse(code).getOrNull() as? PairingCode.Iroh, target))
+}

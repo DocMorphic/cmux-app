@@ -39,6 +39,13 @@ class NativeSavedTailscaleRouteTest {
         assertEquals(listOf(primary.copy(build = null)), NativeSavedTailscaleRoutes.candidates(old.copy(accountUserId = "user", accountTeamId = "team", stableOrigin = mac.stableOrigin), team, grants))
     }
 
+    @Test fun aReplacementGrantCannotTreatTwoMissingBuildsAsAnAuthenticatedIdentity() {
+        val old = mac.copy(instanceTag = null)
+        val admission = NativeSavedTailscaleRouteAdmission(old, replacement.copy(build = null)) { true }
+        assertThrows(IllegalStateException::class.java) { admission.requireBinding(pairing, team) }
+        NativeSavedTailscaleRouteAdmission(old, primary.copy(build = null)) { true }.requireBinding(pairing, team)
+    }
+
     @Test fun retryTriesOnlyCapturedGrantsAndOnlyOriginalSourceReceivesSavedTicket() = runBlocking<Unit> {
         val attempted = mutableListOf<TailscaleSavedGrant>()
         val ticket = NativeSavedTicketAdmission(mac.copy(ticketRevision = "revision"), MobileAttachTicketContext("w", "s", "fixture", null)) {}

@@ -74,10 +74,15 @@ internal object NativePairingRecords {
     fun retainedNativeRoute(row: NativeCredentialStore.PairedMac): PairingCode.Iroh? {
         if (row.accountUserId == null || row.accountTeamId == null || row.stableOrigin == null) return null
         val route = row.nativeRouteCode?.let { PairingCodeParser.parse(it).getOrNull() } as? PairingCode.Iroh ?: return null
+        // An untagged record can retain a fully scoped directory locator without
+        // claiming that a host handshake has learned its final build yet.
+        if (row.instanceTag == null && (route.userId != row.accountUserId || route.teamId != row.accountTeamId ||
+                route.macDeviceId == null || canonicalMacDeviceId(route.macDeviceId) != canonicalMacDeviceId(row.deviceId) ||
+                route.buildTag.isNullOrBlank())) return null
         return route.takeIf {
             (it.userId == null || it.userId == row.accountUserId) && (it.teamId == null || it.teamId == row.accountTeamId) &&
                 (it.macDeviceId == null || canonicalMacDeviceId(it.macDeviceId) == canonicalMacDeviceId(row.deviceId)) &&
-                (it.buildTag == null || it.buildTag == row.instanceTag)
+                (row.instanceTag == null || it.buildTag == null || it.buildTag == row.instanceTag)
         }
     }
 

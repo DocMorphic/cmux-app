@@ -35,8 +35,8 @@ internal object NativePairingPersistence {
                 // can use the replacement; fresh pairing still requires its exact source.
                 val savedIdentity = expected?.takeIf {
                     it.code == incoming.code && canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(incoming.deviceId) &&
-                        it.instanceTag == incoming.instanceTag && it.accountUserId == team.userId &&
-                        it.accountTeamId == team.teamId && it.stableOrigin != null && !it.instanceTag.isNullOrBlank()
+                        NativeComputerTarget.from(it, team)?.buildTag == incoming.instanceTag && it.accountUserId == team.userId &&
+                        it.accountTeamId == team.teamId && it.stableOrigin != null
                 }
                 val retainedRoute = savedIdentity != null && NativeSavedTailscaleRoutes.candidates(savedIdentity, team, grants).isNotEmpty()
                 check(retainedRoute || (grant != null && grant.device == canonicalMacDeviceId(incoming.deviceId) && grant.build == incoming.instanceTag)) {

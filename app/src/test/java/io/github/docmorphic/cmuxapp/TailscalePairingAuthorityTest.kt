@@ -98,6 +98,18 @@ class TailscalePairingAuthorityTest {
         } finally { f.authority.close() }
     }
 
+    @Test fun provisionalBuildCannotCarryUntaggedTicketEvenWhenGrantSourceIsUnchanged() = runBlocking<Unit> {
+        val f = savedFixture { row -> row.copy(instanceTag = null, stableOrigin = "a".repeat(64),
+            nativeRouteCode = PairingCodeParser.computer(IrohV2Computer("r", "a".repeat(64), "mac", "default", "Mac", emptyList()),
+                NativeTeamScope("login", "user", "team", 1))) }
+        try {
+            f.savedRoute = NativeSavedTailscaleRouteAdmission(f.savedTicket!!.mac, f.grant()!!) { true }
+            val before = f.transports.size
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(before, f.transports.size)
+        } finally { f.authority.close() }
+    }
+
     @Test fun replacementGrantCannotCarryPrimarySavedTicketOrConsumePendingFreshConsent() = runBlocking<Unit> {
         val f = savedFixture()
         try {

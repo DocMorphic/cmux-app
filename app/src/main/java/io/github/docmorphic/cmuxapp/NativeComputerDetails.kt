@@ -28,7 +28,9 @@ internal data class NativeComputerTarget(val deviceId: String, val buildTag: Str
             if ((mac.accountUserId != null && mac.accountUserId != team.userId) ||
                 (mac.accountTeamId != null && mac.accountTeamId != team.teamId)) return null
             val pairing = PairingCodeParser.parse(mac.code).getOrNull() ?: return null
-            if (pairing is PairingCode.Tailscale && NativePairingRecords.retainedNativeRoute(mac) == null) {
+            if (pairing is PairingCode.Tailscale && pairing.stackUserId != null && pairing.stackUserId != team.userId) return null
+            val retained = NativePairingRecords.retainedNativeRoute(mac)
+            if (pairing is PairingCode.Tailscale && retained == null) {
                 // Only persisted authenticated metadata supplies a raw row's identity.
                 // The URL's user/address hints alone cannot create Computer Details authority.
                 if (mac.accountUserId != team.userId || mac.accountTeamId != team.teamId || mac.stableOrigin == null ||
@@ -36,13 +38,14 @@ internal data class NativeComputerTarget(val deviceId: String, val buildTag: Str
                     mac.deviceId.isBlank() || mac.instanceTag.isNullOrBlank()) return null
                 return NativeComputerTarget(mac.deviceId, mac.instanceTag, mac.name)
             }
-            val code = pairing as? PairingCode.Iroh ?: NativePairingRecords.retainedNativeRoute(mac) ?: return null
+            val code = pairing as? PairingCode.Iroh ?: retained ?: return null
+            val build = mac.instanceTag ?: retained?.buildTag ?: return null
             // Older native QR codes omit scope hints. They are never authority: the check
             // refreshes this team's directory and resolves the exact device/build before dialing.
             if ((code.userId != null && code.userId != team.userId) || (code.teamId != null && code.teamId != team.teamId) ||
                 (code.macDeviceId != null && canonicalMacDeviceId(code.macDeviceId) != canonicalMacDeviceId(mac.deviceId)) ||
-                (code.buildTag != null && code.buildTag != mac.instanceTag) || mac.instanceTag == null || mac.deviceId.isBlank()) return null
-            return NativeComputerTarget(mac.deviceId, mac.instanceTag, mac.name)
+                (code.buildTag != null && code.buildTag != build) || mac.deviceId.isBlank()) return null
+            return NativeComputerTarget(mac.deviceId, build, mac.name)
         }
     }
 }

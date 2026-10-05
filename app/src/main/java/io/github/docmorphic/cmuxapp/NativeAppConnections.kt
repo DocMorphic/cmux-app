@@ -53,7 +53,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         private fun savedRoute(mac: NativeCredentialStore.PairedMac, team: NativeTeamScope): NativeSavedMacRoute {
             val preferences = NativeMacConnectionStore.create(context.applicationContext, team).state.value
             check(!preferences.error) { "Could not read this phone’s connection settings. Reopen Computer Details and retry." }
-            val method = mac.instanceTag?.let { preferences.get(NativeComputerTarget(mac.deviceId, it, mac.name)).method }
+            val method = NativeComputerTarget.from(mac, team)?.let { preferences.get(it).method }
                 ?: NativeMacConnectionMethod.IROH
             return nativeSavedMacRoute(mac, method)
         }

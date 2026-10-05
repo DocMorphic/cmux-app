@@ -137,3 +137,8 @@ main raw-primary reconnect selection and persistence using replacement grants,
 with exact ticket-source coverage. Physical acceptance of both the Details and
 main reconnect flows remains open, along with legacy pre-tag adoption and
 remote-account Forget. Global upstream pins are unchanged.
+
+A legacy record's fully scoped provisional directory locator now supplies its
+Details target before the host has confirmed a final stored build. The connection
+still requires current account permission and exact host verification. See
+`ATTACH_TICKETS.md` for sole-build admission and remaining acceptance.
