@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Media audio-focus ownership and output-disconnect handling are implemented.
+  Paused previews leave other audio alone; transient focus recovery respects
+  playback intent and user Pause, and speed changes defer until focus is granted.
+  Ten focused JVM tests passed; main and Android tests compiled. The new platform
+  focus fixture and existing media lifecycle cases are queued for the next combined
+  device milestone. Actual headset/Bluetooth/call/audible-output acceptance and
+  media-session/remote controls remain open. See `CONTENT_PREVIEW_LIFECYCLE.md`.
+  The queued signed build at `19698a4` excludes this newer source batch.
+
 - Media previews now have seek/time controls, ±10-second skips, speed, mute and
   fullscreen with saved bookmarks/options and guarded player replacement. Four
   control-policy tests passed. Both focused Android media cases now pass after

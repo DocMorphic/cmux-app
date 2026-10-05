@@ -1,5 +1,45 @@
 # Content preview lifecycle
 
+## Audio interruptions source batch — 2026-10-05
+
+The scoped upstream `ChatArtifactMediaView.swift` at
+`186cec79781256867ad4516f0802118738bd2393` delegates playback to AVPlayer/
+AVPlayerViewController. Android now owns the preview's audio-focus lifecycle
+explicitly. The inspected [AOSP VideoView implementation](https://raw.githubusercontent.com/aosp-mirror/platform_frameworks_base/master/core/java/android/widget/VideoView.java)
+requests focus during preparation with a null listener, so its default behavior
+was insufficient for keeping the app's playback intent synchronized.
+
+- Decoding/paused previews do not acquire focus. Playback requests a lease with
+  matching media/movie audio attributes, and starts only when granted. Denial
+  leaves the preview paused with a retry message.
+- Transient loss pauses while retaining playback intent; focus gain resumes only
+  the current foreground player. Permanent loss clears that intent. User Pause,
+  backgrounding, closing/replacing a player, completion and errors release the
+  lease; generation guards discard late callbacks. Duck notifications adjust
+  volume without overriding Mute.
+- A receiver exists only while playback owns or temporarily awaits its focus
+  lease. Headphone/Bluetooth output-disconnect notification pauses and cancels
+  automatic resume. No route is selected or changed by the app.
+- Speed changes while paused are saved without touching MediaPlayer playback
+  parameters. They apply after focus is granted, avoiding that API's implicit
+  start when the user is merely changing a paused preview's speed.
+
+The behavior follows Android's [audio-focus guidance](https://developer.android.com/media/optimize/audio-focus)
+and [output-disconnect notification](https://developer.android.com/reference/android/media/AudioManager#ACTION_AUDIO_BECOMING_NOISY).
+This is not proof of every AVKit interruption, session, route or remote-control
+behavior. Headset buttons, audio routing/casting and real audible output remain
+open, along with video, codecs, tracks/subtitles and PiP.
+
+Verification: six focus-owner and four media-control JVM tests passed; main and
+Android test Kotlin compiled in 1m30s. The initial compile caught an unqualified
+receiver `this` reference; it was corrected before that successful run. The new
+guarded Android fixture uses real competing platform focus requests; it invokes the disconnect
+receiver locally because this is a protected system broadcast. It is queued with
+the existing media restoration/control cases for the next combined device run.
+No APK, emulator or Pixel run is added for this source batch. Local evidence:
+`captures/runtime/audio-interruptions-batch/`. The already-dispatched signed
+milestone at `19698a4` excludes this newer batch.
+
 ## Combined viewer integration — 2026-10-05
 
 The image, streaming-text and media batches were integrated at `8f631c6` on the

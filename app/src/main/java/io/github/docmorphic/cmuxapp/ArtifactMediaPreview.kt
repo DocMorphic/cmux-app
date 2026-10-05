@@ -3,6 +3,12 @@ package io.github.docmorphic.cmuxapp
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioAttributes
+import android.media.AudioManager
+import androidx.core.content.ContextCompat
 import android.net.Uri
 import android.media.MediaPlayer
 import android.media.PlaybackParams
@@ -74,16 +80,29 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
     private var seeking = false
     private var released = false
     private var player: MediaPlayer? = null
+    private var appliedSpeed = 1f
+    private val audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build()
+    private val focus = ArtifactAudioFocusOwner(ArtifactAndroidAudioFocus(context, audioAttributes), ::focusChanged)
+    private var listeningForDisconnect = false
+    private val disconnect = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && !released && state.view === this@ArtifactMediaView) pause()
+        }
+    }
     init {
+        // VideoView otherwise requests focus while merely preparing, without a loss listener.
+        setAudioFocusRequest(AudioManager.AUDIOFOCUS_NONE)
+        setAudioAttributes(audioAttributes)
         state.view = this
         setOnPreparedListener { player ->
             if (!released && state.view === this) {
                 this.player = player
+                appliedSpeed = 1f
                 seeking = false
                 state.prepared = true
                 state.duration = duration.coerceAtLeast(0)
-                player.setVolume(if (state.muted) 0f else 1f, if (state.muted) 0f else 1f)
-                if (state.speed != 1f && !applySpeed(state.speed, resume = false)) state.speed = 1f
+                applyVolume()
                 player.setOnSeekCompleteListener {
                     if (!released && state.view === this && this.player === player) { seeking = false; capturePosition(); startIfRequested() }
                 }
@@ -91,16 +110,19 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
                 else startIfRequested()
             }
         }
-        setOnCompletionListener { if (!released && state.view === this) { state.position = duration.coerceAtLeast(0); state.playRequested = false } }
+        setOnCompletionListener { if (!released && state.view === this) {
+            state.position = duration.coerceAtLeast(0); state.playRequested = false; abandonAudio()
+        } }
         setOnErrorListener { _, _, _ ->
             if (released || state.view !== this) return@setOnErrorListener true
-            state.prepared = false; state.playRequested = false
+            state.prepared = false; state.playRequested = false; abandonAudio()
             state.failure = "Android could not play this media format. Use Open in Viewer actions to choose another player."
             true
         }
     }
     fun open(file: File) {
         if (released) return
+        abandonAudio()
         player?.setOnSeekCompleteListener(null); player = null
         seeking = false; state.prepared = false; state.failure = null; state.controlFailure = null
         setVideoURI(Uri.fromFile(file))
@@ -121,36 +143,76 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         startIfRequested()
     }
     private fun startIfRequested() {
-        if (!released && state.foreground && state.prepared && !seeking && state.playRequested) super.start()
+        if (released || !state.foreground || !state.prepared || seeking || !state.playRequested) return
+        when (focus.acquire()) {
+            ArtifactFocusPermission.GRANTED -> {
+                state.controlFailure = null
+                if (!listeningForDisconnect) {
+                    ContextCompat.registerReceiver(context.applicationContext, disconnect,
+                        IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), ContextCompat.RECEIVER_NOT_EXPORTED)
+                    listeningForDisconnect = true
+                }
+                if (appliedSpeed != state.speed && !applySpeed(state.speed)) state.speed = appliedSpeed
+                applyVolume()
+                super.start()
+            }
+            ArtifactFocusPermission.SUSPENDED -> Unit // Wait for the existing lease; never steal focus back.
+            ArtifactFocusPermission.DENIED -> {
+                state.playRequested = false
+                state.controlFailure = "Audio is unavailable right now. Tap Play to try again."
+            }
+        }
     }
-    override fun pause() { if (!released) { capturePosition(); state.playRequested = false; super.pause() } }
+    override fun pause() { if (!released) {
+        capturePosition(); state.playRequested = false; super.pause(); abandonAudio()
+    } }
+    private fun focusChanged(event: ArtifactFocusEvent) {
+        if (released || state.view !== this) return
+        when (event) {
+            ArtifactFocusEvent.GAIN -> { applyVolume(); startIfRequested() }
+            ArtifactFocusEvent.DUCK -> applyVolume()
+            ArtifactFocusEvent.TRANSIENT_LOSS -> { capturePosition(); super.pause() }
+            ArtifactFocusEvent.LOSS -> pause()
+        }
+    }
+    private fun applyVolume() {
+        val level = if (state.muted) 0f else focus.volumeMultiplier
+        player?.setVolume(level, level)
+    }
+    private fun abandonAudio() {
+        focus.release()
+        if (listeningForDisconnect) {
+            context.applicationContext.unregisterReceiver(disconnect)
+            listeningForDisconnect = false
+        }
+    }
     fun setSpeed(value: Float) {
+        if (released || !state.prepared) return
         val speed = ArtifactMediaControls.speed(value)
-        if (state.prepared && applySpeed(speed, state.foreground && state.playRequested && !seeking)) state.speed = speed
+        // PlaybackParams starts MediaPlayer. Defer it until playback owns focus.
+        if (!state.playRequested || !state.foreground || seeking || !focus.canPlay || applySpeed(speed)) state.speed = speed
     }
-    private fun applySpeed(value: Float, resume: Boolean): Boolean {
+    private fun applySpeed(value: Float): Boolean {
         val current = player ?: return false
         return try {
-            // A nonzero PlaybackParams speed starts MediaPlayer, including from Paused.
-            // Silence that transition and immediately restore the user's paused state.
             current.setVolume(0f, 0f)
             current.playbackParams = PlaybackParams().allowDefaults().setSpeed(value)
-            if (!resume) current.pause()
+            appliedSpeed = value
             state.controlFailure = null
             true
         } catch (_: IllegalArgumentException) {
             state.controlFailure = "Playback speed isn't available for this file."; false
         } catch (_: IllegalStateException) {
             state.controlFailure = "Playback speed couldn't be changed. Try reopening this preview."; false
-        } finally {
-            if (!resume) runCatching { current.pause() }
-            runCatching { current.setVolume(if (state.muted) 0f else 1f, if (state.muted) 0f else 1f) }
-        }
+        } finally { runCatching { applyVolume() } }
     }
     fun toggleMute() {
         if (released || !state.prepared) return
         val next = !state.muted
-        try { player?.setVolume(if (next) 0f else 1f, if (next) 0f else 1f); state.muted = next }
+        try {
+            val level = if (next) 0f else focus.volumeMultiplier
+            player?.setVolume(level, level); state.muted = next
+        }
         catch (_: IllegalStateException) { state.controlFailure = "Volume couldn't be changed. Try reopening this preview." }
     }
     fun foreground(value: Boolean, changingConfiguration: Boolean = false) {
@@ -158,12 +220,13 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         if (value) startIfRequested() else {
             capturePosition()
             if (!changingConfiguration) state.playRequested = false
-            super.pause()
+            super.pause(); abandonAudio()
         }
     }
     fun release() {
         if (released) return
         capturePosition(); released = true
+        abandonAudio(); focus.close()
         player?.setOnSeekCompleteListener(null); player = null
         setOnPreparedListener(null); setOnCompletionListener(null); setOnErrorListener(null)
         stopPlayback()
