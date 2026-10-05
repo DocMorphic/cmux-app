@@ -177,6 +177,12 @@ internal class TailscalePairingAuthority(
         synchronized(lock) { !closed } && saved != null && savedRouteAdmission(owner, saved)()
     }.getOrDefault(false)
 
+    fun allowsSaved(grant: TailscaleSavedGrant): Boolean = runCatching {
+        val owner = checkNotNull(current())
+        permits(owner) && grant.user == owner.userId && grant.team == owner.teamId &&
+            grants.find(owner, grant.source) == grant && synchronized(lock) { !closed } && savedRouteAdmission(owner, grant)()
+    }.getOrDefault(false)
+
     private fun owner(pairing: PairingCode.Tailscale): NativeTeamScope {
         val owner = checkNotNull(current()) { "Refresh your account teams before pairing this Mac." }
         check(permits(owner)) { "Account or team changed. Pair this Mac again." }
@@ -187,6 +193,7 @@ internal class TailscalePairingAuthority(
     suspend fun connect(pairing: PairingCode.Tailscale, expectedScope: NativeTeamScope? = null,
                         attachTicket: MobileAttachTicket? = null, savedTicket: NativeSavedTicketAdmission? = null,
                         admission: NativeTicketConnectionAdmission? = null,
+                        savedRoute: NativeSavedTailscaleRouteAdmission? = null,
                         forceToken: (suspend () -> String?)? = null,
                         token: suspend () -> String?): MobileRpcClient {
         val owner = owner(pairing)
@@ -194,10 +201,15 @@ internal class TailscalePairingAuthority(
         require(attachTicket == null || NativeTicketPairingRoutes.covers(attachTicket, pairing)) { "Ticket does not cover this route" }
         require(attachTicket == null || savedTicket == null) { "Ambiguous ticket context" }
         savedTicket?.requireBinding(pairing, owner)
+        savedRoute?.requireBinding(pairing, owner)
+        require(savedRoute == null || (admission == null && attachTicket == null)) { "Ambiguous route admission" }
+        require(savedRoute == null || savedTicket == null || savedRoute.coversPrimaryTicket(pairing)) {
+            "Saved pairing ticket does not cover the selected destination"
+        }
         val source = TailscaleGrantStore.source(pairing)
         admission?.requireCurrent()
-        val consent = synchronized(lock) { check(!closed); if (admission != null) null else consents[source]?.takeIf { it.scope == owner } }
-        val saved = admission?.savedGrant ?: grants.find(owner, source)
+        val consent = synchronized(lock) { check(!closed); if (admission != null || savedRoute != null) null else consents[source]?.takeIf { it.scope == owner } }
+        val saved = savedRoute?.grant ?: admission?.savedGrant ?: grants.find(owner, source)
         if (admission != null) {
             require(attachTicket != null && saved != null && saved.user == owner.userId && saved.team == owner.teamId &&
                 saved.device == attachTicket.deviceId && pairing.routes.size == 1 &&
@@ -213,6 +225,7 @@ internal class TailscalePairingAuthority(
         val promoted = AtomicReference<TailscaleSavedGrant?>(if (consent == null) saved else null)
         fun allowed(): Boolean = runCatching {
             savedTicket?.requireCurrent()
+            savedRoute?.requireCurrent()
             admission?.requireCurrent()
             permits(owner) && routePermits() && synchronized(lock) { !closed } &&
                 (promoted.get()?.let { grants.find(owner, it.source) == it }
@@ -256,6 +269,7 @@ internal class TailscalePairingAuthority(
                 val device = status.optString("mac_device_id")
                 require(device.isNotBlank() && device == device.trim() && device.length <= 128) { "The Mac did not provide a valid device identity." }
                 capturedExpected?.requireMatchingHost(status)
+                savedRoute?.mac?.requireMatchingHost(status)
                 saved?.let { check(it.matches(status)) { "This route reaches a different Mac or cmux installation. Pair the intended Mac again." } }
                 attachTicket?.requireHost(status)
                 savedTicket?.mac?.requireMatchingHost(status)

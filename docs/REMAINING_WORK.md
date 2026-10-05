@@ -14,7 +14,7 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Account, pairing and connections | Finish edited/replacement-grant selection for raw-primary reconnect, legacy pre-tag identity adoption and acceptance of authenticated legacy-to-native upgrade (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
+| Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; finish legacy pre-tag identity adoption and acceptance of authenticated legacy-to-native upgrade (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |
 | Files, Changes and content viewers | Finish the remaining format/menu comparisons and modal/binary preview restoration, including native errors outside RPC and broader real-route retry acceptance, directory/rename/read/export/decoder failure coverage, live panel-kind changes, and broader main Files/direct-tap/transport restoration, forced browser-parent recreation with binary content, rendered-Markdown reflow and real-route/process recovery, Save process-death/large-write recovery and remote-file freshness semantics, video acceptance and zoom across aspect-ratio changes. | An explicit supported-format matrix checked against pinned iOS code, visible rendering and file actions on Pixel, and restoration tests that verify the displayed content. |
@@ -25,13 +25,24 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Saved raw-primary reconnect now uses current exact Mac/build grants after an
+  address edit, with captured row/account/method admission and transport-only
+  fallback. Old tickets are restricted to their original source; replacement
+  destinations use authenticated manual-ticket/account admission. Cold-start
+  persistence retains public locator, ticket and history without recreating an
+  old grant. **94 focused JVM tests passed**, main/instrumentation Kotlin
+  compilation passed (36 s final run). An initial test-constructor compilation
+  error was corrected and logged. No APK/emulator; Pixel absent on ADB. Physical
+  address-edit/reconnect/notification acceptance remains; see `TAILSCALE_CONNECTION.md`
+  and `captures/runtime/edited-tailscale-reconnect/`.
+
 - Scoped Tailscale-only rows now expose Computer Details, saved-route diagnostics
   and shared feed-owned Keep Mac Awake controls without native discovery. Remote-
   confirmed cleanup includes only the captured scoped identity. 46 focused JVM
   tests and main/instrumentation Kotlin compilation passed (20 s final run).
   The new Android UI case is queued for the next milestone; no APK/emulator.
-  Main raw-primary reconnect with edited/replacement grants, legacy pre-tag
-  adoption and physical acceptance remain. See `COMPUTER_DETAILS.md`.
+  Main raw-primary reconnect with edited/replacement grants is implemented by
+  the following checkpoint; legacy pre-tag adoption and physical acceptance remain. See `COMPUTER_DETAILS.md`.
 
 - Combined connection-route Android milestone: one debug/test APK build (72 s),
   **8/8 ticket/Keystore cases passed in 30.332 s** on the existing API37 / 16 KiB

@@ -132,8 +132,8 @@ onboarding power composables. Logs, XML and source hashes are in local ignored
 compiled and queued for the next integration milestone; no APK or emulator run
 was performed for this batch.
 
-Remaining: main raw-primary reconnect still needs selection of edited/replacement
-grant sources with exact ticket coverage. The Details Tailscale-only runtime
-already accepts current exact grants, but that does not verify the main reconnect
-flow. Legacy pre-tag adoption, remote-account Forget and physical UI/connection/
-power acceptance remain open. Global upstream pins are unchanged.
+The subsequent edited-address checkpoint in `TAILSCALE_CONNECTION.md` implements
+main raw-primary reconnect selection and persistence using replacement grants,
+with exact ticket-source coverage. Physical acceptance of both the Details and
+main reconnect flows remains open, along with legacy pre-tag adoption and
+remote-account Forget. Global upstream pins are unchanged.

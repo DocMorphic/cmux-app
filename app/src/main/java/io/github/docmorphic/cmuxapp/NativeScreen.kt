@@ -1854,10 +1854,10 @@ internal fun NativeScreen(
                         expected = saved ?: capturedReconnect) {
                         accountTeams.isCurrent(pairingOwner) && signedIn && code == requestedCode && ticketPairing.isCurrent(ticketAttempt)
                     }
-                } else if (pairingOwner != null) store.rememberAuthenticatedMac(verified, pairingOwner, expected = capturedReconnect) {
+                } else if (pairingOwner != null) store.rememberAuthenticatedMac(verified, pairingOwner, expected = capturedReconnect ?: saved) {
                     accountTeams.isCurrent(pairingOwner) && signedIn && code == requestedCode
                 } else {
-                    store.rememberMac(verified.code, verified.deviceId, verified.name, verified.instanceTag, expected = capturedReconnect)
+                    store.rememberMac(verified.code, verified.deviceId, verified.name, verified.instanceTag, expected = capturedReconnect ?: saved)
                     verified
                 }
                 if (remembered.code != requestedCode) {

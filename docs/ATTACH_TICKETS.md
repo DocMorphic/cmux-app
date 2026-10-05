@@ -174,9 +174,10 @@ Real saved-method changes on Mac/Pixel still need acceptance.
 
 - Scoped Tailscale-only Computer Details is now implemented with explicit saved
   owner/build identity, saved-route checks and shared power controls; see
-  `COMPUTER_DETAILS.md`. Main raw-primary reconnect still needs selection of
-  edited/replacement grant sources with exact ticket coverage. The new Android
-  Details case and physical workflow acceptance remain pending.
+  `COMPUTER_DETAILS.md`. Main raw-primary reconnect now selects current exact
+  grants and preserves the public locator; a saved ticket accompanies only its
+  original source. See `TAILSCALE_CONNECTION.md`. The new Android Details case
+  and physical edited-address/cold-start acceptance remain pending.
 - Implement explicit legacy pre-tag identity adoption without choosing an
   arbitrary sibling or losing history. This batch requires an exact stored build;
   a missing build remains unchanged until authenticated identity can establish it.

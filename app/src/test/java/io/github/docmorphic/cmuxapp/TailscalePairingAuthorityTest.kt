@@ -30,6 +30,7 @@ class TailscalePairingAuthorityTest {
         var expected: NativeCredentialStore.PairedMac? = null
         var ticket: MobileAttachTicket? = null
         var savedTicket: NativeSavedTicketAdmission? = null
+        var savedRoute: NativeSavedTailscaleRouteAdmission? = null
         var savedCurrent = true
         var savedBearer: String? = "saved-fixture"
         var manual = false
@@ -60,7 +61,7 @@ class TailscalePairingAuthorityTest {
                 ({ routeAllowed && routeEpoch == captured })
             })
         suspend fun connect(admission: NativeTicketConnectionAdmission? = null, selected: PairingCode.Tailscale = pairing) =
-            authority.connect(selected, attachTicket = ticket, savedTicket = savedTicket, admission = admission, forceToken = forceRefresh) { tokenCalls++; tokenHook(); accessToken }
+            authority.connect(selected, attachTicket = ticket, savedTicket = savedTicket, admission = admission, savedRoute = savedRoute, forceToken = forceRefresh) { tokenCalls++; tokenHook(); accessToken }
         fun authorize() = authority.authorize(pairing)
         fun grant() = grants.find(checkNotNull(scope), TailscaleGrantStore.source(pairing))
         fun switch(next: NativeTeamScope?) {
@@ -71,6 +72,82 @@ class TailscalePairingAuthorityTest {
     }
     private fun externalTicket() = MobileAttachTicketCodec.decodeJson("""{"version":1,"workspaceID":"w","macDeviceID":"mac","macUserID":"user","auth_token":"synthetic-ticket",
         "routes":[{"id":"raw","kind":"tailscale","endpoint":{"type":"host_port","host":"100.99.1.2","port":58465}}]}""").getOrThrow()
+
+    private fun replacement(f: Fixture): TailscaleSavedGrant {
+        val owner = checkNotNull(f.scope)
+        val grant = TailscaleSavedGrant(java.util.UUID.randomUUID().toString(), owner.userId, owner.teamId,
+            "b".repeat(64), "mac", "default", PairingCode.Route("100.99.1.3", 58465))
+        f.grants.save(owner, grant, replacing = f.grant()) { true }
+        val mac = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(
+            "cmux-ios://attach?v=2&r=mac.tail.ts.net%3A58465&ub=user", "mac", "Mac", "default"), owner)
+        f.savedRoute = NativeSavedTailscaleRouteAdmission(mac, grant) { f.savedCurrent }
+        return grant
+    }
+
+    @Test fun editedGrantReconnectUsesExactNumericRouteAndNewManualTicketWithoutRewritingPublicLocator() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        try {
+            f.connect().close(); val resolves = f.resolves
+            val grant = replacement(f); f.manual = true
+            f.connect().use { it.workspaces() }
+            assertEquals(grant.route, f.transports.last().route)
+            assertEquals(resolves, f.resolves)
+            assertNull(f.grant()) // No alias silently restores the removed original address.
+            assertEquals(grant, f.grants.find(f.scope!!, grant.source))
+            assertEquals(listOf("mobile.host.status", "mobile.attach_ticket.create", "mobile.workspace.list", "mobile.workspace.list"), f.transports.last().methods)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun replacementGrantCannotCarryPrimarySavedTicketOrConsumePendingFreshConsent() = runBlocking<Unit> {
+        val f = savedFixture()
+        try {
+            replacement(f); val before = f.transports.size
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(before, f.transports.size)
+            f.savedTicket = null; f.authorize(); f.routeAllowed = false
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(before, f.transports.size)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun replacementGrantRevocationAndSavedRowRetirementFenceAuthenticationAndLiveWrites() = runBlocking<Unit> {
+        for (revokeGrant in listOf(true, false)) {
+            val f = Fixture(); f.authorize()
+            try {
+                f.connect().close(); val grant = replacement(f)
+                val client = f.connect()
+                if (revokeGrant) f.grants.removeRoute(f.scope!!, NativeComputerTarget("mac", "default", "Mac"), grant) { true }
+                else f.savedCurrent = false
+                val writes = f.transports.last().methods.size
+                assertTrue(runCatching { client.workspaces() }.isFailure)
+                assertEquals(writes, f.transports.last().methods.size)
+                f.authority.retireInvalid(); assertTrue(client.isClosed)
+            } finally { f.authority.close() }
+        }
+        val f = Fixture(); f.authorize()
+        try {
+            f.connect().close(); replacement(f)
+            f.tokenHook = { f.savedCurrent = false }
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertTrue(f.transports.last().closed)
+            assertFalse("mobile.workspace.list" in f.transports.last().methods)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun replacementGrantRejectsWrongHostBeforeWorkspaceAndUnownedBindingBeforeDial() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        try {
+            f.connect().close(); replacement(f); f.device = "other"
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(listOf("mobile.host.status"), f.transports.last().methods)
+            val captured = f.savedRoute!!
+            f.savedRoute = NativeSavedTailscaleRouteAdmission(captured.mac.copy(accountUserId = null, accountTeamId = null,
+                stableOrigin = null), captured.grant) { true }
+            val before = f.transports.size
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(before, f.transports.size)
+        } finally { f.authority.close() }
+    }
 
     @Test fun externalTicketReusesExactDestinationDespiteDifferentPublicSourceWithoutResolvingAgain() = runBlocking<Unit> {
         val f = Fixture(); f.authorize()

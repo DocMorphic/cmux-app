@@ -108,7 +108,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             }
             ticket?.requireCurrent()
             val client = when (pairing) {
-                is PairingCode.Tailscale -> tailscale.connectSaved(pairing, account, team, ticket)
+                is PairingCode.Tailscale -> tailscale.connectSaved(mac, account, team, ticket)
                 is PairingCode.Iroh -> {
                     val target = NativeComputerTarget.from(mac, team)
                     check(target != null || (mac.instanceTag == null && pairing.buildTag == null)) { "Saved Mac identity changed. Pair this Mac again." }
@@ -130,7 +130,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             val team = teams.state.value.scope ?: return false
             return teams.isCurrent(team) && runCatching {
                 NativePairingRecords.usable(mac, team, TailscaleGrantStore(store::load, store::update)) &&
-                    allowsSaved(savedRoute(mac, team).pairing)
+                    savedRoute(mac, team).pairing.let { if (it is PairingCode.Tailscale) tailscale.allowsSaved(mac) else allowsSaved(it) }
             }.getOrDefault(false)
         }
         override fun allowsSaved(pairing: PairingCode): Boolean {

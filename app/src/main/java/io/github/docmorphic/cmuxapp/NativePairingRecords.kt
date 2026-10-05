@@ -65,8 +65,7 @@ internal object NativePairingRecords {
         val pairing = PairingCodeParser.parse(row.code).getOrNull() ?: return false
         if (pairing is PairingCode.Tailscale) {
             if (retainedNativeRoute(row) != null) return true
-            val grant = grants.find(team, TailscaleGrantStore.source(pairing)) ?: return false
-            return grant.device == canonicalMacDeviceId(row.deviceId) && grant.build == row.instanceTag
+            return NativeSavedTailscaleRoutes.candidates(row, team, grants).isNotEmpty()
         }
         return true
     }

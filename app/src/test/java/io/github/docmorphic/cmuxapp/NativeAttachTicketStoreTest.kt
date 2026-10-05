@@ -161,6 +161,33 @@ class NativeAttachTicketStoreTest {
         assertTrue(runCatching { NativeAttachTicketStore.read(state, team, saved) }.isFailure)
     }
 
+    @Test fun editedTailscaleGrantReconnectPreservesPublicLocatorTicketAndHistoryWithoutReauthorizingOldAddress() {
+        val code = "cmux-ios://attach?v=2&ub=user&r=100.64.0.7:58465"
+        val row = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(code, "device", "Mac", "default"), team)
+        val state = state(row).put("computer_selection", row.origin).put("fixture_draft", "retained")
+        val grants = TailscaleGrantStore({ state }, { it(state) })
+        val pairing = PairingCodeParser.parse(code).getOrThrow() as PairingCode.Tailscale
+        val original = TailscaleSavedGrant(UUID.randomUUID().toString(), "user", "team", TailscaleGrantStore.source(pairing),
+            "device", "default", pairing.routes.single())
+        grants.save(team, original) { true }
+        val payload = payload().put("routes", JSONArray().put(JSONObject().put("id", "raw").put("kind", "tailscale")
+            .put("endpoint", JSONObject().put("type", "host_port").put("host", "100.64.0.7").put("port", 58465))))
+        val saved = install(state, row, payload)
+        val replacement = original.copy(id = UUID.randomUUID().toString(), source = "b".repeat(64), route = PairingCode.Route("100.64.0.8", 58465))
+        grants.save(team, replacement, replacing = original) { true }
+        val incoming = NativeCredentialStore.PairedMac(code, "device", "Renamed Mac", "default")
+        assertRejectedWithoutMutation(state) { NativePairingPersistence.remember(state, incoming, team) }
+        val remembered = NativePairingPersistence.remember(state, incoming, team, expected = saved)
+        assertEquals(code, remembered.code); assertEquals(saved.origin, remembered.origin)
+        assertEquals(saved.ticketRevision, remembered.ticketRevision); assertEquals("Renamed Mac", remembered.name)
+        assertEquals(saved.origin, state.getString("computer_selection")); assertEquals("retained", state.getString("fixture_draft"))
+        assertNotNull(NativeAttachTicketStore.read(state, team, remembered))
+        assertNull(grants.find(team, original.source))
+        assertFalse(NativeSavedTailscaleRouteAdmission(remembered, replacement) { true }.coversPrimaryTicket(pairing))
+        grants.removeRoute(team, NativeComputerTarget("device", "default", "Mac"), replacement) { true }
+        assertRejectedWithoutMutation(state) { NativePairingPersistence.remember(state, incoming, team, expected = remembered) }
+    }
+
     @Test fun tailscaleTicketsRequireCurrentGrantAndCoverEverySelectedPublicRoute() {
         val code = "cmux-ios://attach?v=2&ub=user&r=100.64.0.7:58465&r=100.64.0.8:58465"
         val row = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(code, "device", "Mac", "default"), team)

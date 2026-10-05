@@ -30,7 +30,16 @@ internal object NativePairingPersistence {
             is PairingCode.Tailscale -> {
                 require(pairing.stackUserId == null || pairing.stackUserId == team.userId) { "Computer account changed" }
                 val grant = grants.find(team, TailscaleGrantStore.source(pairing))
-                check(grant != null && grant.device == canonicalMacDeviceId(incoming.deviceId) && grant.build == incoming.instanceTag) {
+                // A reconnect may retain its public locator after Details replaced that
+                // locator's grant. Only a still-current, explicitly owned saved identity
+                // can use the replacement; fresh pairing still requires its exact source.
+                val savedIdentity = expected?.takeIf {
+                    it.code == incoming.code && canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(incoming.deviceId) &&
+                        it.instanceTag == incoming.instanceTag && it.accountUserId == team.userId &&
+                        it.accountTeamId == team.teamId && it.stableOrigin != null && !it.instanceTag.isNullOrBlank()
+                }
+                val retainedRoute = savedIdentity != null && NativeSavedTailscaleRoutes.candidates(savedIdentity, team, grants).isNotEmpty()
+                check(retainedRoute || (grant != null && grant.device == canonicalMacDeviceId(incoming.deviceId) && grant.build == incoming.instanceTag)) {
                     "The Tailscale authorization changed. Pair this Mac again."
                 }
             }

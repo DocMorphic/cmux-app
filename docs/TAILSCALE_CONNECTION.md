@@ -453,3 +453,41 @@ Explicitly owned saved Tailscale rows with a known device/build now expose Detai
 and diagnostics without native discovery. Main raw-primary reconnect with newly
 edited/replacement grants still needs integration and exact ticket coverage.
 See [Computer Details](COMPUTER_DETAILS.md) for checks and remaining scope.
+
+## Reconnect after editing a saved address (2026-10-06)
+
+The main saved-connection path now captures the current authorized addresses for
+an explicitly owned Mac/build, newest first. It no longer requires the grant
+source derived from the original public pairing code. Historical unscoped or
+pre-tag rows retain their original-source requirement. The method policy still
+rejects raw TCP for Direct and for Iroh when an owned native identity is present.
+
+Each attempt captures the account, saved row, method/recovery revision and exact
+grant. Removal, hiding, replacement, logout or a method change fences admission
+and live I/O; the existing authority retirement loop closes invalid clients.
+Another captured address is tried only after a transport IOException. VPN
+readiness, account/identity denial, invalid tickets and cancellation stop the
+attempt. Saved reconnect cannot consume an unrelated pending fresh confirmation.
+
+A saved attach ticket accompanies only its original grant source. An edited or
+additional source requests a new manual session ticket after verifying the host;
+no old bearer is copied to the replacement address. Hosts without manual-ticket
+support retain the existing account-authenticated fallback. The old public code,
+origin, selection, drafts and encrypted ticket record stay intact; the removed
+address grant is never recreated. Persisting a successful reconnect can use the
+replacement only with the captured, still-current owned row. Fresh pairing still
+requires its exact source grant.
+
+Focused verification and limitations are recorded in `REMAINING_WORK.md` and local
+`captures/runtime/edited-tailscale-reconnect/`. Pixel/Mac edited-address, cold-start,
+foreground/feed and notification-service acceptance remain pending. This batch
+does not advance the global upstream pin or claim complete connection parity.
+
+Verification: 94 focused JVM tests passed with no failures/errors/skips;
+main and instrumentation Kotlin compilation passed (36 seconds final run).
+Coverage includes replacement ordering and ownership, pre-tag restrictions,
+transport fallback, ticket omission and retention, suppressed fresh consent,
+authentication/live-I/O revocation, host mismatch, durable reconnect/history,
+existing method policy and ticket/pairing regressions. The initial new test's
+constructor-call compile error is preserved in the local evidence. No APK was
+built and no Android runtime test was executed for this batch.
