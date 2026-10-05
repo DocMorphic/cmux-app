@@ -10,7 +10,7 @@ import org.junit.Test
 class RoutedSidebarGroupMovesTest {
     private fun source(device: String) = NativeFeedSource(
         NativeCredentialStore.PairedMac("secret-$device", device, device, stableOrigin = device),
-        availability = NativeFeedAvailability.CONNECTED, capabilities = setOf("workspace.move.v1"),
+        availability = NativeFeedAvailability.CONNECTED, capabilities = setOf("workspace.move.v1", WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY),
         groups = listOf(NativeGroup("g", "Group $device", false, false, "anchor", iconSymbol = "folder")),
         workspaces = parseWorkspaces(JSONObject("""{"workspaces":[
             {"id":"w","title":"Workspace $device","window_id":"win"},

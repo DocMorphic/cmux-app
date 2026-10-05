@@ -3053,7 +3053,7 @@ internal class NativeFixturePeer : AutoCloseable {
                 if (identifiedInput) it.put(TerminalInputDelivery.CAPABILITY)
                 if (taskGroupsSupported) it.put("workspace.create_in_group.v1")
                 if (groupActionsSupported) it.put("workspace.group_actions.v1")
-                if (groupActionsSupported || taskGroupsSupported) it.put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)
+                it.put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)
                 it.put("workspace.actions.v1").put("workspace.read_state.v1").put("workspace.close.v1")
                 if (workspaceMetadataSupported) it.put(WORKSPACE_METADATA_CAPABILITY)
                 if (workspaceChangesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)

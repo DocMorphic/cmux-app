@@ -30,7 +30,7 @@ class NativeTaskModelsTest {
     @Before fun start() {
         peer = NativeFixturePeer()
         client = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "test-only" })
-        runBlocking { client.connect() }
+        runBlocking { client.connect(); client.hostStatus() }
         compose.runOnUiThread { compose.activity.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE) }
     }
     @After fun close() { peer.releaseTaskModels?.countDown(); compose.activity.finish(); client.close(); peer.close() }

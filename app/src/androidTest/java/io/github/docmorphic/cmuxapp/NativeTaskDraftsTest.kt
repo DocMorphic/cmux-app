@@ -136,7 +136,7 @@ class NativeTaskDraftsTest {
         state("Effort", "High")
         compose.onNodeWithContentDescription("Task prompt").performTextInput("Do not send without a saved retry ID")
         compose.onNodeWithContentDescription("Create Task").assertIsNotEnabled()
-        compose.onNodeWithText("Update cmux on this Mac to create tasks.").assertIsDisplayed()
+        compose.onNodeWithText("Pair this Mac again or update cmux to create tasks.").assertIsDisplayed()
         compose.runOnIdle { supported = true }
         compose.onNodeWithContentDescription("Create Task").performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Disk unavailable", substring = true).fetchSemanticsNodes().isNotEmpty() }

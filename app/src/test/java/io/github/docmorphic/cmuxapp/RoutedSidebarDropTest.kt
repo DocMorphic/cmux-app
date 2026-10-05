@@ -8,7 +8,7 @@ import org.junit.Test
 class RoutedSidebarDropTest {
     private fun source(device: String = "A") = NativeFeedSource(
         NativeCredentialStore.PairedMac("secret-$device", device, "Mac $device", stableOrigin = device),
-        availability = NativeFeedAvailability.CONNECTED, capabilities = setOf("workspace.move.v1"),
+        availability = NativeFeedAvailability.CONNECTED, capabilities = setOf("workspace.move.v1", WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY),
         workspaces = parseWorkspaces(JSONObject("""{"workspaces":[
             {"id":"first","title":"First $device","window_id":"window"},
             {"id":"second","title":"Second $device","window_id":"window"},

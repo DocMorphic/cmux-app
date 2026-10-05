@@ -390,7 +390,7 @@ class RoutedBrowserPresentationTest {
                     availability = NativeFeedAvailability.CONNECTED,
                     groups = listOf(NativeGroup("g", "Original group", false, false, "anchor", false, "folder"),
                         NativeGroup("h", "Destination group", false, false, "target", false, "folder")),
-                    capabilities = setOf("workspace.move.v1")))
+                    capabilities = setOf("workspace.move.v1", WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY)))
                 projectedSidebar = NativeRoutedSidebarHost("fixture-owner", "fixture-group-moves", {
                     NativeSidebarInput(noticeSources, emptyList(), listOf(NativeSortComputer(workspaceMacFilterId("A", null)!!, "Mac A")), NativeWorkspaceSortState())
                 }, { RoutedSidebarLease({}) {} }, {}, moveWorkspace = { captured, id, intent, canSend ->

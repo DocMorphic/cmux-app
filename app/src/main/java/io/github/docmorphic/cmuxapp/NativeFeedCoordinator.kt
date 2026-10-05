@@ -151,9 +151,16 @@ internal class NativeFeedCoordinator(
                 }.orEmpty()
                 handle.capabilities = capabilities
                 publish(handle, (mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac))
-                    .copy(capabilities = capabilities, keepAwake = null))
+                    .copy(capabilities = capabilities, keepAwake = null, macMutationTicket = active.macMutationTicket()))
                 val client = active
                 coroutineScope {
+                    client.macMutationTicket()?.expiresAtMillis?.let { expiry -> launch {
+                        val now = System.currentTimeMillis()
+                        delay(if (expiry <= now) 0 else expiry - now)
+                        if (current(handle, client)) mutableSources.value[handle.mac.origin]?.let { source ->
+                            publish(handle, source.copy(macMutationTicket = null))
+                        }
+                    } }
                     val summaryFailure = CompletableDeferred<Exception>()
                     val summaryDisconnect = launch { throw summaryFailure.await() }
                     if (WORKSPACE_CHANGES_CAPABILITY in capabilities) {
@@ -378,7 +385,7 @@ internal class NativeFeedCoordinator(
         owningMutation(mac, refreshChanges = false) { _, client ->
             check(canSend()) { "Group action is no longer available" }
             val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
-            check(source.canEditGroups()) { "Update cmux on this Mac to use account-authorized group actions." }
+            check(source.canEditGroups()) { "Pair this Mac again or update cmux to change groups." }
             val group = source.groups.singleOrNull { it.id == groupId } ?: error("This group is no longer available.")
             check(action != "ungroup" || !group.isPinned) { "Unpin this group before ungrouping it." }
             client.groupAction(groupId, action, title)
@@ -391,7 +398,7 @@ internal class NativeFeedCoordinator(
             owningMutation(mac, refreshChanges = false) { _, client ->
                 check(canSend()) { "Group creation is no longer available" }
                 val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
-                check(source.canCreateGroup()) { "Update cmux on this Mac to create groups with account authentication." }
+                check(source.canCreateGroup()) { "Pair this Mac again or update cmux to create groups." }
                 client.createGroup("")
             }
         }
@@ -411,7 +418,7 @@ internal class NativeFeedCoordinator(
             owningMutation(mac) { _, client ->
                 val source = mutableSources.value[mac.origin] ?: error("Computer unavailable")
                 check(canSend()) { "Workspace creation is no longer available" }
-                check(source.canCreateInGroup()) { "Update cmux on this Mac to create workspaces in groups with account authentication." }
+                check(source.canCreateInGroup()) { "Pair this Mac again or update cmux to create workspaces in groups." }
                 check(source.groups.any { it.id == groupId }) { "This group is no longer available." }
                 client.request("workspace.create", JSONObject().put("group_id", groupId)).also {
                     createdPlainWorkspace(it) // Validate legacy list-only success without inventing a selected workspace.

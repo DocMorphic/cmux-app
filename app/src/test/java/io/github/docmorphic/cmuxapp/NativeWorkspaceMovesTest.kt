@@ -314,7 +314,7 @@ private class MovePeer : AutoCloseable {
                 val method = request.getString("method")
                 var reject = false
                 val result = when (method) {
-                    "mobile.host.status" -> JSONObject().put("mac_device_id", mac.deviceId).put("capabilities", JSONArray().put("workspace.move.v1"))
+                    "mobile.host.status" -> JSONObject().put("mac_device_id", mac.deviceId).put("capabilities", JSONArray().put("workspace.move.v1").put(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY))
                     "mobile.workspace.list" -> JSONObject().put("groups", JSONArray().also {
                         if (grouped) it.put(JSONObject().put("id", "g").put("name", "Group").put("anchor_workspace_id", anchor))
                     }).put("workspaces", JSONArray(order.map { id ->

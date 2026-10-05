@@ -17,7 +17,8 @@ internal data class NativeFeedSource(
     val capabilities: Set<String> = emptySet(),
     val hasWorkspaceSnapshot: Boolean = false,
     val keepAwake: Boolean? = null,
-    val changes: Map<String, WorkspaceChangesChip> = emptyMap()
+    val changes: Map<String, WorkspaceChangesChip> = emptyMap(),
+    val macMutationTicket: NativeMacMutationTicket? = null
 )
 internal data class NativeFeedEntry(val source: NativeFeedSource, val notification: NativeNotification,
     val displayComputer: String? = null) {

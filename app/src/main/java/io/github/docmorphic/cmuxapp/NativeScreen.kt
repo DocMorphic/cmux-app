@@ -198,6 +198,17 @@ internal fun NativeScreen(
     var connectionReady by remember { mutableStateOf(false) }
     var hostName by remember(code) { mutableStateOf("cmux") }
     var hostCapabilities by remember(code) { mutableStateOf<Set<String>>(emptySet()) }
+    var mutationAuthorityTick by remember(client) { mutableIntStateOf(0) }
+    LaunchedEffect(client) {
+        client?.macMutationTicket()?.expiresAtMillis?.let { expiry ->
+            val now = System.currentTimeMillis()
+            delay(if (expiry <= now) 0 else expiry - now)
+            mutationAuthorityTick++
+        }
+    }
+    val currentMacMutationAllowed = remember(client, hostCapabilities, mutationAuthorityTick) {
+        client?.allowsMacWorkspaceMutations() == true
+    }
     var savedPairedMacs by remember { mutableStateOf(store.pairedMacs()) }
     LaunchedEffect(store, historyRevision) { savedPairedMacs = store.pairedMacs() }
     val eligibleMacs = savedPairedMacs.filter {
@@ -753,13 +764,13 @@ internal fun NativeScreen(
     DisposableEffect(emptyWorkspaceRecovery) { onDispose { emptyWorkspaceRecovery.close() } }
     LaunchedEffect(feedForeground, emptyWorkspaceRecovery) { if (!feedForeground) emptyWorkspaceRecovery.cancel() }
     val searchLocale = configuration.locales[0]
-    val workspaceSources = remember(pairedMacs, feedSources, moveSources, selectedOrigin, selectedSshComputer, connectedCode, client, workspaces, groups, hostCapabilities) {
+    val workspaceSources = remember(pairedMacs, feedSources, moveSources, selectedOrigin, selectedSshComputer, connectedCode, client, workspaces, groups, hostCapabilities, mutationAuthorityTick) {
         pairedMacs.filter { selectedSshComputer == null && (selectedOrigin == null || it.origin == selectedOrigin) }.map { mac ->
             val snapshot = moveSources[mac.origin] ?: feedSources[mac.origin]
             if (snapshot?.hasWorkspaceSnapshot == true) snapshot
             else if (client != null && connectedCode == mac.code) NativeFeedSource(mac, workspaces = workspaces,
                 groups = groups, capabilities = hostCapabilities, availability = NativeFeedAvailability.CONNECTED,
-                hasWorkspaceSnapshot = true)
+                hasWorkspaceSnapshot = true, macMutationTicket = client?.macMutationTicket())
             else snapshot ?: NativeFeedSource(mac)
         }
     }
@@ -2588,9 +2599,9 @@ internal fun NativeScreen(
             savedTemplates = repository.templates, persistTemplateChange = repository::updateTemplates,
             attachmentRepository = repository, supportsAttachments = taskMac?.ownsOrigin(taskOrigin) == true && ComposerAttachment.FILE_CAPABILITY in hostCapabilities,
             macs = pairedMacs, workspaceGroups = if (taskMac?.ownsOrigin(taskOrigin) == true) groups else emptyList(),
-            supportsGroups = if (taskConnected) "workspace.create_in_group.v1" in hostCapabilities else null,
+            supportsGroups = if (taskConnected) currentMacMutationAllowed && "workspace.create_in_group.v1" in hostCapabilities else null,
             groupsLoaded = taskConnected && taskGroupsLoaded,
-            groupIsCurrent = { group -> group == null || (connectionReady && connectedCode == taskCode && code == taskCode && "workspace.create_in_group.v1" in hostCapabilities &&
+            groupIsCurrent = { group -> group == null || (currentMacMutationAllowed && connectionReady && connectedCode == taskCode && code == taskCode && "workspace.create_in_group.v1" in hostCapabilities &&
                 taskGroupsLoaded && groups.count { it.id == group } == 1) },
             directoryWorkspaces = taskWorkspaces, selectedWorkspaceId = selectedWorkspace?.id,
             selectMac = { editor, nextOrigin ->
@@ -2609,7 +2620,7 @@ internal fun NativeScreen(
                 taskDraftId = draft.id
                 pairedMacs.firstOrNull { it.ownsOrigin(draft.origin) }?.let(::selectComputer)
             }, onNewDraft = { newTaskDraft() },
-            supportsTaskCreation = if (taskConnected) "workspace.task_create.v1" in hostCapabilities else null,
+            supportsTaskCreation = if (taskConnected) currentMacMutationAllowed && "workspace.task_create.v1" in hostCapabilities else null,
             refreshWorkspaces = {
                 val listing = workspaceSnapshots.read(checkNotNull(selectedTaskMac) { "This Mac is no longer paired" },
                     checkNotNull(active) { "That Mac is not connected" })
@@ -3154,10 +3165,10 @@ internal fun NativeScreen(
                         accountTeams.state.value.scope == owner.team },
                     canCreate = { mac -> NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) &&
                         connection.allowsSaved(mac) && feedSources[mac.origin]?.let {
-                            it.mac == mac && it.availability == NativeFeedAvailability.CONNECTED
+                            it.mac == mac && it.availability == NativeFeedAvailability.CONNECTED && it.canMutateMacWorkspaces()
                         } == true },
                     onCreate = { createWorkspaceOnMac(it) },
-                    onGroup = if (canCreateOnCurrentMac && WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY in hostCapabilities &&
+                    onGroup = if (canCreateOnCurrentMac && currentMacMutationAllowed &&
                         "workspace.group_create.v1" in hostCapabilities)
                         pairedMacs.singleOrNull { it.code == connectedCode }?.let { mac -> { createWorkspaceGroup(mac) } } else null,
                     sshTargets = if (selectedOrigin == null) sshTargets.filter { selectedSshComputer == null || it.host.id == selectedSshComputer.host.id } else emptyList(),

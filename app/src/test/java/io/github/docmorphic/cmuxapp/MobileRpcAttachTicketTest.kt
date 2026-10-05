@@ -18,14 +18,17 @@ class MobileRpcAttachTicketTest {
                         .put("result", JSONObject().put("capabilities", org.json.JSONArray(capabilities))).toString().toByteArray()))
                     withTimeout(2000) { pending.await() }
                     for (method in listOf("workspace.create", "workspace.move", "workspace.group.create", "workspace.group.action")) {
-                        val frame = exchange(client, wire, method)
-                        assertEquals(capabilities.isEmpty(), frame.getJSONObject("auth").has("attach_token"))
+                        if (capabilities.isEmpty()) {
+                            assertTrue(runCatching { client.request(method) }.isFailure)
+                            assertTrue(wire.sent.tryReceive().isFailure)
+                        } else assertFalse(exchange(client, wire, method).getJSONObject("auth").has("attach_token"))
                     }
                     assertEquals("fixture-attach", exchange(client, wire, "workspace.action", JSONObject().put("workspace_id", "work"))
                         .getJSONObject("auth").getString("attach_token"))
                 }
                 // A sibling that has not checked host status retains its own narrowing context.
-                assertEquals("fixture-attach", exchange(owner, wire, "workspace.group.create").getJSONObject("auth").getString("attach_token"))
+                assertTrue(runCatching { owner.createGroup("") }.isFailure)
+                assertTrue(wire.sent.tryReceive().isFailure)
             }
         }
     }
@@ -148,7 +151,7 @@ class MobileRpcAttachTicketTest {
 
     @Test fun explicitAccountOmissionIsRequestLocalAcrossBorrowedConnection() = runBlocking<Unit> {
         val wire = PoolTestTransport()
-        MobileRpcClient(wire, { "fixture-stack" }, ticket()).use { owner ->
+        MobileRpcClient(wire, { "fixture-stack" }, MobileAttachTicketContext("", null, "fixture-attach", null)).use { owner ->
             owner.connect()
             owner.lease {}.use { lease ->
                 val pending = async { lease.requestWithAttachTicketPolicy("workspace.group.create", JSONObject(),

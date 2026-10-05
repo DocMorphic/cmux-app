@@ -18,6 +18,8 @@ internal class MobileAttachTicketContext(
     }
 
     fun isExpired(nowMillis: Long) = expiresAtMillis?.let { it <= nowMillis } == true
+    fun macMutationTicket(): NativeMacMutationTicket? =
+        if (authToken != null && workspaceId.isBlank()) NativeMacMutationTicket(expiresAtMillis) else null
 
     /** Only for the enclosing Keystore-encrypted credential transaction. Never a public locator. */
     internal fun credentialJson(): JSONObject = JSONObject().put("version", 1).put("workspace", workspaceId)

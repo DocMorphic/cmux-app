@@ -269,7 +269,7 @@ internal class NativeRoutedSidebarHost(override val owner: Any, private val salt
         id("create-ssh", target.session.creationIdentity, target.host.id.toString(), target.host.endpoint.host,
             target.host.endpoint.port, target.host.endpoint.username, target.host.keyId?.toString(), target.host.jumpHostId?.toString(), kind.name)
     private fun canCreate(value: NativeSidebarInput, source: NativeFeedSource) = value.creation?.busy == false &&
-        source.availability == NativeFeedAvailability.CONNECTED
+        source.availability == NativeFeedAvailability.CONNECTED && source.canMutateMacWorkspaces()
     private fun creation(value: NativeSidebarInput, selected: String?): List<RoutedSidebarCreateComputer> {
         val state = value.creation ?: return emptyList()
         val macs = value.sources.filter { selected == null || workspaceMacFilterId(it.mac.deviceId, it.mac.instanceTag) == selected }

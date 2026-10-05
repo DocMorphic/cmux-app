@@ -53,7 +53,7 @@ internal data class NativeWorkspaceOptimism(
 }
 
 internal fun NativeFeedSource.canReorderWorkspaces(): Boolean =
-    availability == NativeFeedAvailability.CONNECTED && "workspace.move.v1" in capabilities &&
+    availability == NativeFeedAvailability.CONNECTED && "workspace.move.v1" in capabilities && canMutateMacWorkspaces() &&
         workspaces.isNotEmpty() && workspaces.all { !it.windowId.isNullOrBlank() } && workspaces.map { it.windowId }.distinct().size == 1
 
 internal data class NativeWorkspaceMoveStatus(val pending: Int = 0, val error: String? = null)

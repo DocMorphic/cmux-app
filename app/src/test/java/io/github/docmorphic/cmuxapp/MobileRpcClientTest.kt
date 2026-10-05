@@ -63,7 +63,7 @@ class MobileRpcClientTest {
                 }
             }
             peer.start()
-            val client = MobileRpcClient(PairingCode.Route("127.0.0.1", server.localPort), { "token" })
+            val client = MobileRpcClient(PairingCode.Route("127.0.0.1", server.localPort), { "token" }, MobileAttachTicketContext("", null, "fixture-ticket", null))
             try {
                 client.connect()
                 client.groupAction("group-1", "rename", "  Work  ")

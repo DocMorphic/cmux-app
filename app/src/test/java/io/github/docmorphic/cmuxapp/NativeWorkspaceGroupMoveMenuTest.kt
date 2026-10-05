@@ -7,7 +7,7 @@ class NativeWorkspaceGroupMoveMenuTest {
     private fun workspace(id: String, group: String? = null) = NativeWorkspace(id, id, emptyList(), null,
         false, null, "window", false, emptyList(), group, null, null)
     private val source = NativeFeedSource(NativeCredentialStore.PairedMac("a", "a", "A"),
-        availability = NativeFeedAvailability.CONNECTED, capabilities = setOf("workspace.move.v1"),
+        availability = NativeFeedAvailability.CONNECTED, capabilities = setOf("workspace.move.v1", WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY),
         workspaces = listOf(workspace("root"), workspace("anchor", "first"), workspace("member", "first")),
         groups = listOf(NativeGroup("first", "First", false, false, "anchor"),
             NativeGroup("second", "Second", true, false)))

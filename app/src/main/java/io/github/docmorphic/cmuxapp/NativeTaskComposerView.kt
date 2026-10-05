@@ -442,7 +442,7 @@ internal fun NativeTaskComposerView(
                 if (client == null) Text(if (hasSelectedMac) "That Mac is not connected. Open cmux on the Mac to start this task."
                     else "Pair a Mac to start this task. You can save your draft now.",
                     color = Color(0xFF9B9FA8), style = MaterialTheme.typography.bodySmall)
-                if (supportsTaskCreation == false) Text("Update cmux on this Mac to create tasks.",
+                if (supportsTaskCreation == false) Text("Pair this Mac again or update cmux to create tasks.",
                     color = Color(0xFFFF9999), modifier = Modifier.padding(bottom = 12.dp))
                 if (recoveryApplies) {
                     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)

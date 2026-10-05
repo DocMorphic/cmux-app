@@ -57,6 +57,9 @@ class MobileRpcClient internal constructor(
 
     @Volatile internal var terminalDeviceName: String? = null
     @Volatile private var hostAccountMutations = false
+    internal fun macMutationTicket() = attachTicket?.macMutationTicket()
+    internal fun allowsMacWorkspaceMutations(nowMillis: Long = System.currentTimeMillis()) =
+        hostAccountMutations || attachTicket?.allowsMacWorkspaceMutations(false, nowMillis) == true
     private fun JSONObject.withTerminalDevice(): JSONObject = apply {
         terminalDeviceName?.let { put("device_kind", "unknown"); put("device_name", it) }
     }
@@ -174,9 +177,17 @@ class MobileRpcClient internal constructor(
         method: String,
         params: JSONObject = JSONObject(),
         timeoutMillis: Long = 15_000
-    ): JSONObject = requestWithAttachTicketPolicy(method, params, timeoutMillis,
-        if (hostAccountMutations && method in setOf("workspace.create", "workspace.move", "workspace.group.create", "workspace.group.action"))
-            MobileAttachTicketPolicy.OMIT else MobileAttachTicketPolicy.WHEN_COVERED)
+    ): JSONObject {
+        if (method !in setOf("workspace.create", "workspace.move", "workspace.group.create", "workspace.group.action"))
+            return requestWithAttachTicketPolicy(method, params, timeoutMillis, MobileAttachTicketPolicy.WHEN_COVERED)
+        val byAccount = hostAccountMutations
+        val policy = if (byAccount) MobileAttachTicketPolicy.OMIT else MobileAttachTicketPolicy.WHEN_COVERED
+        return requestAdmitted(method, params, timeoutMillis, policy) {
+            check(if (byAccount) hostAccountMutations else attachTicket?.allowsMacWorkspaceMutations(false, System.currentTimeMillis()) == true) {
+                "Pair this Mac again or update cmux to change workspaces and groups."
+            }
+        }
+    }
 
     /** Omission is request-local; callers must separately admit account-capable Mac mutations. */
     internal suspend fun requestWithAttachTicketPolicy(method: String, params: JSONObject,

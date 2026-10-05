@@ -20,7 +20,7 @@ class MobileRpcAuthorizationTest {
     @Test fun nativeFramesOmitBothCredentialsAndNeverLookUpAccountToken() = runBlocking<Unit> {
         val wire = PoolTestTransport()
         MobileRpcClient(admitted(wire), { error("Native RPC must not request a Stack token") },
-            MobileAttachTicketContext("work", "term", "synthetic-secret", null)).use { client ->
+            MobileAttachTicketContext("", null, "synthetic-secret", null)).use { client ->
             client.connect()
             for (method in listOf("mobile.host.status", "mobile.workspace.list", "workspace.create", "mobile.terminal.input", "unknown.future.method"))
                 assertFalse(exchange(client, wire, method).has("auth"))

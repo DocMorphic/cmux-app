@@ -11,6 +11,29 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun legacyMacTicketEnablesGroupActionsAndExpiryRefreshesThePublishedUiAuthority() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.accountMutationsSupported = false; peer.groupCreationSupported = true; peer.newGroupCreationSupported = true
+            peer.ticket = MobileAttachTicketContext("", null, "legacy-fixture", System.currentTimeMillis() + 2000)
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                val source = coordinator.sources.value.values.single()
+                assertTrue(source.canEditGroups()); assertTrue(source.canCreateInGroup()); assertTrue(source.canCreateGroup())
+                coordinator.groupAction(mac("a"), "g", "rename", "Renamed")
+                coordinator.createWorkspaceInGroup(mac("a"), "g")
+                coordinator.createGroup(mac("a"))
+                val writes = peer.requests.filter { it.optString("method") in setOf("workspace.group.action", "workspace.create", "workspace.group.create") }
+                assertEquals(3, writes.size)
+                assertTrue(writes.all { it.getJSONObject("auth").getString("attach_token") == "legacy-fixture" })
+                awaitState { coordinator.sources.value.values.single().macMutationTicket == null }
+                assertFalse(coordinator.sources.value.values.single().canEditGroups())
+                assertTrue(runCatching { coordinator.createGroup(mac("a")) }.isFailure)
+                assertEquals(1, peer.requests.count { it.optString("method") == "workspace.group.create" })
+            } finally { coordinator.close() }
+        }
+    }
     @Test fun newGroupUsesExactMacDefaultNameAndReconcilesSuccessAndRejection() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             b.newGroupCreationSupported = true
@@ -73,7 +96,7 @@ class NativeFeedCoordinatorTest {
 
     @Test fun plainCreateTargetsExactMacAndAcceptsLegacyWithoutAccountGroupCapability() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
-            b.accountMutationsSupported = false
+            b.accountMutationsSupported = false; b.ticket = MobileAttachTicketContext("", null, "fixture-ticket", null)
             b.createResponse = JSONObject("""{"workspaces":[{"id":"legacy-created"}]}""")
             val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { true })
             try {
@@ -854,6 +877,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     @Volatile var forceUnread = false
     @Volatile var powerSupported = false
     @Volatile var rowActionsSupported = true
+    var ticket: MobileAttachTicketContext? = null
     @Volatile var accountMutationsSupported = true
     @Volatile var groupActionsSupported = true
     @Volatile var groupCreationSupported = false
@@ -881,7 +905,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
             } catch (_: Exception) { break }
         }.apply { isDaemon = true; start() }
     }
-    suspend fun connect() = MobileRpcClient(PairingCode.Route("127.0.0.1", server.localPort), { "fixture" }).also { it.connect() }
+    suspend fun connect() = MobileRpcClient(PairingCode.Route("127.0.0.1", server.localPort), { "fixture" }, ticket).also { it.connect() }
     private fun serve(socket: Socket) {
         try { socket.use {
             val input = socket.getInputStream()

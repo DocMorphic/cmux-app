@@ -12,7 +12,36 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — signed build 589 verified (2026-10-05)
+## Latest source checkpoint — Mac mutation ticket authority (2026-10-05)
+
+Workspace creation/moves and group creation/actions now follow the reviewed iOS
+Mac mutation ticket policy: account-capable hosts authorize these operations
+without attach context; older hosts require a current Mac-wide ticket. Missing,
+workspace-scoped and expired tickets fail before token lookup and before writing,
+including expiry while credentials are pending. Operation capabilities remain
+required by the relevant UI actions.
+
+The feed/sidebar exposes only ticket eligibility and expiry, never its token.
+Expiry updates the feed and foreground action state; task creation and group
+controls follow the same authority. The final RPC admission remains authoritative.
+Modern Android fixtures now explicitly advertise account mutation support and
+query host status before task creation. The task-unavailable message also covers
+re-pairing; its UI assertion was updated.
+
+**163 focused JVM tests passed**, zero failures/errors/skips. Android test Kotlin
+compilation passed (the subsequent task-message assertion edit changes only a
+string literal). The first JVM run had one outdated fixture using a workspace
+scoped ticket for a Mac-wide group mutation; it now uses a Mac-wide ticket while
+retaining the separate narrow-ticket rejection checks. Original and final results
+are retained in `captures/runtime/mac-mutation-authority/`.
+
+This is source ahead of signed build **589**. No new APK or emulator was created;
+no Android runtime or physical Mac/Pixel acceptance is claimed for this checkpoint.
+Next: batch runtime verification of the recent auth/ticket changes, real-device
+native/recovery flows, production push and remaining UI/accessibility acceptance.
+Goal active; PR remains draft; global parity pins unchanged.
+
+## Earlier delivery checkpoint — signed build 589 verified (2026-10-05)
 
 Signed development build **589** at `cba6c6ec10e36871f4fcf78d116ef1673ae68a64` is
 verified. Download and exact evidence: [PIXEL_INSTALL.md](PIXEL_INSTALL.md).
