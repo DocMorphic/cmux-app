@@ -15,6 +15,18 @@ available, and the upstream watcher remains configured. Main integration does
 not establish full parity or authorize production release promotion. Earlier
 feature-branch/draft-only instructions below are historical.
 
+## Latest Save implementation batch — 2026-10-05
+
+Save now uses private non-backup copies plus atomic phase records and SHA-256
+seals, reconciles older Activity bundles, protects completed/cancelled exports
+from replay, and shows cancellable write progress. Main Kotlin compiled and 17
+focused JVM tests passed. No emulator or APK run for
+this batch; actual process/picker/provider recovery is still unverified. Next:
+current-loader materialization for remote Save/Share/Open (iOS re-stats the Mac
+file), persistent background export completion, orphan/receipt cleanup, then an
+integrated Android/Pixel acceptance pass. Details and focused verification are
+in the latest `CONTENT_PREVIEW_LIFECYCLE.md` section.
+
 ## Latest feature batch — Files recovery, 2026-10-05
 
 Files/gallery/direct previews now retain state across transient connection loss;

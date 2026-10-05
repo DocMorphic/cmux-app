@@ -2,13 +2,17 @@ package io.github.docmorphic.cmuxapp
 
 import java.io.File
 import java.io.OutputStream
+import java.io.FileOutputStream
+import java.nio.file.StandardCopyOption
+import java.nio.file.Files
+import java.security.MessageDigest
 import java.util.UUID
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
-internal enum class FileSavePhase { PREPARING, READY, WAITING, WRITING, FAILED }
+internal enum class FileSavePhase { PREPARING, READY, WAITING, WRITING, FAILED, COMPLETED, CANCELLED }
 
-/** Only a private cache identity and picker state enter the Activity's saved state. */
+/** Only a private snapshot identity and picker state enter the Activity's saved state. */
 internal data class FileSaveSnapshot(val id: String, val filename: String, val mime: String,
     val phase: FileSavePhase, val destination: String? = null, val ownsGrant: Boolean = false) {
     init {
@@ -32,36 +36,109 @@ internal data class FileSaveSnapshot(val id: String, val filename: String, val m
     }
 }
 
-/** Each pending Save owns an independent immutable snapshot; no global expiry deletes live pickers. */
+/** Immutable bytes and a durable journal. The caller confines each identity to one writer. */
 internal class FileSaveFiles(private val root: File) {
-    // Keep the suggested picker name independent of filesystem byte-length limits.
     fun file(value: FileSaveSnapshot): File = File(File(root, value.id), "content").also {
         require(it.canonicalFile.parentFile?.parentFile == root.canonicalFile) { "Invalid save snapshot" }
     }
+    private fun member(value: FileSaveSnapshot, name: String) = File(file(value).parentFile, name).also {
+        require(it.canonicalFile.parentFile == file(value).parentFile!!.canonicalFile)
+    }
+    private fun atomic(file: File, text: String) {
+        val partial = File(file.parentFile, file.name + ".partial")
+        try {
+            FileOutputStream(partial).use { it.write(text.toByteArray(Charsets.UTF_8)); it.fd.sync() }
+            Files.move(partial.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } finally { partial.delete() }
+    }
+    @Synchronized
+    fun record(value: FileSaveSnapshot) {
+        val previous = journal(value)
+        check(previous?.phase !in setOf(FileSavePhase.COMPLETED, FileSavePhase.CANCELLED) || previous?.phase == value.phase) {
+            "This save has already finished"
+        }
+        atomic(member(value, "state.json"), value.encode())
+    }
+    @Synchronized
+    fun latest(value: FileSaveSnapshot): FileSaveSnapshot = journal(value) ?: value
+    private fun journal(value: FileSaveSnapshot): FileSaveSnapshot? {
+        val path = member(value, "state.json")
+        if (!path.exists()) return null
+        check(path.length() <= 12_288) { "Invalid save journal" }
+        return checkNotNull(FileSaveSnapshot.decode(path.readText())).also {
+            check(it.id == value.id && it.filename == value.filename && it.mime == value.mime) { "Save identity changed" }
+        }
+    }
+    /** Disk state wins over an older Activity bundle, including completed/cancelled tombstones. */
+    suspend fun restore(value: FileSaveSnapshot, legacyRoot: File? = null): FileSaveSnapshot = withContext(Dispatchers.IO) {
+        if (!file(value).parentFile!!.exists() && legacyRoot != null && value.phase != FileSavePhase.PREPARING) {
+            val legacy = FileSaveFiles(legacyRoot)
+            val source = legacy.file(value)
+            check(source.isFile) { "Save snapshot is no longer available" }
+            prepare(value, source, source.length()); record(value); legacy.remove(value)
+        }
+        val latest = journal(value) ?: value
+        if (latest.phase == FileSavePhase.COMPLETED || latest.phase == FileSavePhase.CANCELLED) return@withContext latest
+        verify(latest)
+        if (latest.phase == FileSavePhase.PREPARING) latest.copy(phase = FileSavePhase.READY).also(::record) else latest
+    }
     suspend fun prepare(value: FileSaveSnapshot, source: File, expectedSize: Long): File = withContext(Dispatchers.IO) {
+        require(expectedSize >= 0)
         val target = file(value)
         check(target.parentFile!!.mkdirs()) { "Could not prepare file for saving." }
         try {
+            record(value.copy(phase = FileSavePhase.PREPARING))
+            val digest = MessageDigest.getInstance("SHA-256")
             source.inputStream().use { input -> target.outputStream().use { output ->
                 val buffer = ByteArray(64 * 1024); var total = 0L
                 while (true) {
                     ensureActive(); val count = input.read(buffer); if (count < 0) break
-                    output.write(buffer, 0, count); total += count
+                    check(count.toLong() <= expectedSize - total) { "The preview changed while preparing its save." }
+                    output.write(buffer, 0, count); digest.update(buffer, 0, count); total += count
                 }
                 check(total == expectedSize) { "The preview changed while preparing its save." }
                 output.fd.sync()
             } }
-            ensureActive(); target
+            ensureActive()
+            atomic(member(value, "seal.json"), JSONObject().put("size", expectedSize).put("sha256", digest.digest().hex()).toString())
+            target
         } catch (failure: Throwable) { remove(value); throw failure }
     }
-    suspend fun write(value: FileSaveSnapshot, open: () -> OutputStream) = withContext(Dispatchers.IO) {
-        file(value).inputStream().use { input -> open().use { output ->
+    private suspend fun verify(value: FileSaveSnapshot): Long {
+        val seal = member(value, "seal.json")
+        check(seal.isFile && seal.length() <= 256) { "Save preparation was interrupted" }
+        val metadata = JSONObject(seal.readText()); val size = metadata.getLong("size")
+        val hash = metadata.getString("sha256")
+        check(size >= 0 && hash.matches(Regex("[0-9a-f]{64}")) && file(value).length() == size) { "Save snapshot changed" }
+        val digest = MessageDigest.getInstance("SHA-256")
+        file(value).inputStream().use { input ->
             val buffer = ByteArray(64 * 1024)
+            while (true) { currentCoroutineContext().ensureActive(); val n = input.read(buffer); if (n < 0) break; digest.update(buffer, 0, n) }
+        }
+        check(digest.digest().hex() == hash) { "Save snapshot changed" }
+        return size
+    }
+    suspend fun write(value: FileSaveSnapshot, progress: suspend (Long, Long) -> Unit = { _, _ -> },
+        open: () -> OutputStream) = withContext(Dispatchers.IO) {
+        // Validate before opening/truncating the user's selected destination.
+        val size = verify(value)
+        file(value).inputStream().use { input -> open().use { output ->
+            val buffer = ByteArray(64 * 1024); var written = 0L
+            progress(0, size)
             while (true) {
                 ensureActive(); val count = input.read(buffer); if (count < 0) break
-                output.write(buffer, 0, count)
+                output.write(buffer, 0, count); written += count; progress(written, size)
             }
+            check(written == size) { "Save snapshot changed" }
+            output.flush()
         } }
     }
+    /** Keep a small terminal receipt so an older Activity bundle cannot repeat an export. */
+    fun finish(value: FileSaveSnapshot, phase: FileSavePhase) {
+        require(phase == FileSavePhase.COMPLETED || phase == FileSavePhase.CANCELLED)
+        if (!file(value).parentFile!!.exists()) return
+        record(value.copy(phase = phase)); file(value).delete(); member(value, "seal.json").delete()
+    }
     fun remove(value: FileSaveSnapshot) { file(value).parentFile?.deleteRecursively() }
+    private fun ByteArray.hex() = joinToString("") { "%02x".format(it.toInt() and 255) }
 }

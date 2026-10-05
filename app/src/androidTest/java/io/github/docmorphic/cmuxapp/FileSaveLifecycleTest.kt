@@ -46,7 +46,7 @@ class FileSaveLifecycleTest {
     }
     private fun ActivityScenario<ArtifactPreviewTestActivity>.model() = read { ViewModelProvider(it)[FileSaveModel::class.java] }
     private fun save() { find(By.desc("Viewer actions")).click(); find(By.text("Save")).click() }
-    private fun cache(value: FileSaveSnapshot) = File(context.cacheDir, "file-saves/${value.id}/content")
+    private fun cache(value: FileSaveSnapshot) = File(context.noBackupFilesDir, "file-saves/${value.id}/content")
     private fun picker() = find(By.pkg("com.google.android.documentsui"))
 
     @Test fun realPickerResultSurvivesLoadingReplacementRecreationAndPreviewDeletion() {
@@ -77,7 +77,7 @@ class FileSaveLifecycleTest {
             savedUri = scenario.read { original.lastSavedUri }
             assertArrayEquals(expected, context.contentResolver.openInputStream(checkNotNull(savedUri))!!.use { it.readBytes() })
             assertTrue(scenario.read { it.loading }); find(By.text("Loading replacement preview"))
-            await("Save snapshot was not released") { !cache(snapshot).parentFile!!.exists() }
+            await("Save snapshot was not released") { !cache(snapshot).exists() }
             assertNull(scenario.read { original.failure }); assertEquals(1, count.get())
             screenshot("saved-without-preview")
         } finally {
@@ -99,12 +99,12 @@ class FileSaveLifecycleTest {
             device.pressBack()
             await("Cancellation did not release the pending picker") { scenario.read { it !== oldActivity && !owner.busy } }
             assertSame(owner, scenario.model())
-            await("Cancelled save left private bytes") { !cache(original).parentFile!!.exists() }
+            await("Cancelled save left private bytes") { !cache(original).exists() }
             assertTrue(source.isFile); assertNull(scenario.read { owner.failure })
             save(); picker(); val second = checkNotNull(scenario.read { owner.pending })
             assertNotEquals(original.id, second.id); device.pressBack()
             await("Second cancellation did not finish") { scenario.read { !owner.busy } }
-            await("Second cancelled snapshot leaked") { !cache(second).parentFile!!.exists() }
+            await("Second cancelled snapshot leaked") { !cache(second).exists() }
             screenshot("cancelled-picker")
         } } finally { source.delete() }
     }
@@ -131,7 +131,7 @@ class FileSaveLifecycleTest {
             assertTrue(scenario.read { owner.canRetry }); screenshot("failed-save-recreated")
             find(By.text("Try again")).click()
             await("Retry cancellation did not clear state") { scenario.read { !owner.busy && owner.failure == null } }
-            await("Retry cancellation left private bytes") { !cache(pending).parentFile!!.exists() }
+            await("Retry cancellation left private bytes") { !cache(pending).exists() }
             assertEquals(2, count.get()); assertTrue(source.isFile)
         } } finally { instrumentation.removeMonitor(monitor); source.delete() }
     }

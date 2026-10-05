@@ -1,5 +1,70 @@
 # Content preview lifecycle
 
+## Durable Save recovery and write progress — 2026-10-05
+
+Pending exports now use an independent copy under Android's private
+`noBackupFilesDir/file-saves`, rather than evictable cache storage. Preparation
+records its identity, copies with an exact size bound, syncs the payload, and
+publishes a SHA-256 seal. Before opening/truncating a selected destination, the
+writer verifies the retained copy. A corrupt, missing or incomplete copy cannot
+be exported as if it were complete. Existing waiting/writing saves can migrate
+from the old cache layout; a legacy PREPARING copy is never assumed complete.
+
+Each export has an atomic durable journal. Restoration uses that journal over
+an older Activity bundle, covering preparation, picker wait, writing, failure,
+completion and cancellation. A sealed preparation can finish restoring to READY.
+Picker results arriving during asynchronous restoration wait for reconciliation.
+WRITING resumes from the saved destination when the Activity owner is restored;
+provider authorization is still enforced when opening the document. Small
+completion/cancellation receipts prevent an old bundle or late journal update
+from resurrecting a finished export. Completion cleanup is repeatable, including
+when a process stopped after recording success but before removing its payload.
+
+Large writes now report progress with a Cancel action. Cancellation waits for
+the active writer to stop before removing its copy or releasing its acquired
+provider grant. Grants already held by other app features remain unowned by
+Save. Grant acquisition and journal writes run off the UI dispatcher. No file
+bytes or RPC credentials enter Android saved state, and the durable copies are
+excluded from Android backup by their storage location.
+
+Android explicitly notes that `SavedStateHandle` updates made while an Activity
+is stopped may not reach the saved bundle until another start/stop cycle:
+[Saved state ViewModel documentation](https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate).
+Provider permission persistence is separate from saved UI state:
+[Storage Access Framework documentation](https://developer.android.com/training/data-storage/shared/documents-files).
+This is why the journal is needed; these references do not establish runtime
+acceptance of the implementation.
+
+**Verification:** main Kotlin compiled and all **17 focused JVM tests passed**
+in the final 19-second Gradle run: seven existing snapshot cases and ten recovery
+cases. These cover exact bytes, stale-bundle reconciliation, terminal receipts,
+corruption before destination opening, cache migration, interrupted preparation,
+late journal writes, and write cancellation/progress. An earlier 16-test pass
+preceded the repeatable completion-cleanup regression. Logs, XML and source
+hashes are in `captures/runtime/save-recovery-batch/`.
+
+The existing Android picker regression source now uses the durable storage
+location and asserts payload cleanup (small terminal receipts intentionally
+remain); it was not executed in this batch. No emulator, Android runtime suite,
+or APK build ran. Signed build 606 remains unchanged.
+
+**iOS freshness follow-up:** `ChatArtifactFileActionStore.materialize` at scoped
+commit `186cec79781256867ad4516f0802118738bd2393` stats the host path and passes
+size/modifiedAt into its content cache before export. Android's viewer toolbar
+still copies its already downloaded preview. Add an explicit current-loader
+materialization path for remote Save/Share/Open, preserving account/path scope;
+keep local browser/download/Changes snapshot behavior separate. This source
+finding is not an unavoidable platform difference. The scoped source and hash
+are in `captures/runtime/save-recovery-batch/`; the global parity pin is unchanged.
+
+Still required: actual process termination with the system picker open and during
+writing; restored Activity result/grant behavior; provider denial/reboot/disconnect;
+large-file progress and cancellation UI on Pixel; background completion without
+reopening the Activity; abandoned-copy/old-receipt reclamation; and handling any
+partial document left by a cancelled provider write. These remain acceptance or
+implementation work, not exclusions. The journal tests reconstruct storage
+objects; they do not simulate Android process death or prove those device flows.
+
 ## Files and folder recovery batch — 2026-10-05
 
 Implemented on main after `f8ee24d`; this is a source milestone, not a new APK.

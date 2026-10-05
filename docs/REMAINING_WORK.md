@@ -25,6 +25,13 @@ and currently disabled; the upstream watcher remains configured.
 
 ## Current delivery and next actions
 
+- Save recovery now has durable private copies, atomic phase records, integrity
+  checking before destination writes, and cancellable progress. Main Kotlin
+  compiled and 17 focused JVM checks passed. Actual Android
+  process/picker/provider recovery and background completion remain pending.
+  iOS source confirms remote actions re-stat/materialize the host file; Android's
+  viewer toolbar still exports its preview copy and needs current-loader
+  materialization. See `CONTENT_PREVIEW_LIFECYCLE.md` for this implementation batch.
 - Latest source batch adds Files/gallery/direct-preview reconnect retention,
   retained folder listings, and typed folder/direct-path failures. Main Kotlin
   compiled and 27 focused JVM cases passed. Android/Pixel route, visible reading
