@@ -4,8 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
@@ -54,29 +52,14 @@ internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: Change
 internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactViewerState? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val saves = checkNotNull(LocalFileSaves.current)
     var menu by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
     var fontDialog by remember { mutableStateOf(false) }
-    var pendingSave by remember { mutableStateOf<File?>(null) }
-    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
-        val captured = pendingSave
-        pendingSave = null
-        if (captured != null) scope.launch {
-            try {
-                if (uri != null) withContext(Dispatchers.IO) {
-                    val output = checkNotNull(context.contentResolver.openOutputStream(uri)) { "Could not open the save destination." }
-                    output.use { target -> captured.inputStream().use { source ->
-                        val bytes = ByteArray(64 * 1024)
-                        while (true) { ensureActive(); val count = source.read(bytes); if (count < 0) break; target.write(bytes, 0, count) }
-                    } }
-                }
-            } catch (error: Exception) { if (error is CancellationException) throw error; failure = error.message ?: "Could not save file." }
-            finally { withContext(NonCancellable + Dispatchers.IO) { captured.parentFile?.deleteRecursively() }; busy = false }
-        } else busy = false
-    }
     fun perform(action: String) {
         val captured = artifact ?: return
+        if (action == "Save") { menu = false; failure = null; saves.begin(captured); return }
         busy = true; failure = null; menu = false
         scope.launch {
             var exported: File? = null
@@ -89,7 +72,6 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
                 ensureActive()
                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file)
                 when (action) {
-                    "Save" -> { pendingSave = file; save.launch(file.name) }
                     "Copy Image" -> {
                         (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newUri(context.contentResolver, file.name, uri))
                         busy = false
@@ -104,7 +86,7 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
                     }
                 }
             } catch (error: Exception) {
-                exported?.parentFile?.deleteRecursively(); pendingSave = null; busy = false
+                exported?.parentFile?.deleteRecursively(); busy = false
                 if (error is CancellationException) throw error
                 failure = if (error is android.content.ActivityNotFoundException) "No installed app can open this file." else error.message ?: "Could not prepare file."
             }
@@ -120,9 +102,9 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(artifact?.let { "${it.size} bytes" }.orEmpty(), Modifier.weight(1f), fontSize = 12.sp, color = changesMuted)
             Box {
-                IconButton(onClick = { menu = true }, enabled = artifact != null && !busy,
+                IconButton(onClick = { menu = true }, enabled = artifact != null && !busy && !saves.busy,
                     modifier = Modifier.semantics { contentDescription = "Viewer actions" }) {
-                    if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Box(Modifier.size(24.dp).border(1.dp, filesMuted, CircleShape), contentAlignment = Alignment.Center) { Text("⋯", fontSize = 19.sp) }
+                    if (busy || saves.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Box(Modifier.size(24.dp).border(1.dp, filesMuted, CircleShape), contentAlignment = Alignment.Center) { Text("⋯", fontSize = 19.sp) }
                 }
                 DropdownMenu(menu, { menu = false }, containerColor = androidx.compose.ui.graphics.Color(0xFF232428)) {
                     listOf("Share", "Save", "Open").forEach { action -> DropdownMenuItem(text = { Text(action) }, onClick = { perform(action) }) }

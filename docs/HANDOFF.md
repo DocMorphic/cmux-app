@@ -29,6 +29,20 @@ identified that main Files/Markdown-panel downloads are still composition-owned
 and can lose viewer state on recreation. Prioritize that integration gap after
 this signed batch. [REMAINING_WORK.md](REMAINING_WORK.md) is the current checklist.
 
+## Latest source checkpoint — shared Save ownership (2026-10-05)
+
+Save now uses an Activity-owned result handler and an independent private copy,
+so loading/loaded preview replacement and Activity recreation do not discard a
+pending export. Cancellation cleans up; failed destinations retain a retry copy
+and show a friendly error. 17 JVM tests and three real/synthetic picker Android
+checks (47.142 s) passed, followed by 14 viewer regressions (158.618 s).
+Screenshots inspected; no final-run crashes/new ANRs, settings unchanged, sole
+AVD stopped/reaped. See
+[CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#save-picker-ownership--2026-10-05)
+for exact scope, earlier fixture/emulator failures and scoped iOS references.
+Process-death recovery, remote-file freshness comparison and physical Save
+acceptance remain open. This source is newer than signed build 606.
+
 ## Latest source checkpoint — main Files retention (2026-10-05)
 
 The terminal Files gallery now retains its admitted feed connection, gallery

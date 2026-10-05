@@ -30,6 +30,20 @@ source audit is in [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md).
 Full parity remains unverified and the goal active. Older delivery statements
 below are historical; build 606 supersedes 596 as the verified download.
 
+## Latest source checkpoint — shared Save ownership (2026-10-05)
+
+Save now uses an Activity-owned result handler and an independent private copy,
+so loading/loaded preview replacement and Activity recreation do not discard a
+pending export. Cancellation cleans up; failed destinations retain a retry copy
+and show a friendly error. 17 JVM tests and three real/synthetic picker Android
+checks (47.142 s) passed, followed by 14 viewer regressions (158.618 s).
+Screenshots inspected; no final-run crashes/new ANRs, settings unchanged, sole
+AVD stopped/reaped. See
+[CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#save-picker-ownership--2026-10-05)
+for exact scope, earlier fixture/emulator failures and scoped iOS references.
+Process-death recovery, remote-file freshness comparison and physical Save
+acceptance remain open. This source is newer than signed build 606.
+
 ## Latest source checkpoint — terminal Files ownership (2026-10-05)
 
 The actual terminal Files gallery now retains the verified feed connection,

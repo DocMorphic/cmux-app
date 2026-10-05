@@ -97,7 +97,7 @@ fun CmuxTheme(content: @Composable () -> Unit) {
             surface = Color(0xFF0B0C0E),
             onBackground = Color(0xFFF4F5F7),
             onSurface = Color(0xFFF4F5F7)
-        ), content = content)
+        )) { FileSaveHost(content) }
     }
 }
 

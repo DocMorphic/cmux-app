@@ -1,5 +1,72 @@
 # Content preview lifecycle
 
+## Save picker ownership — 2026-10-05
+
+Save now has one Activity-owned `FileSaveModel` and a stable result launcher at
+`FileSaveHost`, above conditional preview content. The toolbar delegates to that
+owner. Before presenting Android's real document picker, the owner makes a
+private copy with the correct suggested filename and MIME type. The pending
+copy, result callback and asynchronous write survive Activity recreation and
+replacement of the preview's loading/loaded call site. They do not retain an
+Activity or view. A failed destination keeps the copy for retry; successful Save,
+cancellation and permanent owner closure clean up only that request's directory.
+Persisted write grants acquired by Save are released, preserving preexisting
+write grants. Errors present recovery actions without exposing provider URLs.
+
+**17 JVM tests passed**: seven snapshot tests, seven existing preview-file tests,
+and three sharing tests. **Three Android Save checks passed in 47.142 s** on the
+sole arm64 API 37 / 16 KB AVD:
+
+- The real system picker remains open across Activity recreation and replacement
+  with a loading preview. Deleting the original preview after the independent
+  copy is ready does not change the exact saved Unicode bytes. The picker launches
+  once, uses the expected MIME/name and releases the private copy on completion.
+- Cancelling the real picker after recreation cleans up the copy, preserves the
+  preview and allows a second independent Save/cancellation.
+- A synthetic unavailable-provider result shows a friendly error, preserves the
+  exact retry bytes and owner across recreation, then cleans up after retry is
+  cancelled. This does not claim a successful retry to a second real provider.
+
+Fourteen existing Android regressions passed in **158.618 s**: three text/media
+lifecycle cases, the actual NativeScreen Files retention case, nine artifact
+Files cases and the native file/Markdown-panel flow. Their six screenshots were
+also inspected. Final-run crash log empty, no new ANRs, settings unchanged and
+Downloads empty after generated-file cleanup. The only AVD is stopped and its
+process reaped. Final sources and debug/test APKs match the recorded hashes;
+no new debug Activity was added (release exclusion inventory remains ten).
+
+All four Save screenshots were inspected. The loading label is debug fixture
+content. The fixture's cancelled-picker screenshot also has dark system-bar
+icons; production MainActivity separately configures light icons. Physical
+system-picker return appearance remains part of Pixel acceptance.
+
+Earlier failed attempts are retained: ActivityScenario's foreground-only recreate
+helper rejected recreation while DocumentsUI held the foreground; a debug fixture
+restored a stale loading flag; startup System UI ANR dialogs obscured controls;
+and test cleanup attempted document deletion after closing the Activity and
+losing its temporary grant. The test now requests recreation directly while the
+picker is foregrounded, retains its loading fixture and deletes its generated
+document before Activity closure. The final Save run passed after those fixes.
+
+Scoped iOS references at `186cec79781256867ad4516f0802118738bd2393`:
+`ChatArtifactViewerFileActionState.swift`, `ChatArtifactFileActionPresentation.swift`
+and `ChatArtifactFileActionStore.swift`, under
+`Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/`. iOS presents
+`UIDocumentPickerViewController(forExporting:asCopy:true)` for a materialized
+local URL and cleans it on completion/cancellation. Exact source hashes are in
+`captures/runtime/file-save-lifecycle/upstream-save-source.json`; this scoped
+audit does not advance the global parity pin. Android currently exports the
+displayed preview snapshot. Fresh remote-file materialization/cache semantics
+still need call-site comparison before claiming that aspect of iOS parity.
+
+The owner serializes bounded picker metadata with SavedStateHandle, but **actual
+process death, interrupted large writes, provider permission transitions and
+abandoned-cache cleanup after a killed process remain unverified**. This shared
+viewer test does not prove full browser-parent or main Files Save flows on Pixel.
+Local evidence is in `captures/runtime/file-save-lifecycle/`, including raw results,
+source/APK hashes, failed attempts, screenshots and source references. Signed
+build **606** remains the latest independently verified download.
+
 ## Main terminal Files retention — 2026-10-05
 
 Main terminal Files now uses a `TerminalFilesPresentation` retained by
@@ -44,7 +111,7 @@ shared-viewer or gallery PDF test as proof for every content route.
 ## Historical source audit before terminal Files retention (2026-10-05)
 
 The following audit preceded the implementation above. Its native Markdown-panel
-and pending Save findings remain open. The text/media tests below recreate the
+findings remain open; shared Save ownership is addressed above. The text/media tests below recreate the
 shared viewer with the same local file.
 Changes supplies that stable file through its retained preview controller. The
 main Files flow and native Markdown panels still need equivalent integration:
