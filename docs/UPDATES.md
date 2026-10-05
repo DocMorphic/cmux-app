@@ -43,7 +43,9 @@ configured. These workflows do not silently install an APK on the phone.
 ## In-app release notices
 
 The official iOS app separately has a channel/version-gated What's New archive
-and launch sheet. Android does not yet implement that surface. The detailed
+and launch sheet. Android implements the native center, archive and launch sheet;
+the [implementation notes](WHATS_NEW.md) and [web integration](WHATS_NEW_WEB.md)
+track the remaining feed, cold-start and authenticated runtime acceptance. The detailed
 [What's New audit](WHATS_NEW_AUDIT.md) records cache, remote retraction, web preload,
 acknowledgement and presentation rules at `0fc35d6`; build automation below is not
 evidence of that UI. Android notices need Android release identities rather than
@@ -67,11 +69,19 @@ repository setting unchanged. It neither opens code PRs nor changes signing keys
 
 The inventory covers iOS UI, shared/mobile protocol code, all native host `Sources/`
 (mobile behavior can change outside `Sources/Mobile/`), phone push, workers,
-authentication SDK, Ghostty pins and iOS build definitions. Renames out of a watched
-path also count. GitHub limits comparison file inventories to 300 files. A capped
-inventory, diverged history or incomplete commit list is stated explicitly; a
-capped/diverged comparison always requires review. API failures fail the workflow
-rather than turning into an empty, apparently clean report.
+authentication SDK, Ghostty pins, iOS build definitions and mobile/release scripts.
+Renames out of a watched path also count. GitHub limits comparison file inventories
+to 300 files. At that limit, the watcher compares recursive Git trees at the two
+immutable commit IDs, retaining file-mode, symlink and submodule changes. This
+fallback represents renames as removal/addition. If GitHub also truncates a tree,
+the report remains explicitly incomplete and requires further source review.
+Commit subjects are paginated up to 1,000; any remaining subjects are explicitly
+marked incomplete. Diverged history always requires review. API failures or missing
+comparison inventories fail the workflow rather than producing an apparently clean
+report. Review-area counts help route work; they do not establish feature parity.
+
+API contracts: [comparison pagination and file limit](https://docs.github.com/en/rest/commits/commits#compare-two-commits),
+[recursive tree limits](https://docs.github.com/en/rest/git/trees#get-a-tree).
 
 **Detecting a commit is not porting it.** Swift/iOS code must be reviewed and
 implemented in Kotlin/Android where applicable. Protocol changes need both
@@ -85,7 +95,7 @@ claim.
 
 Ready PRs retain automatic build/test behavior; draft commits accumulate without
 an APK build. The new lightweight policy tests run without starting an emulator.
-Once changes are merged to main, the scheduled preview decision counts relevant
+When `CMUX_AUTOMATIC_PREVIEWS=true`, the scheduled preview decision counts relevant
 commits since the **last published preview source**, not the last green poll.
 Five relevant main commits or three hours from the oldest relevant merge triggers
 the existing signed build. A merged feature branch counts once, using the merge
@@ -127,9 +137,10 @@ python3 scripts/verify-signed-apk.py /path/to/app-release.apk --version RUN_NUMB
 
 Set `ANDROID_HOME` (or pass `--sdk`) and configure Java. Android build-tools
 36.0.0 must be available. The command checks the stable certificate, package and
-version, SDK contract, all six native LOAD/RELRO segments, 16 KB ZIP alignment,
-disabled backup/debugging, diagnostics Application, five excluded debug fixture
-activities, and all fourteen viewer hashes inside the APK. The expected SDK,
+version, SDK contract, all nineteen native libraries' LOAD/RELRO alignment,
+16 KB ZIP alignment, disabled backup/debugging, diagnostics Application, exclusion
+of every Activity in the current debug manifest, and all fourteen viewer hashes
+inside the APK. The expected SDK,
 native-library and viewer inventory are explicit checks and must be reviewed when
 those release contracts change. It publishes
 `apk-verification.json` only after every check passes, retaining individual tool
@@ -151,22 +162,23 @@ triggered solely for this gate refactor.
 
 ## Activation and operation
 
-GitHub schedules only workflows present on the default branch. This work is on
-`feature/local-mac-bridge` / draft PR #1; **the new schedules are not active until
-the workflow changes reach main**. Main still contains the early preview pipeline;
-copying the full new Android workflow to that old source by itself would reference
-native modules/scripts it does not have. Merge the application and pipeline together
-once the draft is ready. Do not claim an active watcher from a local dry run.
+The application and workflows are now on default branch `main`; PR #1 is merged.
+The first manually dispatched [watch run](https://github.com/DocMorphic/cmux-app/actions/runs/37343967042)
+completed successfully on 2026-10-05 and created the bot-owned
+[review queue](https://github.com/DocMorphic/cmux-app/issues/2). The 20-minute
+schedule is configured on main; dispatch times remain subject to GitHub scheduling.
+That first run used the older capped inventory; the subsequent checkpoint below
+records the full-tree fallback. Detection never automatically ports or merges code.
 
-After that merge:
+During feature-first development:
 
-1. Run **Upstream cmux watch** once from main to seed the review issue.
-2. Run **Android build** from main with `publish_preview=true` for the first
-   signed preview. Later schedules batch applicable commits automatically.
-3. Download preview APKs from repository Releases. Keep the existing release app
-   installed so Android can upgrade it and retain its data.
-4. After release acceptance, manually run **Promote Android release** with the
-   verified preview tag. This creates the stable/latest designation only.
+1. Keep `CMUX_AUTOMATIC_PREVIEWS=false` to avoid scheduled APK builds.
+2. At an integration milestone, manually run **Android build** on main with
+   `publish_preview=false` for signed Actions artifacts only.
+3. Verify the artifact and install it as an upgrade, retaining existing app data.
+4. Preview publication (`publish_preview=true`), enabling automatic previews,
+   and production promotion remain separate decisions. No production promotion
+   has been authorized by the current main-branch development request.
 
 For a local read-only upstream report:
 
@@ -181,7 +193,23 @@ Run policy tests with:
 python3 -m unittest discover -s scripts/tests -p 'test_update_policy.py'
 ```
 
-## Verification at this checkpoint
+## Full inventory checkpoint — 2026-10-05
+
+Sixteen policy tests pass, including a mobile change beyond the 300-file cap,
+immutable-head commit pagination, moves out of watched directories, executable
+mode/submodule changes, truncated trees, missing inventories, duplicate commits
+and idempotent issue updates. No emulator or APK build is involved.
+
+The live read-only report at `1012a019a9b0a61c471fc7aba68361f3b1f6bd1b`
+found 3,930 changed paths against the unchanged audited candidate `204a11d`, with
+1,060 relevant paths and complete file coverage from recursive trees. Of 1,114
+commits, 1,000 subjects are retained; the remaining subjects are explicitly marked
+incomplete. This is a detection inventory, not a source audit or porting result.
+Neither parity reference was advanced. Local evidence is retained in ignored
+`captures/runtime/upstream-watch-main/`. Signed APK 606 remains the verified
+download; automatic previews remain disabled.
+
+## Historical verification before main integration
 
 Ten policy tests pass, including a real Git history with a six-commit feature
 branch counted as one newly landed merge, an unrelated documentation commit, a

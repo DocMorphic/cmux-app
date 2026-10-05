@@ -8,7 +8,7 @@ a physical workflow gate. These are work areas, not equal-sized progress units.
 Development now targets `main` at the user's request. Implement features in larger
 batches; broad regression and signed builds belong at integration milestones and
 final acceptance. Scheduled APK builds are opt-in via `CMUX_AUTOMATIC_PREVIEWS=true`
-and currently disabled; the upstream watcher remains configured.
+and currently disabled; the upstream watcher is active on main with review issue #2.
 
 ## Completion gates
 
@@ -20,11 +20,15 @@ and currently disabled; the upstream watcher remains configured.
 | Files, Changes and content viewers | Finish the remaining format/menu comparisons and modal/binary preview restoration, including native errors outside RPC and broader real-route retry acceptance, directory/rename/read/export/decoder failure coverage, live panel-kind changes, and broader main Files/direct-tap/transport restoration, forced browser-parent recreation with binary content, rendered-Markdown reflow and real-route/process recovery, Save process-death/large-write recovery and remote-file freshness semantics, video acceptance and zoom across aspect-ratio changes. | An explicit supported-format matrix checked against pinned iOS code, visible rendering and file actions on Pixel, and restoration tests that verify the displayed content. |
 | Background notifications | Configure and deploy the Android push path. FCM/HPKE, worker and reply code exists but production delivery is disabled/unconfigured. The proposed private Firebase plus Mac-forwarder setup still needs provisioning. | Real registered-device delivery with the app foregrounded, backgrounded and process-dead, plus Doze, token rotation, tap/reply routing and account revocation. Document infrastructure and any demonstrated platform differences. |
 | UI and accessibility | Finish screen-by-screen iOS comparison, keyboard insets, dynamic text, TalkBack, gestures/haptics and performance on Pixel. | Matched-state screenshots and interaction checks for all main screens and sheets; usable enlarged text and accessibility traversal; measured investigation of any remaining freezes/ANRs. |
-| Release and updates | Verify an upgrade while signed in; finish notice-feed configuration, cold-start/cookie checks and What's New; exercise the upstream monitor on main and the preview lane at a chosen milestone; scheduled previews remain opt-in during feature-first development. | Stable-signer upgrade preserving account/pairing/settings, actual configured feed and update checks, and one observed upstream-change-to-review/build cycle. The upstream watcher is configured on main; scheduled APK builds require `CMUX_AUTOMATIC_PREVIEWS=true` (currently disabled). |
+| Release and updates | Verify an upgrade while signed in; finish notice-feed configuration, cold-start/cookie checks and What's New; carry an upstream review through a port and chosen preview milestone; scheduled previews remain opt-in during feature-first development. | Stable-signer upgrade preserving account/pairing/settings, actual configured feed and update checks, and one observed upstream-change-to-review/build cycle. The watcher has succeeded on main and created review issue #2; port/build acceptance remains. Scheduled APK builds require `CMUX_AUTOMATIC_PREVIEWS=true` (currently disabled). |
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
 
+- Upstream monitoring has succeeded on main and created bot review issue #2.
+  The complete-tree fallback and expanded release-script coverage pass 16 policy
+  tests; the live inventory detects 1,060 relevant paths at `1012a019`. Detection
+  does not close the source audit. See `UPDATES.md`; no app build was triggered.
 - Share/Open/Copy Image and gallery-row Share now have Activity-owned preparation
   and one-time system presentation, with cancellation and cache leases for active
   exports. Main Kotlin compiled and 17 focused JVM checks passed. Real Activity

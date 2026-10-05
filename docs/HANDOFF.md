@@ -11,9 +11,21 @@ work explicit in `REMAINING_WORK.md`.
 
 Scheduled APK builds now require repository variable `CMUX_AUTOMATIC_PREVIEWS`
 to equal `true`; it is currently `false`. Manual milestone dispatch remains
-available, and the upstream watcher remains configured. Main integration does
+available, and the upstream watcher is active on main. Main integration does
 not establish full parity or authorize production release promotion. Earlier
 feature-branch/draft-only instructions below are historical.
+
+## Upstream watcher activation — 2026-10-05
+
+The first main watch run `37343967042` succeeded and created bot-owned issue #2.
+The watcher now falls back to immutable recursive Git trees at the comparison
+API's 300-file limit, paginates commit subjects and routes relevant paths by area.
+Sixteen policy tests passed. A read-only report at `1012a019` found 3,930 changed
+paths / 1,060 relevant paths with complete file coverage; 1,000 of 1,114 commit
+subjects were retained and explicitly flagged incomplete. No parity reference
+advanced, no app build/emulator run, and scheduled APK previews remain disabled.
+See `UPDATES.md` and ignored `captures/runtime/upstream-watch-main/`. Next app
+implementation work remains export/background recovery and the completion gates.
 
 ## Latest export ownership batch — 2026-10-05
 

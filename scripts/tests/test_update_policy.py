@@ -94,6 +94,87 @@ class UpdatePolicyTest(unittest.TestCase):
         self.assertEqual("a"*40, report["implemented_ref"])
         self.assertEqual("b"*40, report["reviewed_ref"])
         self.assertEqual("c"*40, report["detected_ref"])
+    def test_mobile_release_scripts_are_watched(self):
+        for path in ("scripts/ci/ios_upload_batch_decision.py", "scripts/mobile_attach_test.sh",
+                     "scripts/ghostty_checksum.py", ".github/workflows/build-ghosttykit.yml"):
+            self.assertTrue(self.report([{"filename":path,"status":"modified"}])["requires_review"])
+        self.assertFalse(watch.relevant("scripts/website_deploy.py"))
+
+    def tree(self, rows, truncated=False):
+        return {"truncated":truncated, "tree":[
+            {"path":path, "sha":sha, "mode":mode, "type":"commit" if mode=="160000" else "blob"}
+            for path, sha, mode in rows]}
+
+    def test_tree_diff_preserves_mode_submodule_and_moves_out_of_watched_paths(self):
+        before = self.tree([("ios/old.swift", "a"*40, "100644"),
+                            ("scripts/ios.sh", "b"*40, "100644"), ("ghostty", "c"*40, "160000")])
+        after = self.tree([("archive/old.swift", "a"*40, "100644"),
+                           ("scripts/ios.sh", "b"*40, "100755"), ("ghostty", "d"*40, "160000")])
+        diff = watch.tree_diff(before, after)
+        self.assertEqual({"archive/old.swift":"added", "ios/old.swift":"removed",
+                          "scripts/ios.sh":"modified", "ghostty":"modified"},
+                         {row["filename"]:row["status"] for row in diff})
+        report = watch.build_report({"repository":"manaflow-ai/cmux", "implemented_ref":"a"*40,
+                                     "reviewed_ref":"b"*40}, "c"*40,
+                                    {"files":[], "commits":[], "status":"ahead"}, complete_files=diff)
+        self.assertEqual(3, len(report["files"]))
+        self.assertTrue(report["requires_review"])
+
+    def inspect_fixture(self, *, truncated=False, unrelated=False, missing_files=False, duplicate=False):
+        config = {"repository":"manaflow-ai/cmux", "implemented_ref":"a"*40, "reviewed_ref":"b"*40}
+        commits = [{"sha":f"{i:040x}", "commit":{"message":f"change {i}"}} for i in range(101)]
+        files = [{"filename":f"website/{i}.txt", "status":"modified"} for i in range(300)]
+        paths = [(f"website/{i}.txt", "a"*40, "100644") for i in range(300)]
+        paths.append(("website/last.txt" if unrelated else "ios/Last.swift", "a"*40, "100644"))
+        calls = []
+        def request(path):
+            calls.append(path)
+            if path.endswith("commits/main"):
+                return {"sha":"c"*40}
+            if "compare/" in path:
+                if "page=2" in path:
+                    # A later page must not replace the first page's file inventory.
+                    return {"files":[], "commits":[commits[0] if duplicate else commits[-1]]}
+                result = {"files":files, "commits":commits[:100], "total_commits":101, "status":"ahead"}
+                if missing_files:
+                    del result["files"]
+                return result
+            if "/git/trees/" in path:
+                return self.tree([] if "b"*40 in path else paths, truncated=truncated)
+            self.fail(path)
+        return watch.inspect(config, request), calls
+
+    def test_capped_comparison_finds_mobile_path_beyond_limit_and_paginates_commits(self):
+        report, calls = self.inspect_fixture()
+        self.assertEqual(["ios/Last.swift"], [row["path"] for row in report["files"]])
+        self.assertEqual(301, report["changed_file_count"])
+        self.assertEqual(101, len(report["commits"]))
+        self.assertFalse(report["file_inventory_incomplete"])
+        self.assertFalse(report["commit_inventory_incomplete"])
+        self.assertEqual("recursive_trees", report["file_inventory_source"])
+        self.assertTrue(report["requires_review"])
+        self.assertEqual(1, sum(path.endswith("commits/main") for path in calls))
+        self.assertTrue(all("c"*40 in path for path in calls if "compare/" in path))
+
+    def test_truncated_tree_stays_conservative_but_complete_unrelated_tree_is_quiet(self):
+        truncated, _ = self.inspect_fixture(truncated=True)
+        self.assertTrue(truncated["requires_review"])
+        self.assertTrue(truncated["file_inventory_incomplete"])
+        self.assertIn("fallback was also truncated", watch.render(truncated))
+        complete, _ = self.inspect_fixture(unrelated=True)
+        self.assertFalse(complete["requires_review"])
+        self.assertFalse(complete["file_inventory_incomplete"])
+
+    def test_incomplete_response_and_duplicate_commit_fail_instead_of_reporting_clean(self):
+        with self.assertRaisesRegex(ValueError, "missing file"):
+            self.inspect_fixture(missing_files=True)
+        with self.assertRaisesRegex(ValueError, "Duplicate commit"):
+            self.inspect_fixture(duplicate=True)
+
+    def test_invalid_tree_object_is_rejected(self):
+        tree = self.tree([("ios/File.swift", "not-an-object-id", "100644")])
+        with self.assertRaisesRegex(ValueError, "Invalid recursive tree"):
+            watch.tree_diff(self.tree([]), tree)
     def test_draft_or_partial_upload_cannot_become_last_preview(self):
         from unittest.mock import patch
         sha = "d"*40

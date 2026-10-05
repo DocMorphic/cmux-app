@@ -6,16 +6,22 @@ import os
 from pathlib import Path
 import re
 import subprocess
+from collections import Counter
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = "<!-- cmux-upstream-watch:v1 -->"
 PREFIXES = ("ios/", "Packages/iOS/", "Packages/Shared/", "Packages/macOS/CmuxPhonePush/",
             "Sources/", "workers/", "docs/prd/ios", "vendor/stack-auth-swift")
-EXACT = {"ghostty", "ghostty.h", ".gitmodules", ".github/workflows/test-ios.yml"}
+EXACT = {"ghostty", "ghostty.h", ".gitmodules", ".github/workflows/test-ios.yml",
+         ".github/workflows/build-ghosttykit.yml"}
+
+
+def mobile_script(path):
+    return path.startswith("scripts/") and any(word in path.lower() for word in ("ios", "iphone", "mobile", "ghostty"))
 
 
 def relevant(path):
-    return path in EXACT or path.startswith(PREFIXES) or path.startswith(".github/workflows/ios-")
+    return path in EXACT or path.startswith(PREFIXES) or path.startswith(".github/workflows/ios-") or mobile_script(path)
 
 
 def api(path, method="GET", data=None):
@@ -27,22 +33,103 @@ def api(path, method="GET", data=None):
     return json.loads(result.stdout)
 
 
-def build_report(config, head, compare):
+def tree_files(tree):
+    """Keep file modes, symlinks and submodule revisions; directory nodes are not changed files."""
+    if tree.get("truncated") is not False:
+        return None
+    result = {}
+    for row in tree["tree"]:
+        if row["type"] == "tree":
+            continue
+        path, sha, mode = row["path"], row["sha"], row["mode"]
+        if not isinstance(path, str) or not path or path in result or row["type"] not in ("blob", "commit"):
+            raise ValueError("Invalid recursive tree entry")
+        if not re.fullmatch(r"[0-9a-f]{40}", sha) or mode not in ("100644", "100755", "120000", "160000"):
+            raise ValueError("Invalid recursive tree object")
+        result[path] = (sha, mode, row["type"])
+    return result
+
+
+def tree_diff(before, after):
+    old, new = tree_files(before), tree_files(after)
+    if old is None or new is None:
+        return None
+    return [{"filename": path, "status": "added" if path not in old else "removed" if path not in new else "modified",
+             "before_sha": old[path][0] if path in old else None,
+             "after_sha": new[path][0] if path in new else None}
+            for path in sorted(old.keys() | new.keys()) if old.get(path) != new.get(path)]
+
+
+def review_area(path):
+    if path.startswith(("Packages/macOS/CmuxPhonePush/", "workers/")):
+        return "Push and workers"
+    if path.startswith("vendor/stack-auth-swift"):
+        return "Authentication SDK"
+    if path in ("ghostty", "ghostty.h", ".gitmodules"):
+        return "Terminal dependencies"
+    if path.startswith((".github/", "scripts/")):
+        return "Build and release policy"
+    if path.startswith("Sources/"):
+        return "Mac host"
+    if path.startswith("Packages/Shared/"):
+        return "Shared protocol and models"
+    return "iOS UI and mobile behavior"
+
+
+def build_report(config, head, compare, complete_files=None, tree_fallback_truncated=False):
     if not re.fullmatch(r"[0-9a-f]{40}", head):
         raise ValueError("Expected an immutable upstream commit")
-    files = compare.get("files", [])
+    files = compare.get("files", []) if complete_files is None else complete_files
     selected = [row for row in files if relevant(row["filename"]) or relevant(row.get("previous_filename", ""))]
-    incomplete = len(files) >= 300 or compare.get("status") not in ("ahead", "identical")
+    incomplete = complete_files is None and len(files) >= 300
+    history_review = compare.get("status") not in ("ahead", "identical")
     commits = compare.get("commits", [])
+    rows = [{"path": row["filename"], "previous_path": row.get("previous_filename"), "status": row["status"],
+             "area": review_area(row["filename"] if relevant(row["filename"]) else row["previous_filename"]),
+             "before_sha": row.get("before_sha"), "after_sha": row.get("after_sha")} for row in selected]
     return {"upstream": config["repository"], "implemented_ref": config["implemented_ref"],
             "reviewed_ref": config["reviewed_ref"], "detected_ref": head,
             "comparison_status": compare.get("status"), "total_commits": compare.get("total_commits", 0),
-            "file_inventory_incomplete": incomplete,
+            "file_inventory_source": "recursive_trees" if complete_files is not None else "compare",
+            "changed_file_count": len(files), "file_inventory_incomplete": incomplete,
+            "tree_fallback_truncated": tree_fallback_truncated, "history_requires_review": history_review,
             "commit_inventory_incomplete": compare.get("total_commits", 0) > len(commits),
-            "requires_review": bool(selected) or incomplete,
-            "files": [{"path": row["filename"], "previous_path": row.get("previous_filename"),
-                       "status": row["status"]} for row in selected],
+            "requires_review": bool(selected) or incomplete or history_review,
+            "areas": dict(sorted(Counter(row["area"] for row in rows).items())), "files": rows,
             "commits": [{"sha": row["sha"], "subject": row["commit"]["message"].splitlines()[0]} for row in commits]}
+
+
+def inspect(config, request=api):
+    repo, base = config["repository"], config["reviewed_ref"]
+    head = request(f"repos/{repo}/commits/main")["sha"]
+    if not re.fullmatch(r"[0-9a-f]{40}", head):
+        raise ValueError("Expected an immutable upstream commit")
+    comparison_path = f"repos/{repo}/compare/{base}...{head}"
+    comparison = request(comparison_path + "?per_page=100")
+    if not isinstance(comparison.get("files"), list) or not isinstance(comparison.get("commits"), list):
+        raise ValueError("Comparison response is missing file or commit inventory")
+    # Commit pages never extend GitHub's separate 300-file inventory cap.
+    commits = list(comparison.get("commits", []))
+    seen = {row["sha"] for row in commits}
+    for page in range(2, 11):
+        if len(commits) >= comparison.get("total_commits", 0):
+            break
+        rows = request(comparison_path + f"?per_page=100&page={page}").get("commits", [])
+        if not rows:
+            break
+        for row in rows:
+            if row["sha"] in seen:
+                raise ValueError("Duplicate commit in comparison pagination")
+            seen.add(row["sha"])
+            commits.append(row)
+    comparison = {**comparison, "commits": commits}
+    complete_files = None
+    if len(comparison.get("files", [])) >= 300:
+        before = request(f"repos/{repo}/git/trees/{base}?recursive=1")
+        after = request(f"repos/{repo}/git/trees/{head}?recursive=1")
+        complete_files = tree_diff(before, after)
+    return build_report(config, head, comparison, complete_files,
+                        tree_fallback_truncated=len(comparison.get("files", [])) >= 300 and complete_files is None)
 
 
 def render(report):
@@ -54,7 +141,10 @@ def render(report):
              f"- Audited candidate: `{base}` (not a completed parity claim)",
              f"- Latest detected commit: [{head[:12]}]({url}/commit/{head})",
              f"- [Review comparison]({url}/compare/{base}...{head}): {report['total_commits']} commits.", ""]
-    if report["file_inventory_incomplete"]:
+    lines += [f"- Changed-file inventory: {report['changed_file_count']} paths via {report['file_inventory_source']}.", ""]
+    if report["commit_inventory_incomplete"]:
+        lines += [f"Commit subjects are incomplete ({len(report['commits'])} of {report['total_commits']}); review the immutable comparison for remaining commits.", ""]
+    if report["file_inventory_incomplete"] or report["history_requires_review"]:
         lines += ["**The file inventory is incomplete or history diverged. A full source review is required; this report must not be used to skip work.**", ""]
     if report["requires_review"]:
         lines += ["### Porting checklist", "", "- [ ] Review mobile UI, SSH, terminal and shared-protocol changes.",
@@ -63,9 +153,17 @@ def render(report):
                   "- [ ] Advance the audited/implemented references only with matching evidence.", ""]
     else:
         lines += ["No mobile-relevant file changes were found in the complete comparison.", ""]
+    if report["areas"]:
+        lines += ["### Review areas", "", "Path-based routing hints; these counts are not completed feature reviews.", ""]
+        lines += [f"- {area}: {count} changed paths" for area, count in report["areas"].items()]
+        lines.append("")
+    if report["tree_fallback_truncated"]:
+        lines += ["The recursive-tree fallback was also truncated; obtain the complete trees before closing this review.", ""]
+    if report["file_inventory_source"] == "recursive_trees":
+        lines += ["Full-tree comparison reports renames as removal/addition, including moves out of watched directories.", ""]
     lines += ["### Relevant paths reported by GitHub", ""]
     for row in report["files"][:80]:
-        path = row["path"].replace("`", "'").replace("\n", " ")
+        path = row["path"].replace("`", "'").replace("\n", " ").replace("\r", " ")[:512]
         lines.append(f"- `{path}` ({row['status']})")
     if len(report["files"]) > 80:
         lines.append(f"- {len(report['files']) - 80} more paths in the workflow's JSON artifact.")
@@ -101,9 +199,8 @@ def main():
     repo = config["repository"]
     if repo != "manaflow-ai/cmux":
         raise ValueError("Unexpected upstream repository")
-    head = api(f"repos/{repo}/commits/main")["sha"]
-    comparison = api(f"repos/{repo}/compare/{config['reviewed_ref']}...{head}?per_page=100")
-    report = build_report(config, head, comparison)
+    report = inspect(config)
+    head = report["detected_ref"]
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     body = render(report)
