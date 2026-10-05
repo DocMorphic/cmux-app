@@ -1,5 +1,34 @@
 # Content preview lifecycle
 
+## Combined media and pairing milestone — 2026-10-05
+
+At source `132b6f6`, the debug and instrumentation APKs built together successfully
+(1m 24s). **All 11 Android checks passed in 86.408 seconds** on the sole existing
+API37/16 KB emulator: five media cases and six attach-ticket cases. No new AVD
+was created. Settings were unchanged and the emulator was stopped and reaped.
+
+Media coverage includes real platform transient/permanent audio-focus requests,
+explicit Pause and injected output-disconnect handling; actual MediaController
+commands and media-key Pause; fullscreen, seek/speed/mute, background pause and
+recreation; and an original silent MP4 containing two audio and two caption
+tracks. The latter verifies the selected native French audio track, preservation
+of a paused 15-second bookmark, English/French cues, Subtitle Off and restored
+track choices. Screenshot pixel assertions and visual review confirm the gold/blue
+video and readable French cue after recreation. No physical sound, Bluetooth,
+call, PiP or Pixel/iOS comparison is implied.
+
+The six pairing cases cover entry-specific chooser options, explicit confirmation
+and cancellation, memory-only unconfirmed tickets across Activity recreation,
+saved text-state filtering, and isolated Keystore persistence/forget. Reviewed
+screenshots show only the numeric Tailscale choice for in-app entry and only the
+native choice for an external mixed ticket. Actual host connection remains open.
+
+Local evidence: `captures/runtime/media-connection-milestone/`, including source
+and APK hashes, complete instrumentation output, fresh captures and settings.
+This supersedes the earlier compiled-only status for these specific fixtures.
+Build 616 remains the latest verified signed artifact; this milestone used debug
+APKs and did not publish or promote a release.
+
 ## Media session source batch — 2026-10-05
 
 Each Android preview now owns a framework MediaSession with play, pause, stop,

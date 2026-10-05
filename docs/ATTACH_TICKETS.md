@@ -1,5 +1,15 @@
 # Attach-ticket compatibility audit
 
+## Android chooser milestone — 2026-10-05
+
+At `132b6f6`, all six `NativeTicketPairingRuntimeTest` cases passed within the
+combined 11-case media/pairing run (86.408 seconds, existing API37/16 KB AVD).
+The revised in-app Tailscale-only and external native-only chooser screenshots
+were inspected. Confirmation/cancellation, memory-only unconfirmed-ticket
+recreation, text-state filtering and isolated Keystore persistence/forget also
+passed. These are fixture checks; real Intent routing and Mac/Pixel connections
+remain open. Evidence: `captures/runtime/media-connection-milestone/`.
+
 ## Pairing entry source and route eligibility (2026-10-05)
 
 Source comparison at `186cec79781256867ad4516f0802118738bd2393` found that

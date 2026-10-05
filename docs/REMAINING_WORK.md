@@ -25,6 +25,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Combined milestone at `132b6f6`: all 11 Android checks passed (86.408 s),
+  covering media focus/session/track selection, visible subtitle restoration,
+  playback lifecycle/controls and six pairing cases. Debug/test APKs built once
+  for the batch; the existing AVD was stopped afterward. This supersedes the
+  queued/compiled-only fixture status in the historical entries below. Physical
+  acceptance and full parity remain open. See `CONTENT_PREVIEW_LIFECYCLE.md`.
+
 - Follow-up reconnect review restores the historical saved-row path when no build
   tag is recorded: exact endpoint plus verified device/account only, without peer
   replacement. The source audit also resolves the Direct port question: iOS's
