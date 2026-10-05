@@ -20,14 +20,14 @@ a physical workflow gate. These are work areas, not equal-sized progress units.
 
 ## Current delivery and next actions
 
-- Build **589** is the last independently verified download. Build **596** passed
-  CI and independent packaging/provenance checks; local ART and upgrade checks
-  are underway. [PIXEL_INSTALL.md](PIXEL_INSTALL.md) is authoritative for downloads.
+- Build **596** is the latest independently verified download. CI, local packaging,
+  nine arm64 ART classes, signed-out 589 → 596 upgrade and reboot passed. [PIXEL_INSTALL.md](PIXEL_INSTALL.md) is authoritative for downloads.
 - The newer rejected-token recovery source passed **109 focused JVM tests** and
   is not in build 596. Batch its Android verification with the next coherent
   feature milestone; do not build and sign for each small commit.
-- Finish build 596 verification, commit the token recovery changes, then work
-  through connection selection/recovery and the remaining content lifecycle gaps.
+- Token recovery is committed/pushed as `d8edb8b`. Next work is connection
+  selection/recovery and the remaining content lifecycle gaps, followed by a
+  coherent Android verification batch.
 - The Pixel is currently absent from ADB. Continue source/emulator work, then
   request one planned physical test session when the next coherent batch is ready.
 - Use only the existing AVD and stop it after testing. No extra virtual devices.

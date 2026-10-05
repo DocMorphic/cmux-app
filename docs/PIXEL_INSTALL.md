@@ -3,7 +3,47 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 589 (2026-10-05)
+## Current signed development APK — build 596 (2026-10-05)
+
+[Build 596](https://github.com/DocMorphic/cmux-app/actions/runs/37257691562)
+passed at `3406a98d3a03fe0f52eda5767223f4bcf2f5577a`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37257691562/artifacts/11324086462)
+and extract `app-release.apk`. PR #1 remains open/draft; this is an Actions
+development artifact, with no merge or public release.
+
+This batch adds shared/saved Tailscale ticket admission, native Iroh transport
+authorization, the discovery/route-preference race fix, and Mac-wide mutation
+eligibility including expiry while the task composer or group menu is open.
+The newer rejected-account-token recovery in `d8edb8b` is **not in this APK**.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **596**, version 0.2.0.
+- SHA-256: `11b6cdca6f79a749a6a9c3ce4bd0759bdab3135dcdebbdf11798e9f22997d974`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **228,450,859 bytes**; compressed artifact **120,333,269 bytes**.
+- Local file: `build/signed-run-37257691562/app-release.apk`.
+
+CI passed. Independent checks matched GitHub's artifact/run/source metadata and
+ZIP digest, stable signer, 14 packaged viewer assets, 19 native LOAD/RELRO
+alignments, 16 KB ZIP alignment, notice-engine pin, manifest contract and eight
+excluded debug fixture activities. All 19 native payloads match 589 byte-for-byte.
+Nine production classes passed local arm64 API37 ART loading. The verifier,
+manifest and asset sources used locally match the release source revision.
+
+The existing API37/16KB AVD upgraded **589 → 596** using `install -r`, retaining
+first-install time `2026-09-30 01:57:49`. Explicit cold launch reached sign-in in
+**1,703 ms**; after guest reboot the package/hash still matched and cold launch
+reached sign-in in **4,286 ms**. These observations are not performance benchmarks.
+Before/after/reboot screenshots were inspected; no compatibility or ANR dialog
+was visible; crash buffers were empty and device settings unchanged. The sole
+emulator was stopped/reaped and the redundant ZIP removed. No new AVD was created.
+Evidence: `captures/runtime/release-3406a98/`.
+
+Both versions were signed out. This verifies packaging and signed-out upgrade,
+not authenticated migration or the recent protocol changes against a real Mac.
+The Pixel was absent from ADB and untouched. See [REMAINING_WORK.md](REMAINING_WORK.md)
+for the outstanding completion gates. The full parity goal remains active.
+
+## Earlier signed development APK — build 589 (2026-10-05)
 
 [Build 589](https://github.com/DocMorphic/cmux-app/actions/runs/37253661827)
 passed at `cba6c6ec10e36871f4fcf78d116ef1673ae68a64`. Download the

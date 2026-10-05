@@ -18,12 +18,13 @@ Read this first, then `PARITY.md`, `ANDROID_TESTING.md`, `RESEARCH.md`, and
 not a request to scaffold another prototype. The dated sections of the other
 documents are historical; newer verified entries supersede older pending claims.
 
-**Delivery update — 2026-10-05:** signed build **589** at `cba6c6e` is verified.
+**Delivery update — 2026-10-05:** signed build **596** at `3406a98` is verified.
 See [PIXEL_INSTALL.md](PIXEL_INSTALL.md) for the download, hashes and evidence.
-CI and independent packaging/ART checks passed; signed-out 581 → 589 upgrade
-and reboot passed on the sole AVD. Emulator stopped/reaped. Authenticated/physical
-acceptance remains open. Newer source through `5b506cb` is not in 589. Continue
-with runtime verification of the mutation gates and physical native/recovery/UI/push acceptance.
+CI and independent packaging/ART checks passed; signed-out 589 → 596 upgrade
+and reboot passed on the sole AVD, now stopped/reaped. Newer account-token
+recovery source `d8edb8b` is committed/pushed and passed 109 focused JVM checks;
+it is not in 596 and has no Android runtime acceptance yet. Start with
+[REMAINING_WORK.md](REMAINING_WORK.md) for the current completion gates.
 
 ## Latest source checkpoint — rejected account-token recovery (2026-10-05)
 
@@ -58,12 +59,15 @@ See [REMAINING_WORK.md](REMAINING_WORK.md) for the current release completion ga
 
 ## Earlier source checkpoint — ticket expiry Android acceptance (2026-10-05)
 
-**Signed milestone pending:** build **596**, source `3406a98d3a03fe0f52eda5767223f4bcf2f5577a`,
+**Signed milestone verified:** build **596**, source `3406a98d3a03fe0f52eda5767223f4bcf2f5577a`,
 [run 37257691562](https://github.com/DocMorphic/cmux-app/actions/runs/37257691562),
-completed CI successfully with preview publication disabled. Independent artifact
-provenance, signer, 14 assets, 19 native alignments, 16 KB ZIP alignment and manifest
-checks passed. Local ART and upgrade verification are in progress on the sole AVD.
-Signed **589** remains the verified download until these checks pass.
+passed CI and independent provenance, signer, assets, native/ZIP alignment,
+manifest and nine local arm64 ART checks. Signed-out **589 → 596** upgrade and
+guest reboot preserved the installation date, exact APK and settings; sign-in
+screenshots inspected, crash buffers empty. The sole AVD is stopped/reaped.
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) contains the download and exact evidence.
+Authenticated migration and real Mac/Pixel acceptance remain open. The later
+account-token recovery source is not in 596.
 
 A new real Compose/framed-peer check reproduced a stale task-composer gate after
 Mac ticket expiry: the sidebar closed its menu, but the composer retained a cached
@@ -91,9 +95,9 @@ inspected; final crash buffer empty; test-modified display size/density restored
 sleep settings preserved. The sole AVD was stopped/reaped. No new AVD created;
 Pixel absent and untouched. Evidence: `captures/runtime/mac-mutation-runtime/`.
 
-Signed build **589** remains the verified delivery; this checkpoint is newer.
-Next: one signed milestone for accumulated ticket/auth fixes, then physical native
-pairing/recovery acceptance, production push and remaining UI/accessibility work.
+This checkpoint is delivered in signed **596**. Next: Android verification of
+newer token recovery, physical native pairing/recovery acceptance, production push
+and remaining UI/accessibility work.
 Goal active; PR #1 open/draft; global parity pins unchanged.
 
 ## Earlier source checkpoint — Mac mutation ticket authority (2026-10-05)

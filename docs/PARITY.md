@@ -45,12 +45,15 @@ See [REMAINING_WORK.md](REMAINING_WORK.md) for the current release completion ga
 
 ## Earlier source checkpoint — ticket expiry Android acceptance (2026-10-05)
 
-**Signed milestone pending:** build **596**, source `3406a98d3a03fe0f52eda5767223f4bcf2f5577a`,
+**Signed milestone verified:** build **596**, source `3406a98d3a03fe0f52eda5767223f4bcf2f5577a`,
 [run 37257691562](https://github.com/DocMorphic/cmux-app/actions/runs/37257691562),
-completed CI successfully with preview publication disabled. Independent artifact
-provenance, signer, 14 assets, 19 native alignments, 16 KB ZIP alignment and manifest
-checks passed. Local ART and upgrade verification are in progress on the sole AVD.
-Signed **589** remains the verified download until these checks pass.
+passed CI and independent provenance, signer, assets, native/ZIP alignment,
+manifest and nine local arm64 ART checks. Signed-out **589 → 596** upgrade and
+guest reboot preserved the installation date, exact APK and settings; sign-in
+screenshots inspected, crash buffers empty. The sole AVD is stopped/reaped.
+[PIXEL_INSTALL.md](PIXEL_INSTALL.md) contains the download and exact evidence.
+Authenticated migration and real Mac/Pixel acceptance remain open. The later
+account-token recovery source is not in 596.
 
 A new real Compose/framed-peer check reproduced a stale task-composer gate after
 Mac ticket expiry: the sidebar closed its menu, but the composer retained a cached
@@ -78,9 +81,9 @@ inspected; final crash buffer empty; test-modified display size/density restored
 sleep settings preserved. The sole AVD was stopped/reaped. No new AVD created;
 Pixel absent and untouched. Evidence: `captures/runtime/mac-mutation-runtime/`.
 
-Signed build **589** remains the verified delivery; this checkpoint is newer.
-Next: one signed milestone for accumulated ticket/auth fixes, then physical native
-pairing/recovery acceptance, production push and remaining UI/accessibility work.
+This checkpoint is delivered in signed **596**. Next: Android verification of
+newer token recovery, physical native pairing/recovery acceptance, production push
+and remaining UI/accessibility work.
 Goal active; PR #1 open/draft; global parity pins unchanged.
 
 ## Earlier source checkpoint — Mac mutation ticket authority (2026-10-05)
