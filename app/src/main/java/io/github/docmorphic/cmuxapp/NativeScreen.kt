@@ -3741,6 +3741,11 @@ internal fun NativeWorkspaceRow(
     remoteGroupMenu: (@Composable (onBack: () -> Unit, onDismiss: () -> Unit) -> Unit)? = null,
     isSelected: Boolean = false
 ) {
+    val admitted by rememberUpdatedState(LocalWorkspaceRowAdmission.current)
+    val currentOpen by rememberUpdatedState(onOpen)
+    val currentAction by rememberUpdatedState(onAction)
+    fun dispatchOpen() { if (admitted()) currentOpen() }
+    fun dispatchAction(action: String, value: String?) { if (admitted()) currentAction(action, value) }
     val highlighted = isSelected && LocalWorkspaceShellChrome.current.split
     val menu = rememberWorkspaceContextMenu(workspace.id)
     var groupPicker by remember(menu, menu.expanded) { mutableStateOf(false) }
@@ -3752,17 +3757,19 @@ internal fun NativeWorkspaceRow(
     val moveActions = LocalWorkspaceMoveActions.current
     var rename by remember(menu) { mutableStateOf(false) }
     var pendingClose by remember(menu) { mutableStateOf<Pair<WorkspaceCloseConfirmation, () -> Unit>?>(null) }
+    val rowPresent = admitted()
+    LaunchedEffect(rowPresent) { if (!rowPresent) { menu.expanded = false; rename = false; pendingClose = null } }
     fun requestClose() {
-        if (closeConfirmation == null) onAction("close", null)
-        else pendingClose = closeConfirmation to { onAction("close", null) }
+        if (closeConfirmation == null) dispatchAction("close", null)
+        else pendingClose = closeConfirmation to { dispatchAction("close", null) }
     }
     var title by remember(menu, workspace.id) { mutableStateOf(workspace.title) }
     val readLabel = if (workspace.hasUnread) "Mark as Read" else "Mark as Unread"
-    val markRead = { onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null) }
+    val markRead = { dispatchAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null) }
     NativeWorkspaceSwipeActions(workspace.id, workspace.hasUnread, canReadState, canClose,
         onRead = markRead, onClose = ::requestClose) { dismissSwipe ->
     Box {
-    val openRow = { if (!menuExpanded && !menu.held && !dismissSwipe()) onOpen() }
+    val openRow = { if (!menuExpanded && !menu.held && !dismissSwipe()) dispatchOpen() }
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).then(if (handlesHold)
         Modifier.combinedClickable(onClick = openRow, onLongClick = { if (hasMenu) { dismissSwipe(); menu.expanded = true } })
         else Modifier.clickable(onClick = openRow))
@@ -3813,7 +3820,7 @@ internal fun NativeWorkspaceRow(
                     Modifier.weight(1f).testTag("workspace.preview:${workspace.id}"), color = nativeMuted, fontSize = 15.sp, lineHeight = 20.sp,
                     minLines = displayPreferences.previewLines, maxLines = displayPreferences.previewLines, overflow = TextOverflow.Ellipsis)
                 changesChip?.takeIf { it.files > 0 }?.let { chip ->
-                    NativeWorkspaceChangesChip(chip, workspace.id) { onAction("changes", null) }
+                    NativeWorkspaceChangesChip(chip, workspace.id) { dispatchAction("changes", null) }
                 }
             }
         }
@@ -3824,21 +3831,21 @@ internal fun NativeWorkspaceRow(
                 if (showingGroups) {
                     if (remoteGroupMenu != null) remoteGroupMenu({ groupPicker = false }, { menu.expanded = false })
                     else NativeWorkspaceGroupMoveItems(groupMoveMenu, onBack = { groupPicker = false }, onMove = { groupId ->
-                        menu.expanded = false; onAction("move:${groupId.orEmpty()}", null)
+                        menu.expanded = false; dispatchAction("move:${groupId.orEmpty()}", null)
                     })
                 } else {
                     if (canWorkspaceActions) DropdownMenuItem(text = { Text(if (workspace.isPinned) "Unpin" else "Pin") },
                         leadingIcon = { WorkspaceActionIcon(if (workspace.isPinned) R.drawable.ic_workspace_unpin else R.drawable.ic_workspace_pin) },
-                        onClick = { menu.expanded = false; onAction(if (workspace.isPinned) "unpin" else "pin", null) })
+                        onClick = { menu.expanded = false; dispatchAction(if (workspace.isPinned) "unpin" else "pin", null) })
                     if (canCustomize) DropdownMenuItem(text = { Text("Customize") },
                         leadingIcon = { WorkspaceActionIcon(R.drawable.ic_task_options) },
-                        onClick = { menu.expanded = false; onAction("customize", null) })
+                        onClick = { menu.expanded = false; dispatchAction("customize", null) })
                     if (canWorkspaceActions) DropdownMenuItem(text = { Text("Rename") },
                         leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_rename) },
                         onClick = { menu.expanded = false; title = workspace.title; rename = true })
                     if (canReadState) DropdownMenuItem(text = { Text(readLabel) },
                         leadingIcon = { WorkspaceActionIcon(if (workspace.hasUnread) R.drawable.ic_feed_read_all else R.drawable.ic_workspace_mark_unread) }, onClick = {
-                        menu.expanded = false; onAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
+                        menu.expanded = false; dispatchAction(if (workspace.hasUnread) "mark_read" else "mark_unread", null)
                     })
                     if (canMoveGroups) DropdownMenuItem(text = { Text("Move to Group") },
                         leadingIcon = { Icon(painterResource(R.drawable.ic_workspace_folder), null, Modifier.size(20.dp)) },
@@ -3857,7 +3864,7 @@ internal fun NativeWorkspaceRow(
         onDismissRequest = { rename = false },
         title = { Text("Rename workspace") },
         text = { OutlinedTextField(title, { title = it }, singleLine = true) },
-        confirmButton = { TextButton(onClick = { rename = false; onAction("rename", title) }, enabled = title.isNotBlank()) { Text("Save") } },
+        confirmButton = { TextButton(onClick = { rename = false; dispatchAction("rename", title) }, enabled = title.isNotBlank()) { Text("Save") } },
         dismissButton = { TextButton(onClick = { rename = false }) { Text("Cancel") } }
     )
     pendingClose?.let { pending -> WorkspaceCloseDialog(pending.first,

@@ -46,6 +46,9 @@ internal fun NativeWorkspaceSwipeActions(
     val fallback = remember { WorkspaceSwipeCoordinator() }
     val coordinator = LocalWorkspaceSwipeCoordinator.current ?: fallback
     val key = LocalWorkspaceSwipeKey.current ?: workspaceId
+    DisposableEffect(coordinator, key) {
+        onDispose { if (coordinator.activeKey == key) coordinator.activeKey = null }
+    }
     val direction = if (LocalLayoutDirection.current == LayoutDirection.Ltr) 1f else -1f
     val actionWidth = with(LocalDensity.current) { 104.dp.toPx() }
     var width by remember { mutableIntStateOf(0) }

@@ -67,7 +67,17 @@ internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: Strin
     }
     LaunchedEffect(revision) { if (held != null && heldRevision != revision) cancel() }
     DisposableEffect(Unit) { onDispose { autoscroll?.cancel() } }
-    WorkspaceViewportAnchorEffect(list, prefixKeys + rows.map { it.key },
+    val targetKeys = rows.map { it.key }.toSet()
+    val holdOrder = list.isScrollInProgress || held != null || swipes.activeKey != null
+    val renderedRows = rememberWorkspacePresentationRows(rows, holdOrder) { it.key }
+    LaunchedEffect(targetKeys) {
+        if (held?.key?.let { it !in targetKeys } == true) cancel()
+        if (swipes.activeKey?.let { it !in targetKeys } == true) swipes.activeKey = null
+        if (menus.activeKey?.row?.let { it !in targetKeys } == true) menus.activeKey = null
+    }
+    // The empty-state prefix belongs to the target's empty list, not a still-held presentation.
+    val hideEmptyPrefix = rows.isEmpty() && renderedRows.isNotEmpty()
+    WorkspaceViewportAnchorEffect(list, (if (hideEmptyPrefix) emptyList() else prefixKeys) + renderedRows.map { it.key },
         gestureActive = held != null || swipes.activeKey != null)
     CompositionLocalProvider(LocalWorkspaceContextMenus provides menus, LocalWorkspaceSwipeCoordinator provides swipes) {
     Box(Modifier.fillMaxSize()) {
@@ -109,8 +119,9 @@ internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: Strin
                 cancel()
             })
         }, state = list, userScrollEnabled = held == null) {
-            before()
-            items(rows, key = { it.key }, contentType = { it.kind }) { item ->
+            if (!hideEmptyPrefix) before()
+            items(renderedRows, key = { it.key }, contentType = { it.kind }) { item ->
+                WorkspacePresentationRow(item.key in targetKeys, { latestRows.any { it.key == item.key } }) {
                 val actions = listOf("Move up" to RoutedSidebarDropPlacement.UP, "Move down" to RoutedSidebarDropPlacement.DOWN)
                     .filter { (_, direction) -> if (direction == RoutedSidebarDropPlacement.UP) item.drag?.up == true else item.drag?.down == true }
                     .map { (label, direction) -> CustomAccessibilityAction(label) {
@@ -122,6 +133,7 @@ internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: Strin
                 Column(Modifier.graphicsLayer { alpha = if (dragging && held?.key == item.key) .25f else 1f }) {
                     CompositionLocalProvider(LocalWorkspaceContextKey provides WorkspaceContextMenuKey(item.key),
                         LocalWorkspaceSwipeKey provides item.key, LocalWorkspaceMoveActions provides actions) { row(item) }
+                }
                 }
             }
             after()

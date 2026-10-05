@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Main/browser workspace membership and order now wait through scroll/fling,
+  row holds and open swipes. Surviving content stays current; removed rows are
+  inert and cached callbacks check membership/lifetime. Recycled swipe owners
+  release their hold; SSH ownership uses qualified row keys. Four new policy
+  cases and eight anchor cases pass. Android swipe/retirement cases are queued
+  for the combined milestone. Row-height/action changes and status/footer
+  geometry still need full reconciliation; see `WORKSPACE_ROWS.md`.
+
 - Native/browser workspace lists now select a stable visible neighbor for idle
   structural updates, include connection-status prefix indices, show new rows at
   absolute top and omit live placement animations. Eight focused policy cases

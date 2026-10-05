@@ -133,8 +133,10 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
         }, after = {
             if (ui.more) item { TextButton(onClick = controller::more) { Text(if (ui.query.notifications) "Load more notifications" else "Load more") } }
         }) { row ->
+            val admitted by rememberUpdatedState(LocalWorkspaceRowAdmission.current)
             val mutations = row.mutations.takeUnless { ui.mutationBusy }.orEmpty()
             fun mutate(verb: String, title: String?) {
+                if (!admitted()) return
                 if (verb == "customize") { scope.launch { controller.editWorkspace(row.key) }; return }
                 val kind = RoutedSidebarMutationKind.fromVerb(verb) ?: return
                 if (kind in mutations) scope.launch { controller.mutate(RoutedSidebarMutation(row.key, kind, title)) }
@@ -159,7 +161,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                         },
                         remoteGroupMenu = if (RoutedSidebarMutationKind.MOVE_TO_GROUP in mutations) ({ back, dismiss ->
                             RoutedSidebarGroupMoveItems(controller, row.key, back) { command ->
-                                dismiss(); scope.launch { controller.mutate(command) }
+                                dismiss(); scope.launch { if (admitted()) controller.mutate(command) }
                             }
                         }) else null)
                 }
@@ -179,7 +181,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                     .semantics { heading() }, color = Color(0xFF9B9FA8), style = MaterialTheme.typography.labelLarge)
                 "updates" -> Column {
                     Row(Modifier.fillMaxWidth().padding(end = 18.dp), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { controller.query(ui.query.copy(expanded =
+                    TextButton(onClick = { if (admitted()) controller.query(ui.query.copy(expanded =
                         if (row.expanded) ui.query.expanded - row.key else ui.query.expanded + row.key)) },
                         modifier = Modifier.semantics {
                             contentDescription = if (row.expanded) "Hide earlier notifications" else "Show earlier notifications"
@@ -192,7 +194,8 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                     NativeFeedRow(NativeFeedRowValue(row.key, NotificationPresentation(row.title, row.subtitle, row.preview),
                         row.computer.orEmpty(), row.availability, !row.unread, row.activity), row.notificationContext, now,
                         canOpen = row.canOpen, canRead = row.canRead && !ui.notificationBusy,
-                        onOpen = { onOpen(row.key) }, onRead = { read -> scope.launch {
+                        onOpen = { if (admitted()) onOpen(row.key) }, onRead = { read -> scope.launch {
+                            if (!admitted()) return@launch
                             controller.notification(RoutedSidebarNotification.Read(row.key, read))
                         } })
                     if ((row.count ?: 0) <= 1) HorizontalDivider(color = Color(0xFF292C31))

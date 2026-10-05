@@ -4,6 +4,45 @@
 for the latest signed artifact and its verification scope; historical delivery
 statements below describe their dated checkpoints.
 
+## Gesture-held workspace membership source batch (2026-10-05)
+
+The native and routed-browser lists now retain rendered workspace order and
+membership while scrolling/flinging, holding a row or showing swipe controls.
+Surviving rows immediately receive the newest models. Release applies the newest
+snapshot directly, then the stable-anchor effect preserves the reading position;
+intermediate polls are not replayed. Removed rows remain dimmed in their previous
+slots until release and have no touch/accessibility actions. Account/host action
+validation remains with the existing controllers; presentation is not authority.
+
+Row callbacks check live membership and composition lifetime, including cached
+clicks and pending confirmation callbacks. Workspace/group dialogs close when a
+row is removed. The browser's notification/group/menu actions also check current
+admission. Removed held/swiped rows cancel their interaction; existing routed
+drag-revision validation remains in force. SSH rows now use their exact qualified
+row keys for shared swipe/context ownership. When virtualization disposes a swipe
+owner, it clears only its own ownership so updates cannot remain held indefinitely.
+Empty-state content waits until the retained rows have gone away.
+
+Four presentation-policy cases plus the eight anchor cases pass, including a
+50,000-row reorder, surviving-content refresh, removal/reappearance and coalescing
+multiple snapshots. Main/instrumentation compilation is checked for the batch.
+`WorkspacePresentationRuntimeTest` adds real open-swipe/live-update geometry,
+removed-row cached-click rejection and recycled swipe ownership cases. These are
+**compiled but not runtime-verified**; execute with the viewport, swipe, drag,
+Mac/SSH order/filter and routed-browser cases at the combined milestone.
+
+The initial instrumentation compilation caught a fixture constructor argument
+in the notification-list slot; it was corrected to the named workspace argument.
+Logs and source receipts: `captures/runtime/workspace-presentation/`.
+No APK, emulator or physical session was started for this source batch.
+
+**Remaining reconciliation:** this buffers body-row membership/order, not all
+geometry. Surviving models can still change row heights during a gesture, native
+swipe action sets update immediately, and connection-status/footer changes are
+not yet in the same transaction. Finish a shared rendered-height/action model
+without delaying height-neutral content or allowing stale actions. Runtime
+scroll/fling/drag timing, TalkBack and physical smoothness remain unverified.
+
 ## Stable viewport anchor source batch (2026-10-05)
 
 Scoped source: `WorkspaceListUpdatePlan.swift` and
@@ -26,9 +65,9 @@ row gestures or an open swipe action. It leaves saved list restoration alone on
 the first composition.
 
 **Scope limit:** this implements idle structural anchoring, not iOS's full
-reconciliation coordinator. Updates during gestures are not yet buffered;
-height-changing/native-action-changing updates and latest height-neutral content
-need separate rendered-versus-current state. Local drag/drop animation and
+reconciliation coordinator. The newer checkpoint above buffers body membership
+and order; height-changing/native-action-changing updates still need a separate
+rendered-versus-current geometry model. Local drag/drop animation and
 actual Compose remeasurement timing also need runtime acceptance. Do not close
 list smoothness, physical parity or gesture-deferral gates from policy checks.
 

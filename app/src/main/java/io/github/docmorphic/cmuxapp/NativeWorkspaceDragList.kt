@@ -81,7 +81,16 @@ internal fun NativeWorkspaceDragList(
     }
     }
     val swipeCoordinator = remember { WorkspaceSwipeCoordinator() }
-    val renderedRows = displayRows ?: entries.map(NativeWorkspaceDisplayRow::Mac)
+    val targetRows = displayRows ?: entries.map(NativeWorkspaceDisplayRow::Mac)
+    val latestTargetRows by rememberUpdatedState(targetRows)
+    val targetKeys = targetRows.map { it.key }.toSet()
+    val holdOrder = list.isScrollInProgress || held != null || swipeCoordinator.activeKey != null
+    val renderedRows = rememberWorkspacePresentationRows(targetRows, holdOrder) { it.key }
+    LaunchedEffect(targetKeys) {
+        if (held?.key?.let { it !in targetKeys } == true) cancel()
+        if (swipeCoordinator.activeKey?.let { it !in targetKeys } == true) swipeCoordinator.activeKey = null
+        if (contextMenus.activeKey?.row?.let { it !in targetKeys } == true) contextMenus.activeKey = null
+    }
     WorkspaceViewportAnchorEffect(list, prefixKeys + renderedRows.map { it.key },
         gestureActive = held != null || swipeCoordinator.activeKey != null)
     CompositionLocalProvider(LocalWorkspaceSwipeCoordinator provides swipeCoordinator, LocalWorkspaceContextMenus provides contextMenus) {
@@ -127,13 +136,17 @@ internal fun NativeWorkspaceDragList(
         }, state = list, userScrollEnabled = held == null, contentPadding = PaddingValues(bottom = 84.dp)) {
             before()
             itemsIndexed(renderedRows, key = { _, item -> item.key }) { _, item ->
+                WorkspacePresentationRow(item.key in targetKeys, { latestTargetRows.any { it.key == item.key } }) {
                 if (item is NativeWorkspaceDisplayRow.Ssh) {
-                    Column { sshRow(item.row) }
-                    return@itemsIndexed
+                    CompositionLocalProvider(LocalWorkspaceSwipeKey provides item.key,
+                        LocalWorkspaceContextKey provides WorkspaceContextMenuKey(item.key)) {
+                        Column { sshRow(item.row) }
+                    }
+                    return@WorkspacePresentationRow
                 }
                 val entry = (item as NativeWorkspaceDisplayRow.Mac).entry
                 val index = entries.indexOfFirst { it.key == entry.key }
-                val actions = remember(entries, reorderEnabled, index) { if (reorderEnabled) listOf("Move up" to false, "Move down" to true)
+                val actions = remember(entries, reorderEnabled, index) { if (reorderEnabled && index >= 0) listOf("Move up" to false, "Move down" to true)
                     .mapNotNull { (label, down) ->
                         workspaceStepIntent(entry.source, entries, index, down)?.let { (id, intent) ->
                             CustomAccessibilityAction(label) {
@@ -151,9 +164,10 @@ internal fun NativeWorkspaceDragList(
                     CompositionLocalProvider(LocalWorkspaceSwipeKey provides entry.key, LocalWorkspaceMoveActions provides actions,
                         LocalWorkspaceContextKey provides WorkspaceContextMenuKey(entry.key, entry.source.mac)) { row(entry) }
                 }
+                }
             }
             after()
-            if ((displayRows?.isEmpty() ?: entries.isEmpty()) && !hasOtherRows) item { empty() }
+            if (renderedRows.isEmpty() && !hasOtherRows) item { empty() }
         }
         val moving = dragged
         if (moving != null) {

@@ -36,6 +36,16 @@ internal fun NativeGroupHeaderRow(
     onAction: (String, String?) -> Unit,
     handlesHold: Boolean = false, isSelected: Boolean = false
 ) {
+    val admitted by rememberUpdatedState(LocalWorkspaceRowAdmission.current)
+    val latestOpen by rememberUpdatedState(onOpen)
+    val latestToggle by rememberUpdatedState(onToggle)
+    val latestCreate by rememberUpdatedState(onCreate)
+    val latestAction by rememberUpdatedState(onAction)
+    fun open() { if (admitted()) latestOpen?.invoke() }
+    fun toggle() { if (admitted()) latestToggle() }
+    fun create() { if (admitted()) latestCreate() }
+    fun dispatchAction(verb: String, value: String?) { if (admitted()) latestAction(verb, value) }
+
     val highlighted = isSelected && LocalWorkspaceShellChrome.current.split
     val menu = rememberWorkspaceContextMenu(group.id)
     val hasMenu = canEdit || canCreate
@@ -48,6 +58,8 @@ internal fun NativeGroupHeaderRow(
         if (!canEdit) renaming = false
         if (!canEdit || (destructive == "ungroup" && group.isPinned)) destructive = null
     }
+    val rowPresent = admitted()
+    LaunchedEffect(rowPresent) { if (!rowPresent) { menu.expanded = false; renaming = false; destructive = null } }
     var name by remember(menu, group.id) { mutableStateOf(group.name) }
     Box {
     Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp)
@@ -55,14 +67,14 @@ internal fun NativeGroupHeaderRow(
         .padding(horizontal = 4.dp, vertical = 2.dp).testTag("group.row:${group.id}"),
         verticalAlignment = Alignment.CenterVertically) {
         NativeUnreadGutter(unread, gap = 3.dp)
-        IconButton(onClick = { if (!menuExpanded && !menu.held) onToggle() }, modifier = Modifier.size(32.dp).semantics {
+        IconButton(onClick = { if (!menuExpanded && !menu.held) toggle() }, modifier = Modifier.size(32.dp).semantics {
             contentDescription = "${if (expanded) "Collapse" else "Expand"} ${group.name}"
         }) { Icon(painterResource(if (expanded) R.drawable.ic_workspace_chevron_down else R.drawable.ic_workspace_chevron_right),
             null, Modifier.size(16.dp), tint = nativeMuted) }
         Row(Modifier.weight(1f).then(if (handlesHold) Modifier.combinedClickable(
-            onClick = { if (!menuExpanded && !menu.held) onOpen?.invoke() },
+            onClick = { if (!menuExpanded && !menu.held) open() },
             onLongClick = { if (hasMenu) menu.expanded = true })
-            else if (onOpen != null) Modifier.clickable { if (!menuExpanded && !menu.held) onOpen() } else Modifier)
+            else if (onOpen != null) Modifier.clickable { if (!menuExpanded && !menu.held) open() } else Modifier)
             .semantics(mergeDescendants = true) {
                 selected = highlighted
                 if (hasMenu) onLongClick("Show group actions") { menu.expanded = true; true }
@@ -84,14 +96,14 @@ internal fun NativeGroupHeaderRow(
         if (canEdit) {
             DropdownMenuItem(text = { Text(if (group.isPinned) "Unpin Group" else "Pin Group") },
                 leadingIcon = { WorkspaceActionIcon(if (group.isPinned) R.drawable.ic_workspace_unpin else R.drawable.ic_workspace_pin) },
-                onClick = { menu.expanded = false; onAction(if (group.isPinned) "unpin" else "pin", null) })
+                onClick = { menu.expanded = false; dispatchAction(if (group.isPinned) "unpin" else "pin", null) })
             DropdownMenuItem(text = { Text("Rename Group") },
                 leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_rename) },
                 onClick = { menu.expanded = false; name = group.name; renaming = true })
         }
         if (canCreate) DropdownMenuItem(text = { Text("New Workspace in Group") },
             enabled = creationEnabled, leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_plus) },
-            onClick = { menu.expanded = false; onCreate() })
+            onClick = { menu.expanded = false; create() })
         if (canEdit) {
             HorizontalDivider()
             if (!group.isPinned) DropdownMenuItem(text = { Text("Ungroup (Keep Workspaces)") },
@@ -110,7 +122,7 @@ internal fun NativeGroupHeaderRow(
         title = { Text("Rename Group") },
         text = { OutlinedTextField(name, { name = it }, singleLine = true) },
         confirmButton = { TextButton(onClick = {
-            renaming = false; onAction("rename", name)
+            renaming = false; dispatchAction("rename", name)
         }, enabled = name.isNotBlank()) { Text("Save") } },
         dismissButton = { TextButton(onClick = { renaming = false }) { Text("Cancel") } }
     )
@@ -120,7 +132,7 @@ internal fun NativeGroupHeaderRow(
         title = { Text(if (action == "ungroup") "Ungroup Group?" else "Delete Group?") },
         text = { Text(if (action == "ungroup") "This will dissolve the group on your Mac and keep its workspaces."
             else "This will delete the group and close its workspaces on your Mac.") },
-        confirmButton = { TextButton(onClick = { destructive = null; onAction(action, null) }) {
+        confirmButton = { TextButton(onClick = { destructive = null; dispatchAction(action, null) }) {
             Text(if (action == "ungroup") "Ungroup" else "Delete Group", color = destructiveTint)
         } },
         dismissButton = { TextButton(onClick = { destructive = null }) { Text("Cancel") } }
