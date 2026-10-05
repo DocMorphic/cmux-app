@@ -17,7 +17,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     val compatibility = NativeMacCompatibilityRuntime(context.applicationContext, store, applicationActive, teams.state, teams::isCurrent)
     private val savedTailscale = NativeSavedTailscaleRuntime(teams.state, teams::isCurrent, { account.accessToken() },
         admitCompatibility = { team, client, host -> compatibility.gate.admit(team, client, host, locallyAuthorizedTailscale = true) },
-        audience = compatibility.audience) { team ->
+        audience = compatibility.audience, forceToken = { account.accessToken(true) }) { team ->
         val routes = NativeTailscaleRoutes(context.applicationContext, store, team)
         NativeSavedTailscaleAccount(NativeMacConnectionStore.create(context.applicationContext, team), store.revisions,
             routes::grants, routes::transport, resolve = { pairing ->

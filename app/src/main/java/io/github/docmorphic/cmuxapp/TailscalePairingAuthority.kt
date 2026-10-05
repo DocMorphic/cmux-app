@@ -171,6 +171,7 @@ internal class TailscalePairingAuthority(
 
     suspend fun connect(pairing: PairingCode.Tailscale, expectedScope: NativeTeamScope? = null,
                         attachTicket: MobileAttachTicket? = null, savedTicket: NativeSavedTicketAdmission? = null,
+                        forceToken: (suspend () -> String?)? = null,
                         token: suspend () -> String?): MobileRpcClient {
         val owner = owner(pairing)
         check(expectedScope == null || expectedScope == owner) { "Account or team changed. Reconnect to the Mac." }
@@ -215,6 +216,10 @@ internal class TailscalePairingAuthority(
                     checkNotNull(value?.takeIf { it.isNotBlank() }) { "Sign in before connecting to this Mac." }
                 }
                 candidate = base
+                forceToken?.let { refresh -> base.configureAccountTokenRefresh {
+                    requireAllowed()
+                    refresh().also { requireAllowed() }
+                } }
                 requireAllowed()
                 synchronized(lock) { check(!closed); clients[base] = ::allowed }
                 base.connect()

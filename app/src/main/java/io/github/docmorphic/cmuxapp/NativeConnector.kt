@@ -55,7 +55,7 @@ internal class TailscaleConnector(context: Context, store: NativeCredentialStore
         ticket: MobileAttachTicket? = null, savedTicket: NativeSavedTicketAdmission? = null): MobileRpcClient {
         var acquired: MobileRpcClient? = null
         return try {
-            withContext(Dispatchers.IO) { authority.connect(pairing, team, ticket, savedTicket, account::accessToken).also { acquired = it } }
+            withContext(Dispatchers.IO) { authority.connect(pairing, team, ticket, savedTicket, forceToken = { account.accessToken(true) }, token = account::accessToken).also { acquired = it } }
         } catch (failure: Throwable) {
             // Cancellation can reject the dispatcher return after the socket was acquired.
             acquired?.close(); throw failure

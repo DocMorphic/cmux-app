@@ -25,14 +25,45 @@ and reboot passed on the sole AVD. Emulator stopped/reaped. Authenticated/physic
 acceptance remains open. Newer source through `5b506cb` is not in 589. Continue
 with runtime verification of the mutation gates and physical native/recovery/UI/push acceptance.
 
-## Latest source checkpoint — ticket expiry Android acceptance (2026-10-05)
+## Latest source checkpoint — rejected account-token recovery (2026-10-05)
+
+Bearer-authorized Tailscale RPC now follows the reviewed iOS recovery contract:
+an explicit host `unauthorized` response can force-refresh the account token and
+retry once, with the original request ID, parameters, ticket policy and deadline.
+Concurrent leases share refresh work. The caller's account/route/ticket admission
+is checked again before refresh and before writing the retry. Native Iroh uses
+transport admission and never installs or invokes this bearer recovery.
+
+The manual pairing connector, Computer Details pairing and saved/shared Tailscale
+runtime provide the account force-refresh callback. Account mismatch, scope
+errors, local provider errors, timeouts and uncertain outcomes do not trigger
+this retry. Logout or ticket expiry during refresh prevents the retry; rejected
+manual pairing cannot persist a grant.
+
+**109 focused JVM tests passed**, zero failures/errors/skips, including eight new
+RPC recovery cases and three new saved/manual pairing integration cases. The first
+run's exception-identity assertion failed because coroutine stack recovery copies
+exceptions; the assertion now checks the exception type and message. Original
+failure and final XML evidence are retained in
+`captures/runtime/rpc-token-recovery/`. No Android runtime or physical acceptance
+of these newer source changes is claimed. They are **not in signed build 596**.
+
+Scoped reference: `MobileCoreRPCClient.swift` and authorization-error mapping at
+upstream `186cec79781256867ad4516f0802118738bd2393`. The same audit confirms iOS
+production registers Iroh and Tailscale; debug loopback is a developer/test route,
+and WebSocket is not registered in the production app. Route priority/default
+selection still needs comparison. This does not advance the global parity pin.
+
+See [REMAINING_WORK.md](REMAINING_WORK.md) for the current release completion gates.
+
+## Earlier source checkpoint — ticket expiry Android acceptance (2026-10-05)
 
 **Signed milestone pending:** build **596**, source `3406a98d3a03fe0f52eda5767223f4bcf2f5577a`,
 [run 37257691562](https://github.com/DocMorphic/cmux-app/actions/runs/37257691562),
-was dispatched once with preview publication disabled and observed queued.
-Poll that existing run, then verify its artifact/provenance/signature/alignment/ART
-and upgrade behavior. Do not start a replacement merely because observation times
-out. Signed **589** remains the verified download until these checks pass.
+completed CI successfully with preview publication disabled. Independent artifact
+provenance, signer, 14 assets, 19 native alignments, 16 KB ZIP alignment and manifest
+checks passed. Local ART and upgrade verification are in progress on the sole AVD.
+Signed **589** remains the verified download until these checks pass.
 
 A new real Compose/framed-peer check reproduced a stale task-composer gate after
 Mac ticket expiry: the sidebar closed its menu, but the composer retained a cached

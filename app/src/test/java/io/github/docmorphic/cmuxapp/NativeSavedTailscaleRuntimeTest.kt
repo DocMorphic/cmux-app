@@ -12,6 +12,19 @@ import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
 class NativeSavedTailscaleRuntimeTest {
+    @Test fun sharedSavedTailscaleRefreshesRejectedTokenBeforeManualTicketAndWorkspaceAdmission() = runBlocking<Unit> {
+        Fixture(manualTickets = true, tokenRecovery = true).use { f ->
+            f.rejectAccessToken = "fixture-token"
+            checkNotNull(f.local.connectIfSelected(f.pairing())).use { first ->
+                checkNotNull(f.local.connectIfSelected(f.pairing())).use { second ->
+                    first.workspaces(); second.workspaces()
+                    assertEquals(1, f.forcedRefreshes); assertEquals(1, f.wires.size)
+                    assertEquals(2, f.wires.single().methods.count { it == "mobile.attach_ticket.create" })
+                }
+            }
+        }
+    }
+
     @Test fun preferenceChangeWhileDiscoveryWaitsStillUsesSavedTicketAdmission() = runBlocking<Unit> {
         Fixture(manualTickets = true).use { f ->
             f.settings.update(f.target, { true }) { it.copy(method = NativeMacConnectionMethod.IROH) }
@@ -90,7 +103,7 @@ class NativeSavedTailscaleRuntimeTest {
     }
 
     private class Fixture(private val enforceCompatibility: Boolean = false,
-        audience: NativeMacBuildAudience? = null, manualTickets: Boolean = false) : AutoCloseable {
+        audience: NativeMacBuildAudience? = null, manualTickets: Boolean = false, tokenRecovery: Boolean = false) : AutoCloseable {
         val team = NativeTeamScope("login", "user", "team", 1)
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
         val target = NativeComputerTarget("mac", "default", "Mac")
@@ -107,6 +120,9 @@ class NativeSavedTailscaleRuntimeTest {
         @Volatile var hostGate: CompletableDeferred<Unit>? = null
         val hostGates = java.util.concurrent.ConcurrentHashMap<Pair<String, String>, CompletableDeferred<Unit>>()
         val hostEntered = Channel<Unit>(16)
+        var accessToken = "fixture-token"
+        var rejectAccessToken: String? = null
+        var forcedRefreshes = 0
         var version = "0.64.24"
         var ticketError: String? = null
         var malformedTicket = false
@@ -117,9 +133,11 @@ class NativeSavedTailscaleRuntimeTest {
         val local: NativeSavedTailscaleRuntime
         init {
             settings.update(target, { true }) { it.copy(method = NativeMacConnectionMethod.TAILSCALE) }
-            local = NativeSavedTailscaleRuntime(teams, { teams.value.scope == it }, { tokenHook(); "fixture-token" },
+            local = NativeSavedTailscaleRuntime(teams, { teams.value.scope == it }, { tokenHook(); accessToken },
                 admitCompatibility = { owner, client, host -> if (enforceCompatibility) compatibility.admit(owner, client, host, true) },
-                audience = audience, manualTicket = { client, route, host, scope, email ->
+                audience = audience,
+                forceToken = if (tokenRecovery) ({ forcedRefreshes++; accessToken = "fresh-fixture"; accessToken }) else null,
+                manualTicket = { client, route, host, scope, email ->
                     if (manualTickets) ManualAttachTicketRequest.request(client, route, host, scope, email) else null
                 }) { owner ->
                 NativeSavedTailscaleAccount(settings, revisions, { selected -> grants.value.filter {
@@ -159,7 +177,12 @@ class NativeSavedTailscaleRuntimeTest {
             check(!closed && allowed())
             val request = JSONObject(MobileFrameDecoder().feed(bytes).single().decodeToString())
             val method = request.getString("method"); methods += method
-            assertEquals("fixture-token", request.getJSONObject("auth").getString("stack_access_token"))
+            assertEquals(fixture.accessToken, request.getJSONObject("auth").getString("stack_access_token"))
+            if (method != "mobile.host.status" && request.getJSONObject("auth").getString("stack_access_token") == fixture.rejectAccessToken) {
+                replies.send(MobileFrameCodec.encode(JSONObject().put("id", request.getString("id")).put("ok", false)
+                    .put("error", JSONObject().put("code", "unauthorized").put("message", "Expired fixture token")).toString().toByteArray()))
+                return
+            }
             if (method == "mobile.attach_ticket.create") {
                 assertFalse(request.getJSONObject("auth").has("attach_token"))
                 fixture.ticketHook()

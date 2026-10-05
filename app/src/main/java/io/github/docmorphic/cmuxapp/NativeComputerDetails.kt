@@ -141,7 +141,7 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                                 replacing = replacing, admitCompatibility = runtime::admitAuthenticatedHost,
                                 manualTicket = runtime::requestManualAttachTicket).use { authority ->
                                     authority.authorize(pairing)
-                                    authority.connect(pairing, token = account::accessToken).use { }
+                                    authority.connect(pairing, forceToken = { account.accessToken(true) }, token = account::accessToken).use { }
                                 }
                         } }, remove = { grant -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                             grants.removeRoute(team, target, grant) { runtime.permitsAppearance(team) }

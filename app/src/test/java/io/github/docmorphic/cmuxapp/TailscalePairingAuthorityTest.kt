@@ -36,6 +36,9 @@ class TailscalePairingAuthorityTest {
         var build = "default"
         var rejectWorkspace = false
         var enforceCompatibility = false
+        var accessToken = "fixture-access"
+        var rejectAccessToken: String? = null
+        var forceRefresh: (suspend () -> String?)? = null
         var version = "0.64.24"
         val compatibility = NativeMacCompatibilityGate({ it == scope }, audience = audience)
         val transports = mutableListOf<Transport>()
@@ -49,7 +52,7 @@ class TailscalePairingAuthorityTest {
             }, manualTicket = { client, route, host, owner ->
                 if (manual) ManualAttachTicketRequest.request(client, route, host, owner, null) else null
             })
-        suspend fun connect() = authority.connect(pairing, attachTicket = ticket, savedTicket = savedTicket) { tokenCalls++; tokenHook(); "fixture-access" }
+        suspend fun connect() = authority.connect(pairing, attachTicket = ticket, savedTicket = savedTicket, forceToken = forceRefresh) { tokenCalls++; tokenHook(); accessToken }
         fun authorize() = authority.authorize(pairing)
         fun grant() = grants.find(checkNotNull(scope), TailscaleGrantStore.source(pairing))
         fun switch(next: NativeTeamScope?) {
@@ -58,6 +61,28 @@ class TailscalePairingAuthorityTest {
             else state.put("task_session", next.login)
         }
     }
+    @Test fun pairingRefreshesRejectedManualTicketRequestBeforeSavingItsExactGrant() = runBlocking<Unit> {
+        val f = Fixture(); f.manual = true; f.rejectAccessToken = "fixture-access"; var refreshes = 0
+        f.forceRefresh = { refreshes++; f.accessToken = "fresh-fixture"; f.accessToken }
+        f.authorize()
+        try {
+            f.connect().use { it.workspaces() }
+            assertEquals(1, refreshes); assertEquals(1, f.transports.size)
+            assertEquals(2, f.transports.single().methods.count { it == "mobile.attach_ticket.create" })
+            assertEquals(f.numeric, checkNotNull(f.grant()).route)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun pairingRevokedDuringForcedRefreshCannotRetryOrSaveGrant() = runBlocking<Unit> {
+        val f = Fixture(); f.manual = true; f.rejectAccessToken = "fixture-access"
+        f.forceRefresh = { f.switch(null); "fresh-fixture" }; f.authorize()
+        try {
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(1, f.transports.single().methods.count { it == "mobile.attach_ticket.create" })
+            assertFalse(f.state.has("tailscale_grants_v1")); assertTrue(f.transports.single().closed)
+        } finally { f.authority.close() }
+    }
+
     @Test fun consumerPairingRejectsDevBeforeSavingGrantButPassesActualLegacyRouteFlag() = runBlocking<Unit> {
         val f = Fixture(NativeMacBuildAudience.consumer); f.enforceCompatibility = true; f.authorize()
         try {
@@ -79,7 +104,12 @@ class TailscalePairingAuthorityTest {
             check(!closed && allowed())
             val request = JSONObject(MobileFrameDecoder().feed(bytes).single().decodeToString())
             val method = request.getString("method"); methods += method
-            assertEquals("fixture-access", request.getJSONObject("auth").getString("stack_access_token"))
+            assertEquals(fixture.accessToken, request.getJSONObject("auth").getString("stack_access_token"))
+            if (method != "mobile.host.status" && request.getJSONObject("auth").getString("stack_access_token") == fixture.rejectAccessToken) {
+                replies.send(MobileFrameCodec.encode(JSONObject().put("id", request.getString("id")).put("ok", false)
+                    .put("error", JSONObject().put("code", "unauthorized").put("message", "Expired fixture token")).toString().toByteArray()))
+                return
+            }
             val response = JSONObject().put("id", request.getString("id"))
             when (method) {
                 "mobile.attach_ticket.create" -> {

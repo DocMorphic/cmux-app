@@ -29,7 +29,7 @@ import java.util.UUID
 import javax.net.SocketFactory
 
 /** Retains the protocol's error code so callers can distinguish retryable failures. */
-internal class MobileRpcException(val code: String?, message: String) : IllegalStateException(message)
+internal class MobileRpcException(val code: String?, message: String, val fromHostResponse: Boolean = false) : IllegalStateException(message)
 internal class MobileRpcOutcomeUnknown : java.io.IOException("The connection recovered, but this action’s outcome is unknown. Check the Mac before retrying.")
 
 /**
@@ -79,6 +79,18 @@ class MobileRpcClient internal constructor(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val writeMutex = Mutex()
+    private val tokenRefreshMutex = Mutex()
+    @Volatile private var accountTokenRefresher: (suspend () -> String?)? = null
+
+    /** Installed by the admitted bearer-route owner before connecting or sharing the wire. */
+    internal fun configureAccountTokenRefresh(refresh: suspend () -> String?) {
+        synchronized(stateLock) {
+            check(delegate == null && !connected && !closed && accountTokenRefresher == null)
+            check(transport.rpcAuthorization == MobileRpcAuthorization.ACCOUNT_BEARER)
+            accountTokenRefresher = refresh
+        }
+    }
+
     private val stateLock = Any()
     private class Pending(val answer: CompletableDeferred<JSONObject>, val frame: ByteArray,
                           val resend: Boolean, val inbound: Long, val epoch: Long,
@@ -208,27 +220,61 @@ class MobileRpcClient internal constructor(
             it.requestAdmitted(method, params, timeoutMillis, ticketPolicy, ticketContext, scopedAdmission)
         }
         return MobileDebugLog.trace(debugRpcOperation(method)) {
-            requestOnTransport(method, params, timeoutMillis, ticketPolicy, ticketContext, scopedAdmission)
+            requestWithTokenRecovery(method, params, timeoutMillis, ticketPolicy, ticketContext, scopedAdmission)
+        }
+    }
+
+    private suspend fun requestWithTokenRecovery(method: String, params: JSONObject, timeoutMillis: Long,
+        ticketPolicy: MobileAttachTicketPolicy, ticketContext: MobileAttachTicketContext?, admitted: () -> Unit): JSONObject {
+        val deadline = System.nanoTime() + timeoutMillis.coerceIn(0, 86_400_000) * 1_000_000
+        fun remaining() = ((deadline - System.nanoTime()) / 1_000_000).coerceAtLeast(0)
+        val parameters = MobileJson.objectValue(params.toString())
+        val requestId = UUID.randomUUID().toString()
+        var sentToken: String? = null
+        suspend fun send(token: String? = null) = requestOnTransport(method, parameters, remaining(),
+            ticketPolicy, ticketContext, admitted, deadline, requestId, token) { sentToken = it }
+        try { return send() }
+        catch (failure: MobileRpcException) {
+            // Only this explicit host rejection proves that refreshing can repair the
+            // request. Account mismatch, scope errors and uncertain outcomes never retry.
+            val refresh = accountTokenRefresher
+            if (!failure.fromHostResponse || failure.code != "unauthorized" || refresh == null ||
+                transport.rpcAuthorization != MobileRpcAuthorization.ACCOUNT_BEARER) throw failure
+            admitted()
+            val fresh = withTimeout(remaining()) { tokenRefreshMutex.withLock {
+                admitted()
+                val current = accessToken()?.trim()?.takeIf { it.isNotEmpty() }
+                // A sibling may already have refreshed the same rejected credential.
+                val value = if (current != null && current != sentToken) current else refresh()?.trim()
+                admitted()
+                value?.takeIf { it.isNotEmpty() } ?: throw failure
+            } }
+            admitted()
+            return send(fresh) // Exactly one retry, preserving ID, parameters and deadline.
         }
     }
 
     private suspend fun requestOnTransport(method: String, params: JSONObject, timeoutMillis: Long,
         ticketPolicy: MobileAttachTicketPolicy,
         ticketContext: MobileAttachTicketContext?,
-        admitted: () -> Unit): JSONObject {
+        admitted: () -> Unit, deadlineNanos: Long, id: String, tokenOverride: String?,
+        observeToken: (String?) -> Unit): JSONObject {
         require(method.isNotBlank())
-        val id = UUID.randomUUID().toString()
         val parameters = MobileJson.objectValue(params.toString())
         val body = JSONObject().put("id", id).put("method", method).put("params", parameters)
         val token = if (transport.rpcAuthorization == MobileRpcAuthorization.TRANSPORT_ADMISSION) null
-        else if (method == "mobile.host.status") {
-            try { accessToken()?.trim() }
-            catch (error: Exception) { if (error is CancellationException) throw error; null }
-        } else {
-            accessToken()?.trim().also {
-                require(!it.isNullOrEmpty()) { "Sign in to cmux with the same account as your Mac" }
+        else withTimeout(((deadlineNanos - System.nanoTime()) / 1_000_000).coerceAtLeast(0)) {
+            if (tokenOverride != null) tokenOverride else if (method == "mobile.host.status") {
+                try { accessToken()?.trim() }
+                catch (error: Exception) { if (error is CancellationException) throw error; null }
+            } else {
+                accessToken()?.trim().also {
+                    require(!it.isNullOrEmpty()) { "Sign in to cmux with the same account as your Mac" }
+                }
             }
         }
+        observeToken(token)
+        admitted()
         if (!token.isNullOrEmpty()) {
             val auth = JSONObject().put("stack_access_token", token)
             if (ticketPolicy == MobileAttachTicketPolicy.WHEN_COVERED)
@@ -241,10 +287,10 @@ class MobileRpcClient internal constructor(
             val started = System.nanoTime()
             Pending(answer, MobileFrameCodec.encode(body.toString().toByteArray(Charsets.UTF_8)),
                 MobileControlResendPolicy.allows(method, parameters), inboundDelivery, silenceEpoch, started,
-                started + timeoutMillis.coerceIn(0, 86_400_000) * 1_000_000, admitted).also { pending[id] = it }
+                deadlineNanos, admitted).also { pending[id] = it }
         }
         try {
-            return withTimeout(timeoutMillis) {
+            return withTimeout(((deadlineNanos - System.nanoTime()) / 1_000_000).coerceAtLeast(0)) {
                 writeMutex.withLock {
                     val caller = currentCoroutineContext()
                     // A viewport/editor can disappear while its frame is being written. Finish
@@ -889,7 +935,7 @@ class MobileRpcClient internal constructor(
             val error = envelope.optJSONObject("error")
             val message = error?.optString("message")
                 .orEmpty().ifBlank { "cmux RPC request failed" }
-            waiter.answer.completeExceptionally(MobileRpcException(error?.opt("code") as? String, message))
+            waiter.answer.completeExceptionally(MobileRpcException(error?.opt("code") as? String, message, fromHostResponse = true))
         }
     }
 

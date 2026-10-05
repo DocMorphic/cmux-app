@@ -25,6 +25,7 @@ internal class NativeSavedTailscaleRuntime(
     private val admitCompatibility: suspend (NativeTeamScope, MobileRpcClient, org.json.JSONObject) -> Unit = { _, _, _ -> },
     private val audience: NativeMacBuildAudience? = null,
     private val manualTicket: suspend (MobileRpcClient, PairingCode.Route, org.json.JSONObject, NativeTeamScope, String?) -> MobileAttachTicket? = ManualAttachTicketRequest::request,
+    private val forceToken: (suspend () -> String?)? = null,
     private val account: (NativeTeamScope) -> NativeSavedTailscaleAccount
 ) : AutoCloseable {
     private class Owner(val team: NativeTeamScope, val account: NativeSavedTailscaleAccount) {
@@ -130,7 +131,10 @@ internal class NativeSavedTailscaleRuntime(
             MobileRpcClient(run.account.transport(intent.tailscale, permits), {
                 check(permits()) { "The Tailscale authorization changed" }
                 token().also { check(permits()) { "The Tailscale authorization changed" } }
-            })
+            }).also { client -> forceToken?.let { refresh -> client.configureAccountTokenRefresh {
+                check(permits()) { "The Tailscale authorization changed" }
+                refresh().also { check(permits()) { "The Tailscale authorization changed" } }
+            } } }
         }
     }
 
