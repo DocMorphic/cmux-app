@@ -97,6 +97,14 @@ internal class NativeFeedSession(
         dismissFiles()
         filesSheet = TerminalFilesPresentation(scope, login, key, mac, terminal, navigation, access, holdBrowser(mac))
     }
+    fun recoverFiles(expected: TerminalFilesPresentation) {
+        if (filesSheet !== expected || !expected.current() || expected.access.current()) return
+        expected.connectionLost()
+        val next = coordinator.terminalArtifactAccess(expected.mac, expected.terminal) {
+            !viewModelCleared && account.isSignedIn() && store.taskSession() == expected.login
+        } ?: return
+        expected.replaceConnection(next)
+    }
     fun dismissFiles(expected: TerminalFilesPresentation? = filesSheet) {
         if (filesSheet !== expected) return
         val previous = filesSheet; filesSheet = null; previous?.close()

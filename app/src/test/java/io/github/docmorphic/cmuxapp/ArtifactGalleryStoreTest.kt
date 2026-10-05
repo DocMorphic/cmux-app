@@ -16,6 +16,63 @@ class ArtifactGalleryStoreTest {
         .put("referenced", JSONArray(names.map { JSONObject().put("path", "/$it") }))
     private fun parent() = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
 
+    @Test fun replacementKeepsRowsSessionQueryAndCursorButRejectsLateOldPage() = runBlocking {
+        val scope = parent(); val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        val calls = mutableListOf<String>()
+        val store = ArtifactGalleryStore(scope, terminal, ArtifactRpc(all) { method, params ->
+            if (method.endsWith("scan")) scan() else if (params.has("cursor")) {
+                entered.complete(Unit); withContext(NonCancellable) { release.await() }; page("late")
+            } else page("first", cursor = "next")
+        })
+        try {
+            store.initialize().join(); store.isAtTopOrFits = false
+            val snapshot = store.session.value.snapshot
+            val pending = store.loadMore()!!; entered.await()
+            store.replaceConnection(ArtifactRpc(all) { method, params ->
+                calls += method
+                assertEquals("session", params.getString("session_id"))
+                assertEquals("next", params.getString("cursor")); page("second")
+            })
+            release.complete(Unit); pending.join()
+            assertSame(snapshot, store.session.value.snapshot); assertTrue(calls.isEmpty())
+            assertFalse(store.session.value.loadingMore); assertNotNull(store.session.value.error)
+            assertEquals(ArtifactAuthorization.Session("session"), store.sessionAuthorization.value)
+            assertFalse(store.isAtTopOrFits)
+            store.loadMore()!!.join()
+            assertEquals(listOf("/first", "/second"), store.session.value.snapshot!!.items.map { it.path })
+            assertEquals(1, calls.size)
+        } finally { release.complete(Unit); store.close(); scope.cancel() }
+    }
+
+    @Test fun interruptedInitialScanCanResolveSessionOnExplicitRefresh() = runBlocking {
+        val scope = parent(); val entered = CompletableDeferred<Unit>()
+        val store = ArtifactGalleryStore(scope, terminal, ArtifactRpc(all) { _, _ -> entered.complete(Unit); awaitCancellation() })
+        try {
+            store.initialize(); entered.await(); store.connectionLost()
+            assertFalse(store.inView.value.loading); assertNotNull(store.inView.value.error)
+            store.replaceConnection(ArtifactRpc(all) { method, _ -> if (method.endsWith("scan")) scan() else page("recovered") })
+            assertNull(store.inView.value.scan)
+            store.refreshInView().join()
+            assertEquals(ArtifactAuthorization.Session("session"), store.sessionAuthorization.value)
+            assertEquals("/recovered", store.session.value.snapshot!!.items.single().path)
+        } finally { store.close(); scope.cancel() }
+    }
+
+    @Test fun failedInViewRefreshKeepsTheScanThatAdmittedTheOpenPreview() = runBlocking {
+        val scope = parent(); var fail = false
+        val store = ArtifactGalleryStore(scope, terminal, ArtifactRpc(all) { method, _ ->
+            if (fail) error("Mac disconnected")
+            if (method.endsWith("scan")) scan() else page("file")
+        })
+        try {
+            store.initialize().join(); val original = store.inView.value.scan
+            fail = true; store.refreshInView().join()
+            assertSame(original, store.inView.value.scan)
+            assertEquals(ArtifactAuthorization.Session("session"), store.sessionAuthorization.value)
+            assertFalse(store.inView.value.loading); assertNotNull(store.inView.value.error)
+        } finally { store.close(); scope.cancel() }
+    }
+
     @Test fun initialScanBindsSessionButDirectTerminalAuthorizationStaysDistinct() = runBlocking {
         val scope = parent()
         val store = ArtifactGalleryStore(scope, terminal, ArtifactRpc(all) { method, _ ->

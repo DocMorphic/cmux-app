@@ -20,6 +20,7 @@ internal class NativeFeedCoordinator(
     private class Handle(val mac: NativeCredentialStore.PairedMac, val revision: NativeFeedRevision, val routeKey: String?) {
         var client: MobileRpcClient? = null
         var verified = false
+        var workspaceSnapshotClient: MobileRpcClient? = null
         var capabilities = emptySet<String>()
         val borrowedOperations = mutableSetOf<Job>()
         var job: Job? = null
@@ -280,6 +281,7 @@ internal class NativeFeedCoordinator(
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val source = mutableSources.value[handle.mac.origin] ?: return
         if (!listing.accept()) throw NativeWorkspaceSnapshotSuperseded()
+        handle.workspaceSnapshotClient = client
         val groups = parseGroups(listing.value)
         val groupOnly = groups != source.groups && listing.workspaces == source.workspaces
         publish(handle, source.copy(workspaces = listing.workspaces, groups = groups, hasWorkspaceSnapshot = true,
@@ -309,20 +311,27 @@ internal class NativeFeedCoordinator(
         }
     }
 
-    /** Files outlive their Activity, but never their verified host connection or terminal admission. */
+    /** Files may retain cached content across transport loss; requests keep exact connection admission. */
     fun terminalArtifactAccess(mac: NativeCredentialStore.PairedMac, terminal: ArtifactAuthorization.Terminal,
                                permits: () -> Boolean): TerminalArtifactAccess? {
         val handle = handles[mac.origin]?.takeIf { it.mac == mac && current(it) && it.verified } ?: return null
         val client = handle.client?.takeUnless { it.isClosed } ?: return null
         val capabilities = ArtifactCapabilities.read(handle.capabilities)
-        fun admitted() = permits() && current(handle, client) && handle.verified && !client.isClosed &&
-            capabilities.terminal && ArtifactCapabilities.read(handle.capabilities) == capabilities &&
-            mutableSources.value[mac.origin]?.let { source -> source.mac == mac && source.workspaces.any { workspace ->
-                workspace.id == terminal.workspaceId && workspace.terminals.any { it.id == terminal.surfaceId }
-            } } == true
+        val cacheToken = mutableSources.value[mac.origin]?.panelCacheToken ?: return null
+        if (handle.workspaceSnapshotClient !== client) return null
+        fun cachedCurrent() = permits() && isAllowed(mac) && mutableSources.value[mac.origin]?.let { source ->
+            source.mac == mac && source.panelCacheToken === cacheToken &&
+                ArtifactCapabilities.read(source.capabilities) == capabilities && source.workspaces.any { workspace ->
+                    workspace.id == terminal.workspaceId && workspace.terminals.any { it.id == terminal.surfaceId }
+                }
+        } == true
+        fun admitted() = cachedCurrent() && current(handle, client) && handle.verified && !client.isClosed &&
+            capabilities.terminal && ArtifactCapabilities.read(handle.capabilities) == capabilities
         if (!admitted()) return null
         suspend fun <T> use(action: suspend () -> T): T = withContext(scope.coroutineContext.minusKey(Job)) {
-            check(admitted()) { "Files computer or terminal is no longer available" }
+            if (!admitted()) throw ArtifactPreviewException(ArtifactPreviewFailure(
+                if (cachedCurrent()) ArtifactPreviewFailure.Kind.MAC_UNREACHABLE else ArtifactPreviewFailure.Kind.AUTHORIZATION_FAILED),
+                "Files computer or terminal is no longer available")
             val operation = checkNotNull(currentCoroutineContext()[Job])
             handle.borrowedOperations += operation
             try {
@@ -334,7 +343,7 @@ internal class NativeFeedCoordinator(
         val rpc = ArtifactRpc(capabilities,
             if (client.supportsArtifactLanes) ({ resource, consume -> use { client.useArtifactLane(resource, consume) } }) else null,
             { method, params -> use { client.request(method, params) } })
-        return TerminalArtifactAccess(rpc, ::admitted)
+        return TerminalArtifactAccess(rpc, ::admitted, ::cachedCurrent)
     }
 
     /** A panel admission grants only its displayed path on this exact verified connection. */

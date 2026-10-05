@@ -909,7 +909,10 @@ internal fun NativeScreen(
         }
     }
     SideEffect {
-        if (retainedFiles != null && !retainedFilesAllowed) feedSession.dismissFiles(retainedFiles)
+        if (retainedFiles != null) {
+            if (!retainedFilesAllowed) feedSession.dismissFiles(retainedFiles)
+            else feedSession.recoverFiles(retainedFiles)
+        }
         if (artifactsReady && (showTerminalFiles || terminalArtifactPath != null) && browserLogin != null &&
             filesKey != null && filesMac != null && draftTarget != null && filesFeed != null) {
             feedSession.openFiles(browserLogin, filesKey, filesMac,
@@ -919,12 +922,14 @@ internal fun NativeScreen(
     if (retainedFilesAllowed && retainedFiles != null) {
         val retainedPath = retainedFiles.navigation.path
         if (retainedPath != null) ArtifactPathSheet(retainedFiles.access.rpc, retainedFiles.terminal, retainedPath,
-            navigation = retainedFiles.navigation.direct, retainedPreview = retainedFiles.directPreview) {
+            navigation = retainedFiles.navigation.direct, retainedPreview = retainedFiles.directPreview, retainedFolder = retainedFiles.directFolder,
+            connection = filesFeed?.availability ?: NativeFeedAvailability.OFFLINE) {
             retainedFiles.closePath(); filesState.closePath()
             if (!retainedFiles.navigation.showing) feedSession.dismissFiles(retainedFiles)
         }
         if (retainedFiles.navigation.showing) ArtifactFilesSheet(retainedFiles.access.rpc, retainedFiles.terminal, artifactRefresh,
-            navigation = retainedFiles.navigation.gallery, retained = retainedFiles) {
+            navigation = retainedFiles.navigation.gallery, retained = retainedFiles,
+            connection = filesFeed?.availability ?: NativeFeedAvailability.OFFLINE) {
             retainedFiles.closeGallery(); filesState.closeGallery()
             if (retainedFiles.navigation.path == null) feedSession.dismissFiles(retainedFiles)
         }

@@ -138,6 +138,33 @@ class ArtifactPreviewControllerTest {
         } finally { release.complete(Unit) }
     } }
 
+    @Test fun verifiedReplacementKeepsCompletedFileIdentityUntilExplicitRetry() = runBlocking { fixture {
+        open(); val original = artifact(); val identity = controller.state.value.identity
+        val replacement = rpc()
+        controller.replaceConnection(replacement); open(rpc = replacement); yield()
+        assertSame(original, controller.state.value.artifact)
+        assertSame(identity, controller.state.value.identity)
+        assertEquals(1, fetches()); assertTrue(original.file.exists())
+        assertTrue(controller.matches(controller.state.value, replacement, terminal, "/report.txt", false))
+        controller.retry(); val updated = artifact()
+        assertNotEquals(original.file, updated.file); assertEquals(2, fetches())
+        withTimeout(3000) { while (original.file.exists()) delay(5) }
+    } }
+
+    @Test fun verifiedReplacementDoesNotAutomaticallyRestartAnInterruptedTransfer() = runBlocking { fixture {
+        val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        beforeFetch = { entered.complete(Unit); withContext(NonCancellable) { release.await() } }
+        try {
+            open(); withTimeout(3000) { entered.await() }
+            val replacement = rpc(); controller.replaceConnection(replacement)
+            open(rpc = replacement); release.complete(Unit); emptyDisk()
+            assertEquals(1, fetches()); assertNull(controller.state.value.artifact)
+            assertEquals(ArtifactPreviewFailure.Kind.MAC_UNREACHABLE, controller.state.value.failure?.kind)
+            beforeFetch = {}; controller.retry(); assertEquals("data", artifact().file.readText())
+            assertEquals(2, fetches())
+        } finally { release.complete(Unit) }
+    } }
+
     @Test fun markdownPanelModeAndExactDisplayedPathRemainPartOfAdmission() = runBlocking { fixture {
         val panel = ArtifactAuthorization.Panel("workspace", "panel", "/report.txt")
         open(authorization = panel); val plain = artifact(); assertEquals("text/plain", plain.mime)

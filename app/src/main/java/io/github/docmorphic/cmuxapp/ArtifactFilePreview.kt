@@ -17,7 +17,8 @@ import java.io.File
 
 @Composable
 internal fun ArtifactFilePreview(rpc: ArtifactRpc, selection: ArtifactDestination.Preview, onBack: () -> Unit, onDone: () -> Unit,
-    initialPath: String? = null, onSelectionChanged: (String) -> Unit = {}, retained: ArtifactPreviewController? = null) {
+    initialPath: String? = null, onSelectionChanged: (String) -> Unit = {}, retained: ArtifactPreviewController? = null,
+    connection: NativeFeedAvailability = NativeFeedAvailability.CONNECTED) {
     val pager = rememberPagerState(initialPage = selection.files.indexOfFirst { it.path == (initialPath ?: selection.initialPath) }.coerceAtLeast(0), pageCount = { selection.files.size })
     val scope = rememberCoroutineScope()
     val selected by rememberUpdatedState(onSelectionChanged)
@@ -26,7 +27,7 @@ internal fun ArtifactFilePreview(rpc: ArtifactRpc, selection: ArtifactDestinatio
         FilesHeader(selection.files.getOrNull(pager.currentPage)?.displayName ?: "Preview", onBack, onDone)
         HorizontalPager(pager, key = { selection.files[it].path }, modifier = Modifier.weight(1f)) { index ->
             ArtifactPreviewPage(rpc, selection.authorization, selection.files[index].path, retained = retained,
-                active = retained == null || index == pager.settledPage)
+                active = retained == null || index == pager.settledPage, connection = connection)
         }
         if (selection.files.size > 1) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { scope.launch { pager.animateScrollToPage(pager.currentPage - 1) } }, enabled = pager.currentPage > 0) { Text("Previous") }

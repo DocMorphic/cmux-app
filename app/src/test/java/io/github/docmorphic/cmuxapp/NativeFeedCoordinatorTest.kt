@@ -168,17 +168,40 @@ class NativeFeedCoordinatorTest {
                 coordinator.updateMacs(listOf(mac("a")))
                 awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
                 val original = checkNotNull(coordinator.terminalArtifactAccess(mac("a"), terminal) { true })
-                coordinator.pause(); assertFalse(original.current())
+                coordinator.pause(); assertFalse(original.current()); assertTrue(original.cachedCurrent())
                 coordinator.updateMacs(listOf(mac("a")))
                 awaitState { coordinator.sources.value.values.singleOrNull()?.availability == NativeFeedAvailability.CONNECTED }
                 assertFalse(original.current())
                 assertTrue(runCatching { original.rpc.stat(terminal, "/report.txt") }.isFailure)
                 val replacement = checkNotNull(coordinator.terminalArtifactAccess(mac("a"), terminal) { true })
-                assertTrue(replacement.current())
+                assertTrue(replacement.current()); assertTrue(original.cachedCurrent()); assertTrue(replacement.cachedCurrent())
                 peer.workspaceResponse = JSONObject("""{"workspaces":[{"id":"w","terminals":[]}]}""")
                 coordinator.refreshWorkspaceLists(listOf(mac("a")))
                 awaitState { !replacement.current() }
+                assertFalse(original.cachedCurrent()); assertFalse(replacement.cachedCurrent())
                 assertTrue(runCatching { replacement.rpc.stat(terminal, "/report.txt") }.isFailure)
+                assertTrue(peer.requests.none { it.optString("method").contains(".artifact.") })
+            } finally { coordinator.close() }
+        }
+    }
+
+    @Test fun revokedFilesSnapshotCannotRegainAdmissionFromEqualLookingWorkspace() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.artifactsSupported = true
+            peer.workspaceResponse = JSONObject("""{"workspaces":[{"id":"w","terminals":[{"id":"t"}]}]}""")
+            val terminal = ArtifactAuthorization.Terminal("w", "t")
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                val original = checkNotNull(coordinator.terminalArtifactAccess(mac("a"), terminal) { true })
+                peer.rejectedMethods = setOf("mobile.workspace.list"); peer.rejectedCode = "team_access_revoked"
+                assertTrue(runCatching { coordinator.refreshWorkspaceLists(listOf(mac("a"))) }.isFailure)
+                assertFalse(original.current()); assertFalse(original.cachedCurrent())
+                peer.rejectedMethods = emptySet(); coordinator.refreshWorkspaceLists(listOf(mac("a")))
+                assertFalse(original.current()); assertFalse(original.cachedCurrent())
+                assertTrue(runCatching { original.rpc.stat(terminal, "/report.txt") }.isFailure)
+                assertNotNull(coordinator.terminalArtifactAccess(mac("a"), terminal) { true })
                 assertTrue(peer.requests.none { it.optString("method").contains(".artifact.") })
             } finally { coordinator.close() }
         }

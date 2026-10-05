@@ -15,6 +15,18 @@ available, and the upstream watcher remains configured. Main integration does
 not establish full parity or authorize production release promotion. Earlier
 feature-branch/draft-only instructions below are historical.
 
+## Latest feature batch — Files recovery, 2026-10-05
+
+Files/gallery/direct previews now retain state across transient connection loss;
+a new verified connection supplies future requests without automatically
+restarting failed byte transfers. Open folder listings have their own retained
+controller, and folder/direct-path errors use structured failure copy. Main
+Kotlin compiled and 27 focused JVM checks passed. Android/Pixel runtime,
+rendered-state comparisons and signed delivery are deferred to the next
+integration milestone. See the latest section of `CONTENT_PREVIEW_LIFECYCLE.md`
+for exact scope, the corrected folder fixture, source receipts and pending checks.
+The Pixel was absent and no emulator was launched. Signed build 606 is unchanged.
+
 **Continuation update:** work returned to the original Mac on 2026-09-28 at the
 user's request. Windows commit `9849010` was pulled without conflicts. It adds
 portable Gradle setup, LF-preserved asset hashes, remote POSIX path semantics,

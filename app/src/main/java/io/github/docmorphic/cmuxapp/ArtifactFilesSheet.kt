@@ -46,7 +46,8 @@ private val filesPanel = Color(0xFF191B1F)
 
 @Composable
 internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorization.Terminal, refreshSignal: Int = 0, navigation: ArtifactNavigationState? = null,
-    retained: TerminalFilesPresentation? = null, onDismiss: () -> Unit) {
+    retained: TerminalFilesPresentation? = null, connection: NativeFeedAvailability = NativeFeedAvailability.CONNECTED,
+    onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val store = retained?.galleryStore() ?: remember(rpc, terminal) { ArtifactGalleryStore(scope, terminal, rpc) }
     val detail = navigation ?: remember(terminal) { ArtifactNavigationState() }
@@ -64,7 +65,7 @@ internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorizatio
                 // collectAsState can retain its previous flow's value until its collector
                 // restarts. A new client must never observe the old session admission.
                 key(store) { ArtifactFilesContent(rpc, store, onDismiss, onScopeChanged = { showingSession = it }, navigation = detail,
-                    retainedPreview = retained?.galleryPreview) }
+                    retainedPreview = retained?.galleryPreview, retainedFolder = retained?.galleryFolder, connection = connection) }
             }
         }
     }
@@ -73,7 +74,8 @@ internal fun ArtifactFilesSheet(rpc: ArtifactRpc, terminal: ArtifactAuthorizatio
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore, onDismiss: () -> Unit, onScopeChanged: (Boolean) -> Unit = {},
-    navigation: ArtifactNavigationState? = null, retainedPreview: ArtifactPreviewController? = null) {
+    navigation: ArtifactNavigationState? = null, retainedPreview: ArtifactPreviewController? = null, retainedFolder: ArtifactFolderController? = null,
+    connection: NativeFeedAvailability = NativeFeedAvailability.CONNECTED) {
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences("cmux-display", android.content.Context.MODE_PRIVATE) }
     val scan by store.inView.collectAsState()
@@ -119,10 +121,10 @@ internal fun ArtifactFilesContent(rpc: ArtifactRpc, store: ArtifactGalleryStore,
         if (!routesReady || detail.destinations.lastOrNull() !is ArtifactDestination.Preview) retainedPreview?.clear()
     }
     when (val destination = detail.destinations.lastOrNull().takeIf { routesReady }) {
-        is ArtifactDestination.Preview -> key(rpc, destination) { ArtifactFilePreview(rpc, destination, ::back, onDismiss,
-            initialPath = detail.selectedPath, onSelectionChanged = { detail.selectedPath = it }, retained = retainedPreview) }
+        is ArtifactDestination.Preview -> key(destination) { ArtifactFilePreview(rpc, destination, ::back, onDismiss,
+            initialPath = detail.selectedPath, onSelectionChanged = { detail.selectedPath = it }, retained = retainedPreview, connection = connection) }
         is ArtifactDestination.Folder -> key(destination) {
-            ArtifactFolderContent(rpc, thumbnails, destination, ::back, onDismiss) { item, entries ->
+            ArtifactFolderContent(rpc, thumbnails, destination, ::back, onDismiss, retained = retainedFolder, connection = connection) { item, entries ->
                 open(item, entries, destination.authorization)
             }
         }
@@ -373,38 +375,37 @@ internal class ArtifactThumbnails(private val rpc: ArtifactRpc) {
     }
 }
 
-private data class ArtifactFolderLoad(val identity: Any? = null, val listing: ArtifactDirectoryListing? = null, val error: String? = null)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ArtifactFolderContent(rpc: ArtifactRpc, thumbnails: ArtifactThumbnails, destination: ArtifactDestination.Folder,
-    onBack: () -> Unit, onDone: () -> Unit, onOpen: (ArtifactItem, List<ArtifactItem>) -> Unit) {
-    var retry by remember { mutableIntStateOf(0) }
-    val identity = remember(rpc, destination, retry) { Any() }
-    val produced by produceState(ArtifactFolderLoad(), identity) {
-        value = ArtifactFolderLoad(identity)
-        try {
-            val listing = rpc.list(destination.authorization, destination.item.path)
-            ensureActive(); value = ArtifactFolderLoad(identity, listing)
-        } catch (error: Exception) { ensureActive(); value = ArtifactFolderLoad(identity, error = error.message ?: "Could not load folder") }
-    }
-    val state = produced.takeIf { it.identity === identity } ?: ArtifactFolderLoad(identity)
+    onBack: () -> Unit, onDone: () -> Unit, retained: ArtifactFolderController? = null,
+    connection: NativeFeedAvailability = NativeFeedAvailability.CONNECTED,
+    onOpen: (ArtifactItem, List<ArtifactItem>) -> Unit) {
+    val scope = rememberCoroutineScope()
+    val controller = retained ?: remember { ArtifactFolderController(scope) }
+    DisposableEffect(controller, retained) { onDispose { if (retained == null) controller.close() } }
+    LaunchedEffect(controller, rpc, destination) { controller.open(rpc, destination) }
+    val produced by controller.state.collectAsState()
+    val state = produced.takeIf { controller.matches(it, rpc, destination) } ?: ArtifactFolderState(loading = true)
     val listing = state.listing
-    val failure = state.error
-    val loading = listing == null && failure == null
+    val failure = state.failure?.presentation(destination.authorization, false, connection)
+    val loading = state.loading
     Column(Modifier.fillMaxSize()) {
         FilesHeader(destination.item.displayName, onBack, onDone)
         Text(destination.item.path, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = filesMuted, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         HorizontalDivider(color = filesPanel)
-        PullToRefreshBox(loading, { retry++ }, Modifier.weight(1f)) {
+        PullToRefreshBox(loading, controller::retry, Modifier.weight(1f)) {
             LazyVerticalGrid(GridCells.Fixed(1), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (listing?.entries.isNullOrEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-                    FilesMessage(if (loading) "Loading folder…" else if (failure != null) "Couldn't load folder" else "Empty folder", failure,
-                        if (failure != null) "Retry" else null) { retry++ }
+                    FilesMessage(if (loading) "Loading folder…" else failure?.title ?: "Empty folder", failure?.message,
+                        "Retry".takeIf { failure?.retry == true }, controller::retry)
                 }
                 items(listing?.entries.orEmpty(), key = { it.path }) { item ->
                     ArtifactGalleryRow(rpc, item, false, thumbnails, destination.authorization) { onOpen(item, listing!!.entries) }
+                }
+                if (!listing?.entries.isNullOrEmpty() && failure != null) item(span = { GridItemSpan(maxLineSpan) }) {
+                    FilesMessage(failure.title, failure.message, "Retry".takeIf { failure.retry }, controller::retry)
                 }
                 if (listing?.truncated == true) item(span = { GridItemSpan(maxLineSpan) }) { Text("This folder contains more items than the Mac returned.", color = filesMuted, fontSize = 12.sp) }
             }

@@ -15,11 +15,11 @@ internal data class ArtifactScanState(
     val scan: TerminalArtifactScan? = null, val loading: Boolean = false, val error: String? = null,
 )
 
-/** One Files sheet on one connection/terminal. All public mutations run on the owning UI dispatcher. */
+/** One Files sheet on one terminal. All public mutations run on the owning UI dispatcher. */
 internal class ArtifactGalleryStore(
     parent: CoroutineScope,
     val terminal: ArtifactAuthorization.Terminal,
-    private val rpc: ArtifactRpc,
+    private var rpc: ArtifactRpc,
     private val searchDebounceMillis: Long = 300,
 ) : AutoCloseable {
     private val owner = SupervisorJob(parent.coroutineContext[Job])
@@ -50,31 +50,48 @@ internal class ArtifactGalleryStore(
     private var liveRevision = 0L
     var isAtTopOrFits: Boolean = true
 
+    /** Keep readable rows and the selected session while abandoning work on the retired wire. */
+    fun connectionLost() {
+        if (!owner.isActive) return
+        scanRevision++; scanJob?.cancel(); scanJob = null; cancelLive()
+        if (scanState.value.loading) scanState.value = scanState.value.copy(loading = false, error = "Mac disconnected.")
+        for (slot in listOf(sessionSlot, searchSlot)) {
+            slot.cancel()
+            if (slot.state.value.loading || slot.state.value.loadingMore)
+                slot.state.value = slot.state.value.copy(loading = false, loadingMore = false, error = "Mac disconnected.")
+        }
+    }
+    fun replaceConnection(next: ArtifactRpc) {
+        if (!owner.isActive || rpc === next) return
+        connectionLost(); rpc = next
+    }
+
     fun initialize(): Job {
         check(owner.isActive) { "Files sheet has been closed." }
         sessionSlot.reset(); searchSlot.reset(); cancelLive(); resetPending()
         sessionIdentity.value = null; queryState.value = ""
         return scan(bindSession = true)
     }
-    fun refreshInView(): Job = scan(bindSession = false)
+    fun refreshInView(): Job = scan(bindSession = scanState.value.scan == null && sessionIdentity.value == null)
     private fun scan(bindSession: Boolean): Job {
         check(owner.isActive) { "Files sheet has been closed." }
         val revision = ++scanRevision
         scanJob?.cancel()
-        scanState.value = ArtifactScanState(loading = true)
+        scanState.value = scanState.value.copy(loading = true, error = null)
+        val requestRpc = rpc
         return scope.launch {
             try {
-                val result = rpc.scan(terminal)
+                val result = requestRpc.scan(terminal)
                 ensureActive()
                 if (revision != scanRevision) return@launch
                 scanState.value = ArtifactScanState(scan = result)
                 if (bindSession) {
-                    sessionIdentity.value = result.sessionId?.takeIf { rpc.capabilities.gallery }?.let(ArtifactAuthorization::Session)
+                    sessionIdentity.value = result.sessionId?.takeIf { requestRpc.capabilities.gallery }?.let(ArtifactAuthorization::Session)
                     if (sessionIdentity.value != null) refreshSession()?.join()
                 }
             } catch (failure: Exception) {
                 ensureActive()
-                if (revision == scanRevision) scanState.value = ArtifactScanState(error = failure.message ?: "Could not load files")
+                if (revision == scanRevision) scanState.value = scanState.value.copy(loading = false, error = failure.message ?: "Could not load files")
             }
         }.also { scanJob = it }
     }
@@ -99,10 +116,11 @@ internal class ArtifactGalleryStore(
         slot.cancel()
         val revision = slot.revision
         slot.state.value = ArtifactGalleryLoadState(loading = true)
+        val requestRpc = rpc
         return scope.launch {
             try {
                 if (debounce > 0) delay(debounce)
-                val page = rpc.gallery(authorization, query = query)
+                val page = requestRpc.gallery(authorization, query = query)
                 ensureActive()
                 if (current(slot, revision, authorization, query)) slot.state.value = ArtifactGalleryLoadState(snapshot = page.snapshot)
             } catch (failure: Exception) {
@@ -128,14 +146,15 @@ internal class ArtifactGalleryStore(
         slot.cancel()
         val revision = slot.revision
         slot.state.value = initialState.copy(loadingMore = true, error = null, capped = false)
+        val requestRpc = rpc
         return scope.launch {
             try {
-                val result = if (eager) loadRemainingArtifacts(initial) { rpc.gallery(authorization, it, query) }
-                else rpc.gallery(authorization, cursor, query).let { ArtifactPagingResult(initial.append(it), requiresPagingRestart = it.requiresPagingRestart) }
+                val result = if (eager) loadRemainingArtifacts(initial) { requestRpc.gallery(authorization, it, query) }
+                else requestRpc.gallery(authorization, cursor, query).let { ArtifactPagingResult(initial.append(it), requiresPagingRestart = it.requiresPagingRestart) }
                 ensureActive()
                 if (!current(slot, revision, authorization, query)) return@launch
                 if (result.requiresPagingRestart) {
-                    val fresh = rpc.gallery(authorization, query = query).snapshot
+                    val fresh = requestRpc.gallery(authorization, query = query).snapshot
                     ensureActive()
                     if (!current(slot, revision, authorization, query)) return@launch
                     val merged = when {
@@ -163,9 +182,10 @@ internal class ArtifactGalleryStore(
         cancelLive()
         val revision = liveRevision
         val slotRevision = sessionSlot.revision
+        val requestRpc = rpc
         return scope.launch {
             try {
-                val fresh = rpc.gallery(authorization).snapshot
+                val fresh = requestRpc.gallery(authorization).snapshot
                 ensureActive()
                 if (revision != liveRevision || !current(sessionSlot, slotRevision, authorization, null)) return@launch
                 // Paging may have completed since this request started; retain every already-loaded row.

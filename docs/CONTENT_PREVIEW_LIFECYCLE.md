@@ -1,5 +1,56 @@
 # Content preview lifecycle
 
+## Files and folder recovery batch — 2026-10-05
+
+Implemented on main after `f8ee24d`; this is a source milestone, not a new APK.
+Terminal Files now separates permission to retain local content from permission
+to make a request. Transient feed loss keeps the sheet, selected file, gallery
+rows/session/cursor and completed preview. A replacement connection must verify
+the same Mac and obtain its own workspace snapshot before the retained owner
+adopts it for future operations. Old RPC objects never switch connections.
+Rejected snapshots, account access changes, removed terminals and changed
+capabilities invalidate retention; equal-looking later snapshots cannot revive
+an invalidated admission.
+
+Completed previews retain both their local file and presentation identity, so
+connection adoption does not deliberately unmount the reader. Interrupted
+transfers become explicit retryable failures; reconnection alone does not fetch
+file bytes. Gallery paging/search jobs pin their RPC, cancel on loss and retain
+readable state. A failed In view refresh keeps the scan that admits the open
+preview. An interrupted initial scan can resolve its session when retried.
+Open folders now have retained controllers for both gallery and direct terminal
+routes, keeping listings across view recreation/reconnect and rejecting late
+responses. Folder and initial direct-path errors use the shared typed failure
+copy and retry policy. Direct-path metadata resolution may restart when the
+connection returns; an already selected byte preview waits for explicit Retry.
+
+Reference: scoped iOS commit `186cec79781256867ad4516f0802118738bd2393`,
+`WorkspaceDetailView+TerminalArtifacts`, `TerminalArtifactFilesSheet`,
+`ChatArtifactFolderView` and `ChatArtifactLoader`. The iOS sheet's initial task
+is keyed to terminal identity; its session selection persists independently of
+wire changes. Terminal loaders leave `sourceIdentity` nil, and the folder's
+load identity is path plus that source identity. Copies/hashes are under
+`captures/runtime/files-recovery-batch/ios-source/`. This does not advance the
+global parity pin or establish matched-screen/real-route parity.
+
+**Verification:** main Kotlin compiled and 27 focused JVM cases passed in the
+final 19-second Gradle run (10 preview-controller, 13 gallery, 2 folder-controller,
+2 coordinator cases). They check preserved content/identity/cursors, explicit
+retry, late-response rejection, terminal removal and irreversible revocation of
+an old admission. The first run had 24 passes and two new folder-test failures:
+the fixture supplied `path` instead of the wire contract's child `name`, so the
+parser correctly returned no entries. Corrected the fixture and retained the
+original failures. Logs, XML and source hashes are in
+`captures/runtime/files-recovery-batch/`.
+
+**Still pending:** real Compose route/rotation/reading-position evidence for this
+batch, direct-tap and long-text acceptance, account/network transitions on Pixel,
+folder back-stack scroll behavior and process death. No Android runtime suite,
+emulator or APK build ran for this batch, per the feature-first cadence. `adb`
+reported no devices. Signed build 606 remains the last verified download. Add
+this batch to the next integrated physical/Android acceptance pass; the JVM
+controller checks do not prove visible UI restoration.
+
 ## Explicit panel retry after connection replacement — 2026-10-05
 
 A failed panel now retains its error and exact selection through transient feed

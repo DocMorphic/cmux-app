@@ -25,6 +25,11 @@ and currently disabled; the upstream watcher remains configured.
 
 ## Current delivery and next actions
 
+- Latest source batch adds Files/gallery/direct-preview reconnect retention,
+  retained folder listings, and typed folder/direct-path failures. Main Kotlin
+  compiled and 27 focused JVM cases passed. Android/Pixel route, visible reading
+  state and rotation/reconnect acceptance for this batch remain pending; no APK
+  build or emulator run was performed. See `CONTENT_PREVIEW_LIFECYCLE.md`.
 - Build **606** at `b99d495` is the latest independently verified download. CI, local packaging,
   fifteen arm64 ART classes, signed-out 596 → 606 upgrade and reboot passed. [PIXEL_INSTALL.md](PIXEL_INSTALL.md) is authoritative for downloads.
 - Rejected-token recovery passed **109 focused JVM tests** and is now in build

@@ -11,7 +11,7 @@ internal data class ArtifactPreviewState(val identity: Any? = null, val artifact
 
 /** One selected file, owned by a presentation rather than its Android view. UI-dispatcher confined. */
 internal class ArtifactPreviewController(private val scope: CoroutineScope) : AutoCloseable {
-    private class Request(val rpc: ArtifactRpc, val authorization: ArtifactAuthorization, val path: String,
+    private class Request(var rpc: ArtifactRpc, val authorization: ArtifactAuthorization, val path: String,
         val root: File, val forceMarkdown: Boolean)
     private var request: Request? = null
     private var job: Job? = null
@@ -34,7 +34,21 @@ internal class ArtifactPreviewController(private val scope: CoroutineScope) : Au
 
     fun retry() { if (!closed) request?.let { start(Request(it.rpc, it.authorization, it.path, it.root, it.forceMarkdown)) } }
 
-    /** A panel's old admission cannot issue a retry while its replacement connection is unavailable. */
+    /** A retained Files owner has independently admitted this same terminal on a new connection.
+     * Keep completed local bytes and the error/selection; only a later open or explicit Retry uses it.
+     * Do not use for a different account, terminal, panel descriptor or authorization.
+     */
+    fun replaceConnection(rpc: ArtifactRpc) {
+        if (closed || !scope.isActive) return
+        val previous = request ?: return
+        if (previous.rpc === rpc) return
+        connectionLost()
+        // Preserve presentation identity as well as bytes: a transient empty state would unmount
+        // the viewer and lose its reading position. start() already pinned the transfer's RPC.
+        previous.rpc = rpc
+    }
+
+    /** Old admission cannot issue a retry while its replacement connection is unavailable. */
     fun retryUnavailable() {
         if (closed || !scope.isActive || mutable.value.error == null) return
         mutable.value = mutable.value.copy(error = "Mac disconnected.",
@@ -52,8 +66,9 @@ internal class ArtifactPreviewController(private val scope: CoroutineScope) : Au
     private fun start(next: Request) {
         job?.cancel()
         request = next; mutable.value = ArtifactPreviewState(next)
+        val rpc = next.rpc
         job = scope.launch {
-            val transfer = ArtifactContentTransfer(next.rpc, next.authorization)
+            val transfer = ArtifactContentTransfer(rpc, next.authorization)
             val files = ArtifactPreviewFiles(next.root, transfer)
             fun publish(change: (ArtifactPreviewState) -> ArtifactPreviewState) {
                 if (!closed && request === next) mutable.value = change(mutable.value)
