@@ -121,8 +121,12 @@ internal class FileExportController(private val scope: CoroutineScope, private v
         if (active !== value.identity || mutable.value.phase != FileExportPhase.PRESENTING) return
         active.handedOff = true
         // PRESENTING already prevents automatic replay if writing the final receipt fails.
-        store?.let { persist(active) { runCatching { it.handedOff(active.id) } } }
-        if (request === active) clear()
+        try { store?.let { persist(active) { runCatching { it.handedOff(active.id) } } } }
+        finally {
+            // Opening a chooser may stop the Activity and cancel its collector while
+            // the receipt is syncing. The completed handoff must still release busy UI.
+            if (request === active) clear()
+        }
     }
     fun presentationFailed(value: FileExportState, message: String) {
         if (request !== value.identity || mutable.value.phase != FileExportPhase.PRESENTING) return

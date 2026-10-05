@@ -27,8 +27,8 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 - Media previews now have seek/time controls, ±10-second skips, speed, mute and
   fullscreen with saved bookmarks/options and guarded player replacement. Four
-  control-policy tests passed; main and the new Android fixture compiled. Queue
-  the media, image and progressive-text device cases in one integration run.
+  control-policy tests passed; main and the new Android fixture compiled. Combined
+  viewer integration has run; see the dated results in `CONTENT_PREVIEW_LIFECYCLE.md`.
   Playback/audio, video layouts, interruptions, embedded tracks/PiP/routing,
   accessibility and physical acceptance remain open. Build 616 excludes this
   batch; see `CONTENT_PREVIEW_LIFECYCLE.md`.
@@ -36,8 +36,8 @@ and currently disabled; the upstream watcher is active on main with review issue
 - Native text/Markdown previews now stream readable prefixes with strict UTF-8,
   progress, EOF-gated Copy Contents, exact remote Copy path, Latest/End tail
   following and reading/selection retention. Thirty-three JVM checks passed and
-  main/instrumentation Kotlin compiled. The growing-document UI fixture is queued
-  with image gestures for the next Android milestone. Live routes, large-document
+  main/instrumentation Kotlin compiled. The growing-document Android UI fixture
+  now passes after correcting its disabled-action selector. Live routes, large-document
   performance, Markdown reflow and physical acceptance remain open. Build 616
   excludes this batch; see `CONTENT_PREVIEW_LIFECYCLE.md`.
 

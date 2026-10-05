@@ -50,6 +50,26 @@ class FileExportRecoveryTest {
         } finally { restored.close(); scope.coroutineContext[Job]!!.cancelAndJoin() }
     } }
 
+    @Test fun cancelledChooserCollectorClearsBusyAfterDurableHandoff() = runBlocking { fixture { root, store ->
+        var saved: String? = null
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val controller = FileExportController(scope, store) { saved = it }
+        try {
+            controller.begin("source", "report", FileExportAction.SHARE, { "error" }) { source(root) }
+            val pending = prepared(controller); val id = checkNotNull(saved)
+            val artifact = controller.claim(pending)!!
+            // Enter persistence, then cancel before its continuation can return to
+            // this dispatcher, just as repeatOnLifecycle stops for a chooser.
+            val collector = launch(start = CoroutineStart.UNDISPATCHED) { controller.handedOff(pending) }
+            collector.cancelAndJoin()
+            assertEquals(FileExportReceiptPhase.HANDED_OFF, store.read(id)?.phase)
+            assertFalse(controller.state.value.busy); assertNull(saved)
+            assertTrue(artifact.file.exists()); assertNull(controller.claim(pending))
+            assertTrue(controller.begin("next", "report", FileExportAction.OPEN, { "error" }) { source(root) })
+            prepared(controller)
+        } finally { controller.close(); scope.coroutineContext[Job]!!.cancelAndJoin() }
+    } }
+
     @Test fun ambiguousPresentationIsNotReplayedAndItsReceiverBytesAreRetained() = runBlocking { fixture { root, store ->
         val id = UUID.randomUUID().toString(); store.create(id, "report", FileExportAction.OPEN)
         val artifact = store.adopt(id, source(root)); store.presenting(id)

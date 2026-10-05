@@ -35,7 +35,13 @@ class ArtifactImageGesturesTest {
         } finally { bitmap.recycle() }
         val expected = source.readBytes()
         val output = File(context.getExternalFilesDir(null), "image-gestures").apply { mkdirs() }
-        fun find(selector: BySelector) = checkNotNull(device.wait(Until.findObject(selector), 15_000)) { "Missing $selector" }
+        fun find(selector: BySelector): UiObject2 {
+            return device.wait(Until.findObject(selector), 15_000) ?: run {
+                device.takeScreenshot(File(output, "failure.png"))
+                device.dumpWindowHierarchy(File(output, "failure.xml"))
+                error("Missing $selector")
+            }
+        }
         fun await(message: String, predicate: () -> Boolean) {
             val until = SystemClock.elapsedRealtime() + 15_000
             while (SystemClock.elapsedRealtime() < until) { if (predicate()) return; Thread.sleep(75) }
@@ -59,7 +65,7 @@ class ArtifactImageGesturesTest {
             device.click(x, bounds.centerY()); Thread.sleep(80); device.click(x, bounds.centerY())
         }
         fun menu() {
-            find(By.desc("Viewer actions").enabled(true))
+            find(By.clickable(true).enabled(true).hasDescendant(By.desc("Viewer actions")))
             find(image).longClick()
             find(By.text("Share")); find(By.text("Save")); find(By.text("Copy Image"))
             assertFalse(device.hasObject(By.text("Open")))
@@ -85,10 +91,12 @@ class ArtifactImageGesturesTest {
             doubleTap(.5f); colorAtCenter(Color.RED)
             menu(); device.takeScreenshot(File(output, "context-menu.png")); find(By.text("Share")).click()
             await("Share was not dispatched") { shares.get() == 1 }
-            find(By.desc("Viewer actions").enabled(true)); assertEquals(1, shares.get())
+            find(By.clickable(true).enabled(true).hasDescendant(By.desc("Viewer actions"))); assertEquals(1, shares.get())
+            device.takeScreenshot(File(output, "after-share.png"))
+            device.dumpWindowHierarchy(File(output, "after-share.xml"))
             menu(); find(By.text("Save")).click()
             await("Save was not dispatched") { saves.get() == 1 }
-            find(By.desc("Viewer actions").enabled(true)); assertEquals(1, saves.get())
+            find(By.clickable(true).enabled(true).hasDescendant(By.desc("Viewer actions"))); assertEquals(1, saves.get())
             menu(); find(By.text("Copy Image")).click()
             await("Copy Image did not publish its clipboard URI") {
                 var matches = false
@@ -97,7 +105,7 @@ class ArtifactImageGesturesTest {
                 }
                 matches
             }
-            find(By.desc("Viewer actions").enabled(true))
+            find(By.clickable(true).enabled(true).hasDescendant(By.desc("Viewer actions")))
             instrumentation.runOnMainSync {
                 val uri = context.getSystemService(ClipboardManager::class.java).primaryClip!!.getItemAt(0).uri!!
                 assertArrayEquals(expected, context.contentResolver.openInputStream(uri)!!.use { it.readBytes() })

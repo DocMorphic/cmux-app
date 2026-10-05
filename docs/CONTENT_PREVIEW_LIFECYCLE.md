@@ -1,5 +1,49 @@
 # Content preview lifecycle
 
+## Combined viewer integration — 2026-10-05
+
+The image, streaming-text and media batches were integrated at `8f631c6` on the
+existing arm64 Android 17/API 37 AVD with 16 KB pages. The first combined run
+completed **12 cases in 217.085 s: nine passed, three failed**. Existing media
+restoration, raw-text/Markdown state, Changes image/PDF retention, native text
+controls and Markdown viewport/renderer recovery passed. No crash or ANR was
+recorded in that run; screen settings were unchanged.
+
+The failures were retained and narrowed:
+
+- Copy Contents was correctly disabled during streaming, but its separate label
+  node remained enabled in Android accessibility. The test now checks the action
+  row. The follow-up passed prefix display, exact Unicode remote path copying,
+  selection/reading retention across growth and recreation, Latest/End following
+  and complete text copying.
+- The speed button exposes its description and visible value as sibling nodes
+  beneath the clickable control. Both initial selectors incorrectly required
+  them on one node or in a parent/child relationship. The test now selects their
+  common actionable ancestor and still checks the actual MediaPlayer speed.
+- Image Share completed and its durable receipt reached HANDED_OFF, but the
+  toolbar remained busy, preventing the next long-press menu. The receipt write
+  survives lifecycle cancellation; its caller previously skipped clearing busy
+  when returning to a cancelled Activity collector. Handoff cleanup now runs in
+  `finally`, guarded by the original request identity. A deterministic JVM test
+  cancels that collector during persistence and verifies retained receiver bytes,
+  no replay, cleared busy/saved ID, and acceptance of a subsequent action.
+  The UI test also checks the enabled action ancestor, not its label.
+
+The first focused follow-up ran three cases in 76.228 s: streaming passed;
+image reproduced the stuck busy state and media exposed the sibling-node layout.
+Fourteen export controller/recovery JVM tests pass after the cleanup fix; debug
+and instrumentation APKs build. The next focused Android run completed four
+cases in 87.183 s: image actions and both export-recovery cases passed; media
+reached fullscreen recreation but failed its playback assertion. This remaining
+case is being diagnosed with player-state capture and a longer clip; media
+acceptance remains open.
+
+Local evidence is retained under `captures/runtime/viewer-controls-integration/`,
+including initial/follow-up failures, XML hierarchies, APK receipts and logs.
+These are synthetic emulator workflows; real remote streaming, physical media,
+accessibility and Pixel/Mac acceptance remain open. Signed build 616 excludes
+these source changes.
+
 ## Media controls and fullscreen source batch — 2026-10-05
 
 The scoped `ChatArtifactMediaView.swift` at upstream

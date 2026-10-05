@@ -49,7 +49,12 @@ class ArtifactStreamingTextRuntimeTest {
                 return result
             }
             await("Prefix was not visible") { read { it.textView.text.toString() == prefix } }
-            menu(); assertFalse(find(By.text("Copy Contents")).isEnabled); find(By.text("Copy path")).click()
+            menu()
+            device.dumpWindowHierarchy(File(output, "prefix-menu.xml"))
+            // Compose exposes the label separately from its disabled action row.
+            val copyAction = By.clickable(true).hasDescendant(By.text("Copy Contents"))
+            assertFalse(find(copyAction).isEnabled)
+            find(By.text("Copy path")).click()
             instrumentation.runOnMainSync {
                 assertEquals(remote, context.getSystemService(ClipboardManager::class.java).primaryClip!!.getItemAt(0).text.toString())
             }
@@ -71,7 +76,7 @@ class ArtifactStreamingTextRuntimeTest {
             await("Completion did not follow the appended tail") { read {
                 it.textView.text.toString() == full && it.scrollY + it.height >= it.textView.height - 3
             } }
-            menu(); find(By.text("End")); assertTrue(find(By.text("Copy Contents")).isEnabled)
+            menu(); find(By.text("End")); assertTrue(find(copyAction).isEnabled)
             find(By.text("Copy Contents")).click()
             await("Complete contents were not copied") {
                 var copied = false
