@@ -826,3 +826,25 @@ main and instrumentation Kotlin compile passed (20 seconds final run). Cases
 cover sole/ambiguous directory entries, provisional native and raw identity,
 method selection, ticket build boundaries, saved/native reconnect keys, ownership,
 persistence and existing connection/runtime regressions.
+
+## Combined legacy/Details Android milestone (2026-10-06)
+
+At source `af1d085f12ca3a484dc432f91b4e3eb5088a3786`, one debug/test APK
+build passed in 74 seconds. **14/14 Android tests passed in 80.669 seconds** on the
+existing Android 17 / API37 / 16 KiB AVD. These include all five Computer Details
+cases and nine ticket/Keystore cases: the previously queued Tailscale-only Details
+check and legacy-build Keystore reload are now executed, alongside existing
+navigation, per-build private-address editing, connection-state display, external
+route reuse/revocation, ticket handling and directory persistence regressions.
+
+Seven screenshots were inspected. Text, diagnostics, route explanations and
+buttons were readable at font scale 1.0. The fake saved-route checker reports
+identity/account verification; its transport fields correctly say Not Reported.
+These captures verify fixture rendering, not pixel-identical iOS parity.
+
+No new crash/ANR events occurred during testing; the final crash buffer was empty.
+The existing AVD was stopped and reaped; no new virtual device was created. Pixel
+was absent at preflight. No physical Mac workflow, signed-in upgrade, production
+push or signed release acceptance is implied. The latest signed download remains
+616. Logs, command, APK/source hashes and screenshots are in local ignored
+`captures/runtime/legacy-details-milestone/`.

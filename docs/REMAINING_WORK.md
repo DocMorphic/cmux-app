@@ -25,6 +25,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Combined legacy/Details milestone at `af1d085`: one debug/test APK build (74 s),
+  **14/14 Android UI/Keystore tests passed in 80.669 s** on the existing API37 /
+  16 KiB AVD. Previously queued raw-only Details and legacy-build reload cases
+  are now executed, plus connection display, private-address, ticket and directory
+  regressions. Seven screenshots reviewed; no new runtime crash/ANR, final crash
+  buffer empty, sole emulator stopped/reaped. No Pixel/Mac or signed-release
+  acceptance. See `ATTACH_TICKETS.md`, `COMPUTER_DETAILS.md` and local
+  `captures/runtime/legacy-details-milestone/`. Next connection implementation:
+  learning a build through an old untagged raw Tailscale grant.
+
 - Sole-build directory enrichment now supplies provisional native routes for
   untagged native and raw saved Macs. Details/method selection and foreground
   reconnect use the exact scoped build; host authentication still supplies the
@@ -32,7 +42,7 @@ and currently disabled; the upstream watcher is active on main with review issue
   with an unchanged source. **104 focused JVM tests passed**; main/instrumentation
   Kotlin compile passed (20 s final run). An initial screen method-size failure
   was resolved by extracting the reconnect-key helper. No APK/AVD. The queued
-  Details and Keystore tests belong in the next combined connection milestone;
+  Details and Keystore tests passed in the combined milestone above;
   live old-raw-grant build adoption and Pixel/Mac recovery remain open. See
   `ATTACH_TICKETS.md` and `captures/runtime/legacy-directory-routes/`.
 
@@ -40,7 +50,7 @@ and currently disabled; the upstream watcher is active on main with review issue
   untagged computer's draft/notification/selection origins, keeps sibling builds
   separate and removes ticket credentials whose old build binding has changed.
   58 focused JVM tests and main/instrumentation Kotlin compilation passed (23 s).
-  The Keystore reload case is queued for the next Android milestone; no APK/AVD.
+  The Keystore reload case subsequently passed in the combined milestone above.
   Pre-tag directory route enrichment, raw Tailscale handshake/grant adoption,
   metadata reconciliation and physical acceptance remain. See `ATTACH_TICKETS.md`.
 
