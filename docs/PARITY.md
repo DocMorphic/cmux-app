@@ -12,6 +12,21 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Typed preview failures and retry (2026-10-05)
+
+Shared previews now retain typed failures and use the scoped iOS file/Markdown
+messages and Retry policy. Changed-file and temporary-transfer retries visibly
+load fresh content; missing/forbidden/invalid file requests avoid inappropriate
+Retry actions. Oversized files retain their size limit and fetch no content.
+31 JVM tests, seven Android panel checks (99.758 s) and nine Files regressions
+(86.445 s) passed on the same production APK. Eight new screenshots inspected,
+14 viewer assets verified, settings unchanged and no successful-run crashes/new
+ANRs; sole AVD stopped/reaped. See [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md)
+for the pre-test boot ANRs, corrected fixture setup, exact evidence and limits.
+Native errors outside RPC, retired-feed retry, local-storage/decoder coverage,
+rounded size-limit wording, live kind changes, process death and physical routes
+remain open. Signed 606 and the global parity pin are unchanged; the goal is active.
+
 ## Native panel connection recovery (2026-10-05)
 
 Completed native panels now retain their exact downloaded document during feed

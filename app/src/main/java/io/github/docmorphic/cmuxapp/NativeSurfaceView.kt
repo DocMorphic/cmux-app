@@ -76,7 +76,8 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
             key(workspace.id, surface.id, surface.kind, surface.title, path) {
                 val owner = panel?.preview
                 if (owner != null) ArtifactPreviewPage(owner.access.rpc, owner.target.authorization, path,
-                    forceMarkdown = surface.kind == "markdown", retained = owner.preview)
+                    forceMarkdown = surface.kind == "markdown", retained = owner.preview,
+                    connection = if (ready) NativeFeedAvailability.CONNECTED else NativeFeedAvailability.CONNECTING)
                 else FilesMessage(panel?.title ?: "Connecting to panel…", panel?.detail ?: "Waiting for this Mac's file connection.")
             }
         } else key(workspace.id, surface.id, client) {

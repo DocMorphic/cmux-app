@@ -1,5 +1,55 @@
 # Content preview lifecycle
 
+## Typed preview failures and explicit retry — 2026-10-05
+
+The shared file preview controller now retains a structured failure alongside its
+diagnostic string. File previews use specific messages for request, authorization,
+file, transfer and response failures, with retry offered only where the scoped
+iOS reference permits it. Markdown panels apply their separate iOS vocabulary:
+missing file, forbidden preview, closed panel, Mac update required, unreachable
+Mac, temporary transfer failure and generic load failure. Unknown/malformed host
+failures do not claim that the Mac is unreachable or display raw host messages.
+
+Metadata failures, oversized files, changed transfer sizes and invalid chunk
+content retain typed reasons. Oversized previews retain actual/limit byte counts
+and use Android's localized file-size formatting. No content request or private
+file is created for an oversized preview. Legacy not_found errors retain the
+terminal/session authorization distinction. The failure object contains no
+Throwable, view or full host error payload.
+
+Reference: `MobileChatArtifactFailureClassifier.swift`,
+`ChatArtifactFailurePresentation.swift`, `MarkdownSurfaceModel.swift` and
+`MarkdownSurfaceView.swift` at `186cec79781256867ad4516f0802118738bd2393`.
+Source hashes and execution evidence are under `captures/runtime/panel-failures/`;
+this scoped comparison does not advance the global parity pin.
+
+**31 focused JVM tests passed. Seven Android panel tests passed in 99.758 s**,
+including failure retention through recreation, distinct file/Markdown messages,
+non-retryable errors, successful explicit retry and oversized-file rejection
+without fetching bytes. **Nine Files regressions passed in 86.445 s** on the same
+production APK. The latter ran before a test-only fixture correction. Source and
+APK hashes match the receipts. Eight new failure/recovery screenshots were
+inspected; nine repeated lifecycle screenshots were captured but not reinspected
+in this batch. The Files regression class produces no screenshots. All 14 viewer
+assets verified. Both successful runs have unchanged screen/sleep settings,
+no app crash entries and no new ANRs; the sole AVD is stopped/reaped. No Pixel
+was attached. Signed 606 remains the verified download.
+
+Two cold boots encountered System UI ANRs before instrumentation; those logs and
+screenshots are preserved. The first seven-test run passed six checks but failed
+the file-specific case because the fixture changed panel kind after launch,
+racing the initial workspace list. Configuring kind before launch fixed that
+test setup; all seven then passed. This does not verify live panel-kind changes.
+The size-limit screenshot also exposes rounded sizes that can appear equal when
+the file exceeds the limit by one byte; clarify that presentation in follow-up.
+
+**Remaining:** native transport/authorization errors raised outside the RPC error
+contract, complete local-storage/decoder failure classification, route recovery
+and manual retry after the original feed owner has been retired, process death,
+live panel-kind changes, icons/layout/accessibility and physical Pixel/Mac acceptance. Completed-document
+connection-loss retention is covered by the preceding source checkpoint below;
+that does not prove every iOS failure/retry workflow.
+
 ## Native panel connection recovery — 2026-10-05
 
 Completed native file/Markdown panels now keep their downloaded content and

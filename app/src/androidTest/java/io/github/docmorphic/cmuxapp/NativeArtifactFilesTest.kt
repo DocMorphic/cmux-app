@@ -196,7 +196,7 @@ class NativeArtifactFilesTest {
         show(); waitDescription("Open file /visible.txt")
         compose.onNodeWithText("Session").assertDoesNotExist()
         compose.onNodeWithContentDescription("Open file /visible.txt").performClick()
-        waitText("Couldn't load preview"); compose.onNodeWithText("Retry").performClick(); waitText(text)
+        waitText("Invalid file response"); compose.onNodeWithText("Retry").performClick(); waitText(text)
         compose.onNodeWithText("Done").performClick()
         compose.waitUntil(5_000) { !visible }
         assertTrue(peer.requests.filter { it.getString("method").endsWith(".fetch") }.all {

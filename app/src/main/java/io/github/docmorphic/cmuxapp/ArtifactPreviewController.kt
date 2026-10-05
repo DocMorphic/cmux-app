@@ -6,7 +6,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal data class ArtifactPreviewState(val identity: Any? = null, val artifact: LocalFilePreview? = null,
-    val total: Long? = null, val received: Long = 0, val error: String? = null)
+    val total: Long? = null, val received: Long = 0, val error: String? = null,
+    val failure: ArtifactPreviewFailure? = null)
 
 /** One selected file, owned by a presentation rather than its Android view. UI-dispatcher confined. */
 internal class ArtifactPreviewController(private val scope: CoroutineScope) : AutoCloseable {
@@ -56,7 +57,7 @@ internal class ArtifactPreviewController(private val scope: CoroutineScope) : Au
                 awaitCancellation()
             } catch (failure: Exception) {
                 currentCoroutineContext().ensureActive()
-                publish { it.copy(error = failure.message ?: "Could not load preview") }
+                publish { it.copy(error = failure.message ?: "Could not load preview", failure = ArtifactPreviewFailure.from(failure, next.authorization)) }
                 awaitCancellation()
             } finally { withContext(NonCancellable + Dispatchers.IO) { files.close() } }
         }

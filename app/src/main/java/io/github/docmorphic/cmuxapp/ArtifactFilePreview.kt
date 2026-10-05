@@ -37,7 +37,8 @@ internal fun ArtifactFilePreview(rpc: ArtifactRpc, selection: ArtifactDestinatio
 }
 @Composable
 internal fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthorization, path: String, forceMarkdown: Boolean = false,
-    retained: ArtifactPreviewController? = null, active: Boolean = true) {
+    retained: ArtifactPreviewController? = null, active: Boolean = true,
+    connection: NativeFeedAvailability = NativeFeedAvailability.CONNECTED) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val controller = retained ?: remember { ArtifactPreviewController(scope) }
@@ -51,7 +52,13 @@ internal fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthor
     Column(Modifier.fillMaxSize().semantics { contentDescription = "File preview $path" }) {
         if (state.artifact == null) FilePreviewActions(null)
         when {
-            state.error != null -> FilesMessage("Couldn't load preview", state.error, "Retry", controller::retry)
+            state.error != null -> {
+                val failure = (state.failure ?: ArtifactPreviewFailure(ArtifactPreviewFailure.Kind.LOAD_FAILED))
+                    .presentation(authorization, forceMarkdown && authorization is ArtifactAuthorization.Panel, connection) {
+                        android.text.format.Formatter.formatShortFileSize(context, it)
+                    }
+                FilesMessage(failure.title, failure.message, "Retry".takeIf { failure.retry }, controller::retry)
+            }
             state.artifact != null -> key(state.artifact!!.file.absolutePath) { FilePreviewContent(state.artifact!!) }
             else -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 if ((state.total ?: 0) > 0) LinearProgressIndicator(progress = { (state.received.toFloat() / state.total!!).coerceIn(0f, 1f) })

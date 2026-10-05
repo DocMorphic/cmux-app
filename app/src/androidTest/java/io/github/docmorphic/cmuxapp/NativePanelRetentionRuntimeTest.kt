@@ -52,7 +52,7 @@ class NativePanelRetentionRuntimeTest {
     private fun ActivityScenario<NativeLifecycleTestActivity>.session() = read { ViewModelProvider(it)[NativeFeedSession::class.java] }
     private fun ActivityScenario<NativeLifecycleTestActivity>.panel() = read { ViewModelProvider(it)[NativeFeedSession::class.java].panelPreview }
     private fun action(name: String) { find(By.desc("Viewer actions").enabled(true)).click(); find(By.text(name)).click() }
-    private fun fixture(body: (NativeFixturePeer, ActivityScenario<NativeLifecycleTestActivity>) -> Unit) {
+    private fun fixture(kind: String = "markdown", body: (NativeFixturePeer, ActivityScenario<NativeLifecycleTestActivity>) -> Unit) {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
         val credentials = NativeCredentialStore(context)
         NativeFixturePeer().use { peer -> try {
@@ -62,6 +62,8 @@ class NativePanelRetentionRuntimeTest {
             peer.customWorkspaceListing = JSONObject("""{"workspaces":[{"id":"panels","title":"Panel workspace","terminals":[],"surfaces":[
                 {"surface_id":"markdown","kind":"markdown","title":"Markdown panel","file_path":"/fixture/extensionless","is_focused":true}
             ]}]}""")
+            peer.customWorkspaceListing!!.getJSONArray("workspaces").getJSONObject(0)
+                .getJSONArray("surfaces").getJSONObject(0).put("kind", kind)
             NativeLifecycleTestActivity.connector = NativeConnector { _, _ ->
                 reconnectGate?.await()
                 MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture" }).also { it.connect() }
@@ -81,6 +83,68 @@ class NativePanelRetentionRuntimeTest {
         }
     }
     private fun fetches(peer: NativeFixturePeer) = peer.requests.count { it.optString("method") == "mobile.panel.artifact.fetch" }
+
+    private fun refreshPanel(peer: NativeFixturePeer, scenario: ActivityScenario<NativeLifecycleTestActivity>, title: String) {
+        peer.customWorkspaceListing = JSONObject(peer.customWorkspaceListing!!.toString()).also {
+            it.getJSONArray("workspaces").getJSONObject(0).getJSONArray("surfaces").getJSONObject(0).put("title", title)
+        }
+        val coordinator = scenario.session().coordinator
+        val mac = scenario.read { coordinator.sources.value.values.single().mac }
+        runBlocking { withTimeout(15_000) { withContext(Dispatchers.Main) { coordinator.refreshWorkspaceLists(listOf(mac)) } } }
+        peer.pushTerminalEvent("workspace.list.changed", JSONObject())
+        await("Refreshed panel was not selected") { scenario.panel()?.target?.title == title }
+    }
+
+    @Test fun markdownPanelFailuresKeepTheirMeaningAcrossRecreationAndRetry() = fixture { peer, scenario ->
+        response(peer, "# Retry recovered\n\nFresh bytes after an explicit retry.")
+        peer.rejectedMethods = setOf("mobile.panel.artifact.stat"); peer.rejectedMethodCode = "file_not_found"
+        find(By.text("Panel workspace")).click(); find(By.text("File not found"))
+        assertFalse(device.hasObject(By.text("Retry"))); val owner = checkNotNull(scenario.panel())
+        val requests = peer.requests.count { it.optString("method") == "mobile.panel.artifact.stat" }
+        scenario.recreate(); find(By.text("File not found")); assertSame(owner, scenario.panel())
+        assertEquals(requests, peer.requests.count { it.optString("method") == "mobile.panel.artifact.stat" })
+        screenshot("failure-missing-recreated")
+        for ((code, title) in listOf("forbidden" to "Preview unavailable", "workspace_not_found" to "Panel closed",
+            "method_not_found" to "Update cmux on your Mac")) {
+            peer.rejectedMethodCode = code; refreshPanel(peer, scenario, code)
+            find(By.text(title)); assertFalse(device.hasObject(By.text("Retry")))
+        }
+        screenshot("failure-update-mac")
+        peer.rejectedMethodCode = "unavailable"; refreshPanel(peer, scenario, "Retry this panel")
+        find(By.text("Transfer unavailable")); find(By.text("Retry")); screenshot("failure-transfer-retry")
+        val retryOwner = checkNotNull(scenario.panel()); peer.rejectedMethods = emptySet()
+        find(By.text("Retry")).click()
+        await("Manual retry did not render the file") { js(scenario, "document.querySelector('#content h1')?.textContent === 'Retry recovered'") == "true" }
+        assertSame(retryOwner, scenario.panel()); assertEquals(1, fetches(peer)); painted(scenario, "failure-retry-recovered")
+    }
+
+    @Test fun filePanelFailuresKeepFileSpecificRemediation() = fixture(kind = "filePreview") { peer, scenario ->
+        response(peer, "File panel recovered.")
+        peer.rejectedMethods = setOf("mobile.panel.artifact.stat"); peer.rejectedMethodCode = "permission_denied"
+        find(By.text("Panel workspace")).click(); find(By.text("Permission denied")); assertFalse(device.hasObject(By.text("Retry")))
+        screenshot("failure-file-permission")
+        peer.rejectedMethodCode = "invalid_params"; refreshPanel(peer, scenario, "Invalid request")
+        find(By.text("Invalid file request")); assertFalse(device.hasObject(By.text("Retry")))
+        peer.rejectedMethodCode = "file_changed"; refreshPanel(peer, scenario, "File changed")
+        find(By.text("File changed")); find(By.text("Retry")); screenshot("failure-file-changed")
+        peer.rejectedMethods = emptySet(); find(By.text("Retry")).click()
+        await("File retry did not show the recovered text") {
+            scenario.read { it.window.decorView.textPreview()?.textView?.text?.toString() == "File panel recovered." }
+        }
+        assertEquals(1, fetches(peer)); screenshot("failure-file-recovered")
+    }
+
+    @Test fun oversizedPanelShowsSizeLimitWithoutFetchingOrRetry() = fixture { peer, scenario ->
+        peer.artifactResponse = { method, _ ->
+            check(method.endsWith("stat")) { "An oversized file must not be downloaded" }
+            JSONObject().put("exists", true).put("is_directory", false).put("kind", "text")
+                .put("size", ChangesContentTransfer.PREVIEW_BYTES + 1)
+        }
+        find(By.text("Panel workspace")).click(); find(By.text("File too large to preview"))
+        find(By.textContains("previews are limited to")); assertFalse(device.hasObject(By.text("Retry")))
+        assertEquals(0, fetches(peer)); assertNull(scenario.panel()?.preview?.state?.value?.artifact)
+        screenshot("failure-size-limit")
+    }
 
     private fun View.webPreview(): android.webkit.WebView? = when (this) {
         is android.webkit.WebView -> this
