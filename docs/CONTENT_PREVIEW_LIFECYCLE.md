@@ -1,5 +1,39 @@
 # Content preview lifecycle
 
+## Audio and subtitle selection source batch — 2026-10-05
+
+The scoped iOS media reference delegates track controls to AVPlayerViewController.
+Android now exposes alternate audio and embedded subtitle/timed-text tracks with
+language labels, distinct names for duplicate languages, and subtitle Auto/Off.
+Explicit choices survive preview recreation and fullscreen transitions in saved
+state. Audio changes reprepare the same local artifact, retaining the bookmark,
+playback intent and focus lease: Android guarantees audio-track selection only
+in the prepared state. Auto captions consider the system caption preference,
+language and forced/default metadata; this policy still needs runtime comparison.
+
+Native subtitle rendering remains with VideoView. Timed-text cues use an overlay
+that follows system caption font scale. Selection confirmations are bounded and
+guarded against retired players and superseded choices; a late native selection
+is reconciled with the newest choice. Failures are shown independently of normal
+playback-control errors. Full cue styling/positioning and accessibility remain open.
+
+References: [Apple media selection](https://developer.apple.com/documentation/avfoundation/selecting-subtitles-and-alternative-audio-tracks?language=objc)
+and [Android track selection](https://developer.android.com/reference/android/media/MediaPlayer#selectTrack(int)).
+Verification for this source batch: six focused JVM tests cover malformed/unknown
+languages, ISO language matching, explicit/Off/Auto choices, forced subtitles,
+missing tracks and duplicate labels. Main and instrumentation Kotlin compile.
+No APK or device run is claimed. Next combined media milestone must verify actual
+multi-track audio, visible subtitle cues/Off, rapid selection changes, preserved
+bookmark/playback intent and recreation, together with the audio-focus cases.
+Local evidence: `captures/runtime/media-tracks-batch/`.
+
+The earlier signed milestone run
+[37364121139](https://github.com/DocMorphic/cmux-app/actions/runs/37364121139)
+at `19698a4` failed before any build step: GitHub reported that the job could not
+be acquired by a hosted runner after multiple attempts. No APK was produced.
+Signed 616 remains the last verified signed artifact. Retry belongs to the next
+combined build milestone; automatic previews remain disabled.
+
 ## Audio interruptions source batch — 2026-10-05
 
 The scoped upstream `ChatArtifactMediaView.swift` at

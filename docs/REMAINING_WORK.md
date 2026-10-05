@@ -25,6 +25,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Alternate audio and embedded subtitle selection is implemented, with saved
+  choices, subtitle Auto/Off and timed-text cues. Six selection-policy JVM tests
+  passed and main/instrumentation Kotlin compile. Actual multi-track playback,
+  rendered cues, rapid changes, saved playback position and recreation are queued
+  with audio-focus checks for the next combined media milestone. Full styling,
+  routing/PiP and physical acceptance remain open; see `CONTENT_PREVIEW_LIFECYCLE.md`.
+
 - Media audio-focus ownership and output-disconnect handling are implemented.
   Paused previews leave other audio alone; transient focus recovery respects
   playback intent and user Pause, and speed changes defer until focus is granted.
@@ -32,7 +39,9 @@ and currently disabled; the upstream watcher is active on main with review issue
   focus fixture and existing media lifecycle cases are queued for the next combined
   device milestone. Actual headset/Bluetooth/call/audible-output acceptance and
   media-session/remote controls remain open. See `CONTENT_PREVIEW_LIFECYCLE.md`.
-  The queued signed build at `19698a4` excludes this newer source batch.
+  The signed build at `19698a4` excluded this newer source batch and failed before
+  building because GitHub could not acquire a hosted runner (run 37364121139).
+  No new APK was produced; retry is deferred to the next combined milestone.
 
 - Media previews now have seek/time controls, ±10-second skips, speed, mute and
   fullscreen with saved bookmarks/options and guarded player replacement. Four

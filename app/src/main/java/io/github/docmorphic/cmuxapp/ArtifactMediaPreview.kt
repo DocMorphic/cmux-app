@@ -14,6 +14,7 @@ import android.media.MediaPlayer
 import android.media.PlaybackParams
 import android.widget.VideoView
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
@@ -27,6 +28,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
@@ -55,9 +58,17 @@ internal class ArtifactMediaState {
     var muted by mutableStateOf(false)
     var fullscreen by mutableStateOf(false)
     var controlFailure by mutableStateOf<String?>(null)
+    var trackFailure by mutableStateOf<String?>(null)
     var playRequested by mutableStateOf(false)
     var prepared by mutableStateOf(false)
     var failure by mutableStateOf<String?>(null)
+    var tracks by mutableStateOf<List<ArtifactMediaTrack>>(emptyList())
+    var audioPreference by mutableStateOf(ArtifactMediaTracks.AUTO)
+    var captionPreference by mutableStateOf(ArtifactMediaTracks.AUTO)
+    var selectedAudio by mutableIntStateOf(-1)
+    var selectedCaption by mutableIntStateOf(-1)
+    var captionText by mutableStateOf<String?>(null)
+    var captionScale by mutableFloatStateOf(1f)
     var foreground = false
     var view: ArtifactMediaView? = null
     fun capture() { view?.capturePosition() }
@@ -67,11 +78,13 @@ internal class ArtifactMediaState {
             // Configuration recreation may continue playback. Saved process/task
             // restoration must require a new Play gesture, like returning from Home.
             listOf(it.position, it.playRequested && context.previewActivity()?.isChangingConfigurations == true,
-                it.speed, it.muted, it.fullscreen)
+                it.speed, it.muted, it.fullscreen, it.audioPreference, it.captionPreference)
         }, restore = { ArtifactMediaState().apply {
             position = (it[0] as Int).coerceAtLeast(0); playRequested = it[1] as Boolean
             speed = ArtifactMediaControls.speed(it.getOrNull(2) as? Float ?: 1f)
             muted = it.getOrNull(3) as? Boolean ?: false; fullscreen = it.getOrNull(4) as? Boolean ?: false
+            audioPreference = it.getOrNull(5) as? String ?: ArtifactMediaTracks.AUTO
+            captionPreference = it.getOrNull(6) as? String ?: ArtifactMediaTracks.AUTO
         } })
     }
 }
@@ -81,6 +94,8 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
     private var released = false
     private var player: MediaPlayer? = null
     private var appliedSpeed = 1f
+    private var sourceFile: File? = null
+    private var trackController: ArtifactMediaTrackController? = null
     private val audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build()
     private val focus = ArtifactAudioFocusOwner(ArtifactAndroidAudioFocus(context, audioAttributes), ::focusChanged)
@@ -102,6 +117,9 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
                 seeking = false
                 state.prepared = true
                 state.duration = duration.coerceAtLeast(0)
+                trackController?.close()
+                trackController = ArtifactMediaTrackController(context, player, state) { !released && state.view === this && this.player === player }
+                    .also { it.prepare() }
                 applyVolume()
                 player.setOnSeekCompleteListener {
                     if (!released && state.view === this && this.player === player) { seeking = false; capturePosition(); startIfRequested() }
@@ -109,6 +127,10 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
                 if (state.position > 0) seekTo(state.position.coerceAtMost(duration.coerceAtLeast(0)))
                 else startIfRequested()
             }
+        }
+        setOnInfoListener { _, what, _ ->
+            if (!released && state.view === this && what == MediaPlayer.MEDIA_INFO_METADATA_UPDATE) trackController?.refresh()
+            false
         }
         setOnCompletionListener { if (!released && state.view === this) {
             state.position = duration.coerceAtLeast(0); state.playRequested = false; abandonAudio()
@@ -120,13 +142,27 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
             true
         }
     }
-    fun open(file: File) {
+    fun open(file: File, retainFocus: Boolean = false) {
         if (released) return
-        abandonAudio()
+        sourceFile = file
+        trackController?.close(); trackController = null
+        if (!retainFocus) abandonAudio()
         player?.setOnSeekCompleteListener(null); player = null
         seeking = false; state.prepared = false; state.failure = null; state.controlFailure = null
         setVideoURI(Uri.fromFile(file))
     }
+    fun selectAudio(preference: String) {
+        if (released || !state.prepared || (preference != ArtifactMediaTracks.AUTO &&
+                state.tracks.none { it.kind == ArtifactTrackKind.AUDIO && it.key == preference })) return
+        val file = sourceFile ?: return
+        if (state.audioPreference == preference) return
+        capturePosition()
+        state.audioPreference = preference
+        // Audio selection is only guaranteed in Prepared. Keep the focus lease,
+        // including a transient suspension, while replacing this file's player.
+        open(file, retainFocus = true)
+    }
+    fun selectCaption(preference: String) { trackController?.selectCaption(preference) }
     fun capturePosition() {
         if (!released && state.view === this && state.prepared && !seeking) state.position = currentPosition.coerceAtLeast(0)
     }
@@ -226,9 +262,10 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
     fun release() {
         if (released) return
         capturePosition(); released = true
+        trackController?.close(); trackController = null
         abandonAudio(); focus.close()
         player?.setOnSeekCompleteListener(null); player = null
-        setOnPreparedListener(null); setOnCompletionListener(null); setOnErrorListener(null)
+        setOnPreparedListener(null); setOnCompletionListener(null); setOnErrorListener(null); setOnInfoListener(null)
         stopPlayback()
         if (state.view === this) { state.prepared = false; state.view = null }
     }
@@ -301,11 +338,17 @@ private fun ArtifactMediaContent(file: File, state: ArtifactMediaState, modifier
             ChangesNotice("Preview unavailable", failure) { state.view?.open(file) }
         }
         state.controlFailure?.let { Text(it, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.error) }
+        state.trackFailure?.let { Text(it, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.error) }
         Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             AndroidView(factory = { ArtifactMediaView(it, state).apply { open(file) } },
                 modifier = Modifier.fillMaxSize().semantics { contentDescription = "Media preview ${file.name}" },
                 onRelease = { it.release() })
             if (!state.prepared && state.failure == null) CircularProgressIndicator()
+            state.captionText?.takeIf { it.isNotBlank() }?.let { cue ->
+                Text(cue, Modifier.align(Alignment.BottomCenter).padding(16.dp)
+                    .background(Color.Black.copy(alpha = .8f)).padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = Color.White, fontSize = (20f * state.captionScale).sp, textAlign = TextAlign.Center)
+            }
         }
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             Slider(value = shownPosition.toFloat().coerceIn(0f, state.duration.coerceAtLeast(1).toFloat()),
@@ -335,6 +378,7 @@ private fun ArtifactMediaContent(file: File, state: ArtifactMediaState, modifier
                 onClick = { state.view?.seekTo(ArtifactMediaControls.seek(state.position, 10_000, state.duration)) }) { Text("+10s") }
             TextButton(enabled = state.prepared, onClick = { state.view?.pause(); state.view?.seekTo(0) }) { Text("Restart") }
         }
+        ArtifactMediaTrackMenus(state)
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             Box {
                 TextButton(enabled = state.prepared, onClick = { speedMenu = true },
