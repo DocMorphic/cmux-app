@@ -279,12 +279,18 @@ internal class NativeIrohRuntime(
 
     /** Only the saved-record boundary may replace a stale endpoint with this team's
      * current directory identity. Fresh codes continue to name an exact endpoint. */
-    suspend fun connectSaved(pairing: PairingCode.Iroh, target: NativeComputerTarget,
+    suspend fun connectSaved(pairing: PairingCode.Iroh, target: NativeComputerTarget?,
                              team: NativeTeamScope): MobileRpcClient = try {
-        require(pairing.macDeviceId == null || canonicalMacDeviceId(pairing.macDeviceId) == canonicalMacDeviceId(target.deviceId)) { "Mac identity changed" }
-        require(pairing.buildTag == null || pairing.buildTag == target.buildTag) { "Mac build changed" }
+        if (target != null) {
+            require(pairing.macDeviceId == null || canonicalMacDeviceId(pairing.macDeviceId) == canonicalMacDeviceId(target.deviceId)) { "Mac identity changed" }
+            require(pairing.buildTag == null || pairing.buildTag == target.buildTag) { "Mac build changed" }
+        } else {
+            // Pre-tag saved rows may reconnect to their literal endpoint, then
+            // learn the authenticated build. They cannot select a replacement peer.
+            require(!pairing.macDeviceId.isNullOrBlank() && pairing.buildTag == null) { "Saved Mac identity is incomplete. Pair this Mac again." }
+        }
         check(isCurrent(team)) { "Account session changed" }
-        connectCurrent(pairing.copy(macDeviceId = target.deviceId, buildTag = target.buildTag),
+        connectCurrent(pairing.copy(macDeviceId = target?.deviceId ?: pairing.macDeviceId, buildTag = target?.buildTag ?: pairing.buildTag),
             savedTarget = target, savedTeam = team)
     } catch (failure: CancellationException) {
         currentCoroutineContext().ensureActive()

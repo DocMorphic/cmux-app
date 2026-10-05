@@ -25,14 +25,21 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Follow-up reconnect review restores the historical saved-row path when no build
+  tag is recorded: exact endpoint plus verified device/account only, without peer
+  replacement. The source audit also resolves the Direct port question: iOS's
+  current editor and v2 transport require a port, matching Android. Focused JVM
+  checks and Kotlin compilation cover the correction; physical legacy upgrade
+  and authenticated row enrichment remain open. See `DIRECT_CONNECTION.md`.
+
 - Saved native connections can now follow a changed Iroh endpoint using their
   verified device/build within the current account/team directory. Fresh links
   still require their exact endpoint. Reconnect keys track the saved identity,
   old wires retire and Direct/Tailscale preferences remain in force. Focused
   runtime-policy tests and Kotlin compilation cover this batch; physical peer
-  rotation and saved-ticket acceptance remain open. Source comparison also found
-  iOS Direct entries allow an omitted port; review Android's required-port editor
-  and native candidate representation next. See `DIRECT_CONNECTION.md`.
+  rotation and saved-ticket acceptance remain open. The optional field in iOS's
+  shared Direct model does not mean its editor or v2 transport accepts a missing
+  port; the follow-up above resolves that question. See `DIRECT_CONNECTION.md`.
 
 - Pairing now preserves the in-app versus external-link boundary from the iOS
   source. External Tailscale links cannot create authorization; mixed external

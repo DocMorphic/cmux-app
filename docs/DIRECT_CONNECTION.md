@@ -2,6 +2,37 @@
 
 Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 
+## Direct port audit and legacy reconnect correction (2026-10-05)
+
+The previous optional-port finding came from the shared candidate model, not the
+current editor/dial path. Further source inspection at
+`186cec79781256867ad4516f0802118738bd2393` resolves it:
+
+- `MacComputerDetailView.parseDirectAddress` uses `CmxIrohLocalSocketAddress`,
+  which requires an explicit UDP port. Its Add/Edit alert says a port is required.
+- `MobileIrxRuntimeComposition+Dial` filters out candidates whose optional port is
+  missing or zero and fails Direct when no valid candidate remains. It does not
+  discover or invent a port.
+- `CmxIrohDirectDialCandidate` explicitly documents that v2 rejects missing ports.
+
+Android's required-port editor and socket-address representation match this scoped
+behavior; no optional-port change is needed. This corrects the inference in the
+previous checkpoint, without claiming a full Direct UI/runtime audit.
+
+Follow-up review also found that the saved-peer refresh change rejected historical
+saved native rows whose authenticated build tag has not yet been recorded.
+The saved connector now retains their verified device ID and captured account,
+and lets them reconnect only to their literal endpoint. The live directory's
+device and supported build are still checked, followed by the existing host
+admission. Only a complete saved device/build target can select a replacement
+endpoint. A missing device, conflicting identity, retired account, unsupported
+live build, or changed endpoint in this legacy path fails before dialing.
+
+**35 focused JVM tests passed** (27 native runtime and eight Direct settings),
+including the new legacy paths; main and instrumentation Kotlin compile. Physical upgrade,
+legacy-row enrichment and reconnect acceptance remain open. Evidence:
+`captures/runtime/legacy-saved-peer/`, including exact upstream source hashes.
+
 ## Saved native peer refresh (2026-10-05)
 
 The scoped iOS `MobileShellComposite+ReconnectRoutes.swift` and
@@ -39,8 +70,8 @@ that revocation prevents workspace requests and connection publication.
 Evidence: `captures/runtime/saved-peer-refresh/`, including failed and final checks
 and upstream source hashes. No APK or device run is claimed. Physical endpoint
 rotation, saved ticket workflow, network transitions and UI acceptance remain
-open. The source also exposes optional ports on Direct address entries; the
-Android editor currently requires a port, so that compatibility needs review.
+open. The initially noted optional-port question is resolved in the correction
+above: the current iOS editor and v2 transport require an explicit port too.
 This scoped change does not close the full route-policy audit.
 
 ## Optional remote relay hint (2026-10-05)

@@ -178,6 +178,35 @@ class NativeIrohRuntimeTest {
             .connectionKey(legacy, NativeComputerTarget.from(mac)))
     }
 
+    @Test fun legacySavedRowWithoutBuildTagCanUseOnlyItsExactPeerAndDevice() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        val legacy = pairing().copy(buildTag = null)
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 },
+            audience = NativeMacBuildAudience.consumer).use { runtime ->
+            runtime.connectSaved(legacy, null, team).use { assertFalse(it.isClosed) }
+            assertEquals(listOf(mac), backend.dialedComputers)
+            backend.state.value = ready().copy(computers = listOf(mac.copy(endpointId = "cd".repeat(32))))
+            assertTrue(runCatching { runtime.connectSaved(legacy, null, team) }.isFailure)
+            backend.state.value = ready().copy(computers = listOf(mac.copy(deviceId = "different-device")))
+            assertTrue(runCatching { runtime.connectSaved(legacy, null, team) }.isFailure)
+            backend.state.value = ready().copy(computers = listOf(mac.copy(buildTag = "dev")))
+            assertTrue(runCatching { runtime.connectSaved(legacy, null, team) }.exceptionOrNull() is MacBuildNotSupported)
+            assertEquals(1, backend.dialedComputers.size)
+        }
+    }
+
+    @Test fun legacySavedRowCannotOmitItsVerifiedDeviceOrCapturedAccount() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            val legacy = pairing().copy(buildTag = null)
+            assertTrue(runCatching { runtime.connectSaved(legacy.copy(macDeviceId = null), null, team) }.isFailure)
+            assertTrue(runCatching { runtime.connectSaved(legacy.copy(macDeviceId = ""), null, team) }.isFailure)
+            assertTrue(runCatching { runtime.connectSaved(legacy, null, team.copy(login = "retired")) }.isFailure)
+            assertTrue(runCatching { runtime.connectSaved(legacy.copy(userId = "another-user"), null, team) }.isFailure)
+            assertTrue(backend.transports.isEmpty())
+        }
+    }
+
     @Test fun stalledMacDialDoesNotBlockSiblingAndDirectoryRevocationKeepsSiblingLive() = runBlocking<Unit> {
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
         val sibling = mac.copy(endpointId = "cd".repeat(32), recordId = "sibling", deviceId = "other-mac")
