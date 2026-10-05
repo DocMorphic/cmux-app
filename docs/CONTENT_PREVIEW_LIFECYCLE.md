@@ -1,5 +1,68 @@
 # Content preview lifecycle
 
+## Native file and Markdown panel retention — 2026-10-05
+
+The actual native panel route now uses `NativePanelPresentation`, retained by
+`NativeFeedSession`, for its selected file and in-progress transfer. Its feed
+connection lease survives Activity recreation and reconnection of the separate
+foreground terminal client. No Activity or Android view is retained. Leaving the
+panel releases its transfer and private files.
+
+Admission captures one exact verified Mac connection, account, workspace,
+surface, path, kind and title. Requests are limited to that panel's displayed
+file; neither session authorization nor a different panel/path can be substituted.
+The owner checks admission before and after requests and native artifact lanes.
+Focus-only descriptor changes preserve the download; path, kind or title changes
+invalidate it. The title is the upstream refresh token. Removing the panel hides
+and deletes its old bytes and displays “Panel closed”. Unavailable connections,
+changed descriptors and unsupported hosts have separate presentation messages.
+The UI integration lives in `NativePanelRetention.kt` to avoid adding another
+large block to `NativeScreen`'s generated JVM method.
+
+**60 JVM checks passed** (48 feed/admission, six preview-controller and six
+artifact-RPC tests). The two actual NativeScreen panel checks passed in
+**32.104 s** on the sole arm64 API 37 / 16 KB AVD. They verify Raw Markdown mode,
+search result `2/2`, reading position within five pixels and exact content, the same retained owner
+and local file with one fetch through recreation, an in-progress transfer surviving
+another recreation, cleanup on Back, and removal of the private file/native view
+with a visible “Panel closed” message when the feed withdraws the panel.
+All three panel screenshots were inspected. Two existing Android regressions
+also passed in **34.940 s**: the full terminal Files retention case and native
+file/Markdown/unknown-surface flow. All three regression screenshots were inspected.
+No final-run crash entries or new ANRs; device settings unchanged; source/APK
+hashes matched. The sole AVD was stopped and its process reaped.
+
+The initial two panel checks passed in 32.841 s, and two existing panel/Files
+regressions passed in 36.350 s. Screenshot review then found a misleading
+“Connecting” message after panel removal; the final panel pass above includes its
+fix and a stronger visible-message assertion. The first implementation exceeded
+NativeScreen's JVM method-size limit; extracting the integration component fixed
+that compilation failure. A later build process stopped during test-APK packaging
+and was incrementally resumed after confirming that it was no longer running.
+The final build succeeded in 1 m 54 s. One emulator System UI startup ANR was
+dismissed and recovery visually confirmed before the final tests. Failed build
+logs, prior screenshots and both attempts are retained in
+`captures/runtime/panel-retention/`, alongside source/APK hashes and JUnit XML.
+No new debug Activity was added; the release exclusion inventory remains ten.
+Signed build **606** is unchanged and remains the latest independently verified
+download. No physical Pixel was attached.
+
+Scoped upstream references at `186cec79781256867ad4516f0802118738bd2393`:
+`WorkspaceDetailView+PanelArtifacts.swift`, `PanelFileSurfaceView.swift`,
+`MarkdownSurfaceModel.swift` and `MarkdownSurfaceView.swift`, under
+`Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/`. They establish the
+non-browsable panel loader, path/title/retry refresh identity, generation-fenced
+Markdown transfer and explicit closed-panel presentation. Their SHA-256 hashes
+are recorded in `captures/runtime/panel-retention/upstream-panel-source.json`;
+this does not advance the global parity pin.
+
+This change does not establish rendered-Markdown scroll/zoom, renderer or process
+recovery, descriptor-refresh visual acceptance, every typed load-failure message,
+physical Pixel/Mac workflows, or retention through an actual feed transport loss.
+An old feed admission is retired on transport replacement and the panel refetches
+after readmission; compare that lifecycle with iOS before closing the reconnect
+gate. The global completion checklist remains in `REMAINING_WORK.md`.
+
 ## Save picker ownership — 2026-10-05
 
 Save now has one Activity-owned `FileSaveModel` and a stable result launcher at
@@ -111,7 +174,7 @@ shared-viewer or gallery PDF test as proof for every content route.
 ## Historical source audit before terminal Files retention (2026-10-05)
 
 The following audit preceded the implementation above. Its native Markdown-panel
-findings remain open; shared Save ownership is addressed above. The text/media tests below recreate the
+and shared Save ownership findings are addressed above for Activity recreation. The text/media tests below recreate the
 shared viewer with the same local file.
 Changes supplies that stable file through its retained preview controller. The
 main Files flow and native Markdown panels still need equivalent integration:

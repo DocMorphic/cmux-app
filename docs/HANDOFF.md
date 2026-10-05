@@ -29,6 +29,21 @@ identified that main Files/Markdown-panel downloads are still composition-owned
 and can lose viewer state on recreation. Prioritize that integration gap after
 this signed batch. [REMAINING_WORK.md](REMAINING_WORK.md) is the current checklist.
 
+## Latest source checkpoint — native panel retention (2026-10-05)
+
+Native file/Markdown panels now retain their exact admitted feed connection and
+selected download through Activity recreation. Raw Markdown search and reading
+position restore without another fetch; pending transfers survive; closing or
+withdrawing a panel cleans its bytes and shows an accurate closed-panel state.
+60 JVM checks and four Android checks passed (two panel checks in 32.104 s,
+two panel/Files regressions in 34.940 s). Six screenshots inspected; no run
+crashes/new ANRs; settings unchanged; sole AVD stopped/reaped. See
+[CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#native-file-and-markdown-panel-retention--2026-10-05)
+for the method-size/build interruption, startup ANR, screenshot-discovered status
+fix, source hashes and exact test scope. Rendered Markdown scroll/zoom, process
+recovery, actual feed-loss behavior and physical acceptance remain open. This
+source is newer than independently verified signed 606; global parity pin unchanged.
+
 ## Latest source checkpoint — shared Save ownership (2026-10-05)
 
 Save now uses an Activity-owned result handler and an independent private copy,

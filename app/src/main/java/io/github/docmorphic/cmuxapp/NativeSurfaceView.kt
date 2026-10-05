@@ -36,27 +36,17 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
     capabilities: Set<String>, ready: Boolean, onBack: () -> Unit, onSurface: (NativeSurface) -> Unit,
     onTerminal: (NativeTerminal) -> Unit, onBrowser: (NativeBrowser) -> Unit,
     mutateWorkspace: (suspend (MobileRpcClient, String, org.json.JSONObject) -> org.json.JSONObject)? = null,
-    onNewBrowser: (() -> Unit)? = null, onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null) {
+    onNewBrowser: (() -> Unit)? = null, onNewWorkspace: (() -> Unit)? = null, onNewTerminal: (() -> Unit)? = null,
+    panel: NativePanelViewState? = null) {
     BackHandler(onBack = onBack)
     val currentClient by rememberUpdatedState(client)
     val currentReady by rememberUpdatedState(ready)
     val currentCapabilities by rememberUpdatedState(capabilities)
     val currentMutation by rememberUpdatedState(mutateWorkspace)
     val todo = remember(surface.todoJson) { TodoSnapshot.decode(surface.todoJson) }
-    // Keep downloaded content mounted across a reconnect. Any new request rechecks
-    // this exact view's current connection; no captured dead client can supply data.
-    val rpc = remember(workspace.id, surface.id) {
-        ArtifactRpc(ArtifactCapabilities(false, false, false, false, panel = true)) { method, params ->
-            val active = checkNotNull(currentClient) { "Mac disconnected. Reconnect and try again." }
-            check(currentReady && "panel.artifact.v1" in currentCapabilities) { "Your Mac isn't ready to preview this panel." }
-            active.request(method, params).also {
-                check(currentClient === active && currentReady) { "Connection changed while loading this panel." }
-            }
-        }
-    }
     var supportedPanel by remember(workspace.id, surface.id) { mutableStateOf(false) }
     var supportedSimulator by remember(workspace.id, surface.id) { mutableStateOf(false) }
-    if ("panel.artifact.v1" in capabilities) SideEffect { supportedPanel = true }
+    if (ready) SideEffect { supportedPanel = "panel.artifact.v1" in capabilities }
     val simulatorReady = ready && client != null && ("simulator.stream.v1" in capabilities ||
         (SimStreamWire.CAPABILITY in capabilities && client.supportsSimulatorLanes))
     if (ready) SideEffect { supportedSimulator = simulatorReady }
@@ -81,11 +71,13 @@ internal fun NativeSurfaceView(workspace: NativeWorkspace, surface: NativeSurfac
                     ?.macSurfaces?.singleOrNull { it.id == surface.id && it.kind == "todo" }
                 checkNotNull(TodoSnapshot.decode(updated?.todoJson)) { "The checklist is no longer available." }
             }
-        } else if (supportedPanel && surface.isPanelFile) {
+        } else if ((supportedPanel || panel != null) && surface.isPanelFile) {
             val path = requireNotNull(surface.filePath)
-            key(workspace.id, surface.id, surface.title, path) {
-                ArtifactPreviewPage(rpc, ArtifactAuthorization.Panel(workspace.id, surface.id, path), path,
-                    forceMarkdown = surface.kind == "markdown")
+            key(workspace.id, surface.id, surface.kind, surface.title, path) {
+                val owner = panel?.preview
+                if (owner != null) ArtifactPreviewPage(owner.access.rpc, owner.target.authorization, path,
+                    forceMarkdown = surface.kind == "markdown", retained = owner.preview)
+                else FilesMessage(panel?.title ?: "Connecting to panel…", panel?.detail ?: "Waiting for this Mac's file connection.")
             }
         } else key(workspace.id, surface.id, client) {
             NativeSurfaceCard(workspace, surface, ready && "surface.focus.v1" in capabilities) {

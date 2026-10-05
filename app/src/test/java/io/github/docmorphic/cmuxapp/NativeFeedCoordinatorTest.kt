@@ -11,6 +11,82 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun panelAdmissionUsesExactMacAndDisplayedFileOnly() = runBlocking {
+        FeedPeer("a").use { a -> FeedPeer("b").use { b ->
+            val target = NativePanelTarget("w", "panel", "/note.md", "markdown", "Notes")
+            val listing = JSONObject("""{"workspaces":[{"id":"w","surfaces":[{"surface_id":"panel","kind":"markdown","title":"Notes","file_path":"/note.md"}]}]}""")
+            a.panelArtifactsSupported = true; b.panelArtifactsSupported = true
+            a.workspaceResponse = listing; b.workspaceResponse = listing
+            var permitted = true
+            val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a"), mac("b")))
+                awaitState { coordinator.sources.value.values.count { it.hasWorkspaceSnapshot } == 2 }
+                val access = checkNotNull(coordinator.panelArtifactAccess(mac("b"), target) { permitted })
+                assertEquals("b", access.rpc.stat(target.authorization, target.path).getString("owner"))
+                assertTrue(runCatching { access.rpc.stat(target.copy(surface = "other").authorization, target.path) }.isFailure)
+                assertTrue(runCatching { access.rpc.stat(target.copy(path = "/secret").authorization, "/secret") }.isFailure)
+                assertTrue(runCatching { access.rpc.stat(ArtifactAuthorization.Session("other"), target.path) }.isFailure)
+                assertNull(coordinator.panelArtifactAccess(mac("b").copy(instanceTag = "nightly"), target) { true })
+                permitted = false; assertFalse(access.current())
+                assertTrue(runCatching { access.rpc.stat(target.authorization, target.path) }.isFailure)
+                assertTrue(a.requests.none { it.optString("method").contains(".artifact.") })
+                assertEquals(1, b.requests.count { it.optString("method").contains(".artifact.") })
+            } finally { coordinator.close() }
+        } }
+    }
+
+    @Test fun panelRefreshIdentityIgnoresFocusButInvalidatesTitleKindAndPathChanges() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.panelArtifactsSupported = true
+            val target = NativePanelTarget("w", "panel", "/note.md", "markdown", "Notes")
+            fun listing(target: NativePanelTarget, focused: Boolean = false) = JSONObject().put("workspaces", JSONArray().put(
+                JSONObject().put("id", "w").put("surfaces", JSONArray().put(JSONObject().put("surface_id", target.surface)
+                    .put("kind", target.kind).put("title", target.title).put("file_path", target.path).put("is_focused", focused)))))
+            peer.workspaceResponse = listing(target)
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                for (replacement in listOf(target.copy(title = "Updated"), target.copy(path = "/new.md"), target.copy(kind = "filePreview"))) {
+                    peer.workspaceResponse = listing(target); coordinator.refreshWorkspaceLists(listOf(mac("a")))
+                    val access = checkNotNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+                    peer.workspaceResponse = listing(target, true); coordinator.refreshWorkspaceLists(listOf(mac("a")))
+                    assertTrue(access.current())
+                    peer.workspaceResponse = listing(replacement); coordinator.refreshWorkspaceLists(listOf(mac("a")))
+                    assertFalse(access.current()); assertNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+                    assertTrue(runCatching { access.rpc.stat(target.authorization, target.path) }.isFailure)
+                    assertNotNull(coordinator.panelArtifactAccess(mac("a"), replacement) { true })
+                }
+                peer.workspaceResponse = JSONObject("""{"workspaces":[{"id":"w","surfaces":[]}]}""")
+                coordinator.refreshWorkspaceLists(listOf(mac("a")))
+                assertNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+            } finally { coordinator.close() }
+        }
+    }
+
+    @Test fun panelReplyRejectsRevocationAndOldConnectionCannotBeReused() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.panelArtifactsSupported = true
+            val target = NativePanelTarget("w", "panel", "/note.md", "markdown", "Notes")
+            peer.workspaceResponse = JSONObject("""{"workspaces":[{"id":"w","surfaces":[{"surface_id":"panel","kind":"markdown","title":"Notes","file_path":"/note.md"}]}]}""")
+            var permitted = true; val gate = java.util.concurrent.CountDownLatch(1); peer.artifactGate = gate
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                val access = checkNotNull(coordinator.panelArtifactAccess(mac("a"), target) { permitted })
+                val response = async { runCatching { access.rpc.stat(target.authorization, target.path) } }
+                awaitState { peer.requests.any { it.optString("method").contains(".artifact.") } }
+                permitted = false; gate.countDown(); assertTrue(response.await().isFailure)
+                permitted = true; coordinator.pause(); coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.availability == NativeFeedAvailability.CONNECTED }
+                assertFalse(access.current()); assertTrue(runCatching { access.rpc.stat(target.authorization, target.path) }.isFailure)
+                assertNotNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+            } finally { gate.countDown(); coordinator.close() }
+        }
+    }
+
     @Test fun retainedArtifactsUseExactMacAndRejectWithdrawnAdmission() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             val terminal = ArtifactAuthorization.Terminal("w", "t")
@@ -957,6 +1033,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     @Volatile var createResponse: JSONObject? = null
     @Volatile var changesSupported = false
     @Volatile var artifactsSupported = false
+    @Volatile var panelArtifactsSupported = false
     @Volatile var artifactGate: java.util.concurrent.CountDownLatch? = null
     @Volatile var changedFiles = 2
     @Volatile var summaryError: String? = null
@@ -999,6 +1076,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                             if (powerSupported) it.put("caffeine.control.v1")
                             if (changesSupported) it.put(WORKSPACE_CHANGES_CAPABILITY)
                             if (artifactsSupported) it.put("terminal.artifact.v1").put("chat.artifact.gallery.v1")
+                            if (panelArtifactsSupported) it.put("panel.artifact.v1")
                         })
                     "mobile.workspace.changes.summary" -> JSONObject().put("summaries", JSONArray().put(JSONObject()
                         .put("workspace_id", "w").put("is_repo", true).put("files_changed", changedFiles).put("additions", 4).put("deletions", 1)))

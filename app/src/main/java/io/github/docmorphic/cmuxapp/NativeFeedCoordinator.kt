@@ -327,6 +327,39 @@ internal class NativeFeedCoordinator(
         return TerminalArtifactAccess(rpc, ::admitted)
     }
 
+    /** A panel admission grants only its displayed path on this exact verified connection. */
+    fun panelArtifactAccess(mac: NativeCredentialStore.PairedMac, target: NativePanelTarget,
+                            permits: () -> Boolean): PanelArtifactAccess? {
+        val handle = handles[mac.origin]?.takeIf { it.mac == mac && current(it) && it.verified } ?: return null
+        val client = handle.client?.takeUnless { it.isClosed } ?: return null
+        fun admitted() = permits() && current(handle, client) && handle.verified && !client.isClosed &&
+            "panel.artifact.v1" in handle.capabilities && mutableSources.value[mac.origin]?.let { source ->
+                source.mac == mac && source.workspaces.singleOrNull { it.id == target.workspace }
+                    ?.macSurfaces?.singleOrNull { it.id == target.surface }
+                    ?.let { NativePanelTarget.from(target.workspace, it) == target } == true
+            } == true
+        if (!admitted()) return null
+        suspend fun <T> use(action: suspend () -> T): T = withContext(scope.coroutineContext.minusKey(Job)) {
+            check(admitted()) { "This panel is no longer available on the selected Mac." }
+            val operation = checkNotNull(currentCoroutineContext()[Job])
+            handle.borrowedOperations += operation
+            try {
+                val result = withContext(Dispatchers.IO) { action() }
+                ensureActive(); check(admitted()) { "The panel changed while loading its file." }
+                result
+            } finally { handle.borrowedOperations -= operation }
+        }
+        val rpc = ArtifactRpc(ArtifactCapabilities(false, false, false, false, panel = true),
+            if (client.supportsArtifactLanes) ({ resource, consume -> use { client.useArtifactLane(resource, consume) } }) else null,
+            { method, params ->
+                require(method in setOf("mobile.panel.artifact.stat", "mobile.panel.artifact.fetch", "mobile.panel.artifact.thumbnail") &&
+                    params.optString("workspace_id") == target.workspace && params.optString("surface_id") == target.surface &&
+                    params.optString("path") == target.path) { "This request isn't for the displayed panel file." }
+                use { client.request(method, params) }
+            })
+        return PanelArtifactAccess(rpc, ::admitted)
+    }
+
     /** Never substitute the foreground Mac when a row's owning session is unavailable. */
     suspend fun workspaceAction(mac: NativeCredentialStore.PairedMac, workspaceId: String,
         action: String, title: String? = null, canSend: () -> Boolean = { true }): JSONObject = withContext(scope.coroutineContext.minusKey(Job)) {

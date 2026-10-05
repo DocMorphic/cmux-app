@@ -843,6 +843,8 @@ internal fun NativeScreen(
     var textSnapshot by remember(draftTarget, client) { mutableStateOf<TerminalTextSnapshot?>(null) }
     fun openTerminalText() { stopTerminalScrolling(); textSnapshot = TerminalTextSnapshot.capture(grid) }
     textSnapshot?.let { TerminalTextSheet(it) { textSnapshot = null } }
+    val retainedPanel = rememberNativePanel(feedSession, browserLogin, teamState.scope, pairedMacs, code,
+        selectedWorkspace, selectedSurface, showSettings || showTaskComposer || sshRoute != null || localBrowser != null || selectedChangesWorkspace != null)
     val filesMemory = rememberSaveable(saver = TerminalFilesMemory.saver) { TerminalFilesMemory() }
     val filesMac = pairedMacs.singleOrNull { it.code == code }
     val retainedFiles = feedSession.filesSheet
@@ -3648,6 +3650,7 @@ internal fun NativeScreen(
                 val shownSurface = selectedSurface ?: checkNotNull(selectedWorkspace!!.browserFallback(selectedBrowser?.id,
                     NativeBrowserPickerState.from(connectionReady, hostCapabilities)))
                 NativeSurfaceView(selectedWorkspace!!, shownSurface, client, hostCapabilities, connectionReady,
+                    panel = retainedPanel,
                     onNewWorkspace = if (canCreateInCurrentPane && !creatingWorkspace && !creatingTerminal) ::createWorkspace else null,
                     onNewTerminal = if (canCreateInCurrentPane && !creatingTerminal && !creatingWorkspace) ::createTerminalInPane else null,
                     onBack = { selectedSurface = null; selectedTerminal = null; selectedBrowser = null; selectedWorkspace = null },
