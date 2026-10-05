@@ -37,8 +37,11 @@ internal data class NativeMacConnectionPreferences(
 ) {
     fun get(target: NativeComputerTarget) = values[identity(target.deviceId, target.buildTag)] ?: NativeMacConnectionPreference()
     fun intent(mac: IrohV2Computer): NativeMacDialIntent {
+        return intent(NativeComputerTarget.from(mac))
+    }
+    fun intent(target: NativeComputerTarget): NativeMacDialIntent {
         check(!error) { "Could not read this phone’s connection settings. Reopen Computer Details and retry." }
-        val id = identity(mac.deviceId, mac.buildTag)
+        val id = identity(target.deviceId, target.buildTag)
         val preference = values[id] ?: NativeMacConnectionPreference()
         return NativeMacDialIntent(preference.method, preference.coordinates(), revisions[id] ?: 0, recovery)
     }

@@ -138,7 +138,8 @@ internal class TailscalePairingAuthority(
     private val expected: (PairingCode.Tailscale) -> NativeCredentialStore.PairedMac? = { null },
     private val replacing: TailscaleSavedGrant? = null,
     private val admitCompatibility: suspend (NativeTeamScope, MobileRpcClient, JSONObject) -> Unit = { _, _, _ -> },
-    private val manualTicket: suspend (MobileRpcClient, PairingCode.Route, JSONObject, NativeTeamScope) -> MobileAttachTicket? = { _, _, _, _ -> null }
+    private val manualTicket: suspend (MobileRpcClient, PairingCode.Route, JSONObject, NativeTeamScope) -> MobileAttachTicket? = { _, _, _, _ -> null },
+    private val savedRouteAdmission: (NativeTeamScope, TailscaleSavedGrant) -> (() -> Boolean) = { _, _ -> { true } }
 ) : AutoCloseable {
     private data class Consent(val scope: NativeTeamScope, val nonce: String = UUID.randomUUID().toString()) {
         val resolved = ConcurrentHashMap<PairingCode.Route, PairingCode.Route>()
@@ -159,7 +160,8 @@ internal class TailscalePairingAuthority(
 
     fun allowsSaved(pairing: PairingCode.Tailscale): Boolean = runCatching {
         val owner = owner(pairing)
-        synchronized(lock) { !closed } && grants.find(owner, TailscaleGrantStore.source(pairing)) != null
+        val saved = grants.find(owner, TailscaleGrantStore.source(pairing))
+        synchronized(lock) { !closed } && saved != null && savedRouteAdmission(owner, saved)()
     }.getOrDefault(false)
 
     private fun owner(pairing: PairingCode.Tailscale): NativeTeamScope {
@@ -182,11 +184,14 @@ internal class TailscalePairingAuthority(
         val consent = synchronized(lock) { check(!closed); consents[source]?.takeIf { it.scope == owner } }
         val saved = grants.find(owner, source)
         check(consent != null || saved != null) { "Scan or paste this Mac’s pairing code and confirm Connect to authorize Tailscale." }
+        // Fresh in-app entry owns exact-address authority. Saved reconnects must
+        // additionally retain their captured method/epoch throughout authentication and I/O.
+        val routePermits = if (consent == null) savedRouteAdmission(owner, checkNotNull(saved)) else ({ true })
         val capturedExpected = expected(pairing)
         val promoted = AtomicReference<TailscaleSavedGrant?>(if (consent == null) saved else null)
         fun allowed(): Boolean = runCatching {
             savedTicket?.requireCurrent()
-            permits(owner) && synchronized(lock) { !closed } &&
+            permits(owner) && routePermits() && synchronized(lock) { !closed } &&
                 (promoted.get()?.let { grants.find(owner, source) == it }
                     ?: synchronized(lock) { consents[source] == consent })
         }.getOrDefault(false)

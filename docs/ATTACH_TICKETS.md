@@ -1,5 +1,61 @@
 # Attach-ticket compatibility audit
 
+## Saved-method comparison and legacy reconnect guard (2026-10-06)
+
+Scoped source: `MobileShellComposite+ConnectionMethod.swift`,
+`MobileShellComposite+ReconnectRoutes.swift`, `MobileShellComposite+RouteSelection.swift`
+and `supportedRoutes` in `MobileShellComposite.swift`, at
+`186cec79781256867ad4516f0802118738bd2393`. Global parity/review pins are unchanged.
+
+| Rule in the inspected iOS source | Android finding |
+| --- | --- |
+| A per-pairing method defaults to Automatic; explicit build tags never inherit a sibling's settings. | Existing native settings and dial intents use exact device/build keys; absent settings default to IROH (the UI's Automatic). |
+| Direct uses only Iroh and enabled user addresses; empty/unreachable addresses cannot fall back to raw Tailscale. | Existing native backend enforces this. The legacy raw connector bypassed method settings; this batch adds the missing gate. |
+| Tailscale Only uses exact locally granted raw routes, without Iroh fallback. | Existing native/saved Tailscale runtime enforces this. The legacy connector now also captures the saved method. A method choice alone creates no grant. |
+| Automatic retains an exact granted legacy route only while the pairing has no authenticated Iroh route. | Legacy raw reconnect now rejects a separately retained native identity for the same owner/device/build. Directory-to-saved-record upgrade still needs the route-retention work below. |
+| Explicit in-app numeric entry can authorize that exact Tailscale address ahead of Automatic/Tailscale method choices. | Existing entry policy and consent authority preserve this. The new saved-route gate does not turn fresh entry into a saved reconnect. |
+| External links cannot create new numeric address authority, but supported-route selection can use an already stored exact Tailscale grant under its applicable method. | Fresh external authority is correctly denied. The Android ticket chooser still filters all external Tailscale choices; the already-authorized case remains an implementation gap. |
+
+`TailscaleConnector` now captures the exact build's connection intent before a
+saved reconnect. `TailscalePairingAuthority` requires that admission before dialing,
+after token/authentication waits and during transport I/O. Its existing retirement
+loop also closes blocked saved clients. Method epochs prevent A→B→A from reviving
+an old client; settings read/recovery errors deny delivery. Pre-tag grants never
+inherit a tagged sibling's preference. The native-identity lookup is cached by
+credential revision, so streaming reads do not rescan saved records on every
+frame. Grant/account/host checks remain required separately.
+
+**52 focused JVM tests passed**, zero failures/errors/skips: 42 authority cases,
+eight connection-store cases and two policy cases. New cases prove rejection
+before dial/token acquisition, revocation during authentication, live retirement
+across a method round trip, fresh-entry distinction and owner/build isolation.
+Main/instrumentation Kotlin compilation passed (33 seconds); no APK or emulator
+was started. Evidence/source receipts: `captures/runtime/saved-route-policy/`.
+Real saved-method changes on Mac/Pixel still need acceptance.
+
+### Remaining route-retention and chooser work found in this comparison
+
+- `NativeComputerTarget.from(PairedMac, team)` currently accepts native codes
+  only. Authenticated Tailscale-only rows consequently lack Computer Details;
+  add that presentation with exact grant/owner/build admission and corresponding
+  runtime support, rather than treating an arbitrary code's claimed identity as
+  authority.
+- Saved records retain one primary code. `NativePairingPersistence` normally
+  preserves an existing native code when adding Tailscale, but ticket persistence
+  explicitly prefers the ticket's incoming route. Preserve authenticated route
+  alternatives independently from ticket scope so a Tailscale ticket cannot erase
+  the native path needed by Direct/Automatic on subsequent reconnects.
+- `NativeReconnectComputers.merge` keeps an existing saved identity in preference
+  to a matching directory row. Complete the authenticated legacy-to-native upgrade
+  without losing stable origin, drafts/notifications, ticket binding or a strict
+  per-build method. Directory outages must not restore a retired raw fallback.
+- Extend external ticket selection to independently stored exact grants and
+  captured per-build methods, rechecking them at confirmation and connection.
+  A ticket's device ID or endpoint list cannot itself establish that authority.
+
+These are concrete implementation gaps, not unavoidable Android differences or
+closed parity gates. The scoped comparison is not a full connection audit.
+
 ## Android chooser milestone — 2026-10-05
 
 At `132b6f6`, all six `NativeTicketPairingRuntimeTest` cases passed within the

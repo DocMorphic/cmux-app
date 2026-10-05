@@ -18,6 +18,8 @@ class TailscalePairingAuthorityTest {
         val pairing = PairingCode.Tailscale(listOf(PairingCode.Route("mac.tail.ts.net", 58465)), "user")
         var numeric = PairingCode.Route("100.99.1.2", 58465)
         var resolves = 0
+        var routeAllowed = true
+        var routeEpoch = 0
         var resolveHook: suspend (() -> Boolean) -> Unit = {}
         var tokenCalls = 0
         var tokenHook: () -> Unit = {}
@@ -51,6 +53,9 @@ class TailscalePairingAuthorityTest {
                 if (enforceCompatibility) compatibility.admit(owner, client, host, locallyAuthorizedTailscale = true)
             }, manualTicket = { client, route, host, owner ->
                 if (manual) ManualAttachTicketRequest.request(client, route, host, owner, null) else null
+            }, savedRouteAdmission = { _, _ ->
+                val captured = routeEpoch
+                ({ routeAllowed && routeEpoch == captured })
             })
         suspend fun connect() = authority.connect(pairing, attachTicket = ticket, savedTicket = savedTicket, forceToken = forceRefresh) { tokenCalls++; tokenHook(); accessToken }
         fun authorize() = authority.authorize(pairing)
@@ -60,6 +65,38 @@ class TailscalePairingAuthorityTest {
             if (next == null) { state.remove("task_session"); state.remove("refresh_token") }
             else state.put("task_session", next.login)
         }
+    }
+    @Test fun savedRouteMethodDenialStopsBeforeDialWhileExplicitEntryRemainsEligible() = runBlocking<Unit> {
+        val f = Fixture(); f.routeAllowed = false; f.authorize()
+        try {
+            f.connect().close() // Explicit entry, even with a different saved method.
+            assertNotNull(f.grant()); assertFalse(f.authority.allowsSaved(f.pairing))
+            val dials = f.transports.size; val tokens = f.tokenCalls
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(dials, f.transports.size); assertEquals(tokens, f.tokenCalls)
+        } finally { f.authority.close() }
+    }
+    @Test fun savedRouteMethodChangeDuringAuthenticationCannotComplete() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        try {
+            f.connect().close()
+            f.tokenHook = { f.routeAllowed = false; f.routeEpoch++ }
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertTrue(f.transports.last().closed)
+        } finally { f.authority.close() }
+    }
+    @Test fun savedRouteEpochChangeRetiresLiveClientEvenAfterMethodReturns() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        try {
+            f.connect().close()
+            val client = f.connect()
+            f.routeEpoch += 2 // A → B → A must not revive a retained connection.
+            f.authority.retireInvalid()
+            assertTrue(client.isClosed); assertTrue(f.transports.last().closed)
+            assertTrue(runCatching { client.workspaces() }.isFailure)
+            assertTrue(f.authority.allowsSaved(f.pairing)) // A new attempt captures the new epoch.
+            f.connect().close()
+        } finally { f.authority.close() }
     }
     @Test fun pairingRefreshesRejectedManualTicketRequestBeforeSavingItsExactGrant() = runBlocking<Unit> {
         val f = Fixture(); f.manual = true; f.rejectAccessToken = "fixture-access"; var refreshes = 0

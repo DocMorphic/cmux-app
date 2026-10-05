@@ -45,6 +45,32 @@ internal class TailscaleConnector(context: Context, store: NativeCredentialStore
         manualTicket = { client, route, host, owner ->
             check(teams.isCurrent(owner)) { "Account or team changed" }
             ManualAttachTicketRequest.request(client, route, host, owner, teams.state.value.email)
+        }, savedRouteAdmission = { owner, grant ->
+            val grants = TailscaleGrantStore(store::load, store::update)
+            val settings = NativeMacConnectionStore.create(context.applicationContext, owner)
+            val target = grant.build?.let { NativeComputerTarget(grant.device, it, "Mac") }
+            fun intent(): NativeMacDialIntent {
+                check(!settings.state.value.error) { "Could not read this phone’s connection settings." }
+                // Pre-tag grants cannot inherit any sibling build's preference.
+                return target?.let { settings.state.value.intent(it) } ?: NativeMacDialIntent(recovery = settings.state.value.recovery)
+            }
+            val captured = intent()
+            val admissionLock = Any()
+            var checkedRevision = Long.MIN_VALUE
+            var nativeIdentity = false
+            fun hasNativeIdentity() = synchronized(admissionLock) {
+                val revision = store.revisions.value
+                if (revision != checkedRevision) {
+                    nativeIdentity = NativeLegacyTailscalePolicy.hasNativeIdentity(grant, owner, store.pairedMacs(), grants)
+                    checkedRevision = revision
+                }
+                nativeIdentity
+            }
+            val admitted = {
+                teams.isCurrent(owner) && intent() == captured &&
+                    NativeLegacyTailscalePolicy.permits(captured.method, hasNativeIdentity())
+            }
+            admitted
         })
     override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = connectOwned(pairing, account, null)
     suspend fun connectTicket(pairing: PairingCode.Tailscale, ticket: MobileAttachTicket, account: NativeAccount, team: NativeTeamScope) =
