@@ -71,7 +71,7 @@ internal object NativePairingRecords {
         return true
     }
 
-    /** Only an already authenticated, scoped saved row may retain another native route. */
+    /** A scoped saved row may retain a native identity from a successful session or authenticated account directory. */
     fun retainedNativeRoute(row: NativeCredentialStore.PairedMac): PairingCode.Iroh? {
         if (row.accountUserId == null || row.accountTeamId == null || row.stableOrigin == null) return null
         val route = row.nativeRouteCode?.let { PairingCodeParser.parse(it).getOrNull() } as? PairingCode.Iroh ?: return null

@@ -1800,7 +1800,11 @@ internal fun NativeScreen(
         startedForegroundConnection = true
         val requestedCode = code
         val ticketAttempt = ticketPairing.current(requestedCode, teamState.scope)
-        val capturedReconnect = expectedReconnect?.takeIf { it.code == requestedCode }
+        val expected = expectedReconnect?.takeIf { it.code == requestedCode }
+        val capturedReconnect = NativeDirectoryRouteUpgrade.refreshedSelection(expected,
+            store.visiblePairedMacs().singleOrNull { it.code == requestedCode }, teamState.scope,
+            TailscaleGrantStore(store::load, store::update))
+        if (capturedReconnect != expected) expectedReconnect = capturedReconnect
         fun requireCurrentReconnect() {
             check(store.pairedMacs().none { it.code == requestedCode &&
                 NativeComputerVisibility.isHidden(store.load(), it) }) { "This computer is hidden on this phone. Show it in Computers before connecting." }

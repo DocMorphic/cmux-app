@@ -63,6 +63,16 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         NativeComputerVisibility.saved(state).filterNot { NativeComputerVisibility.isHidden(hidden, it) }
     }
 
+    internal fun retainNativeDirectory(team: NativeTeamScope, directory: NativeComputersState, permits: () -> Boolean): Boolean {
+        if (!permits()) return false
+        return synchronized(storageLock) {
+            val state = load() ?: return@synchronized false
+            if (!NativeDirectoryRouteUpgrade.retain(state, team, directory)) return@synchronized false
+            save(state)
+            true
+        }
+    }
+
     internal fun setComputerVisible(login: String?, mac: PairedMac, visible: Boolean, permits: () -> Boolean): Boolean = synchronized(storageLock) {
         val state = load() ?: return@synchronized false
         if (!NativeComputerVisibility.setVisible(state, login, mac, visible, permits)) return@synchronized false

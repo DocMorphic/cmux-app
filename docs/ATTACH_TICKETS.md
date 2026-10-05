@@ -1,5 +1,52 @@
 # Attach-ticket compatibility audit
 
+## Account-directory enrichment and fresh-entry correction (2026-10-06)
+
+The scoped follow-up read includes the caller of `supportedRoutes`, not just that
+helper. At `186cec79781256867ad4516f0802118738bd2393`,
+`MobileShellComposite.swift:10758` calculates
+`hasFreshExplicitTailscaleAuthorization` from this ticket's exact destinations.
+It does not derive a Direct-only allowlist from the stored method when that
+fresh authorization exists. A caller-supplied Direct-only allowlist remains
+strict. The previous checklist entry saying every fresh in-app ticket must obey
+the stored Direct setting was incorrect; Android's explicit-entry behavior is
+consistent with this caller. No new restriction was added. Saved reconnects and
+external links continue to enforce their captured method.
+
+`MobileShellComposite+PresenceRouteSync.swift:262` also shows authenticated route
+enrichment of an existing pairing, with account/instance checks and no destructive
+empty-route update. Android now observes the current account directory and saved
+record revisions, retaining a native locator for an existing owned Tailscale row
+only when one exact device/build match exists. Hidden, unowned, pre-tag, wrong-
+account and ambiguous rows cannot be enriched. Duplicate identical directory
+entries coalesce; distinct conflicting entries do not select an arbitrary peer.
+
+The write preserves the primary route, ticket context, raw grants, name, stable
+origin and local history. It is idempotent and never creates a new pairing.
+Empty/unavailable discovery never removes a retained native route, so a later
+outage cannot restore Automatic's raw fallback. The actual native connection
+still requires the backend's live permission and host-identity checks. Tailscale
+Only retains its own granted path; discovery creates no address grant.
+
+A pending reconnect may adopt a change limited to its native locator. A historical
+row can also gain explicit scope metadata if its original grant independently
+proves the same owner and its origin is unchanged. Changes to ticket, name, owner
+or other saved fields still retire that captured selection.
+Other captured menu actions keep their strict current-row check. Existing explicit
+fresh Tailscale sessions are not forcibly changed just because discovery enriches
+the row; saved raw clients retain their existing retirement checks.
+
+**55 focused JVM tests passed**, zero failures/errors/skips: nine directory-
+upgrade cases, six retained-route cases, 22 persistence cases, three reconnect
+list cases and 15 ticket-pairing cases. Main/instrumentation Kotlin compilation
+passed (final run 17 seconds). No APK build or emulator run for this batch.
+Local source receipts and verification are under
+`captures/runtime/directory-route-upgrade/`. A Keystore test covers reload, unchanged-
+snapshot revision stability, ticket preservation and empty discovery; it is queued
+for the next combined Android milestone. Real upgrade/reconnect, directory
+outage, history preservation and method changes on Mac/Pixel remain acceptance
+work. The global upstream pins are unchanged.
+
 ## External tickets using stored address grants (2026-10-06)
 
 External legacy tickets can now offer an exact numeric Tailscale destination
@@ -70,10 +117,10 @@ and `supportedRoutes` in `MobileShellComposite.swift`, at
 | Rule in the inspected iOS source | Android finding |
 | --- | --- |
 | A per-pairing method defaults to Automatic; explicit build tags never inherit a sibling's settings. | Existing native settings and dial intents use exact device/build keys; absent settings default to IROH (the UI's Automatic). |
-| Direct uses only Iroh and enabled user addresses; empty/unreachable addresses cannot fall back to raw Tailscale. | Existing native backend enforces this. The legacy raw connector bypassed method settings; this batch adds the missing gate. |
+| Saved Direct reconnects use only Iroh and enabled user addresses; empty/unreachable addresses cannot fall back to raw Tailscale. | Existing native backend enforces this. The legacy raw connector bypassed method settings; this batch adds the missing gate. |
 | Tailscale Only uses exact locally granted raw routes, without Iroh fallback. | Existing native/saved Tailscale runtime enforces this. The legacy connector now also captures the saved method. A method choice alone creates no grant. |
-| Automatic retains an exact granted legacy route only while the pairing has no authenticated Iroh route. | Legacy raw reconnect now rejects a separately retained native identity for the same owner/device/build. Ticket acceptance now retains an existing native route; directory-to-saved-record upgrade remains open. |
-| Explicit in-app numeric entry can authorize that exact Tailscale address ahead of Automatic/Tailscale method choices. | Existing entry policy and consent authority preserve this. The new saved-route gate does not turn fresh entry into a saved reconnect. |
+| Automatic retains an exact granted legacy route only while the pairing has no authenticated Iroh route. | Legacy raw reconnect now rejects a separately retained native identity for the same owner/device/build. Ticket acceptance now retains an existing native route; account-directory enrichment is implemented in the newer entry above; runtime acceptance remains open. |
+| Fresh in-app numeric entry can authorize its exact Tailscale address ahead of the stored method, including Direct when no caller-supplied Direct allowlist is present. | Existing entry policy and consent authority preserve this. The new saved-route gate does not turn fresh entry into a saved reconnect. |
 | External links cannot create new numeric address authority, but supported-route selection can use an already stored exact Tailscale grant under its applicable method. | Fresh external authority is denied. The chooser now admits independently stored exact grants under captured per-build methods; see the newer entry above. |
 
 `TailscaleConnector` now captures the exact build's connection intent before a
@@ -100,13 +147,12 @@ Real saved-method changes on Mac/Pixel still need acceptance.
   add that presentation with exact grant/owner/build admission and corresponding
   runtime support, rather than treating an arbitrary code's claimed identity as
   authority.
-- `NativeReconnectComputers.merge` keeps an existing saved identity in preference
-  to a matching directory row. Complete the authenticated legacy-to-native upgrade
-  without losing stable origin, drafts/notifications, ticket binding or a strict
-  per-build method. Directory outages must not restore a retired raw fallback.
-- Apply the already-paired Direct constraint to fresh in-app numeric ticket
-  entry too. The present in-app flow gives numeric entry precedence; the scoped
-  iOS source reserves an already-paired Direct route as the stronger constraint.
+- Implement explicit legacy pre-tag identity adoption without choosing an
+  arbitrary sibling or losing history. This batch requires an exact stored build;
+  a missing build remains unchanged until authenticated identity can establish it.
+- Verify authenticated legacy-to-native enrichment and reconnect in the real
+  account flow, including foreground retry, hidden/forgotten rows, directory
+  outages, drafts/notifications, ticket binding and strict per-build methods.
 - Verify real external-link route reuse and cold discovery. The implemented
   chooser/transport checks above have focused evidence, not physical acceptance.
 

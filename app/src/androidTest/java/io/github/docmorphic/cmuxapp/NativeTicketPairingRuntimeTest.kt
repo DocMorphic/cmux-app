@@ -154,6 +154,35 @@ class NativeTicketPairingRuntimeTest {
         } finally { store.clear(); context.deleteSharedPreferences(name) }
     }
 
+    @Test fun directoryEnrichmentPersistsWithoutRenewingTicketOrWritingAnUnchangedSnapshot() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "directory-runtime-${UUID.randomUUID()}"
+        val store = NativeCredentialStore(context, name)
+        try {
+            val public = "cmux-ios://attach?v=2&r=100.64.0.7:58465&ub=fixture-user"
+            val raw = PairingCodeParser.parse(public).getOrThrow() as PairingCode.Tailscale
+            val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId,
+                TailscaleGrantStore.source(raw), "fixture-mac", "default", raw.routes.single())
+            store.update { it.put("task_session", owner.login).put("refresh_token", "synthetic-refresh") }
+            TailscaleGrantStore(store::load, store::update).save(owner, grant) { true }
+            val mac = store.rememberAuthenticatedMac(NativeCredentialStore.PairedMac(public, "fixture-mac", "Fixture Mac", "default"), owner) { true }
+            val ticketRow = store.rememberAttachTicket(owner, mac, ticket(), null) { true }
+            val computer = IrohV2Computer("record", peer, "fixture-mac", "default", "Fixture Mac", emptyList())
+            val snapshot = NativeComputersState(owner, ready = true, computers = listOf(computer))
+            assertFalse(store.retainNativeDirectory(owner, snapshot) { false })
+            assertTrue(store.retainNativeDirectory(owner, snapshot) { true })
+            val revision = store.revisions.value
+            assertFalse(store.retainNativeDirectory(owner, snapshot) { true })
+            assertEquals(revision, store.revisions.value)
+            val reloaded = NativeCredentialStore(context, name)
+            val upgraded = reloaded.pairedMacs().single()
+            assertEquals(ticketRow.copy(nativeRouteCode = PairingCodeParser.computer(computer, owner)), upgraded)
+            assertEquals("synthetic-runtime-token", reloaded.attachTicket(owner, upgraded)!!.tokenFor("workspace.list", org.json.JSONObject(), 0))
+            assertFalse(reloaded.retainNativeDirectory(owner, snapshot.copy(computers = emptyList())) { true })
+            assertEquals(upgraded, reloaded.pairedMacs().single())
+        } finally { store.clear(); context.deleteSharedPreferences(name) }
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()

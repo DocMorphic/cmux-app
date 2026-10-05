@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 
 /** Activity recreation and the notification service share one enrolled endpoint per process. */
 internal class NativeAppConnections private constructor(context: Context) : AutoCloseable {
@@ -143,6 +144,17 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     }
 
     init {
+        scope.launch {
+            combine(native.state, store.revisions) { directory, _ -> directory }.collect { directory ->
+                val owner = directory.account ?: return@collect
+                try {
+                    val changed = store.retainNativeDirectory(owner, directory) {
+                        teams.isCurrent(owner) && native.state.value == directory
+                    }
+                    if (changed) tailscale.retireInvalid()
+                } catch (_: Exception) { currentCoroutineContext().ensureActive() }
+            }
+        }
         scope.launch { store.revisions.collect {
             teams.reconcileLogin()
             accountDeletion.reconcile()
