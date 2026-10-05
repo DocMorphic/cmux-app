@@ -1,5 +1,64 @@
 # Changes preview lifecycle
 
+## PDF navigation and image transform restoration — 2026-10-05
+
+Short final PDF pages now get enough trailing layout space to reach the top of
+the continuous viewer. Next/Previous and the page label therefore follow the
+selected page instead of remaining on a sliver of the preceding page. The
+spacing is recalculated from the viewport and final page dimensions.
+
+Zoom and pan are now saved per artifact. Pan uses bounded viewport fractions
+rather than storing old pixel dimensions. Real touch testing exposed a separate
+one-finger pan failure in the existing gesture path: double-tap zoom worked but
+the drag did not move the image. The viewer now claims touch transforms in the
+initial pointer pass, after the gesture crosses touch slop. At minimum zoom it
+leaves one-finger swipes to the containing file pager. Foundation's transform
+modifier remains for its non-touch input handling; keyboard/mouse acceptance was
+not part of this run.
+
+**Seven Android checks passed in 79.850 s**, covering:
+
+- Short/deleted PDF: select page two, verify `2 / 2` and disabled Next, then return
+  to page one with Previous. Existing PDF rendering/base-revision checks pass.
+- Four mixed-height pages (40, 40, 600, 80 points): navigate forward and backward
+  through every page, check labels/visible destinations and boundary buttons,
+  with one file fetch.
+- A striped image: prove initial colors, double-tap zoom, one-finger pan,
+  Activity recreation with the same zoomed/panned pixels, revision, artifact and
+  fetch count; then reset, pinch out, reset again, and swipe into the next file.
+- Retain the tall PDF page's `2 / 2` label, exact visible bounds and green pixels
+  across recreation without another download. Closing the owner clears files.
+- Existing retry, audio playback/release, image clipboard/export and extensionless
+  image MIME checks.
+
+Final screenshots inspected; no crash entries, no new ANR events during testing,
+and unchanged device settings. The existing AVD was stopped/reaped. Each cold
+boot had a System UI startup ANR before testing; the affected system component
+was restarted and the fresh UI was checked before running. The first seven-test
+attempt had one actual app gesture failure (pan) and six passes; its screenshot
+and output are retained. The final pass follows the gesture fix.
+
+Reference: `ChatArtifactPDFView.swift` at upstream
+`186cec79781256867ad4516f0802118738bd2393`, path
+`Packages/iOS/CmuxAgentChatUI/Sources/CmuxAgentChatUI/Artifacts/ChatArtifactPDFView.swift`,
+SHA-256 `cdf21836a120538deb88667ee37a66b215d106f52107ece600e9b1a4f456eefc`.
+That implementation uses PDFKit's vertical continuous mode and automatic scaling.
+This scoped check does not establish every Quick Look/PDFKit behavior. The actual
+Compose Foundation 1.9.1 source was also inspected from its
+[official source artifact](https://dl.google.com/dl/android/maven2/androidx/compose/foundation/foundation/1.9.1/foundation-1.9.1-sources.jar)
+while diagnosing consumed touch events. Global parity pins remain unchanged.
+
+Evidence: `captures/runtime/viewer-navigation/` (source/APK hashes, failed attempt,
+final instrumentation output, screenshots, device settings, event/crash logs,
+upstream excerpt and source artifact). Signed **596** remains the verified APK;
+this source has not yet been published in a signed build. No Pixel was attached.
+
+**Still open:** browser-parent recreation, media position, text viewer and Save
+picker restoration; PDF zoom and image focal-point behavior across aspect-ratio
+changes; process death, accessibility and physical Pixel/Mac acceptance. The
+short-PDF navigation and same-size image zoom/pan recreation issues described in
+the earlier checkpoint below are now fixed and verified within the scope above.
+
 ## Retained binary preview — 2026-10-05
 
 The Changes presentation now owns the selected Before/After revision, active

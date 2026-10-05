@@ -24,11 +24,17 @@ class ChangesPreviewRetentionRuntimeTest {
         val device = UiDevice.getInstance(instrumentation)
         val credentials = NativeCredentialStore(context)
         val output = File(context.getExternalFilesDir(null), "changes-preview-retention").apply { mkdirs() }
-        fun png(color: Int) = ByteArrayOutputStream().use { bytes ->
+        fun png(color: Int, striped: Boolean = false) = ByteArrayOutputStream().use { bytes ->
             val bitmap = Bitmap.createBitmap(160, 120, Bitmap.Config.ARGB_8888)
-            bitmap.eraseColor(color); bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes); bitmap.recycle(); bytes.toByteArray()
+            bitmap.eraseColor(color)
+            if (striped) {
+                val canvas = android.graphics.Canvas(bitmap)
+                canvas.drawRect(0f, 0f, 160f / 3, 120f, android.graphics.Paint().apply { this.color = Color.GREEN })
+                canvas.drawRect(320f / 3, 0f, 160f, 120f, android.graphics.Paint().apply { this.color = Color.BLUE })
+            }
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes); bitmap.recycle(); bytes.toByteArray()
         }
-        val before = png(Color.RED); val after = png(Color.BLUE)
+        val before = png(Color.RED, striped = true); val after = png(Color.BLUE)
         val pdf = ByteArrayOutputStream().use { bytes ->
             val document = PdfDocument()
             try {
@@ -41,14 +47,14 @@ class ChangesPreviewRetentionRuntimeTest {
             bytes.toByteArray()
         }
         fun find(selector: BySelector) = checkNotNull(device.wait(Until.findObject(selector), 15_000)) { "Missing $selector" }
-        fun assertColor(description: String, color: Int) {
+        fun assertColor(description: String, color: Int, fractionX: Float = .5f) {
             val deadline = SystemClock.elapsedRealtime() + 15_000
             while (SystemClock.elapsedRealtime() < deadline) {
                 try {
                     val bounds = find(By.desc(description)).visibleBounds
                     val screenshot = instrumentation.uiAutomation.takeScreenshot()
                     val match = try { bounds.width() > 0 && bounds.height() > 0 &&
-                        screenshot.getPixel(bounds.centerX(), bounds.centerY()) == color } finally { screenshot.recycle() }
+                        screenshot.getPixel(bounds.left + (bounds.width() * fractionX).toInt(), bounds.centerY()) == color } finally { screenshot.recycle() }
                     if (match) return
                 } catch (_: StaleObjectException) { }
                 Thread.sleep(100)
@@ -83,16 +89,40 @@ class ChangesPreviewRetentionRuntimeTest {
                     find(By.desc("Changes: 2 files, +0, −0")).click()
                     find(By.desc("Open diff image.png")).click(); assertColor("Image preview image.png", Color.BLUE)
                     find(By.text("Before")).click(); find(By.desc("Before preview old/image.png")); assertColor("Image preview image.png", Color.RED)
+                    val imageDescription = "Image preview image.png"
+                    assertColor(imageDescription, Color.GREEN, .2f)
+                    assertColor(imageDescription, Color.BLUE, .8f)
+                    val imageBounds = find(By.desc(imageDescription)).visibleBounds
+                    fun doubleTapImage() {
+                        device.click(imageBounds.centerX(), imageBounds.centerY()); Thread.sleep(80)
+                        device.click(imageBounds.centerX(), imageBounds.centerY())
+                    }
+                    doubleTapImage()
+                    assertColor(imageDescription, Color.RED, .2f)
+                    device.swipe(imageBounds.centerX(), imageBounds.centerY(),
+                        imageBounds.centerX() + imageBounds.width() / 4, imageBounds.centerY(), 25)
+                    assertColor(imageDescription, Color.GREEN, .2f)
+                    assertColor(imageDescription, Color.RED, .8f)
                     var original: WorkspaceChangesPresentation? = null
                     scenario.onActivity { original = ViewModelProvider(it)[NativeFeedSession::class.java].changesSheet }
                     val artifact = checkNotNull(original!!.store.previews.state.value.artifact).file
                     fun fetches() = peer.requests.count { it.optString("method") == "mobile.workspace.changes.file_fetch" }
                     val imageReads = fetches()
                     scenario.recreate(); find(By.desc("Before preview old/image.png")); assertColor("Image preview image.png", Color.RED)
+                    assertColor(imageDescription, Color.GREEN, .2f)
+                    assertColor(imageDescription, Color.RED, .8f)
                     scenario.onActivity { assertSame(original, ViewModelProvider(it)[NativeFeedSession::class.java].changesSheet)
                         assertEquals(artifact, original!!.store.previews.state.value.artifact?.file) }
                     assertEquals(imageReads, fetches()); device.takeScreenshot(File(output, "image-before-recreated.png"))
-                    find(By.desc("Next changed file")).click(); find(By.desc("PDF page 1 of 2"))
+                    doubleTapImage()
+                    assertColor(imageDescription, Color.GREEN, .2f); assertColor(imageDescription, Color.BLUE, .8f)
+                    assertTrue(device.findObject(UiSelector().description(imageDescription)).pinchOut(50, 30))
+                    assertColor(imageDescription, Color.RED, .2f)
+                    doubleTapImage()
+                    assertColor(imageDescription, Color.GREEN, .2f); assertColor(imageDescription, Color.BLUE, .8f)
+                    device.swipe(imageBounds.right - imageBounds.width() / 5, imageBounds.centerY(),
+                        imageBounds.left + imageBounds.width() / 5, imageBounds.centerY(), 30)
+                    find(By.desc("PDF page 1 of 2"))
                     find(By.text("Next page")).click(); find(By.text("2 / 2")); assertColor("PDF page 2 of 2", Color.GREEN)
                     device.waitForIdle()
                     val pageBounds = find(By.desc("PDF page 2 of 2")).visibleBounds

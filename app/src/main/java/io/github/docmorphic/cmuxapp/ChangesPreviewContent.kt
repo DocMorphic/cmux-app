@@ -15,6 +15,11 @@ import android.widget.MediaController
 import android.widget.VideoView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
@@ -22,11 +27,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -43,6 +51,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.*
 import java.io.File
 import kotlin.math.sqrt
+import kotlin.math.abs
 
 @Composable
 internal fun ChangesPreviewContent(artifact: ChangesPreviewArtifact) {
@@ -56,15 +65,17 @@ internal fun FilePreviewContent(artifact: LocalFilePreview) {
     Column(Modifier.fillMaxSize()) {
         FilePreviewActions(artifact, state)
         Box(Modifier.weight(1f)) {
-            when (artifact.route) {
-                ChangesPreviewRoute.IMAGE -> ChangesImagePreview(artifact.file)
-                ChangesPreviewRoute.PDF -> ChangesPdfPreview(artifact.file)
-                ChangesPreviewRoute.MEDIA -> ChangesMediaPreview(artifact.file)
-                ChangesPreviewRoute.TEXT -> ArtifactTextPreview(artifact, state)
-                ChangesPreviewRoute.EXTERNAL -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Preview unavailable", style = MaterialTheme.typography.titleMedium)
-                    Text("Use Viewer actions to open, share or save this file.", color = changesMuted)
+            key(artifact.file.absolutePath) {
+                when (artifact.route) {
+                    ChangesPreviewRoute.IMAGE -> ChangesImagePreview(artifact.file)
+                    ChangesPreviewRoute.PDF -> ChangesPdfPreview(artifact.file)
+                    ChangesPreviewRoute.MEDIA -> ChangesMediaPreview(artifact.file)
+                    ChangesPreviewRoute.TEXT -> ArtifactTextPreview(artifact, state)
+                    ChangesPreviewRoute.EXTERNAL -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Preview unavailable", style = MaterialTheme.typography.titleMedium)
+                        Text("Use Viewer actions to open, share or save this file.", color = changesMuted)
+                    }
                 }
             }
         }
@@ -74,20 +85,49 @@ internal fun FilePreviewContent(artifact: LocalFilePreview) {
 /** Parent paging remains available at minimum zoom. A zoomed page keeps one-finger pans locally. */
 @Composable
 private fun PreviewZoom(modifier: Modifier = Modifier, content: @Composable (Modifier) -> Unit) {
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
+    var scale by rememberSaveable { mutableFloatStateOf(1f) }
+    // Save pan as fractions of the viewport, independent of the old view dimensions.
+    var panX by rememberSaveable { mutableFloatStateOf(0f) }
+    var panY by rememberSaveable { mutableFloatStateOf(0f) }
     var width by remember { mutableIntStateOf(0) }
     var height by remember { mutableIntStateOf(0) }
-    val transform = rememberTransformableState { zoom, pan, _ ->
+    fun applyTransform(zoom: Float, pan: Offset) {
         scale = (scale * zoom).coerceIn(1f, 8f)
-        offset = Offset((offset.x + pan.x).coerceIn(-width * (scale - 1) / 2, width * (scale - 1) / 2),
-            (offset.y + pan.y).coerceIn(-height * (scale - 1) / 2, height * (scale - 1) / 2))
-        if (scale == 1f) offset = Offset.Zero
+        val limit = (scale - 1) / 2
+        panX = (panX + if (width > 0) pan.x / width else 0f).coerceIn(-limit, limit)
+        panY = (panY + if (height > 0) pan.y / height else 0f).coerceIn(-limit, limit)
     }
+    val transform = rememberTransformableState { zoom, pan, _ -> applyTransform(zoom, pan) }
     Box(modifier.clipToBounds().onSizeChanged { width = it.width; height = it.height }
+        .pointerInput(Unit) {
+            // Claim touch transforms before AndroidView/pager handlers consume the
+            // movement. At minimum zoom, leave one-finger swipes to the parent.
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                var accumulatedPan = Offset.Zero
+                var accumulatedZoom = 1f
+                var claimed = false
+                do {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (event.changes.any { it.isConsumed }) break
+                    val pan = event.calculatePan()
+                    val zoom = event.calculateZoom()
+                    accumulatedPan += pan; accumulatedZoom *= zoom
+                    val multiple = event.changes.count { it.pressed } > 1
+                    val zoomDistance = abs(accumulatedZoom - 1) * event.calculateCentroidSize(useCurrent = false)
+                    if (!claimed) claimed = (scale > 1f && accumulatedPan.getDistance() > viewConfiguration.touchSlop) ||
+                        (multiple && zoomDistance > viewConfiguration.touchSlop)
+                    if (claimed) {
+                        applyTransform(zoom, pan)
+                        event.changes.filter { it.positionChanged() }.forEach { it.consume() }
+                    }
+                } while (event.changes.any { it.pressed })
+            }
+        }
+        // Retain Foundation's non-touch (Ctrl+wheel) transform support.
         .transformable(transform, canPan = { scale > 1f })
-        .pointerInput(Unit) { detectTapGestures(onDoubleTap = { scale = if (scale > 1f) 1f else 2f; offset = Offset.Zero }) }) {
-        content(Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale; translationX = offset.x; translationY = offset.y })
+        .pointerInput(Unit) { detectTapGestures(onDoubleTap = { scale = if (scale > 1f) 1f else 2f; panX = 0f; panY = 0f }) }) {
+        content(Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale; translationX = panX * width; translationY = panY * height })
     }
 }
 
@@ -175,20 +215,28 @@ private fun ChangesPdfPreview(file: File) {
                 Text("${scroll.firstVisibleItemIndex + 1} / ${pdf.pageSizes.size}", fontSize = 12.sp)
                 TextButton(enabled = scroll.firstVisibleItemIndex < pdf.pageSizes.lastIndex, onClick = { scope.launch { scroll.animateScrollToItem(scroll.firstVisibleItemIndex + 1) } }) { Text("Next page") }
             }
-            LazyColumn(Modifier.weight(1f), state = scroll, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(pdf.pageSizes.size, key = { it }) { index ->
-                    val size = pdf.pageSizes[index]
-                    BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(size.first.toFloat() / size.second)
-                        .semantics { contentDescription = "PDF page ${index + 1} of ${pdf.pageSizes.size}" }) {
-                        val width = with(LocalDensity.current) { maxWidth.roundToPx() }
-                        var pageFailure by remember { mutableStateOf<String?>(null) }
-                        val bitmap by produceState<Bitmap?>(null, pdf, index, width) {
-                            try { value = withContext(Dispatchers.IO) { pdf.render(index, width * 2) } }
-                            catch (error: Exception) { if (error is CancellationException) throw error; pageFailure = "Could not render this PDF page." }
+            BoxWithConstraints(Modifier.weight(1f)) {
+                // A short final page must still reach the top. Otherwise scrollToItem
+                // clamps early and the label/Previous button remain on the preceding page.
+                val lastSize = pdf.pageSizes.lastOrNull()
+                val lastHeight = lastSize?.let { maxWidth * (it.second.toFloat() / it.first) } ?: maxHeight
+                val endPadding = maxOf(0.dp, maxHeight - lastHeight)
+                LazyColumn(Modifier.fillMaxSize(), state = scroll, contentPadding = PaddingValues(bottom = endPadding),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(pdf.pageSizes.size, key = { it }) { index ->
+                        val size = pdf.pageSizes[index]
+                        BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(size.first.toFloat() / size.second)
+                            .semantics { contentDescription = "PDF page ${index + 1} of ${pdf.pageSizes.size}" }) {
+                            val width = with(LocalDensity.current) { maxWidth.roundToPx() }
+                            var pageFailure by remember { mutableStateOf<String?>(null) }
+                            val bitmap by produceState<Bitmap?>(null, pdf, index, width) {
+                                try { value = withContext(Dispatchers.IO) { pdf.render(index, width * 2) } }
+                                catch (error: Exception) { if (error is CancellationException) throw error; pageFailure = "Could not render this PDF page." }
+                            }
+                            if (bitmap != null) PreviewZoom(Modifier.fillMaxSize()) { Image(bitmap!!.asImageBitmap(), null, it) }
+                            else if (pageFailure != null) Text(pageFailure!!)
+                            else LinearProgressIndicator(Modifier.fillMaxWidth())
                         }
-                        if (bitmap != null) PreviewZoom(Modifier.fillMaxSize()) { Image(bitmap!!.asImageBitmap(), null, it) }
-                        else if (pageFailure != null) Text(pageFailure!!)
-                        else LinearProgressIndicator(Modifier.fillMaxWidth())
                     }
                 }
             }

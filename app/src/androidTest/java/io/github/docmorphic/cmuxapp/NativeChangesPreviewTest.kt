@@ -125,12 +125,51 @@ class NativeChangesPreviewTest {
         compose.onNodeWithText("Before").assertDoesNotExist(); compose.onNodeWithText("After").assertDoesNotExist()
         compose.onNodeWithText("Next page").performClick()
         waitDescription("PDF page 2 of 2"); compose.onNodeWithContentDescription("PDF page 2 of 2").assertIsDisplayed()
+        waitText("2 / 2"); compose.onNodeWithText("Next page").assertIsNotEnabled()
+        compose.onNodeWithText("Previous page").assertIsEnabled().performClick()
+        waitText("1 / 2"); compose.onNodeWithText("Previous page").assertIsNotEnabled()
         assertTrue(peer.requests.filter { it.optString("method").endsWith(".file_fetch") }.all { it.getJSONObject("params").getString("revision") == "base" })
         val local = File(compose.activity.cacheDir, "changes-previews").walkTopDown().first { it.name == "deleted.pdf" }
         ChangesPdfDocument(local).use { pdf ->
             assertEquals(2, pdf.pageSizes.size)
             val bitmap = pdf.render(1, 240); assertEquals(Color.GREEN, bitmap.getPixel(120, 160)); bitmap.recycle()
         }
+    }
+
+    @Test fun mixedAndVeryShortPdfPagesRemainIndividuallyNavigable() {
+        // The first pair fits entirely in a portrait viewport. The final page
+        // is also too short to reach the top without trailing layout space.
+        val sizes = listOf(40, 40, 600, 80)
+        val data = ByteArrayOutputStream().use { output ->
+            val pdf = PdfDocument()
+            try {
+                sizes.forEachIndexed { index, height ->
+                    val page = pdf.startPage(PdfDocument.PageInfo.Builder(240, height, index + 1).create())
+                    page.canvas.drawColor(if (index % 2 == 0) Color.YELLOW else Color.GREEN)
+                    pdf.finishPage(page)
+                }
+                pdf.writeTo(output)
+            } finally { pdf.close() }; output.toByteArray()
+        }
+        peer.changesResponse = { method, params -> when {
+            method.endsWith(".files") -> files("mixed.pdf", "added")
+            method.endsWith(".file_diff") -> diff("mixed.pdf")
+            method.endsWith(".file_stat") -> stat(data, "current", "application/pdf", "binary")
+            else -> chunk(data, params.getString("revision"))
+        } }
+        show(); waitText("mixed.pdf"); compose.onNodeWithContentDescription("Open diff mixed.pdf").performClick()
+        waitText("1 / 4")
+        for (page in 2..4) {
+            compose.onNodeWithText("Next page").assertIsEnabled().performClick()
+            waitText("$page / 4"); compose.onNodeWithContentDescription("PDF page $page of 4").assertIsDisplayed()
+        }
+        compose.onNodeWithText("Next page").assertIsNotEnabled()
+        for (page in 3 downTo 1) {
+            compose.onNodeWithText("Previous page").assertIsEnabled().performClick()
+            waitText("$page / 4")
+        }
+        compose.onNodeWithText("Previous page").assertIsNotEnabled()
+        assertEquals(1, peer.requests.count { it.optString("method").endsWith(".file_fetch") })
     }
 
     @Test fun changedContentFailureCanRetryWithoutPublishingPartialPreview() {

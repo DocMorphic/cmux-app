@@ -12,7 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest source checkpoint — Changes preview retention (2026-10-05)
+## Latest source checkpoint — PDF navigation and image gestures (2026-10-05)
+
+Short/mixed-height PDF navigation now selects the intended page and updates its
+controls. Image zoom/pan survive recreation; an actual one-finger pan bug found
+by the new touch test is fixed. **Seven Android checks passed in 79.850 s**,
+including pinch/reset, minimum-zoom file paging and restored pixels. Screenshots
+inspected; no test-run ANRs/crash entries; settings unchanged; sole AVD stopped.
+See [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md) for scoped evidence,
+boot-time emulator failures, the initial pan regression and remaining viewer work.
+No physical Pixel/Mac run; signed **596** unchanged. Goal remains active.
+
+## Earlier source checkpoint — Changes preview retention (2026-10-05)
 
 The retained Changes owner now keeps Before/After selection and one active private
 preview across Activity recreation. Refresh/file changes/close cancel and clean
