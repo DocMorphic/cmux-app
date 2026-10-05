@@ -8,6 +8,8 @@ import android.text.Selection
 import android.text.Spannable
 import android.view.View
 import android.view.ViewGroup
+import android.view.inspector.WindowInspector
+import android.media.MediaPlayer
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -92,6 +94,58 @@ class ArtifactPreviewLifecycleTest {
             assertFalse(playing())
             val closing = media()!!
             scenario.close(); assertFalse(closing.isPlaying)
+        } } finally { file.delete() }
+    }
+
+    @Test fun mediaSpeedSeekingMuteAndFullscreenKeepPlaybackBookmarks() {
+        guard(); check(Build.VERSION.SDK_INT >= 29)
+        val file = File(context.cacheDir, "media-controls.wav").also(::wav)
+        try { launch(file, ChangesPreviewRoute.MEDIA, "audio/wav").use { scenario ->
+            fun media() = WindowInspector.getGlobalWindowViews().firstNotNullOfOrNull { root ->
+                root.child<ArtifactMediaView>()?.takeIf { it.isShown }
+            }
+            fun position() = scenario.read { media()?.currentPosition ?: -1 }
+            fun playing() = scenario.read { media()?.isPlaying == true }
+            fun actualSpeed() = scenario.read {
+                media()?.let { view ->
+                    (ArtifactMediaView::class.java.getDeclaredField("player").apply { isAccessible = true }.get(view) as? MediaPlayer)
+                        ?.playbackParams?.speed
+                }
+            }
+            find(By.text("Play").enabled(true))
+            scenario.onActivity { media()!!.seekTo(5000) }
+            await("Initial seek failed") { position() in 4800..5300 }
+            find(By.desc("Playback speed")).click(); find(By.text("2.0×")).click()
+            find(By.desc("Playback speed").text("2.0×"))
+            Thread.sleep(350); assertFalse("Changing speed must preserve Pause", playing())
+            assertTrue(position() in 4800..5300)
+            find(By.text("Mute")).click(); find(By.text("Unmute"))
+            find(By.desc("Forward 10 seconds")).click()
+            await("Forward skip failed") { position() in 14_800..15_300 }
+            find(By.desc("Back 10 seconds")).click()
+            await("Backward skip failed") { position() in 4800..5300 }
+            val slider = find(By.desc("Playback position")).visibleBounds
+            device.click(slider.centerX(), slider.centerY())
+            await("Scrubber failed") { position() in 13_500..16_500 }
+            assertFalse(playing())
+            val paused = position()
+            find(By.text("Fullscreen")).click(); find(By.text("Exit fullscreen")); find(By.text("Play").enabled(true))
+            await("Fullscreen lost paused bookmark") { kotlin.math.abs(position() - paused) < 350 }
+            assertFalse(playing()); find(By.text("Unmute"))
+            assertTrue(scenario.read { media()!!.rootView !== it.window.decorView })
+            screenshot("media-fullscreen-paused")
+            find(By.text("Play").enabled(true)).click()
+            await("Fullscreen playback failed") { playing() }
+            assertEquals(2f, actualSpeed()!!, .01f)
+            val before = position()
+            scenario.recreate(); find(By.text("Exit fullscreen"))
+            await("Fullscreen recreation lost playback") { playing() && position() >= before - 350 && position() < before + 6000 }
+            assertEquals(2f, actualSpeed()!!, .01f); find(By.text("Unmute"))
+            find(By.text("Pause")).click(); val stopped = position()
+            device.pressBack(); find(By.text("Fullscreen")); find(By.text("Play").enabled(true))
+            await("Leaving fullscreen lost bookmark") { kotlin.math.abs(position() - stopped) < 350 }
+            assertFalse(playing()); find(By.text("Unmute"))
+            screenshot("media-controls-inline")
         } } finally { file.delete() }
     }
 

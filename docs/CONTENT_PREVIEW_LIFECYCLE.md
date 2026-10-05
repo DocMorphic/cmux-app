@@ -1,5 +1,56 @@
 # Content preview lifecycle
 
+## Media controls and fullscreen source batch — 2026-10-05
+
+The scoped `ChatArtifactMediaView.swift` at upstream
+`186cec79781256867ad4516f0802118738bd2393` hosts a local AVPlayer in
+AVPlayerViewController with aspect-fit video and releases it on dismantle.
+Apple's [AVPlayerViewController reference](https://developer.apple.com/documentation/avkit/avplayerviewcontroller)
+and [speed-control reference](https://developer.apple.com/documentation/avkit/avplayerviewcontroller/speeds)
+confirm system playback-speed and fullscreen capabilities. This is a scoped
+comparison, not a claim that every AVKit feature is now matched.
+
+Android's preview now provides a seek slider with current/duration labels,
+10-second backward/forward skips, Play/Pause, Restart, speed choices from 0.5×
+to 2×, mute and fullscreen. Controls wrap on narrow layouts and include labeled
+accessibility actions and position/speed descriptions. The old floating
+MediaController is replaced by these controls. Speed, mute, fullscreen and the
+position bookmark survive recreation; normal background/task restoration keeps
+the prior requirement for an explicit Play gesture. Progress polling runs only
+while the owner is started. Play at the end seeks back to the start.
+
+Fullscreen uses a separate full-window dialog, hides its system bars with
+transient swipe access, and closes through Back or Exit fullscreen. The old player
+surface is released before composing the new host, preserving position and play
+intent; release is idempotent and retired callbacks cannot overwrite a new owner.
+The Activity's own window flags are untouched. Format failures provide Retry and
+retain Open in the viewer toolbar.
+
+Android's [MediaPlayer contract](https://developer.android.com/reference/android/media/MediaPlayer#setPlaybackParams(android.media.PlaybackParams))
+says a nonzero playback speed starts a prepared player. Speed changes therefore
+silence the transition and immediately restore Pause when playback is not
+requested, then restore the requested volume. Unsupported speed changes show a
+readable message. This guard is implemented; audible behavior has not yet been
+verified on a device.
+
+**Verification:** four focused control-policy tests passed (seek bounds/overflow,
+unknown duration, time formatting and invalid saved speeds). Main and existing
+instrumentation Kotlin compiled in the 22 s check. A new guarded media test then
+compiled with the final source in 19 s. It exercises speed changes while paused,
+actual MediaPlayer speed during playback, skip/scrub, mute UI state, fullscreen
+window ownership, bookmark transfer, recreation and return to inline playback.
+**The new Android test has not run**; no claim of runtime/video/audio acceptance
+is made from the policy tests. Evidence/source hashes and the upstream excerpt are
+under `captures/runtime/media-controls-batch/`.
+
+This batch is queued with image gestures and progressive text for the next
+combined Android milestone. No APK, emulator or physical-device run was added;
+signed build 616 excludes it. Remaining media work includes actual video and
+aspect/layout checks, codec coverage, audio focus/headphone interruptions,
+embedded tracks/subtitles, Picture in Picture and routing/casting comparison,
+TalkBack/large-font behavior and real Pixel playback. Global parity pins remain
+unchanged and these are pending features/checks, not claimed platform exclusions.
+
 ## Progressive text and viewer-path actions — 2026-10-05
 
 The scoped iOS source at `186cec79781256867ad4516f0802118738bd2393` displays

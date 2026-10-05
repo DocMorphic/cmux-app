@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Media previews now have seek/time controls, ±10-second skips, speed, mute and
+  fullscreen with saved bookmarks/options and guarded player replacement. Four
+  control-policy tests passed; main and the new Android fixture compiled. Queue
+  the media, image and progressive-text device cases in one integration run.
+  Playback/audio, video layouts, interruptions, embedded tracks/PiP/routing,
+  accessibility and physical acceptance remain open. Build 616 excludes this
+  batch; see `CONTENT_PREVIEW_LIFECYCLE.md`.
+
 - Native text/Markdown previews now stream readable prefixes with strict UTF-8,
   progress, EOF-gated Copy Contents, exact remote Copy path, Latest/End tail
   following and reading/selection retention. Thirty-three JVM checks passed and
