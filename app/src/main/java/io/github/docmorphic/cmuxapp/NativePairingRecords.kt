@@ -24,8 +24,12 @@ internal object NativePairingRecords {
                 require(entries.all { it.length == 64 && it.all { c -> c in "0123456789abcdef" } })
             }
         }
+        val nativeCode = if (item.isNull("native_route_code")) null else (item.get("native_route_code") as String).also {
+            require(it.length in 1..4096)
+        }
         NativeCredentialStore.PairedMac(item.getString("code").also { require(it.isNotBlank()) }, item.optString("device_id"),
-            item.optString("name", "cmux"), optional("instance_tag"), user, team, origin, aliases.filterNot { it == origin }.toSet(), ticketRevision)
+            item.optString("name", "cmux"), optional("instance_tag"), user, team, origin, aliases.filterNot { it == origin }.toSet(), ticketRevision,
+            nativeCode).also { require(nativeCode == null || retainedNativeRoute(it) != null) }
     }.getOrNull()
 
     fun encode(row: NativeCredentialStore.PairedMac): JSONObject = JSONObject().put("code", row.code)
@@ -34,6 +38,7 @@ internal object NativePairingRecords {
             row.accountTeamId?.let { put("owner_team", it) }
             row.stableOrigin?.let { put("stable_origin", it) }
             row.ticketRevision?.let { put("attach_ticket_revision", it) }
+            row.nativeRouteCode?.let { put("native_route_code", it) }
             if (row.previousOrigins.isNotEmpty()) put("previous_origins", JSONArray(row.previousOrigins.sorted()))
         }
 
@@ -59,10 +64,22 @@ internal object NativePairingRecords {
         if (owner(row, grants) != (team.userId to team.teamId)) return false
         val pairing = PairingCodeParser.parse(row.code).getOrNull() ?: return false
         if (pairing is PairingCode.Tailscale) {
+            if (retainedNativeRoute(row) != null) return true
             val grant = grants.find(team, TailscaleGrantStore.source(pairing)) ?: return false
             return grant.device == canonicalMacDeviceId(row.deviceId) && grant.build == row.instanceTag
         }
         return true
+    }
+
+    /** Only an already authenticated, scoped saved row may retain another native route. */
+    fun retainedNativeRoute(row: NativeCredentialStore.PairedMac): PairingCode.Iroh? {
+        if (row.accountUserId == null || row.accountTeamId == null || row.stableOrigin == null) return null
+        val route = row.nativeRouteCode?.let { PairingCodeParser.parse(it).getOrNull() } as? PairingCode.Iroh ?: return null
+        return route.takeIf {
+            (it.userId == null || it.userId == row.accountUserId) && (it.teamId == null || it.teamId == row.accountTeamId) &&
+                (it.macDeviceId == null || canonicalMacDeviceId(it.macDeviceId) == canonicalMacDeviceId(row.deviceId)) &&
+                (it.buildTag == null || it.buildTag == row.instanceTag)
+        }
     }
 
     fun removeLocal(state: JSONObject, code: String, team: NativeTeamScope? = null) {

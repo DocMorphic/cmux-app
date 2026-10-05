@@ -45,6 +45,13 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         compatibility.gate.admit(team, client, host, locallyAuthorizedTailscale = true)
     }
     val connector = object : NativeConnector {
+        private fun savedRoute(mac: NativeCredentialStore.PairedMac, team: NativeTeamScope): NativeSavedMacRoute {
+            val preferences = NativeMacConnectionStore.create(context.applicationContext, team).state.value
+            check(!preferences.error) { "Could not read this phone’s connection settings. Reopen Computer Details and retry." }
+            val method = mac.instanceTag?.let { preferences.get(NativeComputerTarget(mac.deviceId, it, mac.name)).method }
+                ?: NativeMacConnectionMethod.IROH
+            return nativeSavedMacRoute(mac, method)
+        }
         override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = tailscale.connect(pairing, account)
         override suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount) = native.connect(pairing)
         override suspend fun connectTicket(pairing: PairingCode, ticket: MobileAttachTicket, account: NativeAccount): MobileRpcClient {
@@ -68,8 +75,10 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         override suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient {
             val team = checkNotNull(teams.state.value.scope) { "Refresh your account teams before connecting." }
             check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden, changed, or belongs to another account or team." }
-            val pairing = PairingCodeParser.parse(mac.code).getOrThrow()
-            val ticket = if (mac.ticketRevision == null) null else {
+            val selected = savedRoute(mac, team)
+            val pairing = selected.pairing
+            // A retained native identity does not extend the ticket's route coverage.
+            val ticket = if (mac.ticketRevision == null || !selected.usesPrimaryTicket) null else {
                 val context = checkNotNull(store.attachTicket(team, mac))
                 val admissionLock = Any()
                 var checkedRevision = Long.MIN_VALUE
@@ -98,9 +107,11 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             }
             try {
                 check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden or its account changed. Open Computers to reconnect." }
+                check(savedRoute(mac, team) == selected) { "Computer connection settings changed" }
                 ticket?.requireCurrent()
-                if (ticket == null || pairing is PairingCode.Tailscale) return client
-                return client.withAttachTicket(ticket.context, ticket::requireCurrent)
+                val result = if (ticket == null || pairing is PairingCode.Tailscale) client else client.withAttachTicket(ticket.context, ticket::requireCurrent)
+                result.authenticatedSavedRouteCode = selected.code
+                return result
             } catch (failure: Throwable) { client.close(); throw failure }
         }
         override fun allowsSaved(mac: NativeCredentialStore.PairedMac): Boolean {
@@ -108,7 +119,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             val team = teams.state.value.scope ?: return false
             return teams.isCurrent(team) && runCatching {
                 NativePairingRecords.usable(mac, team, TailscaleGrantStore(store::load, store::update)) &&
-                    PairingCodeParser.parse(mac.code).getOrNull()?.let(::allowsSaved) == true
+                    allowsSaved(savedRoute(mac, team).pairing)
             }.getOrDefault(false)
         }
         override fun allowsSaved(pairing: PairingCode): Boolean {

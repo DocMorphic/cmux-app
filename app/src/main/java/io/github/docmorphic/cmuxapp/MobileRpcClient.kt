@@ -144,6 +144,9 @@ class MobileRpcClient internal constructor(
         return delegate?.tailscalePeer() ?: transport.tailscalePeer()
     }
 
+    /** Public locator chosen by the saved-record boundary after authenticated connection, never a bearer. */
+    internal var authenticatedSavedRouteCode: String? = null
+
     /** Transfers ownership of this handle to a caller-local ticket view; the pooled wire is unchanged. */
     internal fun withAttachTicket(context: MobileAttachTicketContext?, admitted: () -> Unit): MobileRpcClient {
         check(!isClosed) { "Cannot scope a closed connection" }

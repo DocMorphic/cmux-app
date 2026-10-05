@@ -11,7 +11,7 @@ internal object NativeLegacyTailscalePolicy {
     fun hasNativeIdentity(grant: TailscaleSavedGrant, team: NativeTeamScope,
                           saved: List<NativeCredentialStore.PairedMac>, grants: TailscaleGrantStore): Boolean = saved.any { row ->
         canonicalMacDeviceId(row.deviceId) == grant.device && row.instanceTag == grant.build &&
-            PairingCodeParser.parse(row.code).getOrNull() is PairingCode.Iroh &&
+            (PairingCodeParser.parse(row.code).getOrNull() is PairingCode.Iroh || NativePairingRecords.retainedNativeRoute(row) != null) &&
             NativePairingRecords.owner(row, grants) == (team.userId to team.teamId)
     }
 }

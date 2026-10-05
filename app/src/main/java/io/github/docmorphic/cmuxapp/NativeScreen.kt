@@ -1831,7 +1831,7 @@ internal fun NativeScreen(
                         values.optString(index).takeIf { it.isNotBlank() }
                     }.toSet()
                 } ?: emptySet()
-                val verified = NativeCredentialStore.PairedMac(requestedCode, status.optString("mac_device_id"), displayName,
+                val verified = NativeCredentialStore.PairedMac(active.authenticatedSavedRouteCode ?: requestedCode, status.optString("mac_device_id"), displayName,
                     status.optString("mac_instance_tag").takeIf { !status.isNull("mac_instance_tag") && it.isNotBlank() },
                     accountUserId = pairingOwner?.userId, accountTeamId = pairingOwner?.teamId)
                 val feed = try { parseNotifications(active.notifications()) }

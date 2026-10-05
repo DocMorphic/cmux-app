@@ -27,7 +27,8 @@ internal data class NativeComputerTarget(val deviceId: String, val buildTag: Str
         fun from(mac: NativeCredentialStore.PairedMac, team: NativeTeamScope): NativeComputerTarget? {
             if ((mac.accountUserId != null && mac.accountUserId != team.userId) ||
                 (mac.accountTeamId != null && mac.accountTeamId != team.teamId)) return null
-            val code = PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh ?: return null
+            val code = PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh
+                ?: NativePairingRecords.retainedNativeRoute(mac) ?: return null
             // Older native QR codes omit scope hints. They are never authority: the check
             // refreshes this team's directory and resolves the exact device/build before dialing.
             if ((code.userId != null && code.userId != team.userId) || (code.teamId != null && code.teamId != team.teamId) ||

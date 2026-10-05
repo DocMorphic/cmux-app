@@ -20,7 +20,7 @@ internal object NativePairingPersistence {
                 "This saved computer changed. Choose it again from Computers."
             }
         }
-        if (team == null) return rememberUnscoped(state, incoming)
+        if (team == null) return rememberUnscoped(state, incoming.copy(nativeRouteCode = null))
         check(state.optString("task_session") == team.login && state.optString("refresh_token").isNotBlank()) {
             "Account session changed. Reconnect to the Mac."
         }
@@ -54,7 +54,10 @@ internal object NativePairingPersistence {
         // A fresh authenticated native reconnect supplies authority. A QR must not
         // choose arbitrarily between old native routes (these records have no dates).
         val nativeMatches = matches.filter { PairingCodeParser.parse(it.second.code).getOrNull() is PairingCode.Iroh }
-        check(pairing !is PairingCode.Tailscale || nativeMatches.map { it.second.code }.distinct().size <= 1) {
+        val nativeCodes = (nativeMatches.map { it.second.code } + matches.mapNotNull {
+            it.second.nativeRouteCode?.takeIf { _ -> NativePairingRecords.retainedNativeRoute(it.second) != null }
+        }).distinct()
+        check(pairing !is PairingCode.Tailscale || nativeCodes.size <= 1) {
             "Reconnect this computer from Computers first, then add its Tailscale route."
         }
         val existing = matches.firstOrNull()
@@ -69,7 +72,11 @@ internal object NativePairingPersistence {
             check(!ambiguous) { "Reconnect this native computer first, then add its route from Computer Details." }
         }
         val routeOwner = if (pairing is PairingCode.Tailscale && !preferIncomingRoute) nativeMatches.firstOrNull()?.second ?: incoming else incoming
-        val scoped = NativePairingRecords.scoped(routeOwner, team, existing?.second?.origin)
+        // The incoming handshake proves only its selected route. Never import an
+        // alternative supplied by incoming data; retain it from owned saved rows.
+        val retainedNative = if (PairingCodeParser.parse(routeOwner.code).getOrNull() is PairingCode.Tailscale)
+            nativeCodes.singleOrNull() else null
+        val scoped = NativePairingRecords.scoped(routeOwner.copy(nativeRouteCode = retainedNative), team, existing?.second?.origin)
         val aliases = matches.flatMap { it.second.origins }.toSet() - scoped.origin
         // An origin shared with an unresolved or differently scoped record cannot
         // become an alias: its old drafts/notifications have ambiguous ownership.

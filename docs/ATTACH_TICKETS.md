@@ -1,5 +1,28 @@
 # Attach-ticket compatibility audit
 
+## Retained native pairing alongside a Tailscale ticket (2026-10-06)
+
+Accepting a Tailscale ticket now retains a previously authenticated native locator
+for the same account, team, device and build. Incoming ticket data cannot create
+that alternative. Automatic and Direct select the retained native locator;
+Tailscale selects the primary raw route, subject to its existing exact grant and
+method checks. The raw ticket remains bound only to its covered primary route.
+
+After a native reconnect authenticates, its selected locator becomes primary,
+retaining the computer's stable origin/history and retiring the raw ticket context.
+Revoking the raw grant does not erase the independently authenticated native route.
+Malformed, cross-scope and ambiguous alternatives are rejected; saved menu actions
+also retire when the retained locator changes. Computer Details is available for
+raw-primary rows with a valid retained native identity.
+
+**85 focused JVM tests passed**, zero failures/errors/skips, including six new
+retention cases, 22 persistence cases, 13 ticket-store cases, 42 authority cases
+and two saved-route policy cases. Main/instrumentation Kotlin compilation passed
+(32 seconds). No APK build or emulator run in this batch. Local logs, original
+fixture failures, final XML and source hashes are under
+`captures/runtime/retained-native-route/`. Real reconnect/UI acceptance remains
+open, along with the implementation gaps below.
+
 ## Saved-method comparison and legacy reconnect guard (2026-10-06)
 
 Scoped source: `MobileShellComposite+ConnectionMethod.swift`,
@@ -12,7 +35,7 @@ and `supportedRoutes` in `MobileShellComposite.swift`, at
 | A per-pairing method defaults to Automatic; explicit build tags never inherit a sibling's settings. | Existing native settings and dial intents use exact device/build keys; absent settings default to IROH (the UI's Automatic). |
 | Direct uses only Iroh and enabled user addresses; empty/unreachable addresses cannot fall back to raw Tailscale. | Existing native backend enforces this. The legacy raw connector bypassed method settings; this batch adds the missing gate. |
 | Tailscale Only uses exact locally granted raw routes, without Iroh fallback. | Existing native/saved Tailscale runtime enforces this. The legacy connector now also captures the saved method. A method choice alone creates no grant. |
-| Automatic retains an exact granted legacy route only while the pairing has no authenticated Iroh route. | Legacy raw reconnect now rejects a separately retained native identity for the same owner/device/build. Directory-to-saved-record upgrade still needs the route-retention work below. |
+| Automatic retains an exact granted legacy route only while the pairing has no authenticated Iroh route. | Legacy raw reconnect now rejects a separately retained native identity for the same owner/device/build. Ticket acceptance now retains an existing native route; directory-to-saved-record upgrade remains open. |
 | Explicit in-app numeric entry can authorize that exact Tailscale address ahead of Automatic/Tailscale method choices. | Existing entry policy and consent authority preserve this. The new saved-route gate does not turn fresh entry into a saved reconnect. |
 | External links cannot create new numeric address authority, but supported-route selection can use an already stored exact Tailscale grant under its applicable method. | Fresh external authority is correctly denied. The Android ticket chooser still filters all external Tailscale choices; the already-authorized case remains an implementation gap. |
 
@@ -35,16 +58,11 @@ Real saved-method changes on Mac/Pixel still need acceptance.
 
 ### Remaining route-retention and chooser work found in this comparison
 
-- `NativeComputerTarget.from(PairedMac, team)` currently accepts native codes
-  only. Authenticated Tailscale-only rows consequently lack Computer Details;
+- `NativeComputerTarget.from(PairedMac, team)` accepts primary or retained native
+  identity. Authenticated rows with only Tailscale still lack Computer Details;
   add that presentation with exact grant/owner/build admission and corresponding
   runtime support, rather than treating an arbitrary code's claimed identity as
   authority.
-- Saved records retain one primary code. `NativePairingPersistence` normally
-  preserves an existing native code when adding Tailscale, but ticket persistence
-  explicitly prefers the ticket's incoming route. Preserve authenticated route
-  alternatives independently from ticket scope so a Tailscale ticket cannot erase
-  the native path needed by Direct/Automatic on subsequent reconnects.
 - `NativeReconnectComputers.merge` keeps an existing saved identity in preference
   to a matching directory row. Complete the authenticated legacy-to-native upgrade
   without losing stable origin, drafts/notifications, ticket binding or a strict

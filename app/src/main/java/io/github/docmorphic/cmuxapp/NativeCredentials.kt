@@ -32,7 +32,8 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
 
     data class PairedMac(val code: String, val deviceId: String, val name: String, val instanceTag: String? = null,
                          val accountUserId: String? = null, val accountTeamId: String? = null, val stableOrigin: String? = null,
-                         val previousOrigins: Set<String> = emptySet(), val ticketRevision: String? = null) {
+                         val previousOrigins: Set<String> = emptySet(), val ticketRevision: String? = null,
+                         val nativeRouteCode: String? = null) {
         internal val origin = stableOrigin ?: pairingOrigin(code, deviceId, instanceTag)
         internal val origins get() = previousOrigins + origin
         internal fun ownsOrigin(value: String?) = value != null && value in origins
