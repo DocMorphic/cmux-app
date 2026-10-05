@@ -1,0 +1,55 @@
+{
+  "source": "Original generated colors, silent audio and plain text cues; no third-party media.",
+  "generator": "scripts/generate-media-track-fixture.py",
+  "ffmpeg": "ffmpeg version 9.0.1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "sha256": "b82ca9d8eb574b181bd47a09d52ebfde37c0ca723e528b6022fbba26e3a235db",
+  "duration": "120.000000",
+  "streams": [
+    {
+      "index": 0,
+      "codec_name": "h264",
+      "codec_type": "video",
+      "tags": {
+        "language": "und",
+        "handler_name": "VideoHandler",
+        "encoder": "Lavc63.1.101 libx264"
+      }
+    },
+    {
+      "index": 1,
+      "codec_name": "aac",
+      "codec_type": "audio",
+      "tags": {
+        "language": "eng",
+        "handler_name": "SoundHandler"
+      }
+    },
+    {
+      "index": 2,
+      "codec_name": "aac",
+      "codec_type": "audio",
+      "tags": {
+        "language": "fra",
+        "handler_name": "SoundHandler"
+      }
+    },
+    {
+      "index": 3,
+      "codec_name": "mov_text",
+      "codec_type": "subtitle",
+      "tags": {
+        "language": "eng",
+        "handler_name": "SubtitleHandler"
+      }
+    },
+    {
+      "index": 4,
+      "codec_name": "mov_text",
+      "codec_type": "subtitle",
+      "tags": {
+        "language": "fra",
+        "handler_name": "SubtitleHandler"
+      }
+    }
+  ]
+}
