@@ -59,7 +59,9 @@ recovery, modal content state, accessibility, large-list drag acceptance,
 production push/notice configuration, legacy tickets and the broader upstream
 audit. `ATTACH_TICKETS.md` now records a scoped source audit, not an implementation.
 Goal active; global parity pin unchanged; scheduled workflows still await merge
-to main. Subsequent documentation commits do not require another APK.
+to main. A later RPC ticket-policy change has 53 focused JVM checks and is not in
+581; it is a prerequisite for legacy pairing, whose URL/storage integration remains
+open. No replacement signed APK has been requested for that partial feature.
 
 ## Previous signed development APK — build 571 (2026-10-05)
 

@@ -12,7 +12,28 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — signed build 581 and ticket audit (2026-10-05)
+## Latest checkpoint — attach-ticket RPC policy (2026-10-05)
+
+The unused raw attach-token constructor has been replaced with typed, redacted
+selection/expiry context. Production RPC now applies the reviewed iOS per-method
+coverage and alias rules before adding a supplemental token. Status/feed/unknown
+requests omit it; account auth is still required. Explicit omission for an
+account-capable mutation is request-local through shared leases. Existing
+connectors remain ticketless and group capability gates are unchanged.
+
+**53 focused JVM checks passed**, including new scope/framed-request/lease cases
+and existing RPC, socket and terminal-sizing regressions. One intermediate compile
+error in the sizing caller was fixed before the final checks. Evidence and scope:
+[ATTACH_TICKETS.md](ATTACH_TICKETS.md), `captures/runtime/attach-ticket-policy/`.
+No new APK/emulator/device run; signed **581** remains the latest verified delivery.
+
+This is a prerequisite, not completed legacy pairing. Continue with URL decoding,
+source-generated fixtures, encrypted scoped persistence, exact-route acquisition,
+capability-aware mutation calls and end-to-end verification. Physical recovery,
+push/notice configuration, modal/accessibility work and the broad upstream audit
+remain open. Goal active, PR #1 draft, global parity pin unchanged.
+
+## Earlier checkpoint — signed build 581 and ticket audit (2026-10-05)
 
 Signed development build **581**, source `fc2a3fad46761f9d0e71185d1fc7f31795114d22`,
 is verified and linked in [PIXEL_INSTALL.md](PIXEL_INSTALL.md). It contains the

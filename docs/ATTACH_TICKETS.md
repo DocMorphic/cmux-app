@@ -1,5 +1,39 @@
 # Attach-ticket compatibility audit
 
+## RPC policy implementation (2026-10-05)
+
+`MobileAttachTicketContext` now carries bounded workspace/terminal selection,
+optional token and expiry with a redacted string representation. It implements
+the reviewed iOS terminal/workspace coverage, alias-conflict checks, inclusive
+expiry, Mac-wide mutation admission and per-method token selection. Feed/status/
+unknown requests omit attach context. Panel-only browser verbs require a Mac-wide
+ticket; terminal management verbs use terminal coverage.
+
+`MobileRpcClient` replaces its unused raw-token constructor option with this typed
+context. Every non-status request still requires account auth. Borrowed clients
+retain the same context, and the explicit internal `OMIT` policy applies to one
+request without changing later requests or other leases. Mutation callers must
+separately verify account-capability admission before choosing omission. Existing
+production connectors still provide no ticket, and group capability gates are
+unchanged. This does **not** enable legacy pairing URLs yet.
+
+**53 JVM tests passed**, no failures/errors/skips: nine context-policy cases, four
+framed RPC/lease cases, 25 existing RPC/pool/socket cases and 15 terminal-sizing
+regressions. The first 37 passed before explicit omission was added. A missed
+positional argument in the sizing call site caused an intermediate compilation
+failure; naming that argument fixed it, and the final 38 plus 15 checks passed.
+Evidence: `captures/runtime/attach-ticket-policy/`, including original logs,
+final XML and source hashes. The new transport tests exercise encoded frames
+through the production client with a fixture transport; they are not physical
+network or Android-runtime acceptance. No new APK was built, emulator launched or
+Pixel data touched. Signed 581 predates this change.
+
+Next: decode and validate the older URL grammars with source-generated fixtures,
+keep ticket credentials out of public route strings, integrate encrypted scoped
+persistence and exact-route acquisition, then connect capability-aware mutation
+calls and verify end-to-end behavior. Current code also needs an explicit review
+of iOS transport-admitted auth omission before a ticket is used over native Iroh.
+
 ## Scope (2026-10-05)
 
 This is a source audit, not implemented or runtime-verified legacy compatibility.
@@ -125,4 +159,4 @@ sites and refresh/retirement lifecycle remain before Android integration.
    separate from parser/unit evidence. Availability of a genuinely ticket-only
    host has not been established.
 
-This work remains open and is not included in the build 581 source.
+The remaining integration work is open. The RPC policy above postdates build 581.

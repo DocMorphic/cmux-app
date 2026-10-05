@@ -41,13 +41,13 @@ internal class MobileRpcOutcomeUnknown : java.io.IOException("The connection rec
 class MobileRpcClient internal constructor(
     private val transport: MobileRpcTransport,
     private val accessToken: suspend () -> String?,
-    private val attachToken: String? = null,
+    private val attachTicket: MobileAttachTicketContext? = null,
     private val delegate: MobileRpcClient? = null,
     private val releaseLease: (() -> Unit)? = null
 ) : AutoCloseable {
-    constructor(route: PairingCode.Route, accessToken: suspend () -> String?, attachToken: String? = null,
+    internal constructor(route: PairingCode.Route, accessToken: suspend () -> String?, attachTicket: MobileAttachTicketContext? = null,
                 socketFactory: SocketFactory = SocketFactory.getDefault()) :
-        this(SocketMobileRpcTransport(route, socketFactory), accessToken, attachToken)
+        this(SocketMobileRpcTransport(route, socketFactory), accessToken, attachTicket)
 
     // Scoped to this foreground lease only. Internal identity overloads bypass it.
     @Volatile internal var terminalInputDispatcher: (suspend (TerminalInputOperation) -> JSONObject)? = null
@@ -119,7 +119,7 @@ class MobileRpcClient internal constructor(
     /** Each consumer owns its subscriptions and cancellation, while one owner retains the wire. */
     internal fun lease(release: () -> Unit): MobileRpcClient {
         check(delegate == null && !isClosed) { "Cannot lease a closed or borrowed connection" }
-        return MobileRpcClient(transport, accessToken, attachToken, this, release)
+        return MobileRpcClient(transport, accessToken, attachTicket, this, release)
     }
 
     private suspend fun <T> borrowing(block: suspend (MobileRpcClient) -> T): T = coroutineScope {
@@ -160,21 +160,27 @@ class MobileRpcClient internal constructor(
         method: String,
         params: JSONObject = JSONObject(),
         timeoutMillis: Long = 15_000
-    ): JSONObject {
+    ): JSONObject = requestWithAttachTicketPolicy(method, params, timeoutMillis, MobileAttachTicketPolicy.WHEN_COVERED)
+
+    /** Omission is request-local; callers must separately admit account-capable Mac mutations. */
+    internal suspend fun requestWithAttachTicketPolicy(method: String, params: JSONObject,
+        timeoutMillis: Long = 15_000, ticketPolicy: MobileAttachTicketPolicy): JSONObject {
         val surface = params.optString("surface_id")
-        return requestAdmitted(method, params, timeoutMillis) {
+        return requestAdmitted(method, params, timeoutMillis, ticketPolicy) {
             if (TerminalSizingTraffic.guarded(method)) checkTerminalTraffic(surface)
         }
     }
 
     private suspend fun requestAdmitted(method: String, params: JSONObject, timeoutMillis: Long,
+        ticketPolicy: MobileAttachTicketPolicy = MobileAttachTicketPolicy.WHEN_COVERED,
         admitted: () -> Unit): JSONObject {
         admitted()
-        if (delegate != null) return borrowing { it.requestAdmitted(method, params, timeoutMillis, admitted) }
-        return MobileDebugLog.trace(debugRpcOperation(method)) { requestOnTransport(method, params, timeoutMillis, admitted) }
+        if (delegate != null) return borrowing { it.requestAdmitted(method, params, timeoutMillis, ticketPolicy, admitted) }
+        return MobileDebugLog.trace(debugRpcOperation(method)) { requestOnTransport(method, params, timeoutMillis, ticketPolicy, admitted) }
     }
 
     private suspend fun requestOnTransport(method: String, params: JSONObject, timeoutMillis: Long,
+        ticketPolicy: MobileAttachTicketPolicy,
         admitted: () -> Unit): JSONObject {
         require(method.isNotBlank())
         val id = UUID.randomUUID().toString()
@@ -190,7 +196,8 @@ class MobileRpcClient internal constructor(
         }
         if (!token.isNullOrEmpty()) {
             val auth = JSONObject().put("stack_access_token", token)
-            if (method != "mobile.host.status" && !attachToken.isNullOrBlank()) auth.put("attach_token", attachToken)
+            if (ticketPolicy == MobileAttachTicketPolicy.WHEN_COVERED)
+                attachTicket?.tokenFor(method, parameters, System.currentTimeMillis())?.let { auth.put("attach_token", it) }
             body.put("auth", auth)
         }
         val answer = CompletableDeferred<JSONObject>()
@@ -642,7 +649,7 @@ class MobileRpcClient internal constructor(
         fun admitted() { check(isCurrent()) { "Terminal selection changed. Open its size controls again." }; checkTerminalTraffic(surface) }
         admitted()
         suspend fun send(method: String, params: JSONObject): JSONObject {
-            val result = requestAdmitted(method, params, 15_000, ::admitted)
+            val result = requestAdmitted(method, params, 15_000, admitted = ::admitted)
             admitted()
             return result
         }
