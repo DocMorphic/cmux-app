@@ -31,9 +31,9 @@ class NativeLaunchRoutesTest {
         assertEquals(NativeLaunchRoutes(notification = notification), NativeLaunchRoutes.incoming(code, notification))
         assertEquals(NativeLaunchRoutes(pairing = code), NativeLaunchRoutes.incoming(code, null))
     }
-    @Test fun signedOutLinksWaitAndTailscaleStillRequiresConfirmation() {
+    @Test fun signedOutLinksWaitAndExternalTailscaleRequiresSeparateInAppEntry() {
         assertEquals(NativePairingLinkAction.Wait, incomingPairingAction(code, false, false, null, computers))
-        assertEquals(NativePairingLinkAction.Confirm, incomingPairingAction(code, true, false, null, computers))
+        assertEquals(NativePairingLinkAction.EnterInApp, incomingPairingAction(code, true, false, null, computers))
         assertEquals(NativePairingLinkAction.Consumed, incomingPairingAction(code, true, true, null, computers))
     }
     @Test fun irohWaitsForTheCurrentAccountDirectory() {

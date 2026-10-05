@@ -26,7 +26,7 @@ class NativeTicketPairingTest {
         assertFalse(NativeTicketPairingRoutes.covers(ticket, PairingCode.Tailscale(listOf(PairingCode.Route("100.64.0.8", 58465)), "user")))
     }
 
-    @Test fun proposalDefaultsToPriorityThenIdWithoutConnectingOrChangingTheTicket() {
+    @Test fun rawChoicesSortByPriorityThenIdWithoutChangingTheTicket() {
         val original = ticket()
         val tailscale = original.routes.single { it.kind == "tailscale" }
         val native = original.routes.single { it.kind == "iroh" }
@@ -36,11 +36,8 @@ class NativeTicketPairingTest {
             listOf(tailscale, native) to PairingCode.Iroh::class.java
         )) {
             val value = original.constrainingRoutes(routes, "Fixture")
-            val session = NativeTicketPairing(); session.propose(value, team, null)
-            val proposal = session.pending.value!!
-            assertEquals(first, proposal.choices.first().pairing.javaClass)
+            assertEquals(first, NativeTicketPairingRoutes.choices(value).first().pairing.javaClass)
             assertEquals(routes, value.routes)
-            assertNull(session.resumeCode()) // Ordering does not authorize or dial a route.
         }
     }
 
@@ -62,7 +59,7 @@ class NativeTicketPairingTest {
     }
 
     @Test fun selectingTailscaleRetainsScopeAndRequiresCurrentProposalOwner() {
-        val session = NativeTicketPairing(); session.propose(ticket(), team, null)
+        val session = NativeTicketPairing(); session.propose(ticket(), team, null, NativePairingEntry.IN_APP)
         val proposal = session.pending.value!!
         val choice = proposal.choices.single { it.pairing is PairingCode.Tailscale }
         assertTrue(runCatching { session.select(proposal, choice, team.copy(teamId = "other"), computers()) }.isFailure)
@@ -73,6 +70,64 @@ class NativeTicketPairingTest {
         assertNull(session.current(selected.code, team.copy(generation = 2)))
         assertFalse(selected.toString().contains("synthetic-bearer"))
         session.completed(selected); assertNull(session.current(selected.code, team))
+    }
+
+    @Test fun entrySourceFiltersBeforeChoosingTheDefaultAndNeverAuthorizesBySorting() {
+        val ticket = ticket()
+        val session = NativeTicketPairing()
+        session.propose(ticket, team, null, NativePairingEntry.IN_APP)
+        assertTrue(session.pending.value!!.choices.all { it.pairing is PairingCode.Tailscale })
+        assertNull(session.resumeCode())
+        session.propose(ticket, team, null, NativePairingEntry.EXTERNAL_LINK)
+        assertTrue(session.pending.value!!.choices.all { it.pairing is PairingCode.Iroh })
+        val nativeOnly = session.pending.value!!
+        val rawTailscale = NativeTicketPairingRoutes.choices(ticket).single { it.pairing is PairingCode.Tailscale }
+        assertTrue(runCatching { session.select(nativeOnly, rawTailscale, team, computers()) }.isFailure)
+        assertNull(session.resumeCode())
+    }
+
+    @Test fun externalTailscaleTicketDoesNotCreateAConfirmableProposal() {
+        val value = ticket().let { it.constrainingRoutes(it.routes.filter { it.kind == "tailscale" }, "Mac") }
+        val session = NativeTicketPairing()
+        val failure = runCatching { session.propose(value, team, null, NativePairingEntry.EXTERNAL_LINK) }.exceptionOrNull()
+        assertEquals(NativePairingEntryPolicy.ENTER_IN_APP, failure?.message)
+        assertNull(session.pending.value); assertNull(session.resumeCode())
+    }
+
+    @Test fun inAppNumericRoutesKeepPriorityOrderWithoutNativeFallback() {
+        val original = ticket()
+        val first = MobileAttachRoute("first", "tailscale", 3, MobileAttachEndpoint.HostPort("100.64.0.9", 58465))
+        val last = MobileAttachRoute("last", "tailscale", 8, MobileAttachEndpoint.HostPort("100.64.0.8", 58465))
+        val routes = listOf(last) + original.routes.filter { it.kind == "iroh" }.map { it.copy(priority = -100) } + first
+        val value = original.constrainingRoutes(routes, "Mac")
+        val session = NativeTicketPairing(); session.propose(value, team, null, NativePairingEntry.IN_APP)
+        assertEquals(listOf("100.64.0.9", "100.64.0.8"), session.pending.value!!.choices.map {
+            (it.pairing as PairingCode.Tailscale).routes.single().host
+        })
+        assertEquals(routes, value.routes)
+        assertNull(session.resumeCode())
+    }
+
+    @Test fun mixedLoopbackTicketIsRejectedRatherThanSilentlyFilteringTheLocalRoute() {
+        val original = ticket()
+        for (host in listOf("127.1", "0x7f.0.0.1", "2130706433", "[::ffff:127.0.0.1]", "::", "app.localhost.")) {
+            val local = MobileAttachRoute("local", "tailscale", 5, MobileAttachEndpoint.HostPort(host, 58465))
+            val value = original.constrainingRoutes(original.routes + local, "Mac")
+            for (entry in NativePairingEntry.entries) {
+                val session = NativeTicketPairing()
+                assertTrue(host, runCatching { session.propose(value, team, null, entry) }.isFailure)
+                assertNull(session.pending.value)
+            }
+        }
+    }
+
+    @Test fun hostnamesDoNotBecomeExactPairingAuthorityAndNativeRemainsAvailable() {
+        val original = ticket()
+        val dns = MobileAttachRoute("dns", "tailscale", -20, MobileAttachEndpoint.HostPort("mac.tailnet.ts.net", 58465))
+        val value = original.constrainingRoutes(listOf(dns) + original.routes.filter { it.kind == "iroh" }, "Mac")
+        val session = NativeTicketPairing(); session.propose(value, team, null, NativePairingEntry.IN_APP)
+        assertTrue(session.pending.value!!.choices.single().pairing is PairingCode.Iroh)
+        assertFalse(NativePairingEntryPolicy.isExactTailscale(PairingCode.Tailscale(listOf(PairingCode.Route("mac.tailnet.ts.net", 58465)), "user")))
     }
 
     @Test fun nativeSelectionUsesFreshDirectoryIdentityAndBuild() {

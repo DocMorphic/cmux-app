@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Pairing now preserves the in-app versus external-link boundary from the iOS
+  source. External Tailscale links cannot create authorization; mixed external
+  tickets offer native choices, while explicit in-app mixed tickets prefer only
+  exact numeric Tailscale routes. Legacy tickets containing a self-dialing route
+  are rejected as a whole. Focused JVM checks and main/instrumentation compilation
+  pass; revised Android chooser cases and real Intent/Mac/Pixel connection checks
+  await the next milestone. Full saved-method/default selection remains open.
+  See `ATTACH_TICKETS.md` for the scoped source comparison and evidence.
+
 - Media-session callbacks now connect platform/headset playback controls to the
   preview's existing player and audio-focus owner. Initial paused previews stay
   inactive; background/retired previews reject commands and released sessions

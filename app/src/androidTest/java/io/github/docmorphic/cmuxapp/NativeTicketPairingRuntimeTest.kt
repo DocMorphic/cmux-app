@@ -26,8 +26,8 @@ class NativeTicketPairingRuntimeTest {
         {"id":"iroh","kind":"iroh","endpoint":{"type":"peer","id":"$peer"}}]}"""
     private fun ticket() = MobileAttachTicketCodec.decodeJson(json).getOrThrow()
 
-    @Test fun chooserShowsPublicRoutesAndConnectsOnlyAfterExplicitChoice() {
-        val session = NativeTicketPairing(); session.propose(ticket(), owner, null)
+    @Test fun inAppChooserOffersExactTailscaleOnlyAndWaitsForConnect() {
+        val session = NativeTicketPairing(); session.propose(ticket(), owner, null, NativePairingEntry.IN_APP)
         val proposal = session.pending.value!!
         var shown by mutableStateOf(true)
         var chosen: NativeTicketPairingRoutes.Choice? = null
@@ -37,16 +37,27 @@ class NativeTicketPairingRuntimeTest {
         compose.onNodeWithText("100.64.0.7:58465").assertIsDisplayed()
         compose.onNodeWithText("synthetic-runtime-token").assertDoesNotExist()
         compose.runOnIdle { assertNull(chosen) }
-        compose.onNodeWithText("cmux will verify this Mac in your account and selected team before connecting.").assertIsDisplayed()
-        compose.onNodeWithText("100.64.0.7:58465").performClick()
+        compose.onNodeWithText("Native connection").assertDoesNotExist()
         compose.onNodeWithText("cmux will send your account session to this Mac over Tailscale. Continue only if this address came from your Mac.").assertIsDisplayed()
         capture("ticket-tailscale-confirmation")
-        compose.onNodeWithText("Native connection").performClick()
+        compose.onNodeWithTag("ticket.connect").performClick()
+        compose.runOnIdle { assertTrue(chosen?.pairing is PairingCode.Tailscale) }
+        compose.onNodeWithText("Connect to this Mac?").assertDoesNotExist()
+    }
+
+    @Test fun externalMixedTicketCannotOfferTailscaleConfirmation() {
+        val session = NativeTicketPairing(); session.propose(ticket(), owner, null, NativePairingEntry.EXTERNAL_LINK)
+        val proposal = session.pending.value!!
+        var chosen: NativeTicketPairingRoutes.Choice? = null
+        compose.setContent { CmuxTheme { NativeTicketPairingConfirmation(proposal,
+            onDismiss = { session.dismiss() }, onConnect = { chosen = it }) } }
+        compose.onNodeWithText("100.64.0.7:58465").assertDoesNotExist()
+        compose.onNodeWithText("Native connection").assertIsDisplayed()
         compose.onNodeWithText("cmux will verify this Mac in your account and selected team before connecting.").assertIsDisplayed()
         capture("ticket-native-confirmation")
+        compose.runOnIdle { assertNull(chosen) }
         compose.onNodeWithTag("ticket.connect").performClick()
         compose.runOnIdle { assertTrue(chosen?.pairing is PairingCode.Iroh) }
-        compose.onNodeWithText("Connect to this Mac?").assertDoesNotExist()
     }
 
     @Test fun cancelDoesNotInvokeConnect() {

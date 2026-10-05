@@ -184,7 +184,7 @@ internal fun NativeScreen(
         if (!signedIn) ticketPairing.clear() else teamState.scope?.let(ticketPairing::reconcile)
     }
     var code by remember { mutableStateOf(ticketPairing.resumeCode() ?: store.load()?.optString("pairing_code").orEmpty()) }
-    var pendingPairingCode by rememberSaveable(signedIn) { mutableStateOf<String?>(null) }
+    var pendingPairingCode by rememberSaveable(signedIn, key = "in_app_pairing_confirmation_v2") { mutableStateOf<String?>(null) }
     var pairingSelectionCode by remember(signedIn) { mutableStateOf<String?>(null) }
     var startedForegroundConnection by rememberSaveable(signedIn) { mutableStateOf(false) }
     val deferStartupForPairing = !startedForegroundConnection && (incomingCode != null || pendingPairingCode != null || ticketProposal != null)
@@ -1447,14 +1447,19 @@ internal fun NativeScreen(
         createTerminal(source, workspace)
     }
 
-    fun proposePairing(value: String) {
+    fun proposePairingFrom(value: String, entry: NativePairingEntry) {
+        pendingPairingCode = null
+        ticketPairing.dismiss()
         PairingCodeParser.parse(value).fold(
             onSuccess = { pairing ->
                 val compatibilityError = connection.pairingCompatibilityError(pairing)
                 if (compatibilityError != null) error = compatibilityError
                 else if (pairing is PairingCode.Tailscale) {
-                    pendingPairingCode = value.trim()
-                    error = null
+                    when {
+                        entry != NativePairingEntry.IN_APP -> error = NativePairingEntryPolicy.ENTER_IN_APP
+                        !NativePairingEntryPolicy.isExactTailscale(pairing) -> error = NativePairingEntryPolicy.NUMERIC_ADDRESS
+                        else -> { pendingPairingCode = value.trim(); error = null }
+                    }
                 } else if (pairing is PairingCode.Iroh) {
                     val action = incomingPairingAction(value.trim(), signedIn, false, teamState.scope, computerState)
                     if (action is NativePairingLinkAction.Select && connection.allowsSaved(PairingCodeParser.parse(action.code).getOrThrow())) {
@@ -1466,20 +1471,22 @@ internal fun NativeScreen(
                 try {
                     val owner = checkNotNull(teamState.scope) { "Refresh your account teams before pairing." }
                     check(signedIn && accountTeams.isCurrent(owner)) { "Sign in before pairing." }
-                    ticketPairing.propose(MobileAttachTicketCodec.decodeLegacyUrl(value).getOrThrow(), owner, teamState.email)
+                    ticketPairing.propose(MobileAttachTicketCodec.decodeLegacyUrl(value).getOrThrow(), owner, teamState.email, entry)
                     pendingPairingCode = null; error = null
                 } catch (failure: Exception) { error = failure.message }
             }
         )
     }
+    fun proposePairing(value: String) = proposePairingFrom(value, NativePairingEntry.IN_APP)
 
     val handlePairing by rememberUpdatedState(onPairingHandled)
     LaunchedEffect(incomingCode, signedIn, code, pairedMacs, teamState.scope, computerState) {
         val incoming = incomingCode ?: return@LaunchedEffect
         pendingPairingCode = null
+        ticketPairing.dismiss()
         if (PairingCodeParser.parse(incoming).isFailure) {
             if (!signedIn || teamState.scope == null) return@LaunchedEffect
-            proposePairing(incoming); handlePairing(incoming); return@LaunchedEffect
+            proposePairingFrom(incoming, NativePairingEntry.EXTERNAL_LINK); handlePairing(incoming); return@LaunchedEffect
         }
         PairingCodeParser.parse(incoming).getOrNull()?.let(connection::pairingCompatibilityError)?.let {
             error = it; handlePairing(incoming); return@LaunchedEffect
@@ -1489,7 +1496,7 @@ internal fun NativeScreen(
         when (action) {
             NativePairingLinkAction.Wait -> return@LaunchedEffect
             NativePairingLinkAction.Consumed -> Unit
-            NativePairingLinkAction.Confirm -> { pendingPairingCode = incoming; error = null }
+            NativePairingLinkAction.EnterInApp -> error = NativePairingEntryPolicy.ENTER_IN_APP
             NativePairingLinkAction.Unavailable -> error = "This Mac is not available in your selected team. Check its Mobile settings and refresh Computers."
             is NativePairingLinkAction.Select -> {
                 if (connection.allowsSaved(PairingCodeParser.parse(action.code).getOrThrow())) {

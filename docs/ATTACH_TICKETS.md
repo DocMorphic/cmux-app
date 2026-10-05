@@ -1,5 +1,48 @@
 # Attach-ticket compatibility audit
 
+## Pairing entry source and route eligibility (2026-10-05)
+
+Source comparison at `186cec79781256867ad4516f0802118738bd2393` found that
+`connectPairingInput` passes `userEnteredPairingCode: true`, while external URL
+handling defaults to false. `connectPairingURLResult` creates exact numeric
+Tailscale authorizations only for in-app entry. `supportedRoutes` gives those
+destinations precedence over Iroh for a fresh mixed ticket; without that entry
+authority, fresh pairing uses the native lane. The source regression
+`externallyOpenedQRCodeDoesNotMintInAppTailscaleAuthorization` covers the external
+case. These Swift tests were inspected, not executed in this batch.
+
+Android now carries IN_APP/EXTERNAL_LINK into ticket proposal policy. Public
+external Tailscale links give scan/paste-in-cmux guidance and cannot open an
+authorizing confirmation. Legacy external mixed tickets offer only native
+choices, still checked against the current account/team directory. In-app mixed
+tickets offer their numeric Tailscale choices in priority/ID order; native routes
+are not a fallback for that selection. Hostnames cannot grant fresh exact-address
+authority. The public parser remains compatible with historical locator strings;
+the entry policy determines whether they can authorize a new connection.
+
+Any legacy ticket containing a self-dialing or declared debug-loopback route is
+rejected as a whole, using the existing byte-based `BrowserLoopbackHost` classifier
+shared with browser routing. This follows `CmxLoopbackHost` rather than silently
+dropping a local route and accepting another route from the same ticket. Android
+production pairing does not expose iOS's simulator-only loopback exception.
+
+New entry retires a pending confirmation. The saved-state key for in-app public
+confirmation changed so an older version's source-ambiguous pending link cannot
+restore as in-app authority. Bearer-bearing ticket proposals remain memory-only;
+account/team ownership, saved-route admission and ticket persistence still use
+their existing guards. Saved Direct/Tailscale method handling is a separate layer.
+
+**35 focused JVM tests passed** (15 ticket entry/lifecycle, eight launch routes,
+12 Swift ordering references). Coverage checks entry-specific choices, attempted selection of a
+filtered route, exact-address ordering, hostname rejection, mixed local routes,
+account/directory ownership and public launch handling, plus the existing Swift
+ordering fixtures. Main and instrumentation Kotlin compile. The revised chooser
+fixtures are compiled but await the next combined Android milestone: in-app
+Tailscale-only confirmation and external native-only confirmation. No physical
+connection, Intent-to-screen runtime check or new APK is claimed. Evidence:
+`captures/runtime/pairing-entry-policy/`, including exact upstream source hashes.
+Full saved-method/default-selection and real Mac/Pixel acceptance remain open.
+
 **Delivery:** signed **596** includes native RPC auth, shared/saved Tailscale
 admission and Mac-wide ticket gates. Token recovery, route ordering and optional
 relay changes are newer source. The route chooser now has passing Android

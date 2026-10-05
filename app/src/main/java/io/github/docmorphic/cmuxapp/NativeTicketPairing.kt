@@ -78,11 +78,12 @@ internal class NativeTicketPairing {
     private var attempt: Attempt? = null
     private var retiredCode: String? = null
 
-    fun propose(ticket: MobileAttachTicket, owner: NativeTeamScope, email: String?) {
+    fun propose(ticket: MobileAttachTicket, owner: NativeTeamScope, email: String?, entry: NativePairingEntry = NativePairingEntry.EXTERNAL_LINK) {
         pendingMutable.value = null
         ticket.requireAccount(owner.userId, email)
-        val choices = NativeTicketPairingRoutes.choices(ticket)
-        require(choices.isNotEmpty()) { "This ticket has no supported remote route. Use a native or Tailscale pairing code from the Mac." }
+        val choices = NativePairingEntryPolicy.choices(ticket, entry)
+        require(choices.isNotEmpty()) { if (entry == NativePairingEntry.EXTERNAL_LINK) NativePairingEntryPolicy.ENTER_IN_APP
+            else "This ticket has no supported remote route. Use a native or numeric Tailscale pairing code from the Mac." }
         pendingMutable.value = Proposal(owner, ticket, choices)
     }
 

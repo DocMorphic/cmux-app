@@ -27,7 +27,7 @@ internal data class NativeLaunchRoutes(val pairing: String? = null, val notifica
 internal sealed interface NativePairingLinkAction {
     data object Wait : NativePairingLinkAction
     data object Consumed : NativePairingLinkAction
-    data object Confirm : NativePairingLinkAction
+    data object EnterInApp : NativePairingLinkAction
     data object Unavailable : NativePairingLinkAction
     data class Select(val code: String) : NativePairingLinkAction
 }
@@ -38,7 +38,7 @@ internal fun incomingPairingAction(value: String, signedIn: Boolean, alreadySele
     if (!signedIn) return NativePairingLinkAction.Wait
     val pairing = PairingCodeParser.parse(value).getOrNull() ?: return NativePairingLinkAction.Unavailable
     if (alreadySelected) return NativePairingLinkAction.Consumed
-    if (pairing is PairingCode.Tailscale) return NativePairingLinkAction.Confirm
+    if (pairing is PairingCode.Tailscale) return NativePairingLinkAction.EnterInApp
     pairing as PairingCode.Iroh
     if (team == null) return NativePairingLinkAction.Wait
     if ((pairing.userId != null && pairing.userId != team.userId) ||
