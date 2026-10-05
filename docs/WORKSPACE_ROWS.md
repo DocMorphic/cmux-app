@@ -4,6 +4,43 @@
 for the latest signed artifact and its verification scope; historical delivery
 statements below describe their dated checkpoints.
 
+## Stable viewport anchor source batch (2026-10-05)
+
+Scoped source: `WorkspaceListUpdatePlan.swift` and
+`WorkspaceListTableCoordinator.swift` at
+`186cec79781256867ad4516f0802118738bd2393`; global pin unchanged.
+The native and separate-browser workspace lists now choose an unmoved visible
+row before an idle structural update. The common subsequence is calculated in
+O(n log n): inserted, deleted and moved identities cannot become anchors merely
+because they survived. A notification moving the first visible workspace to the
+top instead anchors a stable neighbor at its previous pixel offset. A row with
+one physical pixel visible can anchor; zero-height/edge-only rows cannot.
+
+Absolute-top updates request the new first row, so newly inserted workspaces or
+status banners are visible. Native SSH/Mac status-prefix keys come from the same
+filtered collections as the rendered rows, preserving destination indices when
+connection status changes. The browser empty-state prefix is keyed as well.
+Live row placement animations are removed, matching iOS's unanimated geometry
+commits. The effect does not request scrolling during scrolling/flinging, held
+row gestures or an open swipe action. It leaves saved list restoration alone on
+the first composition.
+
+**Scope limit:** this implements idle structural anchoring, not iOS's full
+reconciliation coordinator. Updates during gestures are not yet buffered;
+height-changing/native-action-changing updates and latest height-neutral content
+need separate rendered-versus-current state. Local drag/drop animation and
+actual Compose remeasurement timing also need runtime acceptance. Do not close
+list smoothness, physical parity or gesture-deferral gates from policy checks.
+
+All eight focused JVM checks passed (0.162 s); main/instrumentation compilation
+and checks completed in 44 s. Evidence is recorded under
+`captures/runtime/workspace-viewport/`. The new `WorkspaceViewportRuntimeTest`
+exercises actual native/browser lazy-list bounds through a first-visible-row
+move, removal, status insertion and top insertion. Those Android cases are
+queued for the next combined milestone, alongside existing drag/autoscroll,
+filter/order and browser checks. No APK/emulator or physical session is required
+for the source batch.
+
 ## View-options card source batch (2026-10-05)
 
 Scoped reference: `WorkspaceListViewOptionsPopover.swift` at upstream
@@ -28,11 +65,12 @@ for this batch; run them at the next combined milestone, with compact/wide and
 enlarged-font screenshots and TalkBack traversal. No new APK, emulator or physical
 phone session was used. Evidence: `captures/runtime/workspace-view-options/`.
 
-The source audit also identified live-feed viewport work still outstanding:
+The source audit also identified live-feed viewport requirements:
 iOS anchors to the first stable visible row during inserts/removals/moves, avoids
 anchoring moved rows, preserves absolute-top behavior and defers geometry during
 gestures. Android's existing lazy-list stable keys alone do not prove those rules.
-This remains implementation/acceptance work, alongside physical workflow parity.
+Idle structural anchoring now has the newer source checkpoint above; full gesture
+reconciliation and runtime/physical acceptance remain open.
 
 ## Latest checkpoint — adaptive workspace sidebar (2026-10-04)
 

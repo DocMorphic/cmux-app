@@ -3280,21 +3280,25 @@ internal fun NativeScreen(
                 val accepted = workspaceMoves.enqueue(source, id, intent)
                 return accepted
             }
-            NativeWorkspaceDragList(entries, canReorder, Modifier.fillMaxSize(), onMove = ::move, before = {
-                sshTargets.filter { selectedOrigin == null && (selectedSshComputer == null || it.host.id == selectedSshComputer.host.id) }
-                    .filter { effectiveWorkspaceFilter.matches(workspaceSshFilterId(it.host.id), false) }
-                    .filter { it.connection?.phase != SshConnectionPhase.CONNECTED || sshFeed[it.host.id]?.error != null }.forEach { target ->
-                        item("ssh-status:${target.host.id}") {
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("${target.name} · ${sshFeed[target.host.id]?.error ?: target.connection?.error ?: target.status}",
-                                    Modifier.weight(1f), color = nativeMuted, fontSize = 12.sp)
-                                TextButton(onClick = { if (canSelectSsh(target)) target.session.workspaceFeed.open(target.host, explicit = true) },
-                                    enabled = target.connection?.phase != SshConnectionPhase.CONNECTING,
-                                    modifier = Modifier.testTag("ssh.feed.retry:${target.host.id}")) { Text("Retry") }
-                            }
+            val sshStatusRows = sshTargets.filter { selectedOrigin == null &&
+                (selectedSshComputer == null || it.host.id == selectedSshComputer.host.id) }
+                .filter { effectiveWorkspaceFilter.matches(workspaceSshFilterId(it.host.id), false) }
+                .filter { it.connection?.phase != SshConnectionPhase.CONNECTED || sshFeed[it.host.id]?.error != null }
+            val macStatusRows = filteredSources.filter { it.availability != NativeFeedAvailability.CONNECTED }
+            NativeWorkspaceDragList(entries, canReorder, Modifier.fillMaxSize(), onMove = ::move,
+                prefixKeys = sshStatusRows.map { "ssh-status:${it.host.id}" } + macStatusRows.map { "status:${it.mac.origin}" }, before = {
+                sshStatusRows.forEach { target ->
+                    item("ssh-status:${target.host.id}") {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${target.name} · ${sshFeed[target.host.id]?.error ?: target.connection?.error ?: target.status}",
+                                Modifier.weight(1f), color = nativeMuted, fontSize = 12.sp)
+                            TextButton(onClick = { if (canSelectSsh(target)) target.session.workspaceFeed.open(target.host, explicit = true) },
+                                enabled = target.connection?.phase != SshConnectionPhase.CONNECTING,
+                                modifier = Modifier.testTag("ssh.feed.retry:${target.host.id}")) { Text("Retry") }
                         }
                     }
-                filteredSources.filter { it.availability != NativeFeedAvailability.CONNECTED }.forEach { source ->
+                }
+                macStatusRows.forEach { source ->
                     item("status:" + source.mac.origin) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("${appearances.name(source.mac)} · ${if (source.availability == NativeFeedAvailability.CONNECTING) "Connecting…" else "Unavailable"}",

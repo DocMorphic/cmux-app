@@ -116,9 +116,11 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
         else controller.retry()
     }, modifier = Modifier.weight(1f)) {
     val rows = ui.snapshot?.rows.orEmpty()
+    val showEmptyRow = rows.isEmpty() && !ui.loading && ui.error == null
     RoutedSidebarDragList(rows, ui.snapshot?.dragRevision, ui.more, controller::more,
+        prefixKeys = if (showEmptyRow) listOf("sidebar-empty") else emptyList(),
         onDrop = { command -> scope.launch { controller.drop(command) } }, before = {
-        if (rows.isEmpty() && !ui.loading && ui.error == null) item {
+        if (showEmptyRow) item("sidebar-empty") {
             Text(when {
                 ui.query.text.isNotBlank() -> "No matches"
                 ui.query.notifications -> if (ui.query.notificationUnread) "No unread notifications." else "No notifications yet."

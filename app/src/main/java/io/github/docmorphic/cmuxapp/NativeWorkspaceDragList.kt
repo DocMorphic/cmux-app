@@ -34,6 +34,7 @@ internal fun NativeWorkspaceDragList(
     rowHandlesAccessibility: Boolean = true,
     before: LazyListScope.() -> Unit = {}, after: LazyListScope.() -> Unit = {},
     hasOtherRows: Boolean = false,
+    prefixKeys: List<String> = emptyList(),
     displayRows: List<NativeWorkspaceDisplayRow>? = null,
     sshRow: @Composable (SshFeedRow) -> Unit = {}, empty: @Composable () -> Unit,
     row: @Composable (WorkspaceListEntry) -> Unit
@@ -80,6 +81,9 @@ internal fun NativeWorkspaceDragList(
     }
     }
     val swipeCoordinator = remember { WorkspaceSwipeCoordinator() }
+    val renderedRows = displayRows ?: entries.map(NativeWorkspaceDisplayRow::Mac)
+    WorkspaceViewportAnchorEffect(list, prefixKeys + renderedRows.map { it.key },
+        gestureActive = held != null || swipeCoordinator.activeKey != null)
     CompositionLocalProvider(LocalWorkspaceSwipeCoordinator provides swipeCoordinator, LocalWorkspaceContextMenus provides contextMenus) {
     Box(modifier) {
         LazyColumn(Modifier.fillMaxSize().pointerInput(reorderEnabled) {
@@ -122,9 +126,9 @@ internal fun NativeWorkspaceDragList(
             )
         }, state = list, userScrollEnabled = held == null, contentPadding = PaddingValues(bottom = 84.dp)) {
             before()
-            itemsIndexed(displayRows ?: entries.map(NativeWorkspaceDisplayRow::Mac), key = { _, item -> item.key }) { _, item ->
+            itemsIndexed(renderedRows, key = { _, item -> item.key }) { _, item ->
                 if (item is NativeWorkspaceDisplayRow.Ssh) {
-                    Column(Modifier.animateItem()) { sshRow(item.row) }
+                    Column { sshRow(item.row) }
                     return@itemsIndexed
                 }
                 val entry = (item as NativeWorkspaceDisplayRow.Mac).entry
@@ -142,7 +146,7 @@ internal fun NativeWorkspaceDragList(
                             }
                         }
                     } else emptyList() }
-                Column(Modifier.animateItem().graphicsLayer { alpha = if (dragged?.key == entry.key) 0.25f else 1f }
+                Column(Modifier.graphicsLayer { alpha = if (dragged?.key == entry.key) 0.25f else 1f }
                     .then(if (rowHandlesAccessibility) Modifier else Modifier.semantics { customActions = actions })) {
                     CompositionLocalProvider(LocalWorkspaceSwipeKey provides entry.key, LocalWorkspaceMoveActions provides actions,
                         LocalWorkspaceContextKey provides WorkspaceContextMenuKey(entry.key, entry.source.mac)) { row(entry) }

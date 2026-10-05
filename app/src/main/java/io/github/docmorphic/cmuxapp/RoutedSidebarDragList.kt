@@ -28,6 +28,7 @@ import kotlin.math.roundToInt
 internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: String?, more: Boolean,
     onMore: () -> Unit, onDrop: (RoutedSidebarDrop) -> Unit,
     before: LazyListScope.() -> Unit = {}, after: LazyListScope.() -> Unit = {},
+    prefixKeys: List<String> = emptyList(),
     row: @Composable (RoutedSidebarRow) -> Unit) {
     val list = rememberLazyListState()
     val latestRows by rememberUpdatedState(rows)
@@ -66,6 +67,8 @@ internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: Strin
     }
     LaunchedEffect(revision) { if (held != null && heldRevision != revision) cancel() }
     DisposableEffect(Unit) { onDispose { autoscroll?.cancel() } }
+    WorkspaceViewportAnchorEffect(list, prefixKeys + rows.map { it.key },
+        gestureActive = held != null || swipes.activeKey != null)
     CompositionLocalProvider(LocalWorkspaceContextMenus provides menus, LocalWorkspaceSwipeCoordinator provides swipes) {
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().pointerInput(Unit) {
@@ -116,7 +119,7 @@ internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: Strin
                         val allowed = if (direction == RoutedSidebarDropPlacement.UP) current?.drag?.up == true else current?.drag?.down == true
                         if (version == null || !allowed) false else { latestDrop(RoutedSidebarDrop(version, item.key, direction)); true }
                     } }
-                Column(Modifier.animateItem().graphicsLayer { alpha = if (dragging && held?.key == item.key) .25f else 1f }) {
+                Column(Modifier.graphicsLayer { alpha = if (dragging && held?.key == item.key) .25f else 1f }) {
                     CompositionLocalProvider(LocalWorkspaceContextKey provides WorkspaceContextMenuKey(item.key),
                         LocalWorkspaceSwipeKey provides item.key, LocalWorkspaceMoveActions provides actions) { row(item) }
                 }

@@ -25,12 +25,20 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Native/browser workspace lists now select a stable visible neighbor for idle
+  structural updates, include connection-status prefix indices, show new rows at
+  absolute top and omit live placement animations. Eight focused policy cases
+  cover moved/deleted rows, pixel boundaries and a 50,000-row feed; Android bounds
+  cases are queued for the integration milestone. Full gesture-time geometry
+  buffering and height/action reconciliation remain implementation work. See
+  `WORKSPACE_ROWS.md`; no APK/emulator was started.
+
 - Workspace view options now use the iOS-style illustrated sort tiles and stay
   open during sort/read-state/machine changes. Custom Order no longer opens its
   editor automatically in either the main or separate-browser sidebar. Main and
   instrumentation Kotlin compile; revised interaction cases await the next
-  integration milestone, including enlarged text and TalkBack. Live-feed stable
-  viewport anchoring/gesture deferral remains a confirmed source gap. See
+  integration milestone, including enlarged text and TalkBack. The newer viewport
+  checkpoint above starts anchoring; full gesture deferral remains open. See
   `WORKSPACE_ROWS.md`. No APK/emulator was used for this batch.
 
 - Added the FCM sender transport for the pending private-helper/backend choice:
