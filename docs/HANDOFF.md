@@ -15,6 +15,19 @@ available, and the upstream watcher is active on main. Main integration does
 not establish full parity or authorize production release promotion. Earlier
 feature-branch/draft-only instructions below are historical.
 
+## Latest Share/Open recovery batch — 2026-10-05
+
+Prepared exports now move into durable payload storage with separate private
+integrity/phase receipts and an Activity-saved UUID. READY restoration requires
+Continue; ambiguous PRESENTING never automatically reopens a chooser. File leases
+cover ownership through receipt writes; provider exposure is limited to payloads.
+Main Kotlin compiled and 23 focused JVM tests passed. No APK/emulator/device run.
+See `CONTENT_PREVIEW_LIFECYCLE.md` and `captures/runtime/export-recovery-batch/`.
+Next: a combined Android integration pass for all recent Files/Save/Share/Open
+batches, then fix any actual provider/lifecycle failures. Malformed/orphan storage,
+empty lock reclamation, physical acceptance and full source parity remain open.
+Signed 606 is still the verified download.
+
 ## Latest Save recovery UI batch — 2026-10-05
 
 Fresh/resumed Activities now discover unfinished saves and offer explicit Retry

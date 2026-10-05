@@ -1,5 +1,51 @@
 # Content preview lifecycle
 
+## Durable Share/Open preparation — 2026-10-05
+
+Share, Open and Copy Image now retain a private export identity in the Activity's
+SavedStateHandle. After preparation, the owned cache directory is moved to durable
+app files storage; size and SHA-256 are recorded before READY. This avoids a second
+full copy on the normal shared filesystem. The file provider grants only the
+payload directory; receipts and ownership locks remain outside its roots in
+no-backup storage. No RPC client, authorization token or remote path is serialized.
+
+Restoring a READY receipt verifies its bytes and shows Continue/Cancel before a
+chooser or clipboard operation. A persisted PRESENTING transition precedes the
+Android call; a HANDED_OFF receipt prevents an old Activity bundle from replaying
+it. If the process stops around that call, recovery cannot infer whether Android
+accepted it: it shows an interruption message, retains the potentially delivered
+bytes and does not reopen the chooser. A failure to write the final receipt keeps
+the conservative PRESENTING record. Interrupted preparation must be requested
+again from its preview; no stale remote authority is reused to restart a download.
+
+Closing the owner preserves READY data. Explicit cancellation before presentation
+removes it and records cancellation. Exclusive file leases prevent competing
+owners and protect active actions from expiry cleanup. Owner shutdown waits for
+in-flight presentation receipt writes before releasing its lease. Source cache
+leases cover moving the payload; the durable store has separate cleanup.
+Unowned handed-off/ambiguous exports expire after one day, and other valid records
+after seven days. Cleanup rechecks age/phase after taking ownership. Malformed
+records/orphan payloads and empty lock-file reclamation still need handling;
+receiver reads beyond the retention window are not guaranteed by this policy.
+
+**Verification:** main Kotlin compiled; **23 focused JVM tests passed** in 19 s
+(7 new recovery cases, 6 controller, 3 remote sharing, 7 local/Changes export).
+They cover new-controller restoration with the old owner gone, explicit recovery
+confirmation, one-time handoff, ambiguous presentation without replay, cancellation,
+corrupted payload rejection, traversal metadata rejection, exclusive ownership
+and expiry protection. These simulate controller loss and reconstruct storage;
+they do not kill an Android process or launch a real chooser. The earlier pass
+and final logs/XML/source hashes are under ignored
+`captures/runtime/export-recovery-batch/`.
+
+No APK, emulator or Pixel run. Signed 606 is unchanged. The next integration pass
+should cover the accumulated Files/Save/Share/Open changes together: provider URIs
+and exact receiver bytes, real SavedState recreation/process loss, main/browser
+processes, chooser/clipboard handoff, cancellation, pending Save recovery and
+background providers. Layout/accessibility and full iOS source parity remain open.
+This is Android lifecycle implementation against the existing scoped file-action
+contract; no upstream parity pin is advanced.
+
 ## Fresh-launch Save recovery and reclamation — 2026-10-05
 
 The Activity root now discovers unfinished Save records when resumed or after

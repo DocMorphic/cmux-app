@@ -14,12 +14,18 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.io.File
+import kotlinx.coroutines.*
 
 internal val LocalFileExports = staticCompositionLocalOf<FileExportModel?> { null }
 
-internal class FileExportModel(application: Application) : AndroidViewModel(application) {
-    val controller = FileExportController(viewModelScope)
+internal class FileExportModel(application: Application, private val saved: SavedStateHandle) : AndroidViewModel(application) {
+    private val store = FileExportStore(File(application.noBackupFilesDir, "file-export-state"), File(application.filesDir, "file-exports"))
+    val controller = FileExportController(viewModelScope, store) { saved[STATE] = it }
     private val root = File(application.cacheDir, "task-previews")
+    init {
+        saved.get<String>(STATE)?.let(controller::restore)
+        viewModelScope.launch(Dispatchers.IO) { runCatching { store.prune() } }
+    }
     fun begin(action: FileExportAction, artifact: LocalFilePreview?, remote: RemoteArtifactSource? = null) {
         if (artifact == null && remote == null) return
         val key = remote ?: checkNotNull(artifact).file.absolutePath
@@ -38,6 +44,7 @@ internal class FileExportModel(application: Application) : AndroidViewModel(appl
         }
     }
     override fun onCleared() { controller.close() }
+    companion object { private const val STATE = "file-export.pending.v1" }
 }
 
 /** Only the resumed Activity launches the chooser. No Activity/context is kept in the retained model. */
@@ -53,8 +60,8 @@ internal fun FileExportHost(content: @Composable () -> Unit) {
     LaunchedEffect(controller, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             controller.state.collect { ready ->
-                val artifact = controller.claim(ready) ?: return@collect
                 try {
+                    val artifact = controller.claim(ready) ?: return@collect
                     val file = artifact.file; val mime = fileActionType(file.name, artifact.mime).mime
                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file)
                     if (ready.action == FileExportAction.COPY_IMAGE) {
@@ -70,6 +77,7 @@ internal fun FileExportHost(content: @Composable () -> Unit) {
                     }
                     controller.handedOff(ready)
                 } catch (error: Exception) {
+                    currentCoroutineContext().ensureActive()
                     controller.presentationFailed(ready, if (error is android.content.ActivityNotFoundException)
                         "No installed app can open this file." else "Couldn't open this file action. Try again.")
                 }
@@ -77,6 +85,10 @@ internal fun FileExportHost(content: @Composable () -> Unit) {
         }
     }
     CompositionLocalProvider(LocalFileExports provides model) { content() }
+    if (state.phase == FileExportPhase.READY && state.needsConfirmation) AlertDialog(onDismissRequest = controller::clear,
+        title = { Text("Continue file action?") }, text = { Text(state.title) },
+        confirmButton = { TextButton(onClick = { controller.continueRestored(state) }) { Text("Continue") } },
+        dismissButton = { TextButton(onClick = controller::clear) { Text("Cancel") } })
     if (state.phase == FileExportPhase.PREPARING) AlertDialog(onDismissRequest = controller::clear,
         title = { Text("Preparing file…") }, text = { Column { Text(state.title); LinearProgressIndicator() } },
         confirmButton = {}, dismissButton = { TextButton(onClick = controller::clear) { Text("Cancel") } })

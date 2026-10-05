@@ -25,12 +25,18 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Share/Open/Copy Image preparation now has durable payloads, integrity receipts,
+  explicit confirmation after READY restoration and no automatic replay after an
+  ambiguous/completed handoff. Kotlin compiled and 23 focused JVM tests passed.
+  Next: combined Android provider/picker/chooser/process acceptance for the recent
+  Files/Save/export batches. Malformed/orphan storage and empty lock reclamation
+  remain implementation work. No APK/emulator run; see `CONTENT_PREVIEW_LIFECYCLE.md`.
 - Fresh-launch Save recovery UI and exclusive picker/error ownership are
   implemented. Failed saves persist for Retry/Cancel; startup cleanup preserves
   recoverable copies while reclaiming old unsealed preparation and terminal
   receipts. Thirty-five focused JVM tests passed; main/instrumentation Kotlin
-  compiled. The fresh-Activity test is unexecuted. Share/Open process restoration,
-  malformed/orphan storage and empty lock reclamation remain implementation work;
+  compiled. The fresh-Activity test is unexecuted. The newer Share/Open batch above
+  adds prepared-file restoration; malformed/orphan storage and empty lock reclamation remain implementation work;
   combined Android acceptance remains pending. No APK/emulator run.
 - Save destination writes now have persistent background ownership, foreground
   progress/Cancel, startup recovery and serialized destination/grant access.
