@@ -12,6 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Latest source checkpoint — explicit panel reconnect retry (2026-10-05)
+
+Failed/interrupted panels retain their selected file through connection loss and
+recreation. Retry obtains a fresh verified connection; revoked access and stale
+callbacks cannot reopen the panel. 16 JVM checks and three changed Android cases
+(28.731 s) passed. Four screenshots inspected; source/APK receipts match, run
+crash/ANR checks clear, settings unchanged and sole AVD stopped/reaped. See
+[CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md) for the initial
+interruption failure, corrected ordering and exact limits. Broader regressions
+are deferred to integration milestones under the user's updated development
+policy. Signed 606 remains the verified download; full parity remains open.
+
 ## Preview storage and size limits (2026-10-05)
 
 Local preview writes now distinguish storage-full/quota errors from other local

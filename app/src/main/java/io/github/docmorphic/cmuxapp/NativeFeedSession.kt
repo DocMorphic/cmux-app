@@ -73,6 +73,19 @@ internal class NativeFeedSession(
         if (panelPreview !== expected) return
         val previous = panelPreview; panelPreview = null; previous?.close()
     }
+    fun retryPanel(expected: NativePanelPresentation) {
+        if (panelPreview !== expected || !expected.current() || expected.preview.state.value.error == null) return
+        if (expected.access.current()) { expected.preview.retry(); return }
+        val access = coordinator.panelArtifactAccess(expected.mac, expected.target) {
+            !viewModelCleared && account.isSignedIn() && store.taskSession() == expected.login
+        }
+        if (access == null) { expected.preview.retryUnavailable(); return }
+        // Acquire the replacement's hold before releasing the old one, so retry cannot pause its own feed.
+        val replacement = NativePanelPresentation(scope, expected.login, expected.key, expected.mac, expected.target,
+            access, holdBrowser(expected.mac))
+        dismissPanel(expected)
+        panelPreview = replacement
+    }
     var filesSheet by mutableStateOf<TerminalFilesPresentation?>(null)
         private set
     fun openFiles(login: String, key: NativeWorkspaceTabKey, mac: NativeCredentialStore.PairedMac,

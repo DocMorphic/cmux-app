@@ -1,5 +1,54 @@
 # Content preview lifecycle
 
+## Explicit panel retry after connection replacement — 2026-10-05
+
+A failed panel now retains its error and exact selection through transient feed
+loss and recreation, just as a completed panel retains its document. Reconnect
+alone does not reload a failed panel. Retry on a live original connection keeps
+its owner; Retry after replacement obtains a fresh panel admission from the
+coordinator, with the same account/Mac/workspace/surface/path/kind/title. It
+acquires the new connection hold before releasing the old owner. The old request
+object cannot send requests on the replacement connection.
+
+While no verified replacement is available, Retry makes no network request and
+shows the connection-specific failure hint. The hint comes from the panel feed's
+actual availability, including OFFLINE, rather than inferring CONNECTING from
+the foreground UI. Revocation or descriptor/account changes still discard the
+retained failure. An old Retry callback cannot replace the currently selected
+owner or reopen a revoked panel.
+
+This compares the explicit retry counter/load task in `MarkdownSurfaceView`,
+the path-stable embedded preview and its current loader actions, and the panel
+loader construction at scoped iOS revision `186cec79781256867ad4516f0802118738bd2393`.
+Five source files and hashes are copied under `captures/runtime/panel-retry-recovery/`.
+The global parity pin is unchanged. **16 focused JVM tests and three changed
+Android recovery cases (28.731 s) passed.** They cover retained errors, offline
+recreation, fresh-connection Retry, stale callbacks, revoked access and interrupted
+loads. Four of seven captured screenshots were inspected (offline recreation,
+both successful retry renders, revoked state). Source/APK receipts match; all
+14 assets verified; no successful-run crashes/new ANRs; screen/sleep settings
+unchanged; sole AVD stopped/reaped. Both cold boots encountered System UI ANRs
+before testing; screenshots and recovered home screens are preserved. Signed
+606 is unchanged. The user requested larger feature batches and deferred broad
+regressions during this run; the final pass therefore reruns the three changed
+cases, not the full nine-case suite.
+
+The first runtime pass completed eight checks and failed the old interrupted-load
+assertion, which expected the panel owner to be discarded and the file to reload
+automatically. It exposed ordering-dependent behavior: a socket error published
+before feed retirement could now retain the owner, whereas cancellation before
+publication still discarded it. Pending requests now consistently retain their
+selection, cancel the unfinished transfer and show a connection failure. Late
+chunks cannot publish over that failure; partial files are cleaned up. Retry
+uses the newly admitted owner and keeps the original request unusable. The
+updated regression asserts no second fetch until an actual Retry tap, and exact
+replacement bytes afterward. The initial failure is preserved under
+`interruption-attempt/`; this supersedes the earlier automatic-refetch checkpoint.
+
+Main Files connection recovery, native errors outside the RPC contract,
+process death, live panel-kind changes and physical Pixel/Mac acceptance remain
+open; it does not establish whole-screen or all-route parity.
+
 ## Local preview storage and size-limit clarity — 2026-10-05
 
 Local open/write/sync/close operations now classify Android errno causes separately

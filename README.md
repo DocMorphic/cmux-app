@@ -24,7 +24,8 @@ See [the connection migration](docs/IROH_V2.md).
 **Continuing on another laptop:** start with [HANDOFF.md](docs/HANDOFF.md) for the
 working branch, source research, implementation map, unfinished checks, release
 state, setup commands, and next steps. The latest feature work is on
-`feature/local-mac-bridge`; the signed checkpoint is identified above.
+`main`; the signed checkpoint is identified above. Source commits are grouped
+into larger feature batches before broad regression and signed milestone builds.
 
 ## What was researched
 
@@ -68,7 +69,8 @@ handoff runtime runner shared by Windows and macOS.
 The APK will be at `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions
 produces a stable signed release APK at manually dispatched milestones or
 eligible non-draft PR builds. Draft feature commits intentionally skip the build
-job; see [build cadence](docs/ANDROID_TESTING.md#build-cadence).
+job. Scheduled APK builds are opt-in during feature-first development;
+see [build cadence](docs/ANDROID_TESTING.md#build-cadence).
 
 ## Project choices
 

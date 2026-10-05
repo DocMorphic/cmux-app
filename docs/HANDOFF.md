@@ -1,5 +1,20 @@
 # Codex laptop handoff — 2026-09-28
 
+## Development policy — 2026-10-05
+
+The user requested that completed work be pushed to `main` and that development
+prioritize implementing the remaining features in larger batches. Continue on
+`main`. Use small compile/targeted checks when needed for an active fix; defer
+broad regression and signed APK builds to integrated milestones and final
+acceptance. Do not repeat full viewer suites for each feature. Keep unverified
+work explicit in `REMAINING_WORK.md`.
+
+Scheduled APK builds now require repository variable `CMUX_AUTOMATIC_PREVIEWS`
+to equal `true`; it is currently `false`. Manual milestone dispatch remains
+available, and the upstream watcher remains configured. Main integration does
+not establish full parity or authorize production release promotion. Earlier
+feature-branch/draft-only instructions below are historical.
+
 **Continuation update:** work returned to the original Mac on 2026-09-28 at the
 user's request. Windows commit `9849010` was pulled without conflicts. It adds
 portable Gradle setup, LF-preserved asset hashes, remote POSIX path semantics,
@@ -29,7 +44,19 @@ identified composition-owned Files/Markdown-panel downloads. The subsequent
 retention checkpoints below address that ownership gap; broader restoration and
 physical acceptance remain open. [REMAINING_WORK.md](REMAINING_WORK.md) is the current checklist.
 
-## Latest source checkpoint — preview storage and size limits (2026-10-05)
+## Latest source checkpoint — explicit panel reconnect retry (2026-10-05)
+
+Failed/interrupted panels retain their selected file through connection loss and
+recreation. Retry obtains a fresh verified connection; revoked access and stale
+callbacks cannot reopen the panel. 16 JVM checks and three changed Android cases
+(28.731 s) passed. Four screenshots inspected; source/APK receipts match, run
+crash/ANR checks clear, settings unchanged and sole AVD stopped/reaped. See
+[CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md) for the initial
+interruption failure, corrected ordering and exact limits. Broader regressions
+are deferred to integration milestones under the user's updated development
+policy. Signed 606 remains the verified download; full parity remains open.
+
+## Earlier source checkpoint — preview storage and size limits (2026-10-05)
 
 Local preview writes now distinguish storage-full/quota errors from other local
 IO failures without mislabeling remote socket failures. Rounded size-limit

@@ -34,6 +34,21 @@ internal class ArtifactPreviewController(private val scope: CoroutineScope) : Au
 
     fun retry() { if (!closed) request?.let { start(Request(it.rpc, it.authorization, it.path, it.root, it.forceMarkdown)) } }
 
+    /** A panel's old admission cannot issue a retry while its replacement connection is unavailable. */
+    fun retryUnavailable() {
+        if (closed || !scope.isActive || mutable.value.error == null) return
+        mutable.value = mutable.value.copy(error = "Mac disconnected.",
+            failure = ArtifactPreviewFailure(ArtifactPreviewFailure.Kind.MAC_UNREACHABLE))
+    }
+
+    /** Stop an unfinished request when its exact connection retires; late chunks cannot publish. */
+    fun connectionLost() {
+        if (closed || !scope.isActive || request == null || mutable.value.artifact != null || mutable.value.error != null) return
+        job?.cancel(); job = null
+        mutable.value = mutable.value.copy(error = "Mac disconnected.",
+            failure = ArtifactPreviewFailure(ArtifactPreviewFailure.Kind.MAC_UNREACHABLE))
+    }
+
     private fun start(next: Request) {
         job?.cancel()
         request = next; mutable.value = ArtifactPreviewState(next)

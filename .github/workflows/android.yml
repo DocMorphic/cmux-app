@@ -43,6 +43,8 @@ concurrency:
 
 jobs:
   decide:
+    # Feature-first development on main: signed milestone builds stay manual until opted in.
+    if: github.event_name != 'schedule' || vars.CMUX_AUTOMATIC_PREVIEWS == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:

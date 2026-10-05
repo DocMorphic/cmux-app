@@ -1,5 +1,20 @@
 # Android runtime checks
 
+## Development policy — 2026-10-05
+
+The user requested that completed work be pushed to `main` and that development
+prioritize implementing the remaining features in larger batches. Continue on
+`main`. Use small compile/targeted checks when needed for an active fix; defer
+broad regression and signed APK builds to integrated milestones and final
+acceptance. Do not repeat full viewer suites for each feature. Keep unverified
+work explicit in `REMAINING_WORK.md`.
+
+Scheduled APK builds now require repository variable `CMUX_AUTOMATIC_PREVIEWS`
+to equal `true`; it is currently `false`. Manual milestone dispatch remains
+available, and the upstream watcher remains configured. Main integration does
+not establish full parity or authorize production release promotion. Earlier
+feature-branch/draft-only instructions below are historical.
+
 ## CI compiler memory (2026-10-05)
 
 Signed milestone run 579 failed during `:app:compileDebugKotlin` with

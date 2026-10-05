@@ -107,6 +107,37 @@ class ArtifactPreviewControllerTest {
         open(); assertNotEquals(recovered.file, artifact().file); assertEquals(3, fetches())
     } }
 
+    @Test fun unavailableRetryRetainsSelectionWithoutCallingTheRetiredRpc() = runBlocking { fixture {
+        fail = true; open()
+        val failed = withTimeout(3000) { controller.state.first { it.error != null } }
+        val count = calls.size
+        controller.retryUnavailable(); yield()
+        assertSame(failed.identity, controller.state.value.identity)
+        assertTrue(controller.matches(controller.state.value, rpc, terminal, "/report.txt", false))
+        assertEquals(ArtifactPreviewFailure.Kind.MAC_UNREACHABLE, controller.state.value.failure?.kind)
+        assertEquals(count, calls.size)
+        fail = false; controller.retry(); val loaded = artifact()
+        controller.retryUnavailable()
+        assertSame(loaded, controller.state.value.artifact); assertNull(controller.state.value.error)
+        controller.close(); controller.retryUnavailable(); assertEquals(ArtifactPreviewState(), controller.state.value)
+    } }
+
+    @Test fun connectionLossCancelsPendingWorkAndLateChunksCannotReplaceItsFailure() = runBlocking { fixture {
+        val started = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+        beforeFetch = { started.complete(Unit); withContext(NonCancellable) { release.await() } }
+        try {
+            open(); withTimeout(3000) { started.await() }; val selection = controller.state.value.identity
+            controller.connectionLost()
+            assertSame(selection, controller.state.value.identity)
+            assertEquals(ArtifactPreviewFailure.Kind.MAC_UNREACHABLE, controller.state.value.failure?.kind)
+            release.complete(Unit); emptyDisk(); open(); yield()
+            assertNull(controller.state.value.artifact); assertEquals(1, fetches())
+            assertEquals(ArtifactPreviewFailure.Kind.MAC_UNREACHABLE, controller.state.value.failure?.kind)
+            beforeFetch = {}; open(rpc = rpc()); val replacement = artifact()
+            controller.connectionLost(); assertSame(replacement, controller.state.value.artifact)
+        } finally { release.complete(Unit) }
+    } }
+
     @Test fun markdownPanelModeAndExactDisplayedPathRemainPartOfAdmission() = runBlocking { fixture {
         val panel = ArtifactAuthorization.Panel("workspace", "panel", "/report.txt")
         open(authorization = panel); val plain = artifact(); assertEquals("text/plain", plain.mime)

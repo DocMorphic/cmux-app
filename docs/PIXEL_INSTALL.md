@@ -1,6 +1,7 @@
 # Pixel 6a install and native pairing check
 
-This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
+Current source development is on `main`; the signed build below is an earlier
+verified milestone from `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
 ## Current signed development APK — build 606 (2026-10-05)

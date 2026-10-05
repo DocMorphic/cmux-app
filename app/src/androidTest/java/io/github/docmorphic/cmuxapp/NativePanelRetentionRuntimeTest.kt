@@ -134,6 +134,60 @@ class NativePanelRetentionRuntimeTest {
         assertEquals(1, fetches(peer)); screenshot("failure-file-recovered")
     }
 
+    @Test fun failedPanelRetainsItsErrorAndRetriesOnlyOnTheNewVerifiedConnection() = fixture { peer, scenario ->
+        response(peer, "# Explicit reconnect retry\n\nFresh bytes on the replacement connection.")
+        peer.rejectedMethods = setOf("mobile.panel.artifact.stat"); peer.rejectedMethodCode = "unavailable"
+        find(By.text("Panel workspace")).click(); find(By.text("Transfer unavailable"))
+        val owner = checkNotNull(scenario.panel()); val session = scenario.session(); val coordinator = session.coordinator
+        fun stats() = peer.requests.count { it.optString("method") == "mobile.panel.artifact.stat" }
+        val count = stats()
+        reconnectGate = CompletableDeferred(); peer.disconnectClients()
+        await("Failed panel feed did not disconnect") { coordinator.sources.value[owner.mac.origin]?.availability == NativeFeedAvailability.OFFLINE }
+        find(By.text("Transfer unavailable")); assertSame(owner, scenario.panel()); assertTrue(owner.current())
+        assertFalse(owner.access.current()); assertTrue(owner.access.cachedCurrent())
+        find(By.text("Retry")).click(); find(By.text("Not connected"))
+        assertEquals(count, stats()); assertEquals(0, fetches(peer)); screenshot("failed-panel-offline-retry")
+        scenario.recreate(); find(By.text("Not connected")); assertSame(owner, scenario.panel())
+        assertEquals(count, stats()); screenshot("failed-panel-offline-recreated")
+        peer.rejectedMethods = emptySet()
+        reconnectGate!!.complete(Unit); reconnectGate = null
+        runBlocking { withTimeout(15_000) { withContext(Dispatchers.Main) { coordinator.refreshWorkspaceLists(listOf(owner.mac)) } } }
+        find(By.text("Mac unreachable")); assertSame(owner, scenario.panel())
+        assertFalse(owner.access.current()); assertEquals(count, stats()); assertEquals(0, fetches(peer))
+        screenshot("failed-panel-ready-for-retry")
+        find(By.text("Retry")).click()
+        await("Explicit retry did not use the replacement feed") {
+            js(scenario, "document.querySelector('#content h1')?.textContent === 'Explicit reconnect retry'") == "true"
+        }
+        val replacement = checkNotNull(scenario.panel()); assertNotSame(owner, replacement)
+        assertEquals(count + 1, stats()); assertEquals(1, fetches(peer)); assertNull(owner.preview.state.value.artifact)
+        assertFalse(owner.current())
+        runBlocking { withContext(Dispatchers.Main) {
+            assertTrue(runCatching { owner.access.rpc.stat(owner.target.authorization, owner.target.path) }.isFailure)
+            session.retryPanel(owner)
+        } }
+        assertSame(replacement, scenario.panel()); assertEquals(count + 1, stats())
+        painted(scenario, "failed-panel-reconnected-retry-success")
+    }
+
+    @Test fun revocationDiscardsRetainedFailureAndRejectsItsRetryCallback() = fixture { peer, scenario ->
+        response(peer, "# Must not load after revocation")
+        peer.rejectedMethods = setOf("mobile.panel.artifact.stat"); peer.rejectedMethodCode = "unavailable"
+        find(By.text("Panel workspace")).click(); find(By.text("Transfer unavailable"))
+        val owner = checkNotNull(scenario.panel()); val session = scenario.session(); val coordinator = session.coordinator
+        val count = peer.requests.count { it.optString("method").startsWith("mobile.panel.artifact.") }
+        peer.rejectedMethods = setOf("mobile.workspace.list"); peer.rejectedMethodCode = "team_access_revoked"
+        runBlocking { withContext(Dispatchers.Main) {
+            assertTrue(runCatching { coordinator.refreshWorkspaceLists(listOf(owner.mac)) }.isFailure)
+        } }
+        await("Revocation retained the failed panel") { scenario.panel() == null }
+        assertFalse(owner.current()); assertFalse(owner.access.cachedCurrent()); find(By.text("Preview unavailable"))
+        assertFalse(device.hasObject(By.text("Retry")))
+        scenario.onActivity { session.retryPanel(owner) }
+        assertNull(scenario.panel()); assertEquals(count, peer.requests.count { it.optString("method").startsWith("mobile.panel.artifact.") })
+        assertEquals(0, fetches(peer)); screenshot("failed-panel-revoked")
+    }
+
     @Test fun oversizedPanelShowsSizeLimitWithoutFetchingOrRetry() = fixture { peer, scenario ->
         peer.artifactResponse = { method, _ ->
             check(method.endsWith("stat")) { "An oversized file must not be downloaded" }
@@ -216,7 +270,7 @@ class NativePanelRetentionRuntimeTest {
         find(By.text("Preview unavailable")); screenshot("panel-revoked")
     }
 
-    @Test fun interruptedPanelTransferDiscardsOldAdmissionAndFetchesOnVerifiedReconnect() = fixture { peer, scenario ->
+    @Test fun interruptedPanelTransferRequiresExplicitRetryOnVerifiedReconnect() = fixture { peer, scenario ->
         val started = CountDownLatch(1); val release = CountDownLatch(1)
         response(peer, "# Recovered transfer\n\nComplete bytes from the new connection.") {
             started.countDown(); check(release.await(45, TimeUnit.SECONDS))
@@ -225,12 +279,16 @@ class NativePanelRetentionRuntimeTest {
             find(By.text("Panel workspace")).click(); assertTrue(started.await(20, TimeUnit.SECONDS))
             val owner = checkNotNull(scenario.panel())
             reconnectGate = CompletableDeferred(); peer.disconnectClients()
-            await("Interrupted panel owner not released") { scenario.panel() == null }
-            assertFalse(owner.current()); assertNull(owner.preview.state.value.artifact)
+            find(By.text("Not connected")); assertSame(owner, scenario.panel())
+            assertTrue(owner.current()); assertFalse(owner.access.current()); assertNull(owner.preview.state.value.artifact)
+            scenario.recreate(); find(By.text("Not connected")); assertSame(owner, scenario.panel())
+            screenshot("pending-wire-failed")
             release.countDown(); assertEquals(1, fetches(peer))
             val coordinator = scenario.session().coordinator
             reconnectGate!!.complete(Unit); reconnectGate = null
             runBlocking { withTimeout(15_000) { withContext(Dispatchers.Main) { coordinator.refreshWorkspaceLists(listOf(owner.mac)) } } }
+            find(By.text("Mac unreachable")); assertSame(owner, scenario.panel()); assertEquals(1, fetches(peer))
+            find(By.text("Retry")).click()
             await("New connection did not complete the panel") { js(scenario, "document.querySelector('#content h1')?.textContent === 'Recovered transfer'") == "true" }
             val replacement = checkNotNull(scenario.panel()); assertNotSame(owner, replacement)
             assertEquals(2, fetches(peer)); assertFalse(owner.access.current()); assertNull(owner.preview.state.value.artifact)

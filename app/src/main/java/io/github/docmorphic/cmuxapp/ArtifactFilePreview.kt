@@ -38,7 +38,7 @@ internal fun ArtifactFilePreview(rpc: ArtifactRpc, selection: ArtifactDestinatio
 @Composable
 internal fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthorization, path: String, forceMarkdown: Boolean = false,
     retained: ArtifactPreviewController? = null, active: Boolean = true,
-    connection: NativeFeedAvailability = NativeFeedAvailability.CONNECTED) {
+    connection: NativeFeedAvailability = NativeFeedAvailability.CONNECTED, retry: (() -> Unit)? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val controller = retained ?: remember { ArtifactPreviewController(scope) }
@@ -57,7 +57,7 @@ internal fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthor
                     .presentation(authorization, forceMarkdown && authorization is ArtifactAuthorization.Panel, connection) {
                         android.text.format.Formatter.formatShortFileSize(context, it)
                     }
-                FilesMessage(failure.title, failure.message, "Retry".takeIf { failure.retry }, controller::retry)
+                FilesMessage(failure.title, failure.message, "Retry".takeIf { failure.retry }, retry ?: controller::retry)
             }
             state.artifact != null -> key(state.artifact!!.file.absolutePath) { FilePreviewContent(state.artifact!!) }
             else -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {

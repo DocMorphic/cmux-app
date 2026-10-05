@@ -1,5 +1,14 @@
 # Keeping Android current with cmux
 
+## Current development cadence — 2026-10-05
+
+At the user's request, development now targets `main` and prioritizes larger
+feature batches before broad testing. Scheduled APK builds are opt-in via the
+repository variable `CMUX_AUTOMATIC_PREVIEWS=true`; it is currently `false`.
+The batching policy below is preserved for later activation. Manual milestone
+builds remain available with `publish_preview=false` for Actions artifacts only.
+The upstream watcher continues independently. Production promotion remains manual.
+
 ## Upstream behavior reviewed
 
 Rechecked the five iOS test/release policy files at upstream

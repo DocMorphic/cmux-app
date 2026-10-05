@@ -21,8 +21,7 @@ internal class NativePanelPresentation(parent: CoroutineScope, val login: String
     val access: PanelArtifactAccess, private val connectionHold: AutoCloseable) : AutoCloseable {
     private val owner = SupervisorJob(parent.coroutineContext[Job])
     val preview = ArtifactPreviewController(CoroutineScope(parent.coroutineContext + owner))
-    fun current() = owner.isActive && (access.current() ||
-        preview.state.value.artifact != null && access.cachedCurrent())
+    fun current() = owner.isActive && (access.current() || access.cachedCurrent())
     fun matches(login: String?, key: NativeWorkspaceTabKey?, mac: NativeCredentialStore.PairedMac?, target: NativePanelTarget?) =
         this.login == login && this.key == key && this.mac == mac && this.target == target
     override fun close() { preview.close(); owner.cancel(); connectionHold.close() }

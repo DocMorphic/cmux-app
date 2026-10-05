@@ -2,7 +2,8 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.compose.runtime.*
 
-internal data class NativePanelViewState(val preview: NativePanelPresentation?, val title: String, val detail: String)
+internal data class NativePanelViewState(val preview: NativePanelPresentation?, val title: String, val detail: String,
+    val connection: NativeFeedAvailability, val retry: () -> Unit)
 
 /** Kept above conditional pane content so leaving a panel releases its retained transfer. */
 @Composable
@@ -13,12 +14,15 @@ internal fun rememberNativePanel(session: NativeFeedSession, login: String?, tea
     val target = if (hidden) null else workspace?.let { w -> surface?.let { NativePanelTarget.from(w.id, it) } }
     val key = target?.let { t -> mac?.let { workspaceTabKey(login, team, it, t.workspace) } }
     val retained = session.panelPreview
-    // Observe descriptor/account invalidation while retaining completed documents through wire recovery.
+    // Observe descriptor/account invalidation while retaining completed documents and errors through wire recovery.
     val sources by session.coordinator.sources.collectAsState()
     val source = mac?.let { sources[it.origin] }
+    val previewState = retained?.preview?.state?.collectAsState()?.value
     val allowed = source != null && retained?.let { it.matches(login, key, mac, target) && it.current() } == true
     SideEffect {
         if (retained != null && !allowed) session.dismissPanel(retained)
+        if (retained != null && allowed && !retained.access.current() && previewState?.error == null)
+            retained.preview.connectionLost()
         if (target != null && mac != null && key != null && login != null && source != null)
             session.openPanel(login, key, mac, target)
     }
@@ -40,5 +44,6 @@ internal fun rememberNativePanel(session: NativeFeedSession, login: String?, tea
             "Panel changed" to "Waiting for the current panel file."
         else -> "Connecting to panel…" to "Waiting for this Mac's file connection."
     }
-    return NativePanelViewState(retained?.takeIf { allowed }, message.first, message.second)
+    return NativePanelViewState(retained?.takeIf { allowed }, message.first, message.second,
+        source?.availability ?: NativeFeedAvailability.OFFLINE) { retained?.let(session::retryPanel) }
 }
