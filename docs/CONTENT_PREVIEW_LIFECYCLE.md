@@ -35,8 +35,24 @@ Fourteen export controller/recovery JVM tests pass after the cleanup fix; debug
 and instrumentation APKs build. The next focused Android run completed four
 cases in 87.183 s: image actions and both export-recovery cases passed; media
 reached fullscreen recreation but failed its playback assertion. This remaining
-case is being diagnosed with player-state capture and a longer clip; media
-acceptance remains open.
+case reproduced with a 120-second clip (42.952 s), ruling out completion of the
+short fixture. Captured player state showed the bookmark and Play request intact,
+but `foreground=false` after recreation. The fullscreen Dialog can create its
+player after ON_START; the observer previously updated only an existing view.
+It now records foreground/background state even before a player exists, including
+clearing play intent on a genuine background transition. The test records player
+state, checks time progression at the selected speed and attempts to dismiss
+Android's first-use fullscreen education. Final focused media run: **2/2 passed
+in 34.493 s**, covering fullscreen recreation at actual 2× playback plus paused/
+playing inline restoration and explicit-play behavior after backgrounding.
+The recorded fullscreen bookmark progressed from 60,567 to 61,688 ms with
+`playing=true`, `foreground=true` and speed 2.0. Seek, skip, mute, speed, Back to
+inline and paused bookmarks also passed. Three final media screenshots were
+reviewed: Android's education still overlays the initial fullscreen capture;
+post-recreation fullscreen and returned-inline captures are clear. The silent
+WAV fixture verifies player behavior, not audible output or video layout.
+No final-run crash/ANR, screen settings unchanged, and the sole AVD stopped and
+reaped. No additional emulator was created.
 
 Local evidence is retained under `captures/runtime/viewer-controls-integration/`,
 including initial/follow-up failures, XML hierarchies, APK receipts and logs.

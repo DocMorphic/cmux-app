@@ -49,8 +49,8 @@ class ArtifactPreviewLifecycleTest {
         val directory = File(context.getExternalFilesDir(null), "preview-lifecycle").apply { mkdirs() }
         assertTrue(device.takeScreenshot(File(directory, "$name.png")))
     }
-    private fun wav(file: File) {
-        val size = 16_000 * 2 * 30
+    private fun wav(file: File, seconds: Int = 30) {
+        val size = 16_000 * 2 * seconds
         file.writeBytes(ByteBuffer.allocate(44 + size).order(ByteOrder.LITTLE_ENDIAN).apply {
             put("RIFF".toByteArray()); putInt(36 + size); put("WAVEfmt ".toByteArray()); putInt(16)
             putShort(1); putShort(1); putInt(16_000); putInt(32_000); putShort(2); putShort(16)
@@ -60,7 +60,7 @@ class ArtifactPreviewLifecycleTest {
 
     @Test fun mediaRestoresPausedAndPlayingPositionsAndStaysPausedAfterBackground() {
         guard()
-        val file = File(context.cacheDir, "lifecycle-audio.wav").also(::wav)
+        val file = File(context.cacheDir, "lifecycle-audio.wav").also { wav(it) }
         try { launch(file, ChangesPreviewRoute.MEDIA, "audio/wav").use { scenario ->
             fun media() = scenario.read { it.window.decorView.child<ArtifactMediaView>() }
             fun position() = scenario.read { it.window.decorView.child<ArtifactMediaView>()?.currentPosition ?: -1 }
@@ -99,7 +99,7 @@ class ArtifactPreviewLifecycleTest {
 
     @Test fun mediaSpeedSeekingMuteAndFullscreenKeepPlaybackBookmarks() {
         guard(); check(Build.VERSION.SDK_INT >= 29)
-        val file = File(context.cacheDir, "media-controls.wav").also(::wav)
+        val file = File(context.cacheDir, "media-controls.wav").also { wav(it, seconds = 120) }
         try { launch(file, ChangesPreviewRoute.MEDIA, "audio/wav").use { scenario ->
             fun media() = WindowInspector.getGlobalWindowViews().firstNotNullOfOrNull { root ->
                 root.child<ArtifactMediaView>()?.takeIf { it.isShown }
@@ -116,7 +116,8 @@ class ArtifactPreviewLifecycleTest {
             scenario.onActivity { media()!!.seekTo(5000) }
             await("Initial seek failed") { position() in 4800..5300 }
             find(By.desc("Playback speed")).click(); find(By.text("2.0×")).click()
-            find(By.desc("Playback speed").text("2.0×"))
+            device.dumpWindowHierarchy(File(context.getExternalFilesDir(null), "preview-lifecycle/media-speed.xml"))
+            find(By.clickable(true).hasDescendant(By.desc("Playback speed")).hasDescendant(By.text("2.0×")))
             Thread.sleep(350); assertFalse("Changing speed must preserve Pause", playing())
             assertTrue(position() in 4800..5300)
             find(By.text("Mute")).click(); find(By.text("Unmute"))
@@ -126,10 +127,13 @@ class ArtifactPreviewLifecycleTest {
             await("Backward skip failed") { position() in 4800..5300 }
             val slider = find(By.desc("Playback position")).visibleBounds
             device.click(slider.centerX(), slider.centerY())
-            await("Scrubber failed") { position() in 13_500..16_500 }
+            await("Scrubber failed") { position() in 58_500..61_500 }
             assertFalse(playing())
             val paused = position()
-            find(By.text("Fullscreen")).click(); find(By.text("Exit fullscreen")); find(By.text("Play").enabled(true))
+            find(By.text("Fullscreen")).click(); find(By.text("Exit fullscreen"))
+            // Dismiss Android's first-use immersive-mode education before visual checks.
+            device.wait(Until.findObject(By.pkg("com.android.systemui").text("Got it")), 1500)?.click()
+            find(By.text("Play").enabled(true))
             await("Fullscreen lost paused bookmark") { kotlin.math.abs(position() - paused) < 350 }
             assertFalse(playing()); find(By.text("Unmute"))
             assertTrue(scenario.read { media()!!.rootView !== it.window.decorView })
@@ -138,8 +142,23 @@ class ArtifactPreviewLifecycleTest {
             await("Fullscreen playback failed") { playing() }
             assertEquals(2f, actualSpeed()!!, .01f)
             val before = position()
+            val started = SystemClock.elapsedRealtime()
             scenario.recreate(); find(By.text("Exit fullscreen"))
-            await("Fullscreen recreation lost playback") { playing() && position() >= before - 350 && position() < before + 6000 }
+            val observations = StringBuilder("before=$before\n")
+            try { await("Fullscreen recreation lost playback") {
+                val current = position()
+                val active = playing()
+                scenario.onActivity {
+                    val view = media()!!
+                    val state = ArtifactMediaView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(view) as ArtifactMediaState
+                    observations.append("position=$current playing=$active requested=${state.playRequested} foreground=${state.foreground} prepared=${state.prepared} speed=${state.speed}\n")
+                }
+                // Account for actual time at 2×; UI synchronization can itself take seconds.
+                active && current >= before - 350 && current <= before + (SystemClock.elapsedRealtime() - started) * 2 + 1000
+            } } finally {
+                File(context.getExternalFilesDir(null), "preview-lifecycle/media-recreation.txt").writeText(observations.toString())
+                screenshot("media-after-recreation")
+            }
             assertEquals(2f, actualSpeed()!!, .01f); find(By.text("Unmute"))
             find(By.text("Pause")).click(); val stopped = position()
             device.pressBack(); find(By.text("Fullscreen")); find(By.text("Play").enabled(true))

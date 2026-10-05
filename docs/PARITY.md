@@ -12,6 +12,18 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Viewer controls integration checkpoint (2026-10-05)
+
+Image gestures/actions, progressive text and media controls have completed their
+combined emulator integration. Follow-ups fixed completed-export busy cleanup
+and fullscreen foreground synchronization. Final focused results: image actions
+and two export recovery cases pass; progressive-text reading/selection/tail/copy
+passes; both media lifecycle/control cases pass. Fourteen export JVM tests pass.
+Failures, corrections and scope limits are preserved in
+[CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md). No physical workflow
+or full parity gate is closed by these synthetic checks. Build 616 excludes this
+batch; main is the development branch and automatic previews remain disabled.
+
 ## Latest source checkpoint — explicit panel reconnect retry (2026-10-05)
 
 Failed/interrupted panels retain their selected file through connection loss and

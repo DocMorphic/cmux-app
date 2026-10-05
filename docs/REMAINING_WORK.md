@@ -27,8 +27,9 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 - Media previews now have seek/time controls, ±10-second skips, speed, mute and
   fullscreen with saved bookmarks/options and guarded player replacement. Four
-  control-policy tests passed; main and the new Android fixture compiled. Combined
-  viewer integration has run; see the dated results in `CONTENT_PREVIEW_LIFECYCLE.md`.
+  control-policy tests passed. Both focused Android media cases now pass after
+  fixing delayed fullscreen-view foreground synchronization; combined integration
+  evidence is in `CONTENT_PREVIEW_LIFECYCLE.md`.
   Playback/audio, video layouts, interruptions, embedded tracks/PiP/routing,
   accessibility and physical acceptance remain open. Build 616 excludes this
   batch; see `CONTENT_PREVIEW_LIFECYCLE.md`.
@@ -44,8 +45,9 @@ and currently disabled; the upstream watcher is active on main with review issue
 - Image viewer source comparison now implements iOS 3× tapped-point double-tap,
   centroid-anchored pinch, minimum-scale paging tolerance and long-press
   Share/Save/Copy Image using the shared retained action owners. Image/PDF decoder
-  errors are readable. Six geometry tests passed and instrumentation compiled;
-  new/adjusted gesture/menu tests await the next combined Android milestone.
+  errors are readable. Six geometry tests and Android zoom/menu/action checks
+  passed. Integration fixed a completed-Share busy-state leak; 14 export JVM
+  checks and both Android export recovery cases passed.
   Different-aspect-ratio restoration, animation, accessibility and physical
   acceptance remain open. See `CONTENT_PREVIEW_LIFECYCLE.md`.
 - Signed milestone build 616 passed CI at `f72f036` (Actions run 37352608676),

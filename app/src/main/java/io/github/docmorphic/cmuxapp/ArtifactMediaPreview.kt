@@ -180,8 +180,17 @@ internal fun ChangesMediaPreview(file: File) {
         state.foreground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> state.view?.foreground(true)
-                Lifecycle.Event.ON_STOP -> state.view?.foreground(false, context.previewActivity()?.isChangingConfigurations == true)
+                Lifecycle.Event.ON_START -> {
+                    // A restored fullscreen Dialog may compose its player after ON_START.
+                    state.foreground = true
+                    state.view?.foreground(true)
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    val changing = context.previewActivity()?.isChangingConfigurations == true
+                    state.foreground = false
+                    if (!changing) state.playRequested = false
+                    state.view?.foreground(false, changing)
+                }
                 else -> Unit
             }
         }
