@@ -66,7 +66,8 @@ internal class FileSaveFiles(private val root: File) {
         if (!path.exists()) return null
         check(path.length() <= 12_288) { "Invalid save journal" }
         return checkNotNull(FileSaveSnapshot.decode(path.readText())).also {
-            check(it.id == value.id && it.filename == value.filename && it.mime == value.mime) { "Save identity changed" }
+            check(it.id == value.id && (value.phase == FileSavePhase.PREPARING ||
+                it.filename == value.filename && it.mime == value.mime)) { "Save identity changed" }
         }
     }
     /** Disk state wins over an older Activity bundle, including completed/cancelled tombstones. */
@@ -82,23 +83,35 @@ internal class FileSaveFiles(private val root: File) {
         verify(latest)
         if (latest.phase == FileSavePhase.PREPARING) latest.copy(phase = FileSavePhase.READY).also(::record) else latest
     }
-    suspend fun prepare(value: FileSaveSnapshot, source: File, expectedSize: Long): File = withContext(Dispatchers.IO) {
+    suspend fun prepare(value: FileSaveSnapshot, source: File, expectedSize: Long): File =
+        prepareStream(value, expectedSize) { append ->
+            source.inputStream().use { input ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    currentCoroutineContext().ensureActive(); val count = input.read(buffer); if (count < 0) break
+                    append(buffer, count)
+                }
+            }
+        }
+    /** Also accepts a remote stream so Save does not require a second full temporary download. */
+    suspend fun prepareStream(value: FileSaveSnapshot, expectedSize: Long,
+        produce: suspend (suspend (ByteArray, Int) -> Unit) -> Unit): File = withContext(Dispatchers.IO) {
         require(expectedSize >= 0)
         val target = file(value)
         check(target.parentFile!!.mkdirs()) { "Could not prepare file for saving." }
         try {
             record(value.copy(phase = FileSavePhase.PREPARING))
             val digest = MessageDigest.getInstance("SHA-256")
-            source.inputStream().use { input -> target.outputStream().use { output ->
-                val buffer = ByteArray(64 * 1024); var total = 0L
-                while (true) {
-                    ensureActive(); val count = input.read(buffer); if (count < 0) break
-                    check(count.toLong() <= expectedSize - total) { "The preview changed while preparing its save." }
-                    output.write(buffer, 0, count); digest.update(buffer, 0, count); total += count
+            target.outputStream().use { output ->
+                var total = 0L
+                produce { bytes, count ->
+                    ensureActive(); require(count in 0..bytes.size)
+                    check(count.toLong() <= expectedSize - total) { "The file changed while preparing its save." }
+                    output.write(bytes, 0, count); digest.update(bytes, 0, count); total += count
                 }
-                check(total == expectedSize) { "The preview changed while preparing its save." }
+                ensureActive(); check(total == expectedSize) { "The file changed while preparing its save." }
                 output.fd.sync()
-            } }
+            }
             ensureActive()
             atomic(member(value, "seal.json"), JSONObject().put("size", expectedSize).put("sha256", digest.digest().hex()).toString())
             target

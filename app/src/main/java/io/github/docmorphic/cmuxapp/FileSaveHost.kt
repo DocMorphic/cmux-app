@@ -80,22 +80,40 @@ internal class FileSaveModel(application: Application, private val saved: SavedS
     }
     private fun update(value: FileSaveSnapshot?) { pending = value; saved[STATE] = value?.encode() }
     private suspend fun record(value: FileSaveSnapshot) = withContext(Dispatchers.IO) { files.record(value) }
-    fun begin(artifact: LocalFilePreview) {
-        if (busy) return
+    fun begin(artifact: LocalFilePreview?, remote: RemoteArtifactSource? = null) {
+        if (busy || artifact == null && remote == null) return
         val request = try {
-            val type = fileActionType(artifact.file.name, artifact.mime)
+            val type = fileActionType(remote?.let { changesPreviewName(it.path) } ?: checkNotNull(artifact).file.name, artifact?.mime)
             FileSaveSnapshot(UUID.randomUUID().toString(), type.filename, type.mime, FileSavePhase.PREPARING)
         } catch (_: Exception) { failure = "This file's name or type isn't supported. Reopen its preview and try again."; return }
         failure = null; lastSavedUri = null; progress = null; update(request)
         job = viewModelScope.launch {
+            var preparing = request
             try {
-                files.prepare(request, artifact.file, artifact.size)
-                val ready = request.copy(phase = FileSavePhase.READY)
-                record(ready); ensureActive(); if (pending == request) update(ready)
+                if (remote == null) {
+                    val local = checkNotNull(artifact)
+                    files.prepare(preparing, local.file, local.size)
+                } else {
+                    val metadata = remote.metadata()
+                    val type = fileActionType(changesPreviewName(remote.path), metadata.mime)
+                    preparing = request.copy(filename = type.filename, mime = type.mime)
+                    ensureActive(); update(preparing)
+                    var reported = -1L
+                    remote.prepareSave(files, preparing, metadata) { received, total ->
+                        if (reported < 0 || received == total || received - reported >= 1024 * 1024) {
+                            reported = received
+                            withContext(Dispatchers.Main.immediate) { if (pending == preparing) progress = received to total }
+                        }
+                    }
+                }
+                val ready = preparing.copy(phase = FileSavePhase.READY)
+                record(ready); ensureActive(); if (pending == preparing) { progress = null; update(ready) }
             } catch (error: Exception) {
-                ensureActive(); if (pending == request) {
-                    update(null); cleanup(request, null)
-                    failure = "Couldn't prepare the file for saving. Reopen its preview and try again."
+                ensureActive(); if (pending == preparing) {
+                    update(null); progress = null; cleanup(preparing, null)
+                    failure = if (remote == null) "Couldn't prepare the file for saving. Reopen its preview and try again."
+                        else ArtifactPreviewFailure.from(error, remote.authorization)
+                            .presentation(remote.authorization, false, NativeFeedAvailability.CONNECTED).let { "${it.title}. ${it.message}" }
                 }
             }
         }
@@ -221,11 +239,11 @@ internal fun FileSaveHost(content: @Composable () -> Unit) {
         }
     }
     CompositionLocalProvider(LocalFileSaves provides model) { content() }
-    if (pending?.phase == FileSavePhase.WRITING && model.failure == null) AlertDialog(
-        onDismissRequest = {}, title = { Text("Saving file…") },
+    if (pending?.phase in setOf(FileSavePhase.PREPARING, FileSavePhase.WRITING) && model.failure == null) AlertDialog(
+        onDismissRequest = {}, title = { Text(if (pending?.phase == FileSavePhase.PREPARING) "Preparing file…" else "Saving file…") },
         text = {
             androidx.compose.foundation.layout.Column {
-                Text(pending.filename)
+                Text(pending?.filename.orEmpty())
                 val progress = model.progress
                 if (progress != null && progress.second > 0)
                     LinearProgressIndicator(progress = { (progress.first.toFloat() / progress.second).coerceIn(0f, 1f) })

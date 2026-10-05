@@ -45,13 +45,14 @@ internal fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthor
     val controller = retained ?: remember { ArtifactPreviewController(scope) }
     DisposableEffect(controller, retained) { onDispose { if (retained == null) controller.close() } }
     val root = File(context.cacheDir, "artifact-previews")
+    val remote = remember(rpc, authorization, path) { RemoteArtifactSource(rpc, authorization, path) }
     LaunchedEffect(controller, rpc, authorization, path, forceMarkdown, root, active) {
         if (active) controller.open(rpc, authorization, path, root, forceMarkdown)
     }
     val produced by controller.state.collectAsState()
     val state = produced.takeIf { active && controller.matches(it, rpc, authorization, path, forceMarkdown) } ?: ArtifactPreviewState()
     Column(Modifier.fillMaxSize().semantics { contentDescription = "File preview $path" }) {
-        if (state.artifact == null) FilePreviewActions(null)
+        if (state.artifact == null) FilePreviewActions(null, remote = remote.takeIf { active })
         when {
             state.error != null -> {
                 val failure = (state.failure ?: ArtifactPreviewFailure(ArtifactPreviewFailure.Kind.LOAD_FAILED))
@@ -60,7 +61,7 @@ internal fun ArtifactPreviewPage(rpc: ArtifactRpc, authorization: ArtifactAuthor
                     }
                 FilesMessage(failure.title, failure.message, "Retry".takeIf { failure.retry }, retry ?: controller::retry)
             }
-            state.artifact != null -> key(state.artifact!!.file.absolutePath) { FilePreviewContent(state.artifact!!) }
+            state.artifact != null -> key(state.artifact!!.file.absolutePath) { FilePreviewContent(state.artifact!!, remote) }
             else -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 if ((state.total ?: 0) > 0) LinearProgressIndicator(progress = { (state.received.toFloat() / state.total!!).coerceIn(0f, 1f) })
                 else LinearProgressIndicator()

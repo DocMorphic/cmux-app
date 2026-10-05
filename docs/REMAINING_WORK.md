@@ -25,13 +25,18 @@ and currently disabled; the upstream watcher remains configured.
 
 ## Current delivery and next actions
 
+- Remote Save/Share/Open now re-stat and stream the current Mac file, including
+  when a preview exceeds its size limit. Save streams directly to its durable
+  copy with preparation progress/cancellation. Main Kotlin compiled and 26
+  focused JVM checks passed. Actual toolbar/chooser/picker, network changes and
+  large-file behavior remain pending, as does Share/Open ownership through
+  recreation. See `CONTENT_PREVIEW_LIFECYCLE.md`.
 - Save recovery now has durable private copies, atomic phase records, integrity
   checking before destination writes, and cancellable progress. Main Kotlin
   compiled and 17 focused JVM checks passed. Actual Android
   process/picker/provider recovery and background completion remain pending.
-  iOS source confirms remote actions re-stat/materialize the host file; Android's
-  viewer toolbar still exports its preview copy and needs current-loader
-  materialization. See `CONTENT_PREVIEW_LIFECYCLE.md` for this implementation batch.
+  The subsequent remote-actions batch implements current-loader materialization
+  identified by the iOS comparison. See `CONTENT_PREVIEW_LIFECYCLE.md` for scope.
 - Latest source batch adds Files/gallery/direct-preview reconnect retention,
   retained folder listings, and typed folder/direct-path failures. Main Kotlin
   compiled and 27 focused JVM cases passed. Android/Pixel route, visible reading

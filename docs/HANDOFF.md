@@ -15,6 +15,17 @@ available, and the upstream watcher remains configured. Main integration does
 not establish full parity or authorize production release promotion. Earlier
 feature-branch/draft-only instructions below are historical.
 
+## Latest remote export batch — 2026-10-05
+
+Remote Save/Share/Open now re-stat and fetch the current scoped Mac file, with
+export access even when its inline preview exceeds the limit. Save streams
+directly to its durable snapshot and shows cancellable preparation progress.
+Main Kotlin compiled and 26 focused JVM checks passed; no APK or emulator run.
+Current-loader freshness implementation is done, but UI/provider/network
+acceptance remains. Next implementation work: retain Share/Open action ownership
+through recreation; persistent background Save completion; cleanup of abandoned
+copies/old receipts. See `CONTENT_PREVIEW_LIFECYCLE.md` for scope and evidence.
+
 ## Latest Save implementation batch — 2026-10-05
 
 Save now uses private non-backup copies plus atomic phase records and SHA-256
@@ -22,8 +33,7 @@ seals, reconciles older Activity bundles, protects completed/cancelled exports
 from replay, and shows cancellable write progress. Main Kotlin compiled and 17
 focused JVM tests passed. No emulator or APK run for
 this batch; actual process/picker/provider recovery is still unverified. Next:
-current-loader materialization for remote Save/Share/Open (iOS re-stats the Mac
-file), persistent background export completion, orphan/receipt cleanup, then an
+persistent background export completion, orphan/receipt cleanup, then an
 integrated Android/Pixel acceptance pass. Details and focused verification are
 in the latest `CONTENT_PREVIEW_LIFECYCLE.md` section.
 

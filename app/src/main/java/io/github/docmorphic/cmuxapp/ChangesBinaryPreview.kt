@@ -49,7 +49,7 @@ internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: Change
 }
 
 @Composable
-internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactViewerState? = null) {
+internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactViewerState? = null, remote: RemoteArtifactSource? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val saves = checkNotNull(LocalFileSaves.current)
@@ -58,16 +58,20 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
     var failure by remember { mutableStateOf<String?>(null) }
     var fontDialog by remember { mutableStateOf(false) }
     fun perform(action: String) {
-        val captured = artifact ?: return
-        if (action == "Save") { menu = false; failure = null; saves.begin(captured); return }
+        val captured = artifact
+        val source = remote.takeUnless { action == "Copy Image" }
+        if (captured == null && source == null) return
+        if (action == "Save") { menu = false; failure = null; saves.begin(captured, source); return }
         busy = true; failure = null; menu = false
         scope.launch {
             var exported: File? = null
             try {
-                val type = fileActionType(captured.file.name, captured.mime)
+                val root = File(context.cacheDir, "task-previews")
+                val materialized = source?.materialize(root) { metadata -> fileActionType(changesPreviewName(source.path), metadata.mime).filename }
+                val type = if (materialized != null) fileActionType(materialized.file.name, materialized.mime)
+                    else fileActionType(checkNotNull(captured).file.name, captured.mime)
                 val mime = type.mime
-                val name = type.filename
-                val file = exportFilePreview(captured, File(context.cacheDir, "task-previews"), name)
+                val file = materialized?.file ?: exportFilePreview(checkNotNull(captured), root, type.filename)
                 exported = file
                 ensureActive()
                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.task-previews", file)
@@ -88,7 +92,10 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
             } catch (error: Exception) {
                 exported?.parentFile?.deleteRecursively(); busy = false
                 if (error is CancellationException) throw error
-                failure = if (error is android.content.ActivityNotFoundException) "No installed app can open this file." else error.message ?: "Could not prepare file."
+                failure = if (error is android.content.ActivityNotFoundException) "No installed app can open this file."
+                    else if (source != null) ArtifactPreviewFailure.from(error, source.authorization)
+                        .presentation(source.authorization, false, NativeFeedAvailability.CONNECTED).let { "${it.title}. ${it.message}" }
+                    else error.message ?: "Could not prepare file."
             }
         }
     }
@@ -102,7 +109,7 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(artifact?.let { "${it.size} bytes" }.orEmpty(), Modifier.weight(1f), fontSize = 12.sp, color = changesMuted)
             Box {
-                IconButton(onClick = { menu = true }, enabled = artifact != null && !busy && !saves.busy,
+                IconButton(onClick = { menu = true }, enabled = (artifact != null || remote != null) && !busy && !saves.busy,
                     modifier = Modifier.semantics { contentDescription = "Viewer actions" }) {
                     if (busy || saves.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Box(Modifier.size(24.dp).border(1.dp, filesMuted, CircleShape), contentAlignment = Alignment.Center) { Text("⋯", fontSize = 19.sp) }
                 }

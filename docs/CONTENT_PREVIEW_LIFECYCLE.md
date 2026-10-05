@@ -1,5 +1,53 @@
 # Content preview lifecycle
 
+## Current Mac bytes for remote file actions — 2026-10-05
+
+Remote Save, Share and Open now capture the visible path's current scoped RPC,
+stat that path again, and stream its current bytes. This is wired through the
+shared artifact page for terminal Files, direct terminal paths, session galleries
+and native file/Markdown panels. A reconnect supplies the current page's new
+admission for the next action; an action already in flight stays on its captured
+connection. There is no fallback to stale local preview bytes after a missing
+file, rejected authorization or failed transfer. The reader's displayed preview
+and position are not intentionally reloaded by exporting.
+
+Export actions remain available when a remote file has not loaded or exceeds the
+inline preview limit. Each export still checks Mac metadata/authorization and
+stream chunk bounds. Remote Save streams straight into its durable private
+snapshot, avoiding a second full staging download. Fresh metadata supplies the
+picker filename/MIME; the journal can reconcile a PREPARING bundle that predates
+that metadata. Preparation now has progress/cancellation UI as well as writing.
+Share/Open use a separately materialized file for the system chooser. Copy Image
+and Copy Contents continue to use the displayed content; local downloads and
+Changes revision previews retain their existing local snapshot behavior.
+
+Reference: `ChatArtifactFileActionStore.materialize` and
+`ChatArtifactTemporaryFileStore.fetch` at scoped iOS commit
+`186cec79781256867ad4516f0802118738bd2393`. They establish a fresh stat followed
+by scoped materialization, without the inline-preview byte limit. Android streams
+fresh bytes for each action rather than adding an iOS-style full-content cache.
+The global parity pin is unchanged. Source copies, hashes, build log and test
+XML are under `captures/runtime/remote-file-actions-batch/`.
+
+**Verification:** main Kotlin compiled and **26 focused JVM cases passed** in a
+29-second Gradle run (6 new remote-source cases, 17 Save snapshot/recovery cases,
+3 sharing regressions). New checks cover changing host bytes while the displayed
+copy remains unchanged, exact terminal/session/panel scopes, refreshed MIME/name
+restoration, missing files, reaching the stream beyond the preview limit, and
+cancellation rejecting late bytes/cleaning only the owned snapshot. The oversized
+case confirms stream admission then injects failure; it does not transfer a
+512 MB file or prove low-memory behavior.
+
+No Android runtime suite, emulator or APK build ran. Signed 606 is unchanged.
+Still verify real toolbar availability for oversized/failed previews, picker
+name/MIME/results and fresh chooser bytes on Pixel; revoke or replace connections
+during preparation; rotate/close previews during Save/Share/Open; and exercise
+large-file storage pressure. Share/Open preparation is still tied to its Compose
+coroutine, so presentation ownership across recreation remains implementation
+work. Background export completion and orphan/receipt cleanup from the Save
+batch also remain open. This completes the source implementation of the freshness
+follow-up below, not the device acceptance gate.
+
 ## Durable Save recovery and write progress — 2026-10-05
 
 Pending exports now use an independent copy under Android's private

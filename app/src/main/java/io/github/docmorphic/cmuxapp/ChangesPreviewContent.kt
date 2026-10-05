@@ -56,11 +56,11 @@ internal fun ChangesPreviewContent(artifact: ChangesPreviewArtifact) {
 }
 
 @Composable
-internal fun FilePreviewContent(artifact: LocalFilePreview) {
+internal fun FilePreviewContent(artifact: LocalFilePreview, remote: RemoteArtifactSource? = null) {
     val context = LocalContext.current
     val state = rememberSaveable(artifact.file.absolutePath, saver = ArtifactViewerState.saver(context, artifact)) { ArtifactViewerState(context, artifact) }
     Column(Modifier.fillMaxSize()) {
-        FilePreviewActions(artifact, state)
+        FilePreviewActions(artifact, state, remote)
         Box(Modifier.weight(1f)) {
             key(artifact.file.absolutePath) {
                 when (artifact.route) {
