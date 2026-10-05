@@ -103,17 +103,28 @@ internal class FileExportStore(private val records: File, private val payloads: 
         directory(id).deleteRecursively()
     }
     suspend fun prune(now: Long = System.currentTimeMillis()) = withContext(Dispatchers.IO) {
-        for (path in records.listFiles().orEmpty().filter { it.extension == "json" }) {
-            val id = path.nameWithoutExtension
-            val value = runCatching { read(id) }.getOrNull() ?: continue
-            val age = now - path.lastModified()
-            val limit = if (value.phase in setOf(FileExportReceiptPhase.HANDED_OFF, FileExportReceiptPhase.PRESENTING)) DAY else 7 * DAY
-            if (age < limit) continue
+        val ids = (records.listFiles().orEmpty().map { it.name.removeSuffix(".json").removeSuffix(".partial") } +
+            payloads.listFiles().orEmpty().map { it.name }).filter(PrivateFileReclamation::id).toSet()
+        for (id in ids) {
+            ensureActive()
             val lease = claim(id) ?: continue
             lease.use {
-                val latest = read(id) ?: return@use
-                val latestLimit = if (latest.phase in setOf(FileExportReceiptPhase.HANDED_OFF, FileExportReceiptPhase.PRESENTING)) DAY else 7 * DAY
-                if (now - path.lastModified() >= latestLimit) { directory(id).deleteRecursively(); path.delete() }
+                val path = recordFile(id)
+                val partial = File(records, "$id.partial")
+                val payload = File(payloads, id) // Never resolve paths from malformed metadata.
+                val value = PrivateFileReclamation.journal { read(id) }
+                if (value == null) {
+                    // Includes interrupted atomic writes and payload adoption before READY.
+                    if (listOf(path, partial, payload).all { PrivateFileReclamation.old(it, now, 7 * DAY) })
+                        listOf(payload, partial, path).forEach(PrivateFileReclamation::remove)
+                } else {
+                    val limit = if (value.phase in setOf(FileExportReceiptPhase.HANDED_OFF, FileExportReceiptPhase.PRESENTING)) DAY else 7 * DAY
+                    val modified = path.lastModified()
+                    if (modified > 0 && modified <= now && now - modified >= limit) {
+                        // Remove the receipt last so a failed payload deletion remains discoverable.
+                        listOf(payload, partial, path).forEach(PrivateFileReclamation::remove)
+                    } else if (PrivateFileReclamation.old(partial, now, 7 * DAY)) PrivateFileReclamation.remove(partial)
+                }
             }
         }
     }

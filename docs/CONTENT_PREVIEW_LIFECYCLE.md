@@ -1,5 +1,59 @@
 # Content preview lifecycle
 
+## Export reclamation and process ownership — 2026-10-05
+
+Save maintenance now reclaims UUID-named private directories with missing,
+malformed or oversized journals after seven days, only when every entry is old
+and neither UI nor writer ownership is held. Valid retryable saves and valid
+receipts that own provider grants retain their existing protection. Maintenance
+skips busy writers rather than waiting behind a transfer. Corrupt metadata never
+authorizes a provider write, document deletion or permission release. An I/O read
+failure or coroutine cancellation propagates instead of being treated as invalid
+metadata. Unrecoverable corrupt grant metadata is not used to release permissions.
+
+Share/Open/Copy cleanup now discovers orphan payload directories and interrupted
+atomic receipt writes as well as valid receipts. Invalid or missing receipts have
+a seven-day grace period across the receipt, partial and all payload entries;
+recent/future timestamps and active owners are preserved. Existing handed-off
+retention remains one day; other valid receipt retention remains seven days.
+Deletion never follows symbolic links, and receipt paths come from validated
+UUIDs rather than malformed journal fields. Payload deletion precedes receipt
+deletion so a failed removal stays discoverable.
+
+UI, writer, destination and grant ownership now uses one zero-byte range-lock
+file per private store. Stable hashed positions use separate namespaces for nested
+lock kinds; a same-kind collision conservatively serializes unrelated operations.
+The coordination inode is never unlinked. All instances in a process share its
+channel until the last lease closes, following the
+[FileLock single-channel requirement](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/channels/FileLock.html).
+No new per-request lock files accumulate. Historical zero-byte UI/destination
+lock files from older versions are left untouched; their migration cleanup is
+still open. They are not live synchronization objects in this version.
+
+Temporary export cache leases now also use these OS locks, with reference counts
+for overlapping local owners. This closes the previous main/browser cleanup gap.
+Lock acquisition runs on IO; cancellation during acquisition still cleans any
+unpublished source bytes. Cache contents remain temporary until durable adoption.
+
+**Verification: 72 focused JVM tests passed, main Kotlin compiled (16 s final
+run).** Separate Java processes verify contention, retained ownership after failed
+and unrelated claims, release after a killed owner, and cache cleanup protection.
+A 2,000-identity check leaves one zero-byte coordination file. Reclamation checks
+cover missing/corrupt/oversized journals, recent/future timestamps, UI/writer
+ownership, retryable records, partial receipts, symlink targets and read-error
+classification. Existing Save/export/remote-share/cancellation checks also pass.
+
+Retained intermediate failures exposed cancellation being an IllegalStateException
+subclass and an unpublished-source leak when cache-lock acquisition was cancelled;
+both were corrected. Two old empty-cache assertions now explicitly require only
+the zero-byte coordination file, while retaining payload/cancellation assertions.
+Evidence and source hashes: `captures/runtime/export-reclamation/`.
+
+No APK, emulator or Pixel run for this batch. Actual Android main/browser process
+locking, kill/reboot recovery, large/slow providers, notification cancellation,
+shared grants and visible iOS/Pixel acceptance remain at the next integration
+milestone. This does not establish full file-action parity or advance upstream pins.
+
 ## Combined media and pairing milestone — 2026-10-05
 
 At source `132b6f6`, the debug and instrumentation APKs built together successfully

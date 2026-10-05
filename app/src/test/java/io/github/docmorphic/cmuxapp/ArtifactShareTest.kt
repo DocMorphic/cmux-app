@@ -36,7 +36,7 @@ class ArtifactShareTest {
                 else { fetched = true; throw java.io.IOException("Expected fetch reached") }
             }, ArtifactAuthorization.Terminal("workspace", "surface"), "/large.txt", root) }.exceptionOrNull()
             assertTrue(fetched); assertEquals("Expected fetch reached", failure?.message)
-            assertTrue(root.listFiles().orEmpty().isEmpty())
+            assertEquals(listOf(".operation-locks"), root.list()!!.toList()); assertEquals(0L, root.resolve(".operation-locks").length())
         } finally { root.deleteRecursively() }
     }
     @Test fun cancellationRemovesUnpublishedShareAndDoesNotReturnLateBytes() = runBlocking {
@@ -47,7 +47,7 @@ class ArtifactShareTest {
                 if (method.endsWith("stat")) stat() else { entered.complete(Unit); withContext(NonCancellable) { release.await() }; bytes() }
             }, ArtifactAuthorization.Terminal("workspace", "surface"), "./file.txt", root); returned = true }
             entered.await(); job.cancel(); release.complete(Unit); job.join()
-            assertFalse(returned); assertTrue(root.listFiles().orEmpty().isEmpty())
+            assertFalse(returned); assertEquals(listOf(".operation-locks"), root.list()!!.toList()); assertEquals(0L, root.resolve(".operation-locks").length())
         } finally { release.complete(Unit); root.deleteRecursively() }
     }
 }

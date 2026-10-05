@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Export storage batch now reclaims aged malformed/missing journals, orphan
+  payloads and partial receipts; preserves active/retryable saves; skips busy
+  writers; and protects temporary exports across processes. One stable zero-byte
+  range-lock file per store prevents new per-request lock-file growth. All 72
+  focused JVM checks passed, including separate-process lock and killed-owner
+  checks; main Kotlin compiled. Android process/provider acceptance and cleanup
+  of historical empty lock files remain open. No new APK or emulator was used.
+  See `CONTENT_PREVIEW_LIFECYCLE.md` and its retained failure evidence.
+
 - Combined milestone at `132b6f6`: all 11 Android checks passed (86.408 s),
   covering media focus/session/track selection, visible subtitle restoration,
   playback lifecycle/controls and six pairing cases. Debug/test APKs built once
@@ -128,8 +137,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   and 27 transfer checks. Android integration now exercises a real destination
   write and new-owner receipt restoration. Actual process killing/reboot, separate
   main/browser-process concurrency, notification Cancel/shared grants and large or
-  slow providers remain open. Malformed/orphan storage and empty lock reclamation
-  remain implementation work. No physical Pixel was available.
+  slow providers remain open. Malformed/orphan reclamation is implemented in the newer batch above;
+  historical empty lock-file cleanup remains open. No physical Pixel was available.
 - Upstream monitoring has succeeded on main and created bot review issue #2.
   The complete-tree fallback and expanded release-script coverage pass 16 policy
   tests; the live inventory detects 1,060 relevant paths at `1012a019`. Detection

@@ -43,7 +43,7 @@ internal class FileExportController(private val scope: CoroutineScope, private v
                     store.create(next.id, title, action)
                 }
                 source = prepare()
-                lease = ArtifactExportCache.hold(checkNotNull(source.file.parentFile))
+                withContext(Dispatchers.IO) { lease = ArtifactExportCache.hold(checkNotNull(source.file.parentFile)) }
                 artifact = if (store != null) store.adopt(next.id, checkNotNull(source)) else source
                 ensureActive()
                 if (request === next) mutable.value = mutable.value.copy(phase = FileExportPhase.READY, artifact = artifact)
@@ -58,7 +58,7 @@ internal class FileExportController(private val scope: CoroutineScope, private v
                         if (store != null) {
                             if (owner != null) runCatching { store.abandon(next.id, next.discarded) }
                             source?.file?.parentFile?.deleteRecursively()
-                        } else if (!next.handedOff) artifact?.file?.parentFile?.deleteRecursively()
+                        } else if (!next.handedOff) (artifact ?: source)?.file?.parentFile?.deleteRecursively()
                     }
                 } finally { lease?.close(); owner?.close() }
             }

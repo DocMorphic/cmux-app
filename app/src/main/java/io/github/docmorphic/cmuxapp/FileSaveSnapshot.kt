@@ -7,14 +7,11 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.util.UUID
-import java.io.RandomAccessFile
-import java.nio.channels.OverlappingFileLockException
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
-internal class FileSaveUiLease(val id: String, private val handle: RandomAccessFile,
-    private val lock: java.nio.channels.FileLock) : AutoCloseable {
-    @Synchronized override fun close() { if (handle.channel.isOpen) { try { lock.release() } finally { handle.close() } } }
+internal class FileSaveUiLease(val id: String, private val lease: AutoCloseable) : AutoCloseable {
+    override fun close() = lease.close()
 }
 
 internal enum class FileSavePhase { PREPARING, READY, WAITING, WRITING, FAILED, COMPLETED, CANCELLED }
@@ -45,16 +42,32 @@ internal data class FileSaveSnapshot(val id: String, val filename: String, val m
 
 /** Immutable bytes and a durable journal. The caller confines each identity to one writer. */
 internal class FileSaveFiles(private val root: File) {
+    private val locks = FileOperationLocks(root)
     /** Nonblocking ownership of picker/error UI across Activities and Android processes. */
     fun claimUi(id: String): FileSaveUiLease? {
-        require(UUID.fromString(id).toString() == id)
-        check(root.isDirectory || root.mkdirs())
-        val handle = RandomAccessFile(File(root, ".ui-$id.lock"), "rw")
-        try {
-            val lock = try { handle.channel.tryLock() } catch (_: OverlappingFileLockException) { null }
-            if (lock == null) { handle.close(); return null }
-            return FileSaveUiLease(id, handle, lock)
-        } catch (error: Throwable) { handle.close(); throw error }
+        require(PrivateFileReclamation.id(id))
+        return locks.claim(FileOperationLocks.Kind.UI, id)?.let { FileSaveUiLease(id, it) }
+    }
+    fun claimWriter(id: String): AutoCloseable? {
+        require(PrivateFileReclamation.id(id))
+        return locks.claim(FileOperationLocks.Kind.WRITER, id)
+    }
+    /** Corrupt/missing journals cannot authorize a retry or a provider permission release. */
+    fun pruneOrphans(now: Long): Int {
+        var removed = 0
+        for (directory in root.listFiles().orEmpty().filter { PrivateFileReclamation.id(it.name) }) {
+            if (!PrivateFileReclamation.old(directory, now, FileSaveMaintenance.RECEIPT_AGE)) continue
+            val ui = claimUi(directory.name) ?: continue
+            ui.use {
+                val writer = claimWriter(directory.name) ?: return@use
+                writer.use writer@ {
+                    if (PrivateFileReclamation.journal { load(directory.name) } != null) return@writer
+                    if (!PrivateFileReclamation.old(directory, now, FileSaveMaintenance.RECEIPT_AGE)) return@writer
+                    PrivateFileReclamation.remove(directory); removed++
+                }
+            }
+        }
+        return removed
     }
     fun recoveryCandidates(): List<FileSaveSnapshot> = entries().filter { it.phase !in terminal }
         .sortedWith(compareBy<FileSaveSnapshot> { if (it.phase == FileSavePhase.FAILED) 0 else 1 }
@@ -74,27 +87,23 @@ internal class FileSaveFiles(private val root: File) {
         .filter { it.isDirectory }.mapNotNull { runCatching { load(it.name) }.getOrNull() }
     fun recoverable(): List<FileSaveSnapshot> = entries()
         .filter { it.phase == FileSavePhase.WRITING || it.phase in terminal && it.ownsGrant }
-    /** A file lock also serializes the isolated browser process and the main-process worker. */
+    /** Shared range locks serialize the isolated browser and the main-process worker. */
     suspend fun <T> withWriter(value: FileSaveSnapshot, action: suspend () -> T): T =
-        withLock(member(value, "writer.lock"), action)
-    suspend fun <T> withGrantLock(action: suspend () -> T): T = withLock(File(root, ".grants.lock"), action)
-    suspend fun <T> withDestination(value: FileSaveSnapshot, action: suspend () -> T): T {
-        val identity = MessageDigest.getInstance("SHA-256").digest(checkNotNull(value.destination).toByteArray(Charsets.UTF_8)).hex()
-        return withLock(File(root, ".destination-$identity.lock"), action)
-    }
-    private suspend fun <T> withLock(path: File, action: suspend () -> T): T = withContext(Dispatchers.IO) {
-        RandomAccessFile(path, "rw").use { handle ->
-            var lock: java.nio.channels.FileLock? = null
+        withLock(FileOperationLocks.Kind.WRITER, value.id, action)
+    suspend fun <T> withGrantLock(action: suspend () -> T): T = withLock(FileOperationLocks.Kind.GRANTS, "grants", action)
+    suspend fun <T> withDestination(value: FileSaveSnapshot, action: suspend () -> T): T =
+        withLock(FileOperationLocks.Kind.DESTINATION, checkNotNull(value.destination), action)
+    private suspend fun <T> withLock(kind: FileOperationLocks.Kind, identity: String, action: suspend () -> T): T =
+        withContext(Dispatchers.IO) {
+            var lease: AutoCloseable? = null
             try {
-                while (lock == null) {
-                    ensureActive()
-                    lock = try { handle.channel.tryLock() } catch (_: OverlappingFileLockException) { null }
-                    if (lock == null) delay(50)
+                while (lease == null) {
+                    ensureActive(); lease = locks.claim(kind, identity)
+                    if (lease == null) delay(50)
                 }
-                action()
-            } finally { lock?.release() }
+                ensureActive(); action()
+            } finally { lease?.close() }
         }
-    }
     fun requestCancellation(value: FileSaveSnapshot) {
         if (file(value).parentFile!!.exists()) FileOutputStream(member(value, "cancel"), true).use { it.fd.sync() }
     }

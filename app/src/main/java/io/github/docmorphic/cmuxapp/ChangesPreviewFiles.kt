@@ -72,10 +72,10 @@ internal suspend fun exportChangesPreview(artifact: ChangesPreviewArtifact, root
     exportFilePreview(artifact.localPreview(), root, filename)
 internal suspend fun exportFilePreview(artifact: LocalFilePreview, root: File, filename: String = artifact.file.name): File {
     val directory = File(root, UUID.randomUUID().toString())
-    val lease = ArtifactExportCache.hold(directory)
+    var lease: AutoCloseable? = null
     try {
         return withContext(Dispatchers.IO) {
-            root.mkdirs(); ArtifactExportCache.prune(root)
+            root.mkdirs(); lease = ArtifactExportCache.hold(directory); ArtifactExportCache.prune(root)
             check(directory.mkdirs()) { "Could not prepare the file." }
             val output = File(directory, changesPreviewName(filename))
             artifact.file.inputStream().use { input -> output.outputStream().use { target ->
@@ -90,5 +90,5 @@ internal suspend fun exportFilePreview(artifact: LocalFilePreview, root: File, f
     } catch (failure: Throwable) {
         withContext(NonCancellable + Dispatchers.IO) { directory.deleteRecursively() }
         throw failure
-    } finally { lease.close() }
+    } finally { lease?.close() }
 }

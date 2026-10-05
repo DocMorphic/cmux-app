@@ -11,9 +11,10 @@ internal class FileSaveMaintenance(private val files: FileSaveFiles) {
             if (!eligible(entry, now)) continue
             val lease = files.claimUi(entry.id) ?: continue
             lease.use {
-                files.withWriter(entry) {
-                    val latest = files.load(entry.id) ?: return@withWriter
-                    if (!eligible(latest, now)) return@withWriter
+                val writer = files.claimWriter(entry.id) ?: return@use
+                writer.use writer@ {
+                    val latest = files.load(entry.id) ?: return@writer
+                    if (!eligible(latest, now)) return@writer
                     if (latest.phase == FileSavePhase.PREPARING)
                         files.finish(latest, FileSavePhase.CANCELLED)
                     else files.remove(latest)
@@ -21,7 +22,7 @@ internal class FileSaveMaintenance(private val files: FileSaveFiles) {
                 }
             }
         }
-        removed
+        removed + files.pruneOrphans(now)
     }
     private fun eligible(value: FileSaveSnapshot, now: Long): Boolean {
         if (value.ownsGrant) return false

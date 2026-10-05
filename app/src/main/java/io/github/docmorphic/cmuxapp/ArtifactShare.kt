@@ -36,11 +36,12 @@ internal suspend fun materializeArtifactShare(rpc: ArtifactRpc, authorization: A
         ArtifactExportCache.prune(root)
     }
     val files = ArtifactPreviewFiles(root, transfer)
-    val lease = ArtifactExportCache.hold(files.directory)
+    var lease: AutoCloseable? = null
     try {
+        withContext(Dispatchers.IO) { lease = ArtifactExportCache.hold(files.directory) }
         return files.download(path, metadata, byteLimit = Long.MAX_VALUE, filename = name(metadata)) { _, _ -> }
     } catch (failure: Throwable) {
         withContext(NonCancellable + Dispatchers.IO) { files.close() }
         throw failure
-    } finally { lease.close() }
+    } finally { lease?.close() }
 }
