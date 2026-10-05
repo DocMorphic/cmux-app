@@ -1,5 +1,45 @@
 # Android background push
 
+## FCM sender transport checkpoint — 2026-10-05
+
+`push/fcm.mjs` now implements the sender-side HTTP v1 transport usable by either a
+private Mac forwarder or an authorized backend. It sends only a single recipient's
+existing authenticated-HPKE envelope in the data-only format the Android receiver
+expects. It requires an independently admitted registration/recipient and a current
+boolean admission predicate; it does not infer authority from the payload or
+perform registration itself. Identity fields, base64, byte size and original event
+expiry are checked before OAuth and immediately before FCM. The optional
+service-account adapter uses RS256, the messaging scope, fixed Google endpoints,
+no redirects, one-hour assertions and a shared in-memory token cache.
+
+The transport distinguishes provider acceptance from device delivery. It refreshes
+OAuth once on HTTP401, preserves delivery ambiguity on network/HTTP5xx/malformed
+success, honors Retry-After and a one-minute quota minimum, and only classifies an
+exact FCM UNREGISTERED detail on HTTP404 as token retirement. The caller must bind
+that retirement to the attempted registration generation. Retries retain ciphertext,
+correlation ID and original expiry. The module does not start any process, read
+credentials, register a device or send on import.
+
+**11 Node tests passed**, using only injected responses and an ephemeral synthetic
+RSA key. Tests verify signatures, claims/cache behavior, concurrent token requests,
+identity mismatches, size/expiry, retirement during authentication and refresh,
+fixed request destinations, response classification and redacted failures. The
+existing Android milestone CI now includes these tests. No Android build or cloud
+request was performed. Evidence: `captures/runtime/fcm-sender/`; integration
+contract and exact remaining steps: [push/README.md](../push/README.md).
+
+Configuration remains absent: GitHub contains the signing secrets, but no Firebase
+client/sender configuration. The local Google Cloud CLI has an unrelated selected
+project; this checkpoint made no changes to it. The recommended private Firebase
+plus Mac helper choice has been presented again and remains pending. That helper's
+authenticated enrollment, notification subscription, sender-key binding and durable
+outbox still need implementation, along with Android token lifecycle and actual
+provider acceptance. This component does not make production push operational.
+
+References: [FCM HTTP v1](https://firebase.google.com/docs/cloud-messaging/send/v1-api),
+[FCM error handling](https://firebase.google.com/docs/cloud-messaging/error-codes),
+[service-account OAuth](https://developers.google.com/identity/protocols/oauth2/service-account).
+
 ## Scoped upstream recheck (2026-10-05)
 
 Current upstream HEAD was `186cec79781256867ad4516f0802118738bd2393`

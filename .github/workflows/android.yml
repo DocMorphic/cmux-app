@@ -84,7 +84,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test Mac helper and private notice extension
-        run: node --test bridge/*.test.mjs scripts/tests/*.test.mjs
+        run: node --test bridge/*.test.mjs push/*.test.mjs scripts/tests/*.test.mjs
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
