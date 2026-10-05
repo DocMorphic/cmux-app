@@ -95,6 +95,18 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     internal fun attachTicket(team: NativeTeamScope, mac: PairedMac): MobileAttachTicketContext? =
         NativeAttachTicketStore.read(load(), team, mac)
 
+    internal fun rememberAuthenticatedTicketMac(incoming: PairedMac, team: NativeTeamScope, ticket: MobileAttachTicket,
+        email: String?, expected: PairedMac?, permits: () -> Boolean): PairedMac {
+        check(permits()) { "Account or pairing changed" }
+        var result: PairedMac? = null
+        update { state ->
+            val row = NativePairingPersistence.remember(state, incoming, team, expected, preferIncomingRoute = true)
+            result = NativeAttachTicketStore.install(state, team, row, ticket, email)
+        }
+        check(permits()) { "Account or pairing changed" }
+        return checkNotNull(result)
+    }
+
     fun forgetMac(code: String) = update { NativePairingRecords.removeLocal(it, code) }
 
     internal fun forgetMac(code: String, team: NativeTeamScope, permits: () -> Boolean) {

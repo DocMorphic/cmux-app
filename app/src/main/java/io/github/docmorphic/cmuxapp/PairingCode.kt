@@ -19,11 +19,13 @@ object PairingCodeParser {
         require(isCmuxScheme(uri.scheme) && uri.host == "attach") {
             "Expected a cmux attach QR code"
         }
+        require(uri.rawUserInfo == null && uri.port == -1 && uri.rawPath.isNullOrEmpty() && uri.rawFragment == null) { "Invalid pairing address" }
         val parameters = uri.rawQuery.orEmpty().split('&').filter { it.isNotEmpty() }.map { item ->
             val parts = item.split('=', limit = 2)
             require(parts.size == 2) { "Malformed pairing code" }
-            parts[0] to java.net.URLDecoder.decode(parts[1], "UTF-8")
+            java.net.URLDecoder.decode(parts[0], "UTF-8") to java.net.URLDecoder.decode(parts[1], "UTF-8")
         }
+        require(parameters.none { it.first == "payload" }) { "Use the ticket pairing flow for encoded payloads" }
         require(parameters.none { (key, _) ->
             listOf("token", "secret", "auth", "password", "bearer", "credential", "jwt").any { key.contains(it, ignoreCase = true) }
         }) { "Pairing codes cannot contain credentials" }

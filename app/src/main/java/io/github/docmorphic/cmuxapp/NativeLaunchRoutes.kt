@@ -6,19 +6,20 @@ import org.json.JSONObject
 internal data class NativeLaunchRoutes(val pairing: String? = null, val notification: String? = null) {
     fun handledPairing(value: String) = if (pairing == value) copy(pairing = null) else this
     fun handledNotification(value: String) = if (notification == value) copy(notification = null) else this
-    fun encode(): String = JSONObject().put("version", 1).put("pairing", pairing ?: JSONObject.NULL)
+    override fun toString() = "NativeLaunchRoutes(redacted)"
+    fun encode(): String = JSONObject().put("version", 1).put("pairing", pairing?.takeIf { PairingCodeParser.parse(it).isSuccess } ?: JSONObject.NULL)
         .put("notification", notification ?: JSONObject.NULL).toString()
     companion object {
         const val STATE_KEY = "native_launch_routes"
         fun incoming(pairing: String?, notification: String?): NativeLaunchRoutes {
             val route = notification?.takeIf { runCatching { java.util.UUID.fromString(it).toString() == it }.getOrDefault(false) }
             return if (route != null) NativeLaunchRoutes(notification = route)
-            else NativeLaunchRoutes(pairing = pairing?.takeIf { PairingCodeParser.parse(it).isSuccess })
+            else NativeLaunchRoutes(pairing = pairing?.takeIf { PairingCodeParser.parse(it).isSuccess || MobileAttachTicketCodec.decodeLegacyUrl(it).isSuccess })
         }
         fun decode(value: String?): NativeLaunchRoutes = runCatching {
             require(value != null && value.length <= 16_384)
             val json = JSONObject(value); require(json.opt("version") == 1)
-            incoming(json.opt("pairing") as? String, json.opt("notification") as? String)
+            incoming((json.opt("pairing") as? String)?.takeIf { PairingCodeParser.parse(it).isSuccess }, json.opt("notification") as? String)
         }.getOrDefault(NativeLaunchRoutes())
     }
 }
@@ -44,7 +45,7 @@ internal fun incomingPairingAction(value: String, signedIn: Boolean, alreadySele
         (pairing.teamId != null && pairing.teamId != team.teamId)) return NativePairingLinkAction.Unavailable
     if (!computers.ready || computers.account != team) return NativePairingLinkAction.Wait
     val mac = computers.computers.singleOrNull { it.endpointId == pairing.endpointId &&
-        (pairing.macDeviceId == null || pairing.macDeviceId.equals(it.deviceId, ignoreCase = true)) &&
+        (pairing.macDeviceId == null || canonicalMacDeviceId(pairing.macDeviceId) == canonicalMacDeviceId(it.deviceId)) &&
         (pairing.buildTag == null || pairing.buildTag == it.buildTag) }
         ?: return NativePairingLinkAction.Unavailable
     return NativePairingLinkAction.Select(PairingCodeParser.computer(mac, team))

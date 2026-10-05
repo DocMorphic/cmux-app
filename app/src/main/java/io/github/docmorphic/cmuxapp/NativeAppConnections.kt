@@ -47,6 +47,20 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     val connector = object : NativeConnector {
         override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = tailscale.connect(pairing, account)
         override suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount) = native.connect(pairing)
+        override suspend fun connectTicket(pairing: PairingCode, ticket: MobileAttachTicket, account: NativeAccount): MobileRpcClient {
+            val owner = checkNotNull(teams.state.value.scope) { "Refresh your account teams before pairing." }
+            check(teams.isCurrent(owner)) { "Account or team changed" }
+            ticket.requireAccount(owner.userId, teams.state.value.email)
+            require(NativeTicketPairingRoutes.covers(ticket, pairing)) { "Ticket does not cover this route" }
+            if (pairing is PairingCode.Tailscale) return tailscale.connectTicket(pairing, ticket, account, owner)
+            pairing as PairingCode.Iroh
+            val client = native.connect(pairing)
+            try {
+                check(teams.isCurrent(owner)) { "Account or team changed" }
+                ticket.requireHost(client.hostStatus())
+                return client.withAttachTicket(ticket.context()) { check(teams.isCurrent(owner)) { "Account or team changed" } }
+            } catch (failure: Throwable) { client.close(); throw failure }
+        }
         override fun authorizePairing(pairing: PairingCode.Tailscale) = tailscale.authorizePairing(pairing)
         override fun pairingCompatibilityError(pairing: PairingCode): String? =
             (pairing as? PairingCode.Iroh)?.buildTag?.takeUnless(compatibility.audience::allowsTag)

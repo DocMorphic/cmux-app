@@ -24,6 +24,7 @@ class TailscalePairingAuthorityTest {
         var hostHook: () -> Unit = {}
         var workspaceHook: () -> Unit = {}
         var expected: NativeCredentialStore.PairedMac? = null
+        var ticket: MobileAttachTicket? = null
         var device = "mac"
         var build = "default"
         var rejectWorkspace = false
@@ -39,7 +40,7 @@ class TailscalePairingAuthorityTest {
             }, expected = { expected }, admitCompatibility = { owner, client, host ->
                 if (enforceCompatibility) compatibility.admit(owner, client, host, locallyAuthorizedTailscale = true)
             })
-        suspend fun connect() = authority.connect(pairing) { tokenCalls++; tokenHook(); "fixture-access" }
+        suspend fun connect() = authority.connect(pairing, attachTicket = ticket) { tokenCalls++; tokenHook(); "fixture-access" }
         fun authorize() = authority.authorize(pairing)
         fun grant() = grants.find(checkNotNull(scope), TailscaleGrantStore.source(pairing))
         fun switch(next: NativeTeamScope?) {
@@ -73,11 +74,13 @@ class TailscalePairingAuthorityTest {
             val response = JSONObject().put("id", request.getString("id"))
             when (method) {
                 "mobile.host.status" -> {
+                    assertFalse(request.getJSONObject("auth").has("attach_token"))
                     fixture.hostHook()
                     response.put("ok", true).put("result", JSONObject().put("mac_device_id", fixture.device)
                         .put("mac_instance_tag", fixture.build).put("mac_app_version", fixture.version))
                 }
                 "mobile.workspace.list" -> {
+                    fixture.ticket?.let { assertEquals("synthetic-ticket", request.getJSONObject("auth").getString("attach_token")) }
                     fixture.workspaceHook()
                     if (fixture.rejectWorkspace) response.put("ok", false).put("error", JSONObject().put("code", "unauthorized").put("message", "fixture denial"))
                     else response.put("ok", true).put("result", JSONObject().put("workspaces", org.json.JSONArray()))
@@ -88,6 +91,31 @@ class TailscalePairingAuthorityTest {
         }
         override suspend fun read(): ByteArray? = replies.receiveCatching().getOrNull()?.also { check(!closed && allowed()) }
         override fun close() { closed = true; replies.close() }
+    }
+
+    private fun scopedTicket(device: String = "mac", host: String = "mac.tail.ts.net") = MobileAttachTicketCodec.decodeJson(
+        """{"version":1,"workspaceID":"work","terminalID":"term","macDeviceID":"$device","macUserID":"user",
+            "auth_token":"synthetic-ticket","routes":[{"id":"ts","kind":"tailscale",
+            "endpoint":{"type":"host_port","host":"$host","port":58465}}]}""").getOrThrow()
+
+    @Test fun scopedTicketIsAppliedBeforeFirstAuthenticatedWorkspaceRequestAndGrantPromotion() = runBlocking<Unit> {
+        val f = Fixture(); f.ticket = scopedTicket(); f.authorize()
+        try {
+            f.connect().use { assertFalse(it.isClosed) }
+            assertNotNull(f.grant())
+            assertEquals(listOf("mobile.host.status", "mobile.workspace.list"), f.transports.single().methods)
+        } finally { f.authority.close() }
+    }
+
+    @Test fun wrongTicketHostOrRouteDoesNotSendItsBearerOrPromoteAGrant() = runBlocking<Unit> {
+        for (ticket in listOf(scopedTicket(device = "other"), scopedTicket(host = "100.99.1.3"))) {
+            val f = Fixture(); f.ticket = ticket; f.authorize()
+            try {
+                assertTrue(runCatching { f.connect() }.isFailure)
+                assertNull(f.grant())
+                assertTrue(f.transports.all { it.methods == listOf("mobile.host.status") && it.closed })
+            } finally { f.authority.close() }
+        }
     }
 
     @Test fun outdatedPairingDoesNotPromoteConsentToGrantAndUpgradeCanRetry() = runBlocking<Unit> {

@@ -56,6 +56,7 @@ class MobileRpcClient internal constructor(
         terminalInputDispatcher?.invoke(operation) ?: operation.rpc(this, null)
 
     @Volatile internal var terminalDeviceName: String? = null
+    @Volatile private var hostAccountMutations = false
     private fun JSONObject.withTerminalDevice(): JSONObject = apply {
         terminalDeviceName?.let { put("device_kind", "unknown"); put("device_name", it) }
     }
@@ -120,14 +121,14 @@ class MobileRpcClient internal constructor(
     /** Each consumer owns its subscriptions and cancellation, while one owner retains the wire. */
     internal fun lease(release: () -> Unit): MobileRpcClient {
         check(delegate == null && !isClosed) { "Cannot lease a closed or borrowed connection" }
-        return MobileRpcClient(transport, accessToken, attachTicket, this, release)
+        return MobileRpcClient(transport, accessToken, attachTicket, this, release).also { it.hostAccountMutations = hostAccountMutations }
     }
 
     /** Transfers ownership of this handle to a caller-local ticket view; the pooled wire is unchanged. */
     internal fun withAttachTicket(context: MobileAttachTicketContext?, admitted: () -> Unit): MobileRpcClient {
         check(!isClosed) { "Cannot scope a closed connection" }
         admitted()
-        return MobileRpcClient(transport, accessToken, context, this, { close() }, admitted)
+        return MobileRpcClient(transport, accessToken, context, this, { close() }, admitted).also { it.hostAccountMutations = hostAccountMutations }
     }
 
     private suspend fun <T> borrowing(block: suspend (MobileRpcClient) -> T): T = coroutineScope {
@@ -168,7 +169,9 @@ class MobileRpcClient internal constructor(
         method: String,
         params: JSONObject = JSONObject(),
         timeoutMillis: Long = 15_000
-    ): JSONObject = requestWithAttachTicketPolicy(method, params, timeoutMillis, MobileAttachTicketPolicy.WHEN_COVERED)
+    ): JSONObject = requestWithAttachTicketPolicy(method, params, timeoutMillis,
+        if (hostAccountMutations && method in setOf("workspace.create", "workspace.move", "workspace.group.create", "workspace.group.action"))
+            MobileAttachTicketPolicy.OMIT else MobileAttachTicketPolicy.WHEN_COVERED)
 
     /** Omission is request-local; callers must separately admit account-capable Mac mutations. */
     internal suspend fun requestWithAttachTicketPolicy(method: String, params: JSONObject,
@@ -328,7 +331,12 @@ class MobileRpcClient internal constructor(
         finally { synchronized(stateLock) { repairing = false } }
     }
 
-    suspend fun hostStatus(): JSONObject = request("mobile.host.status")
+    suspend fun hostStatus(): JSONObject = request("mobile.host.status").also { status ->
+        val values = status.optJSONArray("capabilities")
+        hostAccountMutations = values != null && (0 until values.length()).any {
+            values.opt(it) == WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY
+        }
+    }
     suspend fun workspaces(): JSONObject = request("mobile.workspace.list")
     internal suspend fun exchangePhonePushKey(buildID: String, descriptor: PhonePushDescriptor): JSONObject =
         request("phone_push.keys.exchange", JSONObject().put("version", 1).put("hpke_envelope_version", 2)

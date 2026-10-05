@@ -1,5 +1,37 @@
 # Attach-ticket compatibility audit
 
+## legacy ticket input and Android checks (2026-10-05)
+
+Legacy ticket links and pasted input now reach an explicit route chooser. Native
+routes require a current account/team directory match; Tailscale routes require
+consent and verified host identity. Tailscale ticket context is installed before
+the first authenticated workspace request. Successful pairing saves the selected
+public route and encrypted ticket context in one transaction. Native connections
+receive a scoped ticket view after existing transport admission.
+
+Pending tickets survive Activity recreation in ViewModel memory. Bearer-bearing
+links and drafts are excluded from saved-state Bundles, public pairing records
+and route hashes. Cancelled or account-changed attempts cannot silently reconnect
+without their context. Unsubmitted legacy/invalid drafts are deliberately not
+restored; public pairing drafts are. Account-capable Mac mutations omit ticket
+auth per request without changing sibling connection views.
+
+**92 JVM checks and six Android checks passed** (Android **35.268 seconds**).
+Android coverage includes explicit route choice/cancellation, Activity recreation,
+saved draft handling, real Keystore storage/Forget, and onboarding restoration.
+Four production classes passed arm64 ART loading. The installed debug APK matched
+the tested build; source hashes matched; screenshots were inspected and the crash
+buffer was empty. Emulator settings were restored and the sole API37/16KB AVD
+was stopped and reaped. Evidence: `captures/runtime/attach-ticket-input/`.
+
+These are component/storage checks, not a live authenticated Pixel/Mac pairing
+acceptance result. Signed **581** remains the latest verified delivery and predates
+this work. Next: manual ticket acquisition with exact-route constraints, native
+transport auth review, legacy group mutation gates, and complete physical pairing/
+recovery acceptance. Production push/notice configuration, modal/accessibility
+work and the broad upstream audit also remain. PR #1 is open/draft; goal active;
+global parity pins unchanged.
+
 ## Storage and caller-local RPC context (2026-10-05)
 
 `NativeAttachTicketStore` saves the minimal selection/token/expiry context under

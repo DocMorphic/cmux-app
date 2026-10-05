@@ -178,11 +178,16 @@ internal fun NativeScreen(
     LaunchedEffect(signedIn, accountTeams) {
         if (!signedIn) accountTeams.clear()
     }
-    var code by remember { mutableStateOf(store.load()?.optString("pairing_code").orEmpty()) }
+    val ticketPairing = feedSession.ticketPairing
+    val ticketProposal by ticketPairing.pending.collectAsState()
+    LaunchedEffect(signedIn, teamState.scope) {
+        if (!signedIn) ticketPairing.clear() else teamState.scope?.let(ticketPairing::reconcile)
+    }
+    var code by remember { mutableStateOf(ticketPairing.resumeCode() ?: store.load()?.optString("pairing_code").orEmpty()) }
     var pendingPairingCode by rememberSaveable(signedIn) { mutableStateOf<String?>(null) }
     var pairingSelectionCode by remember(signedIn) { mutableStateOf<String?>(null) }
     var startedForegroundConnection by rememberSaveable(signedIn) { mutableStateOf(false) }
-    val deferStartupForPairing = !startedForegroundConnection && (incomingCode != null || pendingPairingCode != null)
+    val deferStartupForPairing = !startedForegroundConnection && (incomingCode != null || pendingPairingCode != null || ticketProposal != null)
     var error by remember { mutableStateOf<String?>(null) }
     var connectionError by remember(code) { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -389,7 +394,7 @@ internal fun NativeScreen(
             terminalStartup.observe(displayedTab?.first, selectedTerminal?.id)
         }
         if (workspaceRoute == null && !creatingTerminal && localBrowserState.creating == null) {
-            val destination = if (sshRoute != null || showSettings || showTaskComposer || currentIncomingRoute != null || pendingPairingCode != null) null else
+            val destination = if (sshRoute != null || showSettings || showTaskComposer || currentIncomingRoute != null || (pendingPairingCode != null || ticketProposal != null)) null else
                 workspaceTabDisplay(browserLogin, teamState.scope, pairedMacs, code,
                     selectedChangesWorkspace ?: selectedWorkspace, selectedTerminal, selectedBrowser, selectedSurface, localBrowser)
             screenResume.observe(destination?.let { (key, tab) ->
@@ -405,7 +410,7 @@ internal fun NativeScreen(
     NativeScreenResumeEffect(screenResume, browserLogin, teamState.scope, savedPairedMacs, pairedMacs,
         admissionReady = connector != null || teamState.scope != null,
         hasRetainedPane = selectedWorkspace != null || localBrowser != null || selectedChangesWorkspace != null,
-        newerNavigation = sshRoute != null || showSettings || showTaskComposer || currentIncomingRoute != null || incomingCode != null || pendingPairingCode != null ||
+        newerNavigation = sshRoute != null || showSettings || showTaskComposer || currentIncomingRoute != null || incomingCode != null || (pendingPairingCode != null || ticketProposal != null) ||
             (workspaceRoute != null && workspaceRoute?.resume == null)) { route ->
         if (route != null || workspaceRoute?.resume != null) workspaceRoute = route
     }
@@ -531,6 +536,7 @@ internal fun NativeScreen(
             it.accountUserId == previous.accountUserId && it.accountTeamId == previous.accountTeamId
     }
     fun selectMacCode(target: String) {
+        ticketPairing.clear()
         expectedReconnect = null
         pendingPickerCode = null
         pairingSelectionCode = null
@@ -540,7 +546,8 @@ internal fun NativeScreen(
         }
         code = target; error = null; retryDelay = 2_000
     }
-    fun selectPairingCode(target: String) {
+    fun selectPairingCode(target: String, usingTicket: Boolean = false) {
+        if (!usingTicket) ticketPairing.clear()
         expectedReconnect = null
         pendingPickerCode = null
         screenResume.cancel(); workspaceRoute = null
@@ -645,7 +652,7 @@ internal fun NativeScreen(
         else pairedMacs.singleOrNull { it.code == code }
     ObserveNativeNotificationSelection(lifecycle,
         if (displayedTab == null || browserLogin == null || visibleNotificationMac == null ||
-            pendingPairingCode != null || screenResume.pending != null || showSshComputers || showLicenses) null
+            (pendingPairingCode != null || ticketProposal != null) || screenResume.pending != null || showSshComputers || showLicenses) null
         else NativeNotificationSelection(browserLogin, visibleNotificationMac.origin, displayedTab.first.workspaceId,
             displayedTab.second?.takeIf { it.kind == NativeWorkspaceTabKind.TERMINAL }?.id))
     var feedForeground by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
@@ -1399,7 +1406,14 @@ internal fun NativeScreen(
                     } else error = "This Mac is not available in your selected team. Check its Mobile settings and refresh Computers."
                 }
             },
-            onFailure = { error = it.message }
+            onFailure = {
+                try {
+                    val owner = checkNotNull(teamState.scope) { "Refresh your account teams before pairing." }
+                    check(signedIn && accountTeams.isCurrent(owner)) { "Sign in before pairing." }
+                    ticketPairing.propose(MobileAttachTicketCodec.decodeLegacyUrl(value).getOrThrow(), owner, teamState.email)
+                    pendingPairingCode = null; error = null
+                } catch (failure: Exception) { error = failure.message }
+            }
         )
     }
 
@@ -1407,6 +1421,10 @@ internal fun NativeScreen(
     LaunchedEffect(incomingCode, signedIn, code, pairedMacs, teamState.scope, computerState) {
         val incoming = incomingCode ?: return@LaunchedEffect
         pendingPairingCode = null
+        if (PairingCodeParser.parse(incoming).isFailure) {
+            if (!signedIn || teamState.scope == null) return@LaunchedEffect
+            proposePairing(incoming); handlePairing(incoming); return@LaunchedEffect
+        }
         PairingCodeParser.parse(incoming).getOrNull()?.let(connection::pairingCompatibilityError)?.let {
             error = it; handlePairing(incoming); return@LaunchedEffect
         }
@@ -1435,7 +1453,7 @@ internal fun NativeScreen(
     LaunchedEffect(currentIncomingRoute, showSettings, showTaskComposer) {
         if (currentIncomingRoute != null || showSettings || showTaskComposer) localBrowsers.leave(close = false)
     }
-    LaunchedEffect(incomingNotificationRoute) { if (incomingNotificationRoute != null) { pendingPairingCode = null; inAppNotification = null; workspaceRoute = null } }
+    LaunchedEffect(incomingNotificationRoute) { if (incomingNotificationRoute != null) { ticketPairing.cancel(); pendingPairingCode = null; inAppNotification = null; workspaceRoute = null } }
     val routeClient = client
     val routeConnectedCode = connectedCode
     val routePairingCode = code
@@ -1714,6 +1732,7 @@ internal fun NativeScreen(
         if (!signedIn || code.isBlank()) return@LaunchedEffect
         startedForegroundConnection = true
         val requestedCode = code
+        val ticketAttempt = ticketPairing.current(requestedCode, teamState.scope)
         val capturedReconnect = expectedReconnect?.takeIf { it.code == requestedCode }
         fun requireCurrentReconnect() {
             check(store.pairedMacs().none { it.code == requestedCode &&
@@ -1723,15 +1742,19 @@ internal fun NativeScreen(
         }
         busy = true
         try {
+            check(!ticketPairing.requiresTicket(requestedCode) || ticketAttempt != null) { "Pairing account changed. Scan or paste the ticket again." }
             val pairing = PairingCodeParser.parse(requestedCode).getOrThrow()
-            val pairingOwner = if (sharedConnections != null) kotlinx.coroutines.withTimeout(30_000) {
+            val pairingOwner = if (sharedConnections != null || ticketAttempt != null) kotlinx.coroutines.withTimeout(30_000) {
                 accountTeams.state.first { it.scope != null || it.error != null }.scope
                     ?: error("Refresh your account teams before connecting.")
             } else null
             requireCurrentReconnect()
             val saved = store.visiblePairedMacs().singleOrNull { it.code == requestedCode && connection.allowsSaved(it) }
             if (pairingOwner != null) check(accountTeams.isCurrent(pairingOwner)) { "Account or team changed. Reconnect to the Mac." }
-            val active = if (saved != null) connection.connectSaved(saved, account) else connection.connectPairing(pairing, account)
+            val active = if (ticketAttempt != null) {
+                check(ticketPairing.isCurrent(ticketAttempt) && ticketAttempt.owner == pairingOwner) { "Pairing or account changed" }
+                connection.connectTicket(pairing, ticketAttempt.ticket, account)
+            } else if (saved != null) connection.connectSaved(saved, account) else connection.connectPairing(pairing, account)
             try {
                 val status = active.hostStatus()
                 require(status.optString("mac_device_id").isNotBlank()) { "The Mac did not provide its device identity." }
@@ -1756,7 +1779,12 @@ internal fun NativeScreen(
                 ensureActive()
                 if (code != requestedCode || !signedIn) throw CancellationException("Connection changed")
                 requireCurrentReconnect()
-                val remembered = if (pairingOwner != null) store.rememberAuthenticatedMac(verified, pairingOwner, expected = capturedReconnect) {
+                val remembered = if (ticketAttempt != null && pairingOwner != null) {
+                    store.rememberAuthenticatedTicketMac(verified, pairingOwner, ticketAttempt.ticket, teamState.email,
+                        expected = saved ?: capturedReconnect) {
+                        accountTeams.isCurrent(pairingOwner) && signedIn && code == requestedCode && ticketPairing.isCurrent(ticketAttempt)
+                    }
+                } else if (pairingOwner != null) store.rememberAuthenticatedMac(verified, pairingOwner, expected = capturedReconnect) {
                     accountTeams.isCurrent(pairingOwner) && signedIn && code == requestedCode
                 } else {
                     store.rememberMac(verified.code, verified.deviceId, verified.name, verified.instanceTag, expected = capturedReconnect)
@@ -1777,6 +1805,18 @@ internal fun NativeScreen(
                 hostName = displayName; hostCapabilities = capabilities
                 terminalTransport = TerminalTransport.resolve(capabilities, status.optString("terminal_fidelity"))
                 applyListing(listing); notifications = feed
+                ticketAttempt?.let { attempt ->
+                    val target = attempt.ticket.workspaceId.trim().takeIf { it.isNotEmpty() }
+                    if (target != null) {
+                        selectedWorkspace = workspaces.singleOrNull { it.id == target }
+                        val terminal = attempt.ticket.terminalId?.trim()?.takeIf { it.isNotEmpty() }
+                        val pane = selectedWorkspace?.let { if (terminal == null) it.defaultPane() else it.explicitPane(terminalId = terminal) }
+                        selectedTerminal = pane?.terminal; selectedBrowser = pane?.browser; selectedSurface = pane?.surface
+                        if (terminal != null && pane == null) selectedWorkspace = null
+                        if (selectedWorkspace == null || (terminal != null && pane == null)) error = "The ticket's workspace or terminal is no longer available."
+                    }
+                    ticketPairing.completed(attempt)
+                }
                 inputOwner(remembered, store.taskSession())?.let { owner ->
                     val sizingStream = terminalSizing.bind(owner, active)
                     if (TerminalSizingTraffic.CAPABILITY in capabilities) {
@@ -2143,6 +2183,19 @@ internal fun NativeScreen(
         title = { Text("Finding this Mac…") },
         text = { Text("Checking your account and selected team's computers.") },
         confirmButton = {}, dismissButton = { TextButton(onClick = { handlePairing(pairingLookup) }) { Text("Cancel") } })
+    if (signedIn) ticketProposal?.let { proposal ->
+        NativeTicketPairingConfirmation(proposal, onDismiss = ticketPairing::dismiss) { choice ->
+            try {
+                val owner = checkNotNull(teamState.scope)
+                check(accountTeams.isCurrent(owner)) { "Account or team changed" }
+                val attempt = ticketPairing.select(proposal, choice, owner, computerState)
+                val pairing = PairingCodeParser.parse(attempt.code).getOrThrow()
+                connection.pairingCompatibilityError(pairing)?.let { error(it) }
+                if (pairing is PairingCode.Tailscale) connection.authorizePairing(pairing)
+                selectPairingCode(attempt.code, usingTicket = true); retry++
+            } catch (failure: Exception) { error = failure.message; ticketPairing.clear() }
+        }
+    }
     NativePairingConfirmation(if (signedIn) pendingPairingCode else null,
         onDismiss = { pendingPairingCode = null },
         onConnect = { proposed ->
@@ -2237,9 +2290,9 @@ internal fun NativeScreen(
     // available Mac can be selected automatically; multiple Macs stay explicit.
     LaunchedEffect(showOnboarding, onboardingOwner, onboardingAutomatic, computerState.ready,
         onboardingCandidates, onboardingRetry, code, feedForeground, replayOnboarding, deferStartupForPairing,
-        pendingPairingCode, busy, onboardingReady) {
+        pendingPairingCode, ticketProposal, busy, onboardingReady) {
         val owner = onboardingOwner ?: return@LaunchedEffect
-        if (!nativeOnboardingMayChoose(showOnboarding, feedForeground, deferStartupForPairing || pendingPairingCode != null,
+        if (!nativeOnboardingMayChoose(showOnboarding, feedForeground, deferStartupForPairing || (pendingPairingCode != null || ticketProposal != null),
             replayOnboarding, onboardingRetry > 0, onboardingAutomatic, code.isNotBlank(), busy, onboardingReady) ||
             !accountTeams.isCurrent(owner) || !computerState.ready || computerState.account != owner) return@LaunchedEffect
         val candidate = onboardingCandidates.singleOrNull() ?: return@LaunchedEffect
@@ -2324,7 +2377,7 @@ internal fun NativeScreen(
                 onboardingProgress == NativeOnboardingProgress.COMPLETE && !showOnboarding && !onboardingExplicitRoute &&
                 !showSettings && !showSshComputers && !showTaskComposer && !showLicenses && !showShortcuts &&
                 !creatingGroup && !confirmReadAll && computerDetails == null && deletionReceipt == null &&
-                pendingPairingCode == null && pairingLookup == null && !onboardingPermissionBusy && !whatsNewPromptPending &&
+                (pendingPairingCode == null && ticketProposal == null) && pairingLookup == null && !onboardingPermissionBusy && !whatsNewPromptPending &&
                 selectedTerminal == null && selectedBrowser == null && selectedSurface == null && selectedChangesWorkspace == null &&
                 screenResume.pending == null && textSnapshot == null && !showTerminalFiles && terminalArtifactPath == null &&
                 !createMenuOpen && !computerMenuOpen && !workspaceFilterMenuOpen && !notificationFilterMenu,
@@ -2635,7 +2688,7 @@ internal fun NativeScreen(
             lastSeenHistory = lastSeenHistory, preferences = computerPreferences, tailscaleRoutes = tailscaleRouteLabels,
             forgetCallbacks = forgetCallbacks, presentDetails = { computerDetails = it },
             connectingCode = code.takeIf { busy && cachedComputers == null }, connectionFailure = error ?: connectionError,
-            onCancelConnect = { macSwitchRecovery.cancel(); pendingPickerCode = null; pairingSelectionCode = null; expectedReconnect = null
+            onCancelConnect = { ticketPairing.clear(); macSwitchRecovery.cancel(); pendingPickerCode = null; pairingSelectionCode = null; expectedReconnect = null
                 code = ""; connectionError = null; error = null; showReconnectList = false },
             canSelectSaved = { mac -> isReconnectOwnerCurrent() &&
                 NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac) },
@@ -3786,7 +3839,7 @@ internal fun NativeComputerPicker(
     val connectingPairing = connectingCode?.let { PairingCodeParser.parse(it).getOrNull() }
     var rowSelected by remember(teamState.scope) { mutableStateOf(false) }
     LaunchedEffect(connectingCode, connectionFailure) { if (connectingCode == null) rowSelected = false }
-    var pairingText by rememberSaveable(teamState.userId, teamState.selectedTeamId) { mutableStateOf("") }
+    var pairingText by rememberSaveable(teamState.userId, teamState.selectedTeamId, stateSaver = NativePairingDraftSaver) { mutableStateOf("") }
     var showPairingOptions by rememberSaveable(teamState.userId, teamState.selectedTeamId) { mutableStateOf(false) }
     var showPairingHelp by rememberSaveable(teamState.userId, teamState.selectedTeamId) { mutableStateOf(false) }
     if (showPairingHelp) NativePairingHelp(macPolicy, signedIn = true,

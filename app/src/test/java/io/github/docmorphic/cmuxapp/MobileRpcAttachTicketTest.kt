@@ -6,6 +6,29 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MobileRpcAttachTicketTest {
+    @Test fun authenticatedHostCapabilityOmitsNarrowingTicketOnlyForMacWideMutations() = runBlocking<Unit> {
+        val wire = PoolTestTransport()
+        MobileRpcClient(wire, { "fixture-stack" }, ticket()).use { owner ->
+            owner.connect()
+            owner.lease {}.use { client ->
+                for (capabilities in listOf(listOf(WORKSPACE_ACCOUNT_MUTATIONS_CAPABILITY), emptyList())) {
+                    val pending = async { client.hostStatus() }
+                    val request = withTimeout(2000) { wire.sent.receive() }
+                    wire.incoming.send(MobileFrameCodec.encode(JSONObject().put("id", request.getString("id")).put("ok", true)
+                        .put("result", JSONObject().put("capabilities", org.json.JSONArray(capabilities))).toString().toByteArray()))
+                    withTimeout(2000) { pending.await() }
+                    for (method in listOf("workspace.create", "workspace.move", "workspace.group.create", "workspace.group.action")) {
+                        val frame = exchange(client, wire, method)
+                        assertEquals(capabilities.isEmpty(), frame.getJSONObject("auth").has("attach_token"))
+                    }
+                    assertEquals("fixture-attach", exchange(client, wire, "workspace.action", JSONObject().put("workspace_id", "work"))
+                        .getJSONObject("auth").getString("attach_token"))
+                }
+                // A sibling that has not checked host status retains its own narrowing context.
+                assertEquals("fixture-attach", exchange(owner, wire, "workspace.group.create").getJSONObject("auth").getString("attach_token"))
+            }
+        }
+    }
     private fun ticket(expiry: Long? = null) = MobileAttachTicketContext("work", "term", "fixture-attach", expiry)
 
     private suspend fun exchange(client: MobileRpcClient, wire: PoolTestTransport, method: String,

@@ -18,7 +18,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
 
 open class MainActivity : ComponentActivity() {
-    private var launchRoutes by mutableStateOf(NativeLaunchRoutes())
+    private val routesModel by lazy { androidx.lifecycle.ViewModelProvider(this)[NativeLaunchRoutesViewModel::class.java] }
+    private var launchRoutes: NativeLaunchRoutes
+        get() = routesModel.routes
+        set(value) { routesModel.routes = value }
     internal open fun screenConnector(): NativeConnector? = null
     private fun routes(intent: Intent?) = NativeLaunchRoutes.incoming(intent?.dataString,
         NativeNotificationDelivery.routeFromIntent(this, intent))
@@ -29,12 +32,14 @@ open class MainActivity : ComponentActivity() {
             isAppearanceLightStatusBars = false
             isAppearanceLightNavigationBars = false
         }
-        launchRoutes = when {
+        if (!routesModel.initialized) launchRoutes = when {
             savedInstanceState?.containsKey(NativeLaunchRoutes.STATE_KEY) == true ->
                 NativeLaunchRoutes.decode(savedInstanceState.getString(NativeLaunchRoutes.STATE_KEY))
             savedInstanceState != null -> NativeLaunchRoutes.incoming(null, savedInstanceState.getString("notification_route"))
             else -> routes(intent)
         }
+        routesModel.initialized = true
+        if (launchRoutes.pairing?.let { PairingCodeParser.parse(it).isFailure } == true) intent?.data = null
         if (NativeNotificationService.isEnabled(this)) {
             runCatching { startForegroundService(Intent(this, NativeNotificationService::class.java)) }
         }
@@ -79,6 +84,7 @@ open class MainActivity : ComponentActivity() {
         val next = routes(intent)
         // Launcher reentry and unrelated intents must not discard a link awaiting sign-in.
         if (next.pairing != null || next.notification != null) launchRoutes = next
+        if (next.pairing?.let { PairingCodeParser.parse(it).isFailure } == true) intent.data = null
     }
 }
 
@@ -93,4 +99,11 @@ fun CmuxTheme(content: @Composable () -> Unit) {
             onSurface = Color(0xFFF4F5F7)
         ), content = content)
     }
+}
+
+/** Unconfirmed bearer-bearing links survive rotation in memory, never process-state serialization. */
+internal class NativeLaunchRoutesViewModel : androidx.lifecycle.ViewModel() {
+    var initialized = false
+    var routes by mutableStateOf(NativeLaunchRoutes())
+    override fun onCleared() { routes = NativeLaunchRoutes() }
 }

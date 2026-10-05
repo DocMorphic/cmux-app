@@ -37,7 +37,7 @@ internal fun NativeOnboardingFlow(initialProgress: NativeOnboardingProgress, rep
     var method by rememberSaveable { mutableStateOf(initialMethod) }
     var reached by rememberSaveable { mutableStateOf(false) }
     var seenPermissionResult by rememberSaveable { mutableLongStateOf(notificationResult) }
-    var pairingDraft by rememberSaveable { mutableStateOf("") }
+    var pairingDraft by rememberSaveable(stateSaver = NativePairingDraftSaver) { mutableStateOf("") }
     var showPaste by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val latestReached by rememberUpdatedState(onReachedConnection)

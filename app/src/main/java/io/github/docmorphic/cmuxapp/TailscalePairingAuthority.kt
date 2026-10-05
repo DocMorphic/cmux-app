@@ -168,9 +168,11 @@ internal class TailscalePairingAuthority(
         return owner
     }
 
-    suspend fun connect(pairing: PairingCode.Tailscale, expectedScope: NativeTeamScope? = null, token: suspend () -> String?): MobileRpcClient {
+    suspend fun connect(pairing: PairingCode.Tailscale, expectedScope: NativeTeamScope? = null,
+                        attachTicket: MobileAttachTicket? = null, token: suspend () -> String?): MobileRpcClient {
         val owner = owner(pairing)
         check(expectedScope == null || expectedScope == owner) { "Account or team changed. Reconnect to the Mac." }
+        require(attachTicket == null || NativeTicketPairingRoutes.covers(attachTicket, pairing)) { "Ticket does not cover this route" }
         val source = TailscaleGrantStore.source(pairing)
         val consent = synchronized(lock) { check(!closed); consents[source]?.takeIf { it.scope == owner } }
         val saved = grants.find(owner, source)
@@ -200,22 +202,26 @@ internal class TailscalePairingAuthority(
                 }
                 require(TailscalePeerAddress.canonical(route.host) == route.host && route.port == hint.port)
                 requireAllowed()
-                val client = dial(route, ::allowed) {
+                val base = dial(route, ::allowed) {
                     requireAllowed()
                     val value = token()
                     requireAllowed()
                     checkNotNull(value?.takeIf { it.isNotBlank() }) { "Sign in before connecting to this Mac." }
                 }
-                candidate = client
+                candidate = base
                 requireAllowed()
-                synchronized(lock) { check(!closed); clients[client] = ::allowed }
-                client.connect()
-                val status = client.hostStatus()
+                synchronized(lock) { check(!closed); clients[base] = ::allowed }
+                base.connect()
+                val status = base.hostStatus()
                 requireAllowed()
                 val device = status.optString("mac_device_id")
                 require(device.isNotBlank() && device == device.trim() && device.length <= 128) { "The Mac did not provide a valid device identity." }
                 capturedExpected?.requireMatchingHost(status)
                 saved?.let { check(it.matches(status)) { "This route reaches a different Mac or cmux installation. Pair the intended Mac again." } }
+                attachTicket?.requireHost(status)
+                val client = if (attachTicket == null) base else base.withAttachTicket(attachTicket.context(), ::requireAllowed)
+                candidate = client
+                if (client !== base) synchronized(lock) { clients.remove(base); check(!closed); clients[client] = ::allowed }
                 // Host status alone is not a successful account-authenticated session.
                 client.workspaces()
                 currentCoroutineContext().ensureActive(); requireAllowed()

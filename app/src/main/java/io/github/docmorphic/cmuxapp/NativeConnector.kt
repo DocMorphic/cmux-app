@@ -9,6 +9,8 @@ fun interface NativeConnector {
     suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount): MobileRpcClient
     suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount): MobileRpcClient =
         error("Native computer discovery is unavailable in this connection provider")
+    suspend fun connectTicket(pairing: PairingCode, ticket: MobileAttachTicket, account: NativeAccount): MobileRpcClient =
+        error("Ticket pairing is unavailable in this connection provider")
     suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient =
         connectPairing(PairingCodeParser.parse(mac.code).getOrThrow(), account)
     fun allowsSaved(pairing: PairingCode): Boolean = true
@@ -41,11 +43,13 @@ internal class TailscaleConnector(context: Context, store: NativeCredentialStore
             }
         }, admitCompatibility = admitCompatibility)
     override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = connectOwned(pairing, account, null)
+    suspend fun connectTicket(pairing: PairingCode.Tailscale, ticket: MobileAttachTicket, account: NativeAccount, team: NativeTeamScope) =
+        connectOwned(pairing, account, team, ticket)
     suspend fun connectSaved(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope) = connectOwned(pairing, account, team)
-    private suspend fun connectOwned(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope?): MobileRpcClient {
+    private suspend fun connectOwned(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope?, ticket: MobileAttachTicket? = null): MobileRpcClient {
         var acquired: MobileRpcClient? = null
         return try {
-            withContext(Dispatchers.IO) { authority.connect(pairing, team, account::accessToken).also { acquired = it } }
+            withContext(Dispatchers.IO) { authority.connect(pairing, team, ticket, account::accessToken).also { acquired = it } }
         } catch (failure: Throwable) {
             // Cancellation can reject the dispatcher return after the socket was acquired.
             acquired?.close(); throw failure

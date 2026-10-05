@@ -9,13 +9,22 @@ import java.time.Instant
 import java.util.Base64
 
 /** Decoded discovery data. Neither this object nor its routes admit a connection. */
-internal class MobileAttachTicket(
-    val workspaceId: String, val terminalId: String?, val deviceId: String, val displayName: String?,
-    val userEmail: String?, val userId: String?, val compatibilityVersion: Long?,
-    val appVersion: String?, val appBuild: String?, val routes: List<MobileAttachRoute>,
-    val expiresAtMillis: Long?, private val authToken: String?
+class MobileAttachTicket internal constructor(
+    internal val workspaceId: String, internal val terminalId: String?, internal val deviceId: String, internal val displayName: String?,
+    internal val userEmail: String?, internal val userId: String?, internal val compatibilityVersion: Long?,
+    internal val appVersion: String?, internal val appBuild: String?, internal val routes: List<MobileAttachRoute>,
+    internal val expiresAtMillis: Long?, private val authToken: String?
 ) {
-    fun context() = MobileAttachTicketContext(workspaceId, terminalId, authToken, expiresAtMillis)
+    internal fun context() = MobileAttachTicketContext(workspaceId, terminalId, authToken, expiresAtMillis)
+    internal fun requireAccount(user: String, email: String?) {
+        require(userId == null || userId == user) { "This ticket belongs to another cmux account" }
+        require(userEmail == null || (email != null && userEmail.trim().equals(email.trim(), true))) {
+            "Sign in with the cmux account used by this Mac"
+        }
+    }
+    internal fun requireHost(status: org.json.JSONObject) {
+        require(canonicalMacDeviceId(status.optString("mac_device_id")) == deviceId) { "This ticket reaches a different Mac" }
+    }
     override fun toString() = "MobileAttachTicket(redacted)"
 }
 

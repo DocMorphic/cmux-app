@@ -3,6 +3,13 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
+## Source ahead of the signed APK (2026-10-05)
+
+Legacy ticket input/route confirmation, encrypted persistence and scoped RPC
+context have passed focused JVM and emulator checks. They are not in signed 581
+and have not completed physical Pixel/Mac acceptance. See the latest checkpoint
+in [PARITY.md](PARITY.md); no new signed delivery is claimed here.
+
 ## Current signed development APK — build 581 (2026-10-05)
 
 [Build 581](https://github.com/DocMorphic/cmux-app/actions/runs/37246515883)

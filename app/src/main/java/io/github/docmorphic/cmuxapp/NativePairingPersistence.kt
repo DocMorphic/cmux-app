@@ -6,7 +6,8 @@ import org.json.JSONObject
 /** A computer owns a stable origin; adding or upgrading a route does not create a new draft/notification namespace. */
 internal object NativePairingPersistence {
     fun remember(state: JSONObject, incoming: NativeCredentialStore.PairedMac,
-                 team: NativeTeamScope? = null, expected: NativeCredentialStore.PairedMac? = null): NativeCredentialStore.PairedMac {
+                 team: NativeTeamScope? = null, expected: NativeCredentialStore.PairedMac? = null,
+                 preferIncomingRoute: Boolean = false): NativeCredentialStore.PairedMac {
         NativeComputerVisibility.requireVisibleHandshake(state, incoming)
         // Runs inside the credential transaction: a Forget/replacement between
         // the handshake and this write must not recreate the captured pairing.
@@ -67,7 +68,7 @@ internal object NativePairingPersistence {
             }
             check(!ambiguous) { "Reconnect this native computer first, then add its route from Computer Details." }
         }
-        val routeOwner = if (pairing is PairingCode.Tailscale) nativeMatches.firstOrNull()?.second ?: incoming else incoming
+        val routeOwner = if (pairing is PairingCode.Tailscale && !preferIncomingRoute) nativeMatches.firstOrNull()?.second ?: incoming else incoming
         val scoped = NativePairingRecords.scoped(routeOwner, team, existing?.second?.origin)
         val aliases = matches.flatMap { it.second.origins }.toSet() - scoped.origin
         // An origin shared with an unresolved or differently scoped record cannot

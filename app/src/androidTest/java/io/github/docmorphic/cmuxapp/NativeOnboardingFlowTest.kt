@@ -53,7 +53,7 @@ class NativeOnboardingFlowTest {
         compose.onNodeWithTag("onboarding.primary").performClick()
         compose.runOnIdle { assertEquals(1, completed) }
     }
-    @Test fun restoredConnectKeepsDraftWithoutRepeatingEntryOrPairing() {
+    @Test fun restoredConnectKeepsPublicDraftWithoutRepeatingEntryOrPairing() {
         val restore = StateRestorationTester(compose)
         var reached = 0; var completed = 0; var paired: String? = null
         restore.setContent { CmuxTheme { Surface { Column(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -63,9 +63,9 @@ class NativeOnboardingFlowTest {
         compose.onNodeWithTag("onboarding.title.CONNECT").assertIsDisplayed()
         compose.onNodeWithTag("onboarding.tailscale").performScrollTo().performClick()
         compose.onNodeWithText("Paste a pairing code").performScrollTo().performClick()
-        compose.onNodeWithTag("onboarding.paste").performScrollTo().performTextInput("cmux-ios://test-draft")
+        compose.onNodeWithTag("onboarding.paste").performScrollTo().performTextInput("cmux-ios://attach?v=2&r=100.64.0.7:58465")
         restore.emulateSavedInstanceStateRestore()
-        compose.onNodeWithTag("onboarding.paste").performScrollTo().assertTextContains("cmux-ios://test-draft")
+        compose.onNodeWithTag("onboarding.paste").performScrollTo().assertTextContains("cmux-ios://attach?v=2&r=100.64.0.7:58465")
         compose.runOnIdle { assertEquals(1, reached); assertNull(paired); assertEquals(0, completed) }
         compose.onNodeWithTag("onboarding.back").performClick()
         compose.onNodeWithTag("onboarding.title.PAIRING").assertIsDisplayed()
