@@ -1,0 +1,128 @@
+# Attach-ticket compatibility audit
+
+## Scope (2026-10-05)
+
+This is a source audit, not implemented or runtime-verified legacy compatibility.
+The five files below were read at `204a11dfcc76280205e50406ab94270a1c152155`.
+Their Git blobs are unchanged at `186cec79781256867ad4516f0802118738bd2393`.
+The broad implemented/reviewed references remain unchanged. Original sources and
+blob comparisons are in ignored `captures/runtime/attach-ticket-audit/`.
+
+Paths are relative to `Packages/iOS/` in the upstream cmux repository:
+
+| Source | Observed contract |
+| --- | --- |
+| `CmuxMobileRPC/Sources/CmuxMobileRPC/CmxAttachTicketInput.swift` | Accepts ancient `pair` links, current plain attach v2/v3 links, and base64url `payload` attach links. Payload decoding selects compact keys (`v`) or full Codable keys (`version`). Encoded tickets are structurally validated; this entry point does not reject them merely because they have expired. Ancient `pair` links have their own expiry check. Unknown compatibility becomes version zero. |
+| `CmuxMobileRPC/Sources/CmuxMobileRPC/MobileCoreRPCAttachTicketCoverage.swift` | Empty trimmed workspace ID covers all workspaces/terminals. A scoped workspace must match the requested workspace. A scoped terminal must match the requested terminal; a supplied conflicting workspace rejects it. Camel-case `workspaceID`/`terminalID` parameters are detected as ignored aliases. |
+| `CmuxMobileShell/Sources/CmuxMobileShell/MobileShellWorkspaceMutationTicketPolicy.swift` | Fresh account-mutation capability admits Mac-wide workspace mutations. Otherwise a nonempty auth token, unexpired ticket and empty trimmed workspace ID are all required. The account-authorized path omits narrowing ticket context. |
+| `CmuxMobileShell/Sources/CmuxMobileShell/MobileShellComposite+ManualAttachTicket.swift` | For routes admitted by the existing Stack-auth route policy, requests `mobile.attach_ticket.create` with `ttl_seconds: 3600`, `scope: mac`, `target: ticket_only`. Constrains returned routes to the exact requested route. Only specified unsupported/unavailable RPC failures allow a synthetic-ticket fallback; malformed successful responses fail. Synthetic IDs are placeholders until authenticated host status supplies identity. |
+| `CmuxMobileShell/Sources/CmuxMobileShell/MobileManualAttachTicketCreateResponse.swift` | Decodes a `ticket` field with ISO-8601 dates. |
+
+The decoded ticket is not, by itself, proof of host identity or authorization.
+The age rules at QR input and at mutation authorization serve different purposes;
+retaining an old scanned route must not grant an expired token mutation authority.
+
+### Wire and request follow-up
+
+Also inspected `CMUXMobileCore`'s `CmxTransport.swift`, compact coder and its three
+DTOs. These five source files are unchanged between the two references above:
+
+- Full tickets require `version`, `workspaceID`, `macDeviceID` and `routes`.
+  Canonical `auth_token` takes precedence over `authToken`; blank present tokens
+  fail validation. Version must equal 1, routes must be nonempty and their endpoint
+  shape must match their kind. Expiry is inclusive (`expiresAt <= now`); missing
+  expiry never expires. These are structural checks, not route authorization.
+- Compact tickets omit tokens, names and expiry. Historical `e`/`n` keys are
+  ignored. `u` maps to email if it contains `@`, otherwise user ID. Missing route
+  IDs are synthesized by kind occurrence; missing priority is zero. An explicit
+  endpoint `t` wins; otherwise the decoder chooses URL, peer, then host/port from
+  present keys. Historical peer path hints decode but are not emitted by current
+  compact encoding. Decoding them must not silently authorize a new network route.
+
+Read `MobileCoreRPCClient.requestDataWithAuth` and its per-method coverage dispatch
+at `204a11d`, then inspected its exact diff to `186cec7`:
+
+- Transport-admitted connections remove request auth. Bearer-authorized connections
+  always require Stack auth for non-status requests; attach tokens are supplemental.
+  Covered, unexpired tokens are included only under the `whenCovered` policy.
+  Account-authorized Mac mutations can explicitly omit the token. Expired tokens
+  are omitted when Stack fallback is allowed.
+- Conflicting terminal aliases or ignored camel-case selection keys prevent
+  attaching a scope token. Notification feed requests omit scoped attach context.
+  Browser panel-only methods can carry a token only for a Mac-wide ticket.
+- The latest diff adds terminal coverage for `mobile.terminal.reattach`,
+  `mobile.terminal.size_policy.set` and `mobile.terminal.participant.disconnect`;
+  it adds token omission for `feed.list`, `feed.text`, `feed.permission.reply`,
+  `feed.question.reply` and `feed.exit_plan.reply`. It also adds optional combined
+  authenticated host status in workspace-list responses. That new response path
+  still needs a separate Android compatibility review.
+
+The pairing input test diff changes only a fixture hostname. This inspection does
+not mean the Swift tests were executed.
+
+### Current host follow-up
+
+Read the ticket record creation/lookup/resource tracking in
+`Sources/Mobile/MobileAttachTicketStore.swift`, the scope dispatch in
+`MobileHostService+TicketAuthorization.swift`, and account verifier in
+`MobileHostAuthorizationSupport.swift` at `186cec7`. The store mints random tokens,
+retains records in memory, prunes expired records and records workspaces/terminals
+created under a token. Those created resources can be allowed by later scoped
+requests. Mac-wide group mutations still require an empty ticket workspace ID.
+
+The host policy permits account-wide feed reads with a scoped ticket; agent feed
+replies carrying only a request ID reject a scoped ticket. The iOS client therefore
+omits that supplemental context for those account-authorized feed calls. Blindly
+adding the Android constructor's token to every request would break this behavior.
+
+The account verifier independently compares the freshly known local user with the
+verified remote Stack user. Its token-to-user cache lasts 60 seconds, refreshes
+ahead inside 15 seconds and bounds verification to 10 seconds. Ticket possession
+cannot replace that account check. The main service's `authorizationError` verifies
+the account before `ticketAuthorizationResultIfNeeded` applies a current record's
+scope. A missing, unknown or expired token leaves the account gate authoritative;
+the capability advertises this behavior. This observation applies to this current
+host source, not to historical hosts lacking the capability.
+
+Read the host test cases for workspace-scoped actions, account-wide notification
+reads and agent-feed reply scope. They call the scope helper directly; their test
+fixtures omitting Stack credentials do not demonstrate successful unauthenticated
+RPC. They have not been executed here. Full URL/input tests, token acquisition call
+sites and refresh/retirement lifecycle remain before Android integration.
+
+## Android state at `fc2a3fa`
+
+- `PairingCodeParser` accepts plain attach v2/v3 only. It has no ancient `pair`,
+  compact payload or full-key ticket model/decoder, and rejects credential-named
+  query fields. It is currently a bounded public route preview.
+- `MobileRpcClient` already has an optional `attachToken` constructor argument and
+  can send `auth.attach_token` beside the account token, except on host-status
+  requests. Production connectors do not supply a ticket. This transport field
+  alone does not implement ticket validation, expiry, request coverage or refresh.
+- Group mutations require `workspace.mutations.account_auth.v1` plus the operation
+  capability. Removing this gate without implementing the ticket policy would be
+  incorrect for the older hosts in scope.
+
+## Required implementation and evidence
+
+1. Finish URL/validation tests, historical host behavior, token acquisition call
+   sites and refresh behavior. The reviewed current code does not establish the
+   complete ticket lifecycle or old-host interoperability.
+2. Add bounded decoding with unchanged Swift-generated fixtures for compact/full
+   payloads and ancient pairing URLs. Cover bad versions, duplicate fields,
+   missing/invalid identities, dates, routes and oversized input. Preserve the
+   current v2/v3 behavior and route-admission rules.
+3. Carry ticket credentials only in the encrypted credential store and scoped
+   connection state. Do not use the existing public route-string persistence or
+   diagnostic output to store/log a bearer-bearing URL. Check replacement,
+   revocation, expiry, restart and account/team ownership explicitly.
+4. Integrate ticket coverage, account-capability precedence and exact-route manual
+   refresh across main and independently borrowed/feed clients. A scoped ticket
+   must not authorize another workspace/terminal or a Mac-wide group mutation.
+   Do not add fallback after malformed or unauthenticated responses.
+5. Verify exact request auth/parameters and failure behavior with generated host
+   fixtures, then exercise a supported real Mac connection. Keep live acceptance
+   separate from parser/unit evidence. Availability of a genuinely ticket-only
+   host has not been established.
+
+This work remains open and is not included in the build 581 source.
