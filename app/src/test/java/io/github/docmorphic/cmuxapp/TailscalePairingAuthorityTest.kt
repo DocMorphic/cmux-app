@@ -25,6 +25,10 @@ class TailscalePairingAuthorityTest {
         var workspaceHook: () -> Unit = {}
         var expected: NativeCredentialStore.PairedMac? = null
         var ticket: MobileAttachTicket? = null
+        var manual = false
+        var manualError: String? = null
+        var malformedManual = false
+        var manualHook: () -> Unit = {}
         var device = "mac"
         var build = "default"
         var rejectWorkspace = false
@@ -39,6 +43,8 @@ class TailscalePairingAuthorityTest {
                 MobileRpcClient(transport, token)
             }, expected = { expected }, admitCompatibility = { owner, client, host ->
                 if (enforceCompatibility) compatibility.admit(owner, client, host, locallyAuthorizedTailscale = true)
+            }, manualTicket = { client, route, host, owner ->
+                if (manual) ManualAttachTicketRequest.request(client, route, host, owner, null) else null
             })
         suspend fun connect() = authority.connect(pairing, attachTicket = ticket) { tokenCalls++; tokenHook(); "fixture-access" }
         fun authorize() = authority.authorize(pairing)
@@ -73,6 +79,17 @@ class TailscalePairingAuthorityTest {
             assertEquals("fixture-access", request.getJSONObject("auth").getString("stack_access_token"))
             val response = JSONObject().put("id", request.getString("id"))
             when (method) {
+                "mobile.attach_ticket.create" -> {
+                    assertFalse(request.getJSONObject("auth").has("attach_token"))
+                    assertEquals(3600, request.getJSONObject("params").getInt("ttl_seconds"))
+                    fixture.manualHook()
+                    if (fixture.manualError != null) response.put("ok", false).put("error",
+                        JSONObject().put("code", fixture.manualError).put("message", "fixture error"))
+                    else response.put("ok", true).put("result", if (fixture.malformedManual) JSONObject() else
+                        JSONObject().put("ticket", JSONObject("""{"version":1,"workspaceID":"","macDeviceID":"mac","macUserID":"user",
+                            "auth_token":"manual-fixture","routes":[{"id":"other","kind":"tailscale",
+                            "endpoint":{"type":"host_port","host":"100.99.1.3","port":58465}}]}""")))
+                }
                 "mobile.host.status" -> {
                     assertFalse(request.getJSONObject("auth").has("attach_token"))
                     fixture.hostHook()
@@ -81,6 +98,10 @@ class TailscalePairingAuthorityTest {
                 }
                 "mobile.workspace.list" -> {
                     fixture.ticket?.let { assertEquals("synthetic-ticket", request.getJSONObject("auth").getString("attach_token")) }
+                    if (fixture.manual && fixture.ticket == null) {
+                        if (fixture.manualError == null) assertEquals("manual-fixture", request.getJSONObject("auth").getString("attach_token"))
+                        else assertFalse(request.getJSONObject("auth").has("attach_token"))
+                    }
                     fixture.workspaceHook()
                     if (fixture.rejectWorkspace) response.put("ok", false).put("error", JSONObject().put("code", "unauthorized").put("message", "fixture denial"))
                     else response.put("ok", true).put("result", JSONObject().put("workspaces", org.json.JSONArray()))
@@ -97,6 +118,55 @@ class TailscalePairingAuthorityTest {
         """{"version":1,"workspaceID":"work","terminalID":"term","macDeviceID":"$device","macUserID":"user",
             "auth_token":"synthetic-ticket","routes":[{"id":"ts","kind":"tailscale",
             "endpoint":{"type":"host_port","host":"$host","port":58465}}]}""").getOrThrow()
+
+    @Test fun manualTicketAcquiredBeforeWorkspaceAdmissionAndReacquiredOnPinnedReconnect() = runBlocking<Unit> {
+        val f = Fixture(); f.manual = true; f.authorize()
+        try {
+            f.workspaceHook = { assertNull(f.grant()) }
+            f.connect().close(); assertNotNull(f.grant())
+            f.workspaceHook = {}; f.numeric = f.numeric.copy(host = "100.99.1.4")
+            f.connect().close()
+            assertEquals(1, f.resolves)
+            assertTrue(f.transports.all { it.route.host == "100.99.1.2" &&
+                it.methods == listOf("mobile.host.status", "mobile.attach_ticket.create", "mobile.workspace.list") })
+        } finally { f.authority.close() }
+    }
+
+    @Test fun unsupportedManualTicketStillRequiresProtectedWorkspaceAdmission() = runBlocking<Unit> {
+        val f = Fixture(); f.manual = true; f.manualError = "method_not_found"; f.authorize()
+        try {
+            f.rejectWorkspace = true
+            assertTrue(runCatching { f.connect() }.isFailure); assertNull(f.grant())
+            f.rejectWorkspace = false
+            f.connect().close(); assertNotNull(f.grant())
+        } finally { f.authority.close() }
+    }
+
+    @Test fun invalidOrUnauthorizedManualTicketStopsWithoutTryingOtherHintsOrSavingGrant() = runBlocking<Unit> {
+        for (malformed in listOf(true, false)) {
+            val f = Fixture(); f.manual = true; f.malformedManual = malformed
+            if (!malformed) f.manualError = "unauthorized"
+            val pairing = f.pairing.copy(routes = listOf(f.numeric, f.numeric.copy(host = "100.99.1.3")))
+            f.authority.authorize(pairing)
+            try {
+                val failure = runCatching { f.authority.connect(pairing) { "fixture-access" } }.exceptionOrNull()
+                assertTrue(if (malformed) failure is InvalidManualAttachTicket else failure is MobileRpcException)
+                assertNull(f.grants.find(checkNotNull(f.scope), TailscaleGrantStore.source(pairing)))
+                assertEquals(1, f.transports.size)
+                assertEquals(listOf("mobile.host.status", "mobile.attach_ticket.create"), f.transports.single().methods)
+                assertTrue(f.transports.single().closed)
+            } finally { f.authority.close() }
+        }
+    }
+
+    @Test fun manualTicketReplyAfterAccountChangeCannotReachWorkspaceOrPromoteGrant() = runBlocking<Unit> {
+        val f = Fixture(); f.manual = true; f.authorize(); f.manualHook = { f.switch(null) }
+        try {
+            assertTrue(runCatching { f.connect() }.isFailure)
+            assertEquals(listOf("mobile.host.status", "mobile.attach_ticket.create"), f.transports.single().methods)
+            assertTrue(f.transports.single().closed)
+        } finally { f.authority.close() }
+    }
 
     @Test fun scopedTicketIsAppliedBeforeFirstAuthenticatedWorkspaceRequestAndGrantPromotion() = runBlocking<Unit> {
         val f = Fixture(); f.ticket = scopedTicket(); f.authorize()

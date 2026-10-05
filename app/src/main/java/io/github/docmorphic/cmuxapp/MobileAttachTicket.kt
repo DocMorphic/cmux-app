@@ -16,6 +16,9 @@ class MobileAttachTicket internal constructor(
     internal val expiresAtMillis: Long?, private val authToken: String?
 ) {
     internal fun context() = MobileAttachTicketContext(workspaceId, terminalId, authToken, expiresAtMillis)
+    internal fun constrainingRoutes(routes: List<MobileAttachRoute>, fallbackDisplayName: String) = MobileAttachTicket(
+        workspaceId, terminalId, deviceId, displayName ?: fallbackDisplayName, userEmail, userId,
+        compatibilityVersion, appVersion, appBuild, routes, expiresAtMillis, authToken)
     internal fun requireAccount(user: String, email: String?) {
         require(userId == null || userId == user) { "This ticket belongs to another cmux account" }
         require(userEmail == null || (email != null && userEmail.trim().equals(email.trim(), true))) {

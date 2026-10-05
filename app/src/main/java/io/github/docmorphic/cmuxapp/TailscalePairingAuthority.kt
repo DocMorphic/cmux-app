@@ -137,7 +137,8 @@ internal class TailscalePairingAuthority(
     private val dial: suspend (PairingCode.Route, () -> Boolean, suspend () -> String?) -> MobileRpcClient,
     private val expected: (PairingCode.Tailscale) -> NativeCredentialStore.PairedMac? = { null },
     private val replacing: TailscaleSavedGrant? = null,
-    private val admitCompatibility: suspend (NativeTeamScope, MobileRpcClient, JSONObject) -> Unit = { _, _, _ -> }
+    private val admitCompatibility: suspend (NativeTeamScope, MobileRpcClient, JSONObject) -> Unit = { _, _, _ -> },
+    private val manualTicket: suspend (MobileRpcClient, PairingCode.Route, JSONObject, NativeTeamScope) -> MobileAttachTicket? = { _, _, _, _ -> null }
 ) : AutoCloseable {
     private data class Consent(val scope: NativeTeamScope, val nonce: String = UUID.randomUUID().toString()) {
         val resolved = ConcurrentHashMap<PairingCode.Route, PairingCode.Route>()
@@ -190,6 +191,7 @@ internal class TailscalePairingAuthority(
         for (hint in routes) {
             currentCoroutineContext().ensureActive(); requireAllowed()
             var candidate: MobileRpcClient? = null
+            var requestingManualTicket = false
             try {
                 // Saved reconnects use the captured numeric destination, never another DNS answer.
                 val route = if (consent == null) hint else consent.resolved[hint] ?: resolve(hint, ::allowed).let { resolved ->
@@ -219,7 +221,12 @@ internal class TailscalePairingAuthority(
                 capturedExpected?.requireMatchingHost(status)
                 saved?.let { check(it.matches(status)) { "This route reaches a different Mac or cmux installation. Pair the intended Mac again." } }
                 attachTicket?.requireHost(status)
-                val client = if (attachTicket == null) base else base.withAttachTicket(attachTicket.context(), ::requireAllowed)
+                val sessionTicket = attachTicket ?: run {
+                    requestingManualTicket = true
+                    manualTicket(base, route, status, owner).also { requestingManualTicket = false }
+                }
+                requireAllowed()
+                val client = if (sessionTicket == null) base else base.withAttachTicket(sessionTicket.context(), ::requireAllowed)
                 candidate = client
                 if (client !== base) synchronized(lock) { clients.remove(base); check(!closed); clients[client] = ::allowed }
                 // Host status alone is not a successful account-authenticated session.
@@ -239,7 +246,7 @@ internal class TailscalePairingAuthority(
                 return client
             } catch (failure: Exception) {
                 candidate?.let { synchronized(lock) { clients.remove(it) }; it.close() }
-                if (failure is CancellationException || failure is TailscaleReadinessException) throw failure
+                if (requestingManualTicket || failure is CancellationException || failure is TailscaleReadinessException || failure is InvalidManualAttachTicket) throw failure
                 lastError = failure
             }
         }

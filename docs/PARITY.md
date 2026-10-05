@@ -12,7 +12,38 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
-## Latest checkpoint — legacy ticket input and Android checks (2026-10-05)
+## Latest checkpoint — manual legacy Tailscale tickets (2026-10-05)
+
+The legacy Tailscale connector now requests `mobile.attach_ticket.create` after
+consent/grant and host identity checks, before protected workspace admission. It
+requests a 3,600-second Mac ticket with `target: ticket_only`, explicitly omits
+any existing attach token from that request, validates returned host/account
+hints, and replaces advertised routes with the exact admitted numeric peer.
+Selection, expiry, token and compatibility metadata are preserved. Reconnects
+reacquire a session ticket on the pinned route; these manually acquired tickets
+are not persisted as scanned ticket records.
+
+Fallback matches the reviewed iOS RPC code/message allowlist. It returns to the
+existing account-authenticated workspace check; no synthetic device identity is
+needed because this path already verified host status. Malformed successful
+responses, authentication/network failures and cancellation do not trigger this
+fallback or try another route after the ticket request failed. An account change
+before admission prevents workspace access and grant promotion.
+
+**46 focused JVM checks passed**, zero failures/errors/skips: seven request cases,
+31 Tailscale authority cases and eight RPC context cases. The framed tests verify
+parameters/auth, route restriction, fallback, identity mismatch, cancellation,
+grant timing and pinned reconnect. Evidence: `captures/runtime/manual-attach-ticket/`.
+The codec test wildcard matched no class; no codec suite rerun is claimed. No
+Android runtime or physical device check was performed for this checkpoint.
+
+The Computer Details route editor and the native-directory saved-Tailscale path
+still need this acquisition behavior. Native transport-auth review, legacy group
+mutation gates, physical recovery, push/notice infrastructure and UI/accessibility
+acceptance remain open. Signed 581 remains the latest verified delivery until a
+new batch completes all delivery gates. Goal active; PR #1 open/draft.
+
+## Earlier checkpoint — legacy ticket input and Android checks (2026-10-05)
 
 Legacy ticket links and pasted input now reach an explicit route chooser. Native
 routes require a current account/team directory match; Tailscale routes require

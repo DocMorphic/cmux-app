@@ -41,7 +41,11 @@ internal class TailscaleConnector(context: Context, store: NativeCredentialStore
                 team != null && NativePairingRecords.owner(row, grants) == (team.userId to team.teamId) &&
                     PairingCodeParser.parse(row.code).getOrNull() == pairing
             }
-        }, admitCompatibility = admitCompatibility)
+        }, admitCompatibility = admitCompatibility,
+        manualTicket = { client, route, host, owner ->
+            check(teams.isCurrent(owner)) { "Account or team changed" }
+            ManualAttachTicketRequest.request(client, route, host, owner, teams.state.value.email)
+        })
     override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = connectOwned(pairing, account, null)
     suspend fun connectTicket(pairing: PairingCode.Tailscale, ticket: MobileAttachTicket, account: NativeAccount, team: NativeTeamScope) =
         connectOwned(pairing, account, team, ticket)

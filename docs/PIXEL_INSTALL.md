@@ -6,7 +6,8 @@ a development build; see [PARITY.md](PARITY.md) for the unverified features.
 ## Source ahead of the signed APK (2026-10-05)
 
 Legacy ticket input/route confirmation, encrypted persistence and scoped RPC
-context have passed focused JVM and emulator checks. They are not in signed 581
+context have passed focused JVM and emulator checks. Manual legacy Tailscale
+ticket acquisition has additional focused JVM coverage. They are not in signed 581
 and have not completed physical Pixel/Mac acceptance. See the latest checkpoint
 in [PARITY.md](PARITY.md); no new signed delivery is claimed here.
 
