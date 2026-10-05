@@ -4,6 +4,43 @@
 for the latest signed artifact and its verification scope; historical delivery
 statements below describe their dated checkpoints.
 
+## Notification lists and rich empty/recovery content (2026-10-06)
+
+Scoped reference: iOS `NotificationFeedRow.swift`, `NotificationFeedListRow.swift`
+and `NotificationFeedView.swift` at `186cec79781256867ad4516f0802118738bd2393`.
+The reference uses stable notification IDs, retained history-group identities,
+context menus and leading swipe actions with full-swipe support. Global upstream
+pins are unchanged; this is not a new broad delta audit.
+
+Android notification rows now use the shared revealed/full-swipe controls, keeping
+read/unread intent stable across background refreshes. Open/read/menu callbacks
+check current admission and availability. Stateless row drawing is measured apart
+from interaction state, including inherited history metadata and relative time.
+The main feed now reconciles keyed notification/day/status/empty/load-more rows
+under shared scroll/swipe ownership and stable viewport anchoring. Removed rows
+retain their slots until release but cannot dispatch. Current entries, not captured
+old payloads, are used for open/read actions.
+
+History controls preserve explicit expand/collapse intent and recheck the current
+group. Their appearance/height and the browser's conditional dividers/headings use
+measured deferral. Existing group-projection identities and filtering stay intact.
+The native workspace empty/retry view also separates drawing from retry/URI state:
+new error text can wait during a gesture while a busy, unavailable or disposed
+control becomes inactive immediately. Probe layouts never start spinners or open
+URIs. This implements the two source gaps noted in the previous checkpoint.
+
+**Verification:** 14 focused JVM tests pass (3 list-row, 2 nested-presentation,
+9 existing feed-model cases); main and instrumentation compilation pass (18 s).
+Three new Android cases compile for revealed read intent/revocation, main-feed
+membership/cached-click retirement and deferred empty error/busy/disposed retry.
+They are queued for the next combined milestone; no new APK/emulator or physical
+session was started. Evidence: `captures/runtime/notification-list-geometry/`.
+
+**Remaining:** runtime validation of this batch, separate-browser notification
+routes, history/disclosure interactions and empty-docs errors; recycling during
+held geometry, font/width transitions, accessibility, scroll/fling performance and
+physical Pixel/Mac acceptance. The earlier 21-case run predates these changes.
+
 ## Connection notices, groups and list footer transaction (2026-10-05)
 
 Main Mac/SSH status rows and the browser's progress/error/status/empty/load-more

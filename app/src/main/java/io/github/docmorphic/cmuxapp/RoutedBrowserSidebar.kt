@@ -173,20 +173,18 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                     onCreate = { row.createKey?.let(onOpen) },
                     onToggle = { controller.query(ui.query.copy(groupExpansion = ui.query.groupExpansion + (row.key to !row.expanded))) }, onAction = ::mutate)
                 "footer" -> HorizontalDivider(Modifier.padding(horizontal = 18.dp, vertical = 5.dp))
-                "heading" -> Text(runCatching { LocalDate.parse(row.title).let { date -> when (date) {
+                "heading" -> WorkspaceMeasuredContent(runCatching { LocalDate.parse(row.title).let { date -> when (date) {
                     LocalDate.now() -> "Today"
                     LocalDate.now().minusDays(1) -> "Yesterday"
                     else -> date.format(DateTimeFormatter.ofPattern("EEEE, MMM d", java.util.Locale.getDefault()))
-                } } }.getOrDefault(row.title), Modifier.padding(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 8.dp)
+                } } }.getOrDefault(row.title), LocalWorkspaceGeometryHeld.current) { text, _ ->
+                    Text(text, Modifier.padding(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 8.dp)
                     .semantics { heading() }, color = Color(0xFF9B9FA8), style = MaterialTheme.typography.labelLarge)
+                }
                 "updates" -> Column {
-                    Row(Modifier.fillMaxWidth().padding(end = 18.dp), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { if (admitted()) controller.query(ui.query.copy(expanded =
-                        if (row.expanded) ui.query.expanded - row.key else ui.query.expanded + row.key)) },
-                        modifier = Modifier.semantics {
-                            contentDescription = if (row.expanded) "Hide earlier notifications" else "Show earlier notifications"
-                            stateDescription = "${row.count} updates"
-                        }) { Text("${row.count} ${if (row.expanded) "⌄" else "›"}", color = Color(0xFF9B9FA8)) }
+                    NativeFeedHistoryToggle(NativeFeedDisclosure(row.key, row.count ?: 0, row.expanded)) { expanded ->
+                        if (admitted()) controller.query(ui.query.copy(expanded =
+                            if (expanded) ui.query.expanded + row.key else ui.query.expanded - row.key))
                     }
                     HorizontalDivider(color = Color(0xFF292C31))
                 }
@@ -198,7 +196,7 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                             if (!admitted()) return@launch
                             controller.notification(RoutedSidebarNotification.Read(row.key, read))
                         } })
-                    if ((row.count ?: 0) <= 1) HorizontalDivider(color = Color(0xFF292C31))
+                    NativeFeedDivider((row.count ?: 0) <= 1)
                 }
             }
         }

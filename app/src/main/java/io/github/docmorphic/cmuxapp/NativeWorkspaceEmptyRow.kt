@@ -21,43 +21,29 @@ internal fun NativeWorkspaceEmptyRow(guidance: NativeWorkspaceEmptyGuidance,
     recovery: NativeWorkspaceEmptyRecoveryState = NativeWorkspaceEmptyRecoveryState(), onRetry: (() -> Unit)? = null,
     onClearFilter: (() -> Unit)? = null) {
     val uri = LocalUriHandler.current
-    var docsError by remember { mutableStateOf(false) }
-    val filtered = guidance in setOf(NativeWorkspaceEmptyGuidance.SEARCH, NativeWorkspaceEmptyGuidance.UNREAD,
-        NativeWorkspaceEmptyGuidance.MACHINES, NativeWorkspaceEmptyGuidance.UNREAD_MACHINES)
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-    Column(Modifier.widthIn(max = 420.dp).fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp).testTag("workspaces.empty"),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (!filtered) Icon(painterResource(R.drawable.ic_computer_desktop), null, Modifier.size(44.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(when (guidance) {
-            NativeWorkspaceEmptyGuidance.SEARCH -> "No workspaces match your search"
-            NativeWorkspaceEmptyGuidance.UNREAD -> "No unread workspaces"
-            NativeWorkspaceEmptyGuidance.MACHINES -> "No workspaces on the selected machines"
-            NativeWorkspaceEmptyGuidance.UNREAD_MACHINES -> "No unread workspaces on the selected machines"
-            NativeWorkspaceEmptyGuidance.ALL_COMPUTERS -> "No workspaces yet"
-            else -> "No workspaces yet"
-        }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-            modifier = Modifier.semantics { heading() })
-        Text(when (guidance) {
-            NativeWorkspaceEmptyGuidance.MAC -> "Open cmux on your Mac and enable iOS pairing in Settings > Mobile. Use the same cmux account and team on both devices."
-            NativeWorkspaceEmptyGuidance.SSH_HOST -> "Create a workspace with New cmux Workspace, or open a New Shell below. Your SSH connection does not require Mac pairing."
-            NativeWorkspaceEmptyGuidance.ALL_COMPUTERS -> "Use + to create a workspace on a computer."
-            NativeWorkspaceEmptyGuidance.SEARCH -> "Try another search or clear the search field."
-            NativeWorkspaceEmptyGuidance.UNREAD -> "Choose All workspaces from the filter to see your other workspaces."
-            NativeWorkspaceEmptyGuidance.MACHINES, NativeWorkspaceEmptyGuidance.UNREAD_MACHINES -> "Change the workspace filter to see your other workspaces."
-        }, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (filtered && guidance != NativeWorkspaceEmptyGuidance.SEARCH) onClearFilter?.let { clear ->
-            TextButton(onClick = clear, modifier = Modifier.testTag("workspace.filter.showAll")) { Text("Show All") }
-        }
-        if (guidance == NativeWorkspaceEmptyGuidance.MAC) {
-            recovery.message?.let { Text(it, textAlign = TextAlign.Center, modifier = Modifier.testTag("workspaces.empty.message")) }
-            onRetry?.let { retry -> Button(onClick = retry, enabled = !recovery.busy, modifier = Modifier.testTag("workspaces.empty.retry")) {
-                if (recovery.busy) CircularProgressIndicator(Modifier.padding(end = 8.dp).size(16.dp), strokeWidth = 2.dp)
-                Text(if (recovery.busy) "Retrying…" else "Retry")
-            } }
-            OutlinedButton(onClick = { docsError = runCatching { uri.openUri(DOCS) }.isFailure }, modifier = Modifier.testTag("workspaces.empty.docs")) { Text("See Docs") }
-            if (docsError) Text("Could not open the setup guide. Try opening cmux.com/docs/ios in your browser.", color = MaterialTheme.colorScheme.error)
-        }
-    }
+    var docsError by remember(guidance) { mutableStateOf(false) }
+    val lifetime = remember { EmptyWorkspaceLifetime() }
+    DisposableEffect(lifetime) { onDispose { lifetime.mounted = false } }
+    val admission by rememberUpdatedState(LocalWorkspaceRowAdmission.current)
+    val currentGuidance by rememberUpdatedState(guidance)
+    val currentRecovery by rememberUpdatedState(recovery)
+    val currentRetry by rememberUpdatedState(onRetry)
+    val currentClear by rememberUpdatedState(onClearFilter)
+    val currentUri by rememberUpdatedState(uri)
+    fun allowed() = lifetime.mounted && admission()
+    fun retryAllowed() = allowed() && currentGuidance == NativeWorkspaceEmptyGuidance.MAC &&
+        !currentRecovery.busy && currentRetry != null
+    fun clearAllowed() = allowed() && currentGuidance in setOf(NativeWorkspaceEmptyGuidance.UNREAD,
+        NativeWorkspaceEmptyGuidance.MACHINES, NativeWorkspaceEmptyGuidance.UNREAD_MACHINES) && currentClear != null
+    WorkspaceMeasuredContent(NativeEmptyVisual(guidance, recovery, docsError, onRetry != null, onClearFilter != null),
+        LocalWorkspaceGeometryHeld.current) { shown, measuring ->
+        NativeWorkspaceEmptyBody(shown, measuring, retryAllowed(), clearAllowed(),
+            allowed() && currentGuidance == NativeWorkspaceEmptyGuidance.MAC,
+            retry = { if (retryAllowed()) currentRetry?.invoke() },
+            clear = { if (clearAllowed()) currentClear?.invoke() },
+            docs = { if (allowed() && currentGuidance == NativeWorkspaceEmptyGuidance.MAC)
+                docsError = runCatching { currentUri.openUri(DOCS) }.isFailure })
     }
 }
+private class EmptyWorkspaceLifetime { var mounted = true }
 private const val DOCS = "https://cmux.com/docs/ios#prerequisites"

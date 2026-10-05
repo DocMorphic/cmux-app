@@ -7,6 +7,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.test.*
@@ -49,6 +51,32 @@ class NativeWorkspaceEmptyRowTest {
         compose.runOnIdle { guidance = NativeWorkspaceEmptyGuidance.UNREAD }
         compose.onNodeWithText("No unread workspaces").assertIsDisplayed()
     }
+    @Test fun heldErrorWaitsAndBusyOrDisposedRetryCannotDispatch() {
+        var held by mutableStateOf(false)
+        var shown by mutableStateOf(true)
+        var recovery by mutableStateOf(NativeWorkspaceEmptyRecoveryState())
+        var retries = 0
+        compose.setContent { CmuxTheme { Surface { Box(Modifier.width(320.dp)) {
+            CompositionLocalProvider(LocalWorkspaceGeometryHeld provides held) {
+                if (shown) NativeWorkspaceEmptyRow(NativeWorkspaceEmptyGuidance.MAC, recovery, onRetry = { retries++ })
+            }
+        } } } }
+        val cached = compose.onNodeWithTag("workspaces.empty.retry").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        val height = compose.onNodeWithTag("workspaces.empty").fetchSemanticsNode().boundsInRoot.height
+        compose.runOnIdle { held = true }
+        compose.runOnIdle { recovery = NativeWorkspaceEmptyRecoveryState(busy = true, message = "The remote Mac is taking longer to respond. ".repeat(3)) }
+        compose.onNodeWithTag("workspaces.empty.message").assertDoesNotExist()
+        assertEquals(height, compose.onNodeWithTag("workspaces.empty").fetchSemanticsNode().boundsInRoot.height, 1f)
+        compose.onNodeWithTag("workspaces.empty.retry").assertIsNotEnabled()
+        compose.runOnUiThread { cached() }
+        compose.runOnIdle { assertEquals(0, retries); held = false }
+        compose.onNodeWithTag("workspaces.empty.message").assertIsDisplayed()
+        compose.runOnIdle { shown = false }
+        compose.onNodeWithTag("workspaces.empty").assertDoesNotExist()
+        compose.runOnUiThread { cached() }
+        compose.runOnIdle { assertEquals(0, retries) }
+    }
+
     @Test fun removingAndRemountingRowPreservesRetryUntilTimeout() {
         var show by mutableStateOf(true)
         lateinit var recovery: NativeWorkspaceEmptyRecovery

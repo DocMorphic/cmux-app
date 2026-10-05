@@ -1,6 +1,6 @@
 # Remaining work for iOS parity
 
-Updated 2026-10-05. **The goal is active and full parity is unverified.** This is
+Updated 2026-10-06. **The goal is active and full parity is unverified.** This is
 the current completion checklist; dated entries in [PARITY.md](PARITY.md) preserve
 the detailed evidence and history. A passing fixture or signed APK does not close
 a physical workflow gate. These are work areas, not equal-sized progress units.
@@ -24,6 +24,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
+
+- Notification rows now support revealed/full read swipes with stable intent and
+  current action admission. The main feed reconciles all keyed rows and anchors
+  live changes; history controls, browser notification geometry and native rich
+  empty/retry content now use measured deferral. Fourteen focused feed JVM checks
+  pass; main/instrumentation compile, including three new UI cases queued for the
+  next milestone. This supersedes the remaining implementation gaps for native
+  rich empty and browser notification-row geometry in the older checkpoint below.
+  Runtime/route/recycling/large-font/accessibility/performance/physical acceptance
+  remain open. See `WORKSPACE_ROWS.md`; no APK/emulator was started for this batch.
 
 - Explicit Mac/SSH notices and browser progress/error/status/empty/load-more rows
   now share body membership deferral and viewport anchors. Their measured heights
