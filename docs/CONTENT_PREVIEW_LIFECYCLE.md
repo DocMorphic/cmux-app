@@ -1,5 +1,50 @@
 # Content preview lifecycle
 
+## PDF text, search and links source batch — 2026-10-05
+
+The scoped iOS `ChatArtifactPDFView.swift` at
+`186cec79781256867ad4516f0802118738bd2393` hosts PDFKit's PDFView with vertical
+continuous display and auto-scaling. Android previously exposed rendered page
+images with zoom and paging. This batch adds document interaction using the
+[Android PdfRenderer.Page text/search/link APIs](https://developer.android.com/reference/android/graphics/pdf/PdfRenderer.Page),
+which are available on API35+. Older Android versions retain the existing image
+renderer; complete text/link support there remains open, not an unavoidable
+platform difference. The Pixel's Android17 supports the new API level.
+
+- Document search runs off the UI thread, cancels on query changes, reports page
+  progress and highlights matches in page coordinates. Previous/Next match wraps
+  across pages and scrolls to the selected result. Query and selected result are
+  saved, and search results are rebuilt from the local PDF after recreation.
+- Page text uses a selectable dialog with Copy. Long-press resolves a word through
+  the native selection API after inverting the page's zoom/pan transform. Saved
+  selection stores only page/coordinates; text is read again after recreation.
+  The dialog offers full-page selection for longer passages. Direct on-page range
+  handles and cross-page selection remain open; this is not full PDFKit parity.
+- PDF URL annotations open on a user tap through ACTION_VIEW for HTTP(S), mailto
+  and tel only. File/content/intent/custom schemes and credential-bearing web URLs
+  are not dispatched. Internal links navigate to their target page and vertical
+  position. Horizontal destination/zoom equivalence and back-navigation still
+  need comparison. Accessibility actions expose page text and link destinations.
+- Navigation resets page zoom so an old pan does not conceal the new destination.
+  Rendering, search, text extraction and link discovery share the document's
+  synchronized renderer ownership; disposal closes the renderer off the UI thread.
+
+**Verification:** 11 focused JVM checks passed; main and instrumentation Kotlin
+compiled (22 s final pass). They cover coordinate inversion, invalid/outside
+points, link target admission, bounded rectangle hit testing and overflow-safe
+match navigation, plus existing zoom gestures. Two new Android fixtures compile
+but have **not run**: a generated two-page PDF exercises real native text/search,
+word selection and both link kinds; the UI case checks search navigation, actual
+highlight pixels, recreation and clipboard text. No network link is opened by
+these tests. Run these with the existing PDF lifecycle cases at the next combined
+milestone. Actual rendering, touch/link behavior, clipboard, large/scanned PDFs,
+TalkBack, old-Android fallback and iOS/Pixel visual acceptance remain unverified.
+
+Evidence and exact source hashes: `captures/runtime/pdf-text-batch/`. No APK,
+emulator, device installation or release publication was performed. Global
+upstream parity pins are unchanged. Media/Quick Look source was inspected in the
+same scoped comparison; PiP/routing and wider document-format coverage remain open.
+
 ## Export reclamation and process ownership — 2026-10-05
 
 Save maintenance now reclaims UUID-named private directories with missing,

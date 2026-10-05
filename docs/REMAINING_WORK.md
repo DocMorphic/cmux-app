@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- PDF interaction source now adds search/highlights, selectable page text and
+  native word lookup, URL/internal links and accessibility actions on API35+.
+  Query/selection coordinates restore through recreation. Eleven focused JVM
+  checks passed; main/instrumentation Kotlin compiled. Two native-PDF/runtime UI
+  checks are compiled but queued for the next combined milestone. Direct range
+  handles/cross-page selection, older Android text support, link destination zoom,
+  broad format handling and real iOS/Pixel UI acceptance remain open. No APK or
+  emulator was started; see `CONTENT_PREVIEW_LIFECYCLE.md`.
+
 - Export storage batch now reclaims aged malformed/missing journals, orphan
   payloads and partial receipts; preserves active/retryable saves; skips busy
   writers; and protects temporary exports across processes. One stable zero-byte

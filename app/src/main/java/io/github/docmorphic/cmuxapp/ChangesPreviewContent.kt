@@ -93,15 +93,21 @@ internal fun FilePreviewContent(artifact: LocalFilePreview, remote: RemoteArtifa
 
 /** Parent paging remains available at minimum zoom. A zoomed page keeps one-finger pans locally. */
 @Composable
-private fun PreviewZoom(modifier: Modifier = Modifier, onLongPress: ((Offset) -> Unit)? = null, doubleTapScale: Float = 3f,
+internal fun PreviewZoom(modifier: Modifier = Modifier, onLongPress: ((Offset) -> Unit)? = null, doubleTapScale: Float = 3f,
+    onContentTap: ((Offset) -> Unit)? = null, onContentLongPress: ((Offset) -> Unit)? = null, resetGeneration: Int = 0,
     content: @Composable (Modifier) -> Unit) {
     var position by rememberSaveable(stateSaver = listSaver<PreviewZoomTransform, Float>(
         save = { listOf(it.scale, it.x, it.y) },
         restore = { PreviewZoomTransform(it[0], it[1], it[2]) }
     )) { mutableStateOf(PreviewZoomTransform()) }
+    var lastReset by rememberSaveable { mutableIntStateOf(resetGeneration) }
+    LaunchedEffect(resetGeneration) { if (lastReset != resetGeneration) { position = PreviewZoomTransform(); lastReset = resetGeneration } }
     var width by remember { mutableIntStateOf(0) }
     var height by remember { mutableIntStateOf(0) }
     val latestLongPress by rememberUpdatedState(onLongPress)
+    val latestContentTap by rememberUpdatedState(onContentTap)
+    val latestContentLongPress by rememberUpdatedState(onContentLongPress)
+    fun contentPoint(point: Offset): Offset? = position.contentPoint(point.x, point.y, width, height)?.let { Offset(it.first, it.second) }
     fun applyTransform(zoom: Float, pan: Offset, centroid: Offset = Offset(width / 2f, height / 2f)) {
         if (width > 0 && height > 0) position = position.transform(zoom, pan.x / width, pan.y / height,
             centroid.x / width - .5f, centroid.y / height - .5f)
@@ -135,8 +141,11 @@ private fun PreviewZoom(modifier: Modifier = Modifier, onLongPress: ((Offset) ->
         }
         // Retain Foundation's non-touch (Ctrl+wheel) transform support.
         .transformable(transform, canPan = { !position.atMinimum })
-        .pointerInput(onLongPress != null) { detectTapGestures(
-            onLongPress = if (onLongPress != null) { point -> latestLongPress?.invoke(point) } else null,
+        .pointerInput(onLongPress != null, onContentTap != null, onContentLongPress != null) { detectTapGestures(
+            onTap = if (onContentTap != null) { point -> contentPoint(point)?.let { latestContentTap?.invoke(it) } } else null,
+            onLongPress = if (onLongPress != null || onContentLongPress != null) { point ->
+                latestLongPress?.invoke(point); contentPoint(point)?.let { latestContentLongPress?.invoke(it) }
+            } else null,
             onDoubleTap = { point -> if (width > 0 && height > 0) position = position.doubleTap(point.x / width - .5f, point.y / height - .5f, doubleTapScale) }
         ) }) {
         content(Modifier.fillMaxSize().graphicsLayer { scaleX = position.scale; scaleY = position.scale; translationX = position.x * width; translationY = position.y * height })
@@ -195,79 +204,6 @@ private fun ChangesImagePreview(artifact: LocalFilePreview, remote: RemoteArtifa
                 FilePreviewAction.imageMenu.forEach { action ->
                     DropdownMenuItem(text = { Text(action.label) }, enabled = actions.enabled,
                         onClick = { menuAnchor = null; actions.perform(action) })
-                }
-            }
-        }
-    }
-}
-
-internal class ChangesPdfDocument(file: File) : AutoCloseable {
-    private val descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-    private val renderer = try { PdfRenderer(descriptor) } catch (error: Throwable) { descriptor.close(); throw error }
-    private var closed = false
-    val pageSizes: List<Pair<Int, Int>> = try { (0 until renderer.pageCount).map { index -> renderer.openPage(index).use { it.width to it.height } } }
-        catch (error: Throwable) { renderer.close(); descriptor.close(); throw error }
-    @Synchronized fun render(index: Int, width: Int): Bitmap {
-        check(!closed)
-        return renderer.openPage(index).use { page ->
-            val scale = minOf(width.coerceIn(1, 2560).toDouble() / page.width,
-                sqrt(8_000_000.0 / (page.width.toDouble() * page.height)))
-            val bitmap = Bitmap.createBitmap(maxOf(1, (page.width * scale).toInt()), maxOf(1, (page.height * scale).toInt()), Bitmap.Config.ARGB_8888)
-            bitmap.eraseColor(android.graphics.Color.WHITE)
-            try { page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY); bitmap }
-            catch (error: Throwable) { bitmap.recycle(); throw error }
-        }
-    }
-    @Synchronized override fun close() { if (!closed) { closed = true; renderer.close(); descriptor.close() } }
-}
-
-@Composable
-private fun ChangesPdfPreview(file: File) {
-    var failure by remember(file) { mutableStateOf<String?>(null) }
-    val document by produceState<ChangesPdfDocument?>(null, file) {
-        var owned: ChangesPdfDocument? = null
-        try {
-            withContext(Dispatchers.IO) { owned = ChangesPdfDocument(file) }
-            value = owned
-            awaitCancellation()
-        } catch (error: Exception) { currentCoroutineContext().ensureActive(); failure = "This PDF can’t be read. Reopen its preview, or use Open to try another app." }
-        finally { withContext(NonCancellable + Dispatchers.IO) { owned?.close() } }
-    }
-    val pdf = document
-    if (failure != null) ChangesNotice("Preview unavailable", failure.orEmpty())
-    else if (pdf == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-    else {
-        val scroll = rememberLazyListState()
-        val scope = rememberCoroutineScope()
-        Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                TextButton(enabled = scroll.firstVisibleItemIndex > 0, onClick = { scope.launch { scroll.animateScrollToItem(scroll.firstVisibleItemIndex - 1) } }) { Text("Previous page") }
-                Text("${scroll.firstVisibleItemIndex + 1} / ${pdf.pageSizes.size}", fontSize = 12.sp)
-                TextButton(enabled = scroll.firstVisibleItemIndex < pdf.pageSizes.lastIndex, onClick = { scope.launch { scroll.animateScrollToItem(scroll.firstVisibleItemIndex + 1) } }) { Text("Next page") }
-            }
-            BoxWithConstraints(Modifier.weight(1f)) {
-                // A short final page must still reach the top. Otherwise scrollToItem
-                // clamps early and the label/Previous button remain on the preceding page.
-                val lastSize = pdf.pageSizes.lastOrNull()
-                val lastHeight = lastSize?.let { maxWidth * (it.second.toFloat() / it.first) } ?: maxHeight
-                val endPadding = maxOf(0.dp, maxHeight - lastHeight)
-                LazyColumn(Modifier.fillMaxSize(), state = scroll, contentPadding = PaddingValues(bottom = endPadding),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(pdf.pageSizes.size, key = { it }) { index ->
-                        val size = pdf.pageSizes[index]
-                        BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(size.first.toFloat() / size.second)
-                            .semantics { contentDescription = "PDF page ${index + 1} of ${pdf.pageSizes.size}" }) {
-                            val width = with(LocalDensity.current) { maxWidth.roundToPx() }
-                            var pageFailure by remember { mutableStateOf<String?>(null) }
-                            val bitmap by produceState<Bitmap?>(null, pdf, index, width) {
-                                try { value = withContext(Dispatchers.IO) { pdf.render(index, width * 2) } }
-                                catch (error: Exception) { if (error is CancellationException) throw error; pageFailure = "Could not render this PDF page." }
-                            }
-                            if (bitmap != null) PreviewZoom(Modifier.fillMaxSize(), doubleTapScale = 2f) { Image(bitmap!!.asImageBitmap(), null, it) }
-                            else if (pageFailure != null) Text(pageFailure!!)
-                            else LinearProgressIndicator(Modifier.fillMaxWidth())
-                        }
-                    }
                 }
             }
         }

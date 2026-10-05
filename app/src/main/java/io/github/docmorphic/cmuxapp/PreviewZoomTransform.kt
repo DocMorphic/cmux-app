@@ -19,6 +19,14 @@ internal data class PreviewZoomTransform(val scale: Float = 1f, val x: Float = 0
         if (!atMinimum) PreviewZoomTransform()
         else bounded(targetScale, -focalX * targetScale, -focalY * targetScale)
 
+    /** Inverse of the centered graphics layer; returns document fractions, not screen pixels. */
+    fun contentPoint(px: Float, py: Float, width: Int, height: Int): Pair<Float, Float>? {
+        if (width <= 0 || height <= 0 || !px.isFinite() || !py.isFinite() || !scale.isFinite() || scale <= 0) return null
+        val localX = (px / width - .5f - x) / scale + .5f
+        val localY = (py / height - .5f - y) / scale + .5f
+        return (localX to localY).takeIf { localX in 0f..1f && localY in 0f..1f }
+    }
+
     private fun bounded(scale: Float, x: Float, y: Float): PreviewZoomTransform {
         if (scale == 1f) return PreviewZoomTransform()
         val limit = (scale - 1f) / 2f
