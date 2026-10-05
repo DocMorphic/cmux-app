@@ -88,6 +88,70 @@ class NativeComputerDetailsTest {
         }
     }
 
+    @Test fun scopedTailscaleRowOpensDetailsAndChecksItsSavedRouteWithoutNativeDiscovery() = runBlocking {
+        val team = NativeTeamScope("raw-details-login", "raw-details-user", "raw-details-team", 1)
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team))
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "raw-details-${java.util.UUID.randomUUID()}"
+        val store = NativeCredentialStore(context, name)
+        val raw = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(
+            "cmux-ios://attach?v=2&r=100.64.0.7:58465&ub=raw-details-user", mac.deviceId, mac.name, mac.buildTag), team)
+        val backend = object : IrohAccountBackend {
+            override val state = MutableStateFlow(IrohV2ControlState(ready = true, computers = emptyList(), permissionExpiresAt = 2000))
+            override val privatePaths = NativePrivatePathStore({ null }, {})
+            override suspend fun start() {}
+            override suspend fun refresh() {}
+            override fun transport(mac: IrohV2Computer, permits: () -> Boolean): MobileRpcTransport = error("Must use saved connector")
+            override fun close() {}
+        }
+        var connects = 0
+        val closes = java.util.concurrent.atomic.AtomicInteger()
+        val connector = object : NativeConnector {
+            override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount): MobileRpcClient = error("Must use saved record")
+            override suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient {
+                assertEquals(raw, mac); connects++
+                val wire = object : MobileRpcTransport {
+                    val input = kotlinx.coroutines.channels.Channel<ByteArray>(8)
+                    override suspend fun connect() {}
+                    override suspend fun read() = input.receiveCatching().getOrNull()
+                    override suspend fun write(bytes: ByteArray) {
+                        val request = org.json.JSONObject(MobileFrameDecoder().feed(bytes).single().decodeToString())
+                        val result = if (request.getString("method") == "mobile.host.status") org.json.JSONObject()
+                            .put("mac_device_id", mac.deviceId).put("mac_instance_tag", mac.instanceTag) else org.json.JSONObject()
+                        input.send(MobileFrameCodec.encode(org.json.JSONObject().put("id", request.getString("id"))
+                            .put("ok", true).put("result", result).toString().toByteArray()))
+                    }
+                    override fun close() { closes.incrementAndGet(); input.close() }
+                }
+                return MobileRpcClient(wire, { "fixture" }).also { it.connect() }
+            }
+        }
+        try {
+            store.update { it.put("task_session", team.login).put("refresh_token", "fixture")
+                .put("pairings", org.json.JSONArray().put(NativePairingRecords.encode(raw))) }
+            NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+                withTimeout(5000) { runtime.state.first { it.ready } }
+                val presentation = androidx.compose.runtime.mutableStateOf<NativeComputerDetailsPresentation?>(null)
+                compose.setContent { CmuxTheme {
+                    NativeSavedComputerDetailsButton(runtime, runtime.state.value, raw, present = { presentation.value = it })
+                    NativeComputerDetailsPresentationHost(runtime, runtime.state.value, presentation.value,
+                        NativeComputerConnection(), NativeComputerForgetCallbacks(), credentialStore = store,
+                        savedConnector = connector) { presentation.value = null }
+                } }
+                compose.onNodeWithContentDescription("Details for Test Mac (default)").performClick()
+                compose.onNodeWithText("Not currently discovered").assertIsDisplayed()
+                compose.onNodeWithText("Connection Method").assertIsDisplayed()
+                compose.runOnIdle { assertEquals(0, connects) }
+                compose.onNodeWithText("Check Connection").performScrollTo().assertIsEnabled().performClick()
+                compose.waitUntil(5000) { closes.get() == 1 }
+                compose.onAllNodesWithText("Verified").assertCountEquals(2)
+                compose.onNodeWithText("Share Connection Report").performScrollTo().assertIsDisplayed()
+                capture("tailscale-computer-details")
+                compose.runOnIdle { assertEquals(1, connects) }
+            }
+        } finally { store.clear(); context.deleteSharedPreferences(name) }
+    }
+
     @Test fun connectionDetailsFollowVerifiedSessionWithoutShowingStaleRole() {
         val connection = androidx.compose.runtime.mutableStateOf(NativeComputerConnection())
         compose.setContent { CmuxTheme { NativeComputerDetailsScreen(target, true, true,

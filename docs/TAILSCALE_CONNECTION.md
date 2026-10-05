@@ -446,3 +446,10 @@ open; this is not a claim of completed companion parity.
 - Verify Android VPN event ordering, real QR camera results, IPv4/IPv6/MagicDNS,
   edits/removal/reconnect during terminal and notification activity, and complete
   Mac/Pixel acceptance. Finish full iOS layout/interaction comparison.
+
+## Scoped raw Computer Details (2026-10-06)
+
+Explicitly owned saved Tailscale rows with a known device/build now expose Details
+and diagnostics without native discovery. Main raw-primary reconnect with newly
+edited/replacement grants still needs integration and exact ticket coverage.
+See [Computer Details](COMPUTER_DETAILS.md) for checks and remaining scope.

@@ -17,6 +17,16 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.*
 
 @Composable
+internal fun NativeOnboardingMacPowerSettings(runtime: NativeIrohRuntime?, team: NativeTeamScope?,
+    macs: List<NativeCredentialStore.PairedMac>, connectedCode: String?, feed: NativeFeedCoordinator) {
+    if (runtime == null || team == null) return
+    val target = macs.singleOrNull { it.code == connectedCode }?.let { NativeComputerTarget.from(it, team) } ?: return
+    val power = feed.powerSession(team, target)
+    if (power != null) NativeBorrowedMacPowerSettings(power, offerOnly = true)
+    else NativeMacPowerSettings(runtime, team, target, offerOnly = true)
+}
+
+@Composable
 internal fun NativeMacPowerSettings(runtime: NativeIrohRuntime, team: NativeTeamScope, target: NativeComputerTarget, offerOnly: Boolean = false) {
     var session by remember(runtime, team, target) { mutableStateOf<NativeMacPowerSession?>(null) }
     var state by remember(runtime, team, target) { mutableStateOf(NativeMacPowerState()) }
@@ -42,6 +52,14 @@ internal fun NativeMacPowerSettings(runtime: NativeIrohRuntime, team: NativeTeam
     }
     if (!offerOnly || (state.connected && state.supported == true && state.enabled != null))
         NativeMacPowerSection(state, { session?.setEnabled(it) }, { session?.refresh() })
+}
+
+/** The feed owns this session's run loop, subscriptions and connection lifetime. */
+@Composable
+internal fun NativeBorrowedMacPowerSettings(session: NativeMacPowerSession, offerOnly: Boolean = false) {
+    val state by session.state.collectAsState()
+    if (!offerOnly || (state.connected && state.supported == true && state.enabled != null))
+        NativeMacPowerSection(state, session::setEnabled, session::refresh)
 }
 
 @Composable

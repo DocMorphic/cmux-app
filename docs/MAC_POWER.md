@@ -79,3 +79,10 @@ appearance and connection role/count presentation are also implemented in later
 checkpoints. Live acceptance, direct-only routing and account-wide Forget/revocation
 remain open work. See
 [COMPUTER_DETAILS.md](COMPUTER_DETAILS.md) and [PARITY.md](PARITY.md).
+
+## Saved Tailscale controller reuse (2026-10-06)
+
+Scoped saved Tailscale Details and onboarding now reuse the verified feed-owned
+power controller without dialing or owning its run loop. Focused tests cover
+single-connect reuse and revocation fencing; UI/physical acceptance remains queued.
+See [Computer Details](COMPUTER_DETAILS.md) for checks and remaining scope.

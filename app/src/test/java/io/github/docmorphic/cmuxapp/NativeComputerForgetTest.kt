@@ -19,6 +19,16 @@ class NativeComputerForgetTest {
             put(JSONObject().put("code", it.code).put("device_id", it.deviceId).put("instance_tag", it.instanceTag).put("name", it.name))
         } })
 
+    @Test fun scopedTailscaleCleanupRemovesOnlyCapturedIdentityAfterConfirmedRevoke() {
+        val raw = NativePairingRecords.scoped(row().copy(code = "cmux-ios://attach?v=2&r=100.64.0.7:58465&ub=user"), team)
+        val sibling = raw.copy(instanceTag = "nightly")
+        val state = state(listOf(raw, sibling)).put("pairings", JSONArray().put(NativePairingRecords.encode(raw)).put(NativePairingRecords.encode(sibling)))
+        assertEquals(listOf(raw), NativeComputerForgetLocal.capture(listOf(raw, sibling), team, target))
+        NativeComputerForgetLocal.remove(state, team, listOf(raw))
+        assertEquals(listOf(sibling), NativeComputerVisibility.saved(state))
+        assertEquals("Keep my work", state.getString("draft"))
+    }
+
     @Test fun confirmationOrdersCaptureStopRevokeAndCleanupAndDoesNotRepeatSuccess() = runBlocking<Unit> {
         val events = mutableListOf<String>(); val rows = listOf(row())
         val flow = NativeComputerForgetFlow({ true }, { events += "capture"; rows },

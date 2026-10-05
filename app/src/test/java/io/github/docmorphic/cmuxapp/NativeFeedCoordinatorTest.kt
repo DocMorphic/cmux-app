@@ -741,6 +741,34 @@ class NativeFeedCoordinatorTest {
         } finally { coordinator.close() }
     }
 
+    @Test fun rawDetailsReusesVerifiedPowerControllerWithoutDialingAndRetiresAfterRevocation() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.powerSupported = true; peer.powerValue = false
+            val team = NativeTeamScope("login", "user", "team", 1)
+            val paired = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(
+                "cmux-ios://attach?v=2&r=100.64.0.7:58465&ub=user", "a", "Mac", "default"), team)
+            val target = NativeComputerTarget("a", "default", "Mac")
+            var allowed = true; var connects = 0
+            val coordinator = NativeFeedCoordinator(this, { connects++; peer.connect() }, { allowed })
+            try {
+                coordinator.updateMacs(listOf(paired))
+                awaitState { coordinator.sources.value[paired.origin]?.keepAwake == false }
+                val power = checkNotNull(coordinator.powerSession(team, target))
+                assertSame(power, coordinator.powerSession(team, target)); assertEquals(1, connects)
+                assertNull(coordinator.powerSession(team.copy(teamId = "other"), target))
+                assertNull(coordinator.powerSession(team, target.copy(buildTag = "nightly")))
+                power.setEnabled(true)
+                awaitState { coordinator.sources.value[paired.origin]?.keepAwake == true && !power.state.value.busy }
+                assertEquals(1, peer.requests.count { it.optString("method") == "caffeine.set" })
+                allowed = false
+                assertNull(coordinator.powerSession(team, target))
+                power.setEnabled(false); delay(40)
+                assertEquals(1, peer.requests.count { it.optString("method") == "caffeine.set" })
+                assertEquals(1, connects)
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun keepAwakeIsSeededPerMacAndEventsNeverMutatePowerOrAnotherComputer() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             a.powerSupported = true; a.powerValue = true
@@ -1154,6 +1182,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                     "mobile.workspace.changes.summary" -> JSONObject().put("summaries", JSONArray().put(JSONObject()
                         .put("workspace_id", "w").put("is_repo", true).put("files_changed", changedFiles).put("additions", 4).put("deletions", 1)))
                     "caffeine.status" -> JSONObject().put("enabled", powerValue)
+                    "caffeine.set" -> { powerValue = request.getJSONObject("params").getBoolean("enabled"); JSONObject().put("enabled", powerValue) }
                     "mobile.events.subscribe" -> JSONObject().also {
                         val params = request.getJSONObject("params")
                         if (params.getJSONArray("topics").toString().contains("caffeine.status.changed"))

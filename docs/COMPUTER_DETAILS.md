@@ -107,3 +107,33 @@ locally; see the source correction in that checkpoint.
 
 The full companion goal remains active. This checkpoint does not claim complete
 computer-detail parity or direct-only routing.
+
+## Scoped Tailscale-only Details (2026-10-06)
+
+Authenticated saved Tailscale rows with an explicit matching account/team, stable
+origin and known device/build now expose Details without native discovery. Bare
+URL hints and unowned, mismatched or unresolved rows cannot establish identity.
+The page exposes the existing appearance, connection-method and route controls.
+Its independent checker uses the admitted saved connector (or the existing
+Tailscale-only runtime), verifies host identity and reads workspaces, then closes
+only its lease. Account changes and removed/replaced rows fence the report.
+
+Connected rows reuse the feed-owned Keep Mac Awake controller and its mutation
+gate; opening Details does not create another connection or event subscription.
+Confirmed remote Forget can clean up the captured scoped raw row while preserving
+sibling builds and changed replacements.
+
+46 focused JVM tests passed with no failures/errors/skips. Main and Android test
+Kotlin compilation passed; the final focused run took 20 seconds. The initial
+compiler method-size failure was resolved by extracting the Details host and
+onboarding power composables. Logs, XML and source hashes are in local ignored
+`captures/runtime/tailscale-computer-details/`. The new Android UI test
+`scopedTailscaleRowOpensDetailsAndChecksItsSavedRouteWithoutNativeDiscovery` is
+compiled and queued for the next integration milestone; no APK or emulator run
+was performed for this batch.
+
+Remaining: main raw-primary reconnect still needs selection of edited/replacement
+grant sources with exact ticket coverage. The Details Tailscale-only runtime
+already accepts current exact grants, but that does not verify the main reconnect
+flow. Legacy pre-tag adoption, remote-account Forget and physical UI/connection/
+power acceptance remain open. Global upstream pins are unchanged.

@@ -172,11 +172,11 @@ Real saved-method changes on Mac/Pixel still need acceptance.
 
 ### Remaining route-retention and chooser work found in this comparison
 
-- `NativeComputerTarget.from(PairedMac, team)` accepts primary or retained native
-  identity. Authenticated rows with only Tailscale still lack Computer Details;
-  add that presentation with exact grant/owner/build admission and corresponding
-  runtime support, rather than treating an arbitrary code's claimed identity as
-  authority.
+- Scoped Tailscale-only Computer Details is now implemented with explicit saved
+  owner/build identity, saved-route checks and shared power controls; see
+  `COMPUTER_DETAILS.md`. Main raw-primary reconnect still needs selection of
+  edited/replacement grant sources with exact ticket coverage. The new Android
+  Details case and physical workflow acceptance remain pending.
 - Implement explicit legacy pre-tag identity adoption without choosing an
   arbitrary sibling or losing history. This batch requires an exact stored build;
   a missing build remains unchanged until authenticated identity can establish it.

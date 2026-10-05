@@ -644,9 +644,8 @@ internal fun NativeScreen(
         activeCode = connectedCode.takeIf { connectionReady && client != null && it == code },
         pendingCode = code.takeIf { signedIn && it.isNotBlank() && !connectionReady && busy },
         foregroundWorkspaces = workspaces)
-    NativeComputerDetailsPresentationHost(sharedConnections?.native, computerState, computerDetails,
-        computerDetails?.target?.let { computerConnections[NativeMacIdentity(it.deviceId, it.buildTag)] } ?: NativeComputerConnection(),
-        forgetCallbacks) { computerDetails = null }
+    NativeSavedComputerDetailsHost(sharedConnections?.native, computerState, computerDetails,
+        computerConnections, forgetCallbacks, store, connection, feedCoordinator) { computerDetails = null }
     val visibleFeedSources = remember(feedSources, pairedMacs) {
         feedSources.values.filter { source -> pairedMacs.any { it.origin == source.mac.origin } }
     }
@@ -2424,11 +2423,7 @@ internal fun NativeScreen(
                             selectPairingCode(PairingCodeParser.computer(mac, owner))
                     }) { Text("${mac.name} · ${mac.buildTag}") } }
                 }, keepAwake = {
-                    val owner = onboardingOwner
-                    val target = if (owner != null) pairedMacs.singleOrNull { it.code == connectedCode }
-                        ?.let { NativeComputerTarget.from(it, owner) } else null
-                    if (owner != null && target != null && sharedConnections != null)
-                        NativeMacPowerSettings(sharedConnections.native, owner, target, offerOnly = true)
+                    NativeOnboardingMacPowerSettings(sharedConnections?.native, onboardingOwner, pairedMacs, connectedCode, feedCoordinator)
                 })
         }
     }

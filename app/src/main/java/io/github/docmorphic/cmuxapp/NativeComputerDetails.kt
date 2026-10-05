@@ -27,8 +27,16 @@ internal data class NativeComputerTarget(val deviceId: String, val buildTag: Str
         fun from(mac: NativeCredentialStore.PairedMac, team: NativeTeamScope): NativeComputerTarget? {
             if ((mac.accountUserId != null && mac.accountUserId != team.userId) ||
                 (mac.accountTeamId != null && mac.accountTeamId != team.teamId)) return null
-            val code = PairingCodeParser.parse(mac.code).getOrNull() as? PairingCode.Iroh
-                ?: NativePairingRecords.retainedNativeRoute(mac) ?: return null
+            val pairing = PairingCodeParser.parse(mac.code).getOrNull() ?: return null
+            if (pairing is PairingCode.Tailscale && NativePairingRecords.retainedNativeRoute(mac) == null) {
+                // Only persisted authenticated metadata supplies a raw row's identity.
+                // The URL's user/address hints alone cannot create Computer Details authority.
+                if (mac.accountUserId != team.userId || mac.accountTeamId != team.teamId || mac.stableOrigin == null ||
+                    (pairing.stackUserId != null && pairing.stackUserId != team.userId) ||
+                    mac.deviceId.isBlank() || mac.instanceTag.isNullOrBlank()) return null
+                return NativeComputerTarget(mac.deviceId, mac.instanceTag, mac.name)
+            }
+            val code = pairing as? PairingCode.Iroh ?: NativePairingRecords.retainedNativeRoute(mac) ?: return null
             // Older native QR codes omit scope hints. They are never authority: the check
             // refreshes this team's directory and resolves the exact device/build before dialing.
             if ((code.userId != null && code.userId != team.userId) || (code.teamId != null && code.teamId != team.teamId) ||
@@ -76,9 +84,22 @@ internal fun NativeComputerDetailsButton(runtime: NativeIrohRuntime?, state: Nat
  * when discovery removes that row. The presentation captures its original owner.
  */
 @Composable
+internal fun NativeSavedComputerDetailsHost(runtime: NativeIrohRuntime?, state: NativeComputersState,
+    presentation: NativeComputerDetailsPresentation?, connections: Map<NativeMacIdentity, NativeComputerConnection>,
+    callbacks: NativeComputerForgetCallbacks, store: NativeCredentialStore, connector: NativeConnector,
+    feed: NativeFeedCoordinator, onDismiss: () -> Unit) {
+    val connection = presentation?.target?.let { connections[NativeMacIdentity(it.deviceId, it.buildTag)] }
+        ?: NativeComputerConnection()
+    val power = presentation?.let { feed.powerSession(it.team, it.target) }
+    NativeComputerDetailsPresentationHost(runtime, state, presentation, connection, callbacks,
+        credentialStore = store, savedConnector = connector, savedPower = power, onDismiss = onDismiss)
+}
+
+@Composable
 internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, state: NativeComputersState,
     presentation: NativeComputerDetailsPresentation?, connection: NativeComputerConnection,
-    forgetCallbacks: NativeComputerForgetCallbacks, credentialStore: NativeCredentialStore? = null, onDismiss: () -> Unit) {
+    forgetCallbacks: NativeComputerForgetCallbacks, credentialStore: NativeCredentialStore? = null,
+    savedConnector: NativeConnector? = null, savedPower: NativeMacPowerSession? = null, onDismiss: () -> Unit) {
     if (runtime == null || presentation == null) return
     val team = presentation.team
     if (state.account != team) {
@@ -94,6 +115,17 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
         val connectionPreferences by connectionStore.state.collectAsState()
         val store = credentialStore ?: remember(context) { NativeCredentialStore(context.applicationContext) }
         val credentialRevision by store.revisions.collectAsState()
+        val savedCheck = remember(store, savedConnector, runtime, team, target) { savedConnector?.let { connector ->
+            val account = NativeAccount(store)
+            NativeSavedComputerCheck(team, target, { runtime.permitsAppearance(team) && store.taskSession() == team.login },
+                store::visiblePairedMacs, connector::allowsSaved) { connector.connectSaved(it, account) }
+        } }
+        val rawOnly = remember(store, credentialRevision, team, target) {
+            store.visiblePairedMacs().singleOrNull { NativeComputerTarget.from(it, team)?.let { saved ->
+                canonicalMacDeviceId(saved.deviceId) == canonicalMacDeviceId(target.deviceId) && saved.buildTag == target.buildTag
+            } == true }?.let { PairingCodeParser.parse(it.code).getOrNull() is PairingCode.Tailscale &&
+                NativePairingRecords.retainedNativeRoute(it) == null } == true
+        }
         var routeReload by remember { mutableIntStateOf(0) }
         val grants = remember(store) { TailscaleGrantStore(store::load, store::update) }
         val tailscale = remember(grants, credentialRevision, routeReload, team, target) {
@@ -111,8 +143,10 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false,
                 dismissOnBackPress = !forgetting, dismissOnClickOutside = !forgetting)) {
             NativeComputerDetailsScreen(target, available = state.computers.any { target.matches(it) },
-                canCheck = state.ready || runtime.usesSavedTailscale(team, target),
-                check = { runtime.checkComputer(team, target) },
+                canCheck = if (rawOnly) savedCheck?.available() == true || runtime.usesSavedTailscale(team, target)
+                    else state.ready || runtime.usesSavedTailscale(team, target),
+                check = { if (rawOnly && savedCheck != null && !runtime.usesSavedTailscale(team, target)) savedCheck.run()
+                    else runtime.checkComputer(team, target) },
                 paths = { runtime.privatePaths(team).filter { target.matches(it) } },
                 changePaths = { action -> runtime.privatePaths(team, action).filter { target.matches(it) } },
                 share = { report ->
@@ -148,9 +182,12 @@ internal fun NativeComputerDetailsPresentationHost(runtime: NativeIrohRuntime?, 
                             grants.removeRoute(team, target, grant) { runtime.permitsAppearance(team) }
                         } }, reload = { routeReload++ }, enabled = !forgetting && runtime.permitsAppearance(team))
                 },
-                power = { NativeMacPowerSettings(runtime, team, target) }, displayName = title, connection = connection,
+                power = { if (savedPower != null) NativeBorrowedMacPowerSettings(savedPower)
+                    else NativeMacPowerSettings(runtime, team, target) }, displayName = title, connection = connection,
                 showPrivateAddresses = connectionPreferences.get(target).method == NativeMacConnectionMethod.IROH,
-                appearance = { NativeMacAppearanceSettings(team, target, presentation.colorIndex) { runtime.permitsAppearance(team) } })
+                appearance = { NativeMacAppearanceSettings(team, target, presentation.colorIndex) { runtime.permitsAppearance(team) } },
+                checkDisabledMessage = if (rawOnly) "Choose an available connection method or add this Mac’s Tailscale address, then try again."
+                    else "Wait for your account’s computer list, then try again.")
         }
     }
 }
@@ -163,7 +200,8 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
     displayName: String = target.name, appearance: @Composable () -> Unit = {},
     connection: NativeComputerConnection = NativeComputerConnection(),
     backEnabled: Boolean = true, forget: @Composable () -> Unit = {}, connectionMethod: @Composable () -> Unit = {},
-    showPrivateAddresses: Boolean = true) {
+    showPrivateAddresses: Boolean = true,
+    checkDisabledMessage: String = "Wait for your account’s computer list, then try again.") {
     Surface(Modifier.fillMaxSize(), color = Color(0xFF0B0C0E)) {
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(Modifier.fillMaxWidth().height(62.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -180,7 +218,7 @@ internal fun NativeComputerDetailsScreen(target: NativeComputerTarget, available
                 appearance()
                 NativeComputerConnectionSection(connection)
                 NativeConnectionCheckSection(canCheck, check, share,
-                    disabledMessage = "Wait for your account’s computer list, then try again.")
+                    disabledMessage = checkDisabledMessage)
                 power()
                 if (showPrivateAddresses) NativePrivatePathsSection(
                     computers = if (available) listOf(IrohV2Computer("", "", target.deviceId, target.buildTag, target.name, emptyList())) else emptyList(),

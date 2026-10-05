@@ -103,8 +103,8 @@ internal object NativeComputerForgetLocal {
             val decoded = NativePairingRecords.decode(item)
             val row = captured.firstOrNull { decoded != null && it.code == code && it.deviceId == device && it.instanceTag == tag &&
                 it.accountUserId == decoded.accountUserId && it.accountTeamId == decoded.accountTeamId && it.origin == decoded.origin &&
-                it.ticketRevision == decoded.ticketRevision }
-            // The captured row must itself still be native and in its owning scope.
+                it.ticketRevision == decoded.ticketRevision && it.nativeRouteCode == decoded.nativeRouteCode }
+            // The captured row must still carry a verified identity in its owning scope.
             if (row != null && NativeComputerTarget.from(row, team) != null) removed += row else next.put(item)
         }
         state.put("pairings", next)

@@ -28,6 +28,7 @@ internal class NativeFeedCoordinator(
         val refresh = NativeFeedRefresh()
         var changes: WorkspaceChangesSummarySession? = null
         var changesListEvent = false
+        var power: NativeMacPowerSession? = null
     }
     private val handles = mutableMapOf<String, Handle>()
     private val revisions = mutableMapOf<String, NativeFeedRevision>()
@@ -51,6 +52,15 @@ internal class NativeFeedCoordinator(
                 .copy(mac = mac, availability = NativeFeedAvailability.CONNECTING, error = null, keepAwake = null, changes = emptyMap()))
             handle.job = scope.launch { monitor(handle) }
         }
+    }
+
+    /** Reuse this verified session's power controller; the Details page does not dial or own it. */
+    fun powerSession(team: NativeTeamScope, target: NativeComputerTarget): NativeMacPowerSession? {
+        val handle = handles.values.singleOrNull { NativeComputerTarget.from(it.mac, team)?.let { saved ->
+            canonicalMacDeviceId(saved.deviceId) == canonicalMacDeviceId(target.deviceId) && saved.buildTag == target.buildTag
+        } == true } ?: return null
+        val client = handle.client ?: return null
+        return handle.power?.takeIf { current(handle, client) && handle.verified }
     }
 
     /** Drop retired computers even while paused, without dialing the retained set. */
@@ -238,8 +248,10 @@ internal class NativeFeedCoordinator(
                 }
             }
         }
+        handle.power = session
         try { session.run() }
         finally {
+            if (handle.power === session) handle.power = null
             updates.cancelAndJoin()
             if (current(handle, client)) mutableSources.value[handle.mac.origin]?.let {
                 publish(handle, it.copy(keepAwake = null))
