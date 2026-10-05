@@ -13,12 +13,21 @@ internal data class NativeComputersState(
     val connectionKeys: Map<String, String> = emptyMap(),
     val localConnectionKeys: Map<NativeMacIdentity, String> = emptyMap()
 ) {
-    fun connectionKey(pairing: PairingCode.Iroh?): String? {
+    fun connectionKey(pairing: PairingCode.Iroh?, savedTarget: NativeComputerTarget? = null): String? {
         if (pairing == null) return null
-        val local = pairing.macDeviceId?.let { device -> pairing.buildTag?.let { build ->
+        val deviceId = savedTarget?.deviceId ?: pairing.macDeviceId
+        val buildTag = savedTarget?.buildTag ?: pairing.buildTag
+        val local = deviceId?.let { device -> buildTag?.let { build ->
             localConnectionKeys[NativeMacIdentity(canonicalMacDeviceId(device), build)]
         } }
-        return local ?: connectionKeys[pairing.endpointId]
+        if (local != null) return local
+        if (deviceId != null && buildTag != null) {
+            val current = computers.singleOrNull {
+                canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(deviceId) && it.buildTag == buildTag
+            } ?: return null
+            return connectionKeys[current.endpointId]
+        }
+        return connectionKeys[pairing.endpointId]
     }
 }
 
@@ -268,18 +277,44 @@ internal class NativeIrohRuntime(
             else "The Mac connection changed. Reconnecting…", failure)
     }
 
-    private suspend fun connectCurrent(pairing: PairingCode.Iroh, expectedOwner: Owner? = null): MobileRpcClient {
+    /** Only the saved-record boundary may replace a stale endpoint with this team's
+     * current directory identity. Fresh codes continue to name an exact endpoint. */
+    suspend fun connectSaved(pairing: PairingCode.Iroh, target: NativeComputerTarget,
+                             team: NativeTeamScope): MobileRpcClient = try {
+        require(pairing.macDeviceId == null || canonicalMacDeviceId(pairing.macDeviceId) == canonicalMacDeviceId(target.deviceId)) { "Mac identity changed" }
+        require(pairing.buildTag == null || pairing.buildTag == target.buildTag) { "Mac build changed" }
+        check(isCurrent(team)) { "Account session changed" }
+        connectCurrent(pairing.copy(macDeviceId = target.deviceId, buildTag = target.buildTag),
+            savedTarget = target, savedTeam = team)
+    } catch (failure: CancellationException) {
+        currentCoroutineContext().ensureActive()
+        throw IOException(if (failure is TimeoutCancellationException) "Timed out connecting to this Mac"
+            else "The Mac connection changed. Reconnecting…", failure)
+    }
+
+    private suspend fun connectCurrent(pairing: PairingCode.Iroh, expectedOwner: Owner? = null,
+                                       savedTarget: NativeComputerTarget? = null, savedTeam: NativeTeamScope? = null): MobileRpcClient {
         pairing.buildTag?.let { audience?.requireTag(it) }
-        savedTailscale?.connectIfSelected(pairing)?.let { return it }
+        if (savedTeam != null) check(isCurrent(savedTeam)) { "Account session changed" }
+        savedTailscale?.connectIfSelected(pairing)?.let { client ->
+            if (savedTeam != null && !isCurrent(savedTeam)) {
+                client.close()
+                error("Account session changed")
+            }
+            return client
+        }
         val available = withTimeout(30_000) { state.first { it.ready || (!it.loading && it.error != null) } }
         check(available.ready) { available.error ?: "Waiting for your computers" }
         val run = synchronized(lock) { owner } ?: error("Account session changed")
         requireCurrent(run)
+        check(savedTeam == null || run.account == savedTeam) { "Account session changed" }
         check(expectedOwner == null || expectedOwner === run) { "Account session changed" }
         require(pairing.userId == null || pairing.userId == run.account.userId) { "This computer belongs to another account" }
         require(pairing.teamId == null || pairing.teamId == run.account.teamId) { "Select this computer's team first" }
         val service = synchronized(lock) { run.service } ?: error("Account session changed")
-        val mac = service.state.value.computers.singleOrNull { it.endpointId == pairing.endpointId }
+        val mac = service.state.value.computers.singleOrNull {
+            if (savedTarget != null) savedTarget.matches(it) else it.endpointId == pairing.endpointId
+        }
             ?: error("This Mac is not available in your selected team")
         audience?.requireTag(mac.buildTag)
         require(pairing.macDeviceId == null || canonicalMacDeviceId(pairing.macDeviceId) == canonicalMacDeviceId(mac.deviceId)) { "Mac identity changed" }

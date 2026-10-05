@@ -1784,8 +1784,11 @@ internal fun NativeScreen(
         }
     }
 
+    val reconnectIdentity = teamState.scope?.let { owner ->
+        pairedMacs.singleOrNull { it.code == code }?.let { NativeComputerTarget.from(it, owner) }
+    }
     LaunchedEffect(signedIn, code, retry, deferStartupForPairing,
-        computerState.connectionKey(PairingCodeParser.parse(code).getOrNull() as? PairingCode.Iroh)) {
+        computerState.connectionKey(PairingCodeParser.parse(code).getOrNull() as? PairingCode.Iroh, reconnectIdentity)) {
         if (deferStartupForPairing) return@LaunchedEffect
         if (pendingPickerCode != code) pendingPickerCode = null
         if (pairingSelectionCode != code) pairingSelectionCode = null

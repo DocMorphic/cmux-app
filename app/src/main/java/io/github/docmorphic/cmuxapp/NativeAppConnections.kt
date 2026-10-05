@@ -89,7 +89,10 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             ticket?.requireCurrent()
             val client = when (pairing) {
                 is PairingCode.Tailscale -> tailscale.connectSaved(pairing, account, team, ticket)
-                is PairingCode.Iroh -> native.connect(pairing.copy(userId = team.userId, teamId = team.teamId))
+                is PairingCode.Iroh -> {
+                    val target = checkNotNull(NativeComputerTarget.from(mac, team)) { "Saved Mac identity changed. Pair this Mac again." }
+                    native.connectSaved(pairing.copy(userId = team.userId, teamId = team.teamId), target, team)
+                }
             }
             try {
                 check(teams.isCurrent(team) && allowsSaved(mac) && store.visiblePairedMacs().contains(mac)) { "This computer is hidden or its account changed. Open Computers to reconnect." }

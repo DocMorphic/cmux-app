@@ -98,6 +98,9 @@ class NativeSavedTailscaleRuntimeTest {
             f.ticketHook = { f.setRoutes(emptyList()) }
             assertTrue(runCatching { f.local.connectIfSelected(f.pairing()) }.isFailure)
             assertEquals(listOf("mobile.host.status", "mobile.attach_ticket.create"), f.wires.single().methods)
+            // Retirement completes the pending RPC before closing its transport on
+            // the retiring thread. Observe that close instead of racing that thread.
+            withTimeout(2000) { while (!f.wires.single().closed) delay(1) }
             assertTrue(f.wires.single().closed); assertNull(f.local.powerSession(f.team, f.target))
         }
     }

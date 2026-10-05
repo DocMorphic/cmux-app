@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Saved native connections can now follow a changed Iroh endpoint using their
+  verified device/build within the current account/team directory. Fresh links
+  still require their exact endpoint. Reconnect keys track the saved identity,
+  old wires retire and Direct/Tailscale preferences remain in force. Focused
+  runtime-policy tests and Kotlin compilation cover this batch; physical peer
+  rotation and saved-ticket acceptance remain open. Source comparison also found
+  iOS Direct entries allow an omitted port; review Android's required-port editor
+  and native candidate representation next. See `DIRECT_CONNECTION.md`.
+
 - Pairing now preserves the in-app versus external-link boundary from the iOS
   source. External Tailscale links cannot create authorization; mixed external
   tickets offer native choices, while explicit in-app mixed tickets prefer only

@@ -81,9 +81,10 @@ class NativeIrohRuntimeTest {
                 intent.copy(tailscale = grants.filter { it.device == mac.deviceId && it.build == mac.buildTag }) else intent
         }
         val intents = java.util.concurrent.CopyOnWriteArrayList<NativeMacDialIntent>()
+        val dialedComputers = java.util.concurrent.CopyOnWriteArrayList<IrohV2Computer>()
         val permissions = java.util.concurrent.CopyOnWriteArrayList<() -> Boolean>()
         override fun transport(mac: IrohV2Computer, permits: () -> Boolean, intent: NativeMacDialIntent): MobileRpcTransport {
-            intents += intent; permissions += permits
+            intents += intent; permissions += permits; dialedComputers += mac
             return transport(mac, permits)
         }
         val closes = AtomicInteger()
@@ -107,6 +108,75 @@ class NativeIrohRuntimeTest {
         override fun close() { closes.incrementAndGet() }
     }
     private fun pairing(scope: NativeTeamScope = team) = PairingCodeParser.parse(PairingCodeParser.computer(mac, scope)).getOrThrow() as PairingCode.Iroh
+
+    @Test fun savedMacUsesCurrentPeerButFreshPairingDoesNotFollowAChangedEndpoint() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        val replacement = mac.copy(recordId = "new-record", endpointId = "cd".repeat(32))
+        backend.state.value = ready().copy(computers = listOf(replacement))
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            assertTrue(runCatching { runtime.connect(pairing()) }.isFailure)
+            assertTrue(backend.transports.isEmpty())
+            runtime.connectSaved(pairing(), NativeComputerTarget.from(mac), team).use { client ->
+                assertFalse(client.isClosed)
+                assertEquals(listOf(replacement), backend.dialedComputers)
+                assertEquals(runtime.state.value.connectionKeys[replacement.endpointId], runtime.state.value.connectionKey(pairing()))
+            }
+        }
+    }
+
+    @Test fun savedPeerRotationRetiresOldWireAndPreservesThisBuildsDirectPreference() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        val target = NativeComputerTarget.from(mac)
+        backend.connectionSettings.update(target, { true }) {
+            NativeMacConnectionPreference(NativeMacConnectionMethod.DIRECT, listOf(NativeDirectAddress("192.168.1.7:58465")))
+        }
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            runtime.connectSaved(pairing(), target, team).use { first ->
+                val oldKey = runtime.state.value.connectionKey(pairing())
+                val replacement = mac.copy(recordId = "new-record", endpointId = "cd".repeat(32))
+                backend.state.value = ready().copy(computers = listOf(replacement))
+                withTimeout(2000) { runtime.state.first { it.connectionKey(pairing()) != oldKey } }
+                withTimeout(2000) { while (!first.isClosed) delay(1) }
+                runtime.connectSaved(pairing(), target, team).use { second ->
+                    assertFalse(second.isClosed)
+                    assertEquals(listOf(mac, replacement), backend.dialedComputers)
+                    assertTrue(backend.intents.all { it.method == NativeMacConnectionMethod.DIRECT && it.addresses == listOf("192.168.1.7:58465") })
+                }
+            }
+        }
+    }
+
+    @Test fun savedRouteCannotFollowSiblingAmbiguityOtherAccountOrConflictingIdentity() = runBlocking<Unit> {
+        val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()
+        NativeIrohRuntime(teams, { teams.value.scope == it }, { "fixture" }, { _, _ -> backend }, { 1000 }).use { runtime ->
+            withTimeout(2000) { runtime.state.first { it.ready } }
+            val target = NativeComputerTarget.from(mac)
+            for (directory in listOf(emptyList(), listOf(mac.copy(buildTag = "nightly")),
+                listOf(mac, mac.copy(endpointId = "cd".repeat(32), recordId = "duplicate")),
+                listOf(mac.copy(deviceId = "other-device")))) {
+                backend.state.value = ready().copy(computers = directory)
+                assertTrue(runCatching { runtime.connectSaved(pairing(), target, team) }.isFailure)
+            }
+            backend.state.value = ready()
+            assertTrue(runCatching { runtime.connectSaved(pairing(), target, team.copy(generation = 2)) }.isFailure)
+            assertTrue(runCatching { runtime.connectSaved(pairing().copy(userId = "other"), target, team) }.isFailure)
+            assertTrue(runCatching { runtime.connectSaved(pairing().copy(macDeviceId = "other"), target, team) }.isFailure)
+            assertTrue(runCatching { runtime.connectSaved(pairing().copy(buildTag = "nightly"), target, team) }.isFailure)
+            assertTrue(backend.transports.isEmpty())
+        }
+    }
+
+    @Test fun discoveryKeyDoesNotAliasAReusedPeerToAnotherDeviceOrBuild() {
+        val other = mac.copy(deviceId = "other-device")
+        val duplicate = mac.copy(recordId = "duplicate", endpointId = "cd".repeat(32))
+        val key = mapOf(mac.endpointId to "old", duplicate.endpointId to "new")
+        assertNull(NativeComputersState(team, true, computers = listOf(other), connectionKeys = key).connectionKey(pairing()))
+        assertNull(NativeComputersState(team, true, computers = listOf(mac, duplicate), connectionKeys = key).connectionKey(pairing()))
+        assertNull(NativeComputersState(team, true, computers = listOf(mac.copy(buildTag = "nightly")), connectionKeys = key).connectionKey(pairing()))
+        val legacy = pairing().copy(macDeviceId = null, buildTag = null)
+        assertEquals("new", NativeComputersState(team, true, computers = listOf(duplicate), connectionKeys = key)
+            .connectionKey(legacy, NativeComputerTarget.from(mac)))
+    }
 
     @Test fun stalledMacDialDoesNotBlockSiblingAndDirectoryRevocationKeepsSiblingLive() = runBlocking<Unit> {
         val teams = MutableStateFlow(NativeAccountTeamsState(scope = team)); val backend = Backend()

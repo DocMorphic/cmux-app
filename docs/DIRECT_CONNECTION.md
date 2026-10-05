@@ -2,6 +2,47 @@
 
 Reference: cmux `4c5272e9153eca2033c9f40ac749f0c3a5bcb291`.
 
+## Saved native peer refresh (2026-10-05)
+
+The scoped iOS `MobileShellComposite+ReconnectRoutes.swift` and
+`MobileShellComposite+ConnectionMethod.swift` at
+`186cec79781256867ad4516f0802118738bd2393` resolve saved-route refreshes by
+account, device and build, and retain the pairing's own method. Android previously
+required the saved Iroh endpoint ID to remain in the current directory, so a
+re-registered Mac could be visible but fail to reconnect from its saved row.
+
+The saved-record connector now supplies the verified device/build and captured
+team to a separate native reconnect entry. It selects the unique current
+directory record for that identity. Account, build audience, directory permission,
+peer admission and authenticated host compatibility checks remain enforced.
+Unstored/fresh pairing still requires its literal endpoint ID. Missing/ambiguous
+identities and sibling builds cannot substitute. The current directory endpoint
+owns the pooled connection; changing it retires the old wire. Per-build Direct
+addresses and Tailscale-only selection remain authoritative through the same
+existing method dispatch.
+
+The foreground reconnect key now follows device/build too, including older codes
+whose missing identity hints can be supplied by their validated saved record.
+This allows a directory update to wake reconnect without aliasing a reused old
+endpoint to a different computer. Stored locators, stable origins and ticket
+bindings remain intact; endpoint refresh is resolved at dial time.
+
+**47 focused JVM tests passed** (25 native runtime and 22 saved Tailscale).
+They cover old-versus-current endpoint behavior, wire retirement,
+Direct preference preservation, ambiguous/missing/sibling/account rejection and
+reconnect keys, alongside saved Tailscale admission regressions. Main and Android
+test Kotlin compile. Initial failures were an omitted port in the new Direct
+fixture and an existing close assertion racing transport retirement. The latter
+now waits for the actual closed state with a two-second bound; it still checks
+that revocation prevents workspace requests and connection publication.
+
+Evidence: `captures/runtime/saved-peer-refresh/`, including failed and final checks
+and upstream source hashes. No APK or device run is claimed. Physical endpoint
+rotation, saved ticket workflow, network transitions and UI acceptance remain
+open. The source also exposes optional ports on Direct address entries; the
+Android editor currently requires a port, so that compatibility needs review.
+This scoped change does not close the full route-policy audit.
+
 ## Optional remote relay hint (2026-10-05)
 
 The scoped upstream audit at `186cec79781256867ad4516f0802118738bd2393`
