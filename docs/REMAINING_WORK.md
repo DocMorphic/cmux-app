@@ -20,11 +20,11 @@ a physical workflow gate. These are work areas, not equal-sized progress units.
 
 ## Current delivery and next actions
 
-- Build **596** is the latest independently verified download. CI, local packaging,
-  nine arm64 ART classes, signed-out 589 → 596 upgrade and reboot passed. [PIXEL_INSTALL.md](PIXEL_INSTALL.md) is authoritative for downloads.
-- The newer rejected-token recovery source passed **109 focused JVM tests** and
-  is not in build 596. Batch its Android verification with the next coherent
-  feature milestone; do not build and sign for each small commit.
+- Build **606** at `b99d495` is the latest independently verified download. CI, local packaging,
+  fifteen arm64 ART classes, signed-out 596 → 606 upgrade and reboot passed. [PIXEL_INSTALL.md](PIXEL_INSTALL.md) is authoritative for downloads.
+- Rejected-token recovery passed **109 focused JVM tests** and is now in build
+  606. Actual Mac rejection/recovery acceptance remains open. Continue batching
+  features into signed milestones rather than signing every small commit.
 - Token recovery is committed/pushed as `d8edb8b`. Route ordering now has 12
   Swift-reference cases within 104 passing JVM checks; the revised chooser test
   passed Android execution in the optional-relay batch. That batch also passed
@@ -46,7 +46,7 @@ a physical workflow gate. These are work areas, not equal-sized progress units.
   bookmarks, Go-to-line drafts and a toolbar pixel assertion. See
   [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md). Rendered-Markdown,
   pending Save, process death, video/aspect-ratio and physical acceptance remain;
-  ten debug Activities must be excluded from the next signed APK.
+  ten debug Activities are confirmed excluded from signed 606.
 - Source audit found that main Files and native Markdown panels still discard
   their downloads and local viewer keys on recreation. The latest text/media
   checks use a stable local artifact and do not close this route-level gap.

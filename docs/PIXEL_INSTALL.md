@@ -3,7 +3,61 @@
 This is the direct cmux Android build on `feature/local-mac-bridge`. It is still
 a development build; see [PARITY.md](PARITY.md) for the unverified features.
 
-## Current signed development APK — build 596 (2026-10-05)
+## Current signed development APK — build 606 (2026-10-05)
+
+[Build 606](https://github.com/DocMorphic/cmux-app/actions/runs/37267686166)
+passed at `b99d4957d389d49bf8a65f577736a0a71e36bd06`. Download the
+[signed APK artifact](https://github.com/DocMorphic/cmux-app/actions/runs/37267686166/artifacts/11327796025)
+and extract `app-release.apk`. This is an Actions development artifact; PR #1
+remains open/draft, with no main-branch merge or public release promotion.
+
+This batch includes rejected-account-token recovery, iOS route-priority ordering,
+optional Iroh peer relay hints, retained Changes downloads, PDF navigation,
+image zoom/pan, retained browser DOM/history, and shared text/media viewer
+recreation plus text viewport clipping. The source checkpoints below and
+[REMAINING_WORK.md](REMAINING_WORK.md) describe their tested scope.
+
+- Package: `io.github.docmorphic.cmuxapp`; version code **606**, version 0.2.0.
+- SHA-256: `5869af3bec4a885ee9ea23737e72b1b244a938fce36ea9c1e6acd8989512c207`.
+- Signer: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- APK: **228,467,243 bytes**; compressed artifact **120,349,720 bytes**.
+- Local file: `build/signed-run-37267686166/app-release.apk`.
+
+CI passed helper checks, JVM suites and debug/test/release assembly (**13m 59s**
+for the Gradle step), packaging verification and six Android 17 ART probes.
+No total JVM test count is inferred from the log. Independent checks matched
+GitHub's artifact/run/source metadata and ZIP digest, stable signer, all 14
+viewer assets, 19 native LOAD/RELRO alignments, 16 KB ZIP alignment, notice-engine
+pin, manifest contract and ten excluded debug fixture Activities. All 19 native
+payloads match 596 byte-for-byte. **Fifteen** production classes passed local
+arm64 API37 ART loading, including the changed viewer and browser-owner classes.
+Verifier/manifest/asset sources match the release revision; the later `7d9404f`
+commit changes documentation only.
+
+The sole API37/16 KB AVD upgraded **596 → 606** with `install -r`, preserving
+first-install time `2026-09-30 01:57:49`. The initial launch measurement caught
+Android's transient `PackageUpdateActivity` and was rejected. The app visibly
+reached sign-in; a subsequent explicit stop/start verified a **1,472 ms cold
+launch** of MainActivity. After guest reboot the installed hash still matched,
+and a **3,697 ms cold launch** reached sign-in. These are individual observations,
+not performance benchmarks. Before/after/reboot screenshots were inspected;
+crash buffers were empty, `pageSizeCompat=0`, and settings unchanged.
+
+The initial emulator boot had a System UI startup ANR before app testing; its
+Close app action restarted that component. There were no new ANRs during the
+upgrade checks, and none after guest reboot. The sole AVD was stopped/reaped and
+the redundant download ZIP removed. No extra AVD was created. Evidence:
+`captures/runtime/release-b99d495/`, including the first rejected launch reading.
+
+Both versions were signed out. This proves packaging and signed-out upgrade,
+not authenticated migration or physical Pixel/Mac workflows. The Pixel was
+absent and untouched. Main Files/Markdown-panel download ownership still resets
+on recreation; shared-viewer tests do not close that route-level gap. See
+[CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md) for the source audit.
+Production push, broader UI/protocol acceptance and the other completion gates
+remain open. The full parity goal is active.
+
+## Earlier signed development APK — build 596 (2026-10-05)
 
 [Build 596](https://github.com/DocMorphic/cmux-app/actions/runs/37257691562)
 passed at `3406a98d3a03fe0f52eda5767223f4bcf2f5577a`. Download the

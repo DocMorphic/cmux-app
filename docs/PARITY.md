@@ -12,6 +12,24 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Signed delivery checkpoint — build 606 (2026-10-05)
+
+Source `b99d495` is now available in signed **606**, with the token, route,
+Changes, browser and shared-viewer fixes described below. CI passed; independent
+packaging, stable signer, 14 assets, 19 native alignments, ten debug exclusions
+and fifteen local ART probes passed. Signed-out 596 → 606 upgrade and guest
+reboot passed with the exact installed APK hash and preserved first-install time.
+Screenshots inspected; no app crashes or new run ANRs; settings unchanged; sole
+AVD stopped/reaped. [PIXEL_INSTALL.md](PIXEL_INSTALL.md) records the download and
+the initial boot System UI ANR/transient update-screen launch measurement.
+
+This does not establish authenticated upgrade or physical Pixel/Mac acceptance.
+The main Files and native Markdown-panel download owners still need retention;
+the shared-viewer recreation tests do not prove those full routes. The precise
+source audit is in [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md).
+Full parity remains unverified and the goal active. Older delivery statements
+below are historical; build 606 supersedes 596 as the verified download.
+
 ## Latest source checkpoint — text and media recreation (2026-10-05)
 
 Raw-text search, reading position, selection, display options and Go-to-line
@@ -23,8 +41,8 @@ and a pixel assertion now cover that bug. **Seven Android checks passed in
 regressions. Final screenshots inspected, no run crashes/ANRs, settings unchanged,
 sole AVD stopped/reaped. See [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#text-and-media-recreation--2026-10-05)
 for failed attempts, scoped iOS references and remaining viewer gates. Ten
-nonexported debug Activities now require release exclusion. Signed **596** is
-unchanged; physical Pixel absent; full parity remains unverified and goal active.
+nonexported debug Activities are excluded from signed **606**, which now includes
+this source. Physical Pixel acceptance and full parity remain unverified; goal active.
 
 ## Earlier source checkpoint — retained browser view (2026-10-05)
 
