@@ -27,9 +27,13 @@ internal fun NativeTicketPairingConfirmation(proposal: NativeTicketPairing.Propo
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Text(if (proposal.choices[selected].pairing is PairingCode.Tailscale)
-                "cmux will send your account session to this Mac over Tailscale. Continue only if this address came from your Mac."
-                else "cmux will verify this Mac in your account and selected team before connecting.")
+            Text(when {
+                proposal.admissions[proposal.choices[selected]]?.savedGrant != null ->
+                    "cmux will use this Mac’s previously authorized Tailscale address and saved connection settings."
+                proposal.choices[selected].pairing is PairingCode.Tailscale ->
+                    "cmux will send your account session to this Mac over Tailscale. Continue only if this address came from your Mac."
+                else -> "cmux will verify this Mac in your account and selected team before connecting."
+            })
             if (proposal.ticket.context().isExpired(System.currentTimeMillis())) {
                 Spacer(Modifier.height(8.dp))
                 Text("This ticket has expired. cmux will use your account to reconnect; its expired token will not be sent.")

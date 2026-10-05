@@ -1,5 +1,42 @@
 # Attach-ticket compatibility audit
 
+## External tickets using stored address grants (2026-10-06)
+
+External legacy tickets can now offer an exact numeric Tailscale destination
+already authenticated for this account/team and Mac. The chooser applies the
+saved build's method: Direct offers the native lane; Tailscale offers an existing
+address grant; Automatic admits a legacy raw destination only without a native
+identity in the ticket or owned saved records. Native candidates resolve their
+build through the account directory. A native proposal opened during discovery
+remains available, but confirmation waits for a resolvable identity and captures
+its current method before connection.
+
+A directory-resolved native build disambiguates shared numeric destinations.
+Without that evidence, conflicting build grants cannot choose a sibling's method.
+Tickets cannot create grants from device claims, hostnames or endpoint lists.
+Sorting still uses upstream priority/ID ordering. The confirmation explicitly
+says when it is reusing an authorized destination; external confirmation never
+calls fresh-address authorization and cannot consume unrelated pending consent.
+
+Captured grants, account scope and method epochs are rechecked at confirmation.
+The Tailscale transport also checks them before dialing/token acquisition, after
+asynchronous authentication and during live I/O. Revoked clients are closed by
+the existing retirement loop. For a grant originally saved from a DNS or multi-
+route code, successful exact-address authentication can save an alias for the
+public ticket locator. The alias transaction verifies that the original grant
+still exists, preserves its exact numeric destination/build, and leaves the
+original grant intact. The current session remains dependent on that original
+admission. This does not resolve a hostname again or broaden ticket coverage.
+
+**78 focused JVM tests passed**, with zero failures/errors/skips: ten external
+route-selection cases, 47 transport-authority cases, 15 ticket-pairing cases and
+six retained-route cases. Main/instrumentation Kotlin compilation passed (final
+run: 17 seconds). Results and source hashes are recorded locally under
+`captures/runtime/external-ticket-grants/`. A new Compose test covers the reuse
+message and revoked confirmation; its execution is queued for the next combined
+Android milestone. No APK was built for this source batch. Real external Intent,
+Mac/Pixel connection and full route-policy acceptance remain open.
+
 ## Retained native pairing alongside a Tailscale ticket (2026-10-06)
 
 Accepting a Tailscale ticket now retains a previously authenticated native locator
@@ -37,7 +74,7 @@ and `supportedRoutes` in `MobileShellComposite.swift`, at
 | Tailscale Only uses exact locally granted raw routes, without Iroh fallback. | Existing native/saved Tailscale runtime enforces this. The legacy connector now also captures the saved method. A method choice alone creates no grant. |
 | Automatic retains an exact granted legacy route only while the pairing has no authenticated Iroh route. | Legacy raw reconnect now rejects a separately retained native identity for the same owner/device/build. Ticket acceptance now retains an existing native route; directory-to-saved-record upgrade remains open. |
 | Explicit in-app numeric entry can authorize that exact Tailscale address ahead of Automatic/Tailscale method choices. | Existing entry policy and consent authority preserve this. The new saved-route gate does not turn fresh entry into a saved reconnect. |
-| External links cannot create new numeric address authority, but supported-route selection can use an already stored exact Tailscale grant under its applicable method. | Fresh external authority is correctly denied. The Android ticket chooser still filters all external Tailscale choices; the already-authorized case remains an implementation gap. |
+| External links cannot create new numeric address authority, but supported-route selection can use an already stored exact Tailscale grant under its applicable method. | Fresh external authority is denied. The chooser now admits independently stored exact grants under captured per-build methods; see the newer entry above. |
 
 `TailscaleConnector` now captures the exact build's connection intent before a
 saved reconnect. `TailscalePairingAuthority` requires that admission before dialing,
@@ -67,9 +104,11 @@ Real saved-method changes on Mac/Pixel still need acceptance.
   to a matching directory row. Complete the authenticated legacy-to-native upgrade
   without losing stable origin, drafts/notifications, ticket binding or a strict
   per-build method. Directory outages must not restore a retired raw fallback.
-- Extend external ticket selection to independently stored exact grants and
-  captured per-build methods, rechecking them at confirmation and connection.
-  A ticket's device ID or endpoint list cannot itself establish that authority.
+- Apply the already-paired Direct constraint to fresh in-app numeric ticket
+  entry too. The present in-app flow gives numeric entry precedence; the scoped
+  iOS source reserves an already-paired Direct route as the stronger constraint.
+- Verify real external-link route reuse and cold discovery. The implemented
+  chooser/transport checks above have focused evidence, not physical acceptance.
 
 These are concrete implementation gaps, not unavoidable Android differences or
 closed parity gates. The scoped comparison is not a full connection audit.

@@ -14,7 +14,7 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Account, pairing and connections | Finish authenticated legacy-to-native upgrade, Computer Details for Tailscale-only rows and external ticket selection using stored grants (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
+| Account, pairing and connections | Finish authenticated legacy-to-native upgrade, Computer Details for Tailscale-only rows and the already-paired Direct constraint on fresh in-app numeric tickets (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |
 | Files, Changes and content viewers | Finish the remaining format/menu comparisons and modal/binary preview restoration, including native errors outside RPC and broader real-route retry acceptance, directory/rename/read/export/decoder failure coverage, live panel-kind changes, and broader main Files/direct-tap/transport restoration, forced browser-parent recreation with binary content, rendered-Markdown reflow and real-route/process recovery, Save process-death/large-write recovery and remote-file freshness semantics, video acceptance and zoom across aspect-ratio changes. | An explicit supported-format matrix checked against pinned iOS code, visible rendering and file actions on Pixel, and restoration tests that verify the displayed content. |
@@ -24,6 +24,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
+
+- External legacy tickets now reuse independently authenticated exact Tailscale
+  destinations under captured account/build/method authority. External confirmation
+  never mints fresh consent; raw transport checks the captured grant during auth
+  and I/O. A DNS/multi-route source can acquire a public ticket alias only after
+  authentication and atomic original-grant validation. Native cold-launch proposals
+  remain available while discovery loads. All 78 focused JVM cases pass; main
+  and instrumentation Kotlin compile (17 s). The new Compose reuse/revocation check
+  is queued for the next integration milestone; no APK/emulator for this batch.
+  See `ATTACH_TICKETS.md` and `captures/runtime/external-ticket-grants/`.
 
 - Tailscale ticket acceptance now preserves an existing authenticated native
   locator for the same owner/device/build. Automatic/Direct select that native

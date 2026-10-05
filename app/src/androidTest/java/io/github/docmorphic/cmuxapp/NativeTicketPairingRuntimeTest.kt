@@ -60,6 +60,33 @@ class NativeTicketPairingRuntimeTest {
         compose.runOnIdle { assertTrue(chosen?.pairing is PairingCode.Iroh) }
     }
 
+    @Test fun externalAuthorizedAddressShowsReuseAndRejectsRevokedConfirmation() {
+        val state = org.json.JSONObject().put("task_session", owner.login).put("refresh_token", "synthetic-refresh")
+        val grants = TailscaleGrantStore({ state }, { it(state) })
+        val raw = PairingCode.Tailscale(listOf(PairingCode.Route("100.64.0.7", 58465)), owner.userId)
+        val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId,
+            TailscaleGrantStore.source(raw), "fixture-mac", "default", raw.routes.single())
+        grants.save(owner, grant) { true }
+        val target = NativeComputerTarget("fixture-mac", "default", "Fixture Mac")
+        val settings = NativeMacConnectionPreferences(mapOf(NativeMacIdentity("fixture-mac", "default") to
+            NativeMacConnectionPreference(NativeMacConnectionMethod.TAILSCALE)))
+        val directory = NativeComputersState(owner, ready = true,
+            computers = listOf(IrohV2Computer("record", peer, "fixture-mac", "default", "Fixture Mac", emptyList())))
+        val routes = NativeExternalTicketRoutes(owner, grants, { emptyList() }, { directory }, { settings }, { true })
+        val session = NativeTicketPairing(); session.propose(ticket(), owner, null, NativePairingEntry.EXTERNAL_LINK, routes)
+        val proposal = session.pending.value!!
+        var failure: Throwable? = null
+        compose.setContent { CmuxTheme { NativeTicketPairingConfirmation(proposal, session::dismiss) { choice ->
+            failure = runCatching { session.select(proposal, choice, owner, directory) }.exceptionOrNull()
+        } } }
+        compose.onNodeWithText("100.64.0.7:58465").assertIsDisplayed()
+        compose.onNodeWithText("Native connection").assertDoesNotExist()
+        compose.onNodeWithText("cmux will use this Mac’s previously authorized Tailscale address and saved connection settings.").assertIsDisplayed()
+        compose.runOnIdle { grants.removeRoute(owner, target, grant) { true } }
+        compose.onNodeWithTag("ticket.connect").performClick()
+        compose.runOnIdle { assertNotNull(failure); assertNull(session.resumeCode()) }
+    }
+
     @Test fun cancelDoesNotInvokeConnect() {
         val session = NativeTicketPairing(); session.propose(ticket(), owner, null)
         val proposal = session.pending.value!!

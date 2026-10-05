@@ -11,7 +11,9 @@ class TailscalePairingAuthorityTest {
         var scope: NativeTeamScope? = NativeTeamScope("login", "user", "team", 1)
         var state = JSONObject().put("task_session", "login").put("refresh_token", "fixture-refresh")
         var failSave = false
+        var beforeGrantWrite: () -> Unit = {}
         val grants = TailscaleGrantStore({ JSONObject(state.toString()) }, { change ->
+            beforeGrantWrite()
             val next = JSONObject(state.toString()); change(next)
             check(!failSave) { "fixture save failure" }; state = next
         })
@@ -57,7 +59,8 @@ class TailscalePairingAuthorityTest {
                 val captured = routeEpoch
                 ({ routeAllowed && routeEpoch == captured })
             })
-        suspend fun connect() = authority.connect(pairing, attachTicket = ticket, savedTicket = savedTicket, forceToken = forceRefresh) { tokenCalls++; tokenHook(); accessToken }
+        suspend fun connect(admission: NativeTicketConnectionAdmission? = null, selected: PairingCode.Tailscale = pairing) =
+            authority.connect(selected, attachTicket = ticket, savedTicket = savedTicket, admission = admission, forceToken = forceRefresh) { tokenCalls++; tokenHook(); accessToken }
         fun authorize() = authority.authorize(pairing)
         fun grant() = grants.find(checkNotNull(scope), TailscaleGrantStore.source(pairing))
         fun switch(next: NativeTeamScope?) {
@@ -66,6 +69,73 @@ class TailscalePairingAuthorityTest {
             else state.put("task_session", next.login)
         }
     }
+    private fun externalTicket() = MobileAttachTicketCodec.decodeJson("""{"version":1,"workspaceID":"w","macDeviceID":"mac","macUserID":"user","auth_token":"synthetic-ticket",
+        "routes":[{"id":"raw","kind":"tailscale","endpoint":{"type":"host_port","host":"100.99.1.2","port":58465}}]}""").getOrThrow()
+
+    @Test fun externalTicketReusesExactDestinationDespiteDifferentPublicSourceWithoutResolvingAgain() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        try {
+            f.connect().close()
+            val grant = f.grant()!!; val resolves = f.resolves
+            val selected = PairingCode.Tailscale(listOf(f.numeric), "user")
+            f.ticket = externalTicket()
+            val admission = NativeTicketConnectionAdmission(grant) { f.grant() == grant }
+            val client = f.connect(admission, selected)
+            assertEquals(resolves, f.resolves)
+            val alias = f.grants.find(f.scope!!, TailscaleGrantStore.source(selected))!!
+            assertEquals(grant.route, alias.route); assertEquals(grant.device, alias.device)
+            assertEquals(grant, f.grant())
+            f.grants.removeRoute(f.scope!!, NativeComputerTarget("mac", "default", "Mac"), grant) { true }
+            f.authority.retireInvalid()
+            assertTrue(client.isClosed)
+        } finally { f.authority.close() }
+    }
+    @Test fun removingOriginalGrantInsideAliasTransactionCannotRecreateAuthority() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        try {
+            f.connect().close(); val grant = f.grant()!!
+            f.ticket = externalTicket()
+            val selected = PairingCode.Tailscale(listOf(f.numeric), "user")
+            f.beforeGrantWrite = { f.state.remove("tailscale_grants_v1") }
+            assertTrue(runCatching { f.connect(NativeTicketConnectionAdmission(grant) { true }, selected) }.isFailure)
+            assertNull(f.grants.find(f.scope!!, TailscaleGrantStore.source(selected)))
+            assertTrue(f.transports.last().closed)
+        } finally { f.authority.close() }
+    }
+    @Test fun externalTicketCannotUseAnUnconsumedFreshConsentToBypassSavedMethod() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        try {
+            f.connect().close(); val grant = f.grant()!!
+            val selected = PairingCode.Tailscale(listOf(f.numeric), "user")
+            f.authority.authorize(selected); f.routeAllowed = false; f.ticket = externalTicket()
+            val before = f.transports.size; val tokens = f.tokenCalls
+            assertTrue(runCatching { f.connect(NativeTicketConnectionAdmission(grant) { true }, selected) }.isFailure)
+            assertEquals(before, f.transports.size); assertEquals(tokens, f.tokenCalls)
+        } finally { f.authority.close() }
+    }
+    @Test fun externalTicketAdmissionRetirementDuringTokenWaitClosesWithoutSavingAlias() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        try {
+            f.connect().close(); val grant = f.grant()!!
+            val selected = PairingCode.Tailscale(listOf(f.numeric), "user")
+            var current = true; f.tokenHook = { current = false }; f.ticket = externalTicket()
+            assertTrue(runCatching { f.connect(NativeTicketConnectionAdmission(grant) { current }, selected) }.isFailure)
+            assertTrue(f.transports.last().closed)
+            assertNull(f.grants.find(f.scope!!, TailscaleGrantStore.source(selected)))
+        } finally { f.authority.close() }
+    }
+    @Test fun externalTicketCannotUseGrantForAnotherDestinationEvenWithAdmittedCallback() = runBlocking<Unit> {
+        val f = Fixture(); f.authorize()
+        try {
+            f.connect().close(); val grant = f.grant()!!
+            f.ticket = externalTicket()
+            val selected = PairingCode.Tailscale(listOf(f.numeric), "user")
+            val before = f.transports.size
+            assertTrue(runCatching { f.connect(NativeTicketConnectionAdmission(grant.copy(route = PairingCode.Route("100.99.1.3", 58465))) { true }, selected) }.isFailure)
+            assertEquals(before, f.transports.size)
+        } finally { f.authority.close() }
+    }
+
     @Test fun savedRouteMethodDenialStopsBeforeDialWhileExplicitEntryRemainsEligible() = runBlocking<Unit> {
         val f = Fixture(); f.routeAllowed = false; f.authorize()
         try {

@@ -44,6 +44,10 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
     private val tailscale = TailscaleConnector(context, store, teams) { team, client, host ->
         compatibility.gate.admit(team, client, host, locallyAuthorizedTailscale = true)
     }
+    fun externalTicketRoutes(owner: NativeTeamScope) = NativeExternalTicketRoutes(owner,
+        TailscaleGrantStore(store::load, store::update), store::visiblePairedMacs,
+        { native.state.value }, { NativeMacConnectionStore.create(appContext, owner).state.value }, { teams.isCurrent(owner) })
+    private val appContext = context.applicationContext
     val connector = object : NativeConnector {
         private fun savedRoute(mac: NativeCredentialStore.PairedMac, team: NativeTeamScope): NativeSavedMacRoute {
             val preferences = NativeMacConnectionStore.create(context.applicationContext, team).state.value
@@ -54,18 +58,24 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         }
         override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = tailscale.connect(pairing, account)
         override suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount) = native.connect(pairing)
-        override suspend fun connectTicket(pairing: PairingCode, ticket: MobileAttachTicket, account: NativeAccount): MobileRpcClient {
+        override suspend fun connectTicket(pairing: PairingCode, ticket: MobileAttachTicket, account: NativeAccount,
+                                           admission: NativeTicketConnectionAdmission?): MobileRpcClient {
             val owner = checkNotNull(teams.state.value.scope) { "Refresh your account teams before pairing." }
             check(teams.isCurrent(owner)) { "Account or team changed" }
+            admission?.requireCurrent()
             ticket.requireAccount(owner.userId, teams.state.value.email)
             require(NativeTicketPairingRoutes.covers(ticket, pairing)) { "Ticket does not cover this route" }
-            if (pairing is PairingCode.Tailscale) return tailscale.connectTicket(pairing, ticket, account, owner)
+            if (pairing is PairingCode.Tailscale) return tailscale.connectTicket(pairing, ticket, account, owner, admission)
             pairing as PairingCode.Iroh
             val client = native.connect(pairing)
             try {
                 check(teams.isCurrent(owner)) { "Account or team changed" }
                 ticket.requireHost(client.hostStatus())
-                return client.withAttachTicket(ticket.context()) { check(teams.isCurrent(owner)) { "Account or team changed" } }
+                admission?.requireCurrent()
+                return client.withAttachTicket(ticket.context()) {
+                    check(teams.isCurrent(owner)) { "Account or team changed" }
+                    admission?.requireCurrent()
+                }
             } catch (failure: Throwable) { client.close(); throw failure }
         }
         override fun authorizePairing(pairing: PairingCode.Tailscale) = tailscale.authorizePairing(pairing)

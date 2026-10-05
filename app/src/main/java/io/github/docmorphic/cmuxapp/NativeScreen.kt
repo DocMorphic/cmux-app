@@ -1471,7 +1471,8 @@ internal fun NativeScreen(
                 try {
                     val owner = checkNotNull(teamState.scope) { "Refresh your account teams before pairing." }
                     check(signedIn && accountTeams.isCurrent(owner)) { "Sign in before pairing." }
-                    ticketPairing.propose(MobileAttachTicketCodec.decodeLegacyUrl(value).getOrThrow(), owner, teamState.email, entry)
+                    ticketPairing.propose(MobileAttachTicketCodec.decodeLegacyUrl(value).getOrThrow(), owner, teamState.email, entry,
+                        sharedConnections?.externalTicketRoutes(owner))
                     pendingPairingCode = null; error = null
                 } catch (failure: Exception) { error = failure.message }
             }
@@ -1819,7 +1820,7 @@ internal fun NativeScreen(
             if (pairingOwner != null) check(accountTeams.isCurrent(pairingOwner)) { "Account or team changed. Reconnect to the Mac." }
             val active = if (ticketAttempt != null) {
                 check(ticketPairing.isCurrent(ticketAttempt) && ticketAttempt.owner == pairingOwner) { "Pairing or account changed" }
-                connection.connectTicket(pairing, ticketAttempt.ticket, account)
+                connection.connectTicket(pairing, ticketAttempt.ticket, account, ticketAttempt.admission)
             } else if (saved != null) connection.connectSaved(saved, account) else connection.connectPairing(pairing, account)
             try {
                 val status = active.hostStatus()
@@ -2257,7 +2258,7 @@ internal fun NativeScreen(
                 val attempt = ticketPairing.select(proposal, choice, owner, computerState)
                 val pairing = PairingCodeParser.parse(attempt.code).getOrThrow()
                 connection.pairingCompatibilityError(pairing)?.let { error(it) }
-                if (pairing is PairingCode.Tailscale) connection.authorizePairing(pairing)
+                if (pairing is PairingCode.Tailscale && attempt.freshTailscaleAuthorization) connection.authorizePairing(pairing)
                 selectPairingCode(attempt.code, usingTicket = true); retry++
             } catch (failure: Exception) { error = failure.message; ticketPairing.clear() }
         }

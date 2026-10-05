@@ -23,6 +23,15 @@ internal class TailscaleGrantStore(private val read: () -> JSONObject?,
     fun find(scope: NativeTeamScope, source: String): TailscaleSavedGrant? =
         decode(read()).singleOrNull { it.user == scope.userId && it.team == scope.teamId && it.source == source }
 
+    /** Exact authenticated destination; conflicting build ownership is ambiguous. */
+    fun destination(scope: NativeTeamScope, device: String, route: PairingCode.Route, target: NativeComputerTarget? = null): TailscaleSavedGrant? {
+        val host = TailscalePeerAddress.canonical(route.host) ?: return null
+        val matches = decode(read()).filter { it.user == scope.userId && it.team == scope.teamId &&
+            it.device == canonicalMacDeviceId(device) && it.route == PairingCode.Route(host, route.port) &&
+                (target == null || (canonicalMacDeviceId(target.deviceId) == it.device && target.buildTag == it.build)) }
+        return matches.lastOrNull()?.takeIf { matches.map { it.build }.distinct().size == 1 }
+    }
+
     fun owners(source: String, device: String, build: String?): Set<Pair<String, String>> = decode(read())
         .filter { it.source == source && it.device == canonicalMacDeviceId(device) && it.build == build }
         .map { it.user to it.team }.toSet()
@@ -50,7 +59,7 @@ internal class TailscaleGrantStore(private val read: () -> JSONObject?,
     }
 
     fun save(scope: NativeTeamScope, grant: TailscaleSavedGrant, replacing: TailscaleSavedGrant? = null,
-        permits: () -> Boolean) {
+        deriving: TailscaleSavedGrant? = null, permits: () -> Boolean) {
         check(permits()) { "Account or team changed. Pair this Mac again." }
         update { state ->
             // Check the login inside the atomic credential transaction. Do not acquire the
@@ -59,6 +68,10 @@ internal class TailscaleGrantStore(private val read: () -> JSONObject?,
                 state.optString("refresh_token").isNotBlank()) { "Account or team changed. Pair this Mac again." }
             require(grant.user == scope.userId && grant.team == scope.teamId)
             val previous = decode(state)
+            if (deriving != null) check(deriving in previous && deriving.user == grant.user && deriving.team == grant.team &&
+                deriving.device == grant.device && deriving.build == grant.build && deriving.route == grant.route) {
+                "The saved destination changed before it could be remembered."
+            }
             if (replacing != null) check(replacing in previous && replacing.user == grant.user && replacing.team == grant.team &&
                 replacing.device == grant.device && replacing.build == grant.build) { "The route changed. Reopen its editor." }
             val values = previous.filterNot { old ->
@@ -173,6 +186,7 @@ internal class TailscalePairingAuthority(
 
     suspend fun connect(pairing: PairingCode.Tailscale, expectedScope: NativeTeamScope? = null,
                         attachTicket: MobileAttachTicket? = null, savedTicket: NativeSavedTicketAdmission? = null,
+                        admission: NativeTicketConnectionAdmission? = null,
                         forceToken: (suspend () -> String?)? = null,
                         token: suspend () -> String?): MobileRpcClient {
         val owner = owner(pairing)
@@ -181,8 +195,16 @@ internal class TailscalePairingAuthority(
         require(attachTicket == null || savedTicket == null) { "Ambiguous ticket context" }
         savedTicket?.requireBinding(pairing, owner)
         val source = TailscaleGrantStore.source(pairing)
-        val consent = synchronized(lock) { check(!closed); consents[source]?.takeIf { it.scope == owner } }
-        val saved = grants.find(owner, source)
+        admission?.requireCurrent()
+        val consent = synchronized(lock) { check(!closed); if (admission != null) null else consents[source]?.takeIf { it.scope == owner } }
+        val saved = admission?.savedGrant ?: grants.find(owner, source)
+        if (admission != null) {
+            require(attachTicket != null && saved != null && saved.user == owner.userId && saved.team == owner.teamId &&
+                saved.device == attachTicket.deviceId && pairing.routes.size == 1 &&
+                pairing.routes.single().let { TailscalePeerAddress.canonical(it.host) == saved.route.host && it.port == saved.route.port }) {
+                "Ticket does not match the saved destination"
+            }
+        }
         check(consent != null || saved != null) { "Scan or paste this Mac’s pairing code and confirm Connect to authorize Tailscale." }
         // Fresh in-app entry owns exact-address authority. Saved reconnects must
         // additionally retain their captured method/epoch throughout authentication and I/O.
@@ -191,8 +213,9 @@ internal class TailscalePairingAuthority(
         val promoted = AtomicReference<TailscaleSavedGrant?>(if (consent == null) saved else null)
         fun allowed(): Boolean = runCatching {
             savedTicket?.requireCurrent()
+            admission?.requireCurrent()
             permits(owner) && routePermits() && synchronized(lock) { !closed } &&
-                (promoted.get()?.let { grants.find(owner, source) == it }
+                (promoted.get()?.let { grants.find(owner, it.source) == it }
                     ?: synchronized(lock) { consents[source] == consent })
         }.getOrDefault(false)
         fun requireAllowed() = check(allowed()) { "The Tailscale authorization changed. Pair this Mac again." }
@@ -253,9 +276,17 @@ internal class TailscalePairingAuthority(
                     val build = status.optString("mac_instance_tag").takeIf { !status.isNull("mac_instance_tag") && it.isNotBlank() }
                     val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId, source,
                         canonicalMacDeviceId(device), build, route)
-                    grants.save(owner, grant, replacing, ::allowed)
+                    grants.save(owner, grant, replacing, permits = ::allowed)
                     promoted.set(grant)
                     synchronized(lock) { if (consents[source] == consent) consents.remove(source) }
+                }
+                // Bind the public ticket locator to the already authenticated exact
+                // numeric destination (the original grant may have a DNS/multi-route source).
+                // This creates no new destination authority and leaves the original grant intact.
+                if (admission != null && saved != null && saved.source != source) {
+                    val alias = saved.copy(id = UUID.randomUUID().toString(), source = source)
+                    grants.save(owner, alias, deriving = saved, permits = ::allowed)
+                    promoted.set(alias)
                 }
                 requireAllowed()
                 return client

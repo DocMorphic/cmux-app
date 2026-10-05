@@ -66,11 +66,14 @@ internal object NativeTicketPairingRoutes {
 
 /** ViewModel-owned, memory-only ticket input. Never saved into an Android Bundle. */
 internal class NativeTicketPairing {
-    class Proposal(val owner: NativeTeamScope, val ticket: MobileAttachTicket, val choices: List<NativeTicketPairingRoutes.Choice>) {
+    class Proposal(val owner: NativeTeamScope, val ticket: MobileAttachTicket, val choices: List<NativeTicketPairingRoutes.Choice>,
+                   val entry: NativePairingEntry = NativePairingEntry.EXTERNAL_LINK,
+                   val admissions: Map<NativeTicketPairingRoutes.Choice, NativeTicketConnectionAdmission> = emptyMap()) {
         val id = UUID.randomUUID().toString()
         override fun toString() = "TicketProposal(redacted)"
     }
-    class Attempt(val owner: NativeTeamScope, val ticket: MobileAttachTicket, val code: String) {
+    class Attempt(val owner: NativeTeamScope, val ticket: MobileAttachTicket, val code: String,
+                  val admission: NativeTicketConnectionAdmission? = null, val freshTailscaleAuthorization: Boolean = false) {
         override fun toString() = "TicketAttempt(redacted)"
     }
     private val pendingMutable = MutableStateFlow<Proposal?>(null)
@@ -78,24 +81,31 @@ internal class NativeTicketPairing {
     private var attempt: Attempt? = null
     private var retiredCode: String? = null
 
-    fun propose(ticket: MobileAttachTicket, owner: NativeTeamScope, email: String?, entry: NativePairingEntry = NativePairingEntry.EXTERNAL_LINK) {
+    fun propose(ticket: MobileAttachTicket, owner: NativeTeamScope, email: String?, entry: NativePairingEntry = NativePairingEntry.EXTERNAL_LINK,
+                externalRoutes: NativeExternalTicketRoutes? = null) {
         pendingMutable.value = null
         ticket.requireAccount(owner.userId, email)
-        val choices = NativePairingEntryPolicy.choices(ticket, entry)
-        require(choices.isNotEmpty()) { if (entry == NativePairingEntry.EXTERNAL_LINK) NativePairingEntryPolicy.ENTER_IN_APP
-            else "This ticket has no supported remote route. Use a native or numeric Tailscale pairing code from the Mac." }
-        pendingMutable.value = Proposal(owner, ticket, choices)
+        val admissions = if (entry == NativePairingEntry.EXTERNAL_LINK) externalRoutes?.choices(ticket) else null
+        val choices = admissions?.keys?.toList() ?: NativePairingEntryPolicy.choices(ticket, entry)
+        require(choices.isNotEmpty()) { when {
+            admissions != null -> "No saved route in this ticket is currently available. Refresh Computers or review the Mac’s connection settings. Scan or paste a new address in cmux to authorize it."
+            entry == NativePairingEntry.EXTERNAL_LINK -> NativePairingEntryPolicy.ENTER_IN_APP
+            else -> "This ticket has no supported remote route. Use a native or numeric Tailscale pairing code from the Mac."
+        } }
+        pendingMutable.value = Proposal(owner, ticket, choices, entry, admissions.orEmpty())
     }
 
     fun select(proposal: Proposal, choice: NativeTicketPairingRoutes.Choice, owner: NativeTeamScope,
                computers: NativeComputersState): Attempt {
         check(pendingMutable.value === proposal && proposal.owner == owner && choice in proposal.choices) { "Pairing or account changed" }
+        val admission = proposal.admissions[choice]
+        admission?.requireCurrent()
         val code = when (choice.pairing) {
             is PairingCode.Tailscale -> choice.code
             is PairingCode.Iroh -> (incomingPairingAction(choice.code, true, false, owner, computers) as? NativePairingLinkAction.Select)?.code
                 ?: error("This Mac is not available in your selected team. Refresh Computers and try again.")
         }
-        return Attempt(owner, proposal.ticket, code).also { attempt = it; retiredCode = null; pendingMutable.value = null }
+        return Attempt(owner, proposal.ticket, code, admission, proposal.entry == NativePairingEntry.IN_APP).also { attempt = it; retiredCode = null; pendingMutable.value = null }
     }
 
     fun current(code: String, owner: NativeTeamScope?) = attempt?.takeIf { it.code == code && it.owner == owner }

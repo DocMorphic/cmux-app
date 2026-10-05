@@ -9,7 +9,8 @@ fun interface NativeConnector {
     suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount): MobileRpcClient
     suspend fun connectIroh(pairing: PairingCode.Iroh, account: NativeAccount): MobileRpcClient =
         error("Native computer discovery is unavailable in this connection provider")
-    suspend fun connectTicket(pairing: PairingCode, ticket: MobileAttachTicket, account: NativeAccount): MobileRpcClient =
+    suspend fun connectTicket(pairing: PairingCode, ticket: MobileAttachTicket, account: NativeAccount,
+                              admission: NativeTicketConnectionAdmission? = null): MobileRpcClient =
         error("Ticket pairing is unavailable in this connection provider")
     suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient =
         connectPairing(PairingCodeParser.parse(mac.code).getOrThrow(), account)
@@ -73,15 +74,17 @@ internal class TailscaleConnector(context: Context, store: NativeCredentialStore
             admitted
         })
     override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount) = connectOwned(pairing, account, null)
-    suspend fun connectTicket(pairing: PairingCode.Tailscale, ticket: MobileAttachTicket, account: NativeAccount, team: NativeTeamScope) =
-        connectOwned(pairing, account, team, ticket)
+    suspend fun connectTicket(pairing: PairingCode.Tailscale, ticket: MobileAttachTicket, account: NativeAccount, team: NativeTeamScope,
+                              admission: NativeTicketConnectionAdmission? = null) =
+        connectOwned(pairing, account, team, ticket, admission = admission)
     suspend fun connectSaved(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope,
         savedTicket: NativeSavedTicketAdmission? = null) = connectOwned(pairing, account, team, savedTicket = savedTicket)
     private suspend fun connectOwned(pairing: PairingCode.Tailscale, account: NativeAccount, team: NativeTeamScope?,
-        ticket: MobileAttachTicket? = null, savedTicket: NativeSavedTicketAdmission? = null): MobileRpcClient {
+        ticket: MobileAttachTicket? = null, savedTicket: NativeSavedTicketAdmission? = null,
+        admission: NativeTicketConnectionAdmission? = null): MobileRpcClient {
         var acquired: MobileRpcClient? = null
         return try {
-            withContext(Dispatchers.IO) { authority.connect(pairing, team, ticket, savedTicket, forceToken = { account.accessToken(true) }, token = account::accessToken).also { acquired = it } }
+            withContext(Dispatchers.IO) { authority.connect(pairing, team, ticket, savedTicket, admission = admission, forceToken = { account.accessToken(true) }, token = account::accessToken).also { acquired = it } }
         } catch (failure: Throwable) {
             // Cancellation can reject the dispatcher return after the socket was acquired.
             acquired?.close(); throw failure
