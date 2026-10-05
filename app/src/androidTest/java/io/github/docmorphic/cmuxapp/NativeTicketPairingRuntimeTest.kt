@@ -82,6 +82,7 @@ class NativeTicketPairingRuntimeTest {
         compose.onNodeWithText("100.64.0.7:58465").assertIsDisplayed()
         compose.onNodeWithText("Native connection").assertDoesNotExist()
         compose.onNodeWithText("cmux will use this Mac’s previously authorized Tailscale address and saved connection settings.").assertIsDisplayed()
+        capture("ticket-authorized-tailscale-confirmation")
         compose.runOnIdle { grants.removeRoute(owner, target, grant) { true } }
         compose.onNodeWithTag("ticket.connect").performClick()
         compose.runOnIdle { assertNotNull(failure); assertNull(session.resumeCode()) }

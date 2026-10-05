@@ -25,12 +25,21 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Combined connection-route Android milestone: one debug/test APK build (72 s),
+  **8/8 ticket/Keystore cases passed in 30.332 s** on the existing API37 / 16 KiB
+  AVD at `a803fe0` plus a test screenshot line. External reuse/revocation UI and
+  directory-enrichment persistence checks are now executed. All three chooser
+  screenshots were inspected. A pre-test System UI ANR was captured and dismissed;
+  no new crash/ANR during tests, final crash buffer empty, emulator stopped/reaped.
+  No physical or signed-release acceptance. See `ATTACH_TICKETS.md` and local
+  `captures/runtime/connection-route-milestone/`. No new virtual device was created.
+
 - Authenticated account discovery now enriches an existing owned Tailscale pairing
   with an unambiguous native identity for the exact device/build. It preserves
   ticket/grants/origin/history and never removes a native pin on an empty or failed
   discovery snapshot. Pending reconnects can adopt only the locator refresh.
   All 55 focused JVM cases pass and main/instrumentation Kotlin compile (17 s);
-  the Keystore reload test is queued for the next combined Android milestone.
+  the Keystore reload test subsequently passed in the combined milestone above.
   The surrounding upstream caller also corrected the prior Direct checklist:
   fresh in-app exact-address authorization can override the stored Direct choice;
   no new restriction is needed. See `ATTACH_TICKETS.md`. Real upgrade/reconnect
@@ -43,8 +52,8 @@ and currently disabled; the upstream watcher is active on main with review issue
   and I/O. A DNS/multi-route source can acquire a public ticket alias only after
   authentication and atomic original-grant validation. Native cold-launch proposals
   remain available while discovery loads. All 78 focused JVM cases pass; main
-  and instrumentation Kotlin compile (17 s). The new Compose reuse/revocation check
-  is queued for the next integration milestone; no APK/emulator for this batch.
+  and instrumentation Kotlin compile (17 s). The Compose reuse/revocation check
+  subsequently passed in the combined Android milestone above.
   See `ATTACH_TICKETS.md` and `captures/runtime/external-ticket-grants/`.
 
 - Tailscale ticket acceptance now preserves an existing authenticated native

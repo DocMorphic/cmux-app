@@ -1,5 +1,35 @@
 # Attach-ticket compatibility audit
 
+## Combined connection-route Android milestone (2026-10-06)
+
+The eight `NativeTicketPairingRuntimeTest` cases passed in **30.332 seconds** on
+existing `cmux_api37_16k` (Android 17/API37, 16 KiB pages, font scale 1.0). Source
+was `a803fe0` plus the recorded one-line screenshot capture in that test. One
+combined debug/test APK build took 72 seconds. This closes the queued chooser
+and Keystore checks from the following source batches:
+
+- External authorized Tailscale reuse is visibly explained; revoking the captured
+  grant prevents confirmation from producing a connection attempt.
+- Directory enrichment survives Keystore reload without renewing the raw ticket,
+  changing its primary route, writing identical snapshots or dropping the native
+  locator after empty discovery. Denied admission performs no write.
+- Fresh in-app numeric confirmation and external native confirmation, cancellation,
+  public-code versus secret-ticket saved-state behavior, ViewModel recreation,
+  ticket persistence and Forget cleanup remain passing.
+
+All three fresh chooser screenshots were inspected: route labels, explanations
+and buttons are readable without clipping at font scale 1.0. These are isolated
+Android dialogs, not a screen-by-screen iOS parity result. After installation,
+System UI showed an ANR before instrumentation; its screenshot/XML and event log
+were retained, the observed Close app action was used and launcher recovery was
+confirmed. **No new crash/ANR events occurred during tests**, and the final crash
+buffer was empty. The emulator was stopped and reaped; no AVD was created.
+
+Evidence: `captures/runtime/connection-route-milestone/` (build/runtime logs,
+command, source/APK hashes, pre-test failure evidence, screenshots and receipt).
+Debug APK SHA-256: `479275ca7369eea1fc5a4af46a75343b63db9270739d753ef1cb4cea74964930`.
+No live account, Mac/Pixel route or signed-upgrade acceptance was performed.
+
 ## Account-directory enrichment and fresh-entry correction (2026-10-06)
 
 The scoped follow-up read includes the caller of `supportedRoutes`, not just that
@@ -41,9 +71,9 @@ upgrade cases, six retained-route cases, 22 persistence cases, three reconnect
 list cases and 15 ticket-pairing cases. Main/instrumentation Kotlin compilation
 passed (final run 17 seconds). No APK build or emulator run for this batch.
 Local source receipts and verification are under
-`captures/runtime/directory-route-upgrade/`. A Keystore test covers reload, unchanged-
-snapshot revision stability, ticket preservation and empty discovery; it is queued
-for the next combined Android milestone. Real upgrade/reconnect, directory
+`captures/runtime/directory-route-upgrade/`. The Keystore reload, unchanged-snapshot,
+ticket-preservation and empty-discovery test subsequently passed in the combined
+Android milestone above. Real upgrade/reconnect, directory
 outage, history preservation and method changes on Mac/Pixel remain acceptance
 work. The global upstream pins are unchanged.
 
@@ -80,8 +110,8 @@ route-selection cases, 47 transport-authority cases, 15 ticket-pairing cases and
 six retained-route cases. Main/instrumentation Kotlin compilation passed (final
 run: 17 seconds). Results and source hashes are recorded locally under
 `captures/runtime/external-ticket-grants/`. A new Compose test covers the reuse
-message and revoked confirmation; its execution is queued for the next combined
-Android milestone. No APK was built for this source batch. Real external Intent,
+message and revoked confirmation; it subsequently passed in the combined Android
+milestone above. No APK was built for this source batch. Real external Intent,
 Mac/Pixel connection and full route-policy acceptance remain open.
 
 ## Retained native pairing alongside a Tailscale ticket (2026-10-06)
