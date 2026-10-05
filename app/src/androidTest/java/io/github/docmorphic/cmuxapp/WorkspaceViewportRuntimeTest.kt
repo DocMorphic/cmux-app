@@ -36,8 +36,7 @@ class WorkspaceViewportRuntimeTest {
             val source = NativeFeedSource(mac, workspaces = rows)
             NativeWorkspaceDragList(workspaceHierarchy(source), false, Modifier.width(320.dp).height(360.dp),
                 onMove = { _, _, _ -> fail("Live updates must not move a host workspace"); false },
-                prefixKeys = if (status) listOf("status") else emptyList(),
-                before = { if (status) item("status") { Text("Connecting", Modifier.height(48.dp)) } }, empty = {}) { entry ->
+                leading = if (status) listOf(WorkspaceListChrome("status", "Connecting")) else emptyList(), empty = {}) { entry ->
                 Text((entry as WorkspaceListEntry.Workspace).workspace.title, Modifier.fillMaxWidth().height(60.dp))
             }
         } }

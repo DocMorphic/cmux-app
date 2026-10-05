@@ -3286,27 +3286,17 @@ internal fun NativeScreen(
                 .filter { it.connection?.phase != SshConnectionPhase.CONNECTED || sshFeed[it.host.id]?.error != null }
             val macStatusRows = filteredSources.filter { it.availability != NativeFeedAvailability.CONNECTED }
             NativeWorkspaceDragList(entries, canReorder, Modifier.fillMaxSize(), onMove = ::move,
-                prefixKeys = sshStatusRows.map { "ssh-status:${it.host.id}" } + macStatusRows.map { "status:${it.mac.origin}" }, before = {
-                sshStatusRows.forEach { target ->
-                    item("ssh-status:${target.host.id}") {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${target.name} · ${sshFeed[target.host.id]?.error ?: target.connection?.error ?: target.status}",
-                                Modifier.weight(1f), color = nativeMuted, fontSize = 12.sp)
-                            TextButton(onClick = { if (canSelectSsh(target)) target.session.workspaceFeed.open(target.host, explicit = true) },
-                                enabled = target.connection?.phase != SshConnectionPhase.CONNECTING,
-                                modifier = Modifier.testTag("ssh.feed.retry:${target.host.id}")) { Text("Retry") }
-                        }
+                leading = sshStatusRows.map { target -> WorkspaceListChrome("ssh-status:${target.host.id}",
+                    "${target.name} · ${sshFeed[target.host.id]?.error ?: target.connection?.error ?: target.status}", "Retry",
+                    enabled = target.connection?.phase != SshConnectionPhase.CONNECTING,
+                    actionTag = "ssh.feed.retry:${target.host.id}") } + macStatusRows.map { source ->
+                    WorkspaceListChrome("status:${source.mac.origin}",
+                        "${appearances.name(source.mac)} · ${if (source.availability == NativeFeedAvailability.CONNECTING) "Connecting…" else "Unavailable"}", "Retry")
+                }, onChromeAction = { id ->
+                    sshStatusRows.singleOrNull { "ssh-status:${it.host.id}" == id }?.let { target ->
+                        if (canSelectSsh(target)) target.session.workspaceFeed.open(target.host, explicit = true)
                     }
-                }
-                macStatusRows.forEach { source ->
-                    item("status:" + source.mac.origin) {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${appearances.name(source.mac)} · ${if (source.availability == NativeFeedAvailability.CONNECTING) "Connecting…" else "Unavailable"}",
-                                Modifier.weight(1f), color = nativeMuted, fontSize = 12.sp)
-                            TextButton(onClick = { refreshFeed() }) { Text("Retry") }
-                        }
-                    }
-                }
+                    if (macStatusRows.any { "status:${it.mac.origin}" == id }) refreshFeed()
             }, displayRows = displayRows, sshRow = { row ->
                     val status = sshTargets.singleOrNull { it.host.id == row.host.id }?.connection?.phase
                     val availability = when (status) {
@@ -3385,10 +3375,9 @@ internal fun NativeScreen(
                         inAppNotification = null
                         workspaceRoute = NativeWorkspaceRoute(owner.mac.origin, workspace.id, terminalId, browserId, changes, surfaceId = surfaceId)
                     }
-                    Column(Modifier.padding(start = if (entry.indented) 18.dp else 0.dp)
-                        .semantics { contentDescription = "${workspace.title} on ${appearances.name(owner.mac)}" }) {
+                    Column(Modifier.semantics { contentDescription = "${workspace.title} on ${appearances.name(owner.mac)}" }) {
                     NativeWorkspaceRow(
-                        workspace = workspace, isSelected = sidebarSelection.matches(owner.mac, workspace.id), canCustomize = owner.canCustomizeWorkspace(),
+                        workspace = workspace, leadingIndent = if (entry.indented) 18 else 0, isSelected = sidebarSelection.matches(owner.mac, workspace.id), canCustomize = owner.canCustomizeWorkspace(),
                         displayPreferences = displayState,
                         availability = owner.availability, changesChip = owner.changes[workspace.id],
                         canReadState = "workspace.read_state.v1" in owner.capabilities,
@@ -3735,7 +3724,7 @@ internal fun NativeWorkspaceRow(
     canReadState: Boolean = false,
     canClose: Boolean = false,
     canWorkspaceActions: Boolean = false,
-    handlesHold: Boolean = false, closeConfirmation: WorkspaceCloseConfirmation? = WorkspaceCloseConfirmation.mac,
+    handlesHold: Boolean = false, leadingIndent: Int = 0, closeConfirmation: WorkspaceCloseConfirmation? = WorkspaceCloseConfirmation.mac,
     onOpen: () -> Unit,
     onAction: (String, String?) -> Unit,
     remoteGroupMenu: (@Composable (onBack: () -> Unit, onDismiss: () -> Unit) -> Unit)? = null,
@@ -3789,7 +3778,7 @@ internal fun NativeWorkspaceRow(
     val trailing = remember(workspace.lastActivityAt, workspace.previewAt, availability, locale, zone.id, day) {
         workspaceActivityLabel(workspace, availability, now, locale, zone)
     }
-    val visual = WorkspaceRowVisual(workspace, displayPreferences, highlighted, changesChip, trailing)
+    val visual = WorkspaceRowVisual(workspace, displayPreferences, highlighted, changesChip, trailing, leadingIndent)
     WorkspaceMeasuredContent(visual, LocalWorkspaceGeometryHeld.current) { shown, measuring ->
         NativeWorkspaceRowBody(shown, measuring, if (measuring) Modifier.fillMaxWidth().height(IntrinsicSize.Min) else Modifier.fillMaxWidth().height(IntrinsicSize.Min).then(if (handlesHold)
         Modifier.combinedClickable(onClick = openRow, onLongClick = { if (hasMenu) { dismissSwipe(); menu.expanded = true } })

@@ -105,34 +105,34 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                 scope.launch { controller.mutate(RoutedSidebarMutation(key, RoutedSidebarMutationKind.CREATE_GROUP)) }
             }
     }
-    if (ui.loading || ui.navigating || ui.saving || ui.notificationBusy || ui.editorLoading || ui.snapshot?.loading == true) LinearProgressIndicator(Modifier.fillMaxWidth())
-    (ui.actionError ?: ui.error)?.let { message -> Column(Modifier.padding(12.dp)) {
-        Text(message, color = MaterialTheme.colorScheme.error)
-        TextButton(onClick = controller::retry) { Text("Retry") }
-    } }
-    ui.snapshot?.status?.let { Text(it, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall) }
     PullToRefreshBox(isRefreshing = ui.notificationBusy, onRefresh = {
         if (ui.snapshot?.canRefresh == true) scope.launch { controller.notification(RoutedSidebarNotification.Refresh) }
         else controller.retry()
     }, modifier = Modifier.weight(1f)) {
     val rows = ui.snapshot?.rows.orEmpty()
     val showEmptyRow = rows.isEmpty() && !ui.loading && ui.error == null
+    val chrome = buildList {
+        if (ui.loading || ui.navigating || ui.saving || ui.notificationBusy || ui.editorLoading || ui.snapshot?.loading == true)
+            add(WorkspaceListChrome("sidebar-progress", "", kind = WorkspaceChromeKind.PROGRESS))
+        (ui.actionError ?: ui.error)?.let { add(WorkspaceListChrome("sidebar-error", it, "Retry", kind = WorkspaceChromeKind.ERROR)) }
+        ui.snapshot?.status?.let { add(WorkspaceListChrome("sidebar-status", it)) }
+        if (showEmptyRow) add(WorkspaceListChrome("sidebar-empty", when {
+            ui.query.text.isNotBlank() -> "No matches"
+            ui.query.notifications -> if (ui.query.notificationUnread) "No unread notifications." else "No notifications yet."
+            filter.unread && filter.machines.isNotEmpty() -> "No unread workspaces on the selected machines"
+            filter.unread -> "No unread workspaces"
+            filter.machines.isNotEmpty() -> "No workspaces on the selected machines"
+            else -> "No workspaces yet."
+        }, kind = WorkspaceChromeKind.EMPTY))
+    }
     RoutedSidebarDragList(rows, ui.snapshot?.dragRevision, ui.more, controller::more,
-        prefixKeys = if (showEmptyRow) listOf("sidebar-empty") else emptyList(),
-        onDrop = { command -> scope.launch { controller.drop(command) } }, before = {
-        if (showEmptyRow) item("sidebar-empty") {
-            Text(when {
-                ui.query.text.isNotBlank() -> "No matches"
-                ui.query.notifications -> if (ui.query.notificationUnread) "No unread notifications." else "No notifications yet."
-                filter.unread && filter.machines.isNotEmpty() -> "No unread workspaces on the selected machines"
-                filter.unread -> "No unread workspaces"
-                filter.machines.isNotEmpty() -> "No workspaces on the selected machines"
-                else -> "No workspaces yet."
-            }, Modifier.padding(20.dp))
-        }
-        }, after = {
-            if (ui.more) item { TextButton(onClick = controller::more) { Text(if (ui.query.notifications) "Load more notifications" else "Load more") } }
-        }) { row ->
+        leading = chrome,
+        trailing = if (ui.more) listOf(WorkspaceListChrome("sidebar-more", "",
+            if (ui.query.notifications) "Load more notifications" else "Load more", kind = WorkspaceChromeKind.MORE)) else emptyList(),
+        onChromeAction = { id -> when (id) {
+            "sidebar-error" -> controller.retry()
+            "sidebar-more" -> if (ui.more) controller.more()
+        } }, onDrop = { command -> scope.launch { controller.drop(command) } }) { row ->
             val admitted by rememberUpdatedState(LocalWorkspaceRowAdmission.current)
             val mutations = row.mutations.takeUnless { ui.mutationBusy }.orEmpty()
             fun mutate(verb: String, title: String?) {
@@ -142,8 +142,8 @@ internal fun ColumnScope.RoutedBrowserSidebar(controller: RoutedSidebarControlle
                 if (kind in mutations) scope.launch { controller.mutate(RoutedSidebarMutation(row.key, kind, title)) }
             }
             when (row.kind) {
-                "workspace" -> Column(Modifier.padding(start = if (row.depth == 1) 24.dp else 0.dp)) {
-                    NativeWorkspaceRow(row.workspace(), changesChip = row.changes, isSelected = row.selected, availability = row.availability, handlesHold = false,
+                "workspace" -> Column {
+                    NativeWorkspaceRow(row.workspace(), leadingIndent = if (row.depth == 1) 24 else 0, changesChip = row.changes, isSelected = row.selected, availability = row.availability, handlesHold = false,
                         displayPreferences = NativeDisplayPreferences(wrapTitles = ui.snapshot?.wrapTitles ?: false,
                             previewLines = ui.snapshot?.previewLines ?: 2),
                         canCustomize = row.canCustomize && !ui.mutationBusy,

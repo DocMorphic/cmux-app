@@ -20,7 +20,7 @@ private val nativeAccent = Color(0xFF76B9FF)
 
 internal data class WorkspaceRowVisual(val workspace: NativeWorkspace,
     val preferences: NativeDisplayPreferences, val highlighted: Boolean,
-    val changes: WorkspaceChangesChip?, val trailing: String)
+    val changes: WorkspaceChangesChip?, val trailing: String, val indent: Int)
 
 private fun Modifier.workspaceVisualTag(measuring: Boolean, tag: String) = if (measuring) this else testTag(tag)
 
@@ -33,7 +33,7 @@ internal fun NativeWorkspaceRowBody(model: WorkspaceRowVisual, measuring: Boolea
     val highlighted = model.highlighted
     val changesChip = model.changes
     val trailing = model.trailing
-    Row(modifier.padding(horizontal = 18.dp)
+    Row(modifier.padding(start = model.indent.dp).padding(horizontal = 18.dp)
         .background(if (highlighted) nativeAccent.copy(alpha = .14f) else Color.Transparent, RoundedCornerShape(14.dp))
         .padding(horizontal = if (highlighted) 10.dp else 0.dp, vertical = 8.dp).workspaceVisualTag(measuring, "workspace.row:${workspace.id}"), verticalAlignment = Alignment.CenterVertically) {
         NativeUnreadGutter(workspace.unreadState)

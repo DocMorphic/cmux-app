@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -43,6 +44,24 @@ class NativeGroupActionsTest {
         } } }
     }
     private fun menu() = compose.onNodeWithContentDescription("Open Project group").performTouchInput { longClick() }
+    @Test fun cachedCreateAndUngroupCallbacksCheckCurrentAvailability() {
+        show(); menu()
+        val createAction = compose.onNodeWithText("New Workspace in Group").fetchSemanticsNode()
+            .config[SemanticsActions.OnClick].action!!
+        compose.runOnIdle { creationEnabled = false }
+        compose.onNodeWithText("New Workspace in Group").assertIsNotEnabled()
+        compose.runOnUiThread { createAction() }
+        compose.runOnIdle { assertTrue(actions.isEmpty()) }
+        menu()
+        compose.onNodeWithText("Ungroup (Keep Workspaces)").performClick()
+        val ungroupAction = compose.onNodeWithText("Ungroup", substring = false).fetchSemanticsNode()
+            .config[SemanticsActions.OnClick].action!!
+        compose.runOnIdle { pinned = true }
+        compose.onNodeWithText("Ungroup Group?").assertDoesNotExist()
+        compose.runOnUiThread { ungroupAction() }
+        compose.runOnIdle { assertTrue(actions.isEmpty()) }
+    }
+
     private fun screenshot(name: String, vararg labels: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)

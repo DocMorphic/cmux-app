@@ -88,7 +88,7 @@ class NativeWorkspaceSwipeTest {
         assertTrue(actions.isEmpty())
         fun labels() = compose.onNodeWithTag("workspace.row:swipe").fetchSemanticsNode()
             .config[SemanticsActions.CustomActions].map { it.label }
-        assertEquals(listOf("Show workspace actions"), labels())
+        assertEquals(emptyList<String>(), labels())
         compose.runOnIdle { enabled = true }
         assertTrue("Mark as Read" in labels()); assertTrue("Delete workspace" in labels())
         val accessibleRead = compose.onNodeWithTag("workspace.row:swipe").fetchSemanticsNode()
@@ -98,7 +98,7 @@ class NativeWorkspaceSwipeTest {
         swipe.performTouchInput { swipe(center, center + Offset(width * .3f, 0f), 400) }
         compose.runOnIdle { enabled = false }
         compose.onNodeWithTag("workspace.swipe.action:swipe").assertDoesNotExist()
-        assertEquals(listOf("Show workspace actions"), labels())
+        assertEquals(emptyList<String>(), labels())
     }
 
     @Test fun rtlLeadingSwipeUsesReadAndOnlyOneOwningRowCanRemainRevealed() {
@@ -147,6 +147,7 @@ class NativeWorkspaceSwipeTest {
         val cachedRead = cached.single { it.label == "Mark as Unread" }
         val cachedClose = cached.single { it.label == "Delete workspace" }
         compose.runOnIdle { enabled = false }
+        compose.waitForIdle()
         compose.runOnUiThread {
             assertFalse(cachedRead.action())
             assertFalse(cachedClose.action())

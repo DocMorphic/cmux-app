@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -27,8 +26,8 @@ import kotlin.math.roundToInt
 @Composable
 internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: String?, more: Boolean,
     onMore: () -> Unit, onDrop: (RoutedSidebarDrop) -> Unit,
-    before: LazyListScope.() -> Unit = {}, after: LazyListScope.() -> Unit = {},
-    prefixKeys: List<String> = emptyList(),
+    leading: List<WorkspaceListChrome> = emptyList(), trailing: List<WorkspaceListChrome> = emptyList(),
+    onChromeAction: (String) -> Unit = {},
     row: @Composable (RoutedSidebarRow) -> Unit) {
     val list = rememberLazyListState()
     val latestRows by rememberUpdatedState(rows)
@@ -70,14 +69,17 @@ internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: Strin
     val targetKeys = rows.map { it.key }.toSet()
     val holdOrder = list.isScrollInProgress || held != null || swipes.activeKey != null
     val renderedRows = rememberWorkspacePresentationRows(rows, holdOrder) { it.key }
+    val currentLeading = rememberUpdatedState(leading)
+    val currentTrailing = rememberUpdatedState(trailing)
+    val currentChromeAction = rememberUpdatedState(onChromeAction)
+    val renderedLeading = rememberWorkspacePresentationRows(leading, holdOrder) { it.key }
+    val renderedTrailing = rememberWorkspacePresentationRows(trailing, holdOrder) { it.key }
     LaunchedEffect(targetKeys) {
         if (held?.key?.let { it !in targetKeys } == true) cancel()
         if (swipes.activeKey?.let { it !in targetKeys } == true) swipes.activeKey = null
         if (menus.activeKey?.row?.let { it !in targetKeys } == true) menus.activeKey = null
     }
-    // The empty-state prefix belongs to the target's empty list, not a still-held presentation.
-    val hideEmptyPrefix = rows.isEmpty() && renderedRows.isNotEmpty()
-    WorkspaceViewportAnchorEffect(list, (if (hideEmptyPrefix) emptyList() else prefixKeys) + renderedRows.map { it.key },
+    WorkspaceViewportAnchorEffect(list, renderedLeading.map { it.key } + renderedRows.map { it.key } + renderedTrailing.map { it.key },
         gestureActive = held != null || swipes.activeKey != null)
     CompositionLocalProvider(LocalWorkspaceContextMenus provides menus, LocalWorkspaceSwipeCoordinator provides swipes, LocalWorkspaceGeometryHeld provides holdOrder) {
     Box(Modifier.fillMaxSize()) {
@@ -119,7 +121,7 @@ internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: Strin
                 cancel()
             })
         }, state = list, userScrollEnabled = held == null) {
-            if (!hideEmptyPrefix) before()
+            workspaceChromeRows(renderedLeading, currentLeading, currentChromeAction)
             items(renderedRows, key = { it.key }, contentType = { it.kind }) { item ->
                 WorkspacePresentationRow(item.key in targetKeys, { latestRows.any { it.key == item.key } }) {
                 val actions = listOf("Move up" to RoutedSidebarDropPlacement.UP, "Move down" to RoutedSidebarDropPlacement.DOWN)
@@ -136,7 +138,7 @@ internal fun RoutedSidebarDragList(rows: List<RoutedSidebarRow>, revision: Strin
                 }
                 }
             }
-            after()
+            workspaceChromeRows(renderedTrailing, currentTrailing, currentChromeAction)
         }
         if (dragging) {
             proposal?.let { drop -> list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == drop.target }?.let { target ->

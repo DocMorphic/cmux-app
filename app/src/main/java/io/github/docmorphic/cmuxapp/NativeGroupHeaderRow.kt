@@ -43,12 +43,23 @@ internal fun NativeGroupHeaderRow(
     val latestAction by rememberUpdatedState(onAction)
     fun open() { if (admitted()) latestOpen?.invoke() }
     fun toggle() { if (admitted()) latestToggle() }
-    fun create() { if (admitted()) latestCreate() }
-    fun dispatchAction(verb: String, value: String?) { if (admitted()) latestAction(verb, value) }
+    val latestEditable by rememberUpdatedState(canEdit)
+    val latestCreatable by rememberUpdatedState(canCreate && creationEnabled)
+    val latestGroup by rememberUpdatedState(group)
+    fun create() { if (admitted() && latestCreatable) latestCreate() }
+    fun dispatchAction(verb: String, value: String?) {
+        if (admitted() && latestEditable && (verb != "ungroup" || !latestGroup.isPinned)) latestAction(verb, value)
+    }
 
     val highlighted = isSelected && LocalWorkspaceShellChrome.current.split
     val menu = rememberWorkspaceContextMenu(group.id)
     val hasMenu = canEdit || canCreate
+    val latestHasMenu by rememberUpdatedState(hasMenu)
+    fun showMenu(): Boolean {
+        if (!admitted() || !latestHasMenu) return false
+        menu.expanded = true
+        return true
+    }
     val menuExpanded = menu.expanded && hasMenu
     val moveActions = LocalWorkspaceMoveActions.current
     var renaming by remember(menu, group.id) { mutableStateOf(false) }
@@ -62,34 +73,9 @@ internal fun NativeGroupHeaderRow(
     LaunchedEffect(rowPresent) { if (!rowPresent) { menu.expanded = false; renaming = false; destructive = null } }
     var name by remember(menu, group.id) { mutableStateOf(group.name) }
     Box {
-    Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp)
-        .background(if (highlighted) LocalContentColor.current.copy(alpha = .08f) else Color.Transparent, RoundedCornerShape(6.dp))
-        .padding(horizontal = 4.dp, vertical = 2.dp).testTag("group.row:${group.id}"),
-        verticalAlignment = Alignment.CenterVertically) {
-        NativeUnreadGutter(unread, gap = 3.dp)
-        IconButton(onClick = { if (!menuExpanded && !menu.held) toggle() }, modifier = Modifier.size(32.dp).semantics {
-            contentDescription = "${if (expanded) "Collapse" else "Expand"} ${group.name}"
-        }) { Icon(painterResource(if (expanded) R.drawable.ic_workspace_chevron_down else R.drawable.ic_workspace_chevron_right),
-            null, Modifier.size(16.dp), tint = nativeMuted) }
-        Row(Modifier.weight(1f).then(if (handlesHold) Modifier.combinedClickable(
-            onClick = { if (!menuExpanded && !menu.held) open() },
-            onLongClick = { if (hasMenu) menu.expanded = true })
-            else if (onOpen != null) Modifier.clickable { if (!menuExpanded && !menu.held) open() } else Modifier)
-            .semantics(mergeDescendants = true) {
-                selected = highlighted
-                if (hasMenu) onLongClick("Show group actions") { menu.expanded = true; true }
-                customActions = moveActions + if (hasMenu) listOf(CustomAccessibilityAction("Show group actions") { menu.expanded = true; true }) else emptyList()
-                if (onOpen != null) contentDescription = "Open ${group.name}"
-                stateDescription = listOfNotNull("Pinned".takeIf { group.isPinned },
-                    unread.accessibilityLabel.takeIf { it.isNotEmpty() }).joinToString(", ")
-            }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(painterResource(nativeWorkspaceGroupIcon(group.iconSymbol)), null, Modifier.size(15.dp), tint = nativeMuted)
-            Text(group.name, Modifier.weight(1f, fill = false), color = Color.White,
-                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (group.isPinned) Icon(painterResource(R.drawable.ic_workspace_pin_fill), null,
-                Modifier.size(12.dp), tint = nativeMuted)
-        }
+    WorkspaceMeasuredContent(GroupRowVisual(group, expanded, unread, highlighted), LocalWorkspaceGeometryHeld.current) { shown, measuring ->
+        NativeGroupHeaderBody(shown, measuring, handlesHold, onOpen != null, hasMenu,
+            menuExpanded || menu.held, moveActions, ::open, ::toggle, ::showMenu)
     }
     DropdownMenu(menuExpanded, onDismissRequest = { if (!menu.held) menu.expanded = false },
         properties = PopupProperties(focusable = !menu.held)) {
@@ -99,7 +85,7 @@ internal fun NativeGroupHeaderRow(
                 onClick = { menu.expanded = false; dispatchAction(if (group.isPinned) "unpin" else "pin", null) })
             DropdownMenuItem(text = { Text("Rename Group") },
                 leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_rename) },
-                onClick = { menu.expanded = false; name = group.name; renaming = true })
+                onClick = { menu.expanded = false; if (admitted() && latestEditable) { name = latestGroup.name; renaming = true } })
         }
         if (canCreate) DropdownMenuItem(text = { Text("New Workspace in Group") },
             enabled = creationEnabled, leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_plus) },
@@ -109,11 +95,11 @@ internal fun NativeGroupHeaderRow(
             if (!group.isPinned) DropdownMenuItem(text = { Text("Ungroup (Keep Workspaces)") },
                 colors = MenuDefaults.itemColors(textColor = destructiveTint, leadingIconColor = destructiveTint),
                 leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_ungroup) },
-                onClick = { menu.expanded = false; destructive = "ungroup" })
+                onClick = { menu.expanded = false; if (admitted() && latestEditable && !latestGroup.isPinned) destructive = "ungroup" })
             DropdownMenuItem(text = { Text("Delete Group (Close Workspaces)") },
                 colors = MenuDefaults.itemColors(textColor = destructiveTint, leadingIconColor = destructiveTint),
                 leadingIcon = { WorkspaceActionIcon(R.drawable.ic_workspace_delete) },
-                onClick = { menu.expanded = false; destructive = "delete" })
+                onClick = { menu.expanded = false; if (admitted() && latestEditable) destructive = "delete" })
         }
     }
     }

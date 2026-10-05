@@ -25,6 +25,19 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Explicit Mac/SSH notices and browser progress/error/status/empty/load-more rows
+  now share body membership deferral and viewport anchors. Their measured heights
+  wait during gestures; cached actions check the current row. Group drawing follows
+  measured deferral, and indentation is measured inside the workspace body.
+  Group callbacks recheck capabilities/pinning. The native rich empty/recovery view,
+  notification-row geometry, recycling, font/width changes and broader physical/
+  performance acceptance remain open. Combined milestone: 21 unique Android cases
+  passed (14 initial passes, then 7/7 on focused rerun after fixture corrections
+  and a System UI boot-ANR interruption). Production APK was unchanged between
+  runs; no new retry-run crash/ANR events. AVD stopped/reaped, no physical/signed
+  acceptance. See `WORKSPACE_ROWS.md` and `captures/runtime/workspace-chrome/`.
+  This supersedes the pending runtime status of the previous measured-row batch.
+
 - Workspace body rows now distinguish equal-height content refresh from measured
   geometry changes during gestures. Shared main/browser hold state and standalone
   swipe state defer taller/shorter visual models until release; revealed read

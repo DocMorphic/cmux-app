@@ -4,6 +4,51 @@
 for the latest signed artifact and its verification scope; historical delivery
 statements below describe their dated checkpoints.
 
+## Connection notices, groups and list footer transaction (2026-10-05)
+
+Main Mac/SSH status rows and the browser's progress/error/status/empty/load-more
+rows now have explicit keyed models. Leading/body/trailing membership reconciles
+under the same scroll, held-row and swipe state. The viewport anchor sees their
+actual rendered key order. New notices wait during a gesture; removed notices
+keep their slots temporarily, become inert immediately, and lose cached actions.
+Changed message heights use the same measured-content policy as workspace rows.
+Browser loading/error/status views now live inside the scrolling list instead of
+resizing its viewport from outside it. Retry/load-more callbacks read the current
+model and callback, including current enabled state and row lifetime.
+
+Group header drawing is separated from its menus and confirmations and follows
+measured-height deferral. Group create/edit/ungroup callbacks recheck current
+capabilities and pin state. Workspace indentation is inside the measured visual
+model, so a group-depth update cannot change the row's outer constraints and
+bypass deferral. Group footers have fixed heights and already participate in the
+body membership transaction; the load-more footer now does too.
+
+Main/instrumentation source compilation passed. Three added Android cases cover
+main/browser notice insertion, removal, height changes, cached retry retirement,
+footer release and cached group create/ungroup revocation. The two workspace
+source batches were checked together. **21 unique Android cases passed across two
+runs** against the same production APK (API37/16 KiB): initial 14/21 in 150.385 s,
+then all seven failed cases passed in 35.619 s after fixture correction/recovery.
+Four initial failures were Back-navigation focus errors from a confirmed System UI
+startup ANR dialog. One old test expected a menu even with every action disabled;
+it now expects none. Two cached-callback tests invoked before recomposition; they
+now wait for current disabled state before invoking the cached action. Assertions
+still require no dispatch. No production change was needed between these runs.
+
+The existing row-layout and group-menu screenshots were visually inspected. The
+retry boot also showed the System UI startup dialog, which was closed before the
+retry; no new crash/ANR events appeared during that run, and the app crash buffer
+was empty. Font scale remains 1.0. The sole existing AVD was stopped/reaped. These
+results supersede the queued runtime status for the prior measured workspace and
+swipe batch, but do not close full route/notification/physical acceptance.
+Evidence and source/APK hashes: `captures/runtime/workspace-chrome/verification.json`.
+
+**Remaining:** the main native rich empty/recovery view still owns local state
+outside the measured chrome model. Full notification-row geometry in the browser,
+recycling across deferred-height changes, font/width transitions, scroll/fling/drag
+combinations, TalkBack, performance and physical Pixel/Mac acceptance remain open.
+Global upstream pins are unchanged.
+
 ## Measured workspace content and stable swipe intent (2026-10-05)
 
 Scoped source: `WorkspaceListUpdatePlan.swift` and `WorkspaceListTableCoordinator.swift`

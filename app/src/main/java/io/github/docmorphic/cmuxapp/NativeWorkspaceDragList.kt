@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -32,9 +31,9 @@ internal fun NativeWorkspaceDragList(
     entries: List<WorkspaceListEntry>, reorderEnabled: Boolean, modifier: Modifier = Modifier,
     onMove: (NativeFeedSource, String, NativeWorkspaceMove) -> Boolean,
     rowHandlesAccessibility: Boolean = true,
-    before: LazyListScope.() -> Unit = {}, after: LazyListScope.() -> Unit = {},
+    leading: List<WorkspaceListChrome> = emptyList(), trailing: List<WorkspaceListChrome> = emptyList(),
+    onChromeAction: (String) -> Unit = {},
     hasOtherRows: Boolean = false,
-    prefixKeys: List<String> = emptyList(),
     displayRows: List<NativeWorkspaceDisplayRow>? = null,
     sshRow: @Composable (SshFeedRow) -> Unit = {}, empty: @Composable () -> Unit,
     row: @Composable (WorkspaceListEntry) -> Unit
@@ -86,12 +85,17 @@ internal fun NativeWorkspaceDragList(
     val targetKeys = targetRows.map { it.key }.toSet()
     val holdOrder = list.isScrollInProgress || held != null || swipeCoordinator.activeKey != null
     val renderedRows = rememberWorkspacePresentationRows(targetRows, holdOrder) { it.key }
+    val currentLeading = rememberUpdatedState(leading)
+    val currentTrailing = rememberUpdatedState(trailing)
+    val currentChromeAction = rememberUpdatedState(onChromeAction)
+    val renderedLeading = rememberWorkspacePresentationRows(leading, holdOrder) { it.key }
+    val renderedTrailing = rememberWorkspacePresentationRows(trailing, holdOrder) { it.key }
     LaunchedEffect(targetKeys) {
         if (held?.key?.let { it !in targetKeys } == true) cancel()
         if (swipeCoordinator.activeKey?.let { it !in targetKeys } == true) swipeCoordinator.activeKey = null
         if (contextMenus.activeKey?.row?.let { it !in targetKeys } == true) contextMenus.activeKey = null
     }
-    WorkspaceViewportAnchorEffect(list, prefixKeys + renderedRows.map { it.key },
+    WorkspaceViewportAnchorEffect(list, renderedLeading.map { it.key } + renderedRows.map { it.key } + renderedTrailing.map { it.key },
         gestureActive = held != null || swipeCoordinator.activeKey != null)
     CompositionLocalProvider(LocalWorkspaceSwipeCoordinator provides swipeCoordinator, LocalWorkspaceContextMenus provides contextMenus, LocalWorkspaceGeometryHeld provides holdOrder) {
     Box(modifier) {
@@ -134,7 +138,7 @@ internal fun NativeWorkspaceDragList(
                 }
             )
         }, state = list, userScrollEnabled = held == null, contentPadding = PaddingValues(bottom = 84.dp)) {
-            before()
+            workspaceChromeRows(renderedLeading, currentLeading, currentChromeAction)
             itemsIndexed(renderedRows, key = { _, item -> item.key }) { _, item ->
                 WorkspacePresentationRow(item.key in targetKeys, { latestTargetRows.any { it.key == item.key } }) {
                 if (item is NativeWorkspaceDisplayRow.Ssh) {
@@ -166,7 +170,7 @@ internal fun NativeWorkspaceDragList(
                 }
                 }
             }
-            after()
+            workspaceChromeRows(renderedTrailing, currentTrailing, currentChromeAction)
             if (renderedRows.isEmpty() && !hasOtherRows) item { empty() }
         }
         val moving = dragged
