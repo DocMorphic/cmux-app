@@ -13,7 +13,7 @@ internal fun rememberNativePanel(session: NativeFeedSession, login: String?, tea
     val target = if (hidden) null else workspace?.let { w -> surface?.let { NativePanelTarget.from(w.id, it) } }
     val key = target?.let { t -> mac?.let { workspaceTabKey(login, team, it, t.workspace) } }
     val retained = session.panelPreview
-    // Observe the feed so removal, path/title changes and connection retirement hide stale bytes immediately.
+    // Observe descriptor/account invalidation while retaining completed documents through wire recovery.
     val sources by session.coordinator.sources.collectAsState()
     val source = mac?.let { sources[it.origin] }
     val allowed = source != null && retained?.let { it.matches(login, key, mac, target) && it.current() } == true
@@ -26,7 +26,11 @@ internal fun rememberNativePanel(session: NativeFeedSession, login: String?, tea
     val currentSurface = source?.workspaces?.singleOrNull { it.id == target.workspace }
         ?.macSurfaces?.singleOrNull { it.id == target.surface }
     val message = when {
-        source?.mac != mac || source?.availability != NativeFeedAvailability.CONNECTED || !source.hasWorkspaceSnapshot ->
+        source == null || source.mac != mac || !source.hasWorkspaceSnapshot ->
+            "Connecting to panel…" to "Waiting for this Mac's file connection."
+        source.panelCacheToken == null ->
+            "Preview unavailable" to "Reconnect this Mac to load its file panels."
+        source.availability != NativeFeedAvailability.CONNECTED ->
             "Connecting to panel…" to "Waiting for this Mac's file connection."
         "panel.artifact.v1" !in source.capabilities ->
             "Update cmux on your Mac" to "This Mac's cmux version can't preview file panels."

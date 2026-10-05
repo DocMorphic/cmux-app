@@ -13,7 +13,7 @@ internal data class NativePanelTarget(val workspace: String, val surface: String
     }
 }
 
-internal class PanelArtifactAccess(val rpc: ArtifactRpc, val current: () -> Boolean)
+internal class PanelArtifactAccess(val rpc: ArtifactRpc, val current: () -> Boolean, val cachedCurrent: () -> Boolean)
 
 /** One visible panel and its exact admission survive recreation, without retaining Android views. */
 internal class NativePanelPresentation(parent: CoroutineScope, val login: String,
@@ -21,7 +21,8 @@ internal class NativePanelPresentation(parent: CoroutineScope, val login: String
     val access: PanelArtifactAccess, private val connectionHold: AutoCloseable) : AutoCloseable {
     private val owner = SupervisorJob(parent.coroutineContext[Job])
     val preview = ArtifactPreviewController(CoroutineScope(parent.coroutineContext + owner))
-    fun current() = owner.isActive && access.current()
+    fun current() = owner.isActive && (access.current() ||
+        preview.state.value.artifact != null && access.cachedCurrent())
     fun matches(login: String?, key: NativeWorkspaceTabKey?, mac: NativeCredentialStore.PairedMac?, target: NativePanelTarget?) =
         this.login == login && this.key == key && this.mac == mac && this.target == target
     override fun close() { preview.close(); owner.cancel(); connectionHold.close() }

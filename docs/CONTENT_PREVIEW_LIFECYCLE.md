@@ -1,5 +1,68 @@
 # Content preview lifecycle
 
+## Native panel connection recovery — 2026-10-05
+
+Completed native file/Markdown panels now keep their downloaded content and
+reading state during a transient feed disconnect. A snapshot identity preserves
+only the exact account, Mac, workspace, surface, path, kind and title. The old
+request object remains bound to its original connection and cannot issue requests
+on a replacement wire. Interrupted transfers discard their old owner and can
+load again after the replacement connection passes host verification.
+
+An authorization, identity or protocol rejection invalidates the snapshot
+identity. Restoring an apparently identical workspace list cannot resurrect an
+old admission. Account removal, a removed/changed panel or a title refresh also
+releases the old preview and its private bytes. The UI displays Preview unavailable
+after rejected access, including if the feed subsequently disconnects.
+
+Scoped iOS reference: eight source files at
+`186cec79781256867ad4516f0802118738bd2393`, recorded with hashes in
+`captures/runtime/panel-wire-recovery/upstream-source.json`. The iOS surface owns
+its loaded view by surface identity; Markdown load tasks use path/title/retry,
+and file preview refresh uses the title. Connection status supplies failure hints
+without replacing an already loaded document. The global parity pin is unchanged.
+
+**58 focused JVM checks passed** (50 feed coordinator, two cache policy and six
+preview controller). **Four Android panel checks passed in 63.287 s** on the sole
+API 37 / 16 KB arm64 AVD. Real pinch/scroll, native viewport and paragraph-geometry
+assertions verify a rendered panel through socket loss, offline recreation and
+verified feed reconnect, with unchanged owner, exact bytes and one fetch. Title
+refresh fetches new content and deletes the old file. Revocation deletes its
+replacement, leaves the old request unusable and shows Preview unavailable even
+after socket loss. An interrupted transfer is discarded and fetched on a newly
+verified feed connection. Existing Raw Markdown search/reading and pending
+recreation checks also pass. Removal now broadcasts a workspace-list event and
+checks the final empty-workspace route as well as private-file cleanup.
+
+**Two existing Files/panel regressions passed in 39.722 s** on the identical
+production APK (before a test-only rebuild). Nine panel and five regression
+screenshots were inspected; content is visibly drawn. The pending-recreation
+capture catches the menu dismissal animation; the pending-transfer reconnect
+capture precedes foreground-connection recovery and still shows its banner.
+Those images do not establish menu-animation or whole-screen reconnect parity.
+Both successful runs have no new ANR or app crash entries, unchanged screen/sleep
+settings, and matching source/APK receipts. All 14 assets verified; sole AVD
+stopped and reaped. Signed build 606 is unchanged.
+
+Original failures remain in `captures/runtime/panel-wire-recovery/`: two JVM
+runs timed out at the initial two-Mac connection wait in different tests; a
+subsequent 58-test run passed with added connection diagnostics, so the cause is
+still unresolved. The first Android attempt was blocked by an emulator System UI
+boot ANR. Subsequent attempts passed both new recovery checks but exposed a Raw
+menu lookup failure and an assertion against the temporary Panel closed message.
+The isolated Raw test passed unchanged (27.183 s); final retention tests wait for
+the rendered document before opening that menu, so early-load menu interaction
+still needs separate investigation. The removal test now waits for the final
+route after the foreground list refresh: Android's existing reconciliation drops
+the removed selection, consistent with iOS's `selectedMacSurface` fallback and
+`WorkspaceActiveSurface.derive`. Test failures now capture a screenshot/hierarchy.
+The final four-test run passed after these test-only changes.
+
+**Still open:** the iOS typed failure/manual retry comparison, main terminal Files
+transport-loss recovery, different-width/text reflow, process-death/refetch,
+physical Pixel/Mac acceptance and full format/accessibility behavior. This
+checkpoint does not establish those workflows.
+
 ## Rendered Markdown reading state — 2026-10-05
 
 `ArtifactViewerState` now saves a small Markdown viewport bookmark: CSS scroll

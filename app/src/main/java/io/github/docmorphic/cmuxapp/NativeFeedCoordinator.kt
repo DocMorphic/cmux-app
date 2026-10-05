@@ -171,7 +171,7 @@ internal class NativeFeedCoordinator(
                             failed = { error ->
                                 if (error is MobileRpcException && error.code in setOf("unauthorized", "forbidden", "permission_denied", "team_access_revoked")) {
                                     handle.verified = false
-                                    mutableSources.value[handle.mac.origin]?.let { publish(handle, it.copy(changes = emptyMap())) }
+                                    mutableSources.value[handle.mac.origin]?.let { publish(handle, it.copy(changes = emptyMap(), panelCacheToken = null)) }
                                     summaryFailure.complete(error)
                                 }
                             })
@@ -215,7 +215,8 @@ internal class NativeFeedCoordinator(
                 if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
                 val source = mutableSources.value[handle.mac.origin] ?: NativeFeedSource(handle.mac)
                 publish(handle, source.copy(availability = NativeFeedAvailability.OFFLINE,
-                    error = failure.message ?: "Computer unavailable", keepAwake = null, changes = emptyMap()))
+                    error = failure.message ?: "Computer unavailable", keepAwake = null, changes = emptyMap(),
+                    panelCacheToken = source.panelCacheToken.takeIf { NativePanelCachePolicy.retains(failure) }))
             } finally { handle.changes?.close(); handle.changes = null; handle.verified = false; handle.capabilities = emptySet(); cancelBorrowedOperations(handle); active?.close(); handle.client = null }
             handle.refresh.awaitRequest(10_000)
         }
@@ -267,13 +268,22 @@ internal class NativeFeedCoordinator(
 
     /** Workspace snapshots are independent of notification revision floors. Caller holds the handle mutex. */
     private suspend fun refreshWorkspaces(handle: Handle, client: MobileRpcClient) {
-        val listing = workspaceSnapshots.read(handle.mac, client)
+        val listing = try { workspaceSnapshots.read(handle.mac, client) }
+        catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
+            if (!NativePanelCachePolicy.retains(failure)) mutableSources.value[handle.mac.origin]?.let {
+                publish(handle, it.copy(panelCacheToken = null))
+            }
+            throw failure
+        }
         if (!current(handle, client)) throw CancellationException("Saved computer changed")
         val source = mutableSources.value[handle.mac.origin] ?: return
         if (!listing.accept()) throw NativeWorkspaceSnapshotSuperseded()
         val groups = parseGroups(listing.value)
         val groupOnly = groups != source.groups && listing.workspaces == source.workspaces
-        publish(handle, source.copy(workspaces = listing.workspaces, groups = groups, hasWorkspaceSnapshot = true))
+        publish(handle, source.copy(workspaces = listing.workspaces, groups = groups, hasWorkspaceSnapshot = true,
+            panelCacheToken = source.panelCacheToken ?: Any()))
         handle.changes?.retain(listing.workspaces.map { it.id })
         if (handle.changesListEvent && !groupOnly) handle.changes?.request()
         handle.changesListEvent = false
@@ -332,9 +342,10 @@ internal class NativeFeedCoordinator(
                             permits: () -> Boolean): PanelArtifactAccess? {
         val handle = handles[mac.origin]?.takeIf { it.mac == mac && current(it) && it.verified } ?: return null
         val client = handle.client?.takeUnless { it.isClosed } ?: return null
+        val cacheToken = mutableSources.value[mac.origin]?.panelCacheToken ?: return null
         fun admitted() = permits() && current(handle, client) && handle.verified && !client.isClosed &&
             "panel.artifact.v1" in handle.capabilities && mutableSources.value[mac.origin]?.let { source ->
-                source.mac == mac && source.workspaces.singleOrNull { it.id == target.workspace }
+                source.mac == mac && source.panelCacheToken === cacheToken && source.workspaces.singleOrNull { it.id == target.workspace }
                     ?.macSurfaces?.singleOrNull { it.id == target.surface }
                     ?.let { NativePanelTarget.from(target.workspace, it) == target } == true
             } == true
@@ -357,7 +368,12 @@ internal class NativeFeedCoordinator(
                     params.optString("path") == target.path) { "This request isn't for the displayed panel file." }
                 use { client.request(method, params) }
             })
-        return PanelArtifactAccess(rpc, ::admitted)
+        fun cachedCurrent() = permits() && isAllowed(mac) && mutableSources.value[mac.origin]?.let { source ->
+            source.mac == mac && source.panelCacheToken === cacheToken && "panel.artifact.v1" in source.capabilities &&
+                source.workspaces.singleOrNull { it.id == target.workspace }?.macSurfaces?.singleOrNull { it.id == target.surface }
+                    ?.let { NativePanelTarget.from(target.workspace, it) == target } == true
+        } == true
+        return PanelArtifactAccess(rpc, ::admitted, ::cachedCurrent)
     }
 
     /** Never substitute the foreground Mac when a row's owning session is unavailable. */

@@ -11,6 +11,52 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun downloadedPanelAdmissionSurvivesWireLossWithoutRebindingRequests() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.panelArtifactsSupported = true
+            val target = NativePanelTarget("w", "panel", "/note.md", "markdown", "Notes")
+            peer.workspaceResponse = JSONObject("""{"workspaces":[{"id":"w","surfaces":[{"surface_id":"panel","kind":"markdown","title":"Notes","file_path":"/note.md"}]}]}""")
+            var allowed = true
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { allowed })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                val access = checkNotNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+                peer.disconnect()
+                awaitState { coordinator.sources.value.values.singleOrNull()?.availability == NativeFeedAvailability.OFFLINE }
+                assertFalse(access.current()); assertTrue(access.cachedCurrent())
+                assertTrue(runCatching { access.rpc.stat(target.authorization, target.path) }.isFailure)
+                coordinator.refreshWorkspaceLists(listOf(mac("a")))
+                assertFalse(access.current()); assertTrue(access.cachedCurrent())
+                val replacement = checkNotNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+                assertEquals("a", replacement.rpc.stat(target.authorization, target.path).getString("owner"))
+                assertTrue(runCatching { access.rpc.stat(target.authorization, target.path) }.isFailure)
+                allowed = false; assertFalse(access.cachedCurrent()); assertFalse(replacement.cachedCurrent())
+            } finally { coordinator.close() }
+        }
+    }
+
+    @Test fun rejectedPanelSnapshotPermanentlyInvalidatesCachedAndLiveAdmission() = runBlocking {
+        FeedPeer("a").use { peer ->
+            peer.panelArtifactsSupported = true
+            val target = NativePanelTarget("w", "panel", "/note.md", "markdown", "Notes")
+            peer.workspaceResponse = JSONObject("""{"workspaces":[{"id":"w","surfaces":[{"surface_id":"panel","kind":"markdown","title":"Notes","file_path":"/note.md"}]}]}""")
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { true })
+            try {
+                coordinator.updateMacs(listOf(mac("a")))
+                awaitState { coordinator.sources.value.values.singleOrNull()?.hasWorkspaceSnapshot == true }
+                val access = checkNotNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+                peer.rejectedMethods = setOf("mobile.workspace.list"); peer.rejectedCode = "team_access_revoked"
+                assertTrue(runCatching { coordinator.refreshWorkspaceLists(listOf(mac("a"))) }.isFailure)
+                assertFalse(access.cachedCurrent()); assertFalse(access.current())
+                peer.rejectedMethods = emptySet(); coordinator.refreshWorkspaceLists(listOf(mac("a")))
+                assertFalse(access.cachedCurrent()); assertFalse(access.current())
+                assertTrue(runCatching { access.rpc.stat(target.authorization, target.path) }.isFailure)
+                assertNotNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun panelAdmissionUsesExactMacAndDisplayedFileOnly() = runBlocking {
         FeedPeer("a").use { a -> FeedPeer("b").use { b ->
             val target = NativePanelTarget("w", "panel", "/note.md", "markdown", "Notes")
@@ -54,7 +100,7 @@ class NativeFeedCoordinatorTest {
                     peer.workspaceResponse = listing(target, true); coordinator.refreshWorkspaceLists(listOf(mac("a")))
                     assertTrue(access.current())
                     peer.workspaceResponse = listing(replacement); coordinator.refreshWorkspaceLists(listOf(mac("a")))
-                    assertFalse(access.current()); assertNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
+                    assertFalse(access.current()); assertFalse(access.cachedCurrent()); assertNull(coordinator.panelArtifactAccess(mac("a"), target) { true })
                     assertTrue(runCatching { access.rpc.stat(target.authorization, target.path) }.isFailure)
                     assertNotNull(coordinator.panelArtifactAccess(mac("a"), replacement) { true })
                 }
@@ -362,7 +408,7 @@ class NativeFeedCoordinatorTest {
             val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { true })
             try {
                 coordinator.updateMacs(listOf(mac("a"), mac("b")))
-                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                awaitState(diagnostic = { "sources=${coordinator.sources.value}; a=${a.requests}; b=${b.requests}" }) { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
                 for (action in listOf("rename", "pin", "unpin", "mark_read", "mark_unread", "close")) {
                     assertTrue(runCatching { coordinator.workspaceAction(mac("a"), "w", action, "Name") }.isFailure)
                 }
@@ -424,7 +470,7 @@ class NativeFeedCoordinatorTest {
             val coordinator = NativeFeedCoordinator(this, { if (it.deviceId == "a") a.connect() else b.connect() }, { true })
             try {
                 coordinator.updateMacs(listOf(mac("a"), mac("b")))
-                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                awaitState(diagnostic = { "sources=${coordinator.sources.value}; a=${a.requests}; b=${b.requests}" }) { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
                 val bReads = b.requests.count { it.optString("method") == "mobile.workspace.list" }
                 val aNotifications = a.requests.count { it.optString("method") == "notification.feed.list" }
                 a.workspaceTitle = "Fresh empty-list retry"
@@ -473,7 +519,10 @@ class NativeFeedCoordinatorTest {
         }
     }
 
-    private suspend fun awaitState(condition: () -> Boolean) = withTimeout(5_000) { while (!condition()) delay(10) }
+    private suspend fun awaitState(diagnostic: () -> String = { "State did not settle" }, condition: () -> Boolean) {
+        try { withTimeout(5_000) { while (!condition()) delay(10) } }
+        catch (failure: TimeoutCancellationException) { throw AssertionError(diagnostic(), failure) }
+    }
     private fun mac(id: String) = NativeCredentialStore.PairedMac(id, id, "Mac $id")
 
     @Test fun pausedVisibilityPruningDropsHiddenSnapshotsWithoutDialingSurvivor() = runBlocking {
@@ -482,7 +531,7 @@ class NativeFeedCoordinatorTest {
             val coordinator = NativeFeedCoordinator(this, { row -> connects++; (if (row.deviceId == "a") a else b).connect() }, { true })
             try {
                 coordinator.updateMacs(listOf(mac("a"), mac("b")))
-                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                awaitState(diagnostic = { "sources=${coordinator.sources.value}; a=${a.requests}; b=${b.requests}" }) { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
                 coordinator.pause()
                 val before = connects
                 assertEquals(2, coordinator.sources.value.size)
@@ -565,7 +614,7 @@ class NativeFeedCoordinatorTest {
             try {
                 assertNull(coordinator.replyAttempt(mac("b"), target) { true }); assertEquals(0, connects)
                 coordinator.updateMacs(listOf(mac("a"), mac("b")))
-                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                awaitState(diagnostic = { "sources=${coordinator.sources.value}; a=${a.requests}; b=${b.requests}" }) { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
                 assertNull(coordinator.replyAttempt(mac("a"), target) { true })
                 val attempt = checkNotNull(coordinator.replyAttempt(mac("b"), target) { true })
                 assertEquals(PhoneReplyDirectResult.DELIVERED, attempt.send(" literal λ 中\n") { true })
@@ -875,7 +924,7 @@ class NativeFeedCoordinatorTest {
             val coordinator = NativeFeedCoordinator(this, { m -> (if (m.deviceId == "a") a else b).connect() }, { it.deviceId in allowed })
             try {
                 coordinator.updateMacs(listOf(mac("a"), mac("b")))
-                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                awaitState(diagnostic = { "sources=${coordinator.sources.value}; a=${a.requests}; b=${b.requests}" }) { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
                 val entries = aggregateNativeFeed(coordinator.sources.value.values)
                 assertEquals(2, entries.size)
                 coordinator.setRead(entries.single { it.source.mac.deviceId == "b" }, true)
@@ -899,7 +948,7 @@ class NativeFeedCoordinatorTest {
             val coordinator = NativeFeedCoordinator(this, { m -> (if (m.deviceId == "a") a else b).connect() }, { true })
             try {
                 coordinator.updateMacs(listOf(mac("a"), mac("b")))
-                awaitState { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
+                awaitState(diagnostic = { "sources=${coordinator.sources.value}; a=${a.requests}; b=${b.requests}" }) { coordinator.sources.value.values.count { it.availability == NativeFeedAvailability.CONNECTED } == 2 }
                 coordinator.markAllRead(mac("b").origin)
                 assertTrue(a.requests.none { it.optString("method") == "notification.feed.mark_all_read" })
                 assertEquals(1, b.requests.count { it.optString("method") == "notification.feed.mark_all_read" })
@@ -1030,6 +1079,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
     @Volatile var groupCreationSupported = false
     @Volatile var newGroupCreationSupported = false
     @Volatile var rejectedMethods = emptySet<String>()
+    @Volatile var rejectedCode = "fixture_rejected"
     @Volatile var createResponse: JSONObject? = null
     @Volatile var changesSupported = false
     @Volatile var artifactsSupported = false
@@ -1115,7 +1165,7 @@ private class FeedPeer(private val id: String) : AutoCloseable {
                 val summaryFailure = summaryError.takeIf { request.getString("method") == "mobile.workspace.changes.summary" }
                 val rejected = (request.getString("method") == "workspace.action" && rejectWorkspaceAction) || summaryFailure != null || request.getString("method") in rejectedMethods
                 val response = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
-                if (rejected) response.put("error", JSONObject().put("code", summaryFailure ?: "fixture_rejected").put("message", "Rejected by fixture"))
+                if (rejected) response.put("error", JSONObject().put("code", summaryFailure ?: rejectedCode).put("message", "Rejected by fixture"))
                 else response.put("result", result)
                 send(socket, response)
             }

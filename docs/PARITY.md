@@ -12,6 +12,22 @@ A feature is complete only after the Android behavior is implemented, covered
 by a focused automated check where practical, and exercised against the Mac.
 UI resemblance alone does not count.
 
+## Native panel connection recovery (2026-10-05)
+
+Completed native panels now retain their exact downloaded document during feed
+connection loss, offline Activity recreation and verified reconnect. Cached bytes
+never authorize new requests; revocation or descriptor changes retire the old
+owner and private file. Interrupted transfers use a fresh verified connection.
+58 JVM checks and four Android panel checks (63.287 s) passed; two Files/panel
+regressions passed (39.722 s) on the same production APK. Fourteen screenshots
+inspected, 14 assets verified, no new ANRs/app crashes in the successful runs,
+settings unchanged; sole AVD stopped/reaped. Earlier JVM connection timeouts and
+an early Raw-menu lookup remain documented for follow-up. See
+[CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md) for evidence, failed
+attempts and exact scope. Main Files connection-loss recovery, typed panel
+failures/retry, process death and physical acceptance remain open. Signed 606
+and the global parity pin are unchanged; the goal is active.
+
 ## Rendered Markdown reading-state recovery (2026-10-05)
 
 Rendered Markdown now retains a bounded scroll/zoom/block bookmark across

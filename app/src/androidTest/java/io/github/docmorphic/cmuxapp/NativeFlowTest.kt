@@ -2913,6 +2913,7 @@ internal class NativeFixturePeer : AutoCloseable {
     val rejectNextPaste = AtomicBoolean(false)
     val rejectNextInput = AtomicBoolean(false)
     @Volatile var rejectedMethods: Set<String> = emptySet()
+    @Volatile var rejectedMethodCode = "surface_unavailable"
     @Volatile var accountMutationsSupported = true
     @Volatile var groupActionsSupported = false
     @Volatile var workspaceMetadataSupported = false
@@ -3077,7 +3078,7 @@ internal class NativeFixturePeer : AutoCloseable {
                         val rejected = actionRejected || feedRejected || todoRejected || taskError != null || modelError != null || directoryError != null || changesError != null || (request.optString("method") == "terminal.paste" && rejectNextPaste.getAndSet(false)) ||
                             (request.optString("method") == "terminal.input" && rejectNextInput.getAndSet(false))
                         val envelope = JSONObject().put("id", request.getString("id")).put("ok", !rejected)
-                        if (rejected) envelope.put("error", JSONObject().put("code", taskError ?: modelError ?: directoryError ?: changesError ?: "surface_unavailable")
+                        if (rejected) envelope.put("error", JSONObject().put("code", taskError ?: modelError ?: directoryError ?: changesError ?: if (actionRejected) rejectedMethodCode else "surface_unavailable")
                             .put("message", "Fixture terminal temporarily unavailable"))
                         else envelope.put("result", result)
                         send(socket, envelope)

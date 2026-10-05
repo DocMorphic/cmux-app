@@ -18,7 +18,9 @@ internal data class NativeFeedSource(
     val hasWorkspaceSnapshot: Boolean = false,
     val keepAwake: Boolean? = null,
     val changes: Map<String, WorkspaceChangesChip> = emptyMap(),
-    val macMutationTicket: NativeMacMutationTicket? = null
+    val macMutationTicket: NativeMacMutationTicket? = null,
+    // Identity of the last authorized panel snapshot; never authorizes network requests.
+    val panelCacheToken: Any? = null
 )
 internal data class NativeFeedEntry(val source: NativeFeedSource, val notification: NativeNotification,
     val displayComputer: String? = null) {
