@@ -22,44 +22,24 @@ import androidx.core.content.FileProvider
 import kotlinx.coroutines.*
 import java.io.File
 
-internal data class ChangesPreviewState(val identity: Any? = null, val artifact: ChangesPreviewArtifact? = null,
-    val received: Long = 0, val total: Long? = null, val error: String? = null)
-
 @Composable
-internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: ChangedFile, generation: Any) {
-    val context = LocalContext.current
+internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: ChangedFile, generation: Any,
+    controller: ChangesPreviewController) {
+    val root = File(LocalContext.current.cacheDir, "changes-previews")
     val policy = remember(file) { ChangesPreviewPolicy.forFile(file) }
-    var revision by remember(file) { mutableStateOf(policy.initial) }
-    var retry by remember { mutableIntStateOf(0) }
+    val choices by controller.revisions.collectAsState()
+    val revision = choices[file.path]?.takeIf { it in policy.revisions } ?: policy.initial
     val path = ChangesPreviewPolicy.path(file, revision)
-    val selectedRevision = revision
-    val identity = remember(transfer, path, revision, generation, retry) { Any() }
-    val produced by produceState(ChangesPreviewState(), identity) {
-        value = ChangesPreviewState(identity)
-        val session = ChangesPreviewFiles(File(context.cacheDir, "changes-previews"), transfer)
-        try {
-            val metadata = transfer.metadata(path, selectedRevision)
-            value = value.copy(total = metadata.size)
-            val artifact = session.download(path, selectedRevision, metadata) { received, total ->
-                withContext(Dispatchers.Main) { value = value.copy(received = received, total = total) }
-            }
-            ensureActive()
-            value = value.copy(artifact = artifact)
-            awaitCancellation()
-        } catch (failure: Exception) {
-            currentCoroutineContext().ensureActive()
-            value = value.copy(error = failure.message ?: "Could not load preview")
-            awaitCancellation()
-        } finally { withContext(NonCancellable + Dispatchers.IO) { session.close() } }
-    }
-    val state = produced.takeIf { it.identity === identity } ?: ChangesPreviewState(identity)
+    val produced by controller.state.collectAsState()
+    LaunchedEffect(controller, transfer, file, generation, revision) { controller.open(file, generation, transfer, root) }
+    val state = produced.takeIf { controller.matches(it, file, generation, transfer, revision) } ?: ChangesPreviewState()
     Column(Modifier.fillMaxSize().semantics { contentDescription = "${if (revision == ChangesRevision.BASE) "Before" else "After"} preview $path" }) {
         if (policy.revisions.size > 1) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            policy.revisions.forEach { option -> FilterChip(selected = revision == option, onClick = { revision = option },
+            policy.revisions.forEach { option -> FilterChip(selected = revision == option, onClick = { controller.choose(file, option) },
                 label = { Text(if (option == ChangesRevision.BASE) "Before" else "After") }, modifier = Modifier.weight(1f)) }
         }
         if (state.artifact == null) FilePreviewActions(null)
-        if (state.error != null) ChangesNotice("Couldn't load preview", state.error.orEmpty()) { retry++ }
+        if (state.error != null) ChangesNotice("Couldn't load preview", state.error.orEmpty()) { controller.retry() }
         else if (state.artifact == null) Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center) {
             if (state.total != null && state.total!! > 0) LinearProgressIndicator(progress = { (state.received.toFloat() / state.total!!).coerceIn(0f, 1f) })

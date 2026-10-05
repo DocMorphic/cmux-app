@@ -18,6 +18,7 @@ internal class ChangesStore(parent: CoroutineScope, private val workspace: Strin
     private val fetchLines: suspend (String) -> ChangesCurrentFile = { error("File content is unavailable") }) : AutoCloseable {
     private val owner = SupervisorJob(parent.coroutineContext[Job])
     private val scope = CoroutineScope(parent.coroutineContext + owner)
+    val previews = ChangesPreviewController(scope)
     private val list = MutableStateFlow(ChangesListState())
     val listing = list.asStateFlow()
     private class Page {
@@ -49,6 +50,7 @@ internal class ChangesStore(parent: CoroutineScope, private val workspace: Strin
                     recency.remove(path); scrollPositions.remove(path)
                 }
                 // A refreshed list is a new repository snapshot, even when paths stayed the same.
+                previews.invalidate()
                 pages.values.forEach { it.generation++; it.job?.cancel(); it.job = null; it.state.value = ChangesPageState() }
                 recency.clear()
                 list.value = ChangesListState(snapshot = snapshot)
@@ -57,6 +59,7 @@ internal class ChangesStore(parent: CoroutineScope, private val workspace: Strin
                 currentCoroutineContext().ensureActive()
                 if (generation != listGeneration) return@launch
                 val notRepo = (failure as? MobileRpcException)?.code == "not_a_repo"
+                if (notRepo) previews.invalidate()
                 list.value = if (notRepo) ChangesListState(notRepository = true)
                     else list.value.copy(loading = false, error = failure.message ?: "Could not load changes")
             }
@@ -71,6 +74,7 @@ internal class ChangesStore(parent: CoroutineScope, private val workspace: Strin
         if (more && (previous.loading || continuation?.canGrow != true)) return record.job
         val requested = if (more) checkNotNull(continuation).nextBudget else previous.budget
         val generation = ++record.generation
+        if (force) previews.invalidate(path)
         record.job?.cancel()
         record.state.value = previous.copy(document = if (force) null else previous.document,
             loading = true, error = null, failedContinuation = false,
@@ -147,6 +151,7 @@ internal class ChangesStore(parent: CoroutineScope, private val workspace: Strin
         }.also { record.job = it }
     }
     fun select(path: String) {
+        previews.retainPath(path)
         selected = path; touch(path); load(path)
         prefetch?.cancel()
         val files = list.value.snapshot?.files.orEmpty()
@@ -159,7 +164,7 @@ internal class ChangesStore(parent: CoroutineScope, private val workspace: Strin
             }
         }
     }
-    fun clearSelection() { selected = null; prefetch?.cancel(); prefetch = null }
+    fun clearSelection() { selected = null; previews.invalidate(); prefetch?.cancel(); prefetch = null }
     private fun touch(path: String) { recency.remove(path); recency.addLast(path) }
     private fun trim() {
         val files = list.value.snapshot?.files.orEmpty()
@@ -171,5 +176,5 @@ internal class ChangesStore(parent: CoroutineScope, private val workspace: Strin
             pages[victim]?.let { it.state.value = it.state.value.copy(document = null, budget = DiffContinuation.DEFAULT_BUDGET, ceiling = false, rows = emptyList(), expansion = ChangesExpansion()) }
         }
     }
-    override fun close() { listGeneration++; pages.values.forEach { it.generation++ }; owner.cancel() }
+    override fun close() { listGeneration++; pages.values.forEach { it.generation++ }; previews.close(); owner.cancel() }
 }

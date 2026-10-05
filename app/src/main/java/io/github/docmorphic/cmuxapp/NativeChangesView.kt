@@ -97,7 +97,7 @@ internal fun ChangesContent(store: ChangesStore, title: String, onBack: () -> Un
                 HorizontalDivider(color = Color(0xFF292C31))
                 HorizontalPager(pager, Modifier.weight(1f), key = { files[it].path }) { index ->
                     ChangesDiffPage(store, files[index], fontSize, { fontSize = clampDiffFont(it) },
-                        { preferences.edit().putFloat("diff-font-size", clampDiffFont(it)).apply() }, content)
+                        { preferences.edit().putFloat("diff-font-size", clampDiffFont(it)).apply() }, content, active = files[index].path == selected)
                 }
             }
         }

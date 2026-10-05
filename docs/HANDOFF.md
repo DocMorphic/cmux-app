@@ -26,7 +26,20 @@ recovery source `d8edb8b` is committed/pushed and passed 109 focused JVM checks;
 it is not in 596 and has no Android runtime acceptance yet. Start with
 [REMAINING_WORK.md](REMAINING_WORK.md) for the current completion gates.
 
-## Latest source checkpoint — optional relay hint and Android batch (2026-10-05)
+## Latest source checkpoint — Changes preview retention (2026-10-05)
+
+The retained Changes owner now keeps Before/After selection and one active private
+preview across Activity recreation. Refresh/file changes/close cancel and clean
+up the old request; late responses cannot overwrite a replacement. **29 JVM and
+7 Android checks passed**, followed by a stronger **1-test Android pass** proving
+PDF page label/bounds/pixels and no redownload after recreation. Screenshots
+inspected; final run crash/ANR-free; settings unchanged; sole AVD stopped/reaped.
+See [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md) for evidence,
+initial emulator interruptions and remaining short-PDF navigation, browser-parent,
+zoom/media/text/Save restoration work. Signed **596** is still the verified
+download. Physical acceptance and full parity remain open; goal active.
+
+## Earlier source checkpoint — optional relay hint and Android batch (2026-10-05)
 
 Confirmed against the pinned iOS endpoint supervisor: a remote relay hint is
 optional even in Automatic; local binding credentials remain required. Android
