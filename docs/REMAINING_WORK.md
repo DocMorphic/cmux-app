@@ -25,6 +25,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Image viewer source comparison now implements iOS 3× tapped-point double-tap,
+  centroid-anchored pinch, minimum-scale paging tolerance and long-press
+  Share/Save/Copy Image using the shared retained action owners. Image/PDF decoder
+  errors are readable. Six geometry tests passed and instrumentation compiled;
+  new/adjusted gesture/menu tests await the next combined Android milestone.
+  Different-aspect-ratio restoration, animation, accessibility and physical
+  acceptance remain open. See `CONTENT_PREVIEW_LIFECYCLE.md`.
+- Signed milestone build 616 passed CI at `f72f036` (Actions run 37352608676),
+  without preview publication. It excludes the newer image interaction batch.
+  Build 606 remains the independently verified download until 616 is checked locally.
+
 - The Files/Save/export integration milestone passed 18 Android checks on the
   existing API37/16 KB AVD: real Save picker and Share chooser, exact read-only
   provider bytes, restored-action confirmation/no replay, fresh failed-Save

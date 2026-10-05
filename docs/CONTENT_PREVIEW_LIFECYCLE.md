@@ -1,5 +1,44 @@
 # Content preview lifecycle
 
+## Image interaction source parity batch — 2026-10-05
+
+Compared `ChatArtifactZoomableImageView.swift`, `ChatArtifactZoomPolicy.swift` and
+`ChatArtifactActionVisibilityPolicy.swift` at scoped upstream
+`186cec79781256867ad4516f0802118738bd2393`. iOS uses an aspect-fit view inside a
+zooming scroll view, scales 1–8, a 0.01 minimum-scale tolerance, 3× double-tap zoom
+centered on the touched point, pager ownership at minimum, and a long-press menu
+with Share, Save and Copy Image. Exact excerpts/hashes are retained in
+`captures/runtime/image-actions-batch/upstream.json`; global parity pins stay put.
+
+Android now uses that 3× image double-tap policy and centers the tapped point
+subject to viewport bounds. Pinch transforms preserve the point under the moving
+finger centroid and use the actual clamped zoom ratio at scale limits. Saved
+scale/pan remain normalized to the view. A long-press menu at the touch location
+and an accessibility long-click action expose the three iOS image actions. Both
+this menu and the toolbar use a common dispatcher into existing retained owners:
+remote Share/Save still re-stat/refetch, and Copy Image uses the displayed bytes.
+Busy owners disable new dispatch. Image and PDF read failures now show readable
+recovery guidance instead of filesystem exception text. The existing PDF 2×
+double-tap target is retained; shared pinch focal-point correction also applies.
+
+**Verification:** six focused geometry tests passed; main Kotlin and Android
+instrumentation Kotlin compiled. Checks cover tapped-point centering, moving
+pinch centroids, clamped ratios, bounded pans, minimum tolerance and invalid
+pointer input. The first pass caught signed negative zero at minimum zoom;
+minimum now canonicalizes to the reset state. Logs and passing XML are under
+`captures/runtime/image-actions-batch/`.
+
+A new guarded Android fixture is prepared for off-center zoom/recreation,
+long-press menu contents, Share/Save dispatch and exact Copy Image bytes. It
+intercepts Share and Save intents; real system UI was covered by the preceding
+integration milestone. The existing striped-image retention test's pan distance
+was adjusted for 3× zoom. **These changed Android tests have not been executed**;
+no APK or AVD run was added for this feature batch. Runtime checks will be grouped
+at the next integration milestone. Different-aspect-ratio focal restoration,
+animated transitions, touch/menu placement and gesture arbitration, full PDFKit
+behavior, accessibility traversal and physical Pixel acceptance remain open.
+Build 616 is an earlier source milestone at `f72f036`; it excludes this batch.
+
 ## Files, Save and export integration milestone — 2026-10-05
 
 Source: `8690d1f` plus the integration tests and friendly text-read error fix in

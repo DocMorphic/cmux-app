@@ -50,26 +50,14 @@ internal fun ChangesBinaryPreview(transfer: ChangesContentTransfer, file: Change
 internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactViewerState? = null, remote: RemoteArtifactSource? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val saves = checkNotNull(LocalFileSaves.current)
-    val exports = checkNotNull(LocalFileExports.current)
-    val exportState by exports.controller.state.collectAsState()
+    val actions = filePreviewActionHandler(artifact, remote)
     var menu by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
     var fontDialog by remember { mutableStateOf(false) }
-    fun perform(action: String) {
-        val captured = artifact
-        val source = remote.takeUnless { action == "Copy Image" }
-        if (captured == null && source == null) return
-        if (action == "Save") { menu = false; failure = null; saves.begin(captured, source); return }
+    fun perform(action: FilePreviewAction) {
         failure = null; menu = false
-        val kind = when (action) {
-            "Share" -> FileExportAction.SHARE
-            "Open" -> FileExportAction.OPEN
-            "Copy Image" -> FileExportAction.COPY_IMAGE
-            else -> return
-        }
-        exports.begin(kind, captured, source)
+        actions.perform(action)
     }
     if (fontDialog && viewer != null) AlertDialog(onDismissRequest = { fontDialog = false }, title = { Text("Text size") },
         text = { Column {
@@ -81,13 +69,13 @@ internal fun FilePreviewActions(artifact: LocalFilePreview?, viewer: ArtifactVie
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(artifact?.let { "${it.size} bytes" }.orEmpty(), Modifier.weight(1f), fontSize = 12.sp, color = changesMuted)
             Box {
-                IconButton(onClick = { menu = true }, enabled = (artifact != null || remote != null) && !busy && !saves.busy && !exportState.busy,
+                IconButton(onClick = { menu = true }, enabled = actions.enabled && !busy,
                     modifier = Modifier.semantics { contentDescription = "Viewer actions" }) {
-                    if (busy || saves.busy || exportState.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Box(Modifier.size(24.dp).border(1.dp, filesMuted, CircleShape), contentAlignment = Alignment.Center) { Text("⋯", fontSize = 19.sp) }
+                    if (busy || actions.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Box(Modifier.size(24.dp).border(1.dp, filesMuted, CircleShape), contentAlignment = Alignment.Center) { Text("⋯", fontSize = 19.sp) }
                 }
                 DropdownMenu(menu, { menu = false }, containerColor = androidx.compose.ui.graphics.Color(0xFF232428)) {
-                    listOf("Share", "Save", "Open").forEach { action -> DropdownMenuItem(text = { Text(action) }, onClick = { perform(action) }) }
-                    if (artifact?.route == ChangesPreviewRoute.IMAGE) DropdownMenuItem(text = { Text("Copy Image") }, onClick = { perform("Copy Image") })
+                    listOf(FilePreviewAction.SHARE, FilePreviewAction.SAVE, FilePreviewAction.OPEN).forEach { action -> DropdownMenuItem(text = { Text(action.label) }, onClick = { perform(action) }) }
+                    if (artifact?.route == ChangesPreviewRoute.IMAGE) DropdownMenuItem(text = { Text("Copy Image") }, onClick = { perform(FilePreviewAction.COPY_IMAGE) })
                     if (artifact?.route == ChangesPreviewRoute.TEXT && viewer != null) {
                         DropdownMenuItem(text = { Text("Copy Contents") }, enabled = !busy && artifact.size in 0..(4L * 1024 * 1024), onClick = {
                             menu = false; busy = true

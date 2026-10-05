@@ -99,8 +99,8 @@ class ChangesPreviewRetentionRuntimeTest {
                     }
                     doubleTapImage()
                     assertColor(imageDescription, Color.RED, .2f)
-                    device.swipe(imageBounds.centerX(), imageBounds.centerY(),
-                        imageBounds.centerX() + imageBounds.width() / 4, imageBounds.centerY(), 25)
+                    device.swipe(imageBounds.left + imageBounds.width() / 4, imageBounds.centerY(),
+                        imageBounds.left + 3 * imageBounds.width() / 4, imageBounds.centerY(), 25)
                     assertColor(imageDescription, Color.GREEN, .2f)
                     assertColor(imageDescription, Color.RED, .8f)
                     var original: WorkspaceChangesPresentation? = null
