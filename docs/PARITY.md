@@ -14,6 +14,13 @@ UI resemblance alone does not count.
 
 ## Latest source checkpoint — ticket expiry Android acceptance (2026-10-05)
 
+**Signed milestone pending:** build **596**, source `3406a98d3a03fe0f52eda5767223f4bcf2f5577a`,
+[run 37257691562](https://github.com/DocMorphic/cmux-app/actions/runs/37257691562),
+was dispatched once with preview publication disabled and observed queued.
+Poll that existing run, then verify its artifact/provenance/signature/alignment/ART
+and upgrade behavior. Do not start a replacement merely because observation times
+out. Signed **589** remains the verified download until these checks pass.
+
 A new real Compose/framed-peer check reproduced a stale task-composer gate after
 Mac ticket expiry: the sidebar closed its menu, but the composer retained a cached
 time-dependent eligibility value. NativeScreen now evaluates eligibility on each
