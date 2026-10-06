@@ -40,6 +40,7 @@ class CloudOnboardingTest {
         compose.onNodeWithTag("cloud.introduction.next").performClick()
         compose.onNodeWithContentDescription("Cloud introduction, step 2 of 3").assertExists()
         compose.onNodeWithTag("cloud.introduction.vpn.status").assertIsDisplayed()
+        captureCloudScreen("cloud-basics-vpn")
         restoration.emulateSavedInstanceStateRestore()
         compose.onNodeWithContentDescription("Cloud introduction, step 2 of 3").assertExists()
         compose.onNodeWithTag("cloud.introduction.next").performClick()

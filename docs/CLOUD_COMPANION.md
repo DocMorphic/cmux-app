@@ -1237,3 +1237,57 @@ ADB still has no device. No APK rebuild, emulator, Cloud network request or remo
 machine mutation occurred. Pixel gesture/menu/TalkBack/RTL acceptance, real failed
 machine/tunnel recovery, native billing and broader Cloud source/UI acceptance
 remain open. The signed published APK remains 616; the overall goal is active.
+
+### Android Cloud integration and terminal retirement — 2026-10-06
+
+Built the accumulated Cloud changes at main `8488f496`, then ran the existing
+`cmux_api37_16k` AVD (API 37, actual page size 16384). No new AVD was created and
+no physical Pixel was connected. Six instrumentation classes exercised 15 cases:
+CloudAndroidRuntimeTest, CloudVpnBackendTest, CloudOnboardingTest,
+CloudMachinesScreenTest, CloudComputerVisibilityScreenTest and
+CloudTerminalScreenTest. These use injected account/machine/link fixtures;
+the Rust Cloud C ABI, WireGuard native library/parser and Ghostty renderer are real.
+There was no Cloud account request, peer enrollment, VM mutation or VPN activation.
+
+The first batch took 70.080 seconds: 14 passed, one failed because a test queried
+the merged semantics tree for a label under a clickable row. The label existed in
+the unmerged tree. The corrected selector also requires it to be displayed.
+Screenshots revealed a System UI startup ANR overlay, recorded at 17:21:04 before
+these tests. The initial obscured captures remain in the local evidence. After
+closing that system dialog, 11 UI checks were repeated (115.439 seconds): ten
+passed, and terminal switching exposed a real lifecycle error, `Ghostty terminal
+is closed`, from the disposing focus observer.
+
+CloudRenderedTerminal.close now publishes ENDED before releasing its native
+display. A late focus callback consequently fails the normal RUNNING admission
+check without querying freed state. The terminal test now explicitly checks the
+retired phase and focus callback after selecting its replacement, as well as
+rendered Japanese text, persisted pending drafts before input, separate terminal
+attachment tokens and rejection of old/background input. Main/test APKs rebuilt
+in 31 seconds; this changed terminal test passed in 11.610 seconds. All 15 selected
+cases have passing results across these runs; the complete batch was not repeated
+after the narrowly scoped retirement fix.
+
+Four fixture screenshots were inspected: connection recovery copy, swipe/delete
+confirmation, VPN onboarding and rendered terminal. The captures show component
+content; the isolated activities do not establish full-shell status/navigation
+bar insets, production theme parity, TalkBack or physical gesture acceptance.
+The delete capture includes the dialog's entrance transition. No additional ANR
+event appeared after the initial System UI startup failure, and the crash buffer
+was empty. This does not erase the test-reported focus exception above.
+
+All 22 packaged native libraries passed LOAD/RELRO alignment verification and APK
+ZIP alignment passed for 16 KiB pages. Final debug APK SHA-256:
+`810fd377ad83e096642d0521db14cc27dc028c02bf67ba2d1daf8e324846dbec`.
+Logs, APK hashes, initial/final screenshots and alignment evidence are retained
+locally under `captures/runtime/cloud-integration/`. Gradle was stopped; the sole
+emulator was stopped and its process reaped. App data and device settings were
+preserved. Signed published APK 616 and the full parity goal remain unchanged.
+
+The reported native CI failure was rechecked again: `819b6943` fixes Android
+errno access, with four later native checkpoint successes, latest
+[37454996751](https://github.com/DocMorphic/cmux-app/actions/runs/37454996751).
+The native build driver, JNI source and workflow have no changes between that
+successful checkpoint and `8488f496`; this UI/runtime batch does not rebuild the
+native checkpoint. Physical Cloud terminal/VPN service recovery, private web,
+Tailscale transitions, native billing and the remaining source/UI audit stay open.

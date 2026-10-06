@@ -117,7 +117,14 @@ internal class CloudRenderedTerminal(private var terminal: NativeTerminal, val r
     }
     override fun visible(visible: Boolean) { if (!closed && visible && current()) attachment.replay() }
     override suspend fun currentDirectory() = terminal.directory
-    override fun close() { if (!closed) { closed = true; display.close() } }
+    override fun close() {
+        if (closed) return
+        closed = true
+        // Compose may dispose focus observers after selection closes this display.
+        // Publish retirement first so those observers never query freed native state.
+        mutable.value = mutable.value.copy(phase = SshShellPhase.ENDED, revision = mutable.value.revision + 1)
+        display.close()
+    }
 }
 
 internal data class CloudWorkspaceRoute(val host: CloudTerminalHost, val workspaceId: String, val catalogOwner: CloudWorkspaceController)

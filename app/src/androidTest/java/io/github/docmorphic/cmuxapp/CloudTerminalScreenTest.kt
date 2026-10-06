@@ -71,12 +71,15 @@ class CloudTerminalScreenTest {
             selected?.let { terminal -> key(terminal) { SshShellScreen(terminal, onBack = {}) } }
         } } }
         compose.waitUntil(5000) { compose.runOnIdle { TerminalTextSnapshot.capture(first.display).text.contains("Cloud term_a 日本語") } }
+        captureCloudScreen("cloud-terminal-first")
         compose.onNodeWithTag("ssh.shell.composer").performTextInput("printf cloud")
         compose.onNodeWithTag("ssh.shell.send").performClick()
         compose.waitUntil(5000) { link.input.any { it.second.contains("printf cloud") && it.second.endsWith("\r") } }
         lateinit var second: CloudRenderedTerminal
         compose.runOnIdle {
             second = host!!.select(row.workspace, row.workspace.terminals.last())
+            assertEquals(SshShellPhase.ENDED, first.state.value.phase)
+            assertFalse(SshTerminalInteraction(first).focus(false))
             assertFalse(first.send("must-not-send"))
         }
         compose.waitUntil(5000) { compose.runOnIdle { TerminalTextSnapshot.capture(second.display).text.contains("Cloud term_b 日本語") } }

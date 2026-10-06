@@ -102,7 +102,9 @@ class CloudMachinesScreenTest {
         assertTrue(service.deletes.isEmpty())
         compose.onNodeWithTag("cloud.swipe.vm.DELETE").assertIsDisplayed().performClick()
         assertTrue(service.deletes.isEmpty())
-        compose.onNodeWithTag("cloud.delete.confirm").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("cloud.delete.confirm").assertIsDisplayed()
+        captureCloudScreen("machine-delete-confirmation")
+        compose.onNodeWithTag("cloud.delete.confirm").performClick()
         compose.waitUntil(3000) { service.deletes.size == 1 }
         assertEquals(listOf("vm"), service.deletes)
     }
@@ -111,9 +113,10 @@ class CloudMachinesScreenTest {
         val snapshot = CloudWorkspaceSnapshot(service.rows.single(), failure =
             CloudSessionFailure("private native diagnostic", kind = CloudFailureKind.LINK))
         mount(service, mapOf("vm" to snapshot), onRetry = { retries++ })
-        compose.onNodeWithTag("cloud.connection.failure.vm").assertExists()
+        compose.onNodeWithTag("cloud.connection.failure.vm", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("Could not reach this machine's terminal service.").assertExists()
         compose.onNodeWithText("private native diagnostic").assertDoesNotExist()
+        captureCloudScreen("machine-connection-recovery")
         compose.onNodeWithContentDescription("Actions for My machine").performClick()
         compose.onNodeWithText("Try Again Now").performClick()
         assertEquals(1, retries)

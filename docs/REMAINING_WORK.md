@@ -26,6 +26,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud integration now has Android 17 / 16 KiB runtime evidence for the real
+  Rust/JNI and WireGuard libraries, machine UI, onboarding, visibility and common
+  terminal renderer/input. A repeated terminal check found a closed-Ghostty focus
+  callback; retirement now publishes ENDED before releasing the native display,
+  with a passing regression. The 15 selected cases have passing results across
+  the initial batch and targeted follow-ups, not one clean final full-suite run.
+  Four fixture screenshots were inspected; full-shell insets and physical Cloud/
+  VPN acceptance remain open. The existing sole AVD was stopped. Details and
+  failed attempts are recorded in `CLOUD_COMPANION.md`.
+
 - Cloud machine rows now expose connection failures, immediate retry, lifecycle
   status colors, long-press/overflow actions and non-executing swipe reveals with
   confirmed deletion. Refresh also reaches failed connections, retaining healthy
