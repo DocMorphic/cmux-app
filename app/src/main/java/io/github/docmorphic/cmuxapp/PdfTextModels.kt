@@ -8,7 +8,7 @@ internal data class PdfTextBounds(val left: Float, val top: Float, val right: Fl
 }
 internal data class PdfTextMatch(val page: Int, val start: Int, val bounds: List<PdfTextBounds>)
 internal data class PdfDocumentLink(val bounds: List<PdfTextBounds>, val target: PdfLinkTarget)
-internal enum class PdfDestinationFit { XYZ, PAGE, WIDTH, HEIGHT, RECTANGLE }
+internal enum class PdfDestinationFit { XYZ, PAGE, WIDTH, HEIGHT, RECTANGLE, CONTENT, CONTENT_WIDTH, CONTENT_HEIGHT }
 /** Null PDF coordinates retain the current point in unrotated PDF user space. */
 internal data class PdfRetainedCoordinates(val geometry: PdfPageCoordinates, val left: Float?, val top: Float?) {
     fun resolve(current: Pair<Float, Float>): Pair<Float, Float>? = geometry.point(left ?: current.first, top ?: current.second)

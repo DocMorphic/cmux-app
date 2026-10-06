@@ -112,7 +112,9 @@ class ArtifactPdfTextRuntimeTest {
     }
     @Test fun fitModesAndNullCoordinatesSurviveAnnotationParsing() {
         val modes = mapOf("/Fit" to PdfDestinationFit.PAGE, "/FitH 350" to PdfDestinationFit.WIDTH,
-            "/FitV 120" to PdfDestinationFit.HEIGHT, "/FitR 100 200 250 400" to PdfDestinationFit.RECTANGLE)
+            "/FitV 120" to PdfDestinationFit.HEIGHT, "/FitR 100 200 250 400" to PdfDestinationFit.RECTANGLE,
+            "/FitB" to PdfDestinationFit.CONTENT, "/FitBH 350" to PdfDestinationFit.CONTENT_WIDTH,
+            "/FitBV 120" to PdfDestinationFit.CONTENT_HEIGHT)
         for ((expression, mode) in modes) {
             val file = fixture(targetHeight = 600, targetDestination = expression)
             try { ChangesPdfDocument(file).use { pdf ->

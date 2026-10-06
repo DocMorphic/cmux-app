@@ -40,6 +40,15 @@ internal class ChangesPdfDocument(private val file: File, nativeText: Boolean = 
         val point = checkNotNull(retained.resolve(current))
         return target.copy(x = point.first, y = point.second, retained = null)
     }
+    @Synchronized fun resolveDestination(target: PdfLinkTarget.Page, sourcePage: Int, x: Float, y: Float): PdfLinkTarget.Page {
+        val resolved = resolveRetained(target, sourcePage, x, y)
+        if (resolved.fit !in setOf(PdfDestinationFit.CONTENT, PdfDestinationFit.CONTENT_WIDTH, PdfDestinationFit.CONTENT_HEIGHT))
+            return resolved
+        // Resolve lazily on link activation, not for every annotation on every visible page.
+        val bounds = compatibility().contentBounds(target.index)
+            ?: PdfTextBounds(0f, 0f, pageSizes[target.index].first.toFloat(), pageSizes[target.index].second.toFloat())
+        return resolved.copy(rectangle = bounds)
+    }
     private fun compatibility(): PdfAnnotationLinks {
         if (linkIndex == null) linkIndex = PdfAnnotationLinks(file, pageSizes)
         return checkNotNull(linkIndex)

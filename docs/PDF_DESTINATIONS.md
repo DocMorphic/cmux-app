@@ -148,3 +148,46 @@ This closes the listed fixture checks, not full PDFKit or physical parity.
 Bounding-box fit modes, selection handles/cross-page selection, broad rotation,
 large-text/TalkBack, high-zoom quality and real Pixel/Mac routes remain open.
 No signed release was promoted.
+
+## Content bounding-box destinations — 2026-10-06
+
+FitB, FitBH and FitBV now have distinct parsed modes. Opening one resolves the
+page's geometric marks on IO and caches the small result for that document.
+The shared viewport fits both dimensions, width, or height of that rectangle,
+retaining the explicit top/left axis for FitBH/FitBV. Blank pages use their full
+page bounds. Existing return history and saved viewport behavior are reused.
+
+`PdfContentBounds` uses the already bundled PDFBox-Android graphics stream
+engine. It includes white painted shapes (not just nonwhite pixels), glyph
+outlines, stroked paths/caps/joins/dashes, transformed image extents, form and
+transparency-group content, and clipping. It preserves the parent path across
+nested forms, transforms the resulting marks through crop/rotation, and does
+not decode image pixels. Text clipping is applied at the text object's end.
+This follows the callbacks in the pinned [PDFGraphicsStreamEngine](https://github.com/TomRoush/PdfBox-Android/blob/v2.0.27.0/library/src/main/java/com/tom_roush/pdfbox/contentstream/PDFGraphicsStreamEngine.java)
+and font transforms in [PageDrawer](https://github.com/TomRoush/PdfBox-Android/blob/v2.0.27.0/library/src/main/java/com/tom_roush/pdfbox/rendering/PageDrawer.java).
+
+Operation/glyph/nesting bounds prevent unbounded recursive extraction. Parser
+errors propagate instead of returning partial bounds that might crop content;
+the viewer then keeps the current reading location and shows its existing link
+failure. Graphics are measured only when following a content-fit link, not while
+extracting every visible annotation. No additional parser dependency or renderer
+was introduced.
+
+**Verification:** main/instrumentation compilation and 20 focused JVM cases
+passed in 25 seconds: ten destination, five page-coordinate, five text-model
+cases. Four Android fixtures cover vector/image/text marks, clipped nested forms
+and outer strokes, crop/rotation/blank/error paths, lazy resolution and explicit
+axis preservation. The existing annotation parser fixture also includes all
+three content-fit expressions. A fixture compile caught the PDFBox setter overload;
+using `setContents(PDStream)` corrected it. Final main/instrumentation compilation
+passed in four seconds. Logs and JVM receipts are in the ignored local
+`captures/runtime/pdf-content-bounds/`. These Android checks are queued for the next
+combined viewer milestone; they have not been executed in this batch.
+
+Remaining: visible content-fit pixels/history/recreation on Android, fonts and
+complex shading/pattern/soft-mask/optional-content examples, physical Pixel and
+matched iOS views. Geometric image extents include transparent image areas;
+curves can have conservative control-point bounds; unbounded shadings use the
+current clip. These approximations need comparison against PDFKit before this
+area can be called full parity. Selection handles/cross-page selection and
+high-zoom quality remain open. No APK, emulator, or signed release is claimed.

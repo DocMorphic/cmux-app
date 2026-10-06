@@ -14,7 +14,7 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 | Area | What remains | Evidence required to close it |
 | --- | --- | --- |
-| Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; finish legacy pre-tag identity adoption and acceptance of authenticated legacy-to-native upgrade (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
+| Account, pairing and connections | Verify edited/replacement-grant reconnect on Pixel/Mac; verify the implemented legacy pre-tag identity adoption and authenticated legacy-to-native upgrade on the physical devices (see ATTACH_TICKETS.md). Verify native authorization, ticket/rejected-token recovery, saved-method guards and optional relay hints against actual hosts; exercise account/team changes, Iroh/Tailscale/SSH recovery and network transitions. | Pixel/Mac runs covering first pairing, reuse, expiry, revocation, logout, host restart, phone process death and Wi-Fi/mobile-data transitions. Preserve existing credentials and workspaces. Record host capabilities and APK/source versions. |
 | Terminal and input | Finish real Gboard/hardware-keyboard, TUI, selection/copy/paste, resize, background/foreground and reconnect acceptance. | Visible Pixel output/input checks against disposable Mac terminals, including independent input/output lanes and recovery without lost or duplicated commands. Recheck the recent protocol changes, even where an older build passed. |
 | Workspace, task, search and browser flows | Finish physical acceptance of sidebar/navigation, task creation/attachments/drafts, notifications/search destinations, browser gestures/dialogs/downloads; check large-list paging/autoscroll and slow hosts. | Successful end-to-end Mac operations plus lifecycle/rotation and failure recovery. Verify drafts, selections and nested destinations survive the lifecycle events supported on iOS. |
 | Files, Changes and content viewers | Finish the remaining format/menu comparisons and modal/binary preview restoration, including native errors outside RPC and broader real-route retry acceptance, directory/rename/read/export/decoder failure coverage, live panel-kind changes, and broader main Files/direct-tap/transport restoration, forced browser-parent recreation with binary content, rendered-Markdown reflow and real-route/process recovery, Save process-death/large-write recovery and remote-file freshness semantics, video acceptance and zoom across aspect-ratio changes. | An explicit supported-format matrix checked against pinned iOS code, visible rendering and file actions on Pixel, and restoration tests that verify the displayed content. |
@@ -24,6 +24,23 @@ and currently disabled; the upstream watcher is active on main with review issue
 | Final source audit | Finish the broad upstream delta inventory and reconcile every remaining iOS behavior with Android; establish the exact upstream version for the parity release. | A requirement-to-source/test/physical-evidence mapping with no unexplained omissions. Scoped audits at newer commits do not advance the global pin. Document only evidenced, unavoidable platform differences. |
 
 ## Current delivery and next actions
+
+- PDF FitB/FitBH/FitBV now resolve geometric content bounds lazily, including
+  vectors, glyph outlines and images, with clipped forms, rotation and explicit
+  axis retention. Blank pages fit the page; extraction errors retain the current
+  location and show the existing link error. **20 focused JVM cases passed**;
+  Android extraction/pixel acceptance remains queued. See the new
+  [content-bound feature batch](PDF_DESTINATIONS.md#content-bounding-box-destinations--2026-10-06).
+
+- Connection checklist correction: pre-tag/raw-grant identity adoption,
+  background successor refresh, explicit-confirmation upgrade and appearance
+  recovery are already implemented. The 20-case identity milestone and later
+  appearance milestone are recorded in ATTACH_TICKETS.md. Physical Mac/Pixel
+  acceptance remains open. A scoped read at upstream `c2715faa02c260b07012bc0b386597cfb333021d`
+  confirms `CMUXMobileRootScene.makeBackedUpPairedMacStore` still returns the local
+  team-scoped store without constructing the dormant cloud-backup decorator.
+  No cloud-restore behavior is inferred from the unused library. Global pins
+  are unchanged.
 
 - Combined media/PDF milestone: **13 distinct Android cases now have passing
   evidence**, including actual PiP video pixels/cleanup, PDF XYZ/FitR pixels,

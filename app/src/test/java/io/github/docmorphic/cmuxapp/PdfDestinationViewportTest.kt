@@ -4,6 +4,30 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PdfDestinationViewportTest {
+    @Test fun contentFitUsesGraphicBoundsInsteadOfTheWholePage() {
+        val bounds = PdfTextBounds(180f, 20f, 260f, 180f)
+        val target = PdfLinkTarget.Page(0, 40f, 100f, fit = PdfDestinationFit.CONTENT, rectangle = bounds)
+        val result = PdfDestinationViewport.resolve(target, 300, 600, 900f, 3f, 1f, viewportHeight = 1200f)
+        assertEquals(2.5f, result.transform.scale, .0001f)
+        assertEquals(-70f * 2.5f / 300f, result.transform.x, .0001f)
+        assertEquals(150f / 1800f, result.scrollFraction, .0001f)
+        val width = PdfDestinationViewport.resolve(target.copy(fit = PdfDestinationFit.CONTENT_WIDTH),
+            300, 600, 900f, 3f, 1f, viewportHeight = 1200f)
+        assertEquals(3.75f, width.transform.scale, .0001f)
+        assertEquals(40f * 3.75f / 600f, width.scrollFraction, .0001f)
+        val height = PdfDestinationViewport.resolve(target.copy(fit = PdfDestinationFit.CONTENT_HEIGHT),
+            300, 600, 900f, 3f, 1f, viewportHeight = 1200f)
+        assertEquals(2.5f, height.transform.scale, .0001f)
+        assertEquals(-.5f - (100f - 150f) * 2.5f / 300f, height.transform.x, .0001f)
+    }
+    @Test fun emptyContentBoundsFitThePageAndDoNotExplodeZoom() {
+        for ((content, page) in listOf(PdfDestinationFit.CONTENT to PdfDestinationFit.PAGE,
+            PdfDestinationFit.CONTENT_WIDTH to PdfDestinationFit.WIDTH, PdfDestinationFit.CONTENT_HEIGHT to PdfDestinationFit.HEIGHT)) {
+            val target = PdfLinkTarget.Page(0, 40f, 50f, fit = content)
+            assertEquals(PdfDestinationViewport.resolve(target.copy(fit = page), 300, 600, 900f, 3f, 1f),
+                PdfDestinationViewport.resolve(target, 300, 600, 900f, 3f, 1f))
+        }
+    }
     @Test fun fitPageUsesBothViewportDimensionsAndCentersShortPages() {
         val result = PdfDestinationViewport.resolve(PdfLinkTarget.Page(0, 0f, fit = PdfDestinationFit.PAGE),
             300, 200, 900f, 3f, 4f, viewportHeight = 1200f)

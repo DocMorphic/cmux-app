@@ -140,7 +140,7 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
                 searchNavigationPending = false
                 linkJob = scope.launch {
                     try {
-                        val resolved = withContext(Dispatchers.IO) { pdf.resolveRetained(link, origin, currentX, currentY) }
+                        val resolved = withContext(Dispatchers.IO) { pdf.resolveDestination(link, origin, currentX, currentY) }
                         ensureActive()
                         val size = pdf.pageSizes[link.index]
                         val target = PdfDestinationViewport.resolve(resolved, size.first, size.second, pageWidth, density,

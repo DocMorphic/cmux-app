@@ -15,6 +15,13 @@ import java.io.File
 internal class PdfAnnotationLinks(file: File, private val pageSizes: List<Pair<Int, Int>>) : AutoCloseable {
     private val document = PDDocument.load(file, MemoryUsageSetting.setupMixed(8L * 1024 * 1024, 128L * 1024 * 1024)
         .setTempDir(file.parentFile))
+    private val contentBoundsCache = mutableMapOf<Int, PdfTextBounds?>()
+    fun contentBounds(index: Int): PdfTextBounds? {
+        require(document.numberOfPages == pageSizes.size) { "PDF parsers disagree about page count" }
+        if (!contentBoundsCache.containsKey(index))
+            contentBoundsCache[index] = PdfContentBounds(document.getPage(index)).read(coordinates(index))
+        return contentBoundsCache[index]
+    }
     private val cache = mutableMapOf<Int, List<PdfDocumentLink>>()
     private val textCache = object : LinkedHashMap<Int, PdfCompatibilityTextPage>(3, .75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, PdfCompatibilityTextPage>?) = size > 2
@@ -83,8 +90,9 @@ internal class PdfAnnotationLinks(file: File, private val pageSizes: List<Pair<I
             "FitH" -> PdfDestinationFit.WIDTH
             "FitV" -> PdfDestinationFit.HEIGHT
             "FitR" -> PdfDestinationFit.RECTANGLE
-            // Content bounding-box extraction remains a separate compatibility gap.
-            "FitB", "FitBH", "FitBV" -> PdfDestinationFit.WIDTH
+            "FitB" -> PdfDestinationFit.CONTENT
+            "FitBH" -> PdfDestinationFit.CONTENT_WIDTH
+            "FitBV" -> PdfDestinationFit.CONTENT_HEIGHT
             else -> return null
         }
         return PdfLinkTarget.Page(index, point.second.coerceIn(0f, pageSizes[index].second.toFloat()),
@@ -92,5 +100,5 @@ internal class PdfAnnotationLinks(file: File, private val pageSizes: List<Pair<I
             if (kind == "XYZ") number(4)?.coerceAtLeast(0f) ?: 0f else 0f, retainZoom = kind == "XYZ", fit = fit,
             rectangle = rectangle, retained = if (rawX == null || rawTop == null) PdfRetainedCoordinates(geometry, rawX, rawTop) else null)
     }
-    override fun close() { cache.clear(); textCache.clear(); document.close() }
+    override fun close() { cache.clear(); textCache.clear(); contentBoundsCache.clear(); document.close() }
 }
