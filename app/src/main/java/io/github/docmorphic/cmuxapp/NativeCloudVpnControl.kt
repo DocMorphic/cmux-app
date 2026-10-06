@@ -51,8 +51,8 @@ import androidx.compose.ui.unit.dp
         Text("Reach private Cloud services from your browser and other apps. Enabling this replaces Tailscale or another active Android VPN.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         (error ?: failure ?: state.message)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (state.pendingCleanup > 0 && !checked) Text("${state.pendingCleanup} Cloud VPN peer(s) awaiting cleanup.", style = MaterialTheme.typography.bodySmall)
-        if (!busy && (failure != null || state.phase == CloudSystemVpnPhase.FAILED || state.pendingCleanup > 0 && !checked))
+        if (state.pendingCleanup > 0) Text("${state.pendingCleanup} Cloud VPN peer(s) awaiting cleanup.", style = MaterialTheme.typography.bodySmall)
+        if (!busy && (failure != null || state.phase == CloudSystemVpnPhase.FAILED || state.pendingCleanup > 0))
             TextButton(onClick = { error = null; runtime.retry() }, modifier = Modifier.testTag("cloud.vpn.retry")) { Text("Retry cleanup") }
     }
     confirming?.let { expected -> AlertDialog(onDismissRequest = { confirming = null },

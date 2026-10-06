@@ -19,7 +19,7 @@ internal data class CloudVpnRevocation(val attempt: String, val owner: CloudVpnO
     init { require(UUID.fromString(attempt).toString() == attempt && fingerprint.isNotBlank() && fingerprint.length <= 4096) }
     override fun toString() = "CloudVpnRevocation(redacted)"
 }
-internal class CloudVpnProfile(val enrollment: CloudVpnRevocation, val configuration: String) {
+internal class CloudVpnProfile(val enrollment: CloudVpnRevocation, val configuration: String, val requested: Boolean = true) {
     init { require(CloudVpnRoutePolicy.permitsConfiguration(configuration)) { "Invalid saved Cloud VPN routes" } }
     override fun toString() = "CloudVpnProfile(redacted)"
 }
@@ -54,6 +54,7 @@ internal class CloudVpnStore(private val root: File, private val cipher: CloudId
         val state = read()
         check(entry in state.pending) { "Cloud VPN enrollment was retired" }
         check(state.profile == null || state.profile.enrollment == entry) { "Another Cloud VPN profile is saved" }
+        check(state.profile?.requested != false) { "Cloud VPN stop was already requested" }
         write(CloudVpnSavedState(state.pending, CloudVpnProfile(entry, configuration)))
     }
 
@@ -61,6 +62,14 @@ internal class CloudVpnStore(private val root: File, private val cipher: CloudId
     fun retireProfile(attempt: String) = locked {
         val state = read()
         if (state.profile?.enrollment?.attempt == attempt) write(CloudVpnSavedState(state.pending, null))
+    }
+    /** Write the user's stop intent before platform shutdown; keep the cleanup identity
+     * and configuration until stop succeeds. Recovery must never restart this profile. */
+    fun requestStop() = locked {
+        val state = read()
+        state.profile?.takeIf { it.requested }?.let {
+            write(CloudVpnSavedState(state.pending, CloudVpnProfile(it.enrollment, it.configuration, requested = false)))
+        }
     }
     fun acknowledge(entry: CloudVpnRevocation) = locked {
         val state = read()
@@ -97,7 +106,7 @@ internal class CloudVpnStore(private val root: File, private val cipher: CloudId
             val profile = if (value.isNull("profile")) null else value.getJSONObject("profile").let { item ->
                 CloudVpnProfile(checkNotNull(pending.singleOrNull { it.attempt == item.getString("attempt") }) {
                     "Cloud VPN cleanup identity is missing"
-                }, item.getString("configuration"))
+                }, item.getString("configuration"), if (item.has("requested")) item.getBoolean("requested") else true)
             }
             return CloudVpnSavedState(pending, profile)
         } finally { plain.fill(0); sealed.fill(0) }
@@ -107,7 +116,7 @@ internal class CloudVpnStore(private val root: File, private val cipher: CloudId
             JSONObject().put("attempt", it.attempt).put("user", it.owner.user).put("team", it.owner.team ?: JSONObject.NULL)
                 .put("fingerprint", it.fingerprint)
         })).put("profile", state.profile?.let {
-            JSONObject().put("attempt", it.enrollment.attempt).put("configuration", it.configuration)
+            JSONObject().put("attempt", it.enrollment.attempt).put("configuration", it.configuration).put("requested", it.requested)
         } ?: JSONObject.NULL)
         val plain = value.toString().toByteArray(Charsets.UTF_8)
         val sealed = try { require(plain.size <= MAX_BYTES); cipher.encrypt(plain) } finally { plain.fill(0) }

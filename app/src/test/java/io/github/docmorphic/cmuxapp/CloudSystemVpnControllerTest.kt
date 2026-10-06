@@ -41,6 +41,7 @@ class CloudSystemVpnControllerTest {
         var current = true
         var enrollments = 0
         var revocations = 0
+        val revokedFingerprints = mutableListOf<String>()
         var keys = mutableListOf<String>()
         var failEnroll = false
         var failRevoke = false
@@ -52,8 +53,8 @@ class CloudSystemVpnControllerTest {
             check(!failEnroll) { "private error with secret should not reach UI" }
             CloudTunnelEnrollment("id", "provider", device.fingerprint, "", CloudWireGuardKey.generate().publicKey,
                 "vpn.example.test", 51820, listOf("10.0.0.0/8"), "10.0.0.2", null, true, false)
-        }, {
-            revocations++; beforeRevoke(); check(!failRevoke) { "revocation failed" }
+        }, { fingerprint ->
+            revocations++; revokedFingerprints += fingerprint; beforeRevoke(); check(!failRevoke) { "revocation failed" }
         })
     }
     @Test fun bindingAndConsentNeverEnrollUntilExplicitEnableAndDisableRetiresBeforeRevoke() = runTest {
@@ -100,7 +101,7 @@ class CloudSystemVpnControllerTest {
         val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler))
         try {
             controller.bind(access.access); access.failEnroll = true; access.failRevoke = true
-            controller.enable(); advanceUntilIdle()
+            controller.enable(); runCurrent(); advanceTimeBy(751); runCurrent()
             assertEquals(CloudSystemVpnPhase.FAILED, controller.state.value.phase)
             assertEquals(1, access.enrollments); assertEquals(3, access.revocations)
             assertEquals(1, store.load().pending.size); assertNull(store.load().profile)
@@ -156,6 +157,7 @@ class CloudSystemVpnControllerTest {
             platform.failStop = true; controller.disable(); runCurrent()
             assertEquals(CloudSystemVpnPhase.FAILED, controller.state.value.phase)
             assertNotNull(store.load().profile); assertEquals(0, access.revocations)
+            assertFalse(store.load().profile!!.requested)
             controller.enable(); runCurrent(); assertEquals(1, access.enrollments)
             platform.failStop = false; controller.retryCleanup(); runCurrent()
             assertNull(store.load().profile); assertTrue(store.load().pending.isEmpty())
@@ -186,5 +188,80 @@ class CloudSystemVpnControllerTest {
         assertNull(platform.active); assertNull(store.load().profile); assertTrue(store.load().pending.isEmpty())
         assertFalse(controller.enable())
         assertEquals(1, access.enrollments)
+    }
+
+    @Test fun backlogDrainsAcrossBatchesWithoutEnrollmentOrUsingAnotherOwnersCredentials() = runTest {
+        val store = CloudVpnStore(temporary.newFolder(), cipher); val platform = Platform(); val access = Access(store)
+        repeat(25) { store.begin(access.owner, "old-$it") }
+        val unavailable = store.begin(CloudVpnOwner("unavailable", "team"), "another-owner")
+        val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler))
+        try {
+            controller.bind(access.access); advanceUntilIdle()
+            assertEquals(25, access.revocations); assertEquals(25, access.revokedFingerprints.distinct().size)
+            assertEquals(listOf(unavailable), store.load().pending)
+            assertEquals(1, controller.state.value.pendingCleanup)
+            assertEquals(CloudSystemVpnPhase.OFF, controller.state.value.phase)
+            assertEquals(0, platform.starts); assertEquals(0, access.enrollments)
+            assertEquals(1, platform.stops)
+        } finally { controller.close(); runCurrent() }
+    }
+
+    @Test fun backgroundCleanupAndManualRetryNeverStopOrRevokeAnActiveProfile() = runTest {
+        val store = CloudVpnStore(temporary.newFolder(), cipher); val platform = Platform(); val access = Access(store)
+        repeat(9) { store.begin(access.owner, "old-$it") }
+        val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler))
+        try {
+            platform.beforeInstall = { access.failRevoke = true }
+            controller.bind(access.access); controller.enable(); runCurrent()
+            val active = platform.active
+            assertNotNull(active)
+            advanceUntilIdle()
+            assertEquals(active, platform.active)
+            assertEquals(CloudSystemVpnPhase.CONNECTED, controller.state.value.phase)
+            assertEquals(17, access.revocations) // Eight cleanups, then three bounded failed batches of three.
+            assertFalse("fingerprint" in access.revokedFingerprints)
+            assertEquals(2, store.load().pending.size); assertEquals(1, controller.state.value.pendingCleanup)
+            access.failRevoke = false
+            controller.retryCleanup(); advanceUntilIdle()
+            assertEquals(active, platform.active)
+            assertEquals(1, store.load().pending.size); assertEquals(0, controller.state.value.pendingCleanup)
+            assertEquals(1, platform.starts); assertEquals(1, platform.stops); assertEquals(1, access.enrollments)
+        } finally { controller.close(); runCurrent() }
+    }
+
+    @Test fun accountRetirementCancelsScheduledCleanupAndCloseDoesNotLeaveATimer() = runTest {
+        val store = CloudVpnStore(temporary.newFolder(), cipher); val platform = Platform(); val access = Access(store)
+        repeat(9) { store.begin(access.owner, "old-$it") }
+        val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler))
+        controller.bind(access.access); runCurrent()
+        assertEquals(8, access.revocations)
+        controller.close(); advanceUntilIdle()
+        assertEquals(9, access.revocations); assertTrue(store.load().pending.isEmpty())
+        assertEquals(CloudSystemVpnPhase.CLOSED, controller.state.value.phase)
+        val count = access.revocations; advanceTimeBy(100_000); runCurrent(); assertEquals(count, access.revocations)
+    }
+
+    @Test fun failedStopIntentWriteStillStopsLocalVpnAndRetainsUnconfirmedCleanup() = runTest {
+        var failWrites = false
+        val failingCipher = object : CloudIdentityCipher {
+            override fun encrypt(bytes: ByteArray): ByteArray {
+                if (failWrites) throw java.io.IOException("Disk full")
+                return bytes.copyOf()
+            }
+            override fun decrypt(bytes: ByteArray) = bytes.copyOf()
+        }
+        val store = CloudVpnStore(temporary.newFolder(), failingCipher); val platform = Platform(); val access = Access(store)
+        val controller = CloudSystemVpnController(backgroundScope, store, platform, StandardTestDispatcher(testScheduler))
+        try {
+            controller.bind(access.access); controller.enable(); runCurrent()
+            assertNotNull(platform.active)
+            failWrites = true; controller.disable(); runCurrent()
+            assertNull(platform.active)
+            assertEquals(CloudSystemVpnPhase.FAILED, controller.state.value.phase)
+            assertNotNull(store.load().profile); assertEquals(0, access.revocations)
+            failWrites = false; controller.retryCleanup(); advanceUntilIdle()
+            assertNull(store.load().profile); assertTrue(store.load().pending.isEmpty())
+            assertEquals(1, access.enrollments)
+        } finally { failWrites = false; controller.close(); runCurrent() }
     }
 }

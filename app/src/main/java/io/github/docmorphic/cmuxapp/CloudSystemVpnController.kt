@@ -55,6 +55,7 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
     private var closed = false
     private var operation: Job? = null
     private var timer: Job? = null
+    private var cleanupWorker: Job? = null
     private var liveAttempt: String? = null
     private val lifetime: DisposableHandle? = parent.coroutineContext[Job]?.invokeOnCompletion { close() }
     init { require(timeoutMillis in 1..300_000) }
@@ -84,7 +85,13 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
         true
     }
     fun disable() = synchronized(lock) { if (!closed) transitionLocked(false) }
-    fun retryCleanup() = synchronized(lock) { if (!closed && !wanted) transitionLocked(false) }
+    fun retryCleanup() = synchronized(lock) {
+        if (closed) return@synchronized
+        if (!wanted) transitionLocked(false)
+        else if (mutable.value.phase == CloudSystemVpnPhase.CONNECTED) {
+            cleanupWorker?.cancel(); cleanupWorker = null; scheduleCleanupLocked(generation)
+        }
+    }
 
     /** Service callbacks must carry the installation attempt, never just a bare UP/DOWN. */
     fun platformChanged(attempt: String, connected: Boolean) = synchronized(lock) {
@@ -103,7 +110,7 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
         val at = ++generation
         wanted = enable
         liveAttempt = null
-        operation?.cancel(); timer?.cancel()
+        operation?.cancel(); timer?.cancel(); cleanupWorker?.cancel(); cleanupWorker = null
         platform.interrupt()
         val access = account
         mutable.value = mutable.value.copy(phase = if (closed) CloudSystemVpnPhase.CLOSED else if (failure != null) CloudSystemVpnPhase.FAILED
@@ -132,7 +139,7 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
                 synchronized(lock) {
                     if (generation == at) {
                         timer?.cancel(); timer = null; operation = null
-                        if (closed) workers.cancel()
+                        if (closed) workers.cancel() else scheduleCleanupLocked(at)
                     }
                 }
             }
@@ -186,11 +193,17 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
         }
     }
     private suspend fun stopAndRetire() {
+        var intentFailure: Exception? = null
+        try { store.requestStop() } catch (failure: Exception) { intentFailure = failure }
+        // Even unreadable/full storage must not prevent local shutdown.
         platform.stop()
+        intentFailure?.let { throw it }
         store.load().profile?.let { store.retireProfile(it.enrollment.attempt) }
     }
     private suspend fun cleanupPeers(preferred: CloudVpnOwner?) {
-        val pending = store.load().pending.sortedBy { if (it.owner == preferred) 0 else 1 }
+        val saved = store.load()
+        val pending = saved.pending.filterNot { it.attempt == saved.profile?.enrollment?.attempt }
+            .sortedBy { if (it.owner == preferred) 0 else 1 }
         var processed = 0
         try { for (entry in pending) {
             val access = synchronized(lock) { cleanupAccess[entry.owner] } ?: continue
@@ -211,10 +224,51 @@ internal class CloudSystemVpnController(parent: CoroutineScope, private val stor
             }
             lastFailure?.let { throw it }
         } } finally {
-            val remaining = store.load().pending
+            val savedAfter = store.load()
+            val remaining = savedAfter.pending
             synchronized(lock) {
-                mutable.value = mutable.value.copy(pendingCleanup = remaining.size)
+                mutable.value = mutable.value.copy(pendingCleanup = remaining.count { it.attempt != savedAfter.profile?.enrollment?.attempt })
                 cleanupAccess.keys.retainAll(remaining.map { it.owner }.toSet() + listOfNotNull(account?.owner))
+            }
+        }
+    }
+    /** Drain successful batches; repeated failures back off and stay durable. Never
+     * stop or revoke the active profile, re-enroll, or change its connection phase. */
+    private fun scheduleCleanupLocked(at: Long) {
+        if (closed || generation != at || cleanupWorker?.isActive == true) return
+        cleanupWorker = workers.launch {
+            var failedBatches = 0
+            var pauseMillis = 1000L
+            while (isActive) {
+                delay(pauseMillis)
+                var more = false
+                var attempted = false
+                try {
+                    gate.withLock {
+                        if (synchronized(lock) { closed || generation != at }) return@launch
+                        val saved = store.load()
+                        val eligible = synchronized(lock) {
+                            saved.pending.any { it.attempt != saved.profile?.enrollment?.attempt && it.owner in cleanupAccess }
+                        }
+                        if (!eligible) return@launch
+                        attempted = true
+                        cleanupPeers(synchronized(lock) { account?.owner })
+                        val after = store.load()
+                        more = synchronized(lock) {
+                            after.pending.any { it.attempt != after.profile?.enrollment?.attempt && it.owner in cleanupAccess }
+                        }
+                    }
+                    failedBatches = 0; pauseMillis = 1000
+                } catch (cancel: CancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    failedBatches++
+                    more = attempted
+                } catch (_: Exception) {
+                    failedBatches++
+                    more = attempted
+                }
+                if (!more || failedBatches >= 3) return@launch
+                if (failedBatches > 0) pauseMillis = 1000L shl failedBatches
             }
         }
     }

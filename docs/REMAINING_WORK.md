@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- VPN cleanup now drains multiple bounded batches automatically, preserves active
+  routes and supports retry while connected. Disconnect intent is durable before
+  shutdown; storage failure still stops the local VPN. **28 JVM checks passed**;
+  main/Android test compilation passed. Service/process restart restoration remains
+  open: distinguish loading from sign-out and restore only a matching requested
+  profile with existing consent. See `CLOUD_COMPANION.md` for the audit and tests.
+
 - Cloud system VPN is now wired through the official WireGuard backend, protected
   foreground service, shared-account lifetime, status controls and OS consent in
   Cloud management/onboarding. **22 JVM checks passed**; debug/test APKs built;

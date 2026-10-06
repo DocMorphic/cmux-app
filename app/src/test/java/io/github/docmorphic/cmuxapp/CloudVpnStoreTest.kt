@@ -93,4 +93,31 @@ class CloudVpnStoreTest {
         assertTrue(runCatching { store.begin(owner, "new") }.isFailure)
         assertArrayEquals(bytes, file.readBytes())
     }
+
+    @Test fun disconnectIntentSurvivesProcessReloadAndCannotBeOverwrittenByLateInstall() {
+        val root = temporary.newFolder(); val store = CloudVpnStore(root, cipher)
+        val entry = store.begin(owner, "fingerprint"); store.install(entry, config)
+        store.requestStop()
+        val restored = CloudVpnStore(root, cipher)
+        assertFalse(restored.load().profile!!.requested)
+        assertEquals(config, restored.load().profile!!.configuration)
+        assertEquals(listOf(entry), restored.load().pending)
+        assertThrows(IllegalStateException::class.java) { restored.install(entry, config) }
+        restored.requestStop(); assertFalse(restored.load().profile!!.requested)
+        restored.retireProfile(entry.attempt); restored.acknowledge(entry)
+        val replacement = restored.begin(owner, "fingerprint"); restored.install(replacement, config)
+        assertTrue(restored.load().profile!!.requested)
+    }
+
+    @Test fun existingVersionOneProfilesWithoutTheIntentFieldRemainReadable() {
+        val root = temporary.newFolder(); val store = CloudVpnStore(root, cipher)
+        val entry = store.begin(owner, "fingerprint"); store.install(entry, config)
+        val file = root.resolve("state.enc")
+        val value = org.json.JSONObject(cipher.decrypt(file.readBytes()).toString(Charsets.UTF_8))
+        value.getJSONObject("profile").remove("requested")
+        file.writeBytes(cipher.encrypt(value.toString().toByteArray(Charsets.UTF_8)))
+        assertTrue(CloudVpnStore(root, cipher).load().profile!!.requested)
+        store.requestStop()
+        assertFalse(CloudVpnStore(root, cipher).load().profile!!.requested)
+    }
 }

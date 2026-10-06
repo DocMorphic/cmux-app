@@ -1034,3 +1034,41 @@ There was no live Cloud enrollment or device VPN activation, no emulator and no
 signed release promotion. Remaining implementation/audit work includes persisted
 service restart behavior, bounded backlog cleanup scheduling, and full source/UI
 comparison. The overall parity goal remains active.
+
+
+### VPN cleanup backlog and durable disconnect intent — 2026-10-06
+
+The controller now drains eligible cleanup entries in batches of eight after its
+main transition. Successful batches continue; failures back off and stop after
+three failed background batches (each revocation retains its three-attempt bound).
+Unknown owners stay queued until their authenticated access is available. The
+worker shares the operation gate, is cancelled on superseding transitions/closure,
+and never stops the active VPN, enrolls another peer or revokes the saved active
+profile. Cleanup count excludes that profile. The Cloud controls expose queued
+cleanup and permit an explicit retry while still connected.
+
+`CloudVpnProfile` now saves a `requested` flag. Before platform shutdown, the
+controller records false without discarding the profile/key or cleanup identity.
+A failed local stop retains that durable intent. A write failure still attempts
+local shutdown and reports failure; retry can subsequently retire the profile and
+acknowledge remote cleanup. A late install cannot overwrite a stopped saved profile.
+Version-one records without the field remain readable as previously requested.
+This prepares restart reconciliation; it does **not** turn on automatic restoration.
+
+Verification: **28 focused JVM checks passed in four suites**, zero
+failures/errors/skips. Main/Android test compilation passed in the initial
+29-second invocation; the final focused test run took four seconds. Added checks
+cover a 25-peer multi-batch backlog with an unavailable owner, bounded failure and
+manual retry while connected, active-peer exclusion, timer cancellation on close,
+full-storage local shutdown, durable intent after reload and old-format reading.
+Evidence: `captures/runtime/cloud-vpn-cleanup-recovery/`. No APK rebuild, emulator,
+live account request or VPN activation occurred. ADB still has no Pixel.
+
+Restart audit: the currently integrated service is `START_NOT_STICKY`, and initial
+account binding tears down a saved profile. Android service/process restart
+restoration therefore remains open; it is not claimed as an unavoidable platform
+difference. Implement restoration only for a saved requested profile after matching
+its verified owner and existing OS consent. Distinguish initial account loading from
+actual sign-out, never restore a recorded disconnect, and retain service ownership
+through recovery. Then verify process death, offline startup, explicit disconnect,
+account/team replacement, revoked consent and Tailscale replacement on Pixel.
