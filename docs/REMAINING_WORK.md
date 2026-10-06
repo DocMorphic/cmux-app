@@ -25,6 +25,19 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Combined identity-upgrade Android milestone: **20 distinct cases have
+  unassisted passing evidence** (17 Details/Keystore cases, two corrected recovery
+  flows, and the final explicit re-pair/build/reconnect/visible-terminal case).
+  The screen test exposed and verified a same-locator restart fix. Initial stale
+  external-link test failures and an IME-assisted run are preserved, not counted
+  as clean passes. Final strengthened terminal case passed in 17.638 s and its
+  output screenshot was inspected. One 96 s app/test build; subsequent builds
+  changed only the test APK. Existing API37/16 KiB AVD stopped/reaped; no new AVD,
+  no Pixel/Mac or signed-release acceptance. See `ATTACH_TICKETS.md` and local
+  `captures/runtime/confirmed-upgrade-milestone/`. Next concrete observations:
+  investigate debug ART's NativeScreen compilation-size warning/frame skips and
+  reconcile remaining obsolete raw-launch fixtures with actual entry policy.
+
 - Fresh confirmation of an older saved Mac now takes the explicit pairing path
   and commits its new address grant and saved identity together. Existing
   unscoped ownership/history survives; revocation, removal, hiding, account

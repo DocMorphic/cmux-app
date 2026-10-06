@@ -942,3 +942,46 @@ No APK, emulator or signed release was built. Global upstream pins are unchanged
 This closes the previously recorded implementation gap for fresh confirmation
 against an old grant-backed saved row. Broader legacy metadata reconciliation and
 physical connection acceptance remain open; this is not a full-parity claim.
+
+## Combined identity-upgrade Android milestone (2026-10-06)
+
+At base `9fdd6de` plus the recorded restart/test patch, one debug/test APK build
+passed in 96 seconds on the existing Android 17 / API37 / 16 KiB AVD. **20 distinct
+Android cases now have unassisted passing evidence**: all five Computer Details
+and twelve ticket/Keystore cases, plus three corrected screen-level pairing and
+recovery flows. This executes the queued raw-grant, background-selection and
+fresh-confirmation encrypted-storage upgrades.
+
+Screen integration exposed a same-locator restart edge case: an explicit attempt
+that learns a build could close its session without changing its effect key.
+The branch now increments its retry generation when a restart is needed under
+the same locator. The screen test confirms explicit dialing, learned build,
+replacement connection, terminal replay and displayed fixture text.
+
+The first run passed 17/20 in 102.731 seconds. Three screen cases incorrectly
+expected external raw links to present fresh confirmation, despite the current
+in-app-only entry policy. The corrected tests exercise actual Add Computer/paste
+entry and external-link rejection. Two passed directly; the third stalled in
+Espresso's next-frame idle wait with the IME open. Its first follow-up completion
+was manually assisted and is excluded from the unassisted pass count. A captured
+SIGQUIT trace showed instrumentation waiting in Espresso and the main thread in
+its message loop. The test now explicitly dismisses the visible IME before
+scrolling. It passed alone in 15.643 seconds. Its first terminal capture was too
+early (blank), so a stronger check waits for terminal text; that final case passed
+unassisted in **17.638 seconds**, and its screenshot visibly shows fixture output.
+Only the test APK was rebuilt for those follow-ups (20, 22 and 19 seconds).
+
+Eight screenshots were inspected: readable Details/confirmation controls and the
+rendered terminal, at font scale 1.0. No new runtime crash/ANR events appeared in
+the recorded event-buffer comparisons; final crash buffer empty. All emulator
+processes were stopped/reaped before builds and at completion; no new AVD was
+created. Pixel was absent at preflight. No signed release or physical Mac/Pixel
+acceptance is implied; signed build 616 remains the last verified signed artifact.
+
+Evidence: ignored local `captures/runtime/confirmed-upgrade-milestone/`, including
+all initial failures, the assisted run, thread trace, command/source/APK hashes,
+final unassisted logs and screenshots. Debug logs also report ART skipping the
+large `NativeScreen` method (44,301 instructions) and skipped frames. Investigate
+this performance evidence and reconcile the remaining old raw-launch fixtures;
+neither is closed by this milestone. Full pairing/notification/input/network
+acceptance, legacy metadata comparison and iOS UI parity remain open.

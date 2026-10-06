@@ -1883,6 +1883,7 @@ internal fun NativeScreen(
                     if (pendingPickerCode == requestedCode) pendingPickerCode = remembered.code
                     if (pairingSelectionCode == requestedCode) pairingSelectionCode = remembered.code
                     code = remembered.code
+                    if (explicitPairingAttempt && remembered.code == requestedCode) retry++
                     connectionError = null; retryDelay = 2_000; busy = false
                     return@LaunchedEffect
                 }

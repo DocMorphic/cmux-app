@@ -306,31 +306,84 @@ class NativeConnectionRecoveryTest {
         compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
     }
 
-    @Test fun coldLaunchConfirmationDefersSavedDialAndDismissalReleasesIt() {
-        seedComputers()
+    private fun pastePairingInApp(code: String) {
+        compose.onNodeWithContentDescription("Computer filter").performClick()
+        compose.onNode(hasText("Add Computer") and hasAnyAncestor(isPopup())).performClick()
+        compose.onNodeWithText("Scan or paste a pairing code").performScrollTo().performClick()
+        compose.onNodeWithText("Or paste pairing code").performScrollTo().performTextInput(code)
+        // API37's IME can hold Espresso's next-frame wait during scroll. Perform
+        // the user's keyboard-dismiss action before asking Compose to scroll.
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        var keyboardVisible = false
+        instrumentation.runOnMainSync {
+            keyboardVisible = androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+        }
+        if (keyboardVisible) androidx.test.uiautomator.UiDevice.getInstance(instrumentation).pressBack()
+        compose.onNode(hasText("Connect") and !hasAnyAncestor(isDialog())).performScrollTo().performClick()
+        awaitPairingConfirmation()
+    }
+
+    @Test fun externalRawLaunchRequiresInAppEntryAndResumesSavedMac() {
+        NativeCredentialStore(context).rememberMac(firstCode, "fixture-mac", "Fixture Mac")
         val incoming = mutableStateOf<String?>(secondCode)
-        val dials = AtomicInteger()
+        val newAddressDials = AtomicInteger()
         compose.setContent { MaterialTheme {
             NativeScreen(onUseHelper = {}, incomingCode = incoming.value,
                 onPairingHandled = { if (incoming.value == it) incoming.value = null },
-                connector = NativeConnector { _, _ -> dials.incrementAndGet(); connected() })
+                connector = NativeConnector { pairing, _ ->
+                    if (pairing.routes.first().host == "100.64.0.2") newAddressDials.incrementAndGet()
+                    connected()
+                })
         } }
-        awaitPairingConfirmation()
-        compose.mainClock.advanceTimeBy(5_000); compose.waitForIdle()
-        assertEquals("No startup or feed dial before the launch decision", 0, dials.get())
-        compose.onNodeWithText("Cancel").performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().size == 1 }
+        compose.onNodeWithText("Connect to this Mac?").assertDoesNotExist()
+        assertNull(incoming.value); assertEquals(0, newAddressDials.get())
         compose.onNodeWithText("Claude Code task").performClick()
         compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
     }
 
-    @Test fun failedApprovedLaunchPairingFallsBackToSavedMac() {
-        seedComputers()
-        val incoming = mutableStateOf<String?>(secondCode)
+    @Test fun confirmingExistingLegacyCodeUsesExplicitDialAndSurvivesBuildLearning() {
+        val store = NativeCredentialStore(context)
+        store.rememberMac(firstCode, "fixture-mac", "Fixture Mac")
+        val authorized = AtomicBoolean()
+        val freshDials = AtomicInteger()
+        val savedDials = AtomicInteger()
+        val connector = object : NativeConnector {
+            override fun authorizePairing(pairing: PairingCode.Tailscale) { authorized.set(true) }
+            override suspend fun connect(pairing: PairingCode.Tailscale, account: NativeAccount): MobileRpcClient {
+                check(authorized.get()) { "Explicit confirmation was skipped" }
+                freshDials.incrementAndGet(); return connected()
+            }
+            override suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient {
+                savedDials.incrementAndGet(); return connected()
+            }
+        }
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize()) {
+            NativeScreen(onUseHelper = {}, connector = connector)
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        pastePairingInApp(firstCode)
+        assertEquals(0, freshDials.get()); assertFalse(authorized.get())
+        peer.instanceTag = "default"
+        compose.onNode(hasText("Connect") and hasAnyAncestor(isDialog())).performClick()
+        compose.waitUntil(15_000) { freshDials.get() >= 2 && store.pairedMacs().singleOrNull()?.instanceTag == "default" &&
+            compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().isNotEmpty() }
+        assertTrue("Visible confirmation must use the explicit route", freshDials.get() > 0)
+        assertNotNull(store.pairedMacs().single().instanceTag)
+        compose.onNodeWithText("Claude Code task").performClick()
+        compose.waitUntil(15_000) { peer.requests.any { it.optString("method") == "mobile.terminal.replay" } }
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("cmux Android terminal", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        captureVisibility("confirmed-legacy-terminal")
+    }
+
+    @Test fun failedApprovedInAppPairingFallsBackToSavedMac() {
+        NativeCredentialStore(context).rememberMac(firstCode, "fixture-mac", "Fixture Mac")
         val failed = AtomicInteger()
         compose.setContent { MaterialTheme {
-            NativeScreen(onUseHelper = {}, incomingCode = incoming.value,
-                onPairingHandled = { if (incoming.value == it) incoming.value = null },
+            NativeScreen(onUseHelper = {},
                 connector = NativeConnector { pairing, _ ->
                     if (pairing.routes.first().host == "100.64.0.2") {
                         failed.incrementAndGet(); throw java.io.IOException("Launch attach fixture failure")
@@ -338,7 +391,8 @@ class NativeConnectionRecoveryTest {
                     connected()
                 })
         } }
-        awaitPairingConfirmation()
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Claude Code task").fetchSemanticsNodes().size == 1 }
+        pastePairingInApp(secondCode)
         assertEquals(0, failed.get())
         compose.onNode(hasText("Connect") and hasAnyAncestor(isDialog())).performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithText("Could not switch computers. Your previous computer is selected again.").fetchSemanticsNodes().isNotEmpty() }
