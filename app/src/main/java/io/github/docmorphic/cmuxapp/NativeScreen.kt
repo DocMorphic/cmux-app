@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -370,6 +371,8 @@ internal fun NativeScreen(
             else sshRuntimeState?.resource?.takeIf { sshRuntimeState.login == browserLogin && it.isOpen }
         val sshCreationState = sshSession?.workspaceCreation?.state?.collectAsState()?.value
         val sshTargets = nativeSshCreateTargets(sshSession)
+        val noKnownComputers = pairedMacs.isEmpty() && hiddenMacs.isEmpty() && sshTargets.isEmpty() && allCloudSnapshots.isEmpty()
+        val cloudTabState = key(browserLogin, teamState.scope) { rememberSaveableStateHolder() }
         val sshFeed = sshSession?.workspaceFeed?.state?.collectAsState()?.value.orEmpty()
         val sshNavigation = rememberSaveable(saver = NativeSshCreationNavigation.saver) { NativeSshCreationNavigation() }
         val sshRoute = sshNavigation.route?.takeIf { route -> route.login == browserLogin && sshSession?.isOpen == true &&
@@ -2876,36 +2879,41 @@ internal fun NativeScreen(
                     val reconnectOwner = NativeComputerMenuOwner(store.taskSession(), teamState.scope)
                     fun isReconnectOwnerCurrent() = account.isSignedIn() && store.taskSession() == reconnectOwner.login &&
                         accountTeams.state.value.scope == reconnectOwner.team
-                    NativeComputerPicker(teamState, computerState.takeIf { it.account == teamState.scope }
-                        ?: NativeComputersState(account = teamState.scope, loading = true), runtime = sharedConnections?.native,
-                        onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
-                        colorIndices = machineColorIndices, connections = computerConnections, presence = scopedPresence, saved = displayedVisible, hidden = displayedHidden, onVisibility = ::setComputerVisibility,
-                        cachedDisplay = cachedComputers != null, displayAppearances = appearances, macPolicy = displayPolicy,
-                        lastSeenHistory = lastSeenHistory, preferences = computerPreferences, tailscaleRoutes = tailscaleRouteLabels,
-                        forgetCallbacks = forgetCallbacks, presentDetails = { computerDetails = it },
-                        connectingCode = code.takeIf { busy && cachedComputers == null }, connectionFailure = error ?: connectionError,
-                        onCancelConnect = { ticketPairing.clear(); macSwitchRecovery.cancel(); pendingPickerCode = null; pairingSelectionCode = null; expectedReconnect = null
-                            code = ""; connectionError = null; error = null; showReconnectList = false },
-                        canSelectSaved = { mac -> isReconnectOwnerCurrent() &&
-                            NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac) },
-                        canSelectDiscovered = { mac -> isReconnectOwnerCurrent() &&
-                            NativeReconnectComputers.currentDiscovery(mac, computerStates.value, reconnectOwner.team) &&
-                            hiddenMacs.none { canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(mac.deviceId) && it.instanceTag == mac.buildTag } },
-                        onSelectSaved = { mac ->
-                            val sameAttempt = code == mac.code
-                            showReconnectList = true; selectPickerComputer(mac); expectedReconnect = mac
-                            if (sameAttempt) retry++
-                        },
-                        onSelect = { mac -> reconnectOwner.team?.let { owner ->
-                            showReconnectList = true; selectPairingCode(PairingCodeParser.computer(mac, owner))
-                        } },
-                        onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
-                        onComputers = ::presentComputers,
-                        onRefresh = { scope.launch {
-                            try { accountTeams.refresh(); sharedConnections?.native?.refresh() }
-                            catch (failure: Exception) { if (failure is CancellationException) throw failure }
-                        } }, onPairing = ::proposePairing, onNewTask = ::newTaskDraft,
-                        onUseHelper = onUseHelper, onLicenses = { showLicenses = true }, onError = { error = it })
+                    Column(Modifier.weight(1f).fillMaxWidth()) {
+                        NativeComputerPicker(teamState, computerState.takeIf { it.account == teamState.scope }
+                            ?: NativeComputersState(account = teamState.scope, loading = true), runtime = sharedConnections?.native,
+                            onSsh = if (sharedConnections != null) ({ showSshComputers = true }) else null,
+                            colorIndices = machineColorIndices, connections = computerConnections, presence = scopedPresence, saved = displayedVisible, hidden = displayedHidden, onVisibility = ::setComputerVisibility,
+                            cachedDisplay = cachedComputers != null, displayAppearances = appearances, macPolicy = displayPolicy,
+                            lastSeenHistory = lastSeenHistory, preferences = computerPreferences, tailscaleRoutes = tailscaleRouteLabels,
+                            forgetCallbacks = forgetCallbacks, presentDetails = { computerDetails = it },
+                            connectingCode = code.takeIf { busy && cachedComputers == null }, connectionFailure = error ?: connectionError,
+                            onCancelConnect = { ticketPairing.clear(); macSwitchRecovery.cancel(); pendingPickerCode = null; pairingSelectionCode = null; expectedReconnect = null
+                                code = ""; connectionError = null; error = null; showReconnectList = false },
+                            canSelectSaved = { mac -> isReconnectOwnerCurrent() &&
+                                NativeComputerMenuPairing.isCurrent(mac, store.visiblePairedMacs()) && connection.allowsSaved(mac) },
+                            canSelectDiscovered = { mac -> isReconnectOwnerCurrent() &&
+                                NativeReconnectComputers.currentDiscovery(mac, computerStates.value, reconnectOwner.team) &&
+                                hiddenMacs.none { canonicalMacDeviceId(it.deviceId) == canonicalMacDeviceId(mac.deviceId) && it.instanceTag == mac.buildTag } },
+                            onSelectSaved = { mac ->
+                                val sameAttempt = code == mac.code
+                                showReconnectList = true; selectPickerComputer(mac); expectedReconnect = mac
+                                if (sameAttempt) retry++
+                            },
+                            onSelect = { mac -> reconnectOwner.team?.let { owner ->
+                                showReconnectList = true; selectPairingCode(PairingCodeParser.computer(mac, owner))
+                            } },
+                            onSettings = { workspaceRoute = null; finishSearch(); showSettings = true },
+                            onComputers = ::presentComputers,
+                            onRefresh = { scope.launch {
+                                try { accountTeams.refresh(); sharedConnections?.native?.refresh() }
+                                catch (failure: Exception) { if (failure is CancellationException) throw failure }
+                            } }, onPairing = ::proposePairing, onNewTask = ::newTaskDraft,
+                            onUseHelper = onUseHelper, onLicenses = { showLicenses = true }, onError = { error = it })
+                    }
+                    if (noKnownComputers && cloudModel != null) NativePrimaryNavigation(false, 0, searchState,
+                        onTab = {}, onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {},
+                        emptyComputers = true, onCloud = { finishSearch(); cloudTab = true; cloudModel.activate() })
                 }
                 val terminalContent: @Composable ColumnScope.() -> Unit = {
                     ObserveTerminalBells(terminalBells, terminalAttached && connectionReady)
@@ -3791,14 +3799,19 @@ internal fun NativeScreen(
                         showTaskComposer -> taskComposerContent()
                         cloudTab && cloudModel != null -> Column(Modifier.weight(1f).fillMaxWidth()) {
                             BackHandler { cloudTab = false }
-                            NativeCloudFlow(cloudController, onSettings = { showSettings = true }, onBack = { cloudTab = false },
-                                onPlans = { runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://cmux.com/pricing"))) }
-                                    .onFailure { android.widget.Toast.makeText(context, "No browser is available to open cmux.com/pricing", android.widget.Toast.LENGTH_LONG).show() } },
-                                modifier = Modifier.weight(1f), connectionState = cloudTunnelState,
-                                onRetryConnection = { cloudTunnel?.retry() }, vpn = sharedConnections?.cloudVpn)
+                            Column(Modifier.weight(1f).fillMaxWidth()) {
+                                cloudTabState.SaveableStateProvider("cloud") {
+                                    NativeCloudFlow(cloudController, onSettings = { showSettings = true }, onBack = { cloudTab = false },
+                                        onPlans = { plan -> runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(cloudPlansUrl(plan)))) }
+                                            .onFailure { android.widget.Toast.makeText(context, "No browser is available to open cmux.com/pricing", android.widget.Toast.LENGTH_LONG).show() } },
+                                        modifier = Modifier.fillMaxSize(), connectionState = cloudTunnelState,
+                                        onRetryConnection = { cloudTunnel?.retry() }, vpn = sharedConnections?.cloudVpn)
+                                }
+                            }
                             NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
                                 onTab = { cloudTab = false; finishSearch(); notificationTab = it },
-                                onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {}, cloudTab = true, onCloud = {})
+                                onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {}, cloudTab = true, onCloud = {},
+                                emptyComputers = noKnownComputers)
                         }
                         else -> NativeWorkspaceShell(owner = browserLogin to teamState.scope,
                             hasDetail = cloudRoute != null || sshRoute != null || screenResume.pending != null || localBrowser != null ||

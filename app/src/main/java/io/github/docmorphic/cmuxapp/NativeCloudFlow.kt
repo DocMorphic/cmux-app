@@ -33,7 +33,7 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun NativeCloudFlow(controller: CloudMachinesController?, onSettings: () -> Unit,
-    onPlans: () -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier,
+    onPlans: (String?) -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier,
     connectionState: CloudTunnelState? = null, onRetryConnection: () -> Unit = {},
     progressStore: CloudOnboardingStore? = null, vpn: NativeCloudVpnRuntime? = null) {
     val context = LocalContext.current.applicationContext

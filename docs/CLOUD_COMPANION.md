@@ -1133,3 +1133,54 @@ failed on Linux-only `libc::__errno_location` calls in the Android target. Fix
 latest checked: [37454996751](https://github.com/DocMorphic/cmux-app/actions/runs/37454996751)
 at `d7cc7281`. These results establish that checkpoint's build status, not physical
 Cloud acceptance or the entire Android application's CI status.
+
+
+### First-computer Cloud entry and plan navigation — 2026-10-06
+
+Continued the scoped `c2715faa` comparison against:
+
+- `Packages/iOS/CmuxMobileShellUI/Sources/CmuxMobileShellUI/CMUXMobileRootView.swift`,
+  especially `disconnectedNoKnownPairedMac`: after general onboarding, the account
+  with no computers keeps Workspaces and Cloud tabs so it can create its first
+  machine without pairing a Mac.
+- `Packages/iOS/CmuxMobileCloudUI/Sources/CmuxMobileCloudUI/CloudSectionView.swift`:
+  locked size menu items open a size-specific upgrade, the generic action chooses
+  the highest suggested plan (Max, then Pro), and plan dismissal refreshes limits.
+- `CloudFlowView.swift`: the Cloud navigation remains available across tab changes.
+
+Android's root previously showed a full-height Mac computer picker with no Cloud
+navigation when there was no saved computer. It now reserves a footer for the
+same two first-computer tabs. That entry opens the normal Cloud basics/machine
+flow, and Workspaces returns to the picker until Cloud or another computer is
+available. The full navigation remains in the normal workspace shell. Cloud's
+composition now has a saveable state provider scoped to the login/team, retaining
+its saveable introduction/sheet state while the tab or Settings is shown elsewhere;
+account replacement gets a separate scope. The retained view model still owns
+catalog and terminal lifetimes, and opening this tab alone does not enroll a peer.
+
+Locked sizes now open their normalized server-specified plan without selecting
+that size or submitting creation. The shared View plans action chooses the highest
+suggested upgrade. Plan IDs are encoded as one query value on the fixed HTTPS
+`cmux.com/pricing` destination. Returning from the external browser refreshes the
+catalog and size ladder; the existing selection reconciliation handles changed
+entitlements. This implements the source's non-StoreKit fallback. It does **not**
+implement native Android purchases or claim App Store billing parity.
+
+Billing audit: the iOS `MobileBillingComposition` installs `LiveStoreKitClient`.
+`HTTPBillingAPI` calls `/api/billing/apple/account-token` and
+`/api/billing/apple/transactions`, with the bundle ID/environment and an Apple
+signed transaction. Android must not send fabricated Apple receipts or assume
+those routes accept Google Play purchases. Android product/provisioning and a
+supported server purchase-verification path remain to be established. No purchase,
+billing-account request or infrastructure change was performed.
+
+Verification: **25 JVM tests passed**, zero failures/errors/skips: six create
+presentation/plan destination checks, ten machine controller checks and nine
+onboarding-state checks. Main and Android test sources compile; the final command
+took 25 seconds. Two additional Android UI checks compile for first-computer tab
+visibility and locked-size upgrade taps without changing the submitted memory.
+They have not run. Full root navigation, tab/sheet restoration, large-font layout,
+browser return/limit refresh and signed-in first-machine creation still require
+Pixel acceptance. Evidence: `captures/runtime/cloud-first-computer-entry/`.
+No APK rebuild, emulator or device operation occurred. Published signed APK 616
+is unchanged, and full parity remains unverified.

@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Accounts with no computers can now reach Cloud from the computer picker and
+  return to Workspaces, matching the iOS first-computer tab scaffold. Cloud has
+  account-scoped saveable tab state. Locked sizes open their specific plan;
+  returning from pricing refreshes machine limits. **25 JVM checks passed**;
+  main/Android tests compile. Two new UI checks remain unrun. Native Android
+  billing, actual first-machine creation and physical navigation/restoration
+  acceptance remain. See `CLOUD_COMPANION.md` for the source mapping and limits.
+
 - Saved VPN restoration is implemented: reuse the existing peer/configuration only
   after the same user/team/login is verified and VPN consent remains granted.
   Sticky service recovery waits for verification; recorded disconnects, account
@@ -58,16 +66,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 - System VPN now has private-route validation and an encrypted profile/peer-cleanup
   journal. **19 JVM checks passed** and main/Android test compilation passed.
   Tests also fixed padded WireGuard public keys in terminal fallback config.
-  The official WireGuard AAR passes the supported-ABI 16 KiB gate but is not yet
-  integrated. Controller, VPN service/consent UI and device acceptance remain.
+  The official WireGuard AAR passed the supported-ABI 16 KiB gate and is now
+  integrated as recorded above. Device acceptance remains.
   See `CLOUD_COMPANION.md` for the precise boundary and implementation sequence.
 
 - Cloud now has the iOS-style three-page first-visit introduction and Cloud basics
   replay, with saved completion/page state, persistence failure handling and
   responsive layouts. Android-specific key/VPN copy reflects actual capabilities.
   Main and Android UI tests compile; the three new UI checks remain unrun without
-  a device. System VPN/private ports, plans and Cloud-only first-run integration
-  remain open. See `CLOUD_COMPANION.md` for verification scope.
+  a device. System VPN and first-computer entry are now implemented above;
+  private-port acceptance, native billing and first-run runtime checks remain open. See `CLOUD_COMPANION.md` for verification scope.
 
 - Cloud composer text now uses the shared encrypted draft repository, partitioned
   by login/user/team/machine/terminal. Sends persist a pending marker before input

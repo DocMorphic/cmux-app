@@ -28,14 +28,14 @@ class CloudMachinesScreenTest {
         override suspend fun delete(id: String) { deletes += id; rows = rows.filterNot { it.id == id } }
         override fun close() {}
     }
-    private fun mount(service: Service) {
+    private fun mount(service: Service, onPlans: (String?) -> Unit = {}) {
         compose.runOnUiThread {
             controller = CloudMachinesController(scope, service, object : CloudCreateJournal {
                 override suspend fun resolve(options: CloudMachineCreateOptions) = "fixture-create"
                 override suspend fun complete(key: String) {}
             }, { true }).also { it.refresh() }
         }
-        compose.setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface { NativeCloudScreen(controller, {}, {}) } } }
+        compose.setContent { MaterialTheme(colorScheme = darkColorScheme()) { Surface { NativeCloudScreen(controller, {}, onPlans) } } }
     }
     @After fun stop() { compose.runOnUiThread { controller?.close(); scope.cancel() } }
     @Test fun creationUsesSelectedSizeAndShowsServerUsage() {
@@ -68,5 +68,30 @@ class CloudMachinesScreenTest {
         compose.onNodeWithContentDescription("Search").assertDoesNotExist()
         compose.onNodeWithText("Workspaces").performClick()
         assertEquals(false, workspace)
+    }
+
+    @Test fun lockedSizeOpensItsPlanWithoutChangingTheSubmittedMachineSize() {
+        val plans = mutableListOf<String?>()
+        val service = Service(); mount(service) { plans += it }
+        compose.onNodeWithTag("cloud.new").performClick()
+        compose.onNodeWithTag("cloud.create.size").performClick()
+        compose.onNodeWithTag("cloud.create.upgrade.65536").assertIsEnabled().performClick()
+        assertEquals(listOf("max"), plans); assertTrue(service.creates.isEmpty())
+        compose.onNodeWithTag("cloud.create.size").assertTextContains("8 GB RAM · 32 GB disk")
+        compose.onNodeWithTag("cloud.create.submit").performScrollTo().performClick()
+        compose.waitUntil(3000) { service.creates.size == 1 }
+        assertEquals(8192, service.creates.single().memoryMb)
+    }
+    @Test fun firstComputerTabsExposeCloudWithoutNotificationsOrSearch() {
+        var selectedCloud = false
+        compose.setContent { MaterialTheme { Surface {
+            NativePrimaryNavigation(false, 0, NativeSearchState(), {}, {}, { _, _ -> }, {}, {},
+                onCloud = { selectedCloud = true }, emptyComputers = true)
+        } } }
+        compose.onNodeWithText("Workspaces").assertIsSelected()
+        compose.onNodeWithText("Notifications").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Search").assertDoesNotExist()
+        compose.onNodeWithText("Cloud").assertIsDisplayed().performClick()
+        assertTrue(selectedCloud)
     }
 }

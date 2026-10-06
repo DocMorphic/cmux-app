@@ -1,6 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
 import org.json.JSONObject
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -20,7 +21,7 @@ class CloudCreatePresentationTest {
         assertEquals(listOf(4096, 16384), model.sizes); assertEquals(4096, model.defaultMemory)
         assertTrue(runCatching { model.options(8192) }.isFailure)
     }
-    @Test fun lockedSizesAreInformationalAndCannotBeSubmitted() {
+    @Test fun lockedSizesOfferPlansButCannotBeSubmitted() {
         val model = presentation("""{"memoryOptionsMb":[8192],"lockedMemoryOptionsMb":[32768,65536],
           "memoryUpgradePlanId":"pro","memoryUpgradePlansByMb":{"65536":"max"}}""")
         assertEquals(listOf(32768, 65536), model.lockedSizes)
@@ -33,5 +34,24 @@ class CloudCreatePresentationTest {
             "usedVcpus":16,"usedMemoryMb":32768}""")
         assertEquals("2 of 5 machines in use", model.machineUsage)
         assertEquals("16 of 20 vCPUs · 32 of 40 GB RAM in use", model.poolUsage)
+    }
+
+    @Test fun upgradePriorityNormalizesPlanIdsAndKeepsSizeSpecificPlans() {
+        val model = presentation("""{"memoryOptionsMb":[8192],"lockedMemoryOptionsMb":[16384,32768,65536],
+          "memoryUpgradePlanId":" Pro ","memoryUpgradePlansByMb":{"65536":" MAX "}}""")
+        assertEquals("pro", model.upgradePlan(16384)); assertEquals("Pro", model.planLabel(32768))
+        assertEquals("max", model.preferredUpgradePlan)
+        assertEquals("Max", model.planLabel(65536))
+        assertEquals("max", cloudPlansUrl(model.preferredUpgradePlan).toHttpUrl().queryParameter("plan"))
+        assertNull(presentation().preferredUpgradePlan)
+    }
+    @Test fun planDestinationCannotChangeOriginOrInjectMoreQueryParameters() {
+        val plan = "pro&return_to=https://example.test/#fragment"
+        val url = cloudPlansUrl(plan).toHttpUrl()
+        assertEquals("https", url.scheme); assertEquals("cmux.com", url.host); assertEquals("/pricing", url.encodedPath)
+        assertEquals(setOf("plan"), url.queryParameterNames); assertEquals(plan, url.queryParameter("plan"))
+        assertNull(url.fragment)
+        assertEquals("https://cmux.com/pricing", cloudPlansUrl(null))
+        assertEquals("https://cmux.com/pricing", cloudPlansUrl("  "))
     }
 }

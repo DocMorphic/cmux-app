@@ -20,13 +20,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 private val cloudPanel = Color(0xFF191B1F)
 private val cloudMuted = Color(0xFF9B9FA8)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun NativeCloudScreen(controller: CloudMachinesController?, onSettings: () -> Unit,
-    onPlans: () -> Unit, modifier: Modifier = Modifier, connectionState: CloudTunnelState? = null,
+    onPlans: (String?) -> Unit, modifier: Modifier = Modifier, connectionState: CloudTunnelState? = null,
     onRetryConnection: () -> Unit = {}, onBasics: (() -> Unit)? = null, vpnControl: (@Composable () -> Unit)? = null) {
     key(controller) {
         val state = controller?.state?.collectAsState()?.value ?: CloudMachinesState()
@@ -146,11 +149,23 @@ private val cloudMuted = Color(0xFF9B9FA8)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun CloudCreateSheet(controller: CloudMachinesController, state: CloudMachinesState,
-    onPlans: () -> Unit, dismiss: () -> Unit) {
+    onPlans: (String?) -> Unit, dismiss: () -> Unit) {
     val presentation = CloudCreatePresentation(state.catalog)
     var memory by rememberSaveable { mutableIntStateOf(presentation.defaultMemory) }
     var sizesOpen by remember { mutableStateOf(false) }
     val observer = rememberCoroutineScope()
+    var plansOpened by rememberSaveable { mutableStateOf(false) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val refreshPlans by rememberUpdatedState {
+        if (plansOpened) { plansOpened = false; controller.refresh() }
+    }
+    DisposableEffect(lifecycle, controller) {
+        val resume = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) refreshPlans() }
+        lifecycle.addObserver(resume)
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) refreshPlans()
+        onDispose { lifecycle.removeObserver(resume) }
+    }
+    fun openPlans(plan: String?) { plansOpened = true; onPlans(plan) }
     LaunchedEffect(presentation.sizes) { if (memory !in presentation.sizes) memory = presentation.defaultMemory }
     ModalBottomSheet(onDismissRequest = { if (!state.creating) dismiss() },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true,
@@ -167,11 +182,13 @@ private val cloudMuted = Color(0xFF9B9FA8)
                 OutlinedButton(onClick = { sizesOpen = true }, enabled = !state.creating, modifier = Modifier.testTag("cloud.create.size")) { Text(presentation.label(memory)) }
                 DropdownMenu(expanded = sizesOpen, onDismissRequest = { sizesOpen = false }) {
                     presentation.sizes.forEach { size -> DropdownMenuItem(text = { Text(presentation.label(size)) }, onClick = { memory = size; sizesOpen = false }) }
-                    presentation.lockedSizes.forEach { size -> DropdownMenuItem(enabled = false,
-                        text = { Text("${presentation.label(size)} · Requires ${presentation.upgradePlan(size) ?: "an upgraded plan"}") }, onClick = {}) }
+                    presentation.lockedSizes.forEach { size -> DropdownMenuItem(enabled = !state.creating,
+                        text = { Text("${presentation.label(size)} · Requires ${presentation.planLabel(size)}") },
+                        modifier = Modifier.testTag("cloud.create.upgrade.$size"),
+                        onClick = { sizesOpen = false; openPlans(presentation.upgradePlan(size)) }) }
                 }
             }
-            if (presentation.lockedSizes.isNotEmpty()) TextButton(onClick = onPlans, enabled = !state.creating) { Text("View plans") }
+            if (presentation.lockedSizes.isNotEmpty()) TextButton(onClick = { openPlans(presentation.preferredUpgradePlan) }, enabled = !state.creating) { Text("View plans") }
             presentation.machineUsage?.let { Text(it, color = cloudMuted) }
             presentation.poolUsage?.let { Text(it, color = cloudMuted) }
             state.createFailure?.let { CloudFailureText(it) }
