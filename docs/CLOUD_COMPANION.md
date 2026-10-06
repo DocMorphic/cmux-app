@@ -333,18 +333,43 @@ crate; the Android companion does not start local PTYs. Runs `37449188907` and
 and Linux errno accessors in two directory readers. The driver now restores the
 expected layout and patches both readers to Bionic's `__errno` under Android cfg.
 Their exact source anchors were verified against the pinned source. Run
-`37450983946` at `819b6943` is pending; no successful native checkpoint is claimed.
+[`37450983946`](https://github.com/DocMorphic/cmux-app/actions/runs/37450983946)
+at `819b6943` **passed**: upstream Rust C ABI, JNI linking, required C exports,
+hidden Ghostty exports, AArch64 and 16 KiB LOAD/RELRO checks. Both libraries were
+downloaded into `build/cloud-terminal-android`; all eight artifact hashes and
+current builder/JNI source hashes matched the receipt. Independent local alignment
+verification passed for both libraries. This is a native compilation checkpoint,
+not APK packaging or Android runtime acceptance. The JNI library is 17,536 bytes;
+the client library is 32,817,848 bytes. Evidence:
+`captures/runtime/cloud-native-checkpoint/`.
 The compilation cache key now includes the builder and JNI source so each porting
 fix can save its additional compilation progress, while restoring earlier caches.
 
 Before real Cloud Iroh/WSS acceptance, audit Android DNS/context and TLS-root
 initialization for the separately linked Rust library. The existing Iroh FFI
 initializes its own library; do not assume that initializes this cdylib's globals.
-The new workspace pins `rustls-platform-verifier` 0.7.0 and `rustls-native-certs`
-0.8.4. Runtime context/root behavior remains unverified.
+The pinned crate sources were downloaded and SHA-256 checked against Cargo.lock
+for this audit (`/tmp/cmux-cloud-crate-audit/`). Concrete integration requirements:
 
-The native files are **not yet packaged or mounted**. Next: inspect/repair the
-hosted result, complete dependency notices, validate the checkpoint during Gradle
+- `iroh-dns` 1.0.3 requires `install_android_jni_context` before a system resolver
+  is created, with JavaVM and global application-context references valid for the
+  process lifetime. Its `ndk_context` state belongs to this linked library.
+- `rustls-platform-verifier` 0.7.0 `src/android.rs` requires `init_with_env` (or its
+  runtime/refs alternatives); uninitialized global access panics. It uses JNI
+  0.22.4 and the `rustls-platform-verifier-android` 0.1.1 Java component, which must
+  be packaged with keep rules. The README's older `init_hosted` sample does not
+  match these pinned source APIs. `iroh-relay` delegates its platform verifier here.
+- The upstream WebSocket provider passes no custom TLS connector. Its native-root
+  route uses `rustls-native-certs` 0.8.4 and `openssl-probe` 0.2.1; the latter's
+  Android certificate-file default is a Termux path. This cannot be treated as
+  proven Android system trust. Wire an initialized platform verifier for WSS and
+  test trusted and rejected certificates; do not disable TLS verification.
+
+These initialization/connector changes are not implemented yet. Native linking
+alone does not establish Android DNS, trust-store or real transport acceptance.
+
+The native files are **not yet packaged or mounted**. Next: complete dependency
+notices and the Android initialization above, validate the checkpoint during Gradle
 packaging, then implement account-owned enrollment/approval/attachment cancellation,
 common-workspace projection and renderer/input integration. Caller cancellation
 must retire any late native connection result; wrapper methods alone do not supply
