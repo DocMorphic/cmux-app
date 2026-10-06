@@ -17,6 +17,7 @@ internal class SshComposerPool : AutoCloseable {
     }
 
     inner class Draft internal constructor(private val id: String, internal val route: Any?) : AutoCloseable {
+        val previewBinding = java.util.UUID.randomUUID().toString()
         val target = TerminalDrafts.Target("ssh", "ssh", id)
         val state get() = this@SshComposerPool.state
         val current get() = state.value[target] ?: TerminalDrafts.Draft()
@@ -36,6 +37,9 @@ internal class SshComposerPool : AutoCloseable {
             if (valid() && current.attachments.any { it.id == id }) {
                 drafts.removeAttachment(target, id); payloads.remove(id)?.fill(0)
             }
+        }
+        fun ownsAttachment(attachment: ComposerAttachment): Boolean = synchronized(this@SshComposerPool) {
+            valid() && attachment in current.attachments && payloads.containsKey(attachment.id)
         }
         fun read(attachment: ComposerAttachment): ByteArray = synchronized(this@SshComposerPool) {
             guard(); check(attachment in current.attachments)

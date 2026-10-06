@@ -2,7 +2,6 @@ package io.github.docmorphic.cmuxapp
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,8 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -27,6 +24,8 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
     content: @Composable (@Composable () -> Unit, @Composable () -> Unit, (TerminalPasteContent) -> Boolean) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val files = remember(context) { AttachmentFiles(context.applicationContext, taskFiles = true) }
     val guard by rememberUpdatedState(isCurrent)
     val previewGuard by rememberUpdatedState(canPreview)
@@ -90,30 +89,27 @@ internal fun TaskAttachmentControls(repository: TaskDraftRepository, editor: Tas
         if (matches) stage(uris.map { TerminalPasteContent.Item.Attachment(it, pickerImages) })
     }
     attachments.singleOrNull { it.id == previewId }?.takeIf { previewCurrent() }?.let { attachment ->
-        TaskAttachmentPreview(TaskAttachmentPreviewIdentity(previewPresentation, repository.session,
-            editor.id, origin, attachment), repository) { previewId = null }
+        TaskAttachmentPreview(ComposerAttachmentPreviewIdentity(previewPresentation,
+            ComposerAttachmentPreviewOwner.Task(repository.session, editor.id, origin), attachment), repository) { previewId = null }
     }
     content({
         if (attachments.isNotEmpty()) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             attachments.forEach { item ->
-                Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 3.dp) {
-                    Row(Modifier.padding(6.dp)) {
-                        Row(Modifier.clickable(enabled = previewCurrent(), onClickLabel = "Preview attachment") {
+                key(item.id) {
+                    ComposerAttachmentChip(item, owner, repository::readAttachment, task = true,
+                        canPreview = previewCurrent(), canRemove = enabled,
+                        removeLabel = "Remove task attachment: ${item.name}",
+                        onPreview = {
+                            focus.clearFocus(); keyboard?.hide()
                             previewPresentation = java.util.UUID.randomUUID().toString(); previewId = item.id
-                        }.padding(6.dp)) {
-                            AttachmentThumbnail(item, read = repository::readAttachment)
-                            Spacer(Modifier.width(6.dp))
-                            Text(item.name, Modifier.widthIn(max = 170.dp), maxLines = 2)
-                        }
-                        IconButton(onClick = {
+                        }, onRemove = {
                             onPreparing(true)
                             scope.launch {
                                 try { repository.removeAttachment(editor, item.id); onChanged() }
                                 catch (failure: Exception) { if (failure is CancellationException) throw failure; onError(failure.message ?: "Could not remove attachment") }
                                 finally { onPreparing(false) }
                             }
-                        }, enabled = enabled, modifier = Modifier.semantics { contentDescription = "Remove task attachment: ${item.name}" }) { Text("×") }
-                    }
+                        })
                 }
             }
         }

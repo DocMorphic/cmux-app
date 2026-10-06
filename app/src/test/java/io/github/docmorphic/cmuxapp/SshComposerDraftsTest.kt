@@ -4,6 +4,25 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SshComposerDraftsTest {
+    @Test fun previewBindingAndPermissionRetireWithHostReplacementRemovalAndAccountEnd() {
+        val pool = SshComposerPool()
+        val first = pool.open("terminal", "host-A"); val attachment = image()
+        first.attach(attachment, byteArrayOf(7, 8))
+        assertTrue(first.ownsAttachment(attachment))
+        assertFalse(first.ownsAttachment(attachment.copy(size = 1)))
+        assertEquals(first.previewBinding, pool.open("terminal", "host-A").previewBinding)
+        first.begin(); assertTrue(first.ownsAttachment(attachment))
+        val replacement = pool.open("terminal", "host-B")
+        assertNotEquals(first.previewBinding, replacement.previewBinding)
+        assertFalse(first.ownsAttachment(attachment))
+        replacement.attach(attachment, byteArrayOf(8, 9))
+        assertFalse(first.ownsAttachment(attachment)); assertTrue(replacement.ownsAttachment(attachment))
+        replacement.remove(attachment.id); assertFalse(replacement.ownsAttachment(attachment))
+        replacement.attach(attachment, byteArrayOf(8, 9)); pool.close()
+        assertFalse(replacement.ownsAttachment(attachment))
+        assertTrue(runCatching { replacement.read(attachment) }.isFailure)
+    }
+
     @Test fun verifiedServerKeysScopeDraftsEvenWhenTheSavedDialPlanIsUnchanged() {
         SshComposerPool().use { pool ->
             val host = java.util.UUID.randomUUID()

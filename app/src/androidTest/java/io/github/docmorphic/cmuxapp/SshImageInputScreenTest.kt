@@ -87,6 +87,38 @@ class SshImageInputScreenTest {
         }
     }
 
+    @Test fun imageChipPreviewsExactStagedBytesAndDismissalKeepsTheUnsentDraft() {
+        val bytes = photo.readBytes()
+        val attachment = ComposerAttachment(name = "preview.png", size = bytes.size, imageFormat = "png")
+        terminal.composer.attach(attachment, bytes); terminal.composer.edit("Unsent SSH prompt")
+        compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            SshShellScreen(terminal, onBack = {})
+        } } }
+        compose.onNodeWithContentDescription(attachment.name).performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Image preview preview.png").fetchSemanticsNodes().isNotEmpty() }
+        lateinit var file: File
+        compose.runOnIdle {
+            val model = androidx.lifecycle.ViewModelProvider(compose.activity)[ComposerAttachmentPreviewModel::class.java]
+            file = checkNotNull(model.controller.state.value.artifact).file
+            assertArrayEquals(bytes, file.readBytes())
+        }
+        compose.waitUntil(10_000) {
+            val bounds = compose.onNodeWithContentDescription("Image preview preview.png").fetchSemanticsNode().boundsInWindow
+            val screen = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            try { screen.getPixel(bounds.center.x.toInt(), bounds.center.y.toInt()) == android.graphics.Color.CYAN }
+            finally { screen.recycle() }
+        }
+        capture("ssh-composer-preview")
+        compose.onNodeWithText("Done").performClick()
+        compose.waitUntil(10_000) { !file.exists() }
+        compose.onNodeWithTag("ssh.shell.composer").assertTextContains("Unsent SSH prompt")
+        assertEquals(listOf(attachment), terminal.composer.current.attachments)
+        assertTrue(terminal.images.isEmpty()); assertTrue(terminal.writes.isEmpty())
+        compose.onNodeWithContentDescription("Remove ${attachment.name}").performClick()
+        compose.waitUntil(5_000) { terminal.composer.current.attachments.isEmpty() }
+        assertEquals("Unsent SSH prompt", terminal.composer.current.text)
+    }
+
     @Test fun toolbarImagePasteDisarmsControlAndNeverSendsCaptionsOrEnter() {
         compose.runOnUiThread { terminal.release = CompletableDeferred() }
         compose.setContent { CmuxTheme { Surface(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
@@ -178,7 +210,7 @@ class SshImageInputScreenTest {
         compose.runOnIdle { assertFalse(old.commitContent(image(), 0, null)) }
         compose.onNodeWithText("Return to terminal").performClick()
         compose.onNodeWithTag("ssh.shell.composer").assertTextContains("Explain this picture")
-        compose.onNodeWithTag("ssh.shell.image.${terminal.composer.current.attachments.single().id}").assertIsDisplayed()
+        compose.onNodeWithTag("composer.attachment.${terminal.composer.current.attachments.single().id}").assertIsDisplayed()
         capture("ssh-image-composer")
         compose.onNodeWithTag("ssh.shell.send").performClick()
         compose.waitUntil(10_000) { terminal.writes.size == 2 }
@@ -219,7 +251,7 @@ class SshImageInputScreenTest {
                     .text(java.util.regex.Pattern.compile("(?i)add.*|done"))), 5000)).click()
             compose.waitUntil(10_000) { terminal.composer.current.attachments.size == 1 }
             assertTrue(terminal.images.isEmpty())
-            compose.onNodeWithTag("ssh.shell.image.${terminal.composer.current.attachments.single().id}").assertIsDisplayed()
+            compose.onNodeWithTag("composer.attachment.${terminal.composer.current.attachments.single().id}").assertIsDisplayed()
             compose.onNodeWithTag("ssh.shell.send").assertIsEnabled()
             compose.waitForIdle()
             capture("ssh-image-photo-picker")

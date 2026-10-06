@@ -21,9 +21,9 @@ import androidx.lifecycle.findViewTreeViewModelStoreOwner
 import kotlinx.coroutines.*
 import java.io.File
 
-internal class TaskAttachmentPreviewModel : ViewModel() {
+internal class ComposerAttachmentPreviewModel : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    val controller = TaskAttachmentPreviewController(scope)
+    val controller = ComposerAttachmentPreviewController(scope)
     override fun onCleared() { controller.close(); scope.cancel() }
 }
 private fun Context.attachmentPreviewActivity(): Activity? = when (this) {
@@ -33,21 +33,28 @@ private fun Context.attachmentPreviewActivity(): Activity? = when (this) {
 }
 
 @Composable
-internal fun TaskAttachmentPreview(identity: TaskAttachmentPreviewIdentity,
+internal fun TaskAttachmentPreview(identity: ComposerAttachmentPreviewIdentity,
     repository: TaskDraftRepository, onDismiss: () -> Unit) {
+    val owner = identity.owner as ComposerAttachmentPreviewOwner.Task
+    ComposerAttachmentPreview(identity, repository,
+        valid = { repository.session == owner.session && repository.ownsAttachment(owner.draft, owner.origin, identity.attachment) },
+        read = { repository.readAttachment(owner.draft, owner.origin, identity.attachment) }, onDismiss)
+}
+
+@Composable
+internal fun ComposerAttachmentPreview(identity: ComposerAttachmentPreviewIdentity, source: Any,
+    valid: () -> Boolean, read: suspend () -> ByteArray, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val activity = context.attachmentPreviewActivity()
     val owner = checkNotNull(LocalView.current.findViewTreeViewModelStoreOwner())
-    val model = remember(owner) { ViewModelProvider(owner)[TaskAttachmentPreviewModel::class.java] }
+    val model = remember(owner) { ViewModelProvider(owner)[ComposerAttachmentPreviewModel::class.java] }
     val controller = model.controller
     val state by controller.state.collectAsState()
     val attachment = identity.attachment
-    LaunchedEffect(controller, identity, repository) {
+    LaunchedEffect(controller, identity, source) {
         val extension = attachment.imageFormat ?: attachment.name.substringAfterLast('.', "").lowercase()
         val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
-        controller.open(identity, File(context.applicationContext.cacheDir, "task-previews"), mime,
-            valid = { repository.ownsAttachment(identity.draft, identity.origin, attachment) },
-            read = { repository.readAttachment(identity.draft, identity.origin, attachment) })
+        controller.open(identity, File(context.applicationContext.cacheDir, "task-previews"), mime, valid, read)
     }
     DisposableEffect(controller, identity, activity) {
         onDispose { if (activity?.isChangingConfigurations != true) controller.clear(identity) }

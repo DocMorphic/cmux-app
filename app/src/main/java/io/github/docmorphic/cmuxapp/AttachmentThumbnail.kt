@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -20,8 +21,9 @@ fun AttachmentThumbnail(attachment: ComposerAttachment, repository: TerminalDraf
     AttachmentThumbnail(attachment, read = repository::read)
 
 @Composable
-fun AttachmentThumbnail(attachment: ComposerAttachment, read: suspend (ComposerAttachment) -> ByteArray) {
-    val thumbnail = produceState<ImageBitmap?>(null, attachment.id) {
+fun AttachmentThumbnail(attachment: ComposerAttachment, read: suspend (ComposerAttachment) -> ByteArray,
+    modifier: Modifier = Modifier.size(36.dp), contentScale: ContentScale = ContentScale.Crop, owner: Any? = null) {
+    val thumbnail = key(owner, attachment) { produceState<ImageBitmap?>(null) {
         if (attachment.imageFormat != null) {
             try {
                 val bytes = read(attachment)
@@ -33,7 +35,7 @@ fun AttachmentThumbnail(attachment: ComposerAttachment, read: suspend (ComposerA
                 if (failure is CancellationException) throw failure
             }
         }
-    }.value
-    if (thumbnail != null) Image(thumbnail, attachment.name, Modifier.size(36.dp), contentScale = ContentScale.Crop)
-    else Text(if (attachment.imageFormat == null) "▤" else "▧")
+    }.value }
+    if (thumbnail != null) Image(thumbnail, attachment.name, modifier, contentScale = contentScale)
+    else androidx.compose.foundation.layout.Box(modifier, contentAlignment = androidx.compose.ui.Alignment.Center) { Text(if (attachment.imageFormat == null) "▤" else "▧") }
 }

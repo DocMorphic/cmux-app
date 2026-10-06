@@ -3006,19 +3006,10 @@ internal fun NativeScreen(
                             }
                         } else {
                             if (terminalDraft.attachments.isNotEmpty() || preparingAttachments) {
-                                Row(Modifier.fillMaxWidth().background(nativePanel).horizontalScroll(rememberScrollState())
-                                    .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    terminalDraft.attachments.forEach { attachment ->
-                                        InputChip(selected = false, onClick = {},
-                                            label = { Text(attachment.name, maxLines = 1, modifier = Modifier.widthIn(max = 180.dp)) },
-                                            leadingIcon = { AttachmentThumbnail(attachment, draftRepository) },
-                                            trailingIcon = {
-                                                TextButton(onClick = { draftTarget?.let { drafts.removeAttachment(it, attachment.id) } },
-                                                    modifier = Modifier.semantics { contentDescription = "Remove ${attachment.name}" }) { Text("×") }
-                                            }, modifier = Modifier.padding(end = 6.dp))
-                                    }
-                                    if (preparingAttachments) Text("Preparing…", color = nativeMuted)
-                                }
+                                draftTarget?.let { target -> NativeTerminalAttachmentStrip(draftRepository, target,
+                                    terminalDraft.attachments, canRemove = true,
+                                    preparing = preparingAttachments, modifier = Modifier.background(nativePanel),
+                                    beforePreview = { rawKeyboardView?.finishComposition(); stopTerminalScrolling(); softwareKeyboard?.hide() }) }
                             }
                             key(draftTarget) {
                                 Row(Modifier.fillMaxWidth().background(nativePanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {

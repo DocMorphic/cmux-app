@@ -62,14 +62,14 @@ class NativeTaskAttachmentPreviewRuntimeTest {
             ActivityScenario.launch<TaskAttachmentPreviewTestActivity>(intent).use { scenario ->
                 find(By.text(item.name)).click()
                 find(By.text("Next page")).click(); find(By.text("2 / 2")); greenPage()
-                var original: TaskAttachmentPreviewModel? = null
-                scenario.onActivity { original = ViewModelProvider(it)[TaskAttachmentPreviewModel::class.java] }
+                var original: ComposerAttachmentPreviewModel? = null
+                scenario.onActivity { original = ViewModelProvider(it)[ComposerAttachmentPreviewModel::class.java] }
                 val model = checkNotNull(original)
                 val artifact = checkNotNull(model.controller.state.value.artifact)
                 assertArrayEquals(bytes, artifact.file.readBytes())
                 device.takeScreenshot(File(output, "page-two.png"))
                 scenario.recreate(); find(By.text("2 / 2")); greenPage()
-                scenario.onActivity { assertSame(model, ViewModelProvider(it)[TaskAttachmentPreviewModel::class.java]) }
+                scenario.onActivity { assertSame(model, ViewModelProvider(it)[ComposerAttachmentPreviewModel::class.java]) }
                 assertEquals(artifact.file, model.controller.state.value.artifact?.file)
                 device.takeScreenshot(File(output, "page-two-recreated.png"))
                 find(By.text("Done")).click()

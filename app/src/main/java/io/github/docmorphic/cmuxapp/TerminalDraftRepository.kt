@@ -49,6 +49,15 @@ class TerminalDraftRepository private constructor(context: Context) {
         synchronized(storageLock) { files.read(attachment) }
     }
 
+    suspend fun read(target: TerminalDrafts.Target, attachment: ComposerAttachment, generation: Long): ByteArray = withContext(Dispatchers.IO) {
+        synchronized(storageLock) {
+            check(drafts.ownsAttachment(target, attachment, generation)) { "Attachment was removed or its terminal changed." }
+            files.read(attachment).also {
+                check(drafts.ownsAttachment(target, attachment, generation)) { "Attachment was removed or its terminal changed." }
+            }
+        }
+    }
+
     private fun save() = synchronized(storageLock) {
         try {
             val saved = drafts.saved()

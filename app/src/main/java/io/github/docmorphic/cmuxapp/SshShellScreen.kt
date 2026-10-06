@@ -231,18 +231,9 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             }, modifier = Modifier.fillMaxWidth().height(36.dp).testTag("ssh.shell.keyboard"),
             onRelease = { it.dispose(); if (rawKeyboard === it) rawKeyboard = null })
         else {
-            if (draft.attachments.isNotEmpty() || preparing) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                draft.attachments.forEach { attachment ->
-                    InputChip(selected = false, onClick = {},
-                        label = { Text(attachment.name, maxLines = 1, modifier = Modifier.widthIn(max = 180.dp)) },
-                        leadingIcon = { SshAttachmentThumbnail(composer, attachment) },
-                        trailingIcon = { TextButton(onClick = { composer.remove(attachment.id) },
-                            modifier = Modifier.semantics { contentDescription = "Remove ${attachment.name}" }) { Text("×") } },
-                        modifier = Modifier.padding(end = 6.dp).testTag("ssh.shell.image.${attachment.id}"))
-                }
-                if (preparing) Text(if (draft.operation != null) "Sending…" else "Preparing…")
-            }
+            if (draft.attachments.isNotEmpty() || preparing) SshTerminalAttachmentStrip(composer, draft.attachments,
+                canRemove = true, preparing = preparing,
+                beforePreview = { rawKeyboard?.finishComposition(); motion.stop(); keyboard?.hide() })
             Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (input.supportsImages) IconButton(onClick = { pickerTarget = shell; photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     enabled = canInput && !preparing && draft.operation == null,

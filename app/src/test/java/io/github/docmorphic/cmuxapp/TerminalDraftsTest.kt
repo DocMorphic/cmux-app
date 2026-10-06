@@ -7,6 +7,25 @@ class TerminalDraftsTest {
     private val first = TerminalDrafts.Target("mac-a", "workspace", "surface")
     private val second = first.copy(surface = "other")
 
+    @Test fun attachmentPreviewPermissionUsesExactTargetMetadataAndAccountGeneration() {
+        val drafts = TerminalDrafts()
+        val item = ComposerAttachment(name = "staged.txt", size = 4)
+        val generation = drafts.generation
+        drafts.attach(first, item, generation)
+        assertTrue(drafts.ownsAttachment(first, item, generation))
+        assertFalse(drafts.ownsAttachment(second, item, generation))
+        assertFalse(drafts.ownsAttachment(first.copy(pairing = "other-mac"), item, generation))
+        assertFalse(drafts.ownsAttachment(first.copy(workspace = "other-workspace"), item, generation))
+        assertFalse(drafts.ownsAttachment(first, item.copy(name = "replacement.txt"), generation))
+        drafts.begin(first)
+        assertTrue("Sending does not forbid preview", drafts.ownsAttachment(first, item, generation))
+        drafts.removeAttachment(first, item.id)
+        assertFalse(drafts.ownsAttachment(first, item, generation))
+        drafts.clear(); drafts.attach(first, item, drafts.generation)
+        assertFalse(drafts.ownsAttachment(first, item, generation))
+        assertTrue(drafts.ownsAttachment(first, item, drafts.generation))
+    }
+
     @Test fun acknowledgementClearsOnlyCapturedTerminalAndPreservesNewEdits() {
         val drafts = TerminalDrafts()
         drafts.edit(first, "first\nmessage")

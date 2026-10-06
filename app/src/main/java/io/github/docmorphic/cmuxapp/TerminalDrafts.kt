@@ -42,6 +42,9 @@ class TerminalDrafts(saved: JSONArray? = null) {
         put(target, old.copy(attachments = old.attachments.filterNot { it.id == id }))
     }
 
+    @Synchronized fun ownsAttachment(target: Target, attachment: ComposerAttachment, expectedGeneration: Long): Boolean =
+        generation == expectedGeneration && mutable.value[target]?.attachments?.contains(attachment) == true
+
     @Synchronized fun contains(send: Send, attachment: ComposerAttachment): Boolean =
         mutable.value[send.target]?.let { it.operation == send.operation && attachment in it.attachments } == true
 

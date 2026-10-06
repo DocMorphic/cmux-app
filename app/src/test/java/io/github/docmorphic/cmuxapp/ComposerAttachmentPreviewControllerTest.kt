@@ -6,18 +6,18 @@ import kotlinx.coroutines.flow.first
 import org.junit.Assert.*
 import org.junit.Test
 
-class TaskAttachmentPreviewControllerTest {
+class ComposerAttachmentPreviewControllerTest {
     private class Fixture(parent: CoroutineScope) {
         val root = Files.createTempDirectory("task-preview").toFile()
         val job = SupervisorJob(parent.coroutineContext[Job])
-        val controller = TaskAttachmentPreviewController(CoroutineScope(parent.coroutineContext + job))
+        val controller = ComposerAttachmentPreviewController(CoroutineScope(parent.coroutineContext + job))
         val bytes = "exact staged bytes\n".toByteArray()
-        val identity = TaskAttachmentPreviewIdentity("presentation", "session", "draft", "mac",
+        val identity = ComposerAttachmentPreviewIdentity("presentation", ComposerAttachmentPreviewOwner.Task("session", "draft", "mac"),
             ComposerAttachment(name = "note.txt", size = bytes.size))
         var reads = 0
         var valid = true
         var beforeRead: suspend () -> Unit = {}
-        fun open(id: TaskAttachmentPreviewIdentity = identity) = controller.open(id, root, "text/plain", { valid }) {
+        fun open(id: ComposerAttachmentPreviewIdentity = identity) = controller.open(id, root, "text/plain", { valid }) {
             reads++; beforeRead(); bytes
         }
         suspend fun artifact() = withTimeout(3000) { controller.state.first { it.artifact != null }.artifact!! }
@@ -40,8 +40,8 @@ class TaskAttachmentPreviewControllerTest {
 
     @Test fun changingPresentationAccountDraftOriginOrMetadataNeverReusesOldBytes() = runBlocking { fixture {
         open(); var previous = artifact()
-        val variants = listOf(identity.copy(presentation = "other"), identity.copy(session = "other"),
-            identity.copy(draft = "other"), identity.copy(origin = "other"),
+        val variants = listOf(identity.copy(presentation = "other"), identity.copy(owner = ComposerAttachmentPreviewOwner.Task("other", "draft", "mac")),
+            identity.copy(owner = ComposerAttachmentPreviewOwner.Task("session", "other", "mac")), identity.copy(owner = ComposerAttachmentPreviewOwner.Task("session", "draft", "other")),
             identity.copy(attachment = identity.attachment.copy(name = "other.txt")))
         for (next in variants) {
             open(next); val current = artifact()
@@ -52,6 +52,21 @@ class TaskAttachmentPreviewControllerTest {
             previous = current
         }
         assertEquals(6, reads)
+    } }
+
+    @Test fun taskNativeAndSshComposersCannotSharePreviewEvenForIdenticalAttachmentIds() = runBlocking { fixture {
+        open(); var previous = artifact()
+        val terminal = TerminalDrafts.Target("mac", "workspace", "surface")
+        val owners = listOf(ComposerAttachmentPreviewOwner.Terminal(terminal, 0),
+            ComposerAttachmentPreviewOwner.Terminal(terminal.copy(surface = "other"), 0),
+            ComposerAttachmentPreviewOwner.Terminal(terminal, 1),
+            ComposerAttachmentPreviewOwner.Ssh("binding-A"), ComposerAttachmentPreviewOwner.Ssh("binding-B"))
+        for (owner in owners) {
+            open(identity.copy(owner = owner)); val next = artifact()
+            assertNotEquals(previous.file, next.file)
+            withTimeout(3000) { while (previous.file.exists()) delay(5) }
+            assertArrayEquals(bytes, next.file.readBytes()); previous = next
+        }
     } }
 
     @Test fun lateCancelledReadCannotPublishOverOrDeleteNewSelection() = runBlocking { fixture {
@@ -72,17 +87,17 @@ class TaskAttachmentPreviewControllerTest {
         try {
             open(); withTimeout(3000) { started.await() }; controller.close(); release.complete(Unit)
             delay(50); emptyDisk(); open(); controller.retry(identity); yield()
-            assertEquals(TaskAttachmentPreviewState(), controller.state.value); assertEquals(1, reads)
+            assertEquals(ComposerAttachmentPreviewState(), controller.state.value); assertEquals(1, reads)
         } finally { release.complete(Unit) }
     } }
 
     @Test fun removedOrRetargetedDraftDuringReadCannotExposeBytes() = runBlocking { fixture {
         beforeRead = { valid = false }
-        open(); assertTrue(error().contains("task changed")); emptyDisk()
+        open(); assertTrue(error().contains("composer changed")); emptyDisk()
         assertNull(controller.state.value.artifact)
         valid = true; beforeRead = {}; controller.retry(identity)
         assertArrayEquals(bytes, artifact().file.readBytes())
-        valid = false; open(); emptyDisk(); assertEquals(TaskAttachmentPreviewState(), controller.state.value)
+        valid = false; open(); emptyDisk(); assertEquals(ComposerAttachmentPreviewState(), controller.state.value)
     } }
 
     @Test fun initialInvalidOwnerDoesNotReadAndReadFailureCanRetry() = runBlocking { fixture {
@@ -114,7 +129,7 @@ class TaskAttachmentPreviewControllerTest {
     } }
 
     @Test fun emptyTextAndSupportedFormatsUseFullViewerWhileUnknownBinaryHasExternalActions() {
-        fun route(name: String, mime: String? = null) = taskAttachmentPreviewRoute(ComposerAttachment(name = name, size = 0), mime)
+        fun route(name: String, mime: String? = null) = composerAttachmentPreviewRoute(ComposerAttachment(name = name, size = 0), mime)
         assertEquals(ChangesPreviewRoute.TEXT, route("empty.txt"))
         assertEquals(ChangesPreviewRoute.TEXT, route("report.md"))
         assertEquals(ChangesPreviewRoute.TEXT, route("source.kt"))

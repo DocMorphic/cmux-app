@@ -25,6 +25,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Native/SSH terminal attachment chips now open the shared full viewer, with
+  exact terminal/account/binding ownership. Task and terminal chips use iOS-like
+  thumbnail sizes, file labels and separate remove controls. **33 focused JVM
+  checks passed**; main/instrumentation compilation passed. Native image/text
+  and SSH visible-image checks are compiled and join task PDF/Open and legacy
+  appearance in the next combined milestone (five listed cases in
+  [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#native-and-ssh-terminal-attachment-previews--2026-10-06)).
+  No APK/AVD run; keyboard return, visual/accessibility, process death and
+  physical-device acceptance remain open.
+
 - Task attachments now use the full shared image/PDF/text/Markdown/media viewer
   with filename/Done and Open/Share/Save. Exact staged bytes, retained ownership,
   cancellation/retry cleanup and cache leases replace the image-only popup.

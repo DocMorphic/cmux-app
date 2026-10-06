@@ -1646,3 +1646,64 @@ Verification for this batch:
 Local evidence: `captures/runtime/task-attachment-viewer/`. An initial Gradle
 attempt lacked `ANDROID_HOME` and stopped before compilation; subsequent checks
 used the installed SDK explicitly. Logs preserve both attempts.
+
+
+## Native and SSH terminal attachment previews — 2026-10-06
+
+Scoped sources at `186cec79781256867ad4516f0802118738bd2393`:
+`TerminalComposerView.swift` and `TerminalComposerAttachmentPreviewSheet.swift`.
+The iOS terminal chip's primary action previews exact staged bytes in Quick Look;
+its independent corner button removes the attachment. Terminal image chips are
+56 points square, task images 96×72; terminal files include name and byte count.
+The preview hands off the input responder before presentation. No global pin
+was advanced by this comparison.
+
+Native and SSH terminal chips now open the same full viewer as task attachments.
+The previously task-only controller/model names are generalized to
+`ComposerAttachmentPreviewController`/`ComposerAttachmentPreviewModel`. Owner
+identities are distinct types for task session/draft/origin, native terminal
+Mac/workspace/surface plus account generation, and SSH's unique live draft
+binding. Account or host replacement cannot reuse a prior binding's preview.
+Native staged-file reads validate exact ownership before and after decryption;
+SSH reads use the bounded pool's guarded copy. Previewing neither sends nor
+removes attachments. Native/SSH removal remains possible while a send is pending,
+as in the iOS strip; task removal still follows the task editor's disabled state.
+
+All three composers use shared rounded attachment chips with the source image
+sizes, file labels (terminal byte counts), separate 44 dp removal hit targets and
+an accessibility remove action. Task image fitting and terminal image cropping
+follow their respective iOS layouts. Thumbnail state is keyed by source owner
+and exact metadata; opening a preview ends text-field focus and hides the IME.
+Full keyboard-return, visual, enlarged-text and TalkBack acceptance is still open.
+
+Verification:
+
+- 33 focused JVM checks passed: 10 shared preview-controller, 6 native draft,
+  8 SSH draft and 9 task attachment cases. New checks cover cross-composer
+  isolation, native target/generation/metadata fencing, and SSH removal, host
+  replacement and account termination.
+- Main and Android instrumentation sources compile. An intermediate test-source
+  compile failed for missing assertion/UiDevice imports; corrected logs are
+  retained alongside that failure.
+- The existing native terminal attachment picker/encryption/retry case now also
+  opens image/text previews, checks exact staged image bytes and visible text,
+  dismisses and verifies the unchanged prompt/attachments before sending.
+- New SSH image-preview case checks a cyan image pixel, exact staged bytes,
+  dismissal cleanup, unchanged unsent prompt/attachments, no remote writes,
+  and independent removal. Both are compiled, **not run** in this batch.
+- No APK packaging, AVD launch or physical-device claim for this batch. The
+  task PDF recreation/Open lifetime and legacy appearance cases remain queued.
+
+Next combined milestone (existing disposable AVD only):
+
+1. `NativeTicketPairingRuntimeTest#legacyAppearanceUpgradeResumesAfterKeystoreAcknowledgementFailure`
+2. `NativeTaskAttachmentPreviewRuntimeTest#disabledEditingStillPreviewsExactPdfAndKeepsPageThroughActivityRecreation`
+3. `NativeTaskAttachmentsTest#previewAndRemovalKeepPromptAndDeleteOnlySelectedAttachment`
+4. `NativeFlowTest#attachmentPickerStagesEncryptsAndSendsAfterExplicitRetry`
+5. `SshImageInputScreenTest#imageChipPreviewsExactStagedBytesAndDismissalKeepsTheUnsentDraft`
+
+Inspect the visible PDF, image, text and chip captures, and verify modal keyboard
+insets and input resumption. Synthetic account fixtures must not run on the
+user's Pixel. Pixel/Mac, process death, the broader Quick Look format matrix and
+full iOS UI parity remain acceptance gates. Local batch evidence is under
+`captures/runtime/composer-attachment-previews/`.

@@ -32,6 +32,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertNotNull
+import androidx.test.uiautomator.UiDevice
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -560,6 +563,23 @@ class NativeFlowTest {
         assertEquals(listOf(image, attachment), restored.state.value[target]!!.attachments)
         compose.onNode(hasSetTextAction()).performTextInput("Explain these attachments")
         screenshot("composer-attachments")
+        compose.onNodeWithContentDescription(image.name).performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Image preview ${image.name}").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnIdle {
+            val model = androidx.lifecycle.ViewModelProvider(compose.activity)[ComposerAttachmentPreviewModel::class.java]
+            assertArrayEquals(imageBytes, checkNotNull(model.controller.state.value.artifact).file.readBytes())
+        }
+        screenshot("composer-image-preview")
+        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithContentDescription(attachment.name).performScrollTo().performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithContentDescription("Raw text preview").fetchSemanticsNodes().isNotEmpty() }
+        val visibleText = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).wait(
+            androidx.test.uiautomator.Until.findObject(androidx.test.uiautomator.By.text("Private fixture content")), 10_000)
+        assertNotNull("The staged text must be displayed in the preview", visibleText)
+        screenshot("composer-file-preview")
+        compose.onNodeWithText("Done").performClick()
+        assertDraft("Explain these attachments")
+        assertEquals(listOf(image, attachment), repo.drafts.state.value[target]!!.attachments)
         peer.rejectNextPaste.set(true)
         compose.onNodeWithText("Send").performClick()
         compose.waitUntil(15_000) { repo.drafts.state.value[target]?.error != null }
