@@ -33,6 +33,13 @@ internal class ChangesPdfDocument(private val file: File, nativeText: Boolean = 
         }
     }
     val supportsText get() = true
+    @Synchronized fun resolveRetained(target: PdfLinkTarget.Page, sourcePage: Int, x: Float, y: Float): PdfLinkTarget.Page {
+        check(!closed)
+        val retained = target.retained ?: return target
+        val current = checkNotNull(compatibility().coordinates(sourcePage).userPoint(x, y))
+        val point = checkNotNull(retained.resolve(current))
+        return target.copy(x = point.first, y = point.second, retained = null)
+    }
     private fun compatibility(): PdfAnnotationLinks {
         if (linkIndex == null) linkIndex = PdfAnnotationLinks(file, pageSizes)
         return checkNotNull(linkIndex)

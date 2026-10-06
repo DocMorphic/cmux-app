@@ -30,8 +30,12 @@ and currently disabled; the upstream watcher is active on main with review issue
   results no longer overrides the reading location. Extraction, pixel zoom and
   link/return Android checks are queued with PiP for the next integration run.
   Main/instrumentation Kotlin compilation and **19 focused JVM cases passed**.
-  Full fit-mode handling, null-coordinate retention, document-wide zoom and
-  selection remain open. See [PDF_DESTINATIONS.md](PDF_DESTINATIONS.md).
+  Follow-up shared document zoom makes magnified pages fully scrollable, and
+  implements Fit/FitH/FitV/FitR plus null-coordinate retention through crop/rotation.
+  Main/instrumentation compilation and **24 focused JVM cases passed** for that
+  follow-up. Runtime acceptance is queued; FitB/FitBH/FitBV content bounding boxes,
+  selection handles, high-zoom quality and physical checks remain open. See
+  [PDF_DESTINATIONS.md](PDF_DESTINATIONS.md).
 
 - Video picture-in-picture feature batch implemented in the shared media viewer,
   with dedicated main/browser playback Activities, independent private file

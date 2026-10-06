@@ -16,6 +16,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
@@ -65,46 +72,80 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
     var textPage by rememberSaveable { mutableStateOf<Int?>(null) }
     var selectionX by rememberSaveable { mutableFloatStateOf(-1f) }
     var selectionY by rememberSaveable { mutableFloatStateOf(-1f) }
-    var navigationGeneration by rememberSaveable { mutableIntStateOf(0) }
     var pageWidth by remember { mutableFloatStateOf(0f) }
-    // Compact saved bookmarks: page, scroll offset/page width, scale, X, Y.
+    var previousLayoutWidth by rememberSaveable { mutableFloatStateOf(0f) }
+    var viewportHeight by remember { mutableFloatStateOf(0f) }
+    val documentWidth = remember(pdf) { pdf.pageSizes.maxOf { it.first } }
+    var zoom by rememberSaveable(stateSaver = listSaver<PreviewZoomTransform, Float>(
+        save = { listOf(it.scale, it.x) }, restore = { PreviewZoomTransform(it[0], it[1]) }
+    )) { mutableStateOf(PreviewZoomTransform()) }
+    var linkJob by remember { mutableStateOf<Job?>(null) }
+    // Compact saved bookmarks: page, offset/width, scale, X, reserved Y, top inset/width.
     var history by rememberSaveable { mutableStateOf(arrayListOf<Float>()) }
     var destination by rememberSaveable { mutableStateOf(arrayListOf<Float>()) }
-    val transforms = remember(pdf) { mutableMapOf<Int, PreviewZoomTransform>() }
     val density = LocalDensity.current.density
     val selected = matches.getOrNull(matchIndex)
-    fun navigate(page: Int, offsetPerWidth: Float, transform: PreviewZoomTransform = PreviewZoomTransform()) {
-        destination = arrayListOf(page.toFloat(), offsetPerWidth, transform.scale, transform.x, transform.y)
-        navigationGeneration++
-        scope.launch { scroll.scrollToItem(page, (offsetPerWidth * pageWidth).toInt().coerceAtLeast(0)) }
+    fun inset(page: Int): Float = if (destination.firstOrNull()?.toInt() == page) destination.getOrElse(5) { 0f } else 0f
+    fun navigate(page: Int, offsetPerWidth: Float, transform: PreviewZoomTransform = zoom, topInset: Float = 0f) {
+        linkJob?.cancel()
+        destination = arrayListOf(page.toFloat(), offsetPerWidth, transform.scale, transform.x, 0f, topInset)
+        zoom = transform
+        scroll.requestScrollToItem(page, (offsetPerWidth * pageWidth).toInt().coerceAtLeast(0))
     }
     fun rememberLocation() {
         val page = scroll.firstVisibleItemIndex
-        val transform = transforms[page] ?: PreviewZoomTransform()
         history = ArrayList((history + listOf(page.toFloat(), scroll.firstVisibleItemScrollOffset / pageWidth.coerceAtLeast(1f),
-            transform.scale, transform.x, transform.y)).takeLast(32 * 5))
+            zoom.scale, zoom.x, 0f, inset(page))).takeLast(32 * 6))
     }
     fun returnToLocation() {
-        if (history.size < 5) return
-        val saved = history.takeLast(5)
+        if (history.size < 6) return
+        val saved = history.takeLast(6)
         searchNavigationPending = false
-        history = ArrayList(history.dropLast(5))
-        navigate(saved[0].toInt(), saved[1], PreviewZoomTransform(saved[2], saved[3], saved[4]))
+        history = ArrayList(history.dropLast(6))
+        navigate(saved[0].toInt(), saved[1], PreviewZoomTransform(saved[2], saved[3]), saved[5])
     }
     fun jump(page: Int, y: Float = 0f) {
         if (page !in pdf.pageSizes.indices) return
-        navigate(page, if (y.isFinite()) y.coerceIn(0f, pdf.pageSizes[page].second.toFloat()) / pdf.pageSizes[page].first else 0f)
+        navigate(page, if (y.isFinite()) y.coerceIn(0f, pdf.pageSizes[page].second.toFloat()) * zoom.scale / documentWidth else 0f)
     }
-    fun open(link: PdfLinkTarget, origin: Int) {
+    fun transform(factor: Float, pan: Offset, centroid: Offset) {
+        if (pageWidth <= 0f) return
+        linkJob?.cancel()
+        val before = zoom
+        val next = before.transform(factor, pan.x / pageWidth, 0f, centroid.x / pageWidth - .5f, 0f, minimumScale = .125f)
+        val visible = scroll.layoutInfo.visibleItemsInfo
+        val anchor = visible.firstOrNull { centroid.y >= it.offset && centroid.y < it.offset + it.size } ?: visible.firstOrNull() ?: return
+        val oldInset = inset(anchor.index) * pageWidth
+        val within = (centroid.y - anchor.offset - oldInset).coerceAtLeast(0f)
+        val offset = within * next.scale / before.scale - centroid.y - pan.y
+        destination = arrayListOf() // Gesture scrolling owns the viewport after a destination jump.
+        zoom = next
+        scroll.requestScrollToItem(anchor.index, offset.toInt())
+    }
+    fun open(link: PdfLinkTarget) {
         when (link) {
             is PdfLinkTarget.Page -> {
-                if (link.index !in pdf.pageSizes.indices || pageWidth <= 0f) return
-                val size = pdf.pageSizes[link.index]
-                val target = PdfDestinationViewport.resolve(link, size.first, size.second, pageWidth, density,
-                    transforms[origin]?.scale ?: 1f)
+                if (link.index !in pdf.pageSizes.indices || pageWidth <= 0f || viewportHeight <= 0f) return
+                linkJob?.cancel()
+                val origin = scroll.firstVisibleItemIndex
+                val originSize = pdf.pageSizes[origin]
+                val factor = pageWidth / documentWidth * zoom.scale
+                val currentX = originSize.first / 2f + (-.5f - zoom.x) * pageWidth / factor
+                val currentY = (scroll.firstVisibleItemScrollOffset - inset(origin) * pageWidth) / factor
                 searchNavigationPending = false
-                rememberLocation()
-                navigate(link.index, target.scrollFraction * size.second / size.first, target.transform)
+                linkJob = scope.launch {
+                    try {
+                        val resolved = withContext(Dispatchers.IO) { pdf.resolveRetained(link, origin, currentX, currentY) }
+                        ensureActive()
+                        val size = pdf.pageSizes[link.index]
+                        val target = PdfDestinationViewport.resolve(resolved, size.first, size.second, pageWidth, density,
+                            zoom.scale, viewportHeight, documentWidth)
+                        rememberLocation()
+                        linkJob = null
+                        navigate(link.index, target.scrollFraction * size.second / documentWidth, target.transform,
+                            target.topInsetFraction * size.second / documentWidth)
+                    } catch (error: Exception) { ensureActive(); actionFailure = "This document link couldn't be opened." }
+                }
             }
             is PdfLinkTarget.External -> runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link.url))) }
                 .onFailure { actionFailure = "No app could open this link." }
@@ -134,8 +175,10 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
             onDismiss = { textPage = null; selectionX = -1f; selectionY = -1f }, onWholePage = { selectionX = -1f; selectionY = -1f })
     }
     Column(Modifier.fillMaxSize()) {
-        if (history.isNotEmpty()) TextButton(onClick = ::returnToLocation) { Text("Back to previous location") }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            IconButton(enabled = history.isNotEmpty(), onClick = ::returnToLocation) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back to previous location")
+            }
             TextButton(enabled = scroll.firstVisibleItemIndex > 0, onClick = { jump(scroll.firstVisibleItemIndex - 1) }) { Text("Previous page") }
             Text("${scroll.firstVisibleItemIndex + 1} / ${pdf.pageSizes.size}", fontSize = 12.sp)
             TextButton(enabled = scroll.firstVisibleItemIndex < pdf.pageSizes.lastIndex, onClick = { jump(scroll.firstVisibleItemIndex + 1) }) { Text("Next page") }
@@ -159,20 +202,35 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
         actionFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         BoxWithConstraints(Modifier.weight(1f)) {
             val lastSize = pdf.pageSizes.lastOrNull()
-            val lastHeight = lastSize?.let { maxWidth * (it.second.toFloat() / it.first) } ?: maxHeight
+            val lastHeight = lastSize?.let { maxWidth * (it.second.toFloat() / documentWidth) * zoom.scale } ?: maxHeight
             val destinationTail = if (destination.firstOrNull()?.toInt() == pdf.pageSizes.lastIndex)
-                maxWidth * destination[1] else 0.dp
+                maxWidth * (destination[1] - inset(pdf.pageSizes.lastIndex)) else 0.dp
             val endPadding = maxOf(0.dp, maxHeight - lastHeight + destinationTail)
             val width = with(LocalDensity.current) { maxWidth.toPx() }
-            SideEffect { pageWidth = width }
-            LazyColumn(Modifier.fillMaxSize(), state = scroll, contentPadding = PaddingValues(bottom = endPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val height = with(LocalDensity.current) { maxHeight.toPx() }
+            val viewportWidthDp = maxWidth
+            SideEffect {
+                if (previousLayoutWidth > 0f && previousLayoutWidth != width)
+                    scroll.requestScrollToItem(scroll.firstVisibleItemIndex,
+                        (scroll.firstVisibleItemScrollOffset * width / previousLayoutWidth).toInt())
+                previousLayoutWidth = width; pageWidth = width; viewportHeight = height
+            }
+            LazyColumn(Modifier.fillMaxSize().pdfPanZoomGestures(zoom.scale, ::transform), state = scroll,
+                contentPadding = PaddingValues(bottom = endPadding), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(pdf.pageSizes.size, key = { it }) { index ->
-                    PdfDocumentPage(pdf, index, matches.filter { it.page == index }, selected, navigationGeneration,
-                        initialTransform = if (destination.firstOrNull()?.toInt() == index)
-                            PreviewZoomTransform(destination[2], destination[3], destination[4]) else PreviewZoomTransform(),
-                        onTransformChanged = { transforms[index] = it },
-                        onLink = { open(it, index) }, onText = { point -> selectionX = point.x; selectionY = point.y; textPage = index },
-                        onPageText = { selectionX = -1f; selectionY = -1f; textPage = index })
+                    Column {
+                        if (inset(index) > 0f) Spacer(Modifier.height(viewportWidthDp * inset(index)))
+                        PdfDocumentPage(pdf, index, matches.filter { it.page == index }, selected, zoom, documentWidth,
+                            onDoubleTap = { point ->
+                                val item = scroll.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+                                if (item != null) {
+                                    val focus = Offset(point.x, point.y + item.offset + inset(index) * pageWidth)
+                                    transform((if (zoom.atMinimum) 2f else 1f) / zoom.scale,
+                                        Offset(pageWidth / 2f, viewportHeight / 2f) - focus, focus)
+                                }
+                            }, onLink = ::open, onText = { point -> selectionX = point.x; selectionY = point.y; textPage = index },
+                            onPageText = { selectionX = -1f; selectionY = -1f; textPage = index })
+                    }
                 }
             }
         }
@@ -180,8 +238,8 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
 }
 
 @Composable
-private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<PdfTextMatch>, selected: PdfTextMatch?, navigationGeneration: Int,
-    initialTransform: PreviewZoomTransform, onTransformChanged: (PreviewZoomTransform) -> Unit,
+private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<PdfTextMatch>, selected: PdfTextMatch?, zoom: PreviewZoomTransform,
+    documentWidth: Int, onDoubleTap: (Offset) -> Unit,
     onLink: (PdfLinkTarget) -> Unit, onText: (Offset) -> Unit, onPageText: () -> Unit) {
     val pageSize = pdf.pageSizes[index]
     var pageFailure by remember(pdf, index) { mutableStateOf<String?>(null) }
@@ -190,35 +248,51 @@ private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<P
         try { value = withContext(Dispatchers.IO) { pdf.links(index) }; linkFailure = pdf.incompleteLinks }
         catch (error: Exception) { currentCoroutineContext().ensureActive(); linkFailure = true }
     }
-    BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(pageSize.first.toFloat() / pageSize.second).semantics {
-        contentDescription = "PDF page ${index + 1} of ${pdf.pageSizes.size}"
-        customActions = (if (pdf.supportsText) listOf(CustomAccessibilityAction("Read or copy page text") { onPageText(); true }) else emptyList()) +
-            links.map { link -> CustomAccessibilityAction(when (val target = link.target) {
-                is PdfLinkTarget.Page -> "Go to page ${target.index + 1}"
-                is PdfLinkTarget.External -> "Open ${target.url}"
-            }) { onLink(link.target); true } }
-    }) {
-        val width = with(LocalDensity.current) { maxWidth.roundToPx() }
-        val bitmap by produceState<Bitmap?>(null, pdf, index, width) {
-            try { value = withContext(Dispatchers.IO) { pdf.render(index, width * 2) } }
-            catch (error: Exception) { currentCoroutineContext().ensureActive(); pageFailure = "Could not render this PDF page." }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val pageHeight = maxWidth * (pageSize.second.toFloat() / documentWidth) * zoom.scale
+        val imageWidth = maxWidth * (pageSize.first.toFloat() / documentWidth) * zoom.scale
+        val viewportPixels = with(LocalDensity.current) { maxWidth.toPx() }
+        val pagePixels = with(LocalDensity.current) { pageHeight.toPx() }
+        val rasterWidth = with(LocalDensity.current) { (maxWidth * (pageSize.first.toFloat() / documentWidth)).roundToPx() }
+        fun point(position: Offset): Offset? {
+            val x = .5f + (position.x / viewportPixels - .5f - zoom.x) * documentWidth / (pageSize.first * zoom.scale)
+            val y = position.y / pagePixels
+            return Offset(x, y).takeIf { x in 0f..1f && y in 0f..1f }
         }
-        if (bitmap != null) PreviewZoom(Modifier.fillMaxSize(), doubleTapScale = 2f, resetGeneration = navigationGeneration,
-            initialTransform = initialTransform, onTransformChanged = onTransformChanged, minimumScale = .125f,
-            onContentTap = { point -> links.firstOrNull { link -> link.bounds.any { it.contains(point.x * pageSize.first, point.y * pageSize.second) } }?.let { onLink(it.target) } },
-            onContentLongPress = if (pdf.supportsText) onText else null) { modifier ->
-            Box(modifier) {
-                Image(bitmap!!.asImageBitmap(), null, Modifier.fillMaxSize())
-                Canvas(Modifier.fillMaxSize()) {
-                    matches.forEach { match -> match.bounds.forEach { b ->
-                        if (b.contains(b.left, b.top)) drawRect(if (match == selected) Color(0xAAFF9800) else Color(0x66FFE600),
-                            Offset(b.left / pageSize.first * size.width, b.top / pageSize.second * size.height),
-                            Size((b.right - b.left) / pageSize.first * size.width, (b.bottom - b.top) / pageSize.second * size.height))
-                    } }
-                }
+        Box(Modifier.fillMaxWidth().height(pageHeight).clipToBounds().pointerInput(links, zoom, viewportPixels, pagePixels) {
+            detectTapGestures(onDoubleTap = onDoubleTap,
+                onTap = { position -> point(position)?.let { p -> links.firstOrNull { link -> link.bounds.any {
+                    it.contains(p.x * pageSize.first, p.y * pageSize.second) } }?.let { onLink(it.target) } } },
+                onLongPress = { position -> if (pdf.supportsText) point(position)?.let(onText) })
+        }.semantics {
+            contentDescription = "PDF page ${index + 1} of ${pdf.pageSizes.size}"
+            customActions = (if (pdf.supportsText) listOf(CustomAccessibilityAction("Read or copy page text") { onPageText(); true }) else emptyList()) +
+                links.map { link -> CustomAccessibilityAction(when (val target = link.target) {
+                    is PdfLinkTarget.Page -> "Go to page ${target.index + 1}"
+                    is PdfLinkTarget.External -> "Open ${target.url}"
+                }) { onLink(link.target); true } }
+        }) {
+            // Raster dimensions stay bounded independently of layout magnification.
+            val width = rasterWidth
+            val bitmap by produceState<Bitmap?>(null, pdf, index, width) {
+                try { value = withContext(Dispatchers.IO) { pdf.render(index, width * 2) } }
+                catch (error: Exception) { currentCoroutineContext().ensureActive(); pageFailure = "Could not render this PDF page." }
             }
-        } else if (pageFailure != null) Text(pageFailure!!) else LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (linkFailure) Text("Links couldn’t be read on this page.", color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.BottomCenter))
+            if (bitmap != null) {
+                Box(Modifier.requiredSize(imageWidth, pageHeight).align(Alignment.Center)
+                    .graphicsLayer { translationX = zoom.x * viewportPixels }) {
+                    Image(bitmap!!.asImageBitmap(), null, Modifier.fillMaxSize())
+                    Canvas(Modifier.fillMaxSize()) {
+                        matches.forEach { match -> match.bounds.forEach { b ->
+                            if (b.contains(b.left, b.top)) drawRect(if (match == selected) Color(0xAAFF9800) else Color(0x66FFE600),
+                                Offset(b.left / pageSize.first * size.width, b.top / pageSize.second * size.height),
+                                Size((b.right - b.left) / pageSize.first * size.width, (b.bottom - b.top) / pageSize.second * size.height))
+                        } }
+                    }
+                }
+            } else if (pageFailure != null) Text(pageFailure!!) else LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (linkFailure) Text("Links couldn’t be read on this page.", color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.BottomCenter))
+        }
     }
 }
 

@@ -26,4 +26,18 @@ internal data class PdfPageCoordinates(val left: Float, val bottom: Float, val w
             mapped.maxOf { it.first }.coerceAtMost(renderedWidth.toFloat()), mapped.maxOf { it.second }.coerceAtMost(renderedHeight.toFloat()))
         return result.takeIf { it.right > it.left && it.bottom > it.top }
     }
+    fun userPoint(x: Float, y: Float): Pair<Float, Float>? {
+        if (point(left, bottom) == null || !x.isFinite() || !y.isFinite()) return null
+        val quarterTurn = Math.floorMod(rotation, 180) == 90
+        val tx = x * (if (quarterTurn) height else width) / renderedWidth
+        val ty = y * (if (quarterTurn) width else height) / renderedHeight
+        val local = when (Math.floorMod(rotation, 360)) {
+            0 -> tx to height - ty
+            90 -> ty to tx
+            180 -> width - tx to ty
+            270 -> width - ty to height - tx
+            else -> return null
+        }
+        return (local.first + left to local.second + bottom).takeIf { it.first.isFinite() && it.second.isFinite() }
+    }
 }

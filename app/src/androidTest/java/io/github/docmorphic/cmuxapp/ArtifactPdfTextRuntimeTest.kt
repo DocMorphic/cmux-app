@@ -13,24 +13,25 @@ import org.junit.Test
 
 class ArtifactPdfTextRuntimeTest {
     /** Original two-page PDF with text plus external and internal annotations. */
-    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false, targetX: Int = 0, targetZoom: Float = 0f): File {
+    private fun fixture(form: String = "direct", sourceRotation: Int = 0, targetHeight: Int = 400, crop: Boolean = false, targetX: Int = 0, targetZoom: Float = 0f, targetDestination: String? = null, targetRotation: Int = 0): File {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val text = listOf("CMUX first needle", "CMUX second needle")
         val streams = text.mapIndexed { index, value -> "BT /F1 18 Tf 30 340 Td ($value) Tj ET" +
             if (index == 1 && targetZoom > 0f) " q 0 1 0 rg $targetX 370 20 30 re f Q" else "" }
+        val destination = targetDestination ?: "/XYZ $targetX 400 $targetZoom"
         val objects = listOf(
-            "<< /Type /Catalog /Pages 2 0 R /Names << /Dests << /Names [(target) [4 0 R /XYZ $targetX 400 $targetZoom]] >> >> >>",
+            "<< /Type /Catalog /Pages 2 0 R /Names << /Dests << /Names [(target) [4 0 R $destination]] >> >> >>",
             "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] ${if (crop) "/CropBox [10 20 290 380]" else ""} /Rotate $sourceRotation /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R /Annots [8 0 R 9 0 R] >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 $targetHeight] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 $targetHeight] /Rotate $targetRotation /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>",
             "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
             "<< /Length ${streams[0].length} >>\nstream\n${streams[0]}\nendstream",
             "<< /Length ${streams[1].length} >>\nstream\n${streams[1]}\nendstream",
             "<< /Type /Annot /Subtype /Link /Rect [30 250 180 280] /A << /S /URI /URI (https://cmux.com/docs) >> >>",
             "<< /Type /Annot /Subtype /Link /Rect [30 200 180 230] " + when (form) {
                 "named" -> "/Dest (target)"
-                "action" -> "/A << /S /GoTo /D [4 0 R /XYZ $targetX 400 $targetZoom] >>"
-                else -> "/Dest [4 0 R /XYZ $targetX 400 $targetZoom]"
+                "action" -> "/A << /S /GoTo /D [4 0 R $destination] >>"
+                else -> "/Dest [4 0 R $destination]"
             } + " >>")
         val output = ByteArrayOutputStream()
         fun write(value: String) { output.write(value.toByteArray(Charsets.US_ASCII)) }
@@ -108,6 +109,28 @@ class ArtifactPdfTextRuntimeTest {
             } } finally { file.delete() }
         }
     }
+    @Test fun fitModesAndNullCoordinatesSurviveAnnotationParsing() {
+        val modes = mapOf("/Fit" to PdfDestinationFit.PAGE, "/FitH 350" to PdfDestinationFit.WIDTH,
+            "/FitV 120" to PdfDestinationFit.HEIGHT, "/FitR 100 200 250 400" to PdfDestinationFit.RECTANGLE)
+        for ((expression, mode) in modes) {
+            val file = fixture(targetHeight = 600, targetDestination = expression)
+            try { ChangesPdfDocument(file).use { pdf ->
+                val target = pdf.links(0).single { it.target is PdfLinkTarget.Page }.target as PdfLinkTarget.Page
+                assertEquals(mode, target.fit)
+                if (mode == PdfDestinationFit.RECTANGLE) assertEquals(PdfTextBounds(100f, 200f, 250f, 400f), target.rectangle)
+            } } finally { file.delete() }
+        }
+        val file = fixture(sourceRotation = 90, crop = true, targetHeight = 600, targetRotation = 270,
+            targetDestination = "/XYZ null null 0")
+        try { ChangesPdfDocument(file).use { pdf ->
+            val target = pdf.links(0).single { it.target is PdfLinkTarget.Page }.target as PdfLinkTarget.Page
+            assertNotNull(target.retained)
+            // Source renderer (350,30) = PDF (40,370). Rotated target maps that to (230,260).
+            val resolved = pdf.resolveRetained(target, 0, 350f, 30f)
+            assertEquals(230f, resolved.x, .01f); assertEquals(260f, resolved.y, .01f)
+            assertNull(resolved.retained)
+        } } finally { file.delete() }
+    }
     @Test fun xyzLinkRendersRequestedZoomAndReturnsAfterRecreation() {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk"))
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -151,9 +174,9 @@ class ArtifactPdfTextRuntimeTest {
             checkPixels("xyz.png")
             scenario.recreate()
             checkPixels("xyz-restored.png")
-            checkNotNull(device.wait(Until.findObject(By.text("Back to previous location")), 10_000)).click()
+            checkNotNull(device.wait(Until.findObject(By.desc("Back to previous location")), 10_000)).click()
             checkNotNull(device.wait(Until.findObject(By.text("1 / 2")), 10_000))
-            assertFalse(device.hasObject(By.text("Back to previous location")))
+            assertFalse(checkNotNull(device.findObject(By.desc("Back to previous location"))).isEnabled)
         } } finally { file.delete() }
     }
     @Test fun searchNavigatesHighlightsAndPageTextCopiesAfterRecreation() {
@@ -180,7 +203,7 @@ class ArtifactPdfTextRuntimeTest {
             find(By.desc("PDF page 2 of 2"))
             // A link bookmark survives recreation and returns to the reading location.
             scenario.recreate()
-            find(By.text("Back to previous location")).click()
+            find(By.desc("Back to previous location")).click()
             find(By.desc("PDF page 1 of 2"))
             find(By.text("Search document")).click(); find(By.clazz("android.widget.EditText")).text = "needle"
             assertTrue(find(By.desc("PDF search results")).wait(Until.textEquals("1 / 2"), 10_000))

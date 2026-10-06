@@ -19,7 +19,7 @@ internal class PdfAnnotationLinks(file: File, private val pageSizes: List<Pair<I
     private val textCache = object : LinkedHashMap<Int, PdfCompatibilityTextPage>(3, .75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, PdfCompatibilityTextPage>?) = size > 2
     }
-    private fun coordinates(index: Int): PdfPageCoordinates {
+    fun coordinates(index: Int): PdfPageCoordinates {
         val page = document.getPage(index)
         val crop = page.cropBox
         val size = pageSizes[index]
@@ -63,17 +63,34 @@ internal class PdfAnnotationLinks(file: File, private val pageSizes: List<Pair<I
             (array.getObject(index) as? COSNumber)?.floatValue()?.takeIf(Float::isFinite) else null
         if (array.size() < 2) return null
         val kind = array.getName(1)
-        val x = if (kind == "XYZ" || kind == "FitV" || kind == "FitBV" || kind == "FitR") number(2) ?: geometry.left else geometry.left
-        val top = when (kind) {
+        val rawX = if (kind == "XYZ" || kind == "FitV" || kind == "FitBV" || kind == "FitR") number(2) else geometry.left
+        val rawTop = when (kind) {
             "XYZ" -> number(3)
             "FitH", "FitBH" -> number(2)
             "FitR" -> number(5)
-            else -> null
-        } ?: (geometry.bottom + geometry.height)
-        val point = geometry.point(x, top) ?: return null
+            else -> geometry.bottom + geometry.height
+        }
+        val point = geometry.point(rawX ?: geometry.left, rawTop ?: (geometry.bottom + geometry.height)) ?: return null
+        val rectangle = if (kind == "FitR") {
+            val left = number(2) ?: return null; val bottom = number(3) ?: return null
+            val right = number(4) ?: return null; val top = number(5) ?: return null
+            if (right <= left || top <= bottom) return null
+            geometry.bounds(listOf(left to bottom, left to top, right to bottom, right to top)) ?: return null
+        } else null
+        val fit = when (kind) {
+            "XYZ" -> PdfDestinationFit.XYZ
+            "Fit" -> PdfDestinationFit.PAGE
+            "FitH" -> PdfDestinationFit.WIDTH
+            "FitV" -> PdfDestinationFit.HEIGHT
+            "FitR" -> PdfDestinationFit.RECTANGLE
+            // Content bounding-box extraction remains a separate compatibility gap.
+            "FitB", "FitBH", "FitBV" -> PdfDestinationFit.WIDTH
+            else -> return null
+        }
         return PdfLinkTarget.Page(index, point.second.coerceIn(0f, pageSizes[index].second.toFloat()),
             point.first.coerceIn(0f, pageSizes[index].first.toFloat()),
-            if (kind == "XYZ") number(4)?.coerceAtLeast(0f) ?: 0f else 0f, retainZoom = kind == "XYZ")
+            if (kind == "XYZ") number(4)?.coerceAtLeast(0f) ?: 0f else 0f, retainZoom = kind == "XYZ", fit = fit,
+            rectangle = rectangle, retained = if (rawX == null || rawTop == null) PdfRetainedCoordinates(geometry, rawX, rawTop) else null)
     }
     override fun close() { cache.clear(); textCache.clear(); document.close() }
 }

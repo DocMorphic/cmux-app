@@ -4,6 +4,25 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PdfPageCoordinatesTest {
+    @Test fun inverseCoordinatesRetainPdfUserSpaceAcrossCropScaleAndRotation() {
+        for (rotation in listOf(0, 90, 180, 270)) {
+            val quarter = rotation % 180 == 90
+            val page = PdfPageCoordinates(10f, 20f, 300f, 400f, rotation, if (quarter) 800 else 600, if (quarter) 600 else 800)
+            for (point in listOf(40f to 370f, -10f to 900f, 310f to 20f)) {
+                val rendered = checkNotNull(page.point(point.first, point.second))
+                assertEquals(point, page.userPoint(rendered.first, rendered.second))
+            }
+            assertNull(page.userPoint(Float.NaN, 1f))
+        }
+    }
+    @Test fun nullCoordinatesRetainUnrotatedValuesWhenTheTargetRotationDiffers() {
+        val source = PdfPageCoordinates(10f, 20f, 300f, 400f, 90, 400, 300)
+        val target = PdfPageCoordinates(20f, 30f, 300f, 400f, 270, 400, 300)
+        val current = checkNotNull(source.userPoint(350f, 30f))
+        assertEquals(target.point(40f, 370f), PdfRetainedCoordinates(target, null, null).resolve(current))
+        assertEquals(target.point(100f, 370f), PdfRetainedCoordinates(target, 100f, null).resolve(current))
+        assertEquals(target.point(40f, 200f), PdfRetainedCoordinates(target, null, 200f).resolve(current))
+    }
     @Test fun croppedAndScaledPointsUseTopLeftRendererCoordinates() {
         val page = PdfPageCoordinates(10f, 20f, 300f, 400f, 0, 600, 800)
         assertEquals(0f to 0f, page.point(10f, 420f))

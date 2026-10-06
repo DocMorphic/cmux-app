@@ -52,9 +52,59 @@ previous location. The existing search/link/copy test now also recreates after
 following a link and uses the return bookmark. These checks are compiled but
 **not yet run**; they belong to the combined media/PDF integration milestone.
 
-This is not full PDFKit parity. Fit/FitB/FitH/FitBH/FitV/FitBV/FitR retain the
+At this batch, Fit/FitB/FitH/FitBH/FitV/FitBV/FitR retained the
 previous fitted-width fallback rather than implementing all fit modes; XYZ null
 coordinate retention still needs work. Document-wide continuous zoom, arbitrary
 zoom beyond the renderer limits, precise cross-rotation anchor restoration,
 selection handles/cross-page selection, physical Pixel interaction and iOS visual
 comparison remain open. No new APK, device result or signed release is claimed.
+
+## Shared document zoom and fit destinations — 2026-10-06
+
+The follow-up implementation replaces the fixed-height, independently zoomed
+page boxes with one saved document scale and horizontal pan. Lazy page heights
+now grow with magnification, so the entire magnified page remains reachable by
+vertical scrolling. Pages use the widest page as the fitted-width reference;
+mixed-size pages therefore share one document-point scale. Pinch anchors use
+the visible page and point under the fingers. Double tap centers that point;
+vertical swipes stay with the list and magnified horizontal pans use the document
+transform. Foundation's non-touch transform path is retained. Saved width changes
+rescale the vertical offset instead of keeping an obsolete pixel offset.
+
+Fit, FitH, FitV and FitR are now distinct destination modes. The resolver uses
+both viewport dimensions, centers page/rectangle fits, and adds leading space
+when centering needs it. Full-page layout prevents tall magnified rectangles
+from being clipped by an unscaled page box. A fixed-size return control in the
+page toolbar avoids changing the fitting viewport after the first link.
+History now includes destination leading space as well as scroll, zoom and pan.
+
+XYZ and applicable fit destinations with null coordinates retain the current
+point through an inverse conversion to PDF user space and the destination page's
+crop/rotation transform. That parser lookup runs on IO; new navigation or a zoom
+gesture cancels a pending lookup. Unknown destination types and invalid FitR
+rectangles are ignored. The destination semantics are based on Adobe's
+[destination specification](https://opensource.adobe.com/dc-acrobat-sdk-docs/library/pdfmark/pdfmark_Actions.html)
+and [PDF Reference, table 8.2](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/pdfreference1.6.pdf).
+
+**Verification:** main and instrumentation Kotlin compilation passed in 76 seconds.
+All **24 JVM cases passed**: eight destination geometry, five page-coordinate,
+six shared zoom and five text-model cases. They include viewport centering,
+mixed page dimensions, magnified rectangle height and retained coordinates across
+different page rotations. An initial compile caught two implicit Compose receiver
+references; explicit captured widths corrected them. Evidence is in
+`captures/runtime/pdf-document-zoom/`; Gradle was stopped.
+
+The Android fixture now checks parsed Fit/FitH/FitV/FitR requests and null-coordinate
+retention across crop/rotation. It is compiled, **not executed**. Run it with XYZ
+pixel magnification/recreation/return, search/copy and the existing short/mixed
+PDF navigation checks. Add visible pinch/pan, tall rectangle, mixed-page scale,
+rotation and enlarged-text review to the same media/PDF integration milestone.
+No new emulator or APK was produced for this feature batch; ADB showed no Pixel.
+
+Still open: **FitB/FitBH/FitBV content bounding boxes** retain the fitted-width
+fallback; their geometry must not be inferred from text alone. Selection handles
+and cross-page selection, fit-mode reflow across rotation, high-magnification
+raster quality, renderer limits (0.125–8 fitted scale and bounded bitmap memory),
+physical Pixel behavior and iOS visual comparison are not closed by compilation
+or pure geometry checks. Shared document zoom and null-coordinate retention are
+implemented but still require the queued runtime acceptance.
