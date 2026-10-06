@@ -266,5 +266,67 @@ to Zig targets but has **no `aarch64-linux-android` mapping**. Merely selecting 
 Android Cargo target would leave Zig's host target selected. Its bindgen invocation
 also needs Android target/sysroot review. The next native build must pin the source,
 adapt that build boundary, link through the NDK, and verify 16 KiB LOAD/RELRO
-alignment before packaging. This is a source finding; no Android Rust client build
-has been attempted or claimed successful.
+alignment before packaging. This was a source finding at the identity checkpoint;
+the subsequent native build attempts and Android adapter are recorded below.
+
+## Android native client bridge — 2026-10-06
+
+The manual `cloud-native.yml` workflow builds a native checkpoint on hosted Linux,
+without APK/signing/publishing or any account/VM access. The driver exports cmux
+`c2715faa` and its actual Ghostty submodule `324c0273` without changing the input
+checkouts. It uses upstream `rust-toolchain.toml`, Zig 0.16.0 and NDK r28c/API 26.
+The Android build adapter explicitly supplies Android Ghostty archives and the
+NDK target/sysroot to bindgen. The exported client builds as a cdylib; internal
+Ghostty symbols must remain hidden from the app's separately pinned renderer.
+The checkpoint gate checks the C ABI symbols, AArch64 and 16 KiB LOAD/RELRO
+alignment, and records source/patch/script hashes and dependency metadata.
+
+`cloud_terminal_jni.c` and `CloudNativeTerminal.kt` cover tunnel start/free,
+trusted route validation, remembered/invitation connections, raw output,
+attach/detach, session/workspace/terminal catalog, workspace/terminal creation,
+input, resize request/ack and exit. JNI uses standard UTF-8 arrays, bounds incoming
+arguments and outgoing terminal/catalog bytes, and frees owned C strings. Errors
+do not expose native invitation/configuration text. Callback byte storage is
+copied before returning; Java global references are released only after the
+upstream synchronous callback clear. Allocation/delivery failure marks the output
+stream unusable instead of silently losing VT bytes.
+
+The Kotlin boundary is blocking and must run on IO workers. It serializes handle
+operations, rejects use after close, disconnects clients before freeing the shared
+tunnel, installs raw delivery before attach and requests viewer size priority.
+Callbacks only enqueue; they never reenter native code or run UI/user code. The
+queue has byte/event limits and fails explicitly on overflow. Attachment generations
+wake and reject old consumers without consuming a new terminal's snapshot. Both
+JNI and queue failures stop further input admission. The daemon state directory is
+created by upstream with its own private-directory policy.
+
+`CloudTerminalOutputReducer` matches iOS grid-before-replay, reset on subsequent
+snapshot, output, resize and exit ordering. Writes are split at the existing
+Android Ghostty 2 MiB append boundary without changing bytes. The renderer's
+existing 1,000-cell dimension bounds still need review when mounting Cloud output.
+
+Verification: the JNI source passes the NDK arm64/API 26 C11 check with
+`-Wall -Wextra -Werror`; compiled JVM descriptors match the JNI methods and
+`onOutput(I[BII)V`. Main Kotlin compilation passed (15 seconds), and **7 focused
+JVM checks passed** (9 seconds, then 6 seconds after adding immediate queue-health
+admission). Tests use a fake C-ABI boundary and cover retirement order/idempotence,
+private route rejection, attachment generations, input/exit/error admission,
+overflow, waiting-reader reset and chunked replay ordering. They do **not** verify
+native linking, real callbacks, native transport, renderer pixels or Android runtime.
+Evidence: `captures/runtime/cloud-native-adapter/`.
+
+Hosted attempt [37447383957](https://github.com/DocMorphic/cmux-app/actions/runs/37447383957)
+failed before Rust compilation because a nested Ghostty step could not find `zig`
+on PATH. The driver now prepends its pinned Zig directory. Follow-up
+[37447939408](https://github.com/DocMorphic/cmux-app/actions/runs/37447939408), source
+`9b1b8f34`, was still running when this adapter checkpoint was recorded; inspect
+that specific run before retrying. It also builds/verifies the JNI shared library.
+No successful Android native checkpoint is claimed yet.
+
+The native files are **not yet packaged or mounted**. Next: inspect/repair the
+hosted result, complete dependency notices, validate the checkpoint during Gradle
+packaging, then implement account-owned enrollment/approval/attachment cancellation,
+common-workspace projection and renderer/input integration. Caller cancellation
+must retire any late native connection result; wrapper methods alone do not supply
+that coroutine ownership. Android/fixture and authorized Pixel/live account gates
+remain open. No emulator was started or APK rebuilt for this work.

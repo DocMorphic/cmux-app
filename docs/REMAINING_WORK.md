@@ -26,6 +26,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud's Android C/JNI adapter and Kotlin handle/output ownership now exist,
+  including catalog, attachment, input, resize acknowledgments and ordered replay.
+  **7 focused JVM checks passed**, main compilation and NDK C checks passed.
+  These use a fake native boundary; actual linking/runtime remains unverified.
+  Hosted run `37447383957` failed on a missing Zig PATH; fixed follow-up
+  `37447939408` was running at this checkpoint. Inspect it before another dispatch.
+  The new native dependency is not yet packaged or mounted. Continue with its
+  build/notices, account-owned tunnel/attachment lifecycle and workspace/renderer
+  integration. See `CLOUD_COMPANION.md`.
+
 - Cloud terminal identity/configuration is implemented: an encrypted no-backup
   installation identity, X25519 key, atomic resolve, and server/fallback wg-quick
   completion. **25 focused JVM checks passed** with main compilation (24 seconds).

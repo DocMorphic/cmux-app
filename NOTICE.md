@@ -483,6 +483,14 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses a random installation UUID stored outside backups and retains the
 upstream unknown device kind rather than claiming an Apple device identity.
 
+CloudTerminalOutputReducer.kt adapts CloudTerminalOutputReducer.swift from
+Packages/iOS/CmuxMobileCloud, cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android splits writes at its existing renderer JNI boundary. The Cloud native
+builder separately pins the same cmux Rust workspace and its Ghostty submodule;
+the resulting libraries are not yet included in the Android application.
+
 CloudTunnelIdentity.kt and CloudWireGuardConfig.kt adapt CloudDeviceIdentity.swift,
 CloudDeviceIdentityResolver.swift, WireGuardKeyPair.swift and WireGuardQuickConfig.swift
 from Packages/iOS/CmuxMobileCloud, cmux revision
