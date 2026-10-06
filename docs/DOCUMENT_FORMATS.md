@@ -77,9 +77,9 @@ checks rendered content, blocked active/network content and actual painted image
 pixels, retaining `docx-rich-preview.png` on success. This is a first render gate,
 not a substitute for the broader matrix or Pixel acceptance.
 
-Next integration batch: run that case on the existing API37/16 KiB AVD, inspect
-the capture, add/exercise zoom and saved-position restoration with visible
-content, then check real Files/Changes/attachment paths and actions on the Pixel.
+The subsequent integration below closes this first render gate. Next: add/
+exercise Word zoom and saved-position restoration with visible content, then
+check real Files/Changes/attachment paths and actions on the Pixel.
 No APK, emulator, physical-device install or signed promotion was performed for
 this source checkpoint.
 
@@ -150,9 +150,49 @@ compilation passed in 26 seconds after correcting a test-only
 `StateRestorationTester` import. Both reader adapters passed JavaScript syntax
 checks. No APK was built and no emulator was started at this checkpoint.
 
-`WorkbookPreviewRuntimeTest` is queued with the Word case for the next integration
-batch. It checks formatted DOM and painted title pixels, internal sheet links,
+`WorkbookPreviewRuntimeTest` was queued with the Word case at this source
+checkpoint and has now passed in the integration below. It checks formatted DOM and painted title pixels, internal sheet links,
 cell jumps and restoration after composition state recreation, and saves
-`workbook-formatted.png`. It must pass and its capture must be inspected before
-claiming visible workbook rendering/restoration. Broad physical and actual iOS
+`workbook-formatted.png`. Its passing result and inspected capture establish
+these fixture rendering/restoration behaviors. Broad physical and actual iOS
 Quick Look comparisons remain open.
+
+## Office viewer integration
+
+2026-10-06: **both Android runtime cases passed** on the sole reused
+`cmux_api37_16k` AVD (API37, arm64, 16 KiB pages). The initial pair completed in
+**21.653 seconds**, with zero skips. Word's image pixels, styled Unicode text,
+table, headers/footers, footnote and two pages rendered; the fixture's active
+link, embedded HTML and external fetch were blocked. Workbook formatting,
+hidden content, sheet-link navigation, final-cell jumps and selected-sheet/
+window restoration across composition state recreation passed.
+
+Screenshot inspection caught a real workbook layout defect despite the first
+green run: automatic table sizing shrank authored column widths and wrapped
+currency/dates. The table now has an explicit sum of column widths, and cells
+wrap only when their saved style requests it. The regression checks the fixture's
+108 CSS-pixel currency column and exactly one rendered text line, and waits for
+the native loading indicator to disappear before capture. The first strengthened
+assertion incorrectly expected 110 pixels; the fixture/parser proved 108, and
+the corrected workbook case passed in **13.068 seconds**. This is **two distinct
+runtime cases**, with a targeted workbook rerun, not three independent cases.
+
+Inspected `docx-rich-preview.png`, the initial workbook capture and corrected
+`workbook-formatted.png`. The corrected title, currency, date and total are
+legible on single lines. The captures use `FilePreviewContent` in a fixture
+Activity; they do not prove actual Files/Changes/attachment routing, process-death
+recovery, physical gestures, accessibility, or matched iOS screen layout.
+
+Builds: 70-second combined app/test APK build, 29-second layout-fix app/test build
+and 16-second test-only assertion correction. All 17 pinned assets matched
+inside the final app APK, and the packaged local workbook CSS/JS matched source.
+No recorded app crash/ANR markers. Evidence and original failure output are under
+ignored local `captures/runtime/office-integration/`.
+
+Final local debug APK SHA-256:
+`5725209c13fe3c17159e3ac81c0deb8419344d70ab48c7f002b335c8d4e0d861`.
+Test APK SHA-256:
+`1ef96228b81ff98449a466210c17f7dcada10b56039d4bb97d64cc754690e2bc`.
+Gradle was stopped before each emulator run; the existing AVD's awake setting was
+restored and its process stopped/reaped afterward. No new AVD, physical Pixel
+install or signed promotion. Format/layout gaps listed above remain open.

@@ -12,7 +12,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 p { margin: 8px 0 0; font-size: 12px; }
 #error:empty { display: none; }
 table { border-collapse: collapse; table-layout: fixed; background: white; }
-th, td { border: 1px solid #d4d7da; padding: 4px 6px; min-width: 64px; white-space: pre-wrap; overflow-wrap: anywhere; vertical-align: bottom; }
+th, td { border: 1px solid #d4d7da; padding: 4px 6px; white-space: pre; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 th { background: #eff1f3; font-weight: 500; color: #444; }
 th[scope="row"] { position: sticky; left: 0; min-width: 40px; width: 40px; }
 td.number { text-align: right; }

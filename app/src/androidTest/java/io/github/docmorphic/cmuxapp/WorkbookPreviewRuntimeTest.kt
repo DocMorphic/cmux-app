@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.test.StandardTestDispatcher
 import org.json.JSONObject
@@ -45,7 +47,10 @@ class WorkbookPreviewRuntimeTest {
         }
         assertTrue(done.await(5, TimeUnit.SECONDS)); return result.get()
     }
-    private fun ready() = compose.waitUntil(45_000) { js("window.__cmuxWorkbookReady === true") == "true" }
+    private fun ready() {
+        compose.waitUntil(45_000) { js("window.__cmuxWorkbookReady === true") == "true" }
+        compose.waitUntil(5000) { compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)).fetchSemanticsNodes().isEmpty() }
+    }
     @Test fun formattedWorkbookNavigatesAndRestoresSelectedSheetAndRange() {
         file = File(compose.activity.cacheDir, "rich-workbook.xlsx")
         InstrumentationRegistry.getInstrumentation().context.assets.open("workbook/rich.xlsx").use { input ->
@@ -69,6 +74,18 @@ class WorkbookPreviewRuntimeTest {
                 !window.__cmuxUnsafeWorkbook;
             })()
         """.trimIndent()))
+        val cellLayout = JSONObject(js("""
+            (() => {
+              const cell=document.querySelector('[data-cell="B2"]'), range=document.createRange();
+              range.selectNodeContents(cell);
+              return {width:cell.getBoundingClientRect().width, lines:range.getClientRects().length,
+                whitespace:getComputedStyle(cell).whiteSpace};
+            })()
+        """.trimIndent()) ?: "{}")
+        // The fixture's authored 18-character column is 108 CSS px at its saved font metrics.
+        assertEquals(cellLayout.toString(), 108.0, cellLayout.getDouble("width"), 1.0)
+        assertEquals(cellLayout.toString(), 1, cellLayout.getInt("lines"))
+        assertEquals(cellLayout.toString(), "pre", cellLayout.getString("whitespace"))
         compose.waitUntil(10_000) {
             val geometry = JSONObject(js("(() => { const r=document.querySelector('[data-cell=\"A1\"]').getBoundingClientRect(); return {width:visualViewport.width,x:r.x,y:r.y,w:r.width,h:r.height}; })()") ?: "{}")
             val origin = IntArray(2); var scale = 0.0; var width = 0

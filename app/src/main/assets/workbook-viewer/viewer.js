@@ -69,13 +69,18 @@
         table.setAttribute('aria-label', next.chosen.name);
         const indices = cellStyles(next.chosen.name), head = element('thead'), headings = element('tr');
         headings.appendChild(element('th', ''));
-        const columns = element('colgroup'); columns.appendChild(element('col'));
+        const columns = element('colgroup'), rowNumbers = element('col');
+        rowNumbers.style.width = '52px'; columns.appendChild(rowNumbers);
+        let tableWidth = 52;
         for (const c of next.cols) {
           const col = element('col'), metadata = next.sheet['!cols']?.[c];
           const width = metadata?.wpx ?? (Number(metadata?.wch) * 7 + 10);
-          col.style.width = (Number.isFinite(width) ? Math.min(800, Math.max(32, width)) : 110) + 'px'; columns.appendChild(col);
+          const columnWidth = Number.isFinite(width) ? Math.min(800, Math.max(32, width)) : 110;
+          col.style.width = columnWidth + 'px'; tableWidth += columnWidth; columns.appendChild(col);
           const th = element('th', XLSX.utils.encode_col(c)); th.scope = 'col'; headings.appendChild(th);
         }
+        // Fixed table layout only honors colgroup widths with an explicit table width.
+        table.style.width = tableWidth + 'px';
         head.appendChild(headings); table.append(columns, head);
         const body = element('tbody');
         for (const r of next.rows) {

@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Word and workbook previews now pass **two distinct Android runtime checks**
+  on API37/16 KiB, including painted pixels, workbook navigation and composition
+  state restoration. Screenshot review found and fixed shrunken spreadsheet
+  columns; the strengthened workbook rerun passed. All 17 pinned assets matched
+  inside the APK. Gradle and the sole reused emulator are stopped, with no new
+  AVD, Pixel install or signed promotion. Real routes/actions, process recovery,
+  Word zoom/restoration, broader formats and iOS/Pixel comparison remain open.
+  See [DOCUMENT_FORMATS.md](DOCUMENT_FORMATS.md#office-viewer-integration).
+
 - Offline XLSX preview now shares the Office reader with DOCX: sheet navigation,
   author-formatted/cached values, hidden rows/columns, merges, basic styles,
   bounded grid windows and saved reader location. **23 JVM checks and ten Node
