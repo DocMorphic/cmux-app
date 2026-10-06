@@ -52,12 +52,13 @@ export function createPushEnrollmentServer({ key, cert, enrollment, maintenance 
       try { body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))); }
       catch { throw new HttpFailure(400); }
       requireHttp(body && typeof body === 'object' && !Array.isArray(body) && Object.keys(body).length === 2 &&
-        ['begin', 'finish', ...(maintenance ? ['maintain.begin', 'maintain.finish'] : [])].includes(body.step) && Object.hasOwn(body, 'request'), 400);
+        ['begin', 'finish', ...(maintenance ? ['maintain.begin', 'maintain.finish', 'maintain.abort'] : [])].includes(body.step) && Object.hasOwn(body, 'request'), 400);
       // Finish is deliberately synchronous through the registration commit. A lost
       // response remains an uncertain outcome; exact protocol retry recovers its receipt.
       dispatching = true;
       const service = body.step.startsWith('maintain.') ? maintenance : enrollment;
-      const result = body.step.endsWith('begin') ? await service.begin(body.request) : service.finish(body.request);
+      const result = body.step.endsWith('begin') ? await service.begin(body.request) :
+        body.step === 'maintain.abort' ? service.abort(body.request) : service.finish(body.request);
       requireHttp(!retired, 408);
       requireHttp(Buffer.byteLength(JSON.stringify(result)) <= MAX_BODY, 503);
       send(200, result);

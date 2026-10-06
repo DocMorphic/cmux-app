@@ -25,6 +25,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Automatic Android helper maintenance is now wired to token/account/key changes,
+  opt-out/logout and recovery. Durable proof/receipt sequencing settles an uncertain
+  token update before the next token or removal; encrypted cleanup credentials
+  survive account clearing within a bounded window. Settings shows update/repair
+  status. **32 JVM checks passed**, including a real local HTTPS/CryptoKit/SQLite
+  coordinator flow with lost receipts, newer tokens and logout; **36 Node checks
+  passed on Node22/26**. Main/instrumentation sources compile. Keystore/WorkManager
+  runtime checks, host provisioning/source/policy and forwarding/test controls,
+  Firebase configuration and actual Pixel delivery remain open. No APK/emulator.
+  See [PUSH_DELIVERY.md](PUSH_DELIVERY.md#automatic-android-registration-maintenance--2026-10-06).
+
 - Existing helper registrations now have matching Android/Node renewal/removal
   protocols, with phone-key proof, atomic mutation/receipt storage and recovery
   after a host restart. FCM-retired tokens retain bounded encrypted phone trust

@@ -18,7 +18,7 @@ const enrollment = new PushEnrollment({ registrations, seal, permits: offer => o
   now: () => fixture.now });
 let endpoint, maintenance;
 const server = createPushEnrollmentServer({ key: readFileSync(join(directory, 'key.pem')), cert: readFileSync(join(directory, 'cert.pem')),
-  enrollment, maintenance: { begin: body => maintenance.begin(body), finish: body => maintenance.finish(body) }, endpoint: () => endpoint });
+  enrollment, maintenance: { begin: body => maintenance.begin(body), finish: body => maintenance.finish(body), abort: body => maintenance.abort(body) }, endpoint: () => endpoint });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 endpoint = `https://127.0.0.1:${server.address().port}/v1/push/enroll`;
 maintenance = new PushMaintenance({ registrations, seal, endpoint, senderPublicKey: fixture.offer.helper.publicKey, senderKeyID: fixture.offer.helper.keyID,

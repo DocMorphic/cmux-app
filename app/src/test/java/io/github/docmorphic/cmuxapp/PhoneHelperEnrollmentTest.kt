@@ -126,24 +126,44 @@ class PhoneHelperEnrollmentTest {
                 assertEquals(receipt, session.confirm(repeated, c.state))
                 assertEquals(c.peer, receipt.binding.macPeer)
                 assertEquals(PhonePushDescriptor.parse(offer.getJSONObject("helper")), receipt.binding.peer.descriptor)
-                PhoneHelperMaintenance(session.endpoint, receipt.registrationID, receipt.generation, receipt.binding, c.phone,
-                    "renew", "replacement-fixture-token", { c.current }, { c.now }).use { renewal ->
-                    val renewalChallenge = (http.send("maintain.begin", renewal.begin()) as PhoneHelperHttpResult.Success).body
-                    val renewalProof = renewal.finish(renewalChallenge)
-                    val renewalAck = (http.send("maintain.finish", renewalProof) as PhoneHelperHttpResult.Success).body
-                    val renewed = renewal.confirm(renewalAck)
-                    val retryAck = (http.send("maintain.finish", renewalProof) as PhoneHelperHttpResult.Success).body
-                    assertEquals(renewed, renewal.confirm(retryAck))
-                    assertNotEquals(receipt.generation, renewed.generation)
-                    PhoneHelperMaintenance(session.endpoint, checkNotNull(renewed.registrationID), checkNotNull(renewed.generation), receipt.binding,
-                        c.phone, "revoke", null, { c.current }, { c.now }).use { removal ->
-                        val removalChallenge = (http.send("maintain.begin", removal.begin()) as PhoneHelperHttpResult.Success).body
-                        val removalProof = removal.finish(removalChallenge)
-                        val removalAck = (http.send("maintain.finish", removalProof) as PhoneHelperHttpResult.Success).body
-                        assertEquals(PhoneHelperMaintenanceReceipt(null, null), removal.confirm(removalAck))
-                        assertEquals(removal.confirm(removalAck), removal.confirm((http.send("maintain.finish", removalProof) as PhoneHelperHttpResult.Success).body))
-                    }
+                // The production durable coordinator now drives two rotations and logout over real HTTPS.
+                val local = JSONObject(c.state.toString())
+                val records = PhoneHelperEnrollmentState(local, { c.now })
+                val pending = records.prepare(offer.toString(), c.team, c.mac.origin, c.token,
+                    c.fixture.getJSONObject("begin").getString("requestID"))
+                records.confirm(pending, c.token, session, ack)
+                var account = local.toString(); var ledger = "{}"
+                var provider: PhoneFcmTokenSnapshot? = c.token.copy(token = "queued-token-one", revision = "queue-one")
+                var dropFinishResponse = true
+                fun access(write: Boolean, action: (PhoneHelperMaintenanceQueue) -> Unit) {
+                    val accountCopy = JSONObject(account); val ledgerCopy = JSONObject(ledger)
+                    val queue = PhoneHelperMaintenanceQueue(ledgerCopy, { c.now })
+                    queue.reconcile(accountCopy, provider?.grant, provider); action(queue)
+                    queue.reconcile(accountCopy, provider?.grant, provider)
+                    if (write) { ledger = ledgerCopy.toString(); account = accountCopy.toString() }
                 }
+                fun runner() = PhoneHelperMaintenanceRecovery(transaction = { access(true, it) }, inspect = { access(false, it) },
+                    now = { c.now }, send = { endpoint, permits, step, payload ->
+                        PhoneHelperHttp(endpoint, permits, base, { c.now }).use { transport ->
+                            val result = transport.send(step, payload)
+                            if (dropFinishResponse && step == "maintain.finish" && result is PhoneHelperHttpResult.Success) {
+                                dropFinishResponse = false; PhoneHelperHttpResult.Retry(c.now)
+                            } else result
+                        }
+                    })
+                assertTrue(runner().runPass()) // Server committed; its response was lost.
+                provider = c.token.copy(token = "queued-token-two", revision = "queue-two")
+                assertTrue(runner().runPass()) // Abort resolves the first receipt before replacing it.
+                assertFalse(runner().runPass())
+                val saved = JSONObject(account).getJSONArray(PhoneHelperEnrollmentState.RECEIPTS).getJSONObject(0)
+                assertEquals("queue-two", saved.getString("token_revision"))
+                assertNotEquals(receipt.generation, saved.getString("generation"))
+                provider = null; account = "{}"; dropFinishResponse = true
+                assertTrue(runner().runPass()) // Logout cleanup survives another lost receipt.
+                assertFalse(runner().runPass())
+                assertEquals("{}", account)
+                assertFalse(JSONObject(ledger).has(PhoneHelperMaintenanceQueue.KEY))
+
             } }
         } finally {
             process.destroy()

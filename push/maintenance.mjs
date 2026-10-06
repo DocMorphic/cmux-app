@@ -55,12 +55,13 @@ export class PushMaintenance {
       need(previous.digest === digest); this.#admitted(previous);
       const result = await previous.pending; this.#admitted(previous); return clone(result);
     }
-    need(this.#rows.size < this.#capacity);
+    if (this.#rows.size >= this.#capacity) throw new PushEnrollmentError('registration-unavailable');
     const record = this.#registrations.maintenanceRegistration(body.recipient, body.registration);
     if (!record) throw new PushEnrollmentError('superseded');
     need(record.recipient.senderKeyID === this.#senderKeyID && this.#permits(this.#binding(record), body.action) === true);
     // One live challenge per registration avoids allocating every slot to an unauthenticated caller.
-    need(![...this.#rows.values()].some(row => row.record.registration.id === record.registration.id));
+    if ([...this.#rows.values()].some(row => row.record.registration.id === record.registration.id))
+      throw new PushEnrollmentError('registration-unavailable');
     const row = { body, record, digest, challenge: randomBytes(32), expiresAt: this.#now() + 120_000 };
     this.#rows.set(body.requestID, row);
     row.pending = (async () => {
@@ -97,6 +98,30 @@ export class PushMaintenance {
         }), this.#now());
       row.challenge.fill(0); this.#rows.delete(body.requestID);
       return clone(completed.ack);
+    } catch (error) {
+      if (error instanceof PushEnrollmentError) throw error;
+      throw new PushEnrollmentError(error.kind === 'superseded' ? 'superseded' : 'registration-unavailable');
+    }
+  }
+  /** Cancels an uncommitted operation, or returns its already-committed receipt. Synchronous with finish. */
+  abort(input) {
+    this.#prune(); const body = clone(input);
+    need(exact(body, ['requestID', 'proof']) && uuid.test(body.requestID));
+    try {
+      const receipt = this.#registrations.maintenanceReceipt(body.requestID, this.#now());
+      if (receipt) {
+        verify(body.proof, receipt.proof);
+        need(receipt.before.recipient.senderKeyID === this.#senderKeyID && this.#permits(clone(receipt.before), receipt.action) === true);
+        return { requestID: body.requestID, ack: clone(receipt.ack) };
+      }
+      const row = this.#rows.get(body.requestID);
+      if (row) {
+        need(row.ready); this.#admitted(row);
+        verify(body.proof, mac(row.challenge, 'cmux-app.helper.registration.finish.v1', [row.digest]));
+        row.challenge.fill(0); this.#rows.delete(body.requestID);
+      }
+      // No receipt is a transport-level cancellation outcome, never a new trust/registration assertion.
+      return { requestID: body.requestID, ack: null };
     } catch (error) {
       if (error instanceof PushEnrollmentError) throw error;
       throw new PushEnrollmentError(error.kind === 'superseded' ? 'superseded' : 'registration-unavailable');

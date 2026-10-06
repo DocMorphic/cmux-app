@@ -21,6 +21,8 @@ import javax.crypto.spec.GCMParameterSpec
 
 /** Android Keystore-backed storage for the official cmux pairing and account session. */
 class NativeCredentialStore(context: Context, storageName: String = "native_cmux") {
+    private val applicationContext = context.applicationContext
+    private val primaryAccount = storageName == "native_cmux"
     // Team admission is called both inside credential transactions and before
     // credential reads. Share their monitor to avoid reversing two lock orders.
     internal val accountStateLock: Any get() = storageLock
@@ -183,7 +185,8 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
             cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
             JSONObject(String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)), Charsets.UTF_8))
         } catch (_: Exception) {
-            clear()
+            // Corrupt ciphertext cannot supply cleanup credentials; avoid recursively reading it in clear().
+            preferences.edit().remove("state").apply(); changeState.value++
             null
         }
     }
@@ -192,6 +195,13 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         val value = load() ?: JSONObject()
         transform(value)
         save(value)
+    }
+
+    /** The maintenance ledger already committed this projection; do not re-import deliberately retired keys. */
+    internal fun updateFromMaintenance(transform: (JSONObject) -> Unit): Unit = synchronized(storageLock) {
+        val value = load() ?: JSONObject()
+        transform(value)
+        save(value, preserveHelpers = false)
     }
 
     internal fun recordMacSeen(login: String?, mac: PairedMac, time: Long, permits: () -> Boolean): Unit = synchronized(storageLock) {
@@ -207,7 +217,8 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
     }
 
     /** Caller holds storageLock. */
-    private fun save(value: JSONObject) {
+    private fun save(value: JSONObject, preserveHelpers: Boolean = true) {
+        if (primaryAccount && preserveHelpers) PhoneHelperMaintenanceWork.preserve(applicationContext, readState())
         NativeAttachTicketStore.prune(value)
         NativeAccountDeletionRecord.prune(value)
         NativeAccountProfileCache.prune(value)
@@ -222,6 +233,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         PhoneFcmQueue(value).prune()
         PhoneReplyActions(value).prune()
         PhoneReplyOutbox(value).prune()
+        if (primaryAccount && preserveHelpers) PhoneHelperMaintenanceWork.preserve(applicationContext, value, stageRetirement = true)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key())
         val encoded = Base64.encodeToString(cipher.iv + cipher.doFinal(value.toString().toByteArray()), Base64.NO_WRAP)
@@ -229,7 +241,14 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         changeState.value++
     }
 
-    fun clear(): Unit = synchronized(storageLock) { preferences.edit().remove("state").apply(); changeState.value++ }
+    fun clear(): Unit = synchronized(storageLock) {
+        if (primaryAccount) {
+            PhoneHelperMaintenanceWork.preserve(applicationContext, readState())
+            PhoneHelperMaintenanceWork.preserve(applicationContext, JSONObject(), stageRetirement = true)
+        }
+        check(preferences.edit().remove("state").commit()) { "Could not clear account" }
+        changeState.value++
+    }
 
     companion object {
         // Account refresh, the background service, and draft saves share the

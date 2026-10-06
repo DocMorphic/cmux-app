@@ -91,3 +91,12 @@ test('offers are bounded, HTTPS-only, and require a synchronous affirmative host
   assert.throws(() => f.service.issue({ ...input(), helper: input().native }));
   const asyncPolicy = fixture(t, { permits: async () => true }); assert.throws(() => asyncPolicy.service.issue(input()));
 });
+
+test('a fresh confirmed offer rotates identical registration content to fence older cleanup proofs', async t => {
+  const f = fixture(t), offer = f.service.issue(input()); await f.service.begin(request(offer));
+  const first = f.service.finish(finish(f.challenge()));
+  const renewed = f.service.issue(input()); await f.service.begin(request(renewed));
+  const second = f.service.finish(finish(f.challenge()));
+  assert.equal(first.registration.id, second.registration.id);
+  assert.notEqual(first.registration.generation, second.registration.generation);
+});

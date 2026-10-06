@@ -113,12 +113,12 @@ export class PushRegistrations {
   #bound(value) { return { registration: value.registration, token: value.token, recipient: value.recipient }; }
 
   /** The host first authenticates/pins both keys. null means create-only; a replacement needs the exact old generation. */
-  replace(value, { expectedGeneration = null } = {}) {
-    const checked = enrollment(value); requireInput(expectedGeneration === null || text(expectedGeneration));
+  replace(value, { expectedGeneration = null, forceGeneration = false } = {}) {
+    const checked = enrollment(value); requireInput((expectedGeneration === null || text(expectedGeneration)) && typeof forceGeneration === 'boolean');
     return this.#transaction(() => {
       const slot = this.#slot(checked.recipient), previous = this.#read(slot);
       if ((previous?.registration.generation ?? null) !== expectedGeneration) throw new RegistrationError('superseded');
-      if (previous && canonical({ token: previous.token, recipient: previous.recipient, publicKey: previous.publicKey }) === canonical(checked))
+      if (previous && !forceGeneration && canonical({ token: previous.token, recipient: previous.recipient, publicKey: previous.publicKey }) === canonical(checked))
         return structuredClone(previous);
       if (!previous && !this.#read(slot, true) && this.#db.prepare(
         'SELECT (SELECT COUNT(*) FROM registrations) + (SELECT COUNT(*) FROM retired_registrations) AS count').get().count >= this.#capacity)

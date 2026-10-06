@@ -427,5 +427,17 @@ Receipt retry requires the same request ID/proof. Durable receipts survive host
 restart for 24 hours, and replacement generations invalidate old acknowledgments.
 A missing/expired uncommitted challenge returns HTTP428; renew its challenge using
 the same request, then persist the replacement before sending finish. A conflict
-returns HTTP409. The Android automatic worker/lifecycle integration remains open;
-the protocol and real local Kotlin-to-Node TLS/CryptoKit/SQLite exchange are tested.
+returns HTTP409. The Android durable coordinator and token/account lifecycle hooks are implemented;
+Android OS/Keystore/WorkManager and live provider acceptance remain open. The
+coordinator is verified over real local Kotlin-to-Node TLS/CryptoKit/SQLite with
+lost responses, token replacement and logout.
+
+`maintain.abort` takes the same request ID/proof as finish. It cancels an existing
+uncommitted challenge, or returns `{requestID, ack}` for an already-committed
+operation. Missing/expired challenges return a null ack; this is a cancellation
+outcome, not proof of any new generation. Finish and abort are synchronous with
+the SQLite mutation, so cancellation cannot be followed by a late successful
+finish for that challenge. The phone verifies any non-null acknowledgment before
+advancing its recorded generation. Fresh initial enrollment uses
+`replace(..., {expectedGeneration, forceGeneration: true})` so identical new
+pairings still fence old cleanup; ordinary store callers retain idempotent replace.

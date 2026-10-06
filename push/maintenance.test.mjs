@@ -146,3 +146,14 @@ test('UNREGISTERED stops delivery but preserves pinned-key token recovery; re-pa
   assert.equal(f.registrations.revoke({ accountID: 'private-account' }), 1);
   assert.equal(f.registrations.maintenanceRegistration(replacement.recipient, replacement.registration), null);
 });
+
+test('abort cancels an unwritten finish, or recovers an already committed receipt without applying renewal again', async t => {
+  const f = fixture(t); await f.service.begin(f.request()); const proof = f.proof();
+  assert.deepEqual(f.service.abort(proof), { requestID: proof.requestID, ack: null });
+  assert.throws(() => f.service.finish(proof), /challenge-required/);
+  assert.equal(f.registrations.matches(binding(f.record)), true);
+  const next = f.request('renew', { requestID: '00000000-0000-4000-8000-000000000002' });
+  await f.service.begin(next); const nextProof = f.proof(); const ack = f.service.finish(nextProof);
+  f.restart(); assert.deepEqual(f.service.abort(nextProof), { requestID: nextProof.requestID, ack });
+  assert.throws(() => f.service.abort({ ...nextProof, proof: 'A'.repeat(43) }));
+});

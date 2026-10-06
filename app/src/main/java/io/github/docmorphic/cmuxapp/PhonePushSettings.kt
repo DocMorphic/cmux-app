@@ -195,7 +195,7 @@ internal fun PhonePushSettingsContent(model: PhonePushSetupState?, busy: Boolean
             Text(mac.stage.text, style = MaterialTheme.typography.bodySmall)
             if (mac.attempt != null) TextButton(enabled = !busy, onClick = { onCancel(mac) }) { Text("Cancel Pairing") }
             else if (mac.stage == PhonePushSetupStage.CONNECT) TextButton(enabled = !busy, onClick = onConnect) { Text("Connect ${mac.name}") }
-            else TextButton(enabled = !busy && model.canPair, onClick = { onPair(mac) }) {
+            else if (mac.stage != PhonePushSetupStage.UPDATING) TextButton(enabled = !busy && model.canPair, onClick = { onPair(mac) }) {
                 Text(if (mac.stage == PhonePushSetupStage.PAIRED || mac.stage == PhonePushSetupStage.RENEW) "Pair Helper Again" else "Pair Notification Helper")
             }
         }

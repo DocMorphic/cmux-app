@@ -1,6 +1,62 @@
 # Android background push
 
 
+## Automatic Android registration maintenance — 2026-10-06
+
+Android now connects token refresh, initial receipt retention, account/key changes,
+opt-out/logout and startup/boot recovery to `PhoneHelperMaintenanceWork`. Its
+network-constrained worker runs bounded serialized passes. A changed durable intent
+replaces pending work so a late wake-up cannot be lost behind a finishing worker;
+ordinary recovery keeps scheduled work. Settings shows **Updating phone registration**
+while maintenance is pending and requests repair for terminal conflicts/expiry.
+Pairing alone still does not claim verified provider delivery.
+
+The account-encrypted initial receipt is mirrored in a separate Keystore-encrypted
+maintenance ledger before account changes can discard it. The ledger retains the
+phone cleanup key, exact helper/native identity, endpoint, remote generation and
+token revision, with at most 512 records. It never grants incoming-message trust.
+While paired it tracks that registration; after removal it permits only settling
+uncertain work and removing the remote registration within a 24-hour cleanup
+window. Expired cleanup material is removed on the next worker/recovery access;
+this is not a guarantee of physical erasure while Android does not run the app.
+Provider tokens captured for an in-flight operation are encrypted in this ledger.
+App backup remains disabled.
+
+Requests/challenges are committed before their network writes. New token revisions
+do not overwrite an uncertain operation: the worker first settles or aborts it,
+then uses the acknowledged generation for the latest token. An uncommitted renewal
+is cancelled on opt-out rather than deliberately retried as a renewal. The optional
+`maintain.abort` host step synchronously either deletes the active challenge or
+returns its already-committed receipt; a late finish cannot apply after cancellation.
+The no-receipt response changes no trusted registration state. Returned receipts
+still require the pinned helper's cryptographic proof.
+
+Ledger updates precede account receipt updates. Reconciliation repairs a crash or
+write failure between those commits. A special account projection path prevents a
+completed cleanup from re-importing deliberately removed keys. Proposed account
+removals record their timestamp before commit, but a failed save with a still-valid
+account does not revoke its helper. A candidate initial receipt waits for its
+recoverable account enrollment commit before cleanup. Fresh physical enrollment
+now forces a new host generation even for identical content, fencing an older
+phone cleanup attempt; exact retries of the same enrollment remain idempotent.
+
+**32 JVM checks passed**, zero failures/errors/skips, including thirteen new
+lifecycle/coordinator cases. The production durable coordinator also ran against
+real local Node HTTPS, CryptoKit and SQLite: a lost renewal response, another token
+rotation, authenticated abort/receipt recovery, logout and a lost removal response
+all completed without losing the remote generation or restoring account trust.
+Tests additionally cover token-fetch gaps, ledger/account write failures, host428
+challenge recovery, delayed restart deadlines and newer physical pairing.
+**36 Node checks passed** on Node22.16.0 and Node26.8.2. Main and instrumentation
+Kotlin compilation passed. Evidence: `captures/runtime/push-maintenance-lifecycle/`.
+
+Android Keystore hooks, WorkManager scheduling/cancellation and actual Firebase
+SDK callbacks still require runtime acceptance at the integration milestone. No
+APK, emulator, physical phone, cloud request or signed release changed. The next
+push work is host provisioning and authenticated source/policy integration,
+forwarding/privacy/test controls and real Firebase/Pixel delivery. The Firebase
+project choice/configuration remains outstanding.
+
 ## Authenticated registration maintenance protocol — 2026-10-06
 
 `PushMaintenance` and Android `PhoneHelperMaintenance` now implement renewal and

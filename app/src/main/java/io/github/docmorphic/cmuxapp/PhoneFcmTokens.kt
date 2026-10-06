@@ -119,6 +119,7 @@ internal object PhoneFcmTokens {
         if (observing) return
         observing = true
         val app = context.applicationContext
+        PhoneHelperMaintenanceWork.observe(app)
         scope.launch {
             val credentials = NativeCredentialStore(app)
             credentials.revisions.map { runCatching { credentials.taskSession() }.getOrNull() }
@@ -153,7 +154,7 @@ internal object PhoneFcmTokens {
                     PeriodicWorkRequestBuilder<PhoneFcmTokenWorker>(24, TimeUnit.HOURS)
                         .setConstraints(constraints).build()).await()
             } catch (_: Exception) { currentCoroutineContext().ensureActive() }
-            finally { PhoneHelperEnrollments.recover(app) }
+            finally { try { PhoneHelperEnrollments.recover(app) } finally { PhoneHelperMaintenanceWork.recover(app) } }
         }
     }
     suspend fun run(context: Context): Boolean = serial.withLock {
@@ -163,7 +164,9 @@ internal object PhoneFcmTokens {
             val retry = try { PhoneFcmTokenReconciler(
                 transaction = { action -> tokens.update { action(PhoneFcmTokenState(it)) } },
                 login = { NativeCredentialStore(context).taskSession() }, allowed = { allowed(context) }, provider = provider
-            ).runPass() } finally { retainHelpers(context) }
+            ).runPass() } finally {
+                try { retainHelpers(context) } finally { PhoneHelperMaintenanceWork.recover(context) }
+            }
             if (tokens.load()?.let { PhoneFcmTokenState(it).hasWork } != true)
                 WorkManager.getInstance(context).cancelUniqueWork(PERIODIC)
             retry

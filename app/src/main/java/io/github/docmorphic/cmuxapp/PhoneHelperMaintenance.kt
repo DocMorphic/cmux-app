@@ -83,6 +83,10 @@ internal class PhoneHelperMaintenance(
             listOf(requestDigest, receipt.registrationID, receipt.generation)))))
         checkCurrent(); return receipt
     }
+    fun confirmAbort(response: JSONObject): PhoneHelperMaintenanceReceipt? {
+        checkCurrent(); exact(response, setOf("requestID", "ack")); require(response.getString("requestID") == requestID)
+        return if (response.isNull("ack")) null else confirm(response.getJSONObject("ack"))
+    }
     private fun proof(domain: String, fields: List<String?>): String {
         val mac = Mac.getInstance("HmacSHA256"); mac.init(SecretKeySpec(checkNotNull(challenge), "HmacSHA256"))
         return Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(phoneEnrollmentFrame(domain, fields)))

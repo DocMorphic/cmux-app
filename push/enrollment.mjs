@@ -107,7 +107,7 @@ export class PushEnrollment {
     verify(row.challenge, body.proof, 'cmux-app.helper.finish.v1', [row.digest, row.requestDigest]);
     if (row.record) need(this.#registrations.matches({ registration: row.record.registration, token: row.record.token, recipient: row.record.recipient }));
     else {
-      try { row.record = this.#registrations.replace(row.enrollment, { expectedGeneration: row.expectedGeneration }); }
+      try { row.record = this.#registrations.replace(row.enrollment, { expectedGeneration: row.expectedGeneration, forceGeneration: true }); }
       catch (error) { throw new PushEnrollmentError(error.kind === 'superseded' ? 'superseded' : 'registration-unavailable'); }
     }
     return { offerID: row.offer.offerID, requestID: row.requestID, registration: clone(row.record.registration),

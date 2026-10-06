@@ -12,7 +12,7 @@ internal enum class PhonePushSetupStage(val text: String) {
     DISABLED("Push alerts are off"), CLEANUP("Finishing previous push setup"), TOKEN("Registering this phone"),
     CONNECT("Connect a Mac to set up push alerts"), PAIR("Pair your Mac’s notification helper"),
     ENROLLING("Pairing notification helper"), PAIRED("Helper paired · delivery not yet verified"),
-    RENEW("Phone registration changed · pair the helper again")
+    UPDATING("Updating phone registration"), RENEW("Push setup needs repair · pair the helper again")
 }
 internal data class PhonePushSetupMac(val origin: String, val name: String, val stage: PhonePushSetupStage,
     val attempt: String? = null, val helperEpoch: String? = null)
@@ -40,6 +40,8 @@ internal fun phonePushSetupState(state: JSONObject, team: NativeTeamScope?, prov
             peer == null -> PhonePushSetupStage.CONNECT
             attempt != null -> PhonePushSetupStage.ENROLLING
             helper == null || receipt == null -> PhonePushSetupStage.PAIR
+            receipt.optBoolean("maintenance_error") -> PhonePushSetupStage.RENEW
+            receipt.optBoolean("maintenance_pending") -> PhonePushSetupStage.UPDATING
             token == null || receipt.optString("grant") != token.grant.epoch || receipt.optString("token_revision") != token.revision -> PhonePushSetupStage.RENEW
             else -> PhonePushSetupStage.PAIRED
         }
@@ -55,6 +57,7 @@ internal fun phonePushSetupState(state: JSONObject, team: NativeTeamScope?, prov
         token == null -> PhonePushSetupStage.TOKEN
         entries.isEmpty() || entries.all { it.stage == PhonePushSetupStage.CONNECT } -> PhonePushSetupStage.CONNECT
         entries.any { it.stage == PhonePushSetupStage.ENROLLING } -> PhonePushSetupStage.ENROLLING
+        entries.any { it.stage == PhonePushSetupStage.UPDATING } -> PhonePushSetupStage.UPDATING
         entries.any { it.stage == PhonePushSetupStage.RENEW } -> PhonePushSetupStage.RENEW
         entries.any { it.stage == PhonePushSetupStage.PAIR } -> PhonePushSetupStage.PAIR
         else -> PhonePushSetupStage.PAIRED
