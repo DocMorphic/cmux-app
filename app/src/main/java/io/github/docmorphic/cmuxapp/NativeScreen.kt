@@ -1101,7 +1101,8 @@ internal fun NativeScreen(
 
             LaunchedEffect(signedIn) { if (!signedIn) { drafts.clear(); inAppNotification = null } }
 
-            val composerFocus = remember(draftTarget) { FocusRequester() }
+            val composerFocus = remember(draftTarget) { ComposerKeyboardFocus() }
+            var composerAttachmentError by remember(draftTarget) { mutableStateOf<String?>(null) }
             val dictationGeneration = drafts.generation
             val dictationTarget = draftTarget
             val dictationLogin = store.taskSession()
@@ -1117,7 +1118,7 @@ internal fun NativeScreen(
                 }, isCurrent = { drafts.generation == dictationGeneration && store.taskSession() == dictationLogin })
             val dictationState by dictation.state.collectAsState()
             fun leaveComposerInput() {
-                dictation.cancel(); rawKeyboardView?.finishComposition()
+                dictation.cancel(); composerFocus.cancel(); rawKeyboardView?.finishComposition()
                 stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide()
             }
 
@@ -1128,9 +1129,9 @@ internal fun NativeScreen(
                 val pickedLogin = pickerLogin
                 pickerTarget = null; pickerLogin = null
                 if (target == null || uris.isEmpty()) return
-                if (preparingAttachments) { error = "Wait for the current attachments to finish preparing."; return }
+                if (preparingAttachments) { composerAttachmentError = "Wait for the current attachments to finish preparing."; return }
                 val remaining = 10 - drafts.state.value[target]?.attachments.orEmpty().size
-                if (uris.size > remaining) { error = "Each terminal can hold up to 10 attachments"; return }
+                if (uris.size > remaining) { composerAttachmentError = "Each terminal can hold up to 10 attachments"; return }
                 fun checkTarget() {
                     check(signedIn && store.taskSession() == pickedLogin && code == target.pairing &&
                         selectedWorkspace?.id == target.workspace && selectedTerminal?.id == target.surface && drafts.generation == generation &&
@@ -1138,11 +1139,12 @@ internal fun NativeScreen(
                         "The attachment target changed. Choose the attachment again."
                     }
                 }
+                composerAttachmentError = null
                 preparingAttachments = true
                 scope.launch {
                     try {
                         for (uri in uris) {
-                            val prepared = readComposerAttachment(::checkTarget, { error = it }) {
+                            val prepared = readComposerAttachment(::checkTarget, { composerAttachmentError = it }) {
                                 val image = photoLibrary && attachmentFiles.isPhotoImage(uri)
                                 require(image || ComposerAttachment.FILE_CAPABILITY in hostCapabilities) {
                                     "Update cmux on your Mac to attach videos and files."
@@ -1153,7 +1155,7 @@ internal fun NativeScreen(
                         }
                     } catch (failure: Exception) {
                         if (failure is CancellationException) throw failure
-                        error = failure.message ?: "Could not open the attachment"
+                        composerAttachmentError = failure.message ?: "Could not open the attachment"
                     } finally { preparingAttachments = false }
                 }
             }
@@ -1258,7 +1260,7 @@ internal fun NativeScreen(
                 if (!terminalAttached || preparingAttachments || inputFailure != null || selectedTerminal?.isReady != true) return
                 dictation.cancel()
                 val send = drafts.begin(target) ?: return
-                if (!directTyping) { composerFocus.requestFocus(); softwareKeyboard?.show() }
+                if (!directTyping) composerFocus.request()
                 val supportsFiles = ComposerAttachment.FILE_CAPABILITY in hostCapabilities
                 stopTerminalScrolling(); scrollPosition = 0.0
                 val retainedKey = deliveryKey.takeIf { retainedInputQueue != null }
@@ -3047,6 +3049,7 @@ internal fun NativeScreen(
                                     modifier = Modifier.fillMaxWidth().height(48.dp).background(nativePanel))
                             }
                         } else {
+                            ComposerKeyboardFocusEffect(composerFocus, dictationState.locksField)
                             draftTarget?.let { target -> NativeTerminalAttachmentStrip(draftRepository, target,
                                     terminalDraft.attachments, canRemove = true,
                                     preparing = preparingAttachments, modifier = Modifier.background(nativePanel),
@@ -3073,19 +3076,19 @@ internal fun NativeScreen(
                                                 val paste = ComposerClipboardPaste(context,
                                                     current = { signedIn && !directTyping && draftTarget != null },
                                                     enabled = { terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments },
-                                                    receive = ::acceptTerminalPaste, report = { error = it })
-                                                if (!paste.paste()) error = "No copied photos or files. Paste text into the composer."
+                                                    receive = ::acceptTerminalPaste, report = { composerAttachmentError = it })
+                                                if (!paste.paste()) composerAttachmentError = "No copied photos or files. Paste text into the composer."
                                             })
                                         }
                                     }
                                     ComposerDictationButton(dictation,
                                         enabled = terminalAttached && connectionReady && terminalDraft.operation == null && !preparingAttachments,
-                                        beforeStart = { stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide() })
+                                        beforeStart = { composerFocus.cancel(); stopTerminalScrolling(); focusManager.clearFocus(); softwareKeyboard?.hide() })
                                     RichContentEditor(owner = draftTarget to client,
                                         enabled = !dictationState.locksField && terminalAttached && client != null && terminalDraft.operation == null && !preparingAttachments,
                                         onContent = ::acceptTerminalPaste, onError = { error = it }) { pasteModifier ->
                                         OutlinedTextField(terminalDraft.text, { text -> if (!dictationState.locksField) draftTarget?.let { drafts.edit(it, text) } },
-                                            Modifier.weight(1f).focusRequester(composerFocus).testTag("native.composer").then(pasteModifier).onPreviewKeyEvent { event ->
+                                            Modifier.weight(1f).focusRequester(composerFocus.requester).testTag("native.composer").then(pasteModifier).onPreviewKeyEvent { event ->
                                                 val key = event.nativeKeyEvent
                                                 if (key.action == AndroidKeyEvent.ACTION_DOWN &&
                                                     key.keyCode == AndroidKeyEvent.KEYCODE_ENTER && (key.isCtrlPressed || key.isMetaPressed)) {
@@ -3104,7 +3107,7 @@ internal fun NativeScreen(
                                 }
                             }
                         }
-                        (dictationState.error ?: terminalDraft.error ?: draftSaveError)?.let { message ->
+                        (dictationState.error ?: composerAttachmentError ?: terminalDraft.error ?: draftSaveError)?.let { message ->
                             Text(message, Modifier.fillMaxWidth().background(Color(0xFF402626)).padding(12.dp),
                                 color = Color(0xFFFFAAAA), fontSize = 12.sp)
                         }

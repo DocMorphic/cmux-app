@@ -53,7 +53,7 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
     val density = LocalDensity.current
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    val composerFocus = remember(shell) { FocusRequester() }
+    val composerFocus = remember(shell) { ComposerKeyboardFocus() }
     val preferences = remember(context) { context.getSharedPreferences("native_display", Context.MODE_PRIVATE) }
     val toolbar = rememberTerminalToolbar(preferences)
     val zoom = remember(shell.id) { TerminalZoomState() }
@@ -239,27 +239,28 @@ internal fun SshShellScreen(shell: SshTerminal, reconnecting: Boolean = false, r
             }, modifier = Modifier.fillMaxWidth().height(36.dp).testTag("ssh.shell.keyboard"),
             onRelease = { it.dispose(); if (rawKeyboard === it) rawKeyboard = null })
         else {
+            ComposerKeyboardFocusEffect(composerFocus, dictationState.locksField || !canInput)
             SshTerminalAttachmentStrip(composer, draft.attachments,
                 canRemove = true, preparing = preparing,
-                beforePreview = { dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); keyboard?.hide() })
+                beforePreview = { composerFocus.cancel(); dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); keyboard?.hide() })
             Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (input.supportsImages) IconButton(onClick = {
-                    dictation.cancel(); motion.stop(); focusManager.clearFocus(); keyboard?.hide()
+                    composerFocus.cancel(); dictation.cancel(); motion.stop(); focusManager.clearFocus(); keyboard?.hide()
                     pickerTarget = shell; photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
                     enabled = canInput && !preparing && draft.operation == null,
                     modifier = Modifier.testTag("ssh.shell.attach").semantics { contentDescription = "Attach image" }) { Text("+", fontSize = 24.sp) }
                 ComposerDictationButton(dictation, enabled = canInput && !preparing && draft.operation == null,
-                    beforeStart = { motion.stop(); focusManager.clearFocus(); keyboard?.hide() })
+                    beforeStart = { composerFocus.cancel(); motion.stop(); focusManager.clearFocus(); keyboard?.hide() })
                 RichContentEditor(owner = shell, enabled = !dictationState.locksField && canInput && input.supportsImages && draft.operation == null,
                     onContent = { input.paste(it, direct = false) }, onError = { message = it }) { pasteModifier ->
                     OutlinedTextField(draft.text, { if (!dictationState.locksField) composer.edit(it) },
-                        Modifier.weight(1f).focusRequester(composerFocus).then(pasteModifier).testTag("ssh.shell.composer"),
+                        Modifier.weight(1f).focusRequester(composerFocus.requester).then(pasteModifier).testTag("ssh.shell.composer"),
                         placeholder = { Text("Message or command") }, maxLines = 14, readOnly = dictationState.locksField, enabled = canInput)
                 }
                 TextButton(onClick = {
                     dictation.cancel(); rawKeyboard?.finishComposition(); motion.stop(); scroll = 0.0
-                    composerFocus.requestFocus(); keyboard?.show(); input.submit()
+                    composerFocus.request(); input.submit()
                 },
                     enabled = canInput && !preparing && draft.operation == null && (draft.text.isNotEmpty() || draft.attachments.isNotEmpty()),
                     modifier = Modifier.testTag("ssh.shell.send")) { Text(if (draft.operation == null) "Send" else "Sending…") }

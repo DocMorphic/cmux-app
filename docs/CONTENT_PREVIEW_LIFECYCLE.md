@@ -1791,7 +1791,7 @@ New coverage proves send/removal retention, exact independent SSH bytes, no save
 phantom draft, terminal/account revocation, retired-binding isolation, stale
 callbacks and selection-owner destruction. No APK or device run for this batch.
 
-Queued Android cases for the next combined milestone:
+Android cases originally queued for the next combined milestone (now passed below):
 
 - `NativeTerminalAttachmentSnapshotTest#encryptedPayloadSurvivesAcknowledgementUntilPreviewClosesAndLogoutRevokesReads`
   checks real encrypted storage, durable-save reclamation, and revoked reads.
@@ -1810,3 +1810,33 @@ remain to be verified. Broader native/SSH rotation, task behavior during accepte
 navigation, format coverage and physical workflows remain open. Source receipts
 and logs are under `captures/runtime/composer-preview-send-lifetime/`; global
 upstream pins and the signed release remain unchanged.
+
+## Composer integration milestone — 2026-10-06
+
+**Ten distinct queued Android cases now have passing evidence**, across the
+preview snapshot, dictation and photo/video picker batches. The first run was
+8 pass / 2 fail (100.968 s); after UI/fixture corrections the affected subset was
+6 pass / 1 fail (106.792 s). A diagnostic single-case task retry failed (29.432 s)
+and identified missing host capability discovery in the fixture; its corrected
+run passed (13.009 s). These are accumulated case results, not a single green
+ten-case run. Original failures are preserved with the follow-up logs.
+
+Preview checks cover actual encrypted payload retention/revocation and visible
+SSH image retention after acknowledgement, dismissal and account retirement.
+Native/SSH dictation checks now assert visible system IME after Send and reject
+late transcripts. Native media screenshots retain the terminal grid under local
+attachment errors. Task retry screenshots show the preserved prompt and staged
+image/empty file before the successful retry. Actual microphone input, real video
+playback and physical Pixel/Mac acceptance remain open.
+
+Two app/test builds completed (46 s initial, 47 s corrected); remaining rebuilds
+changed only test APKs. Corrected debug APK SHA-256:
+`0b1782a7bb584fc3c97e224f79e1b0ffc4c698d3a7a16f0254b017196aa49022`.
+DEX check measured 3,535 methods; largest 13,156 code units, below the exclusive
+16,383 threshold, with no rejected methods. No new crash/ANR markers were found
+in collected run logs. Only the existing AVD was used, and it and Gradle were
+stopped. No Pixel interaction or signed-release promotion occurred.
+
+Detailed receipts: `captures/runtime/composer-integration/verification.json`,
+instrumentation/build logs, APK hashes, source hashes and inspected screenshots.
+The global upstream pins remain unchanged.

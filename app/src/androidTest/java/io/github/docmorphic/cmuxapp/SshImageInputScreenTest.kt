@@ -118,6 +118,10 @@ class SshImageInputScreenTest {
         }
         compose.onNodeWithTag("ssh.shell.composer").assert(SemanticsMatcher.expectValue(
             androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString(""))).assertIsFocused()
+        compose.waitUntil(10_000) {
+            androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+        }
         capture("ssh-dictation-after-send")
     }
 

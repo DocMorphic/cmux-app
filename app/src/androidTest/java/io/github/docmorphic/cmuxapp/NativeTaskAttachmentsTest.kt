@@ -46,7 +46,9 @@ class NativeTaskAttachmentsTest {
         repository = runBlocking { TaskDraftRepository.get(context, store.taskSession()!!) }
         peer = NativeFixturePeer()
         client = MobileRpcClient(PairingCode.Route("127.0.0.1", peer.port), { "fixture" })
-        runBlocking { client.connect() }
+        // Discover the host's authenticated workspace-mutation capability, as the
+        // production connection does before offering task creation.
+        runBlocking { client.connect(); client.hostStatus() }
     }
     @After fun close() {
         compose.activity.finish(); client.close(); peer.close()
@@ -212,6 +214,21 @@ class NativeTaskAttachmentsTest {
     @Test fun pickerStagesPhotosAndEmptyFilesThenRetriesWithoutChangingTaskIdentity() {
         var rejected = false
         val sent = mutableListOf<JSONObject>()
+        fun stableCreateTap(name: String) {
+            var previous: androidx.compose.ui.geometry.Rect? = null
+            var stableSince = android.os.SystemClock.uptimeMillis()
+            compose.waitUntil(10_000) {
+                val node = compose.onNodeWithContentDescription("Create Task").fetchSemanticsNode()
+                val bounds = node.boundsInWindow
+                val now = android.os.SystemClock.uptimeMillis()
+                if (bounds != previous) { previous = bounds; stableSince = now }
+                !node.config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled) && now - stableSince >= 300
+            }
+            val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            File(context.getExternalFilesDir(null), "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+            compose.onNodeWithContentDescription("Create Task").performClick()
+        }
         show { params ->
             sent += JSONObject(params.toString())
             if (!rejected) { rejected = true; throw IOException("Fixture rejection") }
@@ -240,11 +257,24 @@ class NativeTaskAttachmentsTest {
             assertEquals(staged, saved.attachments)
             assertFalse(File(context.noBackupFilesDir, "task-attachments/${image.id}").readBytes().contentEquals(bytes))
             compose.onNodeWithContentDescription("Task prompt").performTextInput("Explain these files")
-            compose.onNodeWithContentDescription("Create Task").performClick()
-            compose.waitUntil(15_000) { compose.onAllNodesWithText("Fixture rejection", substring = true).fetchSemanticsNodes().isNotEmpty() }
+            stableCreateTap("task-picker-before-send")
+            try {
+                compose.waitUntil(5_000) { sent.size == 1 }
+                compose.waitUntil(15_000) { compose.onAllNodesWithText("Fixture rejection", substring = true).fetchSemanticsNodes().isNotEmpty() }
+            } catch (failure: Throwable) {
+                println("Task first-send diagnostic: sends=${sent.size}, uploads=${peer.requests.count { it.optString("method") == "mobile.task.attachment.upload" }}")
+                compose.onRoot().printToLog("TaskRetryFixture"); throw failure
+            }
             assertEquals(staged, repository.drafts.state.value.getValue(id).attachments)
-            compose.onNodeWithContentDescription("Create Task").performClick()
-            compose.waitUntil(15_000) { completed }
+            stableCreateTap("task-picker-before-retry")
+            try {
+                compose.waitUntil(5_000) { sent.size == 2 }
+                compose.waitUntil(15_000) { completed }
+            } catch (failure: Throwable) {
+                println("Task retry diagnostic: sends=${sent.size}, rpcCreates=${peer.requests.count { it.optString("method") == "workspace.create" }}")
+                compose.onRoot().printToLog("TaskRetryFixture")
+                throw failure
+            }
             assertEquals(2, sent.size)
             assertEquals(sent[0].getString("operation_id"), sent[1].getString("operation_id"))
             assertFalse(sent[1].has("_cmux_task_attachments"))

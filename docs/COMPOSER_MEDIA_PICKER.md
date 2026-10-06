@@ -1,7 +1,8 @@
 # Composer photo and video selection
 
 Implemented 2026-10-06. Native terminal and New Task Photos actions now use
-Android's photo/video picker. Device execution of this batch is pending.
+Android's photo/video picker. Emulator integration is recorded below; physical
+Pixel acceptance remains pending.
 
 ## Upstream behavior
 
@@ -46,7 +47,7 @@ These scoped reads do not advance the global parity pins.
 - Opening task Photos/Files clears prompt focus, matching the native picker change
   from the dictation batch.
 
-## Evidence and queued checks
+## Feature-batch evidence (before integration)
 
 Main Kotlin compilation passed initially. The first instrumentation compilation
 caught a fixture mistake: `Intent.setClipData` returns Unit, so it cannot chain
@@ -57,7 +58,7 @@ compilation passed** on the follow-up. The result is recorded in `captures/runti
 9 task attachment cases, and 8 terminal draft cases. These support error and
 storage-ownership behavior; they do not prove picker UI/media decoding.
 
-New Android cases queued for the combined milestone:
+Android cases originally queued for the combined milestone:
 
 - `NativeFlowTest#photoLibraryStagesVideoAndImageAfterUnreadableSelectionWithoutSending`
 - `NativeTaskAttachmentsTest#photoLibraryKeepsVideoBytesAndLaterImageWhenOneSelectionIsUnreadable`
@@ -84,3 +85,22 @@ upload/playback and provider-format coverage. Android Live/Motion Photo behavior
 has not been established. SSH's photo picker still supports images only; its
 non-image transport capability needs a separate upstream comparison/implementation.
 These gaps are not declared unavoidable platform differences.
+
+## Combined integration — 2026-10-06
+
+Both media-selection cases and both native/task picker retry cases now have
+passing evidence on the existing Android 17 / 16 KiB AVD. Native image/video chips
+and live terminal output were inspected together. Picker and menu-paste failures
+now appear beside the composer instead of replacing terminal content with the
+global reconnect state. The task retry preserves operation identity, attachment
+IDs, repeated uploads and encrypted-file cleanup after success.
+
+The older task fixture had omitted host capability discovery; production's
+authenticated workspace-mutation guard correctly rejected its request. Calling
+`hostStatus()` during fixture connection fixes the setup. Coordinate taps also
+wait for button bounds to settle after IME movement; the final single case passed
+in 13.009 s. No production authorization check was relaxed.
+
+Evidence: `captures/runtime/composer-integration/verification.json` and companion
+logs/screenshots. Video bytes are still synthetic: physical selection and actual
+playback remain open. Signed release and global upstream pins are unchanged.

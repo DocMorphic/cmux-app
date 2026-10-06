@@ -70,7 +70,7 @@ Recognizer calls and listener transitions remain on the main dispatcher, and eve
 created recognizer is cancelled/destroyed when the attempt ends, as required by
 Android's API contract.
 
-## Evidence and next milestone
+## Feature-batch evidence (before integration)
 
 - Main and instrumentation Kotlin compilation passed.
 - **22 JVM cases passed**: 12 new dictation lifecycle/merge cases plus 10 SSH
@@ -78,7 +78,7 @@ Android's API contract.
   stopping and timeout, permission cancellation, old callback isolation,
   Send snapshot order, account/owner retirement, external edits, destruction,
   rejected writes, startup timeout and engine exceptions.
-- Three new Android UI cases compile but have **not run**:
+- At the feature commit, three new Android UI cases compiled but had not run:
   `NativeFlowTest#terminalDictationSendsCurrentWordsAndDoesNotAcceptLateFinalResult`,
   `SshImageInputScreenTest#dictationStopRefinesDraftAndSendRejectsLateSpeech`,
   `SshImageInputScreenTest#leavingTerminalStopsDictationAndReturningNeverResumesMicrophone`.
@@ -98,3 +98,22 @@ lock/background and account switch; no mic resumption on return; no transcript
 refill after Send; Gboard/hardware keyboard focus, selection, resizing and TalkBack.
 Task-composer/agent-reply dictation availability has not been audited in this scoped
 terminal change. No platform difference is declared unavoidable on this evidence.
+
+## Combined integration — 2026-10-06
+
+All three dictation UI cases above now have passing evidence on the existing
+Android 17 / 16 KiB AVD. The native case checks the repository draft immediately
+after a recognizer callback, then waits for asynchronous UI collection. Both
+native and SSH Send cases now require an actually visible system IME, in addition
+to an empty focused editor and rejection of late recognizer results. Screenshots
+show the keyboard. The navigation case verifies that returning never resumes
+recognition. Recognizer events remain synthetic; actual speech acceptance is open.
+
+Visual review found that requesting focus synchronously while unlocking the
+read-only field could leave a caret without a keyboard. `ComposerKeyboardFocus`
+now defers the explicit Send intent until the editable input connection has been
+composed. Picker, preview, microphone start and composer disposal cancel pending
+intent. This does not restore old focus merely because a modal was dismissed.
+
+Logs and screenshots: `captures/runtime/composer-integration/`. See
+[the combined milestone](CONTENT_PREVIEW_LIFECYCLE.md#composer-integration-milestone--2026-10-06).

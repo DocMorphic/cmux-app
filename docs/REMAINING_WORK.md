@@ -25,37 +25,24 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
-- Native terminal and New Task Photos now open Android's photo/video picker;
-  videos retain their original bytes through encrypted file staging. Native
-  multi-selection continues past unreadable providers, validates the captured
-  account/terminal, and includes attachment-menu Paste without executing plain
-  clipboard text. **22 focused JVM cases passed**; two new media UI cases and
-  two updated picker/retry cases join the next combined milestone. Device media
-  selection/playback, picker restoration, selection-limit UI and SSH non-image
-  support remain open. See [COMPOSER_MEDIA_PICKER.md](COMPOSER_MEDIA_PICKER.md).
-  Next milestone: one APK/test build, DEX size check, and ten queued/updated
-  preview, dictation and media cases on the sole existing AVD.
+- Combined preview/dictation/media milestone: **all ten distinct queued Android
+  cases now have passing evidence** across the initial and focused follow-up
+  runs. Fixed visible keyboard return after dictation Send and kept attachment
+  errors beside the composer while terminal output remains visible. The task
+  fixture now performs authenticated host capability discovery before Create.
+  DEX: 3,535 methods, largest 13,156 code units, none rejected. Existing AVD and
+  Gradle stopped; no new AVD, Pixel action or signed-release promotion. See
+  [the detailed milestone](CONTENT_PREVIEW_LIFECYCLE.md#composer-integration-milestone--2026-10-06).
 
-- Native and SSH terminal composers now have live dictation: partial text merges,
-  locked editing while listening, graceful Stop, Send cancellation, permission
-  and recognizer error handling, and account/navigation/background retirement.
-  Photos/Files clear focus before presentation; Send requests composer focus;
-  editors grow to 14 lines. **22 JVM cases passed** and Android tests compile.
-  Three new UI cases are queued with the three preview-lifetime cases below for
-  the next combined milestone. No APK/device run for this batch; real microphone,
-  recognizer, Gboard and accessibility acceptance remains open. The iOS host
-  modal callback trace is complete: dismissal does not restore prior focus intent.
-  See [COMPOSER_DICTATION.md](COMPOSER_DICTATION.md).
-
-- Terminal attachment previews now retain a selected snapshot after a send clears
-  the chip, matching the separate selected value in iOS. Native encrypted files
-  and SSH bytes stay leased until dismissal, while terminal/account retirement
-  independently revokes the modal even after the draft list is empty. **31 JVM
-  checks passed** and Android tests compile. Three new storage/send-completion/
-  revocation cases are queued for the next combined milestone; no APK/AVD run
-  for this batch. See [CONTENT_PREVIEW_LIFECYCLE.md](CONTENT_PREVIEW_LIFECYCLE.md#terminal-preview-lifetime-during-send--2026-10-06).
-  The subsequent dictation/input batch traces the iOS host callbacks above;
-  actual keyboard behavior remains part of the combined and physical checks.
+- Native/SSH composers include live dictation, explicit Send focus and 14-line
+  editors. Native/New Task Photos accept photo/video library selections and
+  continue past unreadable providers. Preview snapshots survive send completion
+  until dismissal or ownership revocation. Their feature batches passed 22, 22
+  and 31 focused JVM cases respectively; queued Android integration is now done.
+  Real speech/permissions/Gboard, video decoding/cloud selection, picker and
+  process restoration, SSH non-image support and physical acceptance remain open.
+  See [dictation](COMPOSER_DICTATION.md), [media picker](COMPOSER_MEDIA_PICKER.md)
+  and [preview lifecycle](CONTENT_PREVIEW_LIFECYCLE.md).
 
 - Combined composer/appearance milestone: **five distinct Android cases now
   have unassisted passing evidence**, covering appearance acknowledgement recovery,

@@ -337,7 +337,16 @@ class NativeFlowTest {
         compose.onNodeWithText("Claude Code task").performClick(); waitForTerminalText()
         compose.onNodeWithTag("native.composer").performTextInput("Explain")
         compose.onNodeWithContentDescription("Start dictation").performClick()
-        compose.runOnIdle { speech.engines.single().listener.transcript("this terminal", false) }
+        compose.runOnIdle {
+            val engine = speech.engines.single()
+            assertFalse("Native recognizer must still own the composer", engine.closed)
+            engine.listener.transcript("this terminal", false)
+            assertFalse("A valid partial must not retire dictation", engine.closed)
+            assertEquals("Explain this terminal", TerminalDraftRepository.get(context).drafts.state.value.values.single { it.text.isNotEmpty() }.text)
+        }
+        // Draft collection runs in this fixture's effect dispatcher, independently of the injected callback.
+        compose.waitUntil(5_000) { compose.onNodeWithTag("native.composer").fetchSemanticsNode().config
+            .getOrNull(SemanticsProperties.EditableText)?.text == "Explain this terminal" }
         compose.onNodeWithTag("native.composer").assertTextContains("Explain this terminal")
             .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.SetText))
         assertTrue(peer.requests.none { it.optString("method") == "terminal.paste" })
@@ -353,6 +362,10 @@ class NativeFlowTest {
         compose.waitUntil(10_000) { TerminalDraftRepository.get(context).drafts.state.value.values.all { it.text.isEmpty() && it.operation == null } }
         compose.onNodeWithTag("native.composer").assert(SemanticsMatcher.expectValue(
             androidx.compose.ui.semantics.SemanticsProperties.EditableText, androidx.compose.ui.text.AnnotatedString(""))).assertIsFocused()
+        compose.waitUntil(10_000) {
+            androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+        }
         screenshot("native-dictation-after-send")
     }
 
