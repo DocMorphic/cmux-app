@@ -29,6 +29,8 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
     private var navigatingUrl: String? = null
     private val fullscreen = LocalBrowserFullscreen()
     private var foreground = false
+    private var retriedRoute = false
+    private var preparingRecovery = false
 
     private fun current(view: WebView, ticket: Long) = !released && browser === view && token == ticket && !surface.state.value.closed
     private fun isWeb(url: String?) = url?.let { Uri.parse(it).scheme?.lowercase() in setOf("http", "https") } == true
@@ -58,6 +60,11 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
                 if (!current(web, ticket)) return true
                 if (!isWeb(request.url.toString())) return true
                 if (request.isForMainFrame) {
+                    // A new link supersedes pending recovery; redirects retain its
+                    // one-attempt budget. loadUrl itself does not call this hook.
+                    if (!request.isRedirect) {
+                        navigation?.cancel(); preparingRecovery = false; retriedRoute = false
+                    }
                     // TLS/DNS failures may arrive before onPageStarted or a
                     // committed WebView URL. Keep the pending link/redirect
                     // target so its failure is not mistaken for an old page.
@@ -69,6 +76,11 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
             override fun onPageStarted(web: WebView, url: String?, favicon: Bitmap?) {
                 if (!current(web, ticket) || stopped || !isWeb(url)) return
                 fullscreen.hide()
+                // A form submission can bypass shouldOverrideUrlLoading. Do not
+                // let an older pending GET recovery replace that navigation.
+                if (preparingRecovery) {
+                    navigation?.cancel(); preparingRecovery = false; retriedRoute = false
+                }
                 navigatingUrl = url; failed = false
                 surface.started(ticket); location(web, ticket)
                 if (preparedUrl == url) preparedUrl = null
@@ -86,6 +98,8 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
             override fun onPageFinished(web: WebView, url: String?) {
                 if (!current(web, ticket) || !isWeb(url) || url != web.url) return
                 location(web, ticket)
+                // A failed load's late finish can arrive after its replacement
+                // starts. Only a new navigation/reload replenishes the retry budget.
                 if (!stopped && !failed) surface.finished(ticket)
                 CookieManager.getInstance().flush()
             }
@@ -93,7 +107,18 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
                 if (!current(web, ticket) || !request.isForMainFrame || stopped) return
                 val url = request.url.toString()
                 if (url != navigatingUrl && url != web.url) return
+                if (preparingRecovery) return // Duplicate callbacks for the failed load.
                 failed = true
+                if (beforeNavigation != null && !retriedRoute && request.method == "GET" &&
+                    error.errorCode in setOf(ERROR_CONNECT, ERROR_TIMEOUT, ERROR_HOST_LOOKUP, ERROR_IO)) {
+                    retriedRoute = true
+                    preparingRecovery = true
+                    navigate(web, url, recovery = true) {
+                        preparingRecovery = false; failed = false; stopped = false
+                        web.loadUrl(url)
+                    }
+                    return
+                }
                 surface.failed(ticket, if (error.errorCode == ERROR_FAILED_SSL_HANDSHAKE)
                     "This site’s secure connection couldn’t be verified."
                     else "Couldn’t load this page. Check the address or your connection.")
@@ -132,15 +157,18 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
         addView(view, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
-    private fun navigate(view: WebView, url: String?, action: () -> Unit) {
+    private fun navigate(view: WebView, url: String?, recovery: Boolean = false, action: () -> Unit) {
         fullscreen.hide()
+        if (!recovery) { retriedRoute = false; preparingRecovery = false }
         navigation?.cancel(); policyRefresh?.cancel()
         // History and reload can also fail before a page-start callback.
         if (isWeb(url)) navigatingUrl = url
         val prepare = beforeNavigation
         if (prepare == null) { action(); return }
         val ticket = token
-        stopped = false; failed = false; surface.started(ticket)
+        stopped = false
+        if (!recovery) failed = false
+        surface.started(ticket)
         navigation = scope.launch {
             try {
                 prepare.invoke(url)
@@ -150,7 +178,11 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
                 throw failure
             } catch (failure: Exception) {
                 currentCoroutineContext().ensureActive()
-                if (current(view, ticket)) surface.failed(ticket, failure.message ?: "Could not connect this browser to its computer.")
+                if (current(view, ticket)) {
+                    preparingRecovery = false; failed = true
+                    surface.failed(ticket, if (recovery) "Couldn’t reconnect this page to its computer. Reload to try again."
+                        else failure.message ?: "Could not connect this browser to its computer.")
+                }
             }
         }
     }
@@ -188,7 +220,7 @@ internal class LocalBrowserWebHost(context: Context, private val surface: LocalB
                     if (retryUrl != null) view.loadUrl(retryUrl) else view.reload()
                 }
             }
-            LocalBrowserCommand.STOP -> { navigation?.cancel(); policyRefresh?.cancel(); stopped = true; view.stopLoading(); surface.stopped(token, false) }
+            LocalBrowserCommand.STOP -> { navigation?.cancel(); policyRefresh?.cancel(); preparingRecovery = false; stopped = true; view.stopLoading(); surface.stopped(token, false) }
             null -> Unit
         }
     }

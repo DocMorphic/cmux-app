@@ -1,5 +1,52 @@
 # Phone-local browser parity audit
 
+## Automatic routed-page recovery — 2026-10-07
+
+A failed main-frame GET can now prepare its existing computer route again and
+retry once. This ports the recovery intent in official iOS revision
+`186cec79781256867ad4516f0802118738bd2393`,
+`Packages/iOS/CmuxMobileBrowser/Sources/CmuxMobileBrowser/MobileBrowserView.swift`,
+lines 304–323 (`retryThroughReadiedRoute`). The Android host reuses the existing
+`beforeNavigation` callback; the real routed Activity maps it to the same bound
+session's PREPARE request and validates the immutable proxy binding.
+
+Automatic retry is limited to connection, timeout, hostname-lookup and I/O errors
+on GET. It does not replay POSTs, certificate failures or subresources, and is not
+active without a route-preparation callback. Stop, replacement navigation and
+release cancel pending recovery; even a dependency returning after cancellation
+cannot load the obsolete page. Preparation rejection shows a stable reconnect
+message with manual Reload. A new navigation or explicit Reload replenishes the
+budget; page-finished callbacks do not, because an old failed load can finish after
+its replacement starts. This is an Android callback adaptation, not evidence of
+an unavoidable platform difference. The broader iOS comparison remains open.
+
+**Four Android checks passed together in 21.498 seconds** on the sole Android 17 /
+16 KiB AVD: a refused connection becoming available during preparation, repeated
+failure stopping after one retry followed by successful manual Reload, failed POST
+without automatic replay, and both Stop/replacement while preparation is pending.
+These use the production host, real WebView network errors and local HTTP fixtures
+inside a bare Activity. The recovered page's green pixels and screenshot were
+checked. They do not establish actual SSH/Iroh recovery, separate-process proxy
+integration, physical Pixel/Mac behavior or whole-app visual parity.
+
+The first run had two failures: persistent errors did not settle with the original
+finish-based budget reset, and the cancellation fixture resolved a hostname on the
+UI thread. Removing the finish reset and constructing the fixture URL off the UI
+thread gave the complete passing batch. Original and final logs/screenshots are
+preserved under ignored `captures/runtime/browser-recovery/`. Final ANR/crash
+buffers were empty. Debug/test assembly passed; Gradle and the existing emulator
+were stopped, and the emulator was reaped. No new AVD or signed APK was created.
+
+Debug APK SHA-256:
+`bd1815b7b5b3897b097814437436cbeceeaa0e131b6ff09f46934a400cb3c387`.
+Test APK SHA-256:
+`1dc6b44af64160681ed5f712ae8a224f73d7ce76cae2ac6bbd2e251f1f5b6ef2`.
+Published signed APK remains **616**; global upstream pins are unchanged.
+
+The [Android WebViewClient contract](https://developer.android.com/reference/android/webkit/WebViewClient#shouldOverrideUrlLoading(android.webkit.WebView,%20android.webkit.WebResourceRequest))
+explains why POST and app-initiated loads need lifecycle handling outside
+`shouldOverrideUrlLoading`.
+
 ## Embedded web video fullscreen — 2026-10-07
 
 `LocalBrowserWebHost` now implements both WebChromeClient custom-view callbacks.

@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Routed browser GET connection failures now prepare the existing computer route
+  and retry once, with Stop/replacement cancellation and no automatic POST replay.
+  **Four Android checks passed together in 21.498 seconds**, including visible
+  recovery and a bounded persistent failure. The original two failed checks and
+  fixes are recorded in `LOCAL_BROWSER.md`. The sole AVD was stopped/reaped.
+  Real proxy/SSH/Iroh and Pixel/Mac recovery remain unverified; no signed build.
+
 - Embedded browser video now supports fullscreen with renderer controls and
   lifecycle cleanup. **Two Android checks passed together in 21.602 seconds** on
   the existing Android 17 / 16 KiB AVD, including visible playback, Back, retained
