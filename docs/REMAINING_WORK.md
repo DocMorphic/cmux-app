@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Offline DOCX preview is implemented in the shared Files/Changes/attachment
+  viewer, with bundled rendering, bounded archive preparation, local-only loading
+  and existing file actions. **20 JVM checks passed**, main and instrumentation
+  compilation passed, and all **16** pinned viewer assets matched. A rich-document
+  visual/security fixture is compiled but awaits the next Android integration
+  batch; no APK/emulator or signed promotion. Broader Office formats and
+  Quick Look-equivalent layout remain open. See [DOCUMENT_FORMATS.md](DOCUMENT_FORMATS.md).
+
 - Combined Android push-settings/storage milestone: **nine runtime tests passed
   in 25.383 seconds** on API37/16 KiB. Four setup/Mac-controls UI cases, two
   key/reply regressions and three real Keystore cleanup-hook cases now have device

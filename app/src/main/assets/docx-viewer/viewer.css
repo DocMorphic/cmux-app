@@ -1,0 +1,7 @@
+html { background: #202124; color-scheme: light; }
+body { margin: 0; }
+#content { min-height: 100vh; }
+.docx-wrapper { background: transparent !important; padding: 20px !important; }
+section.docx { color: #111; flex-shrink: 0; }
+a { color: #1558bf; }
+::selection { background: #adcaff; }
