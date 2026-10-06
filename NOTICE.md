@@ -581,3 +581,11 @@ Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android reuses its bounded last-tab store and adds a destination-only activity
 checkpoint through SavedStateHandle. Runtime acceptance remains documented in
 docs/CLOUD_COMPANION.md.
+
+
+NativeCloudFlow.kt adapts the introduction and replay flow from CloudFlowView.swift
+and CloudOnboardingView.swift in Packages/iOS/CmuxMobileCloudUI, at cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses Compose paging and SharedPreferences, describes its Keystore-backed
+key storage, and records the still-unimplemented system VPN explicitly.

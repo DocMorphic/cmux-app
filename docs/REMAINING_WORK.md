@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud now has the iOS-style three-page first-visit introduction and Cloud basics
+  replay, with saved completion/page state, persistence failure handling and
+  responsive layouts. Android-specific key/VPN copy reflects actual capabilities.
+  Main and Android UI tests compile; the three new UI checks remain unrun without
+  a device. System VPN/private ports, plans and Cloud-only first-run integration
+  remain open. See `CLOUD_COMPANION.md` for verification scope.
+
 - Cloud composer text now uses the shared encrypted draft repository, partitioned
   by login/user/team/machine/terminal. Sends persist a pending marker before input
   and wait for native transport admission before clearing the submitted revision.

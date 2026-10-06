@@ -3791,7 +3791,7 @@ internal fun NativeScreen(
                         showTaskComposer -> taskComposerContent()
                         cloudTab && cloudModel != null -> Column(Modifier.weight(1f).fillMaxWidth()) {
                             BackHandler { cloudTab = false }
-                            NativeCloudScreen(cloudController, onSettings = { showSettings = true },
+                            NativeCloudFlow(cloudController, onSettings = { showSettings = true }, onBack = { cloudTab = false },
                                 onPlans = { runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://cmux.com/pricing"))) }
                                     .onFailure { android.widget.Toast.makeText(context, "No browser is available to open cmux.com/pricing", android.widget.Toast.LENGTH_LONG).show() } },
                                 modifier = Modifier.weight(1f), connectionState = cloudTunnelState,

@@ -850,3 +850,38 @@ live Cloud delivery and the renderer fixture remain physical/runtime acceptance
 gates. No emulator, APK rebuild, signed release or live Cloud action was performed
 for this batch. The four latest native checkpoint CI runs are green; the latest is
 [37454996751](https://github.com/DocMorphic/cmux-app/actions/runs/37454996751).
+
+
+### Cloud basics introduction and replay — 2026-10-06
+
+`NativeCloudFlow.kt` now follows `CloudFlowView.swift` and
+`CloudOnboardingView.swift` at the scoped upstream revision. The Cloud tab starts
+with a three-page introduction (workspace topology, system VPN and private key),
+with Skip, Continue, Back and Get started. Completion uses the upstream v2
+per-install milestone, separate from the Mac introduction and account state.
+A failed preference commit leaves the introduction open with a retry message.
+The pager retains its page through Android saved-state recreation.
+
+After completion, Cloud management offers a Cloud basics replay sheet. Closing or
+finishing replay does not write completion or create/change machines. Tab ownership
+and the existing account-owned connections stay in the shell. The layout switches
+to side-by-side copy/illustrations on wide or compact-height displays, falling back
+to scrollable stacked content for enlarged text. Progress has a spoken step label;
+illustrations are decorative. Android key copy reflects the actual Keystore-backed
+Cloud identity encryption.
+
+The VPN page explicitly reports that Android system-VPN private-service access is
+not yet available. It does not show a working toggle or imply that the terminal's
+in-process tunnel routes other apps. This is an outstanding implementation gap,
+not an unavoidable Android difference. Plans/subscription and full Cloud-only
+first-run shell behavior still need audit/acceptance.
+
+Verification: main compilation passed (34 seconds), then **23 existing focused
+JVM checks passed** across onboarding state, Cloud machine controller and creation
+presentation (zero failures/errors/skips). Android test compilation passed in the
+same six-second invocation. Three new Android UI checks cover failed persistence
+and retry/recreation, pager restoration and completion, and replay without writes.
+They compile but have **not run** because ADB has no device. No visual matching or
+TalkBack/runtime acceptance is claimed. Evidence:
+`captures/runtime/cloud-introduction/`. No emulator, APK rebuild, live Cloud
+operation or signed release promotion occurred.

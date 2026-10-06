@@ -27,7 +27,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun NativeCloudScreen(controller: CloudMachinesController?, onSettings: () -> Unit,
     onPlans: () -> Unit, modifier: Modifier = Modifier, connectionState: CloudTunnelState? = null,
-    onRetryConnection: () -> Unit = {}) {
+    onRetryConnection: () -> Unit = {}, onBasics: (() -> Unit)? = null) {
     key(controller) {
         val state = controller?.state?.collectAsState()?.value ?: CloudMachinesState()
         var createSheet by rememberSaveable { mutableStateOf(false) }
@@ -39,6 +39,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
             Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onSettings) { Icon(painterResource(R.drawable.cmux_logo), "cmux settings", Modifier.size(24.dp), tint = Color.Unspecified) }
                 Text("Cloud", Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                onBasics?.let { action -> TextButton(onClick = action, modifier = Modifier.testTag("cloud.basics")) { Text("Cloud basics") } }
                 TextButton(onClick = { controller?.refresh() }, enabled = controller != null) { Text("Refresh") }
             }
             if (controller == null) {
