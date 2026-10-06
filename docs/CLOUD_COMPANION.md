@@ -943,3 +943,46 @@ VPN. The in-process terminal tunnel does not occupy that slot. Next implement th
 serialized account-owned controller, owner-authorized cleanup retries, platform
 WireGuard service/foreground notification, OS consent and onboarding/settings
 controls; then verify private web access and Tailscale transitions on Pixel.
+
+
+### System VPN lifecycle controller — 2026-10-06
+
+`CloudSystemVpnController.kt` now owns explicit enable, disable, account binding,
+platform-state callbacks and cleanup. It is separate from the foreground terminal
+lease. Binding an account never enrolls; enable requires current account admission
+and previously granted OS consent. Each enable generates a fresh browser key and
+journals the peer identity before POST. The native adapter supplies the Iroh
+installation device ID and shared fingerprint, enrolls only under `browser`, and
+captures a coherent token pair while the account is admitted. That retained pair
+is exposed solely through a browser-peer DELETE closure, so account replacement
+cannot substitute another user's credentials into cleanup. Tokens remain in memory.
+
+All install/stop/revoke transitions share a gate. Timeout/account retirement
+invalidates startup immediately and requests platform interruption; a slow operation
+keeps the gate until it actually finishes and any late installation is stopped.
+A replacement cannot overtake it. Local stop precedes profile retirement and server
+revocation. Failed stop keeps both profile and cleanup identity durable. Revocation
+gets three bounded attempts, while enrollment POST is never retried automatically.
+Cleanup handles at most eight peers per transition; unresolved owners remain in the
+journal and are eligible when their authenticated access is available again.
+Current-operation cancellation reports failure rather than leaving a timerless
+Preparing state. Attempt-tagged platform callbacks cannot disconnect a newer VPN.
+Application lifetime closure requests cleanup through an independent worker.
+
+Verification: **22 focused JVM checks passed across four suites**, with zero
+failures/errors/skips; main and Android test compilation passed. Eight controller
+checks cover consent/no implicit enrollment, fresh keys, stop/revoke ordering,
+account changes, captured old-account cleanup, unknown enrollment, cleanup retry,
+non-cooperative late install and timeout, late enrollment after sign-out, initial
+signed-out reconciliation, failed local stop, stale callbacks, current cancellation
+and parent lifetime termination. The final invocation took eight seconds. Evidence:
+`captures/runtime/cloud-system-vpn-controller/`.
+
+**This controller and native account adapter are not mounted yet.** Their platform
+boundary is exercised with fixtures, not Android's VPN service. Next implement the
+WireGuard service and foreground notification, bind an application-lifetime owner,
+wire OS consent and onboarding/settings controls, and reconcile persisted enabled
+state and actual service callbacks. Backlog cleanup scheduling beyond the bounded
+transition batches also needs integration. No live account request/VPN activation,
+APK rebuild or emulator occurred; ADB still reports no Pixel. Full Cloud VPN parity
+and the overall goal remain unverified.

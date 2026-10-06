@@ -598,3 +598,12 @@ c2715faa02c260b07012bc0b386597cfb333021d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses its own encrypted atomic journal and Keystore alias. The optional
 system VPN is not yet integrated; see docs/CLOUD_COMPANION.md.
+
+
+CloudSystemVpnController.kt and NativeCloudVpnAccess.kt adapt optional VPN lifetime,
+separate browser enrollment and account-owned cleanup from
+CloudSystemVPNController.swift in Packages/iOS/CmuxMobileCloud, at cmux revision
+c2715faa02c260b07012bc0b386597cfb333021d.
+Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
+Android uses coroutines, its encrypted cleanup journal and a separate platform
+boundary; service/UI integration remains documented in docs/CLOUD_COMPANION.md.

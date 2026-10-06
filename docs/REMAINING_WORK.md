@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- The system VPN lifecycle controller and native account adapter now implement
+  explicit enrollment, serialized install/stop, late-operation fencing and durable
+  account-owned cleanup. **22 JVM checks passed**; main/Android test compilation
+  passed. They are not mounted: the WireGuard service, foreground notification,
+  app-lifetime binding, consent/settings UI and physical acceptance remain. See
+  `CLOUD_COMPANION.md` for tested behavior and remaining integration details.
+
 - System VPN now has private-route validation and an encrypted profile/peer-cleanup
   journal. **19 JVM checks passed** and main/Android test compilation passed.
   Tests also fixed padded WireGuard public keys in terminal fallback config.
