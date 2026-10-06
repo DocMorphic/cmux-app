@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -91,7 +93,10 @@ internal fun NativeWhatsNewLaunchSheet(presentation: WhatsNewPresentation, polic
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.BottomCenter) {
             val density = LocalDensity.current
             val pager = rememberPagerState(initialPage = presentation.pageIndex) { presentation.pages.size }
-            val pageHeights = remember(maxWidth, maxHeight, density.density, density.fontScale, presentation.pages) {
+            // Natural compact content height does not depend on the viewport height.
+            // Insets can change maxHeight without remeasuring unchanged content; clearing
+            // the cache then would leave the first page stuck at the full-height fallback.
+            val pageHeights = remember(maxWidth, density.density, density.fontScale, presentation.pages) {
                 mutableStateMapOf<String, Int>()
             }
             var headerHeight by remember(density) { mutableIntStateOf(0) }
@@ -102,7 +107,9 @@ internal fun NativeWhatsNewLaunchSheet(presentation: WhatsNewPresentation, polic
             val measured = pageHeights[selected.key]
             val height = if (fullHeight || measured == null || headerHeight == 0 || footerHeight == 0) maxHeight
                 else minOf(maxHeight, with(density) { (measured + headerHeight + footerHeight + errorHeight).toDp() })
-            Surface(Modifier.widthIn(max = 680.dp).fillMaxWidth().height(height).testTag("whatsnew.sheet")
+            // Compose animations use Android's animator duration scale, including zero/reduced motion.
+            val animatedHeight by animateDpAsState(height, tween(300), label = "What's New sheet height")
+            Surface(Modifier.widthIn(max = 680.dp).fillMaxWidth().height(animatedHeight).testTag("whatsnew.sheet")
                 .onGloballyPositioned { laidOut = it.isAttached && it.size.width > 0 && it.size.height > 0 },
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
                 Column {
@@ -132,7 +139,7 @@ internal fun NativeWhatsNewLaunchSheet(presentation: WhatsNewPresentation, polic
                         Spacer(Modifier.height(8.dp))
                         Button(onClick = {
                             if (pager.currentPage == presentation.pages.lastIndex) onDismiss()
-                            else scope.launch { pager.scrollToPage(pager.currentPage + 1) }
+                            else scope.launch { pager.animateScrollToPage(pager.currentPage + 1, animationSpec = tween(300)) }
                         }, modifier = Modifier.fillMaxWidth().testTag("whatsnew.continue")) { Text("Continue") }
                     }
                 }
@@ -164,7 +171,8 @@ internal fun NativeWhatsNewHost(center: NativeWhatsNewCenter, presentation: Nati
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
-    val allowed = eligible && resumed
+    val suppressed = BuildConfig.DEBUG && LocalSuppressWhatsNewLaunch.current
+    val allowed = eligible && resumed && !suppressed
     LaunchedEffect(owner, allowed, archive, state.unseen, state.initialRefreshComplete) {
         presentation.reconcile(owner, allowed && !archive)
     }

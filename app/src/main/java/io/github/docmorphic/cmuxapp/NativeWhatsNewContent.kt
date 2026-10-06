@@ -35,8 +35,9 @@ internal fun NativeWhatsNewPageBody(page: WhatsNewPage, policy: NativeMacCompati
     // iOS launch sheets use compact natural content inside a scroll viewport;
     // standalone native detail pages can choose the regular/compact fitting tiers.
     if (!fitting) {
-        Box(modifier.fillMaxWidth().verticalScroll(scroll)) {
-            NativeWhatsNewContent(page, policy, true, Modifier.onSizeChanged { report(it.height) })
+        Column(modifier.fillMaxWidth().verticalScroll(scroll)
+            .wrapContentHeight(Alignment.Top, unbounded = true).onSizeChanged { report(it.height) }) {
+            NativeWhatsNewContent(page, policy, true)
         }
         return
     }

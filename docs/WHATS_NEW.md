@@ -10,8 +10,10 @@ remain open. The global parity pin is unchanged.
 
 Native archive fitting, compact launch content, feature symbols, pairing layout
 and debug replay were subsequently added in [NOTICE_LAYOUT_REPLAY.md](NOTICE_LAYOUT_REPLAY.md).
-Its queued runtime checks must be completed before treating the earlier layout
-screenshots below as evidence for the new implementation.
+Its subsequent combined integration records 11 distinct passing Android cases,
+including actual public-feed initialization and simulated failed-fetch recovery.
+Use that newer evidence for the current layout; physical/authenticated acceptance
+remains open.
 
 ## Android-owned announcement feed — 2026-10-06
 

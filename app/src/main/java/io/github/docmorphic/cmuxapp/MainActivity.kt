@@ -49,8 +49,9 @@ open class MainActivity : ComponentActivity() {
             try { PhoneFcmWork.recover(applicationContext) }
             catch (_: Exception) { currentCoroutineContext().ensureActive() }
         }
+        val suppressNoticeLaunch = BuildConfig.DEBUG && intent?.getBooleanExtra(SUPPRESS_WHATS_NEW_EXTRA, false) == true
         setContent {
-            CmuxTheme {
+            CompositionLocalProvider(LocalSuppressWhatsNewLaunch provides suppressNoticeLaunch) { CmuxTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var nativeMode by remember { mutableStateOf(true) }
                     LaunchedEffect(launchRoutes) {
@@ -69,7 +70,7 @@ open class MainActivity : ComponentActivity() {
                         })
                     else BridgeScreen(onUseNative = { nativeMode = true })
                 }
-            }
+            } }
         }
     }
 

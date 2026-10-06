@@ -9,8 +9,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.util.Locale
 
-internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
-    private val feed = NativeWhatsNewFeed()
+internal class NativeWhatsNewViewModel(context: Context,
+    private val feed: NativeWhatsNewFeed = NativeWhatsNewFeed(),
+    private val fetchFeed: suspend () -> String = feed::fetch) : ViewModel() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val replay = if (BuildConfig.DEBUG) NativeWhatsNewReplay() else null
     val webArchive = NativeNoticeArchiveOwner(context.applicationContext, scope)
@@ -41,7 +42,7 @@ internal class NativeWhatsNewViewModel(context: Context) : ViewModel() {
             }
             mutable.value = loaded
             // Fetch only Android-owned metadata. Failure retains cached/compiled native pages.
-            withContext(Dispatchers.IO) { loaded.refresh(feed::fetch) }
+            withContext(Dispatchers.IO) { loaded.refresh(fetchFeed) }
         }
     }
     override fun onCleared() { feed.close(); replay?.dismiss(); presentation?.close(); webArchive.close(); scope.cancel(); mutable.value?.close() }

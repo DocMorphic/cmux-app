@@ -25,21 +25,21 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
-- Native notice UI now follows the iOS archive regular/compact/scroll tiers and
-  separate compact launch-sheet layout, with feature symbols, centered headings,
-  announcement badges and a stable/nightly pairing compatibility section.
-  Debug replay selects and freezes an update range without real acknowledgement.
-  **31 focused JVM cases and main/instrumentation compilation passed.**
-  New archive fitting/accessibility and replay marker checks are queued for the
-  combined feed/UI integration milestone. See [NOTICE_LAYOUT_REPLAY.md](NOTICE_LAYOUT_REPLAY.md).
+- Combined notice feed/UI milestone: **all 11 distinct Android cases now have
+  passing evidence** across initial and focused follow-up runs; **22 JVM cases
+  passed**. This covers regular/compact/scroll archive layouts, replay without
+  acknowledgement, debug launch suppression, short/long/back sheet resizing,
+  actual public-feed initialization and saved-ledger recovery with a failed
+  fetch, plus visible local web rendering/retry. Fixed TLS cleanup on Main and
+  a natural-height cache invalidation that left short sheets full-height.
+  Enlarged-text/disabled-animation and landscape variants passed; screenshots
+  inspected. Sole emulator and Gradle stopped; no additional AVD or signed
+  promotion. Real OS offline/process restart, cookie exchange and physical
+  acceptance remain open. See [NOTICE_LAYOUT_REPLAY.md](NOTICE_LAYOUT_REPLAY.md#combined-feedui-integration--2026-10-06).
 
-- Android What's New now fetches an Android-owned feed from this public repo.
-  The initial feed preserves the existing two native IDs, with no new release
-  claims or production override. Anonymous bounded HTTP, full-endpoint cache
-  separation and IO persistence are wired to the existing center. **40 JVM
-  cases and main/instrumentation compilation passed**; no APK or device run.
-  Configured-feed cold start, offline restart and physical/authenticated web
-  acceptance remain open. See [WHATS_NEW.md](WHATS_NEW.md#android-owned-announcement-feed--2026-10-06)
+- The Android-owned public notice feed retains the existing two native IDs, with
+  no new release claim or production override. Endpoint maintenance and bounded
+  anonymous transport are documented in [WHATS_NEW.md](WHATS_NEW.md#android-owned-announcement-feed--2026-10-06)
   and [feed maintenance](../distribution/README.md).
 
 - Combined composer layout/menu milestone: **12/12 initial Android cases passed**;

@@ -66,9 +66,15 @@ internal class NativeWhatsNewFeed(endpoint: String = URL) : AutoCloseable {
 
     override fun close() {
         if (closed.compareAndSet(false, true)) {
-            client.dispatcher.cancelAll()
-            client.connectionPool.evictAll()
-            client.dispatcher.executorService.shutdown()
+            // Closing idle TLS sockets may write close_notify. ViewModel retirement is
+            // on Main, so drain this owned pool on its worker before shutting it down.
+            val worker = client.dispatcher.executorService
+            worker.execute {
+                try {
+                    client.dispatcher.cancelAll()
+                    client.connectionPool.evictAll()
+                } finally { worker.shutdown() }
+            }
         }
     }
     companion object {

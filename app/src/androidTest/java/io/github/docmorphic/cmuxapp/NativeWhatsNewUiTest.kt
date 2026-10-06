@@ -43,9 +43,9 @@ class NativeWhatsNewUiTest {
         compose.setContent { CmuxTheme {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, 1f)) {
-                Box(Modifier.size(width = 360.dp, height = height.dp)) {
+                Surface { Box(Modifier.size(width = 360.dp, height = height.dp)) {
                     NativeWhatsNewPageBody(page, NativeMacCompatibilityPolicy.baked)
-                }
+                } }
             }
         } }
         compose.onNodeWithTag("whatsnew.layout.regular").assertIsDisplayed()
@@ -92,6 +92,27 @@ class NativeWhatsNewUiTest {
             assertNull(store.values[NativeWhatsNewCenter.MARKER])
         }
     }
+    @Test fun debugSuppressionKeepsArchiveAndUnseenStateUntilNormalPresentation() {
+        val store = Store()
+        val center = NativeWhatsNewCenter(NativeWhatsNewCatalog.pages, "0.2.0", WhatsNewChannel.DEV, store)
+        runBlocking { center.refresh() }
+        val presentation = NativeWhatsNewPresentation(center)
+        var suppressed by mutableStateOf(true)
+        var archive by mutableStateOf(false)
+        compose.setContent { CmuxTheme {
+            CompositionLocalProvider(LocalSuppressWhatsNewLaunch provides suppressed) {
+                NativeWhatsNewHost(center, presentation, "account", true, archive, { archive = false },
+                    NativeMacCompatibilityPolicy.baked)
+            }
+        } }
+        compose.onNodeWithTag("whatsnew.sheet").assertDoesNotExist()
+        compose.runOnIdle { assertNull(store.values[NativeWhatsNewCenter.MARKER]); archive = true }
+        compose.onNodeWithTag("whatsnew.archive").assertIsDisplayed()
+        compose.onNodeWithTag("whatsnew.archive.back").performClick()
+        compose.runOnIdle { assertEquals(2, center.state.value.unseen.size); suppressed = false }
+        compose.waitUntil(5000) { presentation.state.value?.appeared == true }
+        compose.runOnIdle { assertNotNull(store.values[NativeWhatsNewCenter.MARKER]) }
+    }
     @Test fun selectedNativeContentResizesSheetAndLongPageKeepsControlsVisible() {
         val short = WhatsNewPage("short", "Small update", WhatsNewBody.Features(listOf(
             WhatsNewFeature("One change", "A short explanation.")
@@ -107,6 +128,12 @@ class NativeWhatsNewUiTest {
                     NativeMacCompatibilityPolicy.baked, null, {}, {}, {})
             }
         } }
+        // Android layout starts the height animation after composition. Wait for the
+        // observable fitted result instead of capturing its first full-height frame.
+        compose.waitUntil(5000) {
+            compose.onNodeWithTag("whatsnew.sheet").fetchSemanticsNode().boundsInRoot.height <
+                compose.activity.window.decorView.height * .6f
+        }
         compose.waitForIdle()
         val compact = compose.onNodeWithTag("whatsnew.sheet").fetchSemanticsNode().boundsInRoot.height
         capture("fitted-short")
@@ -119,6 +146,9 @@ class NativeWhatsNewUiTest {
         compose.onNodeWithTag("whatsnew.close").assertIsDisplayed()
         capture("fitted-long-scrolled")
         compose.onNodeWithTag("whatsnew.pager").performTouchInput { swipeRight() }
+        compose.waitUntil(5000) {
+            kotlin.math.abs(compose.onNodeWithTag("whatsnew.sheet").fetchSemanticsNode().boundsInRoot.height - compact) < 2f
+        }
         compose.waitForIdle()
         val restored = compose.onNodeWithTag("whatsnew.sheet").fetchSemanticsNode().boundsInRoot.height
         assertEquals(compact, restored, 2f)
