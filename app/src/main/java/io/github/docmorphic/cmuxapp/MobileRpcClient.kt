@@ -146,6 +146,7 @@ class MobileRpcClient internal constructor(
 
     /** Public locator chosen by the saved-record boundary after authenticated connection, never a bearer. */
     internal var authenticatedSavedRouteCode: String? = null
+    internal var confirmedTailscaleUpgrade: NativeConfirmedTailscaleUpgrade? = null
 
     /** Transfers ownership of this handle to a caller-local ticket view; the pooled wire is unchanged. */
     internal fun withAttachTicket(context: MobileAttachTicketContext?, admitted: () -> Unit): MobileRpcClient {

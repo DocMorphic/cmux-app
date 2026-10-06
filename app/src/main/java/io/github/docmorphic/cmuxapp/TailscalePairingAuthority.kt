@@ -270,12 +270,16 @@ internal class TailscalePairingAuthority(
                 val device = status.optString("mac_device_id")
                 require(device.isNotBlank() && device == device.trim() && device.length <= 128) { "The Mac did not provide a valid device identity." }
                 capturedExpected?.requireMatchingHost(status)
-                val learnedBuild = savedRoute?.verifyHost(status, owner)
-                if (learnedBuild != null) {
+                val legacyConfirmation = if (consent != null && saved != null && saved.build == null &&
+                    capturedExpected != null && capturedExpected.instanceTag == null)
+                    NativeSavedTailscaleRouteAdmission(capturedExpected, saved) { allowed() } else null
+                legacyConfirmation?.requireBinding(pairing, owner)
+                val learnedBuild = (savedRoute ?: legacyConfirmation)?.verifyHost(status, owner)
+                if (learnedBuild != null && consent == null) {
                     learnedRoutePermits.set(savedRouteAdmission(owner, checkNotNull(saved).copy(build = learnedBuild)))
                     requireAllowed() // Apply this now-known build's method before session-ticket/workspace admission.
                 }
-                if (savedRoute == null) saved?.let { check(it.matches(status)) { "This route reaches a different Mac or cmux installation. Pair the intended Mac again." } }
+                if (savedRoute == null && legacyConfirmation == null) saved?.let { check(it.matches(status)) { "This route reaches a different Mac or cmux installation. Pair the intended Mac again." } }
                 attachTicket?.requireHost(status)
                 savedTicket?.mac?.requireMatchingHost(status)
                 // The old ticket's untagged binding is not the host's newly learned
@@ -297,9 +301,17 @@ internal class TailscalePairingAuthority(
                     val build = status.optString("mac_instance_tag").takeIf { !status.isNull("mac_instance_tag") && it.isNotBlank() }
                     val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId, source,
                         canonicalMacDeviceId(device), build, route)
-                    grants.save(owner, grant, replacing, permits = ::allowed)
-                    promoted.set(grant)
-                    synchronized(lock) { if (consents[source] == consent) consents.remove(source) }
+                    fun activateGrant() {
+                        promoted.set(grant)
+                        synchronized(lock) { if (consents[source] == consent) consents.remove(source) }
+                    }
+                    if (legacyConfirmation != null && learnedBuild != null) {
+                        client.confirmedTailscaleUpgrade = NativeConfirmedTailscaleUpgrade(owner, legacyConfirmation.mac,
+                            checkNotNull(saved), grant, { check(!client.isClosed) { "Pairing connection closed" }; requireAllowed() }, ::activateGrant)
+                    } else {
+                        grants.save(owner, grant, replacing, permits = ::allowed)
+                        activateGrant()
+                    }
                 }
                 // Bind the public ticket locator to the already authenticated exact
                 // numeric destination (the original grant may have a DNS/multi-route source).

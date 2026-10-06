@@ -253,6 +253,31 @@ class NativeTicketPairingRuntimeTest {
         } finally { store.clear(); context.deleteSharedPreferences(name) }
     }
 
+    @Test fun confirmedLegacyGrantAndUnscopedHistorySurviveAtomicKeystoreUpgrade() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "confirmed-legacy-${UUID.randomUUID()}"
+        val store = NativeCredentialStore(context, name)
+        try {
+            val code = "cmux-ios://attach?v=2&r=mac.tail.ts.net%3A58465&ub=fixture-user"
+            val old = NativeCredentialStore.PairedMac(code, "fixture-mac", "Old Mac")
+            val pairing = PairingCodeParser.parse(code).getOrThrow() as PairingCode.Tailscale
+            val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId,
+                TailscaleGrantStore.source(pairing), old.deviceId, null, PairingCode.Route("100.64.0.7", 58465))
+            store.update { it.put("task_session", owner.login).put("refresh_token", "synthetic-refresh")
+                .put("pairings", JSONArray().put(NativePairingRecords.encode(old))).put("computer_selection", old.origin) }
+            TailscaleGrantStore(store::load, store::update).save(owner, grant) { true }
+            val replacement = grant.copy(id = UUID.randomUUID().toString(), build = "default", route = PairingCode.Route("100.64.0.8", 58465))
+            var activated = false
+            val upgrade = NativeConfirmedTailscaleUpgrade(owner, old, grant, replacement, {}, { activated = true })
+            val result = upgrade.commit(store::update, old.copy(instanceTag = "default"))
+            val restored = NativeCredentialStore(context, name)
+            assertTrue(activated); assertEquals(listOf(result), restored.pairedMacs())
+            assertEquals(old.origin, result.origin); assertEquals(owner.userId, result.accountUserId)
+            assertEquals(old.origin, restored.load()!!.getString("computer_selection"))
+            assertEquals(replacement, TailscaleGrantStore(restored::load, restored::update).find(owner, grant.source))
+        } finally { store.clear(); context.deleteSharedPreferences(name) }
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()

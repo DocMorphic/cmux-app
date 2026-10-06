@@ -25,6 +25,17 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Fresh confirmation of an older saved Mac now takes the explicit pairing path
+  and commits its new address grant and saved identity together. Existing
+  unscoped ownership/history survives; revocation, removal, hiding, account
+  changes and write failures cannot leave a partial upgrade. The admitted session
+  switches to its new grant after commit. **108 focused JVM tests passed**;
+  main/instrumentation Kotlin compiled (20 s final run). New Keystore case is
+  compiled only. Confirmation UI/session continuity and actual Mac/Pixel upgrade
+  remain queued; broader legacy metadata reconciliation remains. No APK/AVD run.
+  See `ATTACH_TICKETS.md`, `TAILSCALE_CONNECTION.md` and local
+  `captures/runtime/confirmed-legacy-upgrade/`.
+
 - Background workspace feeds and the notification service now persist authenticated
   identity/locator upgrades and retire the captured session before subscribing or
   delivering data. Selection remains on the same computer; foreground reconnect

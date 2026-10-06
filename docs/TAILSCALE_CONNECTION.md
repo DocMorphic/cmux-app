@@ -549,3 +549,39 @@ fresh explicit confirmation against an old untagged grant, broader legacy
 metadata reconciliation and the full connection/device matrix. This supersedes
 the preceding foreground-only implementation limitation, not its outstanding
 physical acceptance gates. Global upstream pins remain unchanged.
+
+## Fresh confirmation of an older saved Mac (2026-10-06)
+
+Visible pairing confirmation now uses the explicit connection path even when a
+saved record already exists. Ordinary saved reconnect and external ticket reuse
+keep their captured method/route rules. An explicit attempt retains its chosen
+route while its own saved-record write changes metadata; its next independent
+reconnect again uses saved settings.
+
+When a previously untagged saved grant reaches a newly tagged host, explicit
+confirmation checks the device and any provisional build, then authenticates
+workspace access and compatibility. The session keeps the fresh confirmation in
+memory until the foreground transaction can save both the new numeric grant and
+the upgraded record. This permits a newly confirmed address without losing the
+old grant's ownership proof for historical unscoped rows. Stable origins and
+selection survive, obsolete tickets are removed, and a fresh attach ticket can
+be installed in the same transaction. No new grant is persisted on host status
+alone or merely by creating the pending upgrade.
+
+The transaction rechecks the original grant and captured row. A forgotten,
+hidden, revoked, closed, wrong-account or failed-write attempt cannot partially
+promote the new grant. Once committed, the same explicitly admitted session
+switches to the new exact grant; a second commit of that attempt is rejected.
+
+Verification: **108 focused JVM tests passed**, no failures/errors/skips;
+main and instrumentation Kotlin compiled in 20 seconds on the final run (initial
+pass: 38 seconds). Cases cover scoped/unscoped history, changed numeric address,
+explicit method override, denial/sibling mismatch and failure races. The new
+Keystore reload case is compiled only; actual confirmation UI/session continuity,
+Keystore execution and Pixel/Mac acceptance await the next integration milestone.
+Evidence/source hashes: local `captures/runtime/confirmed-legacy-upgrade/`.
+No APK, emulator or signed release was built. Global upstream pins are unchanged.
+
+This closes the previously recorded implementation gap for fresh confirmation
+against an old grant-backed saved row. Broader legacy metadata reconciliation and
+physical connection acceptance remain open; this is not a full-parity claim.

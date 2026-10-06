@@ -107,6 +107,81 @@ class TailscalePairingAuthorityTest {
         return f
     }
 
+    private suspend fun legacyConfirmationFixture(scoped: Boolean = false): Fixture {
+        val f = Fixture(); f.build = ""; f.authorize(); f.connect().close()
+        val old = NativeCredentialStore.PairedMac("cmux-ios://attach?v=2&r=mac.tail.ts.net%3A58465&ub=user", "mac", "Old Mac")
+            .let { if (scoped) NativePairingRecords.scoped(it, f.scope!!) else it }
+        f.expected = old
+        f.state.put("pairings", org.json.JSONArray().put(NativePairingRecords.encode(old)))
+            .put("computer_selection", old.origin)
+        f.build = "default"; f.manual = true; f.authorize()
+        return f
+    }
+
+    @Test fun freshLegacyConfirmationCommitsChangedNumericGrantAndHistoryTogetherAfterAuthentication() = runBlocking<Unit> {
+        for (scoped in listOf(false, true)) {
+            val f = legacyConfirmationFixture(scoped)
+            try {
+                val old = f.expected!!; val original = f.grant()!!
+                f.numeric = PairingCode.Route("100.99.1.9", 58465)
+                f.routeAllowed = false // Explicit in-app confirmation owns this attempt despite saved Direct policy.
+                f.connect().use { client ->
+                    assertEquals(original, f.grant())
+                    assertEquals(old, NativePairingRecords.decode(f.state.getJSONArray("pairings").getJSONObject(0)))
+                    val upgrade = checkNotNull(client.confirmedTailscaleUpgrade)
+                    val result = upgrade.commit({ change ->
+                        val next = JSONObject(f.state.toString()); change(next); f.state = next
+                    }, old.copy(instanceTag = "default"))
+                    assertEquals(old.origin, result.origin); assertEquals("default", result.instanceTag)
+                    assertEquals(old.origin, f.state.getString("computer_selection"))
+                    assertEquals(f.numeric, f.grant()!!.route); assertEquals("default", f.grant()!!.build)
+                    assertEquals("user" to "team", NativePairingRecords.owner(result, f.grants))
+                    assertEquals(1, f.state.getJSONArray("pairings").length())
+                    client.workspaces() // The same admitted session survives its atomic promotion.
+                    assertTrue(runCatching { upgrade.commit({}, result) }.isFailure)
+                }
+            } finally { f.authority.close() }
+        }
+    }
+
+    @Test fun freshLegacyConfirmationRejectsForgetGrantRemovalAndWriteFailureWithoutPartialPromotion() = runBlocking<Unit> {
+        for (mode in listOf("forget", "grant", "write", "hidden", "account", "closed")) {
+            val f = legacyConfirmationFixture()
+            try {
+                f.connect().use { client ->
+                    val upgrade = checkNotNull(client.confirmedTailscaleUpgrade)
+                    when (mode) {
+                        "forget" -> f.state.put("pairings", org.json.JSONArray())
+                        "grant" -> f.state.remove("tailscale_grants_v1")
+                        "hidden" -> NativeComputerVisibility.setVisible(f.state, f.scope!!.login, f.expected!!, false) { true }
+                        "account" -> f.switch(null)
+                        "closed" -> client.close()
+                    }
+                    val before = f.state.toString()
+                    assertTrue(runCatching { upgrade.commit({ change ->
+                        val next = JSONObject(f.state.toString()); change(next)
+                        check(mode != "write") { "Storage unavailable" }; f.state = next
+                    }, f.expected!!.copy(instanceTag = "default")) }.isFailure)
+                    assertEquals(before, f.state.toString())
+                }
+            } finally { f.authority.close() }
+        }
+    }
+
+    @Test fun freshLegacyConfirmationDenialAndSiblingMismatchNeverChangeGrant() = runBlocking<Unit> {
+        for (mode in listOf("denied", "sibling")) {
+            val f = legacyConfirmationFixture(true)
+            try {
+                val original = f.grant()!!
+                if (mode == "denied") f.rejectWorkspace = true
+                else f.expected = f.expected!!.copy(nativeRouteCode = PairingCodeParser.computer(
+                    IrohV2Computer("r", "a".repeat(64), "mac", "nightly", "Mac", emptyList()), f.scope!!))
+                assertTrue(runCatching { f.connect() }.isFailure)
+                assertEquals(original, f.grant()); assertTrue(f.transports.last().closed)
+            } finally { f.authority.close() }
+        }
+    }
+
     @Test fun legacySavedRouteVerifiesLearnedBuildAndUsesManualTicketInsteadOfOldUntaggedBearer() = runBlocking<Unit> {
         val f = legacySavedFixture()
         try {

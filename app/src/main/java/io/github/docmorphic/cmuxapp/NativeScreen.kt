@@ -1793,8 +1793,12 @@ internal fun NativeScreen(
         }
     }
 
+    // A visible pairing confirmation owns its chosen route for this attempt.
+    // Its own atomic saved-record upgrade must not cancel that live admission.
+    val explicitPairingAttempt = remember(signedIn, code, retry) { pairingSelectionCode == code }
     LaunchedEffect(signedIn, code, retry, deferStartupForPairing,
-        nativeForegroundReconnectKey(computerState, pairedMacs, teamState.scope, code)) {
+        if (explicitPairingAttempt) NativeForegroundReconnectKey(teamState.scope, null, null, null)
+        else nativeForegroundReconnectKey(computerState, pairedMacs, teamState.scope, code)) {
         if (deferStartupForPairing) return@LaunchedEffect
         if (pendingPickerCode != code) pendingPickerCode = null
         if (pairingSelectionCode != code) pairingSelectionCode = null
@@ -1830,7 +1834,7 @@ internal fun NativeScreen(
             val active = if (ticketAttempt != null) {
                 check(ticketPairing.isCurrent(ticketAttempt) && ticketAttempt.owner == pairingOwner) { "Pairing or account changed" }
                 connection.connectTicket(pairing, ticketAttempt.ticket, account, ticketAttempt.admission)
-            } else if (saved != null) connection.connectSaved(saved, account) else connection.connectPairing(pairing, account)
+            } else if (saved != null && !explicitPairingAttempt) connection.connectSaved(saved, account) else connection.connectPairing(pairing, account)
             try {
                 val status = active.hostStatus()
                 require(status.optString("mac_device_id").isNotBlank()) { "The Mac did not provide its device identity." }
@@ -1855,7 +1859,12 @@ internal fun NativeScreen(
                 ensureActive()
                 if (code != requestedCode || !signedIn) throw CancellationException("Connection changed")
                 requireCurrentReconnect()
-                val remembered = if (ticketAttempt != null && pairingOwner != null) {
+                val upgrade = active.confirmedTailscaleUpgrade
+                val remembered = if (upgrade != null && pairingOwner != null) {
+                    check(upgrade.owner == pairingOwner && accountTeams.isCurrent(pairingOwner)) { "Account or team changed" }
+                    if (ticketAttempt != null) check(ticketPairing.isCurrent(ticketAttempt)) { "Pairing changed" }
+                    upgrade.commit(store::update, verified, ticketAttempt?.ticket, teamState.email)
+                } else if (ticketAttempt != null && pairingOwner != null) {
                     store.rememberAuthenticatedTicketMac(verified, pairingOwner, ticketAttempt.ticket, teamState.email,
                         expected = saved ?: capturedReconnect) {
                         accountTeams.isCurrent(pairingOwner) && signedIn && code == requestedCode && ticketPairing.isCurrent(ticketAttempt)
@@ -1866,7 +1875,7 @@ internal fun NativeScreen(
                     store.rememberMac(verified.code, verified.deviceId, verified.name, verified.instanceTag, expected = capturedReconnect ?: saved)
                     verified
                 }
-                if (remembered.code != requestedCode || (ticketAttempt == null && saved != null && saved.instanceTag != remembered.instanceTag)) {
+                if (remembered.code != requestedCode || (upgrade == null && ticketAttempt == null && saved != null && saved.instanceTag != remembered.instanceTag)) {
                     active.close()
                     savedPairedMacs = store.pairedMacs()
                     if (expectedReconnect == capturedReconnect) expectedReconnect = null
