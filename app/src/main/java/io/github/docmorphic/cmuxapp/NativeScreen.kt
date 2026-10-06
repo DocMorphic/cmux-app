@@ -210,7 +210,6 @@ internal fun NativeScreen(
     // when another surface opens or an expiry wakeup precedes a clock adjustment.
     val currentMacMutationAllowed = client?.allowsMacWorkspaceMutations() == true
     var savedPairedMacs by remember { mutableStateOf(store.pairedMacs()) }
-    LaunchedEffect(store, historyRevision) { savedPairedMacs = store.pairedMacs() }
     val eligibleMacs = savedPairedMacs.filter {
         connection.allowsSaved(it)
     }
@@ -538,6 +537,16 @@ internal fun NativeScreen(
 
     var pendingPickerCode by remember(signedIn) { mutableStateOf<String?>(null) }
     var expectedReconnect by remember(signedIn) { mutableStateOf<NativeCredentialStore.PairedMac?>(null) }
+    LaunchedEffect(store, historyRevision) {
+        val latest = store.pairedMacs()
+        val selected = savedPairedMacs.singleOrNull { it.code == code }
+        val successor = refreshedNativeSavedSelection(selected, latest, teamState.scope)
+        if (selected != null && successor != null && successor != selected && !ticketPairing.requiresTicket(code)) {
+            code = successor.code
+            if (expectedReconnect == selected) expectedReconnect = successor
+        }
+        savedPairedMacs = latest
+    }
     val pendingPickerComputer = pairedMacs.singleOrNull { it.code == pendingPickerCode }
     val macSwitchRecovery = feedSession.macSwitchRecovery
     fun switchOwner() = store.taskSession()?.takeIf { signedIn }?.let { NativeMacSwitchRecovery.Owner(it, teamState.scope) }

@@ -80,6 +80,14 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             } catch (failure: Throwable) { client.close(); throw failure }
         }
         override fun authorizePairing(pairing: PairingCode.Tailscale) = tailscale.authorizePairing(pairing)
+        override suspend fun refreshSavedIdentity(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient,
+                                                 status: org.json.JSONObject): Boolean = withContext(Dispatchers.IO) {
+            val team = checkNotNull(teams.state.value.scope) { "Account or team changed" }
+            val permits = { teams.isCurrent(team) && !client.isClosed && allowsSaved(mac) && store.visiblePairedMacs().contains(mac) }
+            refreshNativeSavedIdentity(mac, client.authenticatedSavedRouteCode ?: mac.code, status, team, permits,
+                authenticate = { client.workspaces() },
+                persist = { incoming -> store.refreshAuthenticatedMac(incoming, team, mac) { teams.isCurrent(team) } })
+        }
         override fun pairingCompatibilityError(pairing: PairingCode): String? =
             (pairing as? PairingCode.Iroh)?.buildTag?.takeUnless(compatibility.audience::allowsTag)
                 ?.let { MacBuildNotSupported().message }

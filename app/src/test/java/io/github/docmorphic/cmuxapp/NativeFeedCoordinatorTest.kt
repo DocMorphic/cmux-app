@@ -11,6 +11,32 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class NativeFeedCoordinatorTest {
+    @Test fun identityRefreshClosesOldFeedBeforeSubscribingAndReconcilesNewRecord() = runBlocking {
+        FeedPeer("a").use { peer ->
+            val old = mac("a")
+            val next = old.copy(instanceTag = "default")
+            var current = old
+            var retired: MobileRpcClient? = null
+            var refreshes = 0
+            val verified = mutableListOf<NativeCredentialStore.PairedMac>()
+            val coordinator = NativeFeedCoordinator(this, { peer.connect() }, { it == current },
+                onVerified = { verified += it }, refreshIdentity = { row, client, _ ->
+                    if (row == old) {
+                        client.workspaces(); retired = client; current = next; refreshes++; true
+                    } else false
+                })
+            try {
+                coordinator.updateMacs(listOf(old))
+                awaitState { retired?.isClosed == true }
+                assertTrue(verified.isEmpty())
+                assertTrue(peer.requests.none { it.optString("method") == "mobile.events.subscribe" })
+                coordinator.updateMacs(listOf(next))
+                awaitState { coordinator.sources.value[next.origin]?.hasWorkspaceSnapshot == true }
+                assertEquals(listOf(next), verified); assertEquals(1, refreshes)
+            } finally { coordinator.close() }
+        }
+    }
+
     @Test fun downloadedPanelAdmissionSurvivesWireLossWithoutRebindingRequests() = runBlocking {
         FeedPeer("a").use { peer ->
             peer.panelArtifactsSupported = true

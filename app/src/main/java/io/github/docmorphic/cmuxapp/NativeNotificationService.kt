@@ -87,6 +87,7 @@ class NativeNotificationService : Service() {
                             val active = client
                             val status = active.hostStatus()
                             mac.requireMatchingHost(status)
+                            if (connector.refreshSavedIdentity(mac, active, status)) break
                             val isCurrent = {
                                 isActive && login != null && store.taskSession() == login &&
                                     isEnabled(this@NativeNotificationService) && account.isSignedIn() &&

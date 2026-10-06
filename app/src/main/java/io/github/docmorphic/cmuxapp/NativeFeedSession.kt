@@ -39,7 +39,8 @@ internal class NativeFeedSession(
                 terminalSizing.allowsTraffic(owner, surface) }
         }
     }, isAllowed = { mac -> account.isSignedIn() && store.visiblePairedMacs().contains(mac) &&
-        connector.allowsSaved(mac) }, workspaceSnapshots = workspaceSnapshots, onVerified = ::recordMacSeen)
+        connector.allowsSaved(mac) }, workspaceSnapshots = workspaceSnapshots, onVerified = ::recordMacSeen,
+        refreshIdentity = connector::refreshSavedIdentity)
 
     fun recordMacSeen(mac: NativeCredentialStore.PairedMac) {
         val login = store.taskSession()

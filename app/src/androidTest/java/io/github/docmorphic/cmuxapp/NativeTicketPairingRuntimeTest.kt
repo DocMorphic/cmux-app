@@ -229,6 +229,30 @@ class NativeTicketPairingRuntimeTest {
         } finally { store.clear(); context.deleteSharedPreferences(name) }
     }
 
+    @Test fun backgroundBuildRefreshPreservesAnotherSelectedComputerAcrossKeystoreReload() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "background-build-${UUID.randomUUID()}"
+        val store = NativeCredentialStore(context, name)
+        try {
+            val code = "cmux-ios://attach?v=2&r=100.64.0.7:58465&ub=fixture-user"
+            val pairing = PairingCodeParser.parse(code).getOrThrow() as PairingCode.Tailscale
+            val old = NativePairingRecords.scoped(NativeCredentialStore.PairedMac(code, "fixture-mac", "Mac"), owner)
+            val grant = TailscaleSavedGrant(UUID.randomUUID().toString(), owner.userId, owner.teamId,
+                TailscaleGrantStore.source(pairing), old.deviceId, null, pairing.routes.single())
+            store.update { it.put("task_session", owner.login).put("refresh_token", "synthetic-refresh")
+                .put("pairings", JSONArray().put(NativePairingRecords.encode(old)))
+                .put("computer_selection", "other-origin").put("pairing_code", "other-computer") }
+            TailscaleGrantStore(store::load, store::update).save(owner, grant) { true }
+            store.refreshAuthenticatedMac(old.copy(instanceTag = "default"), owner, old) { true }
+            val restored = NativeCredentialStore(context, name)
+            assertEquals("default", restored.pairedMacs().single().instanceTag)
+            assertEquals(old.origin, restored.pairedMacs().single().origin)
+            assertEquals(grant.copy(build = "default"), TailscaleGrantStore(restored::load, restored::update).find(owner, grant.source))
+            assertEquals("other-origin", restored.load()!!.getString("computer_selection"))
+            assertEquals("other-computer", restored.load()!!.getString("pairing_code"))
+        } finally { store.clear(); context.deleteSharedPreferences(name) }
+    }
+
     private fun capture(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()

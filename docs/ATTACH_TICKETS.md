@@ -876,3 +876,33 @@ Remaining: verify the one-time foreground restart on Android and a real upgraded
 Mac; inspect background-only identity adoption and fresh explicit confirmation
 against an old untagged grant. Broader legacy metadata reconciliation and Pixel/Mac
 connection acceptance remain open. Global upstream pins are unchanged.
+
+## Background identity refresh (2026-10-06)
+
+Workspace feeds and the notification service now refresh an older saved identity
+through their authenticated saved connection. The host must match the captured
+Mac and any provisional build; workspace authorization must succeed before the
+credential transaction runs. A changed build or retained native locator retires
+the old session before event subscription, push-key exchange or feed delivery.
+Store-revision reconciliation then opens a connection under the new saved row.
+
+The transaction retains history origins and another computer's selected locator.
+If the upgraded computer itself was selected, only its locator is retargeted.
+The foreground follows the scoped successor by its saved history identity, so a
+background upgrade does not leave an old reconnect selection behind. Wrong-owner,
+sibling, ambiguous, removed and hidden records cannot be adopted. No new raw
+address authority is inferred from discovery.
+
+Verification: **104 focused JVM tests passed**, no failures/errors/skips;
+main and instrumentation Kotlin compilation passed in 68 seconds. The feed test
+observes the old socket close before subscription and the replacement record
+produce a workspace snapshot. Persistence checks cover both another selected
+computer and the upgraded computer's own locator. The new Keystore reload case
+is compiled only and joins the next Android milestone. Local evidence/source
+hashes: `captures/runtime/background-identity-refresh/`. No APK or AVD was run.
+
+Remaining: physical foreground/feed/service upgrade and restart acceptance,
+fresh explicit confirmation against an old untagged grant, broader legacy
+metadata reconciliation and the full connection/device matrix. This supersedes
+the preceding foreground-only implementation limitation, not its outstanding
+physical acceptance gates. Global upstream pins remain unchanged.

@@ -94,6 +94,13 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         return checkNotNull(remembered)
     }
 
+    internal fun refreshAuthenticatedMac(incoming: PairedMac, team: NativeTeamScope, expected: PairedMac,
+                                        permits: () -> Boolean) {
+        check(permits()) { "Account or team changed. Reconnect to the Mac." }
+        update { state -> NativePairingPersistence.refresh(state, incoming, team, expected) }
+        check(permits()) { "Account or team changed. Reconnect to the Mac." }
+    }
+
     internal fun rememberAttachTicket(team: NativeTeamScope, expected: PairedMac, ticket: MobileAttachTicket,
                                      accountEmail: String?, permits: () -> Boolean): PairedMac {
         check(permits()) { "Account or team changed" }

@@ -29,6 +29,18 @@ class NativePairingPersistenceTest {
     private fun legacyNative(endpoint: String = "peer") = NativeCredentialStore.PairedMac(
         "cmux-ios://attach?v=3&i=$endpoint&d=mac&ub=user&t=team", "mac", "Legacy Mac")
 
+    @Test fun backgroundUpgradePreservesAnotherSelectionAndRetargetsOnlyItsOwnLocator() {
+        val old = legacyNative()
+        for (selection in listOf(null, "other-computer", old.code)) {
+            val state = state(old).put("computer_selection", "other-origin")
+            selection?.let { state.put("pairing_code", it) }
+            val result = NativePairingPersistence.refresh(state, native(), scope, old)
+            assertEquals("other-origin", state.getString("computer_selection"))
+            assertEquals(if (selection == old.code) result.code else selection, state.opt("pairing_code"))
+            assertEquals(old.origin, result.origin)
+        }
+    }
+
     @Test fun authenticatedLegacyNativeReconnectLearnsBuildAndPreservesActualDraftAndNotificationHistory() {
         val legacy = legacyNative()
         val state = state(legacy).put("computer_selection", legacy.origin)

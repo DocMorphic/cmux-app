@@ -5,6 +5,16 @@ import org.json.JSONObject
 
 /** A computer owns a stable origin; adding or upgrading a route does not create a new draft/notification namespace. */
 internal object NativePairingPersistence {
+    /** Background verification must not change the user's selected connection. */
+    fun refresh(state: JSONObject, incoming: NativeCredentialStore.PairedMac, team: NativeTeamScope,
+                expected: NativeCredentialStore.PairedMac): NativeCredentialStore.PairedMac {
+        val selected = state.opt("pairing_code")
+        val result = remember(state, incoming, team, expected)
+        if (selected == null) state.remove("pairing_code")
+        else state.put("pairing_code", if (selected == expected.code) result.code else selected)
+        return result
+    }
+
     fun remember(state: JSONObject, incoming: NativeCredentialStore.PairedMac,
                  team: NativeTeamScope? = null, expected: NativeCredentialStore.PairedMac? = null,
                  preferIncomingRoute: Boolean = false): NativeCredentialStore.PairedMac {

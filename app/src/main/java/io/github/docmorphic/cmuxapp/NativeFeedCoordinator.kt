@@ -15,7 +15,8 @@ internal class NativeFeedCoordinator(
     private val connect: suspend (NativeCredentialStore.PairedMac) -> MobileRpcClient,
     private val isAllowed: (NativeCredentialStore.PairedMac) -> Boolean,
     private val workspaceSnapshots: NativeWorkspaceSnapshots = NativeWorkspaceSnapshots(),
-    private val onVerified: (NativeCredentialStore.PairedMac) -> Unit = {}
+    private val onVerified: (NativeCredentialStore.PairedMac) -> Unit = {},
+    private val refreshIdentity: suspend (NativeCredentialStore.PairedMac, MobileRpcClient, JSONObject) -> Boolean = { _, _, _ -> false }
 ) : AutoCloseable {
     private class Handle(val mac: NativeCredentialStore.PairedMac, val revision: NativeFeedRevision, val routeKey: String?) {
         var client: MobileRpcClient? = null
@@ -154,6 +155,8 @@ internal class NativeFeedCoordinator(
                 handle.client = active
                 val status = active.hostStatus()
                 handle.mac.requireMatchingHost(status)
+                ensureActiveSession(handle)
+                if (refreshIdentity(handle.mac, active, status)) return
                 ensureActiveSession(handle)
                 handle.verified = true
                 onVerified(handle.mac)

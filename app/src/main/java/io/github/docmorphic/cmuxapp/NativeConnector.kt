@@ -14,6 +14,9 @@ fun interface NativeConnector {
         error("Ticket pairing is unavailable in this connection provider")
     suspend fun connectSaved(mac: NativeCredentialStore.PairedMac, account: NativeAccount): MobileRpcClient =
         connectPairing(PairingCodeParser.parse(mac.code).getOrThrow(), account)
+    /** True means storage changed: close this captured session before using it again. */
+    suspend fun refreshSavedIdentity(mac: NativeCredentialStore.PairedMac, client: MobileRpcClient,
+                                    status: org.json.JSONObject): Boolean = false
     fun allowsSaved(pairing: PairingCode): Boolean = true
     fun pairingCompatibilityError(pairing: PairingCode): String? = null
     fun allowsSaved(mac: NativeCredentialStore.PairedMac): Boolean =

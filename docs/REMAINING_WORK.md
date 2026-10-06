@@ -25,6 +25,16 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Background workspace feeds and the notification service now persist authenticated
+  identity/locator upgrades and retire the captured session before subscribing or
+  delivering data. Selection remains on the same computer; foreground reconnect
+  follows the scoped successor's history. **104 focused JVM tests passed**;
+  main/instrumentation Kotlin compiled (68 s). New Keystore reload case compiled
+  only; no APK/AVD/device run. Real foreground/feed/service restart acceptance,
+  fresh explicit confirmation against an old untagged grant and broader metadata
+  reconciliation remain. See `ATTACH_TICKETS.md`, `TAILSCALE_CONNECTION.md` and
+  `captures/runtime/background-identity-refresh/`.
+
 - Old raw Tailscale grants now support authenticated foreground build learning:
   exact address/device and any provisional build are checked, the learned method
   is applied before ticket/workspace admission, and row plus grant commit together.
