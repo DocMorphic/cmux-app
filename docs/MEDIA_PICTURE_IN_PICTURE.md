@@ -74,3 +74,55 @@ independence and is not a media-format acceptance result. No Pixel or signed
 release was used. Browser-process handoff, expansion/return/track retention,
 system-button interaction, account retirement and wider lifecycle acceptance
 remain open.
+
+## Expansion, return and accurate resume — 2026-10-06
+
+`ArtifactMediaPipReturnRuntimeTest` now opens an actual video preview, seeks to
+8 seconds, enters the system PiP window, taps Android's Expand control, changes
+audio/subtitles to French, sets speed to 1.5× and mute, and seeks to 12 seconds.
+Done returns the bookmark to the original preview paused; its private playback
+copy is removed while the source remains. Recreating that preview retains the
+choices and native audio track. Starting it resumes beyond 12 seconds at the
+native 1.5× speed, with a visibly rendered video and French subtitle.
+
+The integration exposed two production defects:
+
+- Black fullscreen surfaces inherited an unsuitable content color, hiding the
+  filename and timestamps. Both playback Activity and fullscreen Dialog now
+  explicitly use white content. The regression checks actual timestamp pixels.
+- `VideoView.seekTo(int)` used backward keyframe seeking. The original fixture's
+  keyframes are 25 seconds apart, so an apparent 12-second paused bookmark could
+  resume at zero. Prepared playback now calls `MediaPlayer.seekTo(long,
+  SEEK_CLOSEST)` for the closest frame. The test waits for seek completion, then
+  verifies position after playback starts; accepting the reported position while
+  a seek was pending had missed this defect. See the official
+  [MediaPlayer seek contract](https://developer.android.com/reference/android/media/MediaPlayer#seekTo(long,int)).
+
+Verification used the existing `cmux_api37_16k` AVD (Android 17, actual page size
+16384), with no new emulator or physical device. Both the new return case and
+existing track-selection/recreation case passed together in **52.496 seconds**.
+The final strengthened return case, including a wait for rendered video pixels,
+passed in **24.582 seconds**. Inspected final screenshots show the readable
+expanded filename/time and returned video with French cue, 1.5× and Unmute.
+Native position after resuming was **13472 ms**, retaining the 12-second bookmark.
+The Cloud machine failure/retry case also passed in the initial combined run;
+that run's media case failed before the test's PiP coordinates were corrected.
+
+Earlier attempts are preserved: the first tapped window-relative coordinates;
+the second passed weaker assertions but screenshots revealed hidden text and a
+zero-time resume; the third failed bookmark retention; the fourth passed native
+state checks but captured a transient black frame. The final test requires actual
+video pixels, not only player state. This is not one all-green broad suite.
+
+Evidence and build logs: `captures/runtime/media-pip-return/` (ignored by Git).
+Final debug APK SHA-256:
+`136ab36149678b5c48472e28498a896418813fbdd84c97035e240adc0f5722a3`.
+Final test APK SHA-256:
+`ed8fcf5450ad27378079958f44ef9b95f7da34e029812d03bb51bcbda4ea35da`.
+The boot/test event logs contain no ANR/crash events; the crash buffer is empty.
+Gradle stopped and the sole emulator was stopped and reaped after the run.
+
+This closes fixture coverage for expansion/return/track retention and the system
+Expand action. It does not prove browser-process handoff, Home/close/rotation,
+account retirement, process recovery, broad format behavior or physical Pixel
+playback. Published signed APK remains **616**; full parity is still unverified.

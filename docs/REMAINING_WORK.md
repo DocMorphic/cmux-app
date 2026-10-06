@@ -26,12 +26,21 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- PiP expansion and return now have Android 17 / 16 KiB runtime coverage for
+  position, French audio/subtitles, speed, mute, source recreation, visible video
+  and private-copy cleanup. Integration found and fixed backward keyframe snapping
+  on resume and black-on-black labels in the expanded/fullscreen player. Two media
+  cases passed together; the strengthened visible-frame follow-up also passed.
+  The existing sole AVD was stopped and reaped. Browser-process PiP, account
+  retirement, wider lifecycle and physical Pixel acceptance remain open. See
+  `MEDIA_PICTURE_IN_PICTURE.md` for failures, final evidence and limitations.
+
 - Cloud machine rows and workspace recovery now receive live connection failures,
   including attach/create/input/output errors, with stale-owner rejection and
   current-tunnel subscriptions. Retry includes these failures while preserving
   healthy connections. **47 JVM tests passed**; the new machine-row Android UI
-  case compiles but is pending runtime verification. No APK/emulator was built
-  or started in this batch. See `CLOUD_COMPANION.md`; real transport/physical
+  case subsequently passed in the combined media/Cloud integration run on the
+  existing Android 17 / 16 KiB AVD. See `CLOUD_COMPANION.md`; real transport/physical
   acceptance and autonomous-recovery comparison remain open.
 
 - Cloud explicit reconnect now waits for a newer verified catalog before attaching,

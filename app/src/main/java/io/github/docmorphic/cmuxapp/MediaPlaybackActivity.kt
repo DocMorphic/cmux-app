@@ -72,7 +72,7 @@ open class MediaPlaybackActivity : ComponentActivity() {
                     window.decorView.post { enterPip() }
                 }
             }
-            Surface(Modifier.fillMaxSize(), color = Color.Black) {
+            Surface(Modifier.fillMaxSize(), color = Color.Black, contentColor = Color.White) {
                 Column(if (compact) Modifier.fillMaxSize() else Modifier.fillMaxSize().safeDrawingPadding()) {
                     if (!compact) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
                         Text(checkNotNull(model.entry).files.file.name, Modifier.weight(1f).padding(vertical = 12.dp), maxLines = 1)

@@ -1403,3 +1403,13 @@ No APK build, emulator, physical device run or Cloud request occurred in this
 batch. Gradle was stopped. The full account UI/transport route, physical recovery,
 notifications provisioning, native billing and remaining iOS audit are still
 acceptance gates. Published signed APK remains 616; the full parity goal is active.
+
+Follow-up runtime verification: the new
+`terminalFailureIsVisibleAndRetryableEvenWithAHealthyCatalog` Android case passed
+on the existing Android 17 / 16 KiB AVD in the media/Cloud integration batch.
+It verifies a live terminal failure is visible beside a healthy catalog, offers
+explicit retry, invokes its callback once, and does not claim automatic recovery
+or expose raw diagnostics. The media case in that first batch failed separately;
+see `MEDIA_PICTURE_IN_PICTURE.md` for its fixes and follow-ups. Evidence is in
+`captures/runtime/media-pip-return/instrumentation-first.log`. No real Cloud
+account transport or physical Pixel workflow is established by this fixture.

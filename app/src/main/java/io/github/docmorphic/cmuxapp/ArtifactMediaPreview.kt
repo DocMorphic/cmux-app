@@ -192,7 +192,12 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         if (released) return
         state.position = if (state.prepared) ArtifactMediaControls.seek(msec, 0, state.duration) else msec.coerceAtLeast(0)
         seeking = true
-        super.seekTo(state.position)
+        // VideoView's integer seek snaps backward to a keyframe. That can discard
+        // seconds of a restored bookmark once playback starts (despite reporting
+        // the requested position while the seek is pending).
+        val current = player
+        if (state.prepared && current != null) current.seekTo(state.position.toLong(), MediaPlayer.SEEK_CLOSEST)
+        else super.seekTo(state.position)
         publishPlayback()
     }
     override fun start() {
@@ -374,7 +379,7 @@ internal fun ChangesMediaPreview(file: File) {
                 controller?.hide(WindowInsetsCompat.Type.systemBars())
                 onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
             }
-            Surface(Modifier.fillMaxSize(), color = Color.Black) {
+            Surface(Modifier.fillMaxSize(), color = Color.Black, contentColor = Color.White) {
                 ArtifactMediaContent(file, state, Modifier.safeDrawingPadding(), pipBusy = pipBusy, onPictureInPicture = pipAction) { fullscreen(false) }
             }
         }
