@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { preparePushJob } from './events.mjs';
+import { preparePushJob, preparePushBatch } from './events.mjs';
+import { fcmMessage } from './fcm.mjs';
 import { PushRegistrations } from './registrations.mjs';
 import { PushOutbox } from './outbox.mjs';
 import { PushDispatcher } from './dispatcher.mjs';
@@ -114,4 +115,70 @@ test('registered event integrates with encrypted outbox deduplication; rotation 
     return fakeSeal(args);
   } });
   assert.deepEqual(dispatcher.enqueue(stale.job), { kind: 'retired' });
+});
+
+test('large dismissals preserve every distinct ID in deterministic provider-sized parts', async () => {
+  const value = input(); value.event.kind = 'dismiss'; value.event.badgeCount = 0;
+  value.event.notificationIds = Array.from({ length: 300 }, (_, i) => `${i}-中😀\\\"${'x'.repeat(i % 170)}`);
+  value.event.notificationIds.push(value.event.notificationIds[2]);
+  const payloads = [];
+  const seal = args => { payloads.push(JSON.parse(args.plaintext)); return fakeSeal(args); };
+  const result = await preparePushBatch(value, { ...options, seal });
+  assert.equal(result.kind, 'prepared'); assert.ok(result.jobs.length > 1);
+  assert.deepEqual(payloads.flatMap(p => p.notificationIds), [...new Set(value.event.notificationIds)]);
+  assert.equal(new Set(result.jobs.map(j => j.eventID)).size, result.jobs.length);
+  for (const [i, job] of result.jobs.entries()) {
+    assert.equal(job.eventID, payloads[i].correlationId); assert.match(job.eventID, /^[a-f0-9-]{14}8[a-f0-9-]{21}$/);
+    assert.equal(job.delivery.expiresAt, value.expiresAt); assert.equal(payloads[i].expirationEpochSeconds, value.expiresAt / 1000);
+    assert.equal(payloads[i].badgeCount, 0);
+    assert.ok(Buffer.byteLength(JSON.stringify(fcmMessage(job.delivery, epoch).data)) <= 4096);
+  }
+  const repeat = await preparePushBatch(value, options);
+  assert.deepEqual(repeat, result); // Deterministic test seal; production ciphertext must be retained for retry.
+});
+
+test('batch planning rejects an impossible identity budget or part limit before encrypting any part', async () => {
+  const value = input(); value.event.kind = 'dismiss'; value.event.notificationIds = Array.from({ length: 100 }, (_, i) => `${i}-${'中'.repeat(190)}`);
+  const seal = () => assert.fail('must finish planning before encryption');
+  await assert.rejects(preparePushBatch(value, { ...options, seal, maxParts: 1 }), /exceeds capacity/);
+  value.authority.macInstallationID = '中'.repeat(1024);
+  await assert.rejects(preparePushBatch(value, { ...options, seal }), /cannot fit provider limit/);
+});
+
+test('single-part batches preserve the original correlation and content; oversized notify is not silently shortened', async () => {
+  const value = input(); const single = await preparePushBatch(value, options);
+  assert.deepEqual(single.jobs, [(await preparePushJob(value, options)).job]);
+  value.event.title = '中'.repeat(120); value.event.subtitle = '中'.repeat(120); value.event.body = '中'.repeat(500);
+  value.event.notificationId = '中'.repeat(200);
+  await assert.rejects(preparePushBatch(value, { ...options, seal: () => assert.fail('oversized notify must fail before encryption') }), /Invalid push event/);
+});
+
+test('batch expiry or encryption failure never returns a partial set of jobs', async () => {
+  const value = input(); value.event.kind = 'dismiss'; value.event.notificationIds = Array.from({ length: 100 }, (_, i) => `${i}-${'x'.repeat(180)}`);
+  let clock = epoch, calls = 0;
+  const expired = await preparePushBatch(value, { now: () => clock, seal: args => { calls++; clock = value.expiresAt; return fakeSeal(args); } });
+  assert.deepEqual(expired, { kind: 'expired' }); assert.equal(calls, 1);
+  calls = 0;
+  await assert.rejects(preparePushBatch(value, { ...options, seal: args => {
+    if (++calls === 2) throw new Error('fixture failure'); return fakeSeal(args);
+  } }), /fixture failure/);
+  assert.equal(calls, 2);
+});
+
+test('dispatcher admits a complete dismissal batch and retains no new jobs if its registration was revoked', async t => {
+  const directory = mkdtempSync(join(tmpdir(), 'cmux-event-batches-')); const key = Buffer.alloc(32, 42);
+  const registrations = new PushRegistrations({ directory, key }); const outbox = new PushOutbox({ directory, key, now: () => epoch });
+  const dispatcher = new PushDispatcher({ registrations, outbox, sender: { send: async () => ({ kind: 'accepted' }) }, policy: () => true });
+  t.after(async () => { await dispatcher.stop(); outbox.close(); registrations.close(); rmSync(directory, { recursive: true, force: true }); });
+  const value = input(); const { registration: ignored, ...enrollment } = value.registration;
+  value.registration = registrations.replace(enrollment); value.event.kind = 'dismiss';
+  value.event.notificationIds = Array.from({ length: 100 }, (_, i) => `${i}-${'x'.repeat(100)}`);
+  const result = await preparePushBatch(value, options), count = result.jobs.length;
+  assert.ok(count > 1); assert.deepEqual(dispatcher.enqueueBatch(result.jobs), { kind: 'queued', queued: count, duplicates: 0 });
+  assert.deepEqual(dispatcher.enqueueBatch(result.jobs), { kind: 'queued', queued: 0, duplicates: count });
+  registrations.revoke({ accountID: 'account', teamID: 'team' });
+  value.event.correlationID = '00000000-0000-4000-8000-000000000002';
+  const next = await preparePushBatch(value, options);
+  assert.deepEqual(dispatcher.enqueueBatch(next.jobs), { kind: 'retired' });
+  assert.equal(outbox.status().counts.pending, count);
 });

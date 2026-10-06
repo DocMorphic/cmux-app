@@ -1,5 +1,30 @@
 # Android background push
 
+## Large dismissal admission checkpoint — 2026-10-06
+
+`preparePushBatch` now plans provider-sized dismissal parts without dropping IDs.
+It measures nested JSON/base64/HPKE size, derives stable part correlation IDs and
+keeps the original expiry, badge, recipient and authority. Planning completes
+before encryption; actual ciphertext is checked again. Expiry or crypto errors
+return no partial batch. Impossible size/part bounds remain explicit errors.
+Oversized notify content still requires a retrieval/fallback integration.
+
+`PushDispatcher.enqueueBatch` verifies every binding/policy before atomic SQLite
+admission. Late capacity, identity conflict or insert failure rolls back the
+whole new batch; exact duplicates retain existing ciphertext. Retrying admission
+requires the retained sealed jobs, not freshly encrypted replacements. Local
+atomic admission does not make independently delivered FCM messages atomic.
+
+**61 checks passed** on both Node22.16.0 and Node26.8.2, with no skips on the Mac.
+Coverage includes real CryptoKit encryption of Unicode dismissal parts with nil
+tuple-field omission, deterministic ID coverage, late queue errors/rollback,
+reopen/retry, expiry and policy denial. An initial test run failed because a new
+test mutated shared reference-fixture data; cloning that fixture fixed test
+isolation, and the independent upstream decryptor passed in both final runs.
+Evidence: ignored `captures/runtime/push-dismiss-batches/`. No cloud resource,
+APK, emulator or phone state changed. Service enrollment/subscription, source
+event replay/backpressure, Firebase and physical acceptance remain open.
+
 ## Event sealing checkpoint — 2026-10-06
 
 The host can now prepare notify/dismiss events and encrypt them through a Mac

@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Large push dismissals now split into deterministic provider-sized parts with
+  complete ID coverage and atomic local queue admission. Late capacity, identity,
+  storage or authorization failures cannot admit only a prefix. **61 Node checks
+  passed** on Node22.16.0 and Node26.8.2, including actual Mac encryption sizing.
+  Source subscription/replay, oversized notify handling and real cloud/Pixel
+  delivery remain open. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#large-dismissal-admission-checkpoint--2026-10-06).
+
 - Push event preparation and Mac CryptoKit sealing now feed the existing queue
   contract with redacted/bounded content, independently matched identity and
   original event ID/expiry. **50 Node checks passed** on Node22.16.0 and Node26.8.2,

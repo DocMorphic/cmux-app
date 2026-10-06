@@ -32,6 +32,51 @@ function fixture(t, options = {}) {
 const permitted = { permits: () => true };
 const accept = { send: async () => ({ kind: 'accepted' }) };
 
+test('batch admission rolls back earlier inserts on capacity or late identity conflict', t => {
+  const f = fixture(t, { capacity: 2 }); const q = f.open(); q.enqueue(job('existing'));
+  assert.throws(() => q.enqueueBatch([job('first'), job('second')]), /full/);
+  assert.deepEqual(q.status().counts, { pending: 1 });
+  const conflict = job('existing'); conflict.delivery.token = 'different';
+  assert.throws(() => q.enqueueBatch([job('first'), conflict]), /identity-conflict/);
+  assert.deepEqual(q.status().counts, { pending: 1 });
+  assert.deepEqual(q.enqueue(job('first')), { kind: 'queued' });
+});
+
+test('batch validation and expiration cannot leave a valid prefix in storage', t => {
+  const q = fixture(t).open(); const expired = job('expired'); expired.delivery.expiresAt = epoch;
+  assert.deepEqual(q.enqueueBatch([job('valid'), expired]), { kind: 'expired' });
+  assert.deepEqual(q.status().counts, {});
+  const invalid = job('invalid'); invalid.delivery.envelope.keyID = 'wrong';
+  assert.throws(() => q.enqueueBatch([job('valid'), invalid]), /Invalid push delivery/);
+  assert.deepEqual(q.status().counts, {});
+});
+
+test('a later SQLite insert failure rolls back a whole batch and preserves existing jobs', t => {
+  const f = fixture(t); const q = f.open(); q.enqueue(job('existing'));
+  const db = new DatabaseSync(join(f.directory, 'outbox.sqlite'));
+  db.exec(`CREATE TRIGGER fail_late BEFORE INSERT ON jobs WHEN (SELECT COUNT(*) FROM jobs) >= 2
+    BEGIN SELECT RAISE(ABORT, 'fixture storage failure'); END;`);
+  try {
+    assert.throws(() => q.enqueueBatch([job('first'), job('second')]), { message: 'Push outbox storage-unavailable' });
+    assert.deepEqual(q.status().counts, { pending: 1 });
+  } finally { db.exec('DROP TRIGGER fail_late'); db.close(); }
+  assert.deepEqual(q.enqueueBatch([job('first'), job('second')]), { kind: 'queued', queued: 2, duplicates: 0 });
+});
+
+test('committed batch survives reopen with exact ciphertext and accepts retained partial-duplicate retries', async t => {
+  const f = fixture(t); let q = f.open(); const jobs = [job('first'), job('second'), job('third')];
+  q.enqueue(jobs[0]);
+  assert.deepEqual(q.enqueueBatch(jobs), { kind: 'queued', queued: 2, duplicates: 1 });
+  q.close(); q = f.open();
+  assert.deepEqual(q.enqueueBatch(jobs), { kind: 'queued', queued: 0, duplicates: 3 });
+  const observed = [];
+  const results = await q.drain({ ...permitted, sender: { send: async value => { observed.push(value); return { kind: 'accepted' }; } } });
+  assert.equal(results.length, 3); assert.ok(results.every(value => value.kind === 'accepted'));
+  // Delivery content is identical here; IDs are bound inside their encrypted queue records.
+  assert.deepEqual(observed, jobs.map(value => value.delivery));
+  assert.deepEqual(q.enqueueBatch(jobs), { kind: 'queued', queued: 0, duplicates: 3 });
+});
+
 test('encrypted records survive reopen, retain exact ciphertext/expiry and deduplicate completed delivery', async t => {
   const f = fixture(t); let q = f.open(); const value = job();
   assert.deepEqual(q.enqueue(value), { kind: 'queued' });

@@ -36,6 +36,16 @@ export class PushDispatcher {
     if (!this.#permits(binding)) return { kind: 'retired' };
     const result = this.#outbox.enqueue(job); this.#wake(); return result;
   }
+  enqueueBatch(jobs) {
+    if (!Array.isArray(jobs) || jobs.length < 1 || jobs.length > 512) throw new TypeError('Invalid push batch');
+    // Inspect the whole snapshot before admission; one revoked recipient prevents a partial enqueue.
+    const snapshot = structuredClone(jobs);
+    for (const job of snapshot) {
+      const binding = { registration: job.registration, token: job.delivery.token, recipient: job.delivery.recipient };
+      if (!this.#permits(binding)) return { kind: 'retired' };
+    }
+    const result = this.#outbox.enqueueBatch(snapshot); this.#wake(); return result;
+  }
   /** Call after enrollment/policy changes committed in another host component. */
   changed() { this.#wake(); }
   resumeBlocked(reason) { const count = this.#outbox.resumeBlocked(reason); this.#wake(); return count; }

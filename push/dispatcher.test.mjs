@@ -37,6 +37,19 @@ test('explicit startup drains durable work, schedules receipt cleanup, and reach
   await f.fire(); assert.deepEqual(f.outbox.status().counts, {}); assert.equal(f.timers.size, 0);
 });
 
+test('a later batch policy denial or temporary failure admits none of the earlier authorized jobs', t => {
+  let calls = 0;
+  const f = fixture(t, { send: () => assert.fail('not started') }, () => ++calls !== 2);
+  assert.deepEqual(f.runtime.enqueueBatch([f.createJob('first'), f.createJob('second')]), { kind: 'retired' });
+  assert.deepEqual(f.outbox.status().counts, {}); assert.equal(f.timers.size, 0);
+  let attempts = 0;
+  const g = fixture(t, { send: () => assert.fail('not started') }, () => {
+    if (++attempts === 2) throw new Error('policy temporarily unavailable'); return true;
+  });
+  assert.throws(() => g.runtime.enqueueBatch([g.createJob('first'), g.createJob('second')]), /temporarily unavailable/);
+  assert.deepEqual(g.outbox.status().counts, {}); assert.equal(g.timers.size, 0);
+});
+
 test('provider retry delay is honored and a later enqueue wakes a pending timer', async t => {
   let sends = 0; const f = fixture(t, { send: async () => ++sends === 1 ? { kind: 'unavailable', retryAfterMs: 60_000 } : { kind: 'accepted' } });
   f.runtime.enqueue(f.createJob()); f.runtime.start(); await f.fire();

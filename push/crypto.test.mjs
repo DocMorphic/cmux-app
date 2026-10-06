@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { cryptoKitSealer } from './crypto.mjs';
+import { preparePushBatch } from './events.mjs';
+import { fcmMessage } from './fcm.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const vectors = JSON.parse(readFileSync(join(root, 'app/src/test/resources/push/apple-hpke-v2.json')));
@@ -17,7 +19,7 @@ before(() => {
   assert.equal(result.status, 0, result.stderr);
 });
 function fixture(index = 0, overrides = {}) {
-  const v = vectors[index];
+  const v = structuredClone(vectors[index]);
   const key = Buffer.from(v.senderPrivateKeyBase64, 'base64');
   const { version, encapsulatedKey, ciphertext, ...recipient } = v.envelope;
   return { key, args: { recipient, publicKey: v.recipientPublicKeyBase64, senderPublicKey: v.senderPublicKeyBase64,
@@ -52,6 +54,25 @@ test('CryptoKit rejects low-order recipients and mismatched sender key material 
   await assert.rejects(f.seal(f.args), { message: 'Push encryption failed' });
   const g = fixture(0, { privateKey: async () => Buffer.alloc(32, 8) });
   await assert.rejects(g.seal(g.args), { message: 'Push encryption failed' });
+});
+
+test('planned Unicode dismissal parts fit the provider budget after real CryptoKit encryption and null omission', { skip: !mac }, async () => {
+  const f = fixture(), epoch = 1_800_000_000_000;
+  f.args.recipient.tuple.teamID = null;
+  const tuple = f.args.recipient.tuple;
+  const result = await preparePushBatch({ expiresAt: epoch + 120_000,
+    authority: { ...tuple, senderKeyID: f.args.recipient.senderKeyID,
+      publicKey: f.args.senderPublicKey, macInstallationID: 'test-mac-installation' },
+    registration: { recipient: f.args.recipient, publicKey: f.args.publicKey, token: 'test-provider-token',
+      registration: { id: 'test-registration', generation: 'one' } },
+    event: { kind: 'dismiss', correlationID: '00000000-0000-4000-8000-000000000001', badgeCount: 0, hideContent: false,
+      notificationIds: Array.from({ length: 140 }, (_, i) => `${i}-${'😀中\"\\'.repeat(20)}`) }
+  }, { seal: f.seal, now: () => epoch });
+  assert.equal(result.kind, 'prepared'); assert.ok(result.jobs.length > 1);
+  for (const job of result.jobs) {
+    assert.equal(job.delivery.envelope.tuple.teamID, undefined);
+    assert.ok(Buffer.byteLength(JSON.stringify(fcmMessage(job.delivery, epoch).data)) <= 4096);
+  }
 });
 
 test('pinned upstream decryptor opens ordinary and Unicode/omitted-field envelopes from the production adapter',

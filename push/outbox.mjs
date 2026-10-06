@@ -67,9 +67,13 @@ export class PushOutbox {
   #digest(value) { return createHmac('sha256', this.#key).update(value).digest('hex'); }
   #transaction(body) {
     if (!this.#db) throw new OutboxError('closed');
-    this.#db.exec('BEGIN IMMEDIATE');
+    try { this.#db.exec('BEGIN IMMEDIATE'); }
+    catch { throw new OutboxError('storage-unavailable'); }
     try { const result = body(); this.#db.exec('COMMIT'); return result; }
-    catch (error) { this.#db.exec('ROLLBACK'); throw error; }
+    catch (error) {
+      try { this.#db.exec('ROLLBACK'); } catch { /* Keep the original coarse outcome. */ }
+      throw error instanceof OutboxError ? error : new OutboxError('storage-unavailable');
+    }
   }
   #encrypt(id, expires, raw) {
     const nonce = randomBytes(12);
@@ -93,27 +97,49 @@ export class PushOutbox {
   #prune(now) { this.#db.prepare('DELETE FROM jobs WHERE expires <= ?').run(now); }
 
   /** One stable event ID per registration generation; duplicates cannot renew expiry or replace ciphertext. */
-  enqueue(value) {
+  #prepare(value, now) {
     requireInput(exact(value, ['eventID', 'registration', 'delivery']));
     requireInput(text(value.eventID) && exact(value.registration, ['id', 'generation']) &&
       text(value.registration.id) && text(value.registration.generation));
     requireInput(exact(value.delivery, ['token', 'envelope', 'recipient', 'expiresAt']));
     const raw = canonical(value); requireInput(Buffer.byteLength(raw) <= MAX_RECORD_BYTES);
-    const job = JSON.parse(raw); const now = this.#time();
-    if (!fcmMessage(job.delivery, now)) return { kind: 'expired' };
+    const job = JSON.parse(raw);
+    if (!fcmMessage(job.delivery, now)) return null;
     const id = this.#digest(canonical([job.eventID, job.registration.id, job.registration.generation]));
+    return { raw, job, id };
+  }
+  #insert({ raw, job, id }, now) {
+    const existing = this.#db.prepare('SELECT * FROM jobs WHERE id=?').get(id);
+    if (existing) {
+      if (existing.state !== 'done' && this.#decrypt(existing).raw !== raw) throw new OutboxError('identity-conflict');
+      return 'duplicate';
+    }
+    if (this.#db.prepare('SELECT COUNT(*) AS count FROM jobs').get().count >= this.#capacity)
+      throw new OutboxError('full'); // Never evict a fresh event or its deduplication receipt silently.
+    this.#db.prepare('INSERT INTO jobs(id,payload,expires,due) VALUES (?,?,?,?)')
+      .run(id, this.#encrypt(id, job.delivery.expiresAt, raw), job.delivery.expiresAt, now);
+    return 'queued';
+  }
+  enqueue(value) {
+    const now = this.#time(), prepared = this.#prepare(value, now);
+    if (!prepared) return { kind: 'expired' };
     return this.#transaction(() => {
       this.#prune(now);
-      const existing = this.#db.prepare('SELECT * FROM jobs WHERE id=?').get(id);
-      if (existing) {
-        if (existing.state !== 'done' && this.#decrypt(existing).raw !== raw) throw new OutboxError('identity-conflict');
-        return { kind: 'duplicate' };
+      return { kind: this.#insert(prepared, now) };
+    });
+  }
+  /** Commit every sealed part or none. Admission is atomic; provider delivery is still at-least-once. */
+  enqueueBatch(values) {
+    requireInput(Array.isArray(values) && values.length > 0 && values.length <= 512);
+    const now = this.#time(), prepared = values.map(value => this.#prepare(value, now));
+    if (prepared.some(value => value === null)) return { kind: 'expired' };
+    return this.#transaction(() => {
+      this.#prune(now);
+      let queued = 0, duplicates = 0;
+      for (const value of prepared) {
+        if (this.#insert(value, now) === 'queued') queued++; else duplicates++;
       }
-      if (this.#db.prepare('SELECT COUNT(*) AS count FROM jobs').get().count >= this.#capacity)
-        throw new OutboxError('full'); // Never evict a fresh event or its deduplication receipt silently.
-      this.#db.prepare('INSERT INTO jobs(id,payload,expires,due) VALUES (?,?,?,?)')
-        .run(id, this.#encrypt(id, job.delivery.expiresAt, raw), job.delivery.expiresAt, now);
-      return { kind: 'queued' };
+      return { kind: 'queued', queued, duplicates };
     });
   }
   #claim() {

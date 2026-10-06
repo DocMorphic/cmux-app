@@ -234,8 +234,9 @@ Dismiss uses a nonempty `notificationIds` array. Both require integer `badgeCoun
 and boolean `hideContent`. Text is trimmed and limited to upstream UTF-16 budgets
 without splitting grapheme clusters. Hidden content is removed before sealing.
 Identifiers are never silently truncated. The encrypted result must fit the FCM
-budget; an oversized event fails instead of losing dismissal IDs. The host still
-needs bounded dismissal batching and large-content handling for those failures.
+budget. Use `preparePushBatch` for dismissal batching, described below. Oversized
+notify content still fails explicitly; a large-content retrieval path remains
+host/Android integration work.
 
 ```js
 const seal = cryptoKitSealer({
@@ -253,9 +254,12 @@ if (result.kind === 'prepared') dispatcher.enqueue(result.job);
 
 Import these functions from `crypto.mjs` and `events.mjs`. `dispatcher.enqueue`
 rechecks registration generation/live policy after asynchronous encryption;
-preparation by itself does not grant send permission. Keep the original event ID
-when retrying admission. After durable admission, retries reuse the stored
-ciphertext. The registration's public key and the sender key must already have
+preparation by itself does not grant send permission. Retain the entire prepared
+job, including original event ID and ciphertext, when retrying admission. Fresh
+HPKE encryption of the same event is intentionally an identity conflict with a
+pending job, since admission cannot prove that different ciphertext has identical
+content. After durable admission, retries reuse the stored ciphertext.
+The registration's public key and the sender key must already have
 been authenticated and enrolled. **Do not extract the official cmux private key
 or replace its Android peer pin to make a private helper appear trusted.** A
 separate helper trust lane remains to be designed and explicitly enrolled.
@@ -277,8 +281,8 @@ guarantee that Swift/JavaScript runtimes erase every internal allocation. No key
 is discovered or provisioned automatically. This is a Mac adapter, not a Windows
 host implementation, and requires macOS CryptoKit plus Swift tools to build.
 
-The push suite passes **50 checks** on Node22.16.0 and Node26.8.2 on the Mac.
-Linux runs skip the three native CryptoKit checks. For the independent pinned
+The push suite passes **61 checks** on Node22.16.0 and Node26.8.2 on the Mac.
+Linux runs skip the four native CryptoKit checks. For the independent pinned
 upstream decryptor check, build the existing public-key fixture and set its path:
 
 ```sh
@@ -293,6 +297,46 @@ redaction, expiry, identity mismatch, provider bounds and a registration rotated
 during encryption. No actual cloud/Pixel delivery is established by these tests.
 CryptoKit references: [authenticated sender](https://developer.apple.com/documentation/cryptokit/hpke/sender/init(recipientkey:ciphersuite:info:authenticatedby:)),
 [cipher suite](https://developer.apple.com/documentation/cryptokit/hpke/ciphersuite/curve25519_sha256_chachapoly).
+
+### Large dismissals and atomic admission
+
+`preparePushBatch(input, {seal, now, maxParts})` accepts the same input as
+`preparePushJob` and returns `{kind: 'prepared', jobs}` or `{kind: 'expired'}`.
+An event that fits retains its original correlation ID. Oversized dismissals are
+split into provider-sized parts, preserving every distinct trimmed notification
+ID in source order. Their correlation IDs are deterministic UUIDs derived from
+the original event ID and part index. Each part preserves the original expiry,
+privacy state, authority, recipient generation and authoritative badge count.
+
+Planning accounts for UTF-8 JSON, HPKE's 16-byte tag, base64, tuple/envelope fields
+and the nested FCM data serialization. Every part is planned before any private
+key operation. A single identifier that cannot fit, or a batch over `maxParts`
+(default128, maximum512), fails before encryption. Each actual encrypted output
+is checked again against the provider budget. Expiry or a crypto failure returns
+no partially prepared batch. Notify text is not silently shortened to fit FCM.
+
+```js
+const batch = await preparePushBatch({
+  event: admittedEvent, registration: admittedRegistration,
+  authority: currentHostAuthority, expiresAt: originalExpiry
+}, { seal });
+if (batch.kind === 'prepared') dispatcher.enqueueBatch(batch.jobs);
+```
+
+`PushDispatcher.enqueueBatch` checks every retained binding/policy before calling
+`PushOutbox.enqueueBatch`. SQLite then admits all jobs in one transaction. A late
+identity conflict, queue capacity failure or storage error rolls back earlier
+inserts. Invalid/expired batches add nothing. Exact already-queued jobs and
+completed deduplication receipts may coexist with new entries; the result reports
+`{kind: 'queued', queued, duplicates}`. Existing capacity limits still apply.
+Storage errors are coarse, without raw SQLite diagnostics. Source admission must
+handle backpressure, retain sealed jobs for retry, and never extend their expiry.
+
+This guarantees atomic **local queue admission**, not atomic provider delivery.
+Each part is independently delivered/retried while current authorization permits
+and the original event is fresh. Process death after provider acceptance still
+has the existing at-least-once semantics. A helper must durably retain or replay
+source events not yet admitted; that source subscription lifecycle remains open.
 
 ## Remaining end-to-end work
 
