@@ -3,6 +3,9 @@ package io.github.docmorphic.cmuxapp
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.*
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.test.platform.app.InstrumentationRegistry
+import android.graphics.Bitmap
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import org.junit.Assert.*
 import org.junit.Rule
@@ -10,6 +13,12 @@ import org.junit.Test
 
 class PhonePushSettingsTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    private fun capture(name: String) {
+        compose.waitForIdle()
+        val image = compose.onRoot().captureToImage().asAndroidBitmap()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        context.openFileOutput(name, 0).use { check(image.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+    }
     @Test fun unconfiguredBuildExplainsAvailabilityAndCannotGrantConsent() {
         var changed = false
         compose.setContent { MaterialTheme {
@@ -27,6 +36,7 @@ class PhonePushSettingsTest {
             PhonePushSettingsContent(PhonePushSetupState(PhonePushSetupStage.PAIR, true, true, true, listOf(mac)),
                 false, null, { consentRequested = true }, {}, {}, {}, { paired = it }, {})
         } }
+        capture("push-phone-pairing.png")
         compose.onNodeWithText("Pair Notification Helper").performClick()
         assertEquals(mac, paired); assertFalse(consentRequested)
         compose.onNodeWithTag("push.enabled").performClick()
@@ -51,6 +61,7 @@ class PhonePushSettingsTest {
         compose.setContent { MaterialTheme {
             PhoneMacPushSettingsContent("Fixture Mac", state.value, { change = it }, {})
         } }
+        capture("push-mac-confirmed.png")
         compose.onNodeWithTag("push.mac.enabled").assertIsOn().performClick()
         assertEquals(PhoneMacPushChange.Enabled(false), change)
         compose.onNodeWithTag("push.mac.hidden").assertIsOn()
@@ -61,6 +72,7 @@ class PhonePushSettingsTest {
         compose.onNodeWithText("Last confirmed settings").assertExists()
         compose.onNodeWithTag("push.mac.admission").assertDoesNotExist()
         compose.onNodeWithText("Refresh Mac Settings").assertIsEnabled()
+        capture("push-mac-stale.png")
     }
 
 }

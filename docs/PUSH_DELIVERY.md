@@ -1,6 +1,51 @@
 # Android background push
 
 
+## Android settings and cleanup-storage integration — 2026-10-06
+
+The accumulated phone/helper setup and Mac forwarding UI now has Android runtime
+coverage. **Nine tests passed in 25.383 seconds** on the sole existing API37 arm64
+emulator with **16384-byte pages**: four `PhonePushSettingsTest` cases, two existing
+`PhonePushKeyStorageTest` regressions and three new
+`PhoneHelperMaintenanceStorageTest` cases. The instrumentation reports nine
+individual success statuses and `OK (9 tests)`, with no skipped cases or captured
+app crash/ANR markers.
+
+Settings checks cover the unconfigured-build presentation, separate phone-toggle
+and helper-pairing actions, pending-pairing cancellation, fixture-confirmed Mac
+forwarding/mode/privacy values, and stale controls disabled with a refresh action.
+Three isolated content captures were visually inspected: phone pairing, confirmed
+Mac controls and the stale/error state. Labels and controls are legible and fit;
+these are not full native-screen or matched-state iOS screenshot acceptance.
+
+The new storage tests execute the **real primary credential-store hooks and Android
+Keystore encryption**, using separate test preferences and revision-flow namespaces.
+A receipt's cleanup key survives logout while account/helper trust remains erased;
+removing the saved Mac preserves cleanup before normal pin pruning; and the
+maintenance projection does not re-import an already deleted ledger. Reopened
+stores retain exact key bytes, and encrypted preferences contain none of the
+fixture login/key/registration values. Revocation intent is reconciled locally;
+these tests do not contact a helper. The two earlier key/reply cases also pass
+through the modified account save/clear paths.
+
+The combined debug/app-test APK build passed in **57 seconds**. Screenshot capture
+was then added in a **3-second test-only rebuild**. Gradle was stopped before the
+single emulator was started with 1536 MiB RAM/two cores. The emulator was stopped
+and its process reaped after evidence collection; no AVD was created. No physical
+phone was attached. This is a combined integration milestone, not a signed release.
+
+- Debug APK SHA-256: `5ecdf502db7ac6af5457b0c8a9055a3c3f637fb7b063980bf9abe00393d5c7ee`.
+- Test APK SHA-256: `ffb1e83724358823ab2d19101c03e4929cd3c9bf335fc30b45e80ca552294781`.
+- Evidence: ignored `captures/runtime/push-android-integration/`, including build
+  logs, instrumentation statuses, logcat, three captures and `verification.json`.
+
+**Remaining:** actual Firebase SDK consent/token work and WorkManager scheduling /
+process-restart execution, live helper handshake/renewal/removal, Mac RPC controls
+on the physical devices, dynamic text/TalkBack/full-screen UI comparison, and
+provider/Doze delivery. The custom-versus-unmodified Mac source decision remains
+pending. These passing fixtures do not close those gates. Signed build616 remains
+unchanged.
+
 ## Durable source-to-delivery handoff — 2026-10-06
 
 `PushSourceJournal` now durably captures admitted source requests, commits prepared

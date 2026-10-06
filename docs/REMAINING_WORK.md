@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Combined Android push-settings/storage milestone: **nine runtime tests passed
+  in 25.383 seconds** on API37/16 KiB. Four setup/Mac-controls UI cases, two
+  key/reply regressions and three real Keystore cleanup-hook cases now have device
+  evidence. Three fixture captures inspected; no recorded app crash/ANR. One
+  57-second combined APK build plus a 3-second test-only capture build. Gradle and
+  the sole reused emulator are stopped; no new AVD or signed promotion. Actual
+  WorkManager/Firebase/provider and physical Mac/Pixel gates remain open. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#android-settings-and-cleanup-storage-integration--2026-10-06).
+
 - Source events now have an encrypted durable handoff through preparation and
   delivery admission, with identical-ciphertext recovery after an actual process
   kill in the acknowledgment gap. **24 Node checks passed on Node22/26**. Latest
