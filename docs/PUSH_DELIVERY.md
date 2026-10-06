@@ -1,6 +1,58 @@
 # Android background push
 
 
+## Independent helper sender trust — source checkpoint, 2026-10-06
+
+Android now supports a separately enrolled helper sender for each paired Mac,
+without replacing the native `phone_push.keys.exchange.v1` key. The account's
+Keystore-encrypted helper record binds its public descriptor and Firebase client
+project to the exact native Mac peer/epoch, login, team and canonical Mac origin.
+Pinning requires the retained native identity still to match; equal helper/native
+keys or installation IDs are rejected. Identical enrollment is idempotent, while
+forget/re-add, key replacement or project replacement gets a fresh helper epoch.
+A native Mac key change, removed pairing or login change retires the helper.
+
+Incoming HPKE envelopes select only the native sender or this separately pinned
+helper sender. The full recipient tuple is still independently supplied by the
+paired Mac/account; unknown senders, contradictory authenticated identity fields,
+or duplicate envelopes for that recipient are rejected. Helper notifications and
+dismissals use the existing delivery/replay/tap pipeline. Native pushes continue
+to work, and the same event delivered through both lanes is deduplicated.
+
+Replies to helper-delivered notifications are encrypted **for the official Mac's
+public key**. The helper's sending key cannot decrypt them. Reply actions and the
+outbox retain both the native enrollment epoch and helper epoch, so helper removal
+or rotation invalidates unsubmitted actions and queued replies. Direct delivery
+and relay fallback preserve that fence. Saved helper-dependent packets use version
+3 so older clients reject them; helper action rows retain the helper as their
+source peer so old action readers reject those too. The relay wire body/protocol
+is unchanged. This establishes local routing/encryption behavior, not server
+acceptance of a helper-triggered reply.
+
+Cloud-push opt-out also clears helper pins. Recovery prunes pins against the live
+login/project consent under the shared credential-store lock, preventing a stale
+recovery snapshot from deleting a replacement enrollment. Ordinary FCM token
+rotation does not rotate the trusted helper key or invalidate its identity.
+
+**54 focused JVM checks passed**, including nine new helper cases and the existing
+message, reply action/outbox/relay and token lifecycle cases. Main/instrumentation
+compilation passed. New evidence covers real HPKE helper notification/dismissal
+opening, official-Mac reply decryption with helper decryption failure, duplicate
+sender rejection, identity/consent retirement and saved-packet fences. Logs and
+receipts are local in `captures/runtime/push-helper-trust/`. No APK or emulator was
+created; Gradle was stopped.
+
+**Enrollment is not yet exposed to users.** The new pin API is only a commit step
+for an already authenticated, explicitly confirmed helper handshake. The next
+integration must implement that proof/confirmation UI, verify both sides' live
+account/Mac/phone/token bindings, provision the helper's own key, and register with
+the configured forwarding service. No network input may call `pin` directly or
+assert its own native identity. Firebase configuration, helper service lifecycle,
+source subscription/policy, real provider/Pixel/Doze delivery and reply acceptance
+remain open. No official private key was read or exported, cloud resource or
+listener created, or global upstream parity pin advanced.
+
+
 ## Android token lifecycle — source checkpoint, 2026-10-06
 
 `PhoneFcmTokens` now owns SDK token acquisition/renewal/deletion and its durable

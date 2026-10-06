@@ -61,10 +61,23 @@ internal object PhoneFcmTokens {
         return checkNotNull(owner)
     }
     fun revoke(context: Context) {
-        val tokens = store(context)
-        if (tokens.load()?.has(PhoneFcmTokenState.KEY) != true) return
-        tokens.update { PhoneFcmTokenState(it).revoke() }
-        recover(context)
+        val credentials = NativeCredentialStore(context)
+        try { synchronized(credentials.accountStateLock) {
+            val tokens = store(context)
+            if (tokens.load()?.has(PhoneFcmTokenState.KEY) == true) tokens.update { PhoneFcmTokenState(it).revoke() }
+            if (credentials.load()?.has(PhonePushHelperState.KEY) == true)
+                credentials.update { PhonePushHelperState(it).clear() }
+        } } finally { recover(context) }
+    }
+    private fun retainHelpers(context: Context) {
+        val credentials = NativeCredentialStore(context)
+        synchronized(credentials.accountStateLock) {
+            if (credentials.load()?.has(PhonePushHelperState.KEY) != true) return
+            // Re-read under the shared store lock: a delayed recovery must not retire a newer enrollment.
+            val lifecycle = store(context).load()?.let(::PhoneFcmTokenState)
+            lifecycle?.reconcile(credentials.taskSession(), allowed(context), installed(context))
+            credentials.update { PhonePushHelperState(it).retainForToken(lifecycle?.grant) }
+        }
     }
     /** Snapshot for authenticated helper enrollment; consumers must recheck it before and after I/O. */
     fun snapshot(context: Context): PhoneFcmTokenSnapshot? {
@@ -95,13 +108,17 @@ internal object PhoneFcmTokens {
         return scope.launch {
             try {
                 val tokens = store(app)
-                if (tokens.load()?.has(PhoneFcmTokenState.KEY) != true) return@launch
+                if (tokens.load()?.has(PhoneFcmTokenState.KEY) != true) {
+                    retainHelpers(app)
+                    return@launch
+                }
                 var pending = false
                 tokens.update { state ->
                     val lifecycle = PhoneFcmTokenState(state)
                     lifecycle.reconcile(NativeCredentialStore(app).taskSession(), allowed(app), installed(app))
                     pending = lifecycle.hasWork
                 }
+                retainHelpers(app)
                 val manager = WorkManager.getInstance(app)
                 if (!pending) { manager.cancelUniqueWork(PERIODIC); return@launch }
                 val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
@@ -119,10 +136,10 @@ internal object PhoneFcmTokens {
         withContext(Dispatchers.IO + NonCancellable) {
             val tokens = store(context)
             val provider = installed(context)?.let(::InstalledPhoneFcmProvider)
-            val retry = PhoneFcmTokenReconciler(
+            val retry = try { PhoneFcmTokenReconciler(
                 transaction = { action -> tokens.update { action(PhoneFcmTokenState(it)) } },
                 login = { NativeCredentialStore(context).taskSession() }, allowed = { allowed(context) }, provider = provider
-            ).runPass()
+            ).runPass() } finally { retainHelpers(context) }
             if (tokens.load()?.let { PhoneFcmTokenState(it).hasWork } != true)
                 WorkManager.getInstance(context).cancelUniqueWork(PERIODIC)
             retry

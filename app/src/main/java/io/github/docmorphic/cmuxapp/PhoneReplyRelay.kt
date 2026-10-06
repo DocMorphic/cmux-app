@@ -15,23 +15,25 @@ import java.util.concurrent.TimeUnit
 /** Created once per intentional reply and reused verbatim after uncertain HTTP outcomes. */
 internal class PreparedPhoneReply private constructor(
     val replyID: String, val login: String, val origin: String, val teamID: String,
-    val peer: PhonePushPeer, val senderKeyID: String, val createdAtMillis: Long, val body: String, val peerEpoch: String? = null, val directOnly: Boolean = false
+    val peer: PhonePushPeer, val senderKeyID: String, val createdAtMillis: Long, val body: String, val peerEpoch: String? = null, val directOnly: Boolean = false, val helperEpoch: String? = null
 ) {
     // The phone's retry window is shorter than the Mac inbox's encrypted 15-minute lifetime.
     fun isFresh(nowMillis: Long) = nowMillis >= createdAtMillis && nowMillis - createdAtMillis < 120_000
-    fun boundTo(epoch: String) = PreparedPhoneReply(replyID, login, origin, teamID, peer, senderKeyID, createdAtMillis, body, epoch, directOnly)
-    fun withDirectFence(value: Boolean) = PreparedPhoneReply(replyID, login, origin, teamID, peer, senderKeyID, createdAtMillis, body, peerEpoch, value)
+    fun boundTo(epoch: String) = PreparedPhoneReply(replyID, login, origin, teamID, peer, senderKeyID, createdAtMillis, body, epoch, directOnly, helperEpoch)
+    fun withDirectFence(value: Boolean) = PreparedPhoneReply(replyID, login, origin, teamID, peer, senderKeyID, createdAtMillis, body, peerEpoch, value, helperEpoch)
 
-    // Version 2 fences direct packets from older clients that only understand relay version 1.
-    fun persisted() = JSONObject().put("version", if (directOnly) 2 else 1).put("reply_id", replyID).put("login", login)
+    fun withHelperFence(value: String?) = PreparedPhoneReply(replyID, login, origin, teamID, peer, senderKeyID, createdAtMillis, body, peerEpoch, directOnly, value)
+
+    // Version 3 preserves helper revocation; version 2 fences direct packets from older clients that only understand relay version 1.
+    fun persisted() = JSONObject().put("version", if (helperEpoch != null) 3 else if (directOnly) 2 else 1).put("reply_id", replyID).put("login", login)
         .put("origin", origin).put("team_id", teamID).put("peer", peer.wire()).put("sender_key_id", senderKeyID)
-        .put("created_at", createdAtMillis).put("body", body).put("peer_epoch", peerEpoch).put("direct_only", directOnly)
+        .put("created_at", createdAtMillis).put("body", body).put("peer_epoch", peerEpoch).put("direct_only", directOnly).put("helper_epoch", helperEpoch)
 
     companion object {
         /** Only restore from authenticated local storage; the exact body string is never re-encoded. */
         fun restore(value: JSONObject): PreparedPhoneReply {
             val version = value.opt("version")
-            require(version == 1 || version == 2)
+            require(version == 1 || version == 2 || version == 3)
             fun id(name: String, limit: Int = 128) = (value.opt(name) as? String)?.also {
                 require(it.isNotBlank() && it == it.trim() && it.length <= limit)
             } ?: error("Invalid saved reply")
@@ -61,8 +63,11 @@ internal class PreparedPhoneReply private constructor(
             val epoch = if (!value.has("peer_epoch") || value.isNull("peer_epoch")) null else
                 (value.opt("peer_epoch") as? String)?.also { require(it.isNotBlank() && it.length <= 128) } ?: error("Invalid enrollment")
             val direct = if (!value.has("direct_only")) false else value.opt("direct_only") as? Boolean ?: error("Invalid delivery lane")
-            require((version == 2) == direct) { "Invalid delivery lane version" }
-            return PreparedPhoneReply(replyID, login, origin, team, peer, sender, created, body, epoch, direct)
+            val helperEpoch = if (!value.has("helper_epoch") || value.isNull("helper_epoch")) null else id("helper_epoch")
+            require(if (version == 3) helperEpoch != null && epoch != null else helperEpoch == null && (version == 2) == direct) {
+                "Invalid delivery lane version"
+            }
+            return PreparedPhoneReply(replyID, login, origin, team, peer, sender, created, body, epoch, direct, helperEpoch)
         }
 
         fun prepare(replyID: String, team: NativeTeamScope, origin: String, peer: PhonePushPeer,

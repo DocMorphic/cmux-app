@@ -216,6 +216,7 @@ class NativeCredentialStore(context: Context, storageName: String = "native_cmux
         NativeMacVersionHistory.prune(value)
         NativeComputerVisibility.prune(value)
         PhonePushKeyState(value).prune()
+        PhonePushHelperState(value).prune()
         PhonePushInbox(value).prune()
         PhoneFcmQueue(value).prune()
         PhoneReplyActions(value).prune()

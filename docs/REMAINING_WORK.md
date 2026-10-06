@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Android now keeps independent helper sender pins alongside native Mac keys;
+  incoming helper pushes reuse delivery/replay handling, while replies remain
+  encrypted for the official Mac. Helper retirement fences actions and queued
+  replies, including restoration and direct/relay fallback. **54 focused JVM
+  checks passed**; main/instrumentation compilation passed. The authenticated
+  enrollment handshake/UI, helper service and Firebase setup remain open; no
+  real enrollment/delivery or APK/emulator run occurred. See
+  [PUSH_DELIVERY.md](PUSH_DELIVERY.md#independent-helper-sender-trust--source-checkpoint-2026-10-06).
+
 - Android now has explicit-consent token acquisition, renewal and durable SDK
   deletion across logout, with generation checks for late callbacks and serialized
   provider operations. Startup/resume/boot/settings and WorkManager recovery are

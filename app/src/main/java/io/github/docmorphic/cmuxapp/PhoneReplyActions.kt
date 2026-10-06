@@ -16,9 +16,19 @@ internal class PhoneReplyActions(private val state: JSONObject) {
         it.isNotBlank() && state.optString("refresh_token").isNotBlank()
     }
     private fun scope(row: JSONObject) = NativeTeamScope(row.getString("login"), row.getString("user"), row.getString("team"), 0)
+    private fun helperEpoch(row: JSONObject): String? = if (!row.has("helper_epoch")) null else
+        row.getString("helper_epoch").also { require(it.isNotBlank() && it.length <= 128) }
+    private fun replyPeer(row: JSONObject) = PhonePushPeer.parse(row.getJSONObject(
+        if (helperEpoch(row) == null) "peer" else "reply_peer"))
     private fun valid(row: JSONObject): Boolean = runCatching {
         val team = scope(row); val keys = PhonePushKeyState(state); val origin = row.getString("origin")
-        val peer = PhonePushPeer.parse(row.getJSONObject("peer"))
+        val peer = replyPeer(row)
+        val helperEpoch = helperEpoch(row)
+        if (helperEpoch != null) {
+            val helper = PhonePushHelperState(state).binding(team, origin) ?: return@runCatching false
+            if (helper.epoch != helperEpoch || helper.macPeer != peer ||
+                helper.peer != PhonePushPeer.parse(row.getJSONObject("peer"))) return@runCatching false
+        }
         val pairings = state.optJSONArray("pairings") ?: return@runCatching false
         val mac = (0 until pairings.length()).mapNotNull { pairings.optJSONObject(it)?.let(NativePairingRecords::decode) }
             .singleOrNull { it.ownsOrigin(origin) } ?: return@runCatching false
@@ -51,6 +61,8 @@ internal class PhoneReplyActions(private val state: JSONObject) {
             .put("origin", origin).put("epoch", epoch).put("peer", message.peer.wire())
             .put("phone_key", message.recipientKeyID).put("workspace", item.workspaceId.takeIf { it.isNotBlank() })
             .put("surface", item.surfaceId).put("retarget", item.retargetsToLiveSurfaceOwner).put("consumed", false)
+        if (message.helperEpoch != null) row.put("helper_epoch", message.helperEpoch).put("reply_peer", message.replyPeer.wire())
+        // For helper rows, peer remains the helper: older clients reject that pin instead of losing the helper fence.
         save(rows().filterNot { it.optString("route") == destination.routeId } + row)
         return id
     }
@@ -59,7 +71,7 @@ internal class PhoneReplyActions(private val state: JSONObject) {
         val row = rows().singleOrNull { it.optString("action") == actionID && it.optString("route") == routeID &&
             !it.optBoolean("consumed") } ?: return null
         return PhoneReplyDirectTarget(scope(row), row.getString("origin"), row.getString("epoch"),
-            PhonePushPeer.parse(row.getJSONObject("peer")), row.opt("workspace") as? String,
+            replyPeer(row), row.opt("workspace") as? String,
             row.getString("surface"), row.getBoolean("retarget"))
     }
     fun submit(routeID: String, actionID: String, text: String, now: Long, direct: PhoneReplyDirectTarget? = null): PhoneReplySubmission {
@@ -70,8 +82,8 @@ internal class PhoneReplyActions(private val state: JSONObject) {
         if (text.isBlank() || text.length > 8192) return PhoneReplySubmission.INVALID_TEXT
         if (direct != null && directTarget(routeID, actionID) != direct) return PhoneReplySubmission.RETIRED
         val scope = scope(row); val local = PhonePushKeyState(state).existingIdentity(scope.login) ?: return PhoneReplySubmission.RETIRED
-        val prepared = runCatching { PreparedPhoneReply.prepare(actionID, scope, row.getString("origin"), PhonePushPeer.parse(row.getJSONObject("peer")),
-            local, row.opt("workspace") as? String, row.getString("surface"), row.getBoolean("retarget"), text, now).boundTo(row.getString("epoch")).withDirectFence(direct != null)
+        val prepared = runCatching { PreparedPhoneReply.prepare(actionID, scope, row.getString("origin"), replyPeer(row),
+            local, row.opt("workspace") as? String, row.getString("surface"), row.getBoolean("retarget"), text, now).boundTo(row.getString("epoch")).withHelperFence(helperEpoch(row)).withDirectFence(direct != null)
         }.getOrElse { return PhoneReplySubmission.INVALID_TEXT }
         return when (PhoneReplyOutbox(state).enqueue(prepared, now)) {
             ReplyEnqueueResult.QUEUED, ReplyEnqueueResult.DUPLICATE -> {

@@ -9,6 +9,7 @@ import java.util.UUID
 /** Only authenticated plaintext can create this value. Its default description excludes content. */
 internal class PhonePushMessage private constructor(
     val team: NativeTeamScope, val origin: String, val peer: PhonePushPeer, val recipientKeyID: String, val peerEpoch: String?,
+    val replyPeer: PhonePushPeer, val helperEpoch: String?,
     val correlationID: String, val expiresAtMillis: Long, val badgeCount: Int,
     val notification: NativeNotification?, val hasNotificationID: Boolean, val canReply: Boolean,
     val dismissedIDs: List<String>
@@ -16,8 +17,12 @@ internal class PhonePushMessage private constructor(
     fun isFresh(now: Long) = now >= 0 && now < expiresAtMillis
     fun permits(state: JSONObject): Boolean {
         val keys = PhonePushKeyState(state)
-        if (keys.existingIdentity(team.login)?.keyID != recipientKeyID || keys.peer(team, origin) != peer ||
+        if (keys.existingIdentity(team.login)?.keyID != recipientKeyID || keys.peer(team, origin) != replyPeer ||
             keys.peerEpoch(team, origin) != peerEpoch) return false
+        if (helperEpoch != null) {
+            val helper = PhonePushHelperState(state).binding(team, origin) ?: return false
+            if (helper.epoch != helperEpoch || helper.peer != peer || helper.macPeer != replyPeer) return false
+        } else if (peer != replyPeer) return false
         val rows = state.optJSONArray("pairings") ?: return false
         val mac = (0 until rows.length()).mapNotNull { rows.optJSONObject(it)?.let(NativePairingRecords::decode) }
             .singleOrNull { it.ownsOrigin(origin) } ?: return false
@@ -32,16 +37,23 @@ internal class PhonePushMessage private constructor(
             val keys = PhonePushKeyState(state)
             val identity = checkNotNull(keys.existingIdentity(team.login))
             val canonical = checkNotNull(keys.canonicalOrigin(team, origin))
-            val peer = checkNotNull(keys.peer(team, canonical))
-            require(peer.tuple.iosBuildID == buildID && peer.tuple.accountID == team.userId &&
-                (peer.tuple.teamID == null || peer.tuple.teamID == team.teamId))
+            val replyPeer = checkNotNull(keys.peer(team, canonical))
+            val helper = PhonePushHelperState(state).binding(team, canonical)
+            require(replyPeer.tuple.iosBuildID == buildID && replyPeer.tuple.accountID == team.userId &&
+                (replyPeer.tuple.teamID == null || replyPeer.tuple.teamID == team.teamId))
             val input = MobileJson.objectValue(raw, requireComplete = true).getJSONArray("encryptedPayloads")
             require(input.length() in 1..200)
             val candidates = (0 until input.length()).mapNotNull { i -> input.optJSONObject(i)?.let {
                 runCatching { PhonePushEnvelope.parse(it) }.getOrNull()
-            } }.filter { it.installationID == identity.installationID && it.tuple == peer.tuple }
+            } }.filter { it.installationID == identity.installationID && it.tuple == replyPeer.tuple }
             // Multiple envelopes for the same admitted recipient are ambiguous, even if one opens.
             val envelope = candidates.single()
+            val peer = when (envelope.senderKeyID) {
+                replyPeer.descriptor.keyID -> replyPeer
+                helper?.peer?.descriptor?.keyID -> checkNotNull(helper).peer
+                else -> error("Push sender is not enrolled")
+            }
+            val helperEpoch = helper?.takeIf { it.peer == peer }?.epoch
             val bytes = PhonePushCrypto.decrypt(envelope, peer.tuple, identity.installationID, identity.keyID,
                 peer.descriptor.keyID, Base64.getDecoder().decode(peer.descriptor.publicKey), identity.privateKey)
             val decoded = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
@@ -94,7 +106,7 @@ internal class PhonePushMessage private constructor(
                 }
                 else -> error("Unknown push operation")
             }
-            return PhonePushMessage(team, canonical, peer, identity.keyID, keys.peerEpoch(team, canonical), correlation, expiration * 1000,
+            return PhonePushMessage(team, canonical, peer, identity.keyID, keys.peerEpoch(team, canonical), replyPeer, helperEpoch, correlation, expiration * 1000,
                 badge.toInt(), item, hasID, reply, dismissed).also { require(it.permits(state)) }
         }
     }

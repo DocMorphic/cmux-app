@@ -348,8 +348,11 @@ source events not yet admitted; that source subscription lifecycle remains open.
    and WorkManager hooks; its separate consent entry point still needs the helper
    UI, configuration and SDK/physical acceptance. See [the checkpoint](../docs/PUSH_DELIVERY.md#android-token-lifecycle--source-checkpoint-2026-10-06).
 3. Implement the admitted Mac/backend notification subscription and encrypted
-   sender identity binding. A private helper needs its own reviewed trust/enrollment
-   design; do not extract or replace the official Mac's private key silently.
+   sender identity binding. Android now has an independent helper sender pin and
+   routes replies to the native Mac key, retaining both revocation fences. The
+   authenticated helper handshake/confirmation UI and host key provisioning remain
+   open; never pass unverified network descriptors straight to the pin API. See
+   [helper trust](../docs/PUSH_DELIVERY.md#independent-helper-sender-trust--source-checkpoint-2026-10-06).
 4. Integrate event preparation/encryption, `PushRegistrations`, `PushDispatcher`, `PushOutbox` and `FcmSender`
    into that host with its credential-store key, current membership/hide-content/
    away policy and admission backpressure. The durable store/scheduler now exist;
