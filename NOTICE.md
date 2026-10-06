@@ -607,3 +607,13 @@ c2715faa02c260b07012bc0b386597cfb333021d.
 Copyright (c) 2024-present Manaflow, Inc.; GPL-3.0-or-later.
 Android uses coroutines, its encrypted cleanup journal and a separate platform
 boundary; service/UI integration remains documented in docs/CLOUD_COMPANION.md.
+
+
+WireGuard Android tunnel 1.0.20260102 is used without modifying its Java/native
+implementation. Copyright © 2017-2025 WireGuard LLC; Apache-2.0 for the Android
+wrapper, with wireguard-go MIT and Go/dependency BSD-style notices. Only libwg-go
+is shipped; unused root/kernel helper executables are excluded. The app's license
+browser includes WireGuard.txt and Apache-2.0.txt. Source/artifact provenance and
+linked module versions are recorded in third_party/wireguard/inventory.json.
+NativeCloudVpnPlatform/Service/Runtime/Control provide Android lifecycle, consent,
+notifications and account integration around that library.

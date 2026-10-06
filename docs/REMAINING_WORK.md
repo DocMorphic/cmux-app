@@ -26,6 +26,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Cloud system VPN is now wired through the official WireGuard backend, protected
+  foreground service, shared-account lifetime, status controls and OS consent in
+  Cloud management/onboarding. **22 JVM checks passed**; debug/test APKs built;
+  all 22 packaged native libraries and APK ZIP alignment pass 16 KiB checks.
+  The two backend Android checks and live consent/private-web/Tailscale/background
+  flows remain unrun (no Pixel in ADB). Restart restoration, cleanup backlog
+  scheduling and exact UI/runtime acceptance remain. See `CLOUD_COMPANION.md`.
+
 - The system VPN lifecycle controller and native account adapter now implement
   explicit enrollment, serialized install/stop, late-operation fencing and durable
   account-owned cleanup. **22 JVM checks passed**; main/Android test compilation

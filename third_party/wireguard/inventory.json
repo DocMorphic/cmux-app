@@ -1,0 +1,48 @@
+{
+  "artifact": "com.wireguard.android:tunnel:1.0.20260102",
+  "aarSha256": "2b9c16db026496123e4db695d26d03d1958a201096c7c4c89b21077dc70f3119",
+  "library": "libwg-go.so",
+  "buildInfoGo": "go1.24.3",
+  "sources": [
+    {
+      "source": "https://raw.githubusercontent.com/WireGuard/wireguard-android/1.0.20260102/COPYING",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "source": "https://raw.githubusercontent.com/golang/go/go1.24.3/LICENSE",
+      "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+    },
+    {
+      "source": "https://raw.githubusercontent.com/golang/go/go1.24.3/PATENTS",
+      "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc"
+    },
+    {
+      "module": "golang.org/x/crypto",
+      "version": "v0.38.0",
+      "source": "https://proxy.golang.org/golang.org/x/crypto/@v/v0.38.0.zip",
+      "archiveSha256": "02824dd62fa3241946a2ac14fdadbd393514d76cebbfbd8bddcddbfc80c7f94b",
+      "noticeFiles": 2
+    },
+    {
+      "module": "golang.org/x/net",
+      "version": "v0.40.0",
+      "source": "https://proxy.golang.org/golang.org/x/net/@v/v0.40.0.zip",
+      "archiveSha256": "388e4a624f48990057f1a2a2cc5f3e0f81e41b99dd2036247d98c931c59d44d4",
+      "noticeFiles": 2
+    },
+    {
+      "module": "golang.org/x/sys",
+      "version": "v0.33.0",
+      "source": "https://proxy.golang.org/golang.org/x/sys/@v/v0.33.0.zip",
+      "archiveSha256": "182df79c87135f6dbd0d45656b6527e9221e28899ee44cc6cc7e7a396aedaef9",
+      "noticeFiles": 2
+    },
+    {
+      "module": "golang.zx2c4.com/wireguard",
+      "version": "v0.0.0-20250521234502-f333402bd9cb",
+      "source": "https://proxy.golang.org/golang.zx2c4.com/wireguard/@v/v0.0.0-20250521234502-f333402bd9cb.zip",
+      "archiveSha256": "e40fbd4b585b8097e8d2577c2100c092f9844b44b09a6d6d640740e42e86f649",
+      "noticeFiles": 1
+    }
+  ]
+}

@@ -18,7 +18,7 @@ internal suspend fun nativeCloudVpnAccess(context: Context, account: NativeAccou
     admitted()
     val application = context.applicationContext
     val apiOwner = CloudAccountScope(scope.login, scope.userId, scope.teamId, scope.generation)
-    val cleanupCredentials = CloudCredentials(apiOwner, snapshot.accessToken, snapshot.refreshToken)
+    val cleanupCredentials = java.util.concurrent.atomic.AtomicReference(CloudCredentials(apiOwner, snapshot.accessToken, snapshot.refreshToken))
     CloudVpnAccess(CloudVpnOwner(scope.userId, scope.teamId), { teams.isCurrent(scope) }, device = {
         withContext(Dispatchers.IO) {
             admitted()
@@ -34,9 +34,17 @@ internal suspend fun nativeCloudVpnAccess(context: Context, account: NativeAccou
                 TerminalDeviceIdentity(Build.MODEL).name)
         }
     }, revoke = { fingerprint ->
+        // Long-lived VPNs may outlive an access token. Refresh only while this exact
+        // owner is still admitted, then retain the coherent pair for later retirement.
+        if (teams.isCurrent(scope)) withContext(Dispatchers.IO) {
+            val fresh = account.webSessionSnapshot(scope.login)
+            if (fresh != null && teams.isCurrent(scope))
+                cleanupCredentials.set(CloudCredentials(apiOwner, fresh.accessToken, fresh.refreshToken))
+        }
         // Restrict this retained capability to DELETE browser peer for the captured
         // user/team. A replacement account's credentials are never substituted.
-        CloudApi(apiOwner, { cleanupCredentials }, { it == apiOwner }).use { api ->
+        val captured = cleanupCredentials.get()
+        CloudApi(apiOwner, { captured }, { it == apiOwner }).use { api ->
             api.revoke(fingerprint, CloudTunnelPurpose.BROWSER)
         }
     })

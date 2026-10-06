@@ -27,7 +27,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun NativeCloudScreen(controller: CloudMachinesController?, onSettings: () -> Unit,
     onPlans: () -> Unit, modifier: Modifier = Modifier, connectionState: CloudTunnelState? = null,
-    onRetryConnection: () -> Unit = {}, onBasics: (() -> Unit)? = null) {
+    onRetryConnection: () -> Unit = {}, onBasics: (() -> Unit)? = null, vpnControl: (@Composable () -> Unit)? = null) {
     key(controller) {
         val state = controller?.state?.collectAsState()?.value ?: CloudMachinesState()
         var createSheet by rememberSaveable { mutableStateOf(false) }
@@ -51,6 +51,7 @@ private val cloudMuted = Color(0xFF9B9FA8)
             } else PullToRefreshBox(isRefreshing = state.phase == CloudCatalogPhase.LOADING && state.catalog.machines.isNotEmpty(),
                 onRefresh = controller::refresh, modifier = Modifier.weight(1f)) {
                 LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    vpnControl?.let { controls -> item { controls() } }
                     connectionState?.takeIf { it.phase in setOf(CloudTunnelPhase.STARTING, CloudTunnelPhase.READY, CloudTunnelPhase.FAILED) }?.let { connection -> item {
                         Column(Modifier.fillMaxWidth().testTag("cloud.connection").background(cloudPanel, RoundedCornerShape(16.dp)).padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)) {

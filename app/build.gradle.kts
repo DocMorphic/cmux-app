@@ -174,6 +174,8 @@ android {
         // OSGi module descriptors are not used by Android; keep notices in the APK.
         excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
     }
+    // Cloud uses the userspace Go backend; do not ship unused root/kernel executables.
+    packaging.jniLibs.excludes += setOf("**/libwg.so", "**/libwg-quick.so")
 
     buildFeatures {
         buildConfig = true
@@ -182,6 +184,7 @@ android {
 }
 
 dependencies {
+    implementation("com.wireguard.android:tunnel:1.0.20260102")
     implementation("org.mozilla.geckoview:geckoview:157.0.20260924084938")
     implementation(project(":legacy-biometric"))
     implementation(project(":iroh"))

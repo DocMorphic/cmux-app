@@ -986,3 +986,51 @@ state and actual service callbacks. Backlog cleanup scheduling beyond the bounde
 transition batches also needs integration. No live account request/VPN activation,
 APK rebuild or emulator occurred; ADB still reports no Pixel. Full Cloud VPN parity
 and the overall goal remain unverified.
+
+
+### Android VPN service and Cloud controls integrated — 2026-10-06
+
+The pinned official WireGuard Android library is now an app dependency.
+`NativeCloudVpnPlatform` parses the private configuration using its Config API,
+resolves endpoints on IO, and supplies literal endpoints to GoBackend. A shared
+native lock serializes native transitions against upstream service destruction;
+DNS runs before that lock. Account/permission/generation admission is checked
+before service start, immediately before native activation and after activation.
+A startup reservation retains service ownership even if cancellation wins the
+suspending wait. The controller then tears down a late start through its gate.
+
+`NativeCloudVpnService` subclasses the upstream service, adds a low-importance
+foreground notification with Disconnect, holds a shared-connection reference and
+reports attempt-scoped stop events. It is not exported, requires BIND_VPN_SERVICE,
+and declares the Android systemExempted foreground type. The unused upstream base
+service is removed from the merged manifest. Always-on is explicitly disabled and
+the service is not sticky; boot/start restoration is not yet claimed.
+
+`NativeCloudVpnRuntime` is owned by the shared native connections. The active service
+retains that owner across activity/tab closure, observes verified account/team
+changes and stops old routes before binding another account. Account setup failures
+can be retried. Revocation refreshes a coherent pair only while the original scope
+is still current; retirement uses the captured original owner, never replacement
+credentials. The Cloud management panel and Cloud basics VPN page now expose real
+status, explicit enable/disable, retry and Android VPN consent. Consent completion
+is tied to the captured team scope, so an account switch cannot enable a replacement
+account silently. The control explains that enabling replaces another system VPN,
+including Tailscale. No VPN is enabled automatically on visiting the page.
+
+Verification: **22 focused JVM checks passed**, main/test compilation passed,
+and debug/instrumentation APKs built (integration 66 seconds, final APK update 26
+seconds). All **22 packaged arm64 native libraries** pass 16 KiB LOAD/RELRO checks;
+APK ZIP alignment passes at 16 KiB. The protected service manifest, exclusion of
+root/kernel executables and packaged WireGuard notices were inspected. Final APK
+SHA-256: `269d2c6add618e1ddbbaa6fb691d2c6bce2545d07bf38a6b23d898e4e8398370`. Evidence:
+`captures/runtime/cloud-system-vpn-platform/`.
+
+Two additional Android backend checks compile into the test APK: loading the actual
+Go library/version without VPN activation and parsing a generated dual-stack private
+configuration. They have **not run**. ADB reports no Pixel, so actual consent,
+foreground-service startup, private browser reachability, notification disconnect,
+account switching, background survival and Tailscale transitions remain unverified.
+There was no live Cloud enrollment or device VPN activation, no emulator and no
+signed release promotion. Remaining implementation/audit work includes persisted
+service restart behavior, bounded backlog cleanup scheduling, and full source/UI
+comparison. The overall parity goal remains active.

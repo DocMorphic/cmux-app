@@ -3795,7 +3795,7 @@ internal fun NativeScreen(
                                 onPlans = { runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://cmux.com/pricing"))) }
                                     .onFailure { android.widget.Toast.makeText(context, "No browser is available to open cmux.com/pricing", android.widget.Toast.LENGTH_LONG).show() } },
                                 modifier = Modifier.weight(1f), connectionState = cloudTunnelState,
-                                onRetryConnection = { cloudTunnel?.retry() })
+                                onRetryConnection = { cloudTunnel?.retry() }, vpn = sharedConnections?.cloudVpn)
                             NativePrimaryNavigation(notificationTab, feedEntries.count { !it.notification.isRead }, searchState,
                                 onTab = { cloudTab = false; finishSearch(); notificationTab = it },
                                 onBeginSearch = {}, onEdit = { _, _ -> }, onSubmit = {}, onCancel = {}, cloudTab = true, onCloud = {})

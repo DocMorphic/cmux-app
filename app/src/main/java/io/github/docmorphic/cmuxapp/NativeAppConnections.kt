@@ -36,6 +36,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
         admitCompatibility = { team, client, host, tailscale -> compatibility.gate.admit(team, client, host, tailscale) },
         audience = compatibility.audience)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val cloudVpn = NativeCloudVpnRuntime(context.applicationContext, scope, account, store, teams)
     val accountDeletion = NativeAccountDeletionController(scope, store::load, store::update) { login ->
         NativeAccountDeletionClient({ account.deletionCredentials(login) }, { store.taskSession() == login }).delete()
     }
@@ -232,7 +233,7 @@ internal class NativeAppConnections private constructor(context: Context) : Auto
             activityOwners.clear()
             applicationActive.value = IrxProbeActivity(false, applicationActive.value.revision + 1)
         }
-        compatibility.close(); presence.close(); ssh.close(); scope.cancel(); tailscale.close(); native.close(); teams.close()
+        cloudVpn.close(); compatibility.close(); presence.close(); ssh.close(); scope.cancel(); tailscale.close(); native.close(); teams.close()
     }
 
     class Handle internal constructor(val connections: NativeAppConnections) : AutoCloseable {

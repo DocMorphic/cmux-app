@@ -35,7 +35,7 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
 @Composable internal fun NativeCloudFlow(controller: CloudMachinesController?, onSettings: () -> Unit,
     onPlans: () -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier,
     connectionState: CloudTunnelState? = null, onRetryConnection: () -> Unit = {},
-    progressStore: CloudOnboardingStore? = null) {
+    progressStore: CloudOnboardingStore? = null, vpn: NativeCloudVpnRuntime? = null) {
     val context = LocalContext.current.applicationContext
     val store = remember(context, progressStore) { progressStore ?: run {
         val prefs = context.getSharedPreferences("native_onboarding", android.content.Context.MODE_PRIVATE)
@@ -45,23 +45,24 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
     var completed by remember(store) { mutableStateOf(store.completed) }
     var replay by rememberSaveable { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    val vpnControl: (@Composable () -> Unit)? = vpn?.let { runtime -> { NativeCloudVpnControl(runtime) } }
     Box(modifier.fillMaxSize()) {
         if (completed) NativeCloudScreen(controller, onSettings, onPlans, Modifier.fillMaxSize(), connectionState,
-            onRetryConnection, onBasics = { replay = true })
+            onRetryConnection, onBasics = { replay = true }, vpnControl = vpnControl)
         else NativeCloudIntroduction(false, error, onComplete = {
             runCatching { store.complete() }.onSuccess { completed = true; error = null }
                 .onFailure { error = it.message ?: "Could not save Cloud introduction progress. Try again." }
-        }, onBack = onBack)
+        }, onBack = onBack, vpnControl = vpnControl)
     }
     if (replay) ModalBottomSheet(onDismissRequest = { replay = false },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         NativeCloudIntroduction(true, null, onComplete = { replay = false }, onBack = { replay = false },
-            modifier = Modifier.fillMaxWidth().weight(1f, fill = false))
+            modifier = Modifier.fillMaxWidth().weight(1f, fill = false), vpnControl = vpnControl)
     }
 }
 
 @Composable internal fun NativeCloudIntroduction(replay: Boolean, error: String?, onComplete: () -> Unit,
-    onBack: () -> Unit, modifier: Modifier = Modifier) {
+    onBack: () -> Unit, modifier: Modifier = Modifier, vpnControl: (@Composable () -> Unit)? = null) {
     val pager = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val page = pager.settledPage
@@ -100,9 +101,10 @@ internal class CloudOnboardingStore(private val read: () -> Boolean, private val
                         textAlign = if (wide) TextAlign.Start else TextAlign.Center, modifier = Modifier.semantics { heading() })
                     Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = if (wide) TextAlign.Start else TextAlign.Center)
-                    if (index == 1) Text("Private-service access through Android's system VPN is not available yet.",
+                    if (index == 1 && vpnControl == null) Text("System VPN controls are unavailable in this session.",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.testTag("cloud.introduction.vpn.status"))
+                    if (index == 1) vpnControl?.invoke()
                 }
             }
             val visual: @Composable () -> Unit = {
