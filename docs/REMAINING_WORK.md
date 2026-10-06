@@ -26,6 +26,13 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Terminal composition now preserves selected text and selection direction during
+  IME surrounding deletion; hardware Backspace removes a selection or a complete
+  grapheme locally. **Six Android checks passed in 24.136 s** on the existing
+  Android 17 / 16 KiB AVD, which was stopped/reaped afterward. See
+  `TERMINAL_SHORTCUTS.md` for source mapping, APK hashes and the pretest System UI
+  ANR baseline. Physical Gboard/keyboard and Pixel/Mac acceptance remain open.
+
 - Automatic browser recovery now passes through the real routed Activity/service/
   SOCKS proxy. Integration found WebView's generic (-1) mapping for tunnel failures,
   now covered by the bounded GET retry. **Three Android cases passed in 39.069 s**

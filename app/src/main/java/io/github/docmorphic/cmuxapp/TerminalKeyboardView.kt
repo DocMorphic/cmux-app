@@ -111,7 +111,7 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
             return true
         }
         val composing = connection?.hasComposition() == true
-        if (keyCode == KeyEvent.KEYCODE_DEL && composing) return connection?.deleteSurroundingTextInCodePoints(1, 0) == true
+        if (keyCode == KeyEvent.KEYCODE_DEL && composing) return connection?.backspaceComposition() == true
         if (keyCode == KeyEvent.KEYCODE_ESCAPE && composing) connection?.clearBuffer()
         else if (!KeyEvent.isModifierKey(keyCode)) finishComposition()
         return onKey(event) || super.onKeyDown(keyCode, event)
@@ -222,13 +222,35 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
             if (value.isNotEmpty()) onText(value)
             return true
         }
+        fun backspaceComposition(): Boolean {
+            if (!ready()) return false
+            val start = minOf(Selection.getSelectionStart(buffer), Selection.getSelectionEnd(buffer)).coerceIn(1, buffer.length)
+            val end = maxOf(Selection.getSelectionStart(buffer), Selection.getSelectionEnd(buffer)).coerceIn(1, buffer.length)
+            val boundaries = android.icu.text.BreakIterator.getCharacterInstance(java.util.Locale.ROOT).apply { setText(buffer.toString()) }
+            // Hardware Backspace deletes the selection, or one complete grapheme
+            // before a caret. It is not the IME's surrounding-text operation.
+            if (!boundaries.isBoundary(start) || !boundaries.isBoundary(end)) return false
+            val from = if (start != end) start else boundaries.preceding(start).coerceAtLeast(1)
+            buffer.delete(from, end)
+            Selection.setSelection(buffer, from)
+            if (buffer.length == 1) clearBuffer()
+            else { showComposition(buffer.toString().removePrefix("\u200b")); updateSelection() }
+            return true
+        }
         override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean = delete(beforeLength, afterLength, false)
         override fun deleteSurroundingTextInCodePoints(beforeLength: Int, afterLength: Int): Boolean = delete(beforeLength, afterLength, true)
         private fun delete(before: Int, after: Int, codePoints: Boolean): Boolean {
             if (!ready() || before !in 0..4096 || after !in 0..4096) return false
             if (hasComposition()) {
-                val cursor = Selection.getSelectionStart(buffer).coerceAtLeast(1)
-                val end = Selection.getSelectionEnd(buffer).coerceAtLeast(cursor)
+                val selectionStart = Selection.getSelectionStart(buffer).coerceIn(1, buffer.length)
+                val selectionEnd = Selection.getSelectionEnd(buffer).coerceIn(1, buffer.length)
+                val cursor = minOf(selectionStart, selectionEnd)
+                val end = maxOf(selectionStart, selectionEnd)
+                // A malformed selection inside a surrogate pair cannot be kept
+                // intact while deleting its other half. Leave the composition alone.
+                fun splitsPair(offset: Int) = offset > 1 && offset < buffer.length &&
+                    Character.isLowSurrogate(buffer[offset]) && Character.isHighSurrogate(buffer[offset - 1])
+                if (splitsPair(cursor) || splitsPair(end)) return false
                 var from = if (codePoints) Character.offsetByCodePoints(buffer, cursor,
                     -minOf(before, Character.codePointCount(buffer, 1, cursor))) else (cursor - before).coerceAtLeast(1)
                 var to = if (codePoints) Character.offsetByCodePoints(buffer, end,
@@ -236,8 +258,12 @@ class TerminalKeyboardView(context: Context) : TextView(context) {
                 // Some IMEs request UTF-16 deletion one unit at a time; never retain half a code point.
                 if (from > 1 && from < buffer.length && Character.isLowSurrogate(buffer[from]) && Character.isHighSurrogate(buffer[from - 1])) from--
                 if (to > 1 && to < buffer.length && Character.isLowSurrogate(buffer[to]) && Character.isHighSurrogate(buffer[to - 1])) to++
-                buffer.delete(from, to)
-                Selection.setSelection(buffer, from)
+                // InputConnection excludes selected text. Delete the suffix first
+                // so the prefix offsets remain valid, preserving selection direction.
+                buffer.delete(end, to)
+                buffer.delete(from, cursor)
+                val removedBefore = cursor - from
+                Selection.setSelection(buffer, selectionStart - removedBefore, selectionEnd - removedBefore)
                 if (buffer.length == 1) clearBuffer()
                 else { showComposition(buffer.toString().removePrefix("\u200b")); updateSelection() }
             } else {

@@ -205,3 +205,48 @@ LOAD/RELRO checks. SHA-256:
 This verifies synthetic events using Android's real virtual key map and a
 loopback Mac fixture. It does not claim physical keyboard layout, Pixel/Mac or
 latency acceptance. No signed release changed; the existing emulator was stopped.
+
+
+## Selected composition and hardware Backspace — 2026-10-07
+
+Scoped source comparison used upstream iOS commit
+`186cec79781256867ad4516f0802118738bd2393`,
+`Packages/iOS/CmuxMobileTerminal/Sources/CmuxMobileTerminal/TerminalInputTextView.swift`:
+`deleteBackward` keeps marked text local and removes a Swift Character;
+`setMarkedText`/`unmarkText` separate the pending candidate from committed input.
+This scoped comparison does not advance the global parity pin.
+
+Android's [InputConnection deletion contract](https://developer.android.com/reference/android/view/inputmethod/InputConnection#deleteSurroundingText(int,%20int))
+excludes selected text from surrounding deletion. The terminal editor previously
+removed the selected text as well and collapsed reversed selections. It now
+removes the suffix and prefix separately, preserves selection direction and the
+anchor, and rejects selection endpoints inside a surrogate pair. Outer UTF-16
+boundaries continue to expand to keep complete code points.
+
+Hardware Backspace has a separate composition path: it removes the selection or
+one preceding grapheme without sending bytes to the terminal. Android ICU
+[character boundaries](https://developer.android.com/reference/android/icu/text/BreakIterator#getCharacterInstance(java.util.Locale))
+keep combining accents, joined emoji, flags and skin-tone modifiers together.
+Selection endpoints inside a grapheme are rejected without altering the candidate.
+
+### Verification
+
+Debug and instrumentation APK builds passed. All **six Android cases passed in
+24.136 seconds** on the existing API 37 / 16 KiB AVD: four composition cases plus
+the existing stopped-editor and temporary-pause lifecycle cases. These use the
+production InputConnection/Editable, synthetic hardware events and a bare test
+Activity; they do not establish physical Gboard, keyboard or Pixel/Mac acceptance.
+No account or remote terminal fixture is involved. Coverage includes forward and
+reversed selection, zero/oversized surrounding deletion, UTF-16/code-point APIs,
+surrogate rejection, grapheme Backspace, anchor retention and commit-once behavior.
+
+Evidence is retained locally in `captures/runtime/ime-selected-composition/`.
+The emulator had a System UI startup ANR before testing; it was dismissed and
+recorded in the pretest event baseline. No new ANR/crash event appeared during
+the test run; the crash buffer was empty. The emulator was stopped and reaped.
+SHA-256:
+
+- Debug: `27796bc79cefeeb0ea0e79c0a91e7c8e0d9600ec7f5eb1821395538bd8b2f25c`
+- Test: `95149647cbbabcfb2d8825c8a4b131099c7c4bf6ecc0e158d0a5db8d995c60c1`
+
+No signed APK was published and broader IME/platform acceptance remains open.
