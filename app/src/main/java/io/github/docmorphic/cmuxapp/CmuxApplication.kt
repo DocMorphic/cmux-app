@@ -53,6 +53,7 @@ class CmuxApplication : Application() {
         runCatching { MobileDiagnostics.install(this, if (process.endsWith(":browser")) DiagnosticRole.BROWSER else DiagnosticRole.APP) }
         MobileDiagnostics.event(DebugOperation.APP_START)
         if (process == packageName) FileSaveWork.recover(this)
+        ArtifactPlaybackSessions.recover(this)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             private var visible = 0
             override fun onActivityStarted(activity: Activity) { if (visible++ == 0) {

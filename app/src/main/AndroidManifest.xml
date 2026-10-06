@@ -23,6 +23,14 @@
         android:usesCleartextTraffic="true">
         <provider android:name="org.mozilla.gecko.GeckoClipboardContentProvider"
             android:exported="false" tools:replace="android:exported" />
+        <provider android:name=".ArtifactPlaybackAccountProvider"
+            android:authorities="${applicationId}.media-playback-account" android:exported="false" />
+        <activity android:name=".MediaPlaybackActivity" android:exported="false"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation" />
+        <activity android:name=".BrowserMediaPlaybackActivity" android:exported="false" android:process=":browser"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation" />
         <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
         <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
         <meta-data android:name="firebase_messaging_notification_delegation_enabled" android:value="false" />

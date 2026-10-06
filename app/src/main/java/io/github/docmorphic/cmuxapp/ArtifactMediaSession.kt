@@ -52,7 +52,7 @@ internal class ArtifactMediaSession(
         if (closed) return
         if (playing) hasPlayed = true
         val available = current() != null && state.foreground && state.failure == null
-        val active = available && hasPlayed
+        val active = available && (hasPlayed || state.systemPlaybackOwner)
         if (session.isActive != active) session.isActive = active
         val nextMetadata = title to state.duration
         if (metadata != nextMetadata) {

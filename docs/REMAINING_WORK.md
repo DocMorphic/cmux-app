@@ -25,6 +25,15 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- Video picture-in-picture feature batch implemented in the shared media viewer,
+  with dedicated main/browser playback Activities, independent private file
+  lifetime, account retirement, system controls and paused return bookmarks.
+  Main and instrumentation Kotlin compilation and **15 JVM cases passed**.
+  Two new Android cases are compiled and queued for the next combined milestone;
+  actual PiP, browser handoff, lifecycle/track retention and physical acceptance
+  remain unverified. No APK/device run or additional AVD for this batch.
+  See [MEDIA_PICTURE_IN_PICTURE.md](MEDIA_PICTURE_IN_PICTURE.md).
+
 - Combined notice feed/UI milestone: **all 11 distinct Android cases now have
   passing evidence** across initial and focused follow-up runs; **22 JVM cases
   passed**. This covers regular/compact/scroll archive layouts, replay without

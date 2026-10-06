@@ -1,5 +1,7 @@
 package io.github.docmorphic.cmuxapp
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -42,6 +44,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
 import java.io.File
 
 private fun Context.previewActivity(): Activity? = when (this) {
@@ -54,6 +58,8 @@ private fun Context.previewActivity(): Activity? = when (this) {
 internal class ArtifactMediaState {
     var position by mutableIntStateOf(0)
     var duration by mutableIntStateOf(0)
+    var videoWidth by mutableIntStateOf(0)
+    var videoHeight by mutableIntStateOf(0)
     var speed by mutableFloatStateOf(1f)
     var muted by mutableStateOf(false)
     var fullscreen by mutableStateOf(false)
@@ -70,6 +76,7 @@ internal class ArtifactMediaState {
     var captionText by mutableStateOf<String?>(null)
     var captionScale by mutableFloatStateOf(1f)
     var foreground = false
+    var systemPlaybackOwner = false
     var view: ArtifactMediaView? = null
     fun capture() { view?.capturePosition() }
     companion object {
@@ -120,6 +127,10 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
                 seeking = false
                 state.prepared = true
                 state.duration = duration.coerceAtLeast(0)
+                state.videoWidth = player.videoWidth; state.videoHeight = player.videoHeight
+                player.setOnVideoSizeChangedListener { _, width, height ->
+                    if (!released && state.view === this) { state.videoWidth = width; state.videoHeight = height }
+                }
                 trackController?.close()
                 trackController = ArtifactMediaTrackController(context, player, state) { !released && state.view === this && this.player === player }
                     .also { it.prepare() }
@@ -152,7 +163,7 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         sourceFile = file
         trackController?.close(); trackController = null
         if (!retainFocus) abandonAudio()
-        player?.setOnSeekCompleteListener(null); player = null
+        player?.setOnSeekCompleteListener(null); player?.setOnVideoSizeChangedListener(null); player = null
         seeking = false; state.prepared = false; state.failure = null; state.controlFailure = null
         setVideoURI(Uri.fromFile(file))
         publishPlayback()
@@ -281,7 +292,7 @@ internal class ArtifactMediaView(context: Context, private val state: ArtifactMe
         mediaSession.close()
         trackController?.close(); trackController = null
         abandonAudio(); focus.close()
-        player?.setOnSeekCompleteListener(null); player = null
+        player?.setOnSeekCompleteListener(null); player?.setOnVideoSizeChangedListener(null); player = null
         setOnPreparedListener(null); setOnCompletionListener(null); setOnErrorListener(null); setOnInfoListener(null)
         stopPlayback()
         if (state.view === this) { state.prepared = false; state.view = null }
@@ -293,6 +304,33 @@ internal fun ChangesMediaPreview(file: File) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val state = rememberSaveable(file.absolutePath, saver = ArtifactMediaState.saver(context)) { ArtifactMediaState() }
+    val handoffScope = rememberCoroutineScope()
+    var pipBusy by remember(file) { mutableStateOf(false) }
+    val playback = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) result.data?.let { data ->
+            ArtifactPlaybackBookmark.result(data).applyTo(state)
+            // Resume this viewer at the returned bookmark, paused, with its selected tracks.
+            state.view?.open(file)
+        }
+    }
+    fun pictureInPicture() {
+        if (pipBusy) return
+        val bookmark = ArtifactPlaybackBookmark.capture(state)
+        state.view?.pause(); pipBusy = true
+        handoffScope.launch {
+            var pending: String? = null
+            try {
+                val (id, intent) = ArtifactPlaybackSessions.prepare(context.applicationContext, file, bookmark)
+                pending = id; ensureActive(); playback.launch(intent); pending = null
+            } catch (failure: Exception) {
+                ensureActive(); state.controlFailure = "Couldn't open picture-in-picture. You can keep watching here."
+            } finally {
+                pending?.let(ArtifactPlaybackSessions::cancel); pipBusy = false
+            }
+        }
+    }
+    val pipAction: (() -> Unit)? = if (context.packageManager.hasSystemFeature(
+        android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) ::pictureInPicture else null
     DisposableEffect(lifecycle, state) {
         state.foreground = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
         val observer = LifecycleEventObserver { _, event ->
@@ -337,15 +375,16 @@ internal fun ChangesMediaPreview(file: File) {
                 onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
             }
             Surface(Modifier.fillMaxSize(), color = Color.Black) {
-                ArtifactMediaContent(file, state, Modifier.safeDrawingPadding()) { fullscreen(false) }
+                ArtifactMediaContent(file, state, Modifier.safeDrawingPadding(), pipBusy = pipBusy, onPictureInPicture = pipAction) { fullscreen(false) }
             }
         }
-    } else ArtifactMediaContent(file, state) { fullscreen(true) }
+    } else ArtifactMediaContent(file, state, pipBusy = pipBusy, onPictureInPicture = pipAction) { fullscreen(true) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ArtifactMediaContent(file: File, state: ArtifactMediaState, modifier: Modifier = Modifier, onFullscreen: () -> Unit) {
+internal fun ArtifactMediaContent(file: File, state: ArtifactMediaState, modifier: Modifier = Modifier,
+    showControls: Boolean = true, pipBusy: Boolean = false, onPictureInPicture: (() -> Unit)? = null, onFullscreen: () -> Unit) {
     var speedMenu by remember { mutableStateOf(false) }
     var scrub by remember { mutableStateOf<Float?>(null) }
     var resumeAfterScrub by remember { mutableStateOf(false) }
@@ -367,7 +406,7 @@ private fun ArtifactMediaContent(file: File, state: ArtifactMediaState, modifier
                     color = Color.White, fontSize = (20f * state.captionScale).sp, textAlign = TextAlign.Center)
             }
         }
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        if (showControls) Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             Slider(value = shownPosition.toFloat().coerceIn(0f, state.duration.coerceAtLeast(1).toFloat()),
                 valueRange = 0f..state.duration.coerceAtLeast(1).toFloat(), enabled = state.prepared && state.duration > 0,
                 onValueChange = { value ->
@@ -385,7 +424,7 @@ private fun ArtifactMediaContent(file: File, state: ArtifactMediaState, modifier
                 Text(ArtifactMediaControls.time(state.duration))
             }
         }
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+        if (showControls) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             TextButton(enabled = state.prepared, modifier = Modifier.semantics { contentDescription = "Back 10 seconds" },
                 onClick = { state.view?.seekTo(ArtifactMediaControls.seek(state.position, -10_000, state.duration)) }) { Text("−10s") }
             TextButton(enabled = state.prepared, onClick = { if (state.playRequested) state.view?.pause() else state.view?.start() }) {
@@ -395,8 +434,8 @@ private fun ArtifactMediaContent(file: File, state: ArtifactMediaState, modifier
                 onClick = { state.view?.seekTo(ArtifactMediaControls.seek(state.position, 10_000, state.duration)) }) { Text("+10s") }
             TextButton(enabled = state.prepared, onClick = { state.view?.pause(); state.view?.seekTo(0) }) { Text("Restart") }
         }
-        ArtifactMediaTrackMenus(state)
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+        if (showControls) ArtifactMediaTrackMenus(state)
+        if (showControls) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             Box {
                 TextButton(enabled = state.prepared, onClick = { speedMenu = true },
                     modifier = Modifier.semantics { contentDescription = "Playback speed"; stateDescription = "${state.speed}×" }) {
@@ -411,6 +450,10 @@ private fun ArtifactMediaContent(file: File, state: ArtifactMediaState, modifier
             }
             TextButton(enabled = state.prepared, onClick = { state.view?.toggleMute() }) { Text(if (state.muted) "Unmute" else "Mute") }
             TextButton(onClick = onFullscreen) { Text(if (state.fullscreen) "Exit fullscreen" else "Fullscreen") }
+            if (onPictureInPicture != null && state.videoWidth > 0 && state.videoHeight > 0)
+                TextButton(enabled = state.prepared && !pipBusy, onClick = onPictureInPicture) {
+                    Text(if (pipBusy) "Opening player…" else "Picture in picture")
+                }
         }
     }
 }
