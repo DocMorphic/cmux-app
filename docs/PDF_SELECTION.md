@@ -23,8 +23,9 @@ The existing Page text dialog and accessible read/copy action remain available.
   They place handles and resolve movement along rotated/skewed glyph advances.
   Bidi direction reverses run edges where appropriate. Normalized ligature runs
   retain their whole glyph span, and drag endpoints do not split surrogate pairs.
-- Copy selection, Select page, Select all and Clear selection wrap at narrow
-  widths. Android Back clears an active selection before dismissing the viewer.
+- Copy, Select all, Select page and Clear selection use Android's native floating
+  selection menu; they no longer insert rows above the document. Android Back
+  clears an active selection before dismissing the viewer.
   Page accessibility actions can start selection without a long press; handle
   actions move the endpoint backward or forward through text boundaries.
 - Saved state contains only four integers (two page/UTF-16-offset positions).
@@ -117,3 +118,33 @@ This closes the listed fixture checks. Select-all/cancellation and broader
 font/layout/rotation/accessibility behavior, clipboard limits, process death,
 physical Pixel/Mac acceptance and matched iOS visuals still require verification.
 The Pixel was absent. These results do not establish full PDFKit or app parity.
+
+## Floating selection controls — source checkpoint, 2026-10-06
+
+The fixed two-row selection strip is replaced by a native floating
+`ActionMode.TYPE_FLOATING` menu. It exposes system-localized Copy/Select all plus
+Select page and Clear selection. The content rectangle is supplied in the
+originating Compose view's coordinates, clipped to selected visible pages. It
+handles reversed ranges, hidden endpoints and selections spanning the viewport;
+unrelated/offscreen pages do not acquire a selection menu. The menu hides while
+scrolling, dragging a handle, copying, or backgrounded. Disposing the viewer
+finishes its action mode; framework dismissal during recreation/backgrounding
+does not clear the independently saved selection.
+
+Copy progress overlays the viewport rather than consuming document height.
+Page accessibility actions retain Copy selection, Select all text and Clear
+selection independently of the floating menu, alongside read/select-page actions.
+Opening Page text clears the on-page selection before opening its text controls.
+The scoped iOS source at `186cec7` was rechecked and still delegates document
+interaction to PDFKit; this does not establish a matched-device visual result.
+Android positioning follows the [ActionMode.Callback2 contract](https://developer.android.com/reference/android/view/ActionMode.Callback2).
+
+**11 focused JVM checks passed** (six toolbar geometry, five existing selection),
+and main/instrumentation Kotlin compilation passed in **25 seconds**. The existing
+cross-page drag/recreation/clipboard test now uses the native Copy label and
+asserts that starting selection leaves the page viewport unchanged. That updated
+Android case is **compiled, not executed**. Visual menu positioning, overflow,
+handle dragging, high zoom/rotation, TalkBack and large-font behavior remain for
+the next combined viewer milestone. No APK, emulator, new AVD or Pixel state was
+changed; Gradle was stopped. Evidence: ignored local
+`captures/runtime/pdf-selection-toolbar/verification.json` and compile/test output.

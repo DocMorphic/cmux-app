@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.IntOffset
@@ -26,8 +28,10 @@ private data class PdfSelectionDrag(val anchor: Boolean, val fixed: PdfTextPosit
 /** Overlay siblings keep handle drags out of the page's pinch/scroll recognizers. */
 @Composable
 internal fun PdfSelectionHandles(state: PdfSelectionState, pdf: ChangesPdfDocument, scroll: LazyListState,
-    zoom: PreviewZoomTransform, width: Float, height: Float, documentWidth: Int, inset: (Int) -> Float) {
+    zoom: PreviewZoomTransform, width: Float, height: Float, documentWidth: Int, inset: (Int) -> Float,
+    onCopy: () -> Unit) {
     var drag by remember(state) { mutableStateOf<PdfSelectionDrag?>(null) }
+    var origin by remember { mutableStateOf<Offset?>(null) }
     val density = LocalDensity.current
     val edge = with(density) { 48.dp.toPx() }
     val factor = width / documentWidth * zoom.scale
@@ -68,7 +72,22 @@ internal fun PdfSelectionHandles(state: PdfSelectionState, pdf: ChangesPdfDocume
             if (fraction != 0f && scroll.scrollBy(fraction * edge * 9 * seconds) != 0f) latestMove(moving)
         }
     }
-    Box(Modifier.fillMaxSize().clipToBounds()) {
+    val range = state.range
+    val bounds = range?.let {
+        val forward = it.anchor <= it.focus
+        pdfSelectionToolbarBounds(it, caretPoint(if (forward) state.anchorCaret else state.focusCaret),
+            caretPoint(if (forward) state.focusCaret else state.anchorCaret),
+            scroll.layoutInfo.visibleItemsInfo.map { item ->
+                val size = pdf.pageSizes[item.index]
+                val left = width / 2 - size.first * factor / 2 + zoom.x * width
+                val top = item.offset + inset(item.index) * width
+                PdfSelectionViewportPage(item.index, PdfTextBounds(left, top, left + size.first * factor, top + size.second * factor))
+            }, width, height, edge / 2)
+    }?.let { b -> origin?.let { o -> PdfTextBounds(b.left + o.x, b.top + o.y, b.right + o.x, b.bottom + o.y) } }
+    PdfSelectionToolbar(bounds, drag == null && !scroll.isScrollInProgress && !state.copying &&
+        state.anchorCaret != null && state.focusCaret != null,
+        onCopy, { state.selectPage(scroll.firstVisibleItemIndex) }, { state.selectAll() }, { state.clear() })
+    Box(Modifier.fillMaxSize().clipToBounds().onGloballyPositioned { origin = it.positionInRoot() }) {
         for (anchor in listOf(true, false)) key(anchor) {
             val caret = if (anchor) state.anchorCaret else state.focusCaret
             val moving = drag?.takeIf { it.anchor == anchor }

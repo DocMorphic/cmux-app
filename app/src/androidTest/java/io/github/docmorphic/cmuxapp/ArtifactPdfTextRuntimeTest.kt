@@ -85,7 +85,8 @@ class ArtifactPdfTextRuntimeTest {
             val factor = first.width() / 300f
             val x = (first.left + firstX * factor).toInt(); val y = (first.top + firstY * factor).toInt()
             device.swipe(x, y, x, y, 140)
-            find(By.text("Copy selection")); find(By.desc("PDF selection start"))
+            find(By.text(context.getString(android.R.string.copy))); find(By.desc("PDF selection start"))
+            assertEquals("Selecting text must not move or resize the PDF viewport", first, find(By.desc("PDF page 1 of 2")).visibleBounds)
             val focus = find(By.desc("PDF selection end")).visibleBounds
             val second = find(By.desc("PDF page 2 of 2")).visibleBounds
             // Handles track the glyph baseline, while the touch target extends below it.
@@ -112,7 +113,7 @@ class ArtifactPdfTextRuntimeTest {
             device.takeScreenshot(File(evidence, "before-recreation.png"))
             device.dumpWindowHierarchy(File(evidence, "before-recreation.xml"))
             scenario.recreate()
-            find(By.text("Copy selection")); find(By.desc("PDF selection end"))
+            find(By.text(context.getString(android.R.string.copy))); find(By.desc("PDF selection end"))
             val screenshot = File(evidence, "cross-page-restored.png")
             device.takeScreenshot(screenshot)
             val bitmap = android.graphics.BitmapFactory.decodeFile(screenshot.path)
@@ -125,8 +126,8 @@ class ArtifactPdfTextRuntimeTest {
                 }
                 assertTrue("Selection has no visible blue highlights", selectedPixels > 100)
             } finally { bitmap.recycle() }
-            find(By.text("Copy selection")).click()
-            check(device.wait(Until.gone(By.text("Copy selection")), 10_000))
+            find(By.text(context.getString(android.R.string.copy))).click()
+            check(device.wait(Until.gone(By.text(context.getString(android.R.string.copy))), 10_000))
             scenario.onActivity {
                 val copied = context.getSystemService(ClipboardManager::class.java).primaryClip?.getItemAt(0)?.text.toString()
                 assertEquals("CMUX first needle\nCMUX second needle", copied.trim())

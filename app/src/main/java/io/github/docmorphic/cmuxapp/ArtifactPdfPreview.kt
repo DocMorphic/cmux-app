@@ -62,6 +62,9 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val textSelection = rememberPdfSelection(pdf)
+    fun copySelection() = textSelection.copy { text ->
+        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("PDF text", text))
+    }
     BackHandler(textSelection.range != null) { textSelection.clear() }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -196,7 +199,7 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
         }
         if (pdf.supportsText) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             TextButton(onClick = { textSelection.clear(); searchOpen = !searchOpen }) { Text(if (searchOpen) "Close search" else "Search document") }
-            TextButton(onClick = { selectionX = -1f; selectionY = -1f; textPage = scroll.firstVisibleItemIndex }) { Text("Page text") }
+            TextButton(onClick = { textSelection.clear(); selectionX = -1f; selectionY = -1f; textPage = scroll.firstVisibleItemIndex }) { Text("Page text") }
         }
         if (searchOpen && pdf.supportsText) {
             OutlinedTextField(query, { query = it.take(1024); matchIndex = 0; searchNavigationPending = query.isNotBlank() }, singleLine = true,
@@ -209,14 +212,6 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
             }
             if (searching) LinearProgressIndicator(progress = { scanned.toFloat() / pdf.pageSizes.size.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
             searchFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        }
-        if (textSelection.range != null) FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            TextButton(enabled = !textSelection.copying, onClick = { textSelection.copy { text ->
-                context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("PDF text", text))
-            } }) { Text(if (textSelection.copying) "Copying…" else "Copy selection") }
-            TextButton(onClick = { textSelection.selectPage(scroll.firstVisibleItemIndex) }) { Text("Select page") }
-            TextButton(onClick = { textSelection.selectAll() }) { Text("Select all") }
-            TextButton(onClick = { textSelection.clear() }) { Text("Clear selection") }
         }
         textSelection.failure?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         actionFailure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -242,6 +237,7 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
                         if (inset(index) > 0f) Spacer(Modifier.height(viewportWidthDp * inset(index)))
                         PdfDocumentPage(pdf, index, matches.filter { it.page == index }, selected, zoom, documentWidth, textSelection.range,
                             onClearSelection = { textSelection.clear() }, onSelectPage = { textSelection.selectPage(index) },
+                            onCopySelection = ::copySelection, onSelectAll = { textSelection.selectAll() },
                             onDoubleTap = { point ->
                                 val item = scroll.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
                                 if (item != null) {
@@ -252,12 +248,14 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
                                     gesture.anchor = null
                                 }
                             }, onLink = ::open, onText = { point -> textSelection.selectWord(index, point.x, point.y) },
-                            onPageText = { selectionX = -1f; selectionY = -1f; textPage = index })
+                            onPageText = { textSelection.clear(); selectionX = -1f; selectionY = -1f; textPage = index })
                     }
                 }
             }
             if (textSelection.range != null) PdfSelectionHandles(textSelection, pdf, scroll, zoom,
-                width, height, documentWidth, ::inset)
+                width, height, documentWidth, ::inset, ::copySelection)
+            if (textSelection.copying) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter)
+                .semantics { contentDescription = "Copying PDF selection" })
         }
     }
 }
@@ -265,7 +263,8 @@ private fun PdfDocumentContent(pdf: ChangesPdfDocument) {
 @Composable
 private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<PdfTextMatch>, selected: PdfTextMatch?, zoom: PreviewZoomTransform,
     documentWidth: Int, selection: PdfTextSelection?, onClearSelection: () -> Unit, onSelectPage: () -> Unit, onDoubleTap: (Offset) -> Unit,
-    onLink: (PdfLinkTarget) -> Unit, onText: (Offset) -> Unit, onPageText: () -> Unit) {
+    onLink: (PdfLinkTarget) -> Unit, onText: (Offset) -> Unit, onPageText: () -> Unit,
+    onCopySelection: () -> Unit, onSelectAll: () -> Unit) {
     val pageSize = pdf.pageSizes[index]
     val selectionText by produceState<PdfCompatibilityTextPage?>(null, pdf, index, selection != null) {
         value = null
@@ -301,6 +300,9 @@ private fun PdfDocumentPage(pdf: ChangesPdfDocument, index: Int, matches: List<P
             contentDescription = "PDF page ${index + 1} of ${pdf.pageSizes.size}"
             customActions = (if (pdf.supportsText) listOf(CustomAccessibilityAction("Read or copy page text") { onPageText(); true },
                 CustomAccessibilityAction("Select page text") { onSelectPage(); true }) else emptyList()) +
+                (if (selection != null) listOf(CustomAccessibilityAction("Copy selection") { onCopySelection(); true },
+                    CustomAccessibilityAction("Select all text") { onSelectAll(); true },
+                    CustomAccessibilityAction("Clear selection") { onClearSelection(); true }) else emptyList()) +
                 links.map { link -> CustomAccessibilityAction(when (val target = link.target) {
                     is PdfLinkTarget.Page -> "Go to page ${target.index + 1}"
                     is PdfLinkTarget.External -> "Open ${target.url}"

@@ -25,6 +25,14 @@ and currently disabled; the upstream watcher is active on main with review issue
 
 ## Current delivery and next actions
 
+- PDF selection now uses a native floating Copy/Select all/Select page/Clear menu
+  instead of rows that change document height. It follows visible selection bounds,
+  hides during scroll/handle drag/copy and retains accessible page actions.
+  **11 JVM checks passed** and main/instrumentation compilation passed; the changed
+  device test checks stable viewport geometry but is queued for the next combined
+  viewer milestone. No APK/emulator was built or launched. See
+  [PDF_SELECTION.md](PDF_SELECTION.md#floating-selection-controls--source-checkpoint-2026-10-06).
+
 - Large push dismissals now split into deterministic provider-sized parts with
   complete ID coverage and atomic local queue admission. Late capacity, identity,
   storage or authorization failures cannot admit only a prefix. **61 Node checks
